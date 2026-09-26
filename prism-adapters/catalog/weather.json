@@ -1,0 +1,88 @@
+{
+  "id": "weather",
+  "name": "Weather (NWS)",
+  "url": "https://www.weather.gov/",
+  "adapter": "weather",
+  "aspectHint": "4:3",
+  "audio": "mute",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "static HTML forecast page, no media element and no EME call - verified by fetch 2026-09-01 (SM-2); no docs/reports/ run needed for a page with nothing to decode"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "current-conditions",
+      "label": "Current conditions",
+      "selector": "current-conditions"
+    },
+    {
+      "id": "seven-day",
+      "label": "7-day forecast",
+      "selector": "seven-day"
+    }
+  ],
+  "facetPresets": {
+    "4:3·M": [
+      {
+        "id": "current-conditions",
+        "label": "Current conditions",
+        "selector": "current-conditions",
+        "zoom": 1.5,
+        "pad": 8,
+        "fit": "width",
+        "notes": "the Kitchen Classic weather role: temperature + sky readable from across the room"
+      }
+    ],
+    "4:3": [
+      {
+        "id": "current-conditions",
+        "label": "Current conditions",
+        "selector": "current-conditions",
+        "zoom": 1.3,
+        "pad": 8,
+        "fit": "width"
+      }
+    ],
+    "3:4": [
+      {
+        "id": "current-conditions",
+        "label": "Current conditions",
+        "selector": "current-conditions",
+        "zoom": 1.4,
+        "pad": 8,
+        "fit": "width"
+      }
+    ],
+    "16:9": [
+      {
+        "id": "seven-day",
+        "label": "7-day forecast",
+        "selector": "seven-day",
+        "zoom": 1.1,
+        "pad": 8,
+        "fit": "width"
+      }
+    ],
+    "21:9-strip": [
+      {
+        "id": "seven-day",
+        "label": "7-day forecast",
+        "selector": "seven-day",
+        "zoom": 1,
+        "pad": 6,
+        "fit": "width"
+      }
+    ]
+  },
+  "notes": "National Weather Service point forecasts. Search your town on weather.gov, then cut the facet from the forecast page (forecast.weather.gov/MapClick.php?...) - presets frame that page. No account, no ads."
+}

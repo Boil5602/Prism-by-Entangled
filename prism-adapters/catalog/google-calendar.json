@@ -1,0 +1,63 @@
+{
+  "id": "google-calendar",
+  "name": "Google Calendar",
+  "url": "https://calendar.google.com/calendar/u/0/r/agenda",
+  "adapter": "google-calendar",
+  "aspectHint": "3:4",
+  "audio": "mute",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "web app with no media playback and no EME call (nothing to decode); no docs/reports/ run applies - recorded 2026-09-01 (SM-2)"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "agenda",
+      "label": "Schedule (agenda)",
+      "selector": "agenda"
+    }
+  ],
+  "facetPresets": {
+    "3:4·M": [
+      {
+        "id": "agenda",
+        "label": "Agenda",
+        "selector": "agenda",
+        "zoom": 1.2,
+        "pad": 0,
+        "fit": "width",
+        "notes": "the Kitchen Classic calendar role"
+      }
+    ],
+    "3:4": [
+      {
+        "id": "agenda",
+        "label": "Agenda",
+        "selector": "agenda",
+        "zoom": 1.1,
+        "pad": 0,
+        "fit": "width"
+      }
+    ],
+    "9:16": [
+      {
+        "id": "agenda",
+        "label": "Agenda",
+        "selector": "agenda",
+        "zoom": 1.2,
+        "pad": 0,
+        "fit": "width"
+      }
+    ]
+  },
+  "notes": "Calendar utility, schedule view. Sign in inside App setup (sessions persist, §10). Merge - the Entangled family calendar - is the intended calendar role suggestion, but it has no public web URL yet; this entry is the honest stand-in until a merge entry exists."
+}

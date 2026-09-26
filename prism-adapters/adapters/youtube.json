@@ -1,0 +1,32 @@
+{
+  "match": [
+    "www.youtube.com"
+  ],
+  "version": "0.2.3",
+  "selectors": {
+    "subscriptions-feed": "ytd-browse[page-subtype='subscriptions'] #contents",
+    "player": "#movie_player"
+  },
+  "controls": {
+    "skip": ".ytp-skip-ad-button, .ytp-ad-skip-button",
+    "fullscreen": ".ytp-fullscreen-button"
+  },
+  "login": "https://accounts.google.com/ServiceLogin?service=youtube",
+  "session": {
+    "signedIn": "ytd-masthead #avatar-btn, #avatar-btn",
+    "signedOut": "ytd-masthead a[href*=\"ServiceLogin\"], ytd-masthead ytd-button-renderer a[href*=\"accounts.google.com\"]",
+    "verified": "signedIn: the masthead avatar button exists only with an account; signedOut: the masthead's Sign in link goes to accounts.google.com. English/any locale (structural). Unverified against every YouTube experiment; the wizard degrades to 'mark it' when neither matches."
+  },
+  "js": "(function(){if(window.__prismYtAd)return;window.__prismYtAd=true;var last=null,lastSkip=null,armed=null;var SKIP='.ytp-skip-ad-button,.ytp-ad-skip-button,.ytp-ad-skip-button-modern';function tick(){try{var p=document.querySelector('.html5-video-player');var ad=!!(p&&(p.classList.contains('ad-showing')||p.classList.contains('ad-interrupting')));if(ad!==last){last=ad;if(window.frame&&frame.adBreak)frame.adBreak(ad);}if(ad&&window.frame&&frame.adInfo){var rem=-1,cnt=null;var d=p.querySelector('.ytp-ad-duration-remaining,[class*=ad-duration-remaining]');if(d){var m1=(d.textContent||'').match(/(\\d{1,2}):(\\d{2})/);if(m1)rem=60*+m1[1]+ +m1[2];}if(rem<0){var v=p.querySelector('video');try{if(v&&isFinite(v.duration)&&v.duration>0&&v.duration<600)rem=Math.max(0,v.duration-v.currentTime);}catch(e2){}}var bs=p.querySelectorAll('.ytp-ad-text,[class*=ad-badge],[class*=ad-info]');for(var j=0;j<bs.length;j++){var mmc=(bs[j].textContent||'').match(/(\\d+)\\s*of\\s*(\\d+)/i);if(mmc){cnt=mmc[1]+' of '+mmc[2];break;}}frame.adInfo(cnt,rem);}var sk=document.querySelector(SKIP);var vis=!!(sk&&sk.offsetWidth>0&&sk.offsetHeight>0);if(vis!==lastSkip){lastSkip=vis;if(window.frame&&frame.skipAvailable)frame.skipAvailable(vis,SKIP);}}catch(e){}}var o=new MutationObserver(tick);function arm(){var p=document.querySelector('.html5-video-player');if(p&&p!==armed){armed=p;o.disconnect();o.observe(p,{attributes:true,attributeFilter:['class']});}}setInterval(function(){arm();tick();},700);arm();tick();})();",
+  "presentation": {
+    "enterFullscreen": ".ytp-fullscreen-button",
+    "enterTheater": ".ytp-size-button",
+    "play": ".ytp-play-button[aria-label^=\"Play\"], .ytp-play-button[aria-label^=\"Replay\"]"
+  },
+  "verified": {
+    "presentation.enterFullscreen": "same control as controls.fullscreen (long-standing .ytp-* player chrome)",
+    "presentation.enterTheater": ".ytp-size-button is the player chrome theater/default toggle; unverified 2026-09-01 that it reads as theater when already in theater (the keeper only fires after a drop, so it toggles INTO theater)",
+    "presentation.play": "state-conditioned on the button aria-label (Play / Replay) so it never pauses; English UI"
+  },
+  "notes": "§26 presentation actions are invocable ONLY through core presentation keeper (a standing per-assignment instruction); nothing else in core or the shell reads the presentation block."
+}

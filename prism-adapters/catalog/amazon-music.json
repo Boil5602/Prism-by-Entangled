@@ -1,0 +1,32 @@
+{
+  "id": "amazon-music",
+  "name": "Amazon Music",
+  "url": "https://music.amazon.com/",
+  "kind": "floating",
+  "float": {
+    "x": 0.62,
+    "y": 0.76,
+    "w": 0.36,
+    "h": 0.2,
+    "face": "control"
+  },
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "unverified",
+    "evidence": "2026-09-09: not yet run in the WebView2 tile. Amazon Music's web player streams protected audio; whether it negotiates Widevine in the tile (as Spotify does, software tier) is the first thing the live run must show - eme.log will say. EMBED (pending)."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "\u00a732 floating player: Prism's own control up, the Amazon Music web player beneath. Flip to the page to sign in and pick music; flip back to listen. Added as a source on request (2026-09-09); the adapter's page-side selectors are unverified until a signed-in run on the wall."
+}

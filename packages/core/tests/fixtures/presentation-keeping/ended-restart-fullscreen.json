@@ -1,0 +1,46 @@
+{
+  "name": "ended-restart-fullscreen",
+  "spec": "onEnd restart-fullscreen: at the player's ended event replay AND restore presentation (the drop the site makes at video end)",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "restart-fullscreen"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 100000,
+      "kind": "ended"
+    },
+    {
+      "t": 100050,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 100500,
+      "kind": "playing"
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 100000,
+        "action": "play",
+        "facet": "hulu-hero"
+      },
+      {
+        "t": 100050,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ],
+    "toleranceMs": 100
+  }
+}

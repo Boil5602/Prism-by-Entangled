@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_description">Lets Prism show intermission scenery over streaming apps during their ad breaks and offer a Skip button you press yourself. Prism reads only the listed streaming apps\' on-screen controls to notice ads and a Skip option; it never presses anything on its own, and it reads nothing else.</string>
+</resources>

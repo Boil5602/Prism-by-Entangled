@@ -1,0 +1,28 @@
+{
+  "id": "rain-window",
+  "name": "Rain on the Window",
+  "blurb": "Rain running down a night window; the blurred lights beyond pulse with the bands, the rain falls harder as it gets louder.",
+  "program": "rain-window",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#5CC8C0",
+    "#F0A83C",
+    "#C86CF0",
+    "#A8C8FF"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "appletv",
+  "name": "Apple TV",
+  "url": "https://tv.apple.com/",
+  "adapter": "appletv",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - PROVISIONAL (2026-09-21): the signed-in run is pending; the tier is software until the row is read."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "Apple TV on the web (tv.apple.com). One Apple Account per sign-in and no profile picker: the account IS the profile (several sign-ins side by side is a later feature). Sign in inside the tile; sessions persist (section 10)."
+}

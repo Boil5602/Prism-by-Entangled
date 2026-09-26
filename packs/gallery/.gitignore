@@ -1,0 +1,9 @@
+# Image bytes are maintainer-fetched, never committed (concept-scenes §3.1):
+#   node scripts/fetch-pack.mjs gallery
+# pack.json, LICENSES.md and bundled.txt ARE tracked - they are the provenance
+# record, and a fresh clone gates green without a single byte present.
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.avif

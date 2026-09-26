@@ -1,0 +1,70 @@
+{
+  "id": "apple-music",
+  "name": "Apple Music",
+  "url": "https://music.apple.com/",
+  "kind": "floating",
+  "float": {
+    "x": 0.62,
+    "y": 0.76,
+    "w": 0.36,
+    "h": 0.2,
+    "face": "control"
+  },
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/music-webview2-poc.md section 3.2 / 2.2 - MusicKit's signed-out capability sniff ran com.microsoft.playready in the WebView2 tile and was granted; audio-only PlayReady granted at '', 150, 2000 and 3000, audio-only Widevine at SW_SECURE_CRYPTO. EMBED (capability-verified, playback pending user run - section 5); the key system MusicKit picks when signed in decides whether 'hardware' applies."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "library",
+      "label": "Your library (recently added)",
+      "selector": null,
+      "url": "https://music.apple.com/library/recently-added"
+    },
+    {
+      "id": "songs",
+      "label": "Your songs",
+      "selector": null,
+      "url": "https://music.apple.com/us/library/songs"
+    }
+  ],
+  "notes": "§32 floating player: Prism's own control up, the Apple Music page beneath. Flip to the page to sign in and pick music; flip back to listen. Next / previous run the site's own Media Session handlers. Facets default to the LIBRARY page, not the site root: music.apple.com/ is a marketing page whose only media element is a short promo loop, which the §32 observer reports as now-playing (found on the wall 2026-09-03).",
+  "facetPresets": {
+    "16:9·XL": [
+      {
+        "id": "library",
+        "label": "Your library (recently added)",
+        "selector": null,
+        "url": "https://music.apple.com/library/recently-added",
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Music Lounge's hidden source: a page with the household's own music and a play control on it, not the marketing home page. HTTP 200 (no locale segment) 2026-09-03 by curl - but MusicKit's SPA was observed redirecting this route to /us/home in the WebView on the same day, so the landing page is NOT guaranteed by the URL alone. What actually decides where the tile lands is the §10 resume hint (tile:lasturl, ledger B-2): navigate once in the revealed player and that page is what comes back."
+      }
+    ],
+    "16:9": [
+      {
+        "id": "library",
+        "label": "Your library (recently added)",
+        "selector": null,
+        "url": "https://music.apple.com/library/recently-added",
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "any 16:9 slot"
+      }
+    ]
+  }
+}

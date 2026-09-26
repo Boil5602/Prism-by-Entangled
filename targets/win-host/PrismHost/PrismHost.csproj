@@ -1,0 +1,93 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>PrismHost</RootNamespace>
+    <Platforms>x64</Platforms>
+    <Platform>x64</Platform>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <ApplicationIcon>Assets\prism.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Unpackaged, self-contained (win-host-spec §11): no MSIX during M1,
+         Windows App SDK runtime carried inside the build output. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <EnableMsixTooling>false</EnableMsixTooling>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <!-- §32 Layer 1 / win-host-spec §6: WASAPI loopback capture for the visualizer FFT (Services/Audio) -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PrismHost.Core\PrismHost.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The brain page and the core runtime bundle (built by `npm run bundle`
+         in packages/core). The bundle is REFERENCED from core's dist — the one
+         brain, never forked into the host tree (§23). -->
+    <Content Include="Assets\brain\brain.html" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the Prism mark (the extension's icon, the same prism): the grip at the top, the window and the taskbar (2026-09-09) -->
+    <Content Include="Assets\prism-icon.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\prism.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\packages\core\dist\prism-runtime.js" Link="Assets\brain\prism-runtime.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\demo-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- docs/concept-scenes.md §6: the first-party micro-facets, served at
+         https://tiles.prism/ from this folder (SurfaceManager maps it). Everything
+         they need ships here - stylesheet, script and the §24 chime; the pages
+         reach no network at all, which scripts/verify-tile-assets.mjs enforces. -->
+    <Content Include="Assets\tiles\**\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\credits\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- scene-model-spec §6a: the prism:// route registry (generated from core's routes.ts; the host router matches against it) -->
+    <Content Include="..\..\..\packages\core\routes.registry.json" Link="Assets\routes.registry.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- dashboard-schema §32: visualization style packs (data, validated by core's tests) -->
+    <Content Include="..\..\..\packages\core\data\visualization-styles\*.json" Link="Assets\visualization-styles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- B-31: a fresh clone has no packages/core/dist/prism-runtime.js; produce it the way the gate does
+       (npm run bundle in packages/core) before the Content copy above needs it. Skipped when present -
+       `npm run bundle` after a core change stays the way to refresh it. -->
+  <Target Name="EnsureRuntimeBundle" BeforeTargets="BeforeBuild;AssignTargetPaths" Condition="!Exists('..\..\..\packages\core\dist\prism-runtime.js')">
+    <Message Importance="high" Text="prism-runtime.js missing - bundling core (npm run bundle in packages/core)" />
+    <Exec Command="npm run bundle" WorkingDirectory="..\..\..\packages\core" />
+  </Target>
+
+  <!-- concept-scenes §3.1 imagery packs (§26/§27). The manifests are tracked repo
+       data; the image bytes are git-ignored and maintainer-fetched, so a fresh
+       clone stages the manifests only, the host finds no files, and the veil
+       degrades to its dark substrate - never a broken veil, never a build break.
+       stage-packs.mjs rewrites each staged pack.json to exactly the bundled.txt
+       subset it copied, so the device can never read an attribution for an image
+       that is not there (and never show an image with no attribution, §5). -->
+  <Target Name="StageImageryPacks" BeforeTargets="AssignTargetPaths" Condition="Exists('..\..\..\packs')">
+    <Exec Command="node scripts/stage-packs.mjs --dest=targets/win-host/PrismHost/Assets/packs --quiet" WorkingDirectory="..\..\.." ContinueOnError="true" />
+    <ItemGroup>
+      <Content Include="Assets\packs\**\*.json;Assets\packs\**\*.jpg;Assets\packs\**\*.jpeg;Assets\packs\**\*.png;Assets\packs\**\*.webp;Assets\packs\**\*.avif" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <!-- catalog + adapter selector tables (spec 31), straight from the staged
+         adapter repo; the picker reads these, posters are FETCHED at runtime. -->
+    <Content Include="..\..\..\prism-adapters\catalog\*.json" Exclude="..\..\..\prism-adapters\catalog\_*.json" Link="Assets\catalog\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\prism-adapters\adapters\*.json" Link="Assets\adapters\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\prism-adapters\cosmetic\*.txt" Link="Assets\cosmetic\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- the compiled XAML and the app's resource index go with a publish (2026-09-25): an unpackaged WinUI publish leaves App.xbf, MainWindow.xbf
+       and PrismHost.pri behind in the build output, and the published exe died at launch ("Cannot locate resource from ms-appx:///MainWindow.xaml";
+       the laptop zip of 2026-09-24 "did nothing") -->
+  <Target Name="PrismXamlOnPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_PrismXaml Include="$(OutDir)*.xbf;$(OutDir)$(TargetName).pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PrismXaml)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Prism: XAML and PRI copied to the publish (@(_PrismXaml->Count()) files)" />
+  </Target>
+</Project>

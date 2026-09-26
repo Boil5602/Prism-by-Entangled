@@ -1,0 +1,247 @@
+{
+  "schema": "prism.imagery-pack/v0.1",
+  "id": "gallery",
+  "name": "Gallery",
+  "blurb": "Public-domain paintings from open museum collections.",
+  "source": {
+    "name": "Art Institute of Chicago — Open Access",
+    "url": "https://api.artic.edu/"
+  },
+  "requiresCreator": true,
+  "images": [
+    {
+      "file": "aic-76571.jpg",
+      "title": "View of Cotopaxi",
+      "creator": "Frederic Edwin Church",
+      "date": "1857",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Jennette Hamlin in memory of Mr. and Mrs. Louis Dana Webster",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Frederic Edwin Church, View of Cotopaxi (1857) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/76571",
+      "sha256": "64a573bf23b7f5ed4aee0ae98ff1989c8b20c9cbe1f7a4794f742c74cca353da",
+      "w": 1686,
+      "h": 1119
+    },
+    {
+      "file": "aic-90048.jpg",
+      "title": "Distant View of Niagara Falls",
+      "creator": "Thomas Cole",
+      "date": "1830",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Friends of American Art Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Thomas Cole, Distant View of Niagara Falls (1830) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/90048",
+      "sha256": "da794da3f19926b44fbb94344c96de9eb6e75c956ba1d98f3c8401d47e24def6",
+      "w": 1686,
+      "h": 1306
+    },
+    {
+      "file": "aic-64724.jpg",
+      "title": "The Home of the Heron",
+      "creator": "George Inness",
+      "date": "1893",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Edward B. Butler Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "George Inness, The Home of the Heron (1893) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/64724",
+      "sha256": "997ae037b170a2b3d4b2c9551dcb645b85db97647833b72d46deca3954bd920e",
+      "w": 1686,
+      "h": 1103
+    },
+    {
+      "file": "aic-71971.jpg",
+      "title": "Mist Rising at Sunset in the Catskills",
+      "creator": "Sanford Robinson Gifford",
+      "date": "c. 1861",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Jamee J. and Marshall Field",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Sanford Robinson Gifford, Mist Rising at Sunset in the Catskills (c. 1861) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/71971",
+      "sha256": "5542c8e4a21cffdd753defd75a59abfaa5a24dc406dda61987de96e212a33d4a",
+      "w": 1686,
+      "h": 1102
+    },
+    {
+      "file": "aic-109228.jpg",
+      "title": "Near Newport",
+      "creator": "John Frederick Kensett",
+      "date": "1869",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Friends of American Art Collection; Goodman Fund",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "John Frederick Kensett, Near Newport (1869) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/109228",
+      "sha256": "b172edebc25f7c5910ec79806cd6eaf85780c99cce1a4f9efc4a5ddd307c3f58",
+      "w": 1686,
+      "h": 783
+    },
+    {
+      "file": "aic-100829.jpg",
+      "title": "Magnolias on Light Blue Velvet Cloth",
+      "creator": "Martin Johnson Heade",
+      "date": "1885–95",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Purchased with funds provided by Gloria and Richard Manney; Harold L. Stuart Endowment Fund",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Martin Johnson Heade, Magnolias on Light Blue Velvet Cloth (1885–95) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/100829",
+      "sha256": "559d865278abbe7691cdc5ff4aecaca0fe9ed16833baf8149c0ee0d47a839e7f",
+      "w": 1686,
+      "h": 1036
+    },
+    {
+      "file": "aic-27163.jpg",
+      "title": "Niagara Falls in Winter",
+      "creator": "Jasper Francis Cropsey",
+      "date": "1868",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "A. A. McKay Fund",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Jasper Francis Cropsey, Niagara Falls in Winter (1868) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/27163",
+      "sha256": "b5b14028d1ba69cafa4ad50388d95f0e434cea0fc442280b9a0b2acc5199a4e9",
+      "w": 1686,
+      "h": 1015
+    },
+    {
+      "file": "met-10481.jpg",
+      "title": "Heart of the Andes",
+      "creator": "Frederic Edwin Church",
+      "date": "1859",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Bequest of Margaret E. Dows, 1909",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Frederic Edwin Church, Heart of the Andes (1859) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10481",
+      "sha256": "e0be54abb9d69f4f924da4ab4e2ade23464cd134c0a0b534cd58c19187b63c81",
+      "w": 3811,
+      "h": 2099
+    },
+    {
+      "file": "met-10945.jpg",
+      "title": "Isola Bella in Lago Maggiore",
+      "creator": "Sanford Robinson Gifford",
+      "date": "1871",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Gift of Colonel Charles A. Fowler, 1921",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Sanford Robinson Gifford, Isola Bella in Lago Maggiore (1871) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10945",
+      "sha256": "f6b8802c6dc15f3c7c185311ff2e5072bbc397ddefe16561bfd9f7276d1ed84a",
+      "w": 3811,
+      "h": 2141
+    },
+    {
+      "file": "met-11311.jpg",
+      "title": "Lake George",
+      "creator": "John Frederick Kensett",
+      "date": "1869",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Bequest of Maria DeWitt Jesup, from the collection of her husband, Morris K. Jesup, 1914",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "John Frederick Kensett, Lake George (1869) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/11311",
+      "sha256": "a9c2a6f08d19629035179b79072dcb559a6eb115966b0a9a052ff065e1a0400b",
+      "w": 3811,
+      "h": 2577
+    },
+    {
+      "file": "met-11050.jpg",
+      "title": "Approaching Thunder Storm",
+      "creator": "Martin Johnson Heade",
+      "date": "1859",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Gift of Erving Wolf Foundation and Mr. and Mrs. Erving Wolf, in memory of Diane R. Wolf, 1975",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Martin Johnson Heade, Approaching Thunder Storm (1859) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/11050",
+      "sha256": "6847ffa5cf072e89826d0a37feff04ba33209f098a7148fd3383fbc2194d3e27",
+      "w": 1959,
+      "h": 1245
+    },
+    {
+      "file": "met-10793.jpg",
+      "title": "Landscape—Scene from \"Thanatopsis\"",
+      "creator": "Asher Brown Durand",
+      "date": "1850",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Gift of J. Pierpont Morgan, 1911",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Asher Brown Durand, Landscape—Scene from \"Thanatopsis\" (1850) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10793",
+      "sha256": "06cdc8d2dba8df2bfa30f0167b6b160d63e2b11376bcb04840268e931fce2eaa",
+      "w": 3811,
+      "h": 2489
+    },
+    {
+      "file": "met-10154.jpg",
+      "title": "The Rocky Mountains, Lander's Peak",
+      "creator": "Albert Bierstadt",
+      "date": "1863",
+      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
+      "creditLine": "Rogers Fund, 1907",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Albert Bierstadt, The Rocky Mountains, Lander's Peak (1863) — The Metropolitan Museum of Art, CC0 1.0",
+      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10154",
+      "sha256": "b0159f218c5363e2e6108eb01dde44cf96b10c3e25dc4b431d7d335daf942a2e",
+      "w": 3811,
+      "h": 2284
+    }
+  ]
+}

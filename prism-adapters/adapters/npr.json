@@ -1,0 +1,17 @@
+{
+  "match": [
+    "text.npr.org"
+  ],
+  "version": "0.1.0",
+  "selectors": {
+    "headlines": ".topic-container",
+    "headline-list": ".topic-container > ul",
+    "story": ".story-title"
+  },
+  "verified": {
+    "selectors.headlines": "verified 2026-09-01 by fetching text.npr.org (one .topic-container holding the ul of a.topic-title links)",
+    "selectors.headline-list": "verified as above",
+    "selectors.story": "class present in the page stylesheet; article pages not fetched"
+  },
+  "notes": "NPR text-only edition: a plain list of headlines, no scripts, ~550 px column - the ideal 8:1 ticker source at zoom. NPR is on the derived news shelf (Perennial Sources: generally reliable); the entry adds no editorial choice beyond that shelf. No sign-in."
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Prism music POC - EME audio-only probe</title>
+<style>body{background:#14171C;color:#F2F4F7;font:13px Consolas,monospace;padding:16px}</style>
+<h3>Prism music POC - EME audio-only probe</h3>
+<p id="status">running...</p>
+<pre id="out"></pre>
+<!-- served by the harness's LocalServer: /hold answers only after /result has been
+     POSTed, so the load event (and a headless --dump-dom) waits for the probe -->
+<img src="/hold" alt="" style="display:none">
+<script src="eme-probe.js"></script>
+<script>
+  // Edge headless: msedge --headless=new --dump-dom http://127.0.0.1:PORT/probe.html
+  // The result JSON is POSTed to /result (the harness reads it from its server) and
+  // also written between BEGIN/END markers in <pre id="out"> (spelled by concatenation
+  // so the marker text appears nowhere in the DOM but the output) as a fallback.
+  const M = 'PRISM-' + 'EME-';
+  async function deliver(obj) {
+    const json = JSON.stringify(obj);
+    document.getElementById('out').textContent = M + 'BEGIN\n' + json + '\n' + M + 'END';
+    document.title = M + 'DONE';
+    try { await fetch('/result', { method: 'POST', body: json, headers: { 'content-type': 'application/json' } }); } catch (e) {}
+  }
+  window.__prismRunEmeProbe().then(r => {
+    document.getElementById('status').textContent = 'done: ' + r.rows.length + ' rows';
+    deliver(r);
+  }, e => deliver({ fatal: String(e) }));
+</script>

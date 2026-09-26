@@ -1,0 +1,28 @@
+{
+  "id": "ocean-moon",
+  "name": "Moonlit Ocean",
+  "blurb": "A moon over open water; the swell rolls with the lows, the halo breathes with the loudness, the reflection shimmers.",
+  "program": "ocean-moon",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#A8C8FF",
+    "#5CC8C0",
+    "#3C6CA8",
+    "#ECECF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

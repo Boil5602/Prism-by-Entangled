@@ -1,0 +1,35 @@
+{
+  "id": "twitch",
+  "name": "Twitch",
+  "url": "https://www.twitch.tv/",
+  "adapter": "twitch",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "docs/reports/win-host-m1.md context — PROVISIONAL: not yet probed on this host. Streams observed as unencrypted HLS during extension work (2026-08); replace with a recorded probe when a Twitch tile runs in the host."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "following",
+      "label": "Following",
+      "selector": "following-page"
+    },
+    {
+      "id": "player",
+      "label": "Player only",
+      "selector": "player"
+    }
+  ],
+  "notes": "Channel pages autoplay; the §26 engine's Twitch markers live in the same-name adapter."
+}

@@ -1,0 +1,77 @@
+<Window
+    x:Class="PrismHost.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid x:Name="RootGrid" Background="#14171C" RequestedTheme="Dark" KeyboardAcceleratorPlacementMode="Hidden">
+        <Grid.Resources>
+            <!-- the app menu's presenter: substrate palette, dark regardless of
+                 where the popup roots (flyouts don't reliably inherit RequestedTheme) -->
+            <Style x:Key="PrismMenuPresenter" TargetType="MenuFlyoutPresenter">
+                <Setter Property="RequestedTheme" Value="Dark" />
+                <Setter Property="Background" Value="#F212131A" />
+                <Setter Property="BorderBrush" Value="#3AF0A83C" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="MinWidth" Value="260" />
+                <Setter Property="Padding" Value="4,6,4,6" />
+            </Style>
+        </Grid.Resources>
+        <!-- tiles + their overlay visuals live here, positioned absolutely -->
+        <Canvas x:Name="TileCanvas" Background="#14171C" SizeChanged="TileCanvas_SizeChanged" />
+        <!-- status line: diagnostics only (EME probe results, brain state) -->
+        <!-- Collapsed by default: this is a DEV readout (viewport rects, EME probe
+             results, brain state) and it sat along the bottom edge of a product
+             wall, on top of the visualization's progress bar. Device rail -
+             "Diagnostics on the wall" - turns it back on. -->
+        <TextBlock x:Name="StatusLine" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                   Margin="10,0,10,6" Foreground="#C0C8D2" FontSize="12" FontFamily="Consolas"
+                   IsHitTestVisible="False" Visibility="Collapsed" Text="" />
+        <!-- the pill (spec 30, minimal): quiet proof the engine is armed -->
+        <!-- 2026-09-18: the status feed - top centre under the menu grip, held while work is in hand, then fading away -->
+        <Border x:Name="PillBorder" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,34,0,0" Canvas.ZIndex="950"
+                Background="#CC12131A" CornerRadius="10" Padding="12,5,12,5">
+            <TextBlock x:Name="PillLine" Foreground="#F0A83C" FontSize="12" FontFamily="Consolas" Text="Prism" />
+        </Border>
+        <!-- the app menu grip: hangs off the top-center edge, dim until hovered,
+             above every tile and overlay (Canvas.ZIndex) so it survives the picker,
+             arrange mode and the chromeless full-screen presenter. F10 too. -->
+        <!-- The Video player's own page, one press from anywhere on the wall while that player is up (2026-09-20: "I still dont
+             understand how to get back to the main prism menu page ... for the video player"). Shown only then; Escape on the
+             bare video wall opens the same page. -->
+        <Border x:Name="WatchGrip" VerticalAlignment="Top" HorizontalAlignment="Center" Canvas.ZIndex="1000" Visibility="Collapsed"
+                Margin="230,0,0,0" Background="#CC12131A" BorderBrush="#3AF0A83C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10"
+                Padding="16,3,16,6" ToolTipService.ToolTip="Watch - the video player's page: continue watching, my list, live, services, search  (Esc)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+                <TextBlock Text="&#xE714;" FontFamily="Segoe MDL2 Assets" Foreground="#F0A83C" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="Watch" Foreground="#F0A83C" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+        <!-- The stage bar (2026-09-20): Prism's own transport over the service's player while the Video player is the wall -
+             the face, back / play / forward, next episode, captions, full screen, Watch. Shown on a tap on the screen or a
+             hover on the Watch tab; hides after six seconds. Content is built in MainWindow.VideoHub.cs from core's videoState. -->
+        <!-- The stage curtain (2026-09-21, "hopefully you're rendering the site code in the background and making the universal
+             player show as little of this as possible"): from a pick until the player is on the stage, the wall shows its own face -
+             the card's artwork, the title, "Starting on <service>…" - over the service's pages loading beneath. Lifted when the
+             stage is up, on the page's error (said here, with Retry), on a timeout, on Esc or a tap. -->
+        <Grid x:Name="StageCurtain" Canvas.ZIndex="925" Visibility="Collapsed" Background="#FF0F1216">
+            <Image x:Name="CurtainArt" Stretch="UniformToFill" Opacity="0.28" />
+            <StackPanel x:Name="CurtainBody" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14" MaxWidth="1100" />
+        </Grid>
+        <Border x:Name="StageBar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Canvas.ZIndex="1000" Visibility="Collapsed"
+                Margin="0,0,0,18" Background="#F812131A" BorderBrush="#3AF0A83C" BorderThickness="1" CornerRadius="12" Padding="14,8,14,8">
+            <StackPanel Spacing="8">
+                <StackPanel x:Name="StageBarBody" Orientation="Horizontal" Spacing="8" />
+                <StackPanel x:Name="StageNext" Visibility="Collapsed" />
+            </StackPanel>
+        </Border>
+        <Border x:Name="MenuGrip" VerticalAlignment="Top" HorizontalAlignment="Center" Canvas.ZIndex="1000"
+                Background="#CC12131A" BorderBrush="#3AF0A83C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10"
+                Padding="16,3,14,6" ToolTipService.ToolTip="Prism menu  (F10)">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+                <Image x:Name="GripIcon" Width="16" Height="16" VerticalAlignment="Center" />
+                <TextBlock Text="Prism" Foreground="#F0A83C" FontSize="12" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#F0A83C" FontSize="9" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

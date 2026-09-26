@@ -1,0 +1,22 @@
+{
+  "name": "prism",
+  "private": true,
+  "description": "PRISM by Entangled — open-source dashboard frames. Monorepo: prism-core and (later) editor, remote-ui, conformance, shells.",
+  "license": "GPL-3.0-or-later",
+  "workspaces": [
+    "packages/*",
+    "shells/daemon"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "android:assets": "npm run bundle --workspace prism-core && node -e \"const fs=require('fs');fs.copyFileSync('packages/core/dist/prism-runtime.js','shells/android/app/src/main/assets/prism-runtime.js');console.log('copied prism-runtime.js to android assets')\"",
+    "test:veil": "vitest run --config prototypes/prism-veil-extension/tests/vitest.config.mjs",
+    "build:veil": "esbuild packages/core/src/popups.ts --bundle --format=iife --global-name=PrismPopups --target=es2018 --outfile=prototypes/prism-veil-extension/src/core-popups.js --banner:js=\"/* GENERATED from packages/core/src/popups.ts by npm run build:veil - do not edit. */\" --footer:js=\"try { window.PrismPopups = PrismPopups; } catch (e) {}\" && esbuild packages/core/src/popups.ts --bundle --format=iife --global-name=PrismPopups --target=es2018 --outfile=prototypes/prism-veil-extension/src/core-popups-iso.js --banner:js=\"/* GENERATED copy of core-popups.js for the ISOLATED world - Chromium 151 injects a file listed in two content_scripts entries only once. Do not edit. */\" --footer:js=\"try { window.PrismPopups = PrismPopups; } catch (e) {}\" && esbuild packages/core/src/reclaimed.ts --bundle --format=iife --global-name=PrismReclaimed --target=es2018 --outfile=prototypes/prism-veil-extension/src/core-reclaimed.js --banner:js=\"/* GENERATED from packages/core/src/reclaimed.ts by build:veil - do not edit. */\" --footer:js=\"try { window.PrismReclaimed = PrismReclaimed; } catch (e) {}\"",
+    "gen:win-channel": "node scripts/generate-win-channel.mjs"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.11.9"
+  }
+}

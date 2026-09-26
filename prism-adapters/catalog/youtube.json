@@ -1,0 +1,20 @@
+{
+  "id": "youtube",
+  "name": "YouTube",
+  "url": "https://www.youtube.com/",
+  "adapter": "youtube",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": { "source": "site", "fallback": "wordmark" },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "Free playback is unencrypted; no EME requirement observed in any POC (webview2-poc.md, win-host-m1.md). Purchases/live-DRM would follow the software tier recorded for this host."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    { "id": "whole", "label": "Whole page", "selector": null },
+    { "id": "subs", "label": "Subscriptions", "selector": "subscriptions-feed" },
+    { "id": "player", "label": "Player only", "selector": "player" }
+  ],
+  "notes": "The §26 intermission adapter (ad-break markers, skip control) is the same-name adapter in this repo."
+}

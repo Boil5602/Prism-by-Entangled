@@ -1,0 +1,14 @@
+{
+  "$doc": "Allowlist-by-reason for scripts/verify-surface-coverage.mjs (win-host-spec §5 coverage invariant). `allow` = surfaces that legitimately run no §26/§27/§30 engine - every entry says WHY. `knownGaps` = surfaces that MUST get the engine and do not have it yet; each is debt tied to a ledger bug row (docs/bugs/LEDGER.md), never permission. The checker fails when a known gap's `missing` list stops matching reality (fixed -> delete the entry and close the row). Site ids are `<path under targets/win-host/PrismHost>::<enclosing method>`.",
+  "allow": [
+    {
+      "site": "Brain/BrainHost.cs::StartAsync",
+      "reason": "The brain WebView IS core itself: a 1x1, opacity-0, hit-test-invisible surface loading https://brain.prism/brain.html (a host-mapped local folder, never a third-party page). There is nothing to veil, no ads, no popups, and injecting the tile bootstrap into it would post surface events about the brain to the brain. The §26/§27/§30 engine is what runs INSIDE it."
+    },
+    {
+      "site": "MainWindow.LinkModal.cs::ShowLinkModal",
+      "reason": "The Credits link window (2026-09-25) shows Entangled's own pages only: its top-level navigation is refused for anything but https entangled.world and its subdomains, a new window opens in place only when it stays there and never otherwise, downloads are cancelled, and it keeps its own cookie folder apart from every service's. There is no third-party page to veil, no ad or popup to catch, and no surface for core to steer: it is a modal the person closes with X or Esc."
+    }
+  ],
+  "knownGaps": []
+}

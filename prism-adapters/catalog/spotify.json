@@ -1,0 +1,32 @@
+{
+  "id": "spotify",
+  "name": "Spotify",
+  "url": "https://open.spotify.com/",
+  "kind": "floating",
+  "float": {
+    "x": 0.62,
+    "y": 0.76,
+    "w": 0.36,
+    "h": 0.2,
+    "face": "control"
+  },
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/music-webview2-poc.md section 3.1 / 2.1 - Spotify's own signed-out client negotiated com.widevine.alpha in the WebView2 tile and was granted audio SW_SECURE_CRYPTO (AAC/HE-AAC/Opus), video SW_SECURE_DECODE; createMediaKeys + temporary session ok; PlayReady also granted. Audio-only Widevine is identical in Edge, so no hand-off case on capability. EMBED (capability-verified, playback pending user run - section 5)."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "§32 floating player: Prism's own control up, the Spotify web player beneath. Flip to the page to sign in and pick music; flip back to listen. Next / previous run the site's own Media Session handlers."
+}

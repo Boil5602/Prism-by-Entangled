@@ -1,0 +1,32 @@
+{
+  "name": "prism-core",
+  "version": "0.1.0",
+  "description": "The shared brain of every Prism frame: schema types and the deterministic hero-layout solver (spec §8). Shells decide nothing.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "tests/golden"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "golden:generate": "node scripts/generate-golden.mjs",
+    "bundle": "esbuild src/runtime.ts --bundle --format=iife --outfile=dist/prism-runtime.js",
+    "routes:generate": "node scripts/generate-routes-registry.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

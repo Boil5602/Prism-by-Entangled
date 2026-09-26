@@ -1,0 +1,32 @@
+[Adblock Plus 2.0]
+! Title: EasyList — bundled starter subset (element-hiding rules only)
+! Homepage: https://easylist.to/
+! Licence: https://easylist.to/pages/licence.html
+! Used by the Prism gallery veil (spec section 27) to LOCATE display-ad slots;
+! matched slots are filled with imagery inside their existing box.
+##.ad-banner
+##.ad-container
+##.ad-wrapper
+##.ad-slot
+##.ad-unit
+##.adsbygoogle
+##.advertisement
+##.advert
+##.banner-ad
+##.sidebar-ad
+##.sponsored-content
+##.sponsored-post
+##.native-ad
+##div[id^="google_ads_"]
+##div[id^="div-gpt-ad"]
+##div[data-ad-slot]
+##ins.adsbygoogle
+##[id^="ad-"]
+##[class*="ad-leaderboard"]
+##[class*="ad-rectangle"]
+##[class*="ad-skyscraper"]
+##iframe[src*="doubleclick.net"]
+##iframe[src*="googlesyndication.com"]
+##.OUTBRAIN
+##.taboola
+##[id^="taboola-"]

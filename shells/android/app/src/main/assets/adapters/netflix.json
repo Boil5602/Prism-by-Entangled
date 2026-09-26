@@ -1,0 +1,19 @@
+{
+  "match": [
+    "netflix.com"
+  ],
+  "capabilities": [],
+  "injectAt": "document-end",
+  "version": "2026.08.1",
+  "login": "https://www.netflix.com/login",
+  "shortcuts": [
+    {
+      "label": "Switch profile",
+      "url": "https://www.netflix.com/ProfilesGate"
+    },
+    {
+      "label": "Home",
+      "url": "https://www.netflix.com/browse"
+    }
+  ]
+}

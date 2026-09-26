@@ -1,0 +1,30 @@
+{
+  "id": "tubi",
+  "name": "Tubi",
+  "url": "https://tubitv.com/home",
+  "adapter": "tubi",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - signed in, 2026-09-19: PlayReady SW_SECURE_DECODE (2000), Widevine SW_SECURE_DECODE; 3 From Hell served 854x472 for its first 13 minutes (the title's own rendition, or the rendition ladder's floor - to read on a known-HD title). SOFTWARE: embedded."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "mylist",
+      "label": "My List",
+      "selector": "my-list"
+    }
+  ],
+  "notes": "Free, ad-supported; an account keeps Continue Watching and My List. Sign in inside the tile; sessions persist (§10). Ads are stitched into the stream with the player's own ad countdown; the adapter's observe-only script raises the section 26 veil on it."
+}

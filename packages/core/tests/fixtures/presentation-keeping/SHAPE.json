@@ -1,0 +1,77 @@
+{
+  "$doc": "Shape of every fixture in this folder (dashboard-schema §26 'Presentation keeping'). Agent 1's state machine consumes these; scripts/verify-presentation-fixtures.mjs and tests/presentation-keeping.test.ts run them. This file is documentation - the runner skips it.",
+  "contract": {
+    "module": "packages/core/src/presentation-keeper.ts (SM-1, scene-model/sm1-model)",
+    "api": "step(state: KeeperState, event: KeeperEvent, config: KeeperConfig) -> { state, actions: PresentationAction[] }; initialKeeperState(); keeperConfig({keepPresentation, onEnd}); run(events, config)",
+    "keeperEvent": "{ type: \"user-input\" | \"presentation\" | \"ad-break\" | \"ended\" | \"tick\", at: ms, state?, active? }",
+    "presentationAction": "{ kind: \"enterFullscreen\" | \"enterTheater\" | \"play\", reason: \"ad-break\" | \"ended\" | \"onEnd\" }",
+    "fixtureMapping": {
+      "{kind, t}": "-> {type, at}",
+      "input": "-> user-input (the machine attributes a drop to the human by proximity - USER_INPUT_MS - not by a cause field)",
+      "presentation.cause": "documentation for the reader; the machine infers it (dropped when adapting)",
+      "intermission{active}": "-> ad-break{active} (the controller's veil boundary is a boundary)",
+      "playing": "-> tick (no keeper semantics)",
+      "action.t": "= the at of the event that produced it; action.facet = the fixture facet id"
+    },
+    "adapter": "scripts/verify-presentation-fixtures.mjs viaStep() and tests/presentation-keeping.test.ts do this mapping; the machine itself is never edited to fit a fixture",
+    "machineConstants": "USER_INPUT_MS = 1000 (fixtures use options.inputWindowMs 1500 only for the runner's own I3 attribution; every fixture input->drop gap is <= 200 ms so both agree); CORRELATION_MS = 1500"
+  },
+  "fixture": {
+    "name": "kebab-case id, unique",
+    "spec": "the §26 sentence this exercises",
+    "facet": {
+      "id": "string",
+      "keepPresentation": "boolean",
+      "onEnd": "none | restart | restart-fullscreen"
+    },
+    "options": {
+      "inputWindowMs": "how long after a human input a drop of unknown cause is attributed to the human (default 1500)"
+    },
+    "events": "array of {t, kind, ...} sorted by t ascending (ms from fixture start)",
+    "expect": {
+      "actions": "array of {t, action, facet} the keeper must emit, in order - EXACT: nothing more, nothing less",
+      "toleranceMs": "optional; |emitted.t - expected.t| <= tolerance (default 0)"
+    },
+    "contestable": "optional true - the verifier's reading of an ambiguous spec sentence; Agent 1 may propose a change in review with the sentence cited"
+  },
+  "eventKinds": {
+    "presentation": {
+      "state": "fullscreen | theater | none",
+      "cause": "user | site | unknown",
+      "note": "the player's presentation state changed. cause=user when the adapter saw a human control fire; site when it correlates with the site's own boundary; unknown when the adapter cannot tell - the keeper then attributes it by the input window (a recent `input` => user) or a live/just-ended ad or ended signal (=> site)"
+    },
+    "input": {
+      "key": "Escape | Back | click | ...",
+      "note": "a genuine human input reached the page (the host forwards keys; the bootstrap posts pointerdown as 'interaction')"
+    },
+    "ad-break": {
+      "active": "boolean",
+      "note": "the adapter's frame.adBreak signal, raw (cover-slow debounce is the intermission controller's job, not the keeper's)"
+    },
+    "intermission": {
+      "active": "boolean",
+      "reason": "signal | timeout | doubt",
+      "note": "the intermission controller's veil state; active:false is a boundary even when no ad-break:false arrived (the §26 safety timeout)"
+    },
+    "ended": {
+      "note": "the player's ended event"
+    },
+    "playing": {
+      "note": "content playback resumed (after an ad, after a restart)"
+    },
+    "tick": {
+      "note": "time passes; nothing else. Lets a fixture assert that NOTHING happens for a while"
+    }
+  },
+  "actions": {
+    "enterFullscreen": "re-invoke the player's own fullscreen control (adapter-named presentation action)",
+    "enterTheater": "re-invoke the player's own theater control",
+    "play": "replay at ended (onEnd restart | restart-fullscreen)"
+  },
+  "invariants": {
+    "I1-no-action-during-ad": "no action may be emitted while an ad-break/intermission is active (restoration happens at the boundary the site created; presentation keeping never alters an ad)",
+    "I2-standing-instruction-only": "an enter* action requires facet.keepPresentation === true; a play action requires facet.onEnd !== 'none'. Any action without its standing instruction FAILS the fixture regardless of `expect` - this is the synthetic-interaction ban",
+    "I3-user-exit-never-fought": "after a user-caused drop (cause user, or unknown within inputWindowMs of an input), no enter* action until the human re-enters the state (a presentation event with cause user and state != none)",
+    "I4-restore-the-state-the-human-had": "the action restores the state last established by the human (fullscreen -> enterFullscreen, theater -> enterTheater), never a different one"
+  }
+}

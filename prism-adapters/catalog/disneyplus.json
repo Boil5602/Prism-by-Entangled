@@ -1,0 +1,30 @@
+{
+  "id": "disneyplus",
+  "name": "Disney+",
+  "url": "https://www.disneyplus.com/home",
+  "adapter": "disneyplus",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - signed in, 2026-09-20 17:12: Widevine SW_SECURE_DECODE, PlayReady 3000/2000 offered; Dance Moms served 1280x720. SOFTWARE: embedded."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "watchlist",
+      "label": "Watchlist",
+      "selector": "watchlist"
+    }
+  ],
+  "notes": "Disney+ (with Hulu inside it for bundle accounts). Profiles gate on entry. Sign in inside the tile; sessions persist (\u00a710). Ads on the With Ads plan: the adapter's observe-only watcher raises the section 26 veil."
+}

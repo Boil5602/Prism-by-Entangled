@@ -1,0 +1,32 @@
+{
+  "id": "pandora",
+  "name": "Pandora",
+  "url": "https://www.pandora.com/",
+  "kind": "floating",
+  "float": {
+    "x": 0.62,
+    "y": 0.76,
+    "w": 0.36,
+    "h": 0.2,
+    "face": "control"
+  },
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "docs/reports/music-webview2-poc.md section 3.3 - Pandora's signed-out web client made no EME call in the WebView2 tile (three audio elements, Media Session play/pause registered, nothing encrypted); the Widevine audio tier (SW_SECURE_CRYPTO) is available if Premium asks for it. EMBED (capability-verified, playback pending user run - section 5)."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "§32 floating player: Prism's own control up, the Pandora page beneath. Flip to the page to sign in and pick a station; flip back to listen. Skip runs the site's own Media Session handler (Pandora has no previous)."
+}

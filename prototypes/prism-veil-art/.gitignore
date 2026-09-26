@@ -1,0 +1,11 @@
+fetch.log
+hosted/
+hosted-cred/
+reports/
+candidates/thumbs/
+candidates/*.log
+candidates-*.log
+pool/*.jpg
+accept*.log
+publish.log
+candidates/sheet.html

@@ -1,0 +1,34 @@
+{
+  "name": "no-user-state-nothing-to-keep",
+  "spec": "the human never established a presentation state: a site drop of a state the human did not set restores nothing",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 36000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": []
+  }
+}

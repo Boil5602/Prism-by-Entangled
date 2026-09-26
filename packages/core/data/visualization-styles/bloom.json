@@ -1,0 +1,12 @@
+{
+  "id": "bloom",
+  "name": "Bloom",
+  "blurb": "Particle pulses on the beat, blooming from the center and drifting out.",
+  "program": "particles",
+  "bands": 24,
+  "palette": ["#C86CF0", "#F05C7A", "#F0A83C", "#5CC8C0"],
+  "background": "transparent",
+  "motion": { "speed": 1, "attack": 0.7, "release": 0.1, "beat": 1.0 },
+  "reducedMotion": { "speed": 0.15, "beat": 0.2 },
+  "params": { "maxParticles": 160, "burst": 14, "life": 1.8, "size": 0.02 }
+}

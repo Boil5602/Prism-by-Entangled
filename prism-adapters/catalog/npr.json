@@ -1,0 +1,63 @@
+{
+  "id": "npr",
+  "name": "NPR (text)",
+  "url": "https://text.npr.org/",
+  "adapter": "npr",
+  "aspectHint": "8:1",
+  "audio": "mute",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "plain HTML headline list, no media element and no EME call - verified by fetch 2026-09-01 (SM-2); no docs/reports/ run needed for a page with nothing to decode"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "headline-river",
+      "label": "Headlines",
+      "selector": "headline-list"
+    }
+  ],
+  "facetPresets": {
+    "8:1-ticker": [
+      {
+        "id": "headline-river",
+        "label": "Headline ticker",
+        "selector": "headline-list",
+        "zoom": 1.6,
+        "pad": 4,
+        "fit": "width",
+        "notes": "the top of the headline list, zoomed so one strip reads at distance; the facet scrolls the rest"
+      }
+    ],
+    "21:9-strip": [
+      {
+        "id": "headline-river",
+        "label": "Headlines",
+        "selector": "headline-list",
+        "zoom": 1.3,
+        "pad": 6,
+        "fit": "width"
+      }
+    ],
+    "16:9": [
+      {
+        "id": "headline-river",
+        "label": "Headlines",
+        "selector": "headlines",
+        "zoom": 1.2,
+        "pad": 8,
+        "fit": "width"
+      }
+    ]
+  },
+  "notes": "NPR text edition - the ticker-class news source out of the box. NPR qualifies for the derived news shelf (Wikipedia Perennial Sources: generally reliable); any shelf source or any URL can be a news facet too, this entry only carries the 8:1 tuning."
+}

@@ -1,0 +1,24 @@
+{
+  "id": "primevideo",
+  "name": "Prime Video",
+  "url": "https://www.primevideo.com/",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - PROVISIONAL (2026-09-19): signed out on this wall; the signed-in run is pending. Software until the row is read."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "Sign in inside the tile; sessions persist (§10)."
+}

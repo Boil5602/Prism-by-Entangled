@@ -1,0 +1,35 @@
+{
+  "id": "hulu",
+  "name": "Hulu",
+  "url": "https://www.hulu.com/hub/home",
+  "adapter": "hulu",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - signed in, 2026-09-19: PlayReady rejected, Widevine SW_SECURE_DECODE, served 1280x720 in the embedded tile (What We Do in the Shadows). Embedded at 720p by policy (spec section 13), not chased."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "live",
+      "label": "Live guide",
+      "selector": "live-guide"
+    },
+    {
+      "id": "mystuff",
+      "label": "My stuff",
+      "selector": "my-stuff"
+    }
+  ],
+  "notes": "Sign in inside the tile; sessions persist (§10)."
+}

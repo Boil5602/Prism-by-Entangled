@@ -1,0 +1,28 @@
+{
+  "id": "city-skyline",
+  "name": "City Skyline",
+  "blurb": "A skyline at night; every window is a band lit to its level, antenna lights blink on the beat.",
+  "program": "city-skyline",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#F0A83C",
+    "#5CC8C0",
+    "#C86CF0",
+    "#ECECF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

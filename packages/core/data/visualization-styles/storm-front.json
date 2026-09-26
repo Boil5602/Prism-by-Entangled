@@ -1,0 +1,28 @@
+{
+  "id": "storm-front",
+  "name": "Storm Front",
+  "blurb": "A storm on the horizon: rain, cloud banks lit from within, lightning on a strong beat.",
+  "program": "storm-front",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#A8C8FF",
+    "#ECECF0",
+    "#5C7CA8",
+    "#C86CF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

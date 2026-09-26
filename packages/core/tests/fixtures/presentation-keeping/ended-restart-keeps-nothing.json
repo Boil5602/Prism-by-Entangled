@@ -1,0 +1,40 @@
+{
+  "name": "ended-restart-keeps-nothing",
+  "spec": "onEnd restart with keepPresentation false: replay only - no presentation action without its own standing instruction (I2)",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": false,
+    "onEnd": "restart"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 100000,
+      "kind": "ended"
+    },
+    {
+      "t": 100050,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 100500,
+      "kind": "playing"
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 100000,
+        "action": "play",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

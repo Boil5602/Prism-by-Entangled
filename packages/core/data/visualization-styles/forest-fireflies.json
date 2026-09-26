@@ -1,0 +1,28 @@
+{
+  "id": "forest-fireflies",
+  "name": "Firefly Forest",
+  "blurb": "Fireflies drifting between dark trees, flickering with the highs; a warm glow behind the treeline breathes with the lows.",
+  "program": "forest-fireflies",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#F0E68C",
+    "#F0A83C",
+    "#5CF0B0",
+    "#A8D86C"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

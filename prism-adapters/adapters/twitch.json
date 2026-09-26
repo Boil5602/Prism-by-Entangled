@@ -1,0 +1,15 @@
+{
+  "match": [
+    "www.twitch.tv"
+  ],
+  "version": "0.2.4",
+  "selectors": {
+    "following-page": "main [data-a-target='following-page'], main .common-centered-column",
+    "player": ".video-player__container, [data-a-target='video-player']"
+  },
+  "controls": {
+    "fullscreen": "button[data-a-target='player-fullscreen-button']"
+  },
+  "login": "https://www.twitch.tv/login",
+  "js": "(function(){if(window.__prismTwAd)return;window.__prismTwAd=true;var last=null;var SEL=\".video-player [data-a-target='video-ad-label'],.video-player [data-a-target='video-ad-countdown'],.video-player [data-test-selector^='ad-banner'],[aria-label='Pause Ad'],[aria-label='Unmute Ad'],[aria-label^='Leave feedback for this Ad']\";function vis(e){return !!(e&&e.offsetWidth>0&&e.offsetHeight>0);}function mainPlayerAd(e){var an=e;for(var d=0;an&&d<14;d++,an=an.parentElement){if(!an.querySelector||!an.querySelector('video'))continue;var r=an.getBoundingClientRect();if(r.width>=400&&r.height>=200)return true;}return false;}function tick(){try{var path=location.pathname;if(path==='/'||path.indexOf('/directory')===0||path.indexOf('/search')===0){if(last!==false){last=false;if(window.frame&&frame.adBreak)frame.adBreak(false);}return;}var els=document.querySelectorAll(SEL),ad=false;for(var i=0;i<els.length;i++){var e=els[i];if(!vis(e))continue;if(e.closest&&e.closest('[class*=stream-display-ad],[class*=sda-]'))continue;if(!mainPlayerAd(e))continue;ad=true;break;}if(ad!==last){last=ad;if(window.frame&&frame.adBreak)frame.adBreak(ad);}if(ad&&window.frame&&frame.adInfo){var rem=-1,cnt=null;var cd=document.querySelector(\"[data-a-target='video-ad-countdown']\");var cm=cd&&(cd.textContent||'').match(/(\\d{1,2}):(\\d{2})/);if(cm)rem=60*+cm[1]+ +cm[2];var lb=document.querySelector(\"[data-a-target='video-ad-label']\");var lm=lb&&(lb.textContent||'').match(/(\\d+)\\s*of\\s*(\\d+)/i);if(lm)cnt=lm[1]+' of '+lm[2];frame.adInfo(cnt,rem);}}catch(e){}}setInterval(tick,700);window.__prismAdapterTick=tick;tick();})();"
+}

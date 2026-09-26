@@ -1,0 +1,109 @@
+{
+  "id": "prism-chores",
+  "name": "Chores & notes",
+  "url": "https://tiles.prism/chores/",
+  "adapter": "prism-tiles",
+  "aspectHint": "4:3",
+  "audio": "mute",
+  "account": "none",
+  "firstParty": true,
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "a first-party page the host serves from its own Assets/tiles - no media element, no EME call, no network request of any kind; the WebView2 surface it runs in is the one surveyed in docs/reports/win-host-m1.md"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "list",
+      "label": "The list only",
+      "selector": "chore-list"
+    },
+    {
+      "id": "notes",
+      "label": "Notes only",
+      "selector": "chore-notes"
+    }
+  ],
+  "facetPresets": {
+    "4:3·M": [
+      {
+        "id": "list-and-notes",
+        "label": "List and notes",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Kitchen Command's chores role: the page lays itself out for this class, so no region is cut - the whole page IS the facet"
+      },
+      {
+        "id": "list",
+        "label": "The list only",
+        "selector": "chore-list",
+        "zoom": 1,
+        "pad": 8,
+        "fit": "width"
+      }
+    ],
+    "1:1·M": [
+      {
+        "id": "list-and-notes",
+        "label": "List and notes",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Family Hub's chores role, portrait panel: same page, one column"
+      },
+      {
+        "id": "list",
+        "label": "The list only",
+        "selector": "chore-list",
+        "zoom": 1,
+        "pad": 8,
+        "fit": "width"
+      }
+    ],
+    "3:4": [
+      {
+        "id": "list-and-notes",
+        "label": "List and notes",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width"
+      }
+    ],
+    "9:16": [
+      {
+        "id": "list",
+        "label": "The list only",
+        "selector": "chore-list",
+        "zoom": 1,
+        "pad": 8,
+        "fit": "width",
+        "notes": "a tall narrow slot has no room for the notes area as well"
+      }
+    ],
+    "16:9": [
+      {
+        "id": "list-and-notes",
+        "label": "List and notes",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "wider than 3:2 the page puts the notes beside the list on its own"
+      }
+    ]
+  },
+  "notes": "Prism's own household list, served locally at https://tiles.prism/chores/ from the host's Assets/tiles. No account, no sign-in, no network: the list and the notes live in this device's store (§10, never wiped) and are editable from a paired phone over the §6 remote API (GET /chores, POST /chores, POST /chores/{id}/check, PUT /chores/notes). Nothing ever checks an item off by itself."
+}

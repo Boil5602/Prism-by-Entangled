@@ -1,0 +1,40 @@
+{
+  "name": "no-standing-instruction",
+  "spec": "presentation actions are invocable ONLY under a standing instruction: keepPresentation false -> the identical site drop produces nothing (invariant I2 fails the fixture if anything is emitted)",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": false,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 5100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 36000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": []
+  }
+}

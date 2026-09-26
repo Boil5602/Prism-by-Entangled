@@ -1,0 +1,25 @@
+# Photos bundled inside the extension (ad covers + offline fallback). One per line.
+commons_alpine_lake_106.jpg
+commons_alpine_lake_114.jpg
+commons_alpine_lake_23.jpg
+commons_aurora_borealis_141.jpg
+commons_aurora_borealis_32.jpg
+commons_autumn_foliage_71.jpg
+commons_canyon_168.jpg
+commons_canyon_47.jpg
+commons_desert_dunes_177.jpg
+commons_desert_dunes_186.jpg
+commons_desert_dunes_53.jpg
+commons_forest_79.jpg
+commons_forest_86.jpg
+commons_glacier_149.jpg
+commons_glacier_158.jpg
+commons_glacier_42.jpg
+commons_mountain_landscape_102.jpg
+commons_mountain_landscape_17.jpg
+commons_mountain_landscape_99.jpg
+commons_river_valley_193.jpg
+commons_river_valley_202.jpg
+commons_snow_mountains_74.jpg
+commons_waterfall_123.jpg
+commons_waterfall_131.jpg

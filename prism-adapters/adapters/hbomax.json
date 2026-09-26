@@ -1,0 +1,38 @@
+{
+  "match": [
+    "www.hbomax.com",
+    "hbomax.com",
+    "play.hbomax.com",
+    "www.max.com",
+    "play.max.com"
+  ],
+  "version": "0.1.1",
+  "selectors": {
+    "my-list": "a[href*='/my-list'], a[href*='/mylist'], [data-testid*='my-list']"
+  },
+  "login": "https://auth.hbomax.com/login?flow=login",
+  "loginFocus": "form",
+  "session": {
+    "signedIn": "[data-testid*='profile'], a[href*='/profile'], a[href*='/my-list'], a[href*='/settings'], [aria-label*='Profile']",
+    "signedOut": "a[href*='auth.hbomax.com/login'], a[href*='auth.max.com/login'], a[href*='/product'][href*='auth.']",
+    "verified": "signedOut read live 2026-09-19 (signed out, www.hbomax.com/): Sign In goes to auth.hbomax.com/login?flow=login and every plan link to auth.hbomax.com/product. signedIn unverified until a sign-in on the wall. Redesigns often: expect churn."
+  },
+  "js": "(function(){if(window.__prismAdObs)return;window.__prismAdObs=true;var last=null;var mainDur=0;var mainSrc='';function vis(e){return !!(e&&e.offsetWidth>0&&e.offsetHeight>0);}function adText(){var all=document.querySelectorAll('div,span');for(var i=0;i<all.length&&i<600;i++){var e=all[i];if(e.children.length>1||!vis(e))continue;var s=(e.textContent||'').trim();if(s.length>40)continue;if(/^Ad( [0-9]+ of [0-9]+)?([ ]*[0-9]+:[0-9][0-9])?$/.test(s)||/resume in [0-9]+/i.test(s)||/^Advertisement$/i.test(s))return true;}return false;}function adMedia(){var vs=document.querySelectorAll('video');var playing=[];for(var i=0;i<vs.length;i++){var v=vs[i];if(!v.paused&&v.readyState>=2)playing.push(v);} if(playing.length===1){var v=playing[0];var d=v.duration;var src=v.currentSrc||'';if(isFinite(d)&&d>600){mainDur=d;mainSrc=src;return false;}if(isFinite(d)&&d>0&&d<180&&mainDur>600&&src!==mainSrc)return true;return false;} if(playing.length>1){for(var j=0;j<playing.length;j++){var dj=playing[j].duration;if(isFinite(dj)&&dj>0&&dj<180)return true;}} return false;}function tick(){try{var ad=adText()||adMedia();if(ad!==last){last=ad;if(window.frame&&frame.adBreak)frame.adBreak(ad);}}catch(e){}}setInterval(tick,700);window.__prismAdapterTick=tick;})()",
+  "presentation": {
+    "enterFullscreen": "button[aria-label='Fullscreen'], button[aria-label='Full screen'], [data-testid*='fullscreen']",
+    "play": "button[aria-label='Play'], [data-testid*='play']"
+  },
+  "verified": {
+    "presentation.enterFullscreen": "unverified draft 2026-09-19.",
+    "presentation.play": "unverified draft 2026-09-19.",
+    "js.ad-signals": "unverified draft 2026-09-19: the generic watcher until the ad tier's break is read on the wall.",
+    "videoSearchUrl": "unverified 2026-09-19: to read live once signed in.",
+    "tmdbProviders": "TMDB / JustWatch US provider ids (catalog search, 2026-09-21): set from JustWatch's provider list; a wrong id shows as the service missing from a search row for a title it carries."
+  },
+  "notes": "VS-7 (Phase 1): HBO Max (max.com redirects here). Section 26: observe-only; presentation actions only through core's keeper. DRM row pending the signed-in run.",
+  "videoSearchUrl": "https://www.hbomax.com/search?q={q}",
+  "tmdbProviders": [
+    1899,
+    384
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "dashboards": [
+    {
+      "schema": "frame.dashboard/v0.1",
+      "id": "living-room-solo",
+      "name": "Living Room \u00b7 one at a time",
+      "theme": {
+        "background": "#0e0e10",
+        "radius": 12,
+        "mode": "auto"
+      },
+      "audio": {
+        "policy": "exclusive"
+      },
+      "layout": {
+        "mode": "solo",
+        "start": "yt"
+      },
+      "inputs": {
+        "KEYCODE_CHANNEL_UP": {
+          "action": "carousel-next"
+        },
+        "KEYCODE_CHANNEL_DOWN": {
+          "action": "carousel-prev"
+        }
+      },
+      "tiles": [
+        {
+          "id": "yt",
+          "url": "https://www.youtube.com",
+          "adapter": "youtube",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 1.0,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "touch": "full"
+        },
+        {
+          "id": "tubi",
+          "url": "https://tubitv.com/live",
+          "adapter": "tubi",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 0.6,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "blocking": false,
+          "viewport": "desktop"
+        },
+        {
+          "id": "xumo",
+          "url": "https://play.xumo.com/",
+          "adapter": "xumo",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 0.6,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "blocking": false,
+          "viewport": "desktop"
+        }
+      ]
+    },
+    {
+      "schema": "frame.dashboard/v0.1",
+      "id": "living-room",
+      "name": "Living Room",
+      "theme": {
+        "background": "#0e0e10",
+        "radius": 12,
+        "mode": "auto"
+      },
+      "audio": {
+        "policy": "exclusive"
+      },
+      "layout": {
+        "mode": "hero",
+        "hero": "yt",
+        "heroSize": 0.62,
+        "satellites": "auto",
+        "gap": 8
+      },
+      "inputs": {
+        "KEYCODE_CHANNEL_UP": {
+          "action": "carousel-next"
+        },
+        "KEYCODE_CHANNEL_DOWN": {
+          "action": "carousel-prev"
+        }
+      },
+      "tiles": [
+        {
+          "id": "yt",
+          "url": "https://www.youtube.com",
+          "adapter": "youtube",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 1.0,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "touch": "full"
+        },
+        {
+          "id": "tubi",
+          "url": "https://tubitv.com/live",
+          "adapter": "tubi",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 0.6,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "blocking": false,
+          "viewport": "desktop"
+        },
+        {
+          "id": "xumo",
+          "url": "https://play.xumo.com/",
+          "adapter": "xumo",
+          "persist": true,
+          "aspectHint": "16:9",
+          "aspectWeight": 0.6,
+          "audio": "exclusive",
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          },
+          "blocking": false,
+          "viewport": "desktop"
+        }
+      ]
+    },
+    {
+      "schema": "frame.dashboard/v0.1",
+      "id": "first-light",
+      "name": "First Light",
+      "theme": {
+        "background": "#0e0e10",
+        "radius": 12,
+        "mode": "auto"
+      },
+      "audio": {
+        "policy": "exclusive"
+      },
+      "layout": {
+        "mode": "hero",
+        "hero": "yt",
+        "heroSize": 0.62,
+        "satellites": "auto",
+        "gap": 8
+      },
+      "inputs": {
+        "KEYCODE_1": {
+          "action": "layout",
+          "value": "first-light"
+        },
+        "KEYCODE_2": {
+          "action": "layout",
+          "value": "reading"
+        },
+        "KEYCODE_CHANNEL_UP": {
+          "action": "carousel-next"
+        },
+        "KEYCODE_CHANNEL_DOWN": {
+          "action": "carousel-prev"
+        }
+      },
+      "schedule": [
+        {
+          "at": "22:30",
+          "action": "dim",
+          "value": 0.25
+        },
+        {
+          "at": "07:00",
+          "action": "wake"
+        }
+      ],
+      "tiles": [
+        {
+          "id": "yt",
+          "url": "https://www.youtube.com",
+          "adapter": "youtube",
+          "aspectHint": "16:9",
+          "aspectWeight": 1.0,
+          "audio": "exclusive",
+          "touch": "full",
+          "persist": true,
+          "intermission": {
+            "enabled": true,
+            "source": "pack:cosmos"
+          }
+        },
+        {
+          "id": "wiki",
+          "url": "https://en.wikipedia.org/wiki/Main_Page",
+          "adapter": null,
+          "aspectHint": "3:4",
+          "aspectWeight": 0.6,
+          "audio": "mute",
+          "touch": "scroll",
+          "refresh": 900
+        },
+        {
+          "id": "radio",
+          "url": "https://radio.garden",
+          "adapter": null,
+          "aspectHint": "4:3",
+          "aspectWeight": 0.2,
+          "audio": "exclusive",
+          "touch": "full",
+          "persist": true
+        }
+      ]
+    },
+    {
+      "schema": "frame.dashboard/v0.1",
+      "id": "reading",
+      "name": "Reading",
+      "theme": {
+        "background": "#0e0e10",
+        "radius": 12,
+        "mode": "auto"
+      },
+      "audio": {
+        "policy": "exclusive"
+      },
+      "layout": {
+        "mode": "hero",
+        "hero": "wiki",
+        "heroSize": 0.66,
+        "satellites": "auto",
+        "gap": 8
+      },
+      "inputs": {
+        "KEYCODE_1": {
+          "action": "layout",
+          "value": "first-light"
+        },
+        "KEYCODE_2": {
+          "action": "layout",
+          "value": "reading"
+        },
+        "KEYCODE_CHANNEL_UP": {
+          "action": "carousel-next"
+        },
+        "KEYCODE_CHANNEL_DOWN": {
+          "action": "carousel-prev"
+        }
+      },
+      "tiles": [
+        {
+          "id": "wiki",
+          "url": "https://en.wikipedia.org/wiki/Main_Page",
+          "adapter": null,
+          "aspectHint": "3:4",
+          "aspectWeight": 0.6,
+          "audio": "mute",
+          "touch": "scroll",
+          "refresh": 900,
+          "focus": {
+            "selector": "#mp-upper",
+            "pad": 8,
+            "fit": "width"
+          }
+        },
+        {
+          "id": "news",
+          "url": "https://text.npr.org",
+          "adapter": null,
+          "aspectHint": "3:4",
+          "aspectWeight": 0.5,
+          "audio": "mute",
+          "touch": "scroll",
+          "refresh": 600
+        },
+        {
+          "id": "settings-app",
+          "launch": {
+            "package": "com.android.settings"
+          },
+          "aspectHint": "1:1",
+          "aspectWeight": 0.4,
+          "audio": "mute"
+        },
+        {
+          "id": "radio",
+          "url": "https://radio.garden",
+          "adapter": null,
+          "aspectHint": "4:3",
+          "aspectWeight": 0.2,
+          "audio": "exclusive",
+          "touch": "full",
+          "persist": true
+        }
+      ]
+    }
+  ],
+  "carousel": {
+    "order": [
+      "living-room-solo",
+      "living-room",
+      "first-light",
+      "reading"
+    ],
+    "wrap": true
+  }
+}

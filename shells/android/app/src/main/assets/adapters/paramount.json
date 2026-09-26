@@ -1,0 +1,25 @@
+{
+  "match": [
+    "paramountplus.com"
+  ],
+  "capabilities": [
+    "media-keys",
+    "ad-break",
+    "skip-passthrough"
+  ],
+  "injectAt": "document-end",
+  "version": "2026.08.3",
+  "css": "",
+  "js": "(function () { if (window.__prismTextMarkers) return; window.__prismTextMarkers = true; /* section 26: OBSERVE, NEVER INTERACT. Generic text-marker observer for streaming web players: an ad is 'showing' while a visible element reads like an ad badge ('Ad 1 of 3', 'Advertisement', a countdown); a Skip affordance is 'available' while a visible button/link reads 'Skip'. Both are reported with the Skip element's CSS path so core can forward a HUMAN's press to it. This adapter performs no clicks and creates no synthetic events of any kind. */ var AD = /^(ad|advertisement|ad\\s*\\d+\\s*of\\s*\\d+|ad\\s*break|sponsored)(\\s*[:\\u00b7\\u2022|-]\\s*[\\d:]+.*)?$/i; var SKIP = /^\\s*skip(\\s+(ad|ads|intro|recap))?\\s*$/i; var adState = false, skipState = false; function visible(el) { if (!el || !el.getClientRects || !el.getClientRects().length) return false; var cs = getComputedStyle(el); return cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; } function path(el) { var parts = []; while (el && el.nodeType === 1 && parts.length < 8) { var seg = el.tagName.toLowerCase(); if (el.id) { parts.unshift('#' + CSS.escape(el.id)); break; } var p = el.parentElement; if (p) { var i = Array.prototype.indexOf.call(p.children, el) + 1; seg += ':nth-child(' + i + ')'; } parts.unshift(seg); el = p; } return parts.join('>'); } function check() { var hasVideo = !!document.querySelector('video'); if (!hasVideo) { if (adState) { adState = false; frame.adBreak(false); } if (skipState) { skipState = false; frame.skipAvailable(false, null); } return; } /* no player, no ads: nothing to scan on a home page */ var nodes = document.querySelectorAll('button, a, [role=button], span, div'); var ad = false, skip = null; for (var i = 0; i < nodes.length && (skip === null || !ad); i++) { var n = nodes[i]; if (n.children.length > 3) continue; var t = (n.textContent || n.getAttribute('aria-label') || '').trim(); /* textContent: no layout; visibility is checked only on the few matches */ if (!t || t.length > 40) continue; if (!ad && n.tagName !== 'A' && AD.test(t) && visible(n)) ad = true; if (skip === null && SKIP.test(t) && visible(n)) skip = n; } if (ad !== adState) { adState = ad; frame.adBreak(ad); } var avail = !!skip; if (avail !== skipState) { skipState = avail; frame.skipAvailable(avail, avail ? path(skip) : null); } } var timer = null; new MutationObserver(function () { if (timer) return; timer = setTimeout(function () { timer = null; check(); }, 400); }).observe(document.documentElement, { childList: true, subtree: true, characterData: true }); setInterval(check, 2000); frame.onMediaCommand = function (cmd) { var v = document.querySelector('video'); if (!v) return; if (cmd === 'play') v.play(); if (cmd === 'pause') v.pause(); }; })();",
+  "login": "https://www.paramountplus.com/account/signin/",
+  "shortcuts": [
+    {
+      "label": "Switch profile",
+      "url": "https://www.paramountplus.com/user-profile/enter-pin/switch-profile/"
+    },
+    {
+      "label": "Home",
+      "url": "https://www.paramountplus.com/"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "ended-drop-with-keep-only",
+  "spec": "keepPresentation with onEnd none: the ended signal is a site boundary, so a drop correlated with it is restored - contestable: restoring fullscreen on an ended player may be undesirable; Agent 1 may argue the boundary should be the next playing event",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 100000,
+      "kind": "ended"
+    },
+    {
+      "t": 100050,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 101000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 100050,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  },
+  "contestable": true
+}

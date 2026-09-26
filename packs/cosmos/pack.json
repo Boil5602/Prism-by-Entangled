@@ -1,0 +1,206 @@
+{
+  "schema": "prism.imagery-pack/v0.1",
+  "id": "cosmos",
+  "name": "Cosmos",
+  "blurb": "Public-domain deep-space and Earth imagery from NASA's image library.",
+  "source": {
+    "name": "NASA Image and Video Library",
+    "url": "https://images.nasa.gov/"
+  },
+  "images": [
+    {
+      "file": "nasa-PIA07902.jpg",
+      "title": "Planetary Nebula NGC 7293 also Known as the Helix Nebula",
+      "date": "2005-05-05",
+      "credit": "NASA/JPL-Caltech/SSC, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Planetary Nebula NGC 7293 also Known as the Helix Nebula — NASA/JPL-Caltech/SSC, NASA (NASA ID PIA07902), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA07902",
+      "sha256": "8b7e4462a0c5a0c0717837bcfaacf4635bc3aece80666281bf740d46bcc57e26",
+      "w": 1280,
+      "h": 983
+    },
+    {
+      "file": "nasa-PIA15656.jpg",
+      "title": "Portrait of a Galaxy Life",
+      "date": "2007-11-14",
+      "credit": "NASA/JPL-Caltech/CTIO/Las Campanas/Palomar, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Portrait of a Galaxy Life — NASA/JPL-Caltech/CTIO/Las Campanas/Palomar, NASA (NASA ID PIA15656), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA15656",
+      "sha256": "1bd1b722f26c56ced0690924e932bb3638efe129bc0084c8e3212f270d259fbc",
+      "w": 1920,
+      "h": 1536
+    },
+    {
+      "file": "nasa-STS047-20-015.jpg",
+      "title": "STS-47 view of the Aurora Australis",
+      "date": "1992-09-20",
+      "credit": "JSC, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "STS-47 view of the Aurora Australis — JSC, NASA (NASA ID STS047-20-015), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/STS047-20-015",
+      "sha256": "39d115a9ce3b4c96a698fea6845be3b21f92dd11bc80aade139c35051bd4c5b6",
+      "w": 1920,
+      "h": 1244
+    },
+    {
+      "file": "nasa-STS052-23-022.jpg",
+      "title": "Sunrise, Earth Limb",
+      "date": "1992-11-01",
+      "credit": "JSC, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Sunrise, Earth Limb — JSC, NASA (NASA ID STS052-23-022), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/STS052-23-022",
+      "sha256": "d251f52603ff02c5eb5d351948df830e4cec9af7cd215aa070c69288785b4240",
+      "w": 1920,
+      "h": 1245
+    },
+    {
+      "file": "nasa-PIA02241.jpg",
+      "title": "Saturn Rings",
+      "date": "2000-02-07",
+      "credit": "NASA/JPL, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Saturn Rings — NASA/JPL, NASA (NASA ID PIA02241), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA02241",
+      "sha256": "4e2dbc01b4161ea58c0bf8cfebea6052798030f0519b252b9baa66092f7f484f",
+      "w": 1760,
+      "h": 800
+    },
+    {
+      "file": "nasa-PIA14096.jpg",
+      "title": "Star Cluster Overshadowed by Infrared Objects",
+      "date": "2011-05-23",
+      "credit": "NASA/JPL-Caltech/UCLA, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Star Cluster Overshadowed by Infrared Objects — NASA/JPL-Caltech/UCLA, NASA (NASA ID PIA14096), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA14096",
+      "sha256": "d3a297043f8a8113f239a1a9b3ec829cf204b614219986b72b68e23038a1fc24",
+      "w": 1920,
+      "h": 1539
+    },
+    {
+      "file": "nasa-NHQ202606040044.jpg",
+      "title": "Beyond the Deep Field: Hubble’s Legacy and the Future of Cosmi",
+      "creator": "NASA/Keegan Barber",
+      "date": "2026-06-04",
+      "credit": "HQ, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Beyond the Deep Field: Hubble’s Legacy and the Future of Cosmi — HQ, NASA (NASA ID NHQ202606040044), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/NHQ202606040044",
+      "sha256": "f76c01bdcf5e95f17504792a06a6f80507978edce41f1d18be60fce1194d577e",
+      "w": 1919,
+      "h": 1280
+    },
+    {
+      "file": "nasa-PIA02098.jpg",
+      "title": "Clouds and Hazes of Jupiter Southern Hemisphere",
+      "date": "1999-08-27",
+      "credit": "NASA/JPL-Caltech, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Clouds and Hazes of Jupiter Southern Hemisphere — NASA/JPL-Caltech, NASA (NASA ID PIA02098), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA02098",
+      "sha256": "5002cee6811f5724e69beb40a2f3f553cfd5aacb72959e3efbf5fa4e1c89c9e6",
+      "w": 2200,
+      "h": 1200
+    },
+    {
+      "file": "nasa-MAF_20240408_NOLAeclipse02.jpg",
+      "title": "Partial Solar Eclipse in New Orleans",
+      "creator": "Michael DeMocker",
+      "date": "2024-04-08",
+      "credit": "MSFC, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "Partial Solar Eclipse in New Orleans — MSFC, NASA (NASA ID MAF_20240408_NOLAeclipse02), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/MAF_20240408_NOLAeclipse02",
+      "sha256": "d4838f5760ce4127fd7587cff4e59e153d27c43e7ea11249057f9b4e67a8b0d3",
+      "w": 1920,
+      "h": 1279
+    },
+    {
+      "file": "nasa-PIA24576.jpg",
+      "title": "A Break in the Milky Way's Sagittarius Arm",
+      "date": "2021-08-17",
+      "credit": "NASA/JPL-Caltech, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "A Break in the Milky Way's Sagittarius Arm — NASA/JPL-Caltech, NASA (NASA ID PIA24576), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA24576",
+      "sha256": "34f2063f80a57133d4db70d4e5756c31de0f423669113f8459241c30552384ac",
+      "w": 1920,
+      "h": 1080
+    },
+    {
+      "file": "nasa-GSFC_20171208_Archive_e001896.jpg",
+      "title": "NASA's Hubble Sees A New Supernova Remnant Light Up",
+      "date": "2017-12-08",
+      "credit": "GSFC, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "NASA's Hubble Sees A New Supernova Remnant Light Up — GSFC, NASA (NASA ID GSFC_20171208_Archive_e001896), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/GSFC_20171208_Archive_e001896",
+      "sha256": "88d11a1861d6722f87289bf099d00319b21bd939552729b9e4092ef7712891b2",
+      "w": 1280,
+      "h": 975
+    },
+    {
+      "file": "nasa-PIA22228.jpg",
+      "title": "InSight on the Surface of Mars",
+      "date": "2018-01-25",
+      "credit": "NASA/JPL-Caltech, NASA — Public domain",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain",
+        "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "attribution": "InSight on the Surface of Mars — NASA/JPL-Caltech, NASA (NASA ID PIA22228), public domain",
+      "sourceUrl": "https://images.nasa.gov/details/PIA22228",
+      "sha256": "6237370b4709647e9e4c063ac26096f0cf5e7a3a018d8f973229e541a9cbcd7c",
+      "w": 1920,
+      "h": 1080
+    }
+  ]
+}

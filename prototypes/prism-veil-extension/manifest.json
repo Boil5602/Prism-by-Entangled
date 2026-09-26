@@ -1,0 +1,170 @@
+{
+  "manifest_version": 3,
+  "name": "Prism",
+  "version": "0.7.180",
+  "description": "Ads become art. The Prism intermission veil (spec section 27) for any page: ad elements are covered - exactly, scroll-synced, never a pixel outside - by imagery you chose. Observe-only: nothing is clicked, nothing is blocked from loading.",
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "ima-hook.js",
+        "src/core-popups.js",
+        "popup-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false,
+      "exclude_matches": [
+        "*://www.youtube.com/embed/*",
+        "*://www.youtube-nocookie.com/embed/*",
+        "*://player.twitch.tv/*",
+        "*://player.vimeo.com/video/*",
+        "*://www.dailymotion.com/embed/*"
+      ]
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/popups-guard.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "exclude_matches": [
+        "*://www.youtube.com/embed/*",
+        "*://www.youtube-nocookie.com/embed/*",
+        "*://player.twitch.tv/*",
+        "*://player.vimeo.com/video/*",
+        "*://www.dailymotion.com/embed/*"
+      ]
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/art.js",
+        "src/dom.js",
+        "src/ai-tiles.js",
+        "src/rules.js",
+        "src/covers.js",
+        "src/video.js",
+        "src/report.js",
+        "src/marks.js",
+        "src/core-reclaimed.js",
+        "src/core-popups-iso.js",
+        "src/popups-ui.js",
+        "src/reclaimed-ui.js",
+        "src/main.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "exclude_matches": [
+        "*://www.youtube.com/embed/*",
+        "*://www.youtube-nocookie.com/embed/*",
+        "*://player.twitch.tv/*",
+        "*://player.vimeo.com/video/*",
+        "*://www.dailymotion.com/embed/*"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/embed/*",
+        "*://www.youtube-nocookie.com/embed/*",
+        "*://player.twitch.tv/*",
+        "*://player.vimeo.com/video/*",
+        "*://www.dailymotion.com/embed/*"
+      ],
+      "js": [
+        "ima-hook.js",
+        "src/core-popups.js",
+        "popup-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/embed/*",
+        "*://www.youtube-nocookie.com/embed/*",
+        "*://player.twitch.tv/*",
+        "*://player.vimeo.com/video/*",
+        "*://www.dailymotion.com/embed/*"
+      ],
+      "js": [
+        "src/art.js",
+        "src/dom.js",
+        "src/ai-tiles.js",
+        "src/rules.js",
+        "src/covers.js",
+        "src/video.js",
+        "src/report.js",
+        "src/marks.js",
+        "src/core-reclaimed.js",
+        "src/core-popups-iso.js",
+        "src/popups-ui.js",
+        "src/reclaimed-ui.js",
+        "src/main.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://imasdk.googleapis.com/*"
+      ],
+      "js": [
+        "src/ima-frame.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "art/*.jpg",
+        "art/list.json"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "optional_permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://prism.entangled.world/*",
+    "https://prism-reports.fly.dev/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "bg.js"
+  },
+  "action": {
+    "default_title": "Prism - popups intercepted on this site (click for the summary)",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

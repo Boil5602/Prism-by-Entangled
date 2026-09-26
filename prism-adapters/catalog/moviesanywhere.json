@@ -1,0 +1,30 @@
+{
+  "id": "moviesanywhere",
+  "name": "Movies Anywhere",
+  "url": "https://moviesanywhere.com/home",
+  "adapter": "moviesanywhere",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - PROVISIONAL (2026-09-20): signed out on this wall; the signed-in run is pending. Software until the row is read."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "my-movies",
+      "label": "My Movies",
+      "selector": "my-movies"
+    }
+  ],
+  "notes": "Movies Anywhere: one locker for purchases across retailers. My Movies is the whole library (never merged into My list). Sign in inside the tile; sessions persist (\u00a710). No ads on owned titles."
+}

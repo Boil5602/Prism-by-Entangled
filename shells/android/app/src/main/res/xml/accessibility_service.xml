@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- §26 native-app observer: reads declared media apps' UI trees for their own
+     ad markers and skip affordance. Performs exactly one action — a click on
+     the observed Skip node — and only on a human's request forwarded by core. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="250"
+    android:description="@string/a11y_description" />

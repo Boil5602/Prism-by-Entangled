@@ -1,0 +1,38 @@
+{
+  "match": [
+    "www.primevideo.com",
+    "primevideo.com",
+    "www.amazon.com"
+  ],
+  "version": "0.1.1",
+  "selectors": {
+    "my-stuff": "a[href*='/mystuff'], a[href*='/watchlist'], [data-testid='pv-nav-my-stuff']"
+  },
+  "login": "https://www.primevideo.com/auth-redirect?signin=1",
+  "loginFocus": "form[name=signIn], form",
+  "session": {
+    "signedIn": "[data-testid='pv-nav-my-stuff'], a[href*='/mystuff'], a[href*='/watchlist'], a[href*='/settings'], a[href*='/signout']",
+    "signedOut": "a[href*='auth-redirect?signin=1'], a[href*='ref_=atv_nb_sign_in'], a[aria-label='Sign In']",
+    "verified": "signedOut read live 2026-09-19 (signed out, www.primevideo.com/): the nav's Sign In link (auth-redirect?signin=1, aria-label Sign In) and Join Prime; the Profile / Settings / Account button is there signed OUT too, so it is not evidence. signedIn unverified until a sign-in on the wall (My Stuff / Watchlist / settings / sign-out links expected)."
+  },
+  "js": "(function(){if(window.__prismAdObs)return;window.__prismAdObs=true;var last=null;var mainDur=0;var mainSrc='';function vis(e){return !!(e&&e.offsetWidth>0&&e.offsetHeight>0);}function adText(){var all=document.querySelectorAll('div,span');for(var i=0;i<all.length&&i<600;i++){var e=all[i];if(e.children.length>1||!vis(e))continue;var s=(e.textContent||'').trim();if(s.length>40)continue;if(/^Ad( [0-9]+ of [0-9]+)?([ ]*[0-9]+:[0-9][0-9])?$/.test(s)||/resume in [0-9]+/i.test(s)||/^Advertisement$/i.test(s))return true;}return false;}function adMedia(){var vs=document.querySelectorAll('video');var playing=[];for(var i=0;i<vs.length;i++){var v=vs[i];if(!v.paused&&v.readyState>=2)playing.push(v);} if(playing.length===1){var v=playing[0];var d=v.duration;var src=v.currentSrc||'';if(isFinite(d)&&d>600){mainDur=d;mainSrc=src;return false;}if(isFinite(d)&&d>0&&d<180&&mainDur>600&&src!==mainSrc)return true;return false;} if(playing.length>1){for(var j=0;j<playing.length;j++){var dj=playing[j].duration;if(isFinite(dj)&&dj>0&&dj<180)return true;}} return false;}function tick(){try{var ad=adText()||adMedia();if(ad!==last){last=ad;if(window.frame&&frame.adBreak)frame.adBreak(ad);}}catch(e){}}setInterval(tick,700);window.__prismAdapterTick=tick;})()",
+  "presentation": {
+    "enterFullscreen": "button[aria-label='Fullscreen'], button[aria-label='Full screen'], .fullscreenButton",
+    "play": "button[aria-label='Play'], .playButton"
+  },
+  "verified": {
+    "presentation.enterFullscreen": "unverified draft 2026-09-19.",
+    "presentation.play": "unverified draft 2026-09-19.",
+    "js.ad-signals": "unverified draft 2026-09-19: the generic watcher (the player's Ad text, a short clip beside or in place of the feature) until the ad tier's break is read on the wall.",
+    "videoSearchUrl": "unverified 2026-09-19: Prime Video search takes phrase; to read live once signed in.",
+    "tmdbProviders": "read live 2026-09-21 19:55 (signed out here): 'Amazon Prime Video with Ads' 2100 and 'Amazon Prime Video Free with Ads' 613 listed on The Boys; 9 / 119 from the older list"
+  },
+  "notes": "VS-6 (Phase 1): Prime Video. Continue-watching mixes purchases, Prime and channels (Phase 2 tags the source); account pages redirect often - needs-attention matters most here: the login prefix (auth-redirect?signin=1) and the nav's Sign In link are the signed-out signal. Section 26: observe-only; presentation actions only through core's keeper. DRM row pending the signed-in run.",
+  "videoSearchUrl": "https://www.primevideo.com/search/ref=atv_nb_sr?phrase={q}",
+  "tmdbProviders": [
+    9,
+    119,
+    2100,
+    613
+  ]
+}

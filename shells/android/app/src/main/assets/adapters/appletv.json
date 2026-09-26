@@ -1,0 +1,10 @@
+{
+  "match": [
+    "tv.apple.com"
+  ],
+  "capabilities": [],
+  "injectAt": "document-end",
+  "version": "2026.08.1",
+  "login": "https://tv.apple.com/",
+  "loginPress": "Sign In"
+}

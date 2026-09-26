@@ -1,0 +1,101 @@
+{
+  "id": "prism-timer",
+  "name": "Timer",
+  "url": "https://tiles.prism/timer/",
+  "adapter": "prism-tiles",
+  "aspectHint": "16:9",
+  "audio": "mix",
+  "account": "none",
+  "firstParty": true,
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "a first-party page the host serves from its own Assets/tiles - one plain <audio> element for the bundled §24 chime, no EME call and no network request; the WebView2 surface it runs in is the one surveyed in docs/reports/win-host-m1.md"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "remaining",
+      "label": "The number only",
+      "selector": "timer-remaining"
+    },
+    {
+      "id": "clock",
+      "label": "Clock face",
+      "selector": "timer-remaining"
+    }
+  ],
+  "facetPresets": {
+    "16:9·M": [
+      {
+        "id": "countdown",
+        "label": "Countdown",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Family Hub's timer role: the whole page, which sizes its own number to the slot"
+      },
+      {
+        "id": "remaining",
+        "label": "The number only",
+        "selector": "timer-remaining",
+        "zoom": 1,
+        "pad": 6,
+        "fit": "contain",
+        "notes": "a glance-only timer: the number, with the controls left to a tap"
+      }
+    ],
+    "1:1·M": [
+      {
+        "id": "countdown",
+        "label": "Countdown",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width"
+      }
+    ],
+    "1:1": [
+      {
+        "id": "clock",
+        "label": "Clock face",
+        "selector": "timer-remaining",
+        "zoom": 1,
+        "pad": 6,
+        "fit": "contain",
+        "notes": "Music Lounge + Clock's corner role (docs/concept-scenes.md §2.5.1): the timer page's numeral stage, cut square. The clock FACE - the time of day in those numerals rather than a countdown - is still the page's to grow (CS-3 owns targets/win-host/PrismHost/Assets/tiles/timer); until it does, this preset resolves to the same stage and shows the countdown. The preset is catalog data and correct as it stands: only the page has to change."
+      }
+    ],
+    "4:3·M": [
+      {
+        "id": "countdown",
+        "label": "Countdown",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width"
+      }
+    ],
+    "21:9-strip": [
+      {
+        "id": "remaining",
+        "label": "The number only",
+        "selector": "timer-remaining",
+        "zoom": 1,
+        "pad": 6,
+        "fit": "height",
+        "notes": "a strip has room for the number and nothing else"
+      }
+    ]
+  },
+  "notes": "Prism's own timer, served locally at https://tiles.prism/timer/ from the host's Assets/tiles. Countdown and interval modes, minute presets, and the §24 chime at zero - a bundled local tone (scripts/make-chime.mjs writes it, so its licence is ours), played at the level set on the page and never louder. Chime off is silent. It runs on device time: the deadline is stored (§10), so a reload or a restart picks the run back up and says so. No account, no sign-in, no network."
+}

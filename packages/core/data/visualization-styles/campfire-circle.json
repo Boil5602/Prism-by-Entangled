@@ -1,0 +1,28 @@
+{
+  "id": "campfire-circle",
+  "name": "Campfire Circle",
+  "blurb": "People around a fire; the flames leap with the mids and highs, sparks rise on the beat, the circle glows with the lows.",
+  "program": "campfire-circle",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#F0A83C",
+    "#F05C3C",
+    "#F0D08F",
+    "#FFF0C0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

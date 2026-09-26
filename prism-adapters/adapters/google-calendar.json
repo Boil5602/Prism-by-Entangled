@@ -1,0 +1,14 @@
+{
+  "match": [
+    "calendar.google.com"
+  ],
+  "version": "0.1.0",
+  "selectors": {
+    "agenda": "[role=\"main\"]"
+  },
+  "verified": {
+    "selectors.agenda": "unverified 2026-09-01: Google Calendar renders only signed in; [role=main] is the landmark the schedule (agenda) view lives in"
+  },
+  "login": "https://accounts.google.com/ServiceLogin?service=cl",
+  "notes": "Google Calendar schedule view (/r/agenda) as the calendar utility. Merge (Entangled family calendar) is the intended first suggestion for the calendar role, but it has no public web URL yet - when it does, a merge adapter + catalog entry with an agenda preset replaces this placeholder; nothing here pretends otherwise."
+}

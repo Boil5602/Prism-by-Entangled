@@ -1,0 +1,28 @@
+{
+  "id": "sunrise-meadow",
+  "name": "Sunrise Meadow",
+  "blurb": "A sun climbing with the loudness over a meadow; rays turn slowly, the grass sways with the mids.",
+  "program": "sunrise-meadow",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#F0A83C",
+    "#F05C7A",
+    "#F0D08F",
+    "#A8D86C"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

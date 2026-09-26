@@ -1,0 +1,537 @@
+{
+  "version": 1,
+  "generatedFrom": "packages/core/src/routes.ts",
+  "counting": "selection gestures (long-press / right-click / remote-hold) count 0; every choice, tap, badge-tap or corner affordance counts 1 (ledger B-32)",
+  "selectionGestures": [
+    "long-press",
+    "right-click",
+    "remote-hold"
+  ],
+  "routes": [
+    {
+      "id": "scenes",
+      "route": "prism://scenes",
+      "kind": "list",
+      "entity": "scene",
+      "back": "scene",
+      "title": "Scenes"
+    },
+    {
+      "id": "scene.view",
+      "route": "prism://scene/:id",
+      "kind": "view",
+      "entity": "scene",
+      "back": "scene",
+      "title": "Scene"
+    },
+    {
+      "id": "scene.edit",
+      "route": "prism://scene/:id/edit",
+      "kind": "editor",
+      "entity": "scene",
+      "back": "scene",
+      "title": "Scene builder",
+      "query": [
+        "slot"
+      ]
+    },
+    {
+      "id": "scene.visualization.edit",
+      "route": "prism://scene/:id/visualization/:viz/edit",
+      "kind": "editor",
+      "entity": "visualization",
+      "back": "scene",
+      "title": "Visualization"
+    },
+    {
+      "id": "item.sheet",
+      "route": "prism://item/:item/sheet",
+      "kind": "action",
+      "entity": "item",
+      "back": "scene",
+      "title": "Context sheet"
+    },
+    {
+      "id": "item.swap",
+      "route": "prism://item/:item/swap",
+      "kind": "picker",
+      "entity": "item",
+      "back": "scene",
+      "title": "Swap facet in this slot"
+    },
+    {
+      "id": "item.mute",
+      "route": "prism://item/:item/mute",
+      "kind": "action",
+      "entity": "item",
+      "back": "scene",
+      "title": "Mute"
+    },
+    {
+      "id": "item.visualNext",
+      "route": "prism://item/:item/visual/next",
+      "kind": "action",
+      "entity": "item",
+      "back": "scene",
+      "title": "Next visual"
+    },
+    {
+      "id": "item.visualStyle",
+      "route": "prism://item/:item/visual/style",
+      "kind": "editor",
+      "entity": "item",
+      "back": "scene",
+      "title": "Visual style"
+    },
+    {
+      "id": "item.musicService",
+      "route": "prism://item/:item/music/service",
+      "kind": "picker",
+      "entity": "item",
+      "back": "scene",
+      "title": "Music service"
+    },
+    {
+      "id": "item.musicAdd",
+      "route": "prism://item/:item/music/add",
+      "kind": "picker",
+      "entity": "item",
+      "back": "scene",
+      "title": "Add a music service"
+    },
+    {
+      "id": "item.musicAds",
+      "route": "prism://item/:item/music/ads",
+      "kind": "picker",
+      "entity": "item",
+      "back": "scene",
+      "title": "Intermission"
+    },
+    {
+      "id": "item.musicRemove",
+      "route": "prism://item/:item/music/remove",
+      "kind": "picker",
+      "entity": "item",
+      "back": "scene",
+      "title": "Remove a music service"
+    },
+    {
+      "id": "templates",
+      "route": "prism://templates",
+      "kind": "list",
+      "entity": "template",
+      "back": "scene",
+      "title": "New scene",
+      "query": [
+        "layout"
+      ]
+    },
+    {
+      "id": "template.wizard",
+      "route": "prism://template/:id",
+      "kind": "editor",
+      "entity": "template",
+      "back": "scene",
+      "title": "Scene template",
+      "query": [
+        "role",
+        "scene"
+      ]
+    },
+    {
+      "id": "layouts",
+      "route": "prism://layouts",
+      "kind": "list",
+      "entity": "layout",
+      "back": "scene",
+      "title": "Layouts"
+    },
+    {
+      "id": "layout.new",
+      "route": "prism://layouts/new",
+      "kind": "editor",
+      "entity": "layout",
+      "back": "scene",
+      "title": "New layout"
+    },
+    {
+      "id": "layout.edit",
+      "route": "prism://layout/:id/edit",
+      "kind": "editor",
+      "entity": "layout",
+      "back": "scene",
+      "title": "Layout editor"
+    },
+    {
+      "id": "facets",
+      "route": "prism://facets",
+      "kind": "list",
+      "entity": "facet",
+      "back": "scene",
+      "title": "Facets"
+    },
+    {
+      "id": "facet.new",
+      "route": "prism://facets/new",
+      "kind": "editor",
+      "entity": "facet",
+      "back": "scene",
+      "title": "New facet",
+      "query": [
+        "app",
+        "class",
+        "preset"
+      ]
+    },
+    {
+      "id": "facet.edit",
+      "route": "prism://facet/:id/edit",
+      "kind": "editor",
+      "entity": "facet",
+      "back": "scene",
+      "title": "Facet editor"
+    },
+    {
+      "id": "facet.full",
+      "route": "prism://facet/:id/full",
+      "kind": "action",
+      "entity": "facet",
+      "back": "scene",
+      "title": "Full page",
+      "transient": true
+    },
+    {
+      "id": "facet.reveal",
+      "route": "prism://facet/:id/reveal",
+      "kind": "action",
+      "entity": "facet",
+      "back": "scene",
+      "title": "Reveal the player",
+      "query": [
+        "mode",
+        "signin"
+      ],
+      "transient": true
+    },
+    {
+      "id": "apps",
+      "route": "prism://apps",
+      "kind": "list",
+      "entity": "app",
+      "back": "scene",
+      "title": "Apps"
+    },
+    {
+      "id": "app.new",
+      "route": "prism://apps/new",
+      "kind": "picker",
+      "entity": "app",
+      "back": "scene",
+      "title": "Add App",
+      "query": [
+        "url",
+        "role",
+        "class"
+      ]
+    },
+    {
+      "id": "app.setup",
+      "route": "prism://app/:id/setup",
+      "kind": "settings",
+      "entity": "app",
+      "back": "scene",
+      "title": "App setup",
+      "query": [
+        "url",
+        "return",
+        "signin"
+      ]
+    },
+    {
+      "id": "app.settings",
+      "route": "prism://app/:id/settings",
+      "kind": "settings",
+      "entity": "app",
+      "back": "scene",
+      "title": "App settings"
+    },
+    {
+      "id": "news.pick",
+      "route": "prism://news/pick",
+      "kind": "picker",
+      "entity": "news",
+      "back": "scene",
+      "title": "News",
+      "query": [
+        "class",
+        "role"
+      ]
+    },
+    {
+      "id": "device",
+      "route": "prism://device",
+      "kind": "view",
+      "entity": "device",
+      "back": "scene",
+      "title": "Device"
+    }
+  ],
+  "reach": [
+    {
+      "from": "video-facet",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "video-facet",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "long-press",
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "video-facet",
+      "to": "prism://item/:item/sheet",
+      "actions": [
+        "tap"
+      ]
+    },
+    {
+      "from": "video-facet",
+      "to": "prism://facet/:id/full",
+      "actions": [
+        "tap"
+      ]
+    },
+    {
+      "from": "video-facet",
+      "to": "prism://item/:item/swap",
+      "actions": [
+        "long-press",
+        "sheet:Swap facet in this slot"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/visual/style",
+      "actions": [
+        "long-press",
+        "sheet:Visual style…"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/visual/next",
+      "actions": [
+        "long-press",
+        "sheet:Next visual"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/music/add",
+      "actions": [
+        "long-press",
+        "sheet:Add a music service…"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/music/remove",
+      "actions": [
+        "long-press",
+        "sheet:Remove a music service…"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/music/ads",
+      "actions": [
+        "long-press",
+        "sheet:Intermission…"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "long-press",
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://item/:item/sheet",
+      "actions": [
+        "tap"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://facet/:id/reveal",
+      "actions": [
+        "long-press",
+        "sheet:Open the full app"
+      ]
+    },
+    {
+      "from": "music-visualization",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "long-press",
+        "sheet:Sign in…"
+      ]
+    },
+    {
+      "from": "needs-attention-badge",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "badge-tap"
+      ]
+    },
+    {
+      "from": "needs-attention-badge",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "floating-facet",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "floating-facet",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "long-press",
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "hidden-facet",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "hidden-facet",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "long-press",
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "placeholder-slot",
+      "to": "prism://item/:item/swap",
+      "actions": [
+        "tap"
+      ]
+    },
+    {
+      "from": "placeholder-slot",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "placeholder-slot",
+      "to": "prism://scene/:id/edit",
+      "actions": [
+        "long-press",
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "full-page-reveal",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "corner:Edit this facet"
+      ]
+    },
+    {
+      "from": "full-page-reveal",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "corner:App settings"
+      ]
+    },
+    {
+      "from": "full-page-reveal",
+      "to": "prism://scene/:id",
+      "actions": [
+        "key:Back"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://facet/:id/edit",
+      "actions": [
+        "sheet:Edit facet"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://app/:id/setup",
+      "actions": [
+        "sheet:Open full page (setup mode)"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://app/:id/settings",
+      "actions": [
+        "sheet:App settings / sign in"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://item/:item/swap",
+      "actions": [
+        "sheet:Swap facet in this slot"
+      ]
+    },
+    {
+      "from": "context-sheet",
+      "to": "prism://item/:item/mute",
+      "actions": [
+        "sheet:Mute"
+      ]
+    }
+  ],
+  "sheet": [
+    "Open full page (setup mode)",
+    "Edit facet",
+    "App settings / sign in",
+    "Swap facet in this slot",
+    "Mute"
+  ],
+  "sheetActions": [
+    "open-setup",
+    "edit-facet",
+    "app-settings",
+    "swap-facet",
+    "mute"
+  ]
+}

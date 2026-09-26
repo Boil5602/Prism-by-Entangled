@@ -1,0 +1,48 @@
+{
+  "name": "unknown-cause-after-input-is-user",
+  "spec": "a drop of unknown cause within inputWindowMs of a human input is attributed to the human (a click that toggled fullscreen) - no restore",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 7000,
+      "kind": "input",
+      "key": "click"
+    },
+    {
+      "t": 7200,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "unknown"
+    },
+    {
+      "t": 9000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 30000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 31000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": []
+  },
+  "options": {
+    "inputWindowMs": 1500
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "stadium-wave",
+  "name": "Stadium Wave",
+  "blurb": "A stadium at night; floodlights breathe with the loudness and a wave of light runs through the crowd on every beat.",
+  "program": "stadium-wave",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#ECECF0",
+    "#F0A83C",
+    "#5CC8C0",
+    "#C86CF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

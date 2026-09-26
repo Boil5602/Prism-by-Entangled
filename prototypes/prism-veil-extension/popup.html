@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Prism</title>
+<style>
+  :root { --bezel:#0A0C0F; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; }
+  * { box-sizing: border-box; }
+  body { margin:0; width:380px; max-height:560px; overflow:auto; background:var(--wall); color:var(--ink); font:13px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { display:flex; align-items:center; gap:10px; padding:10px 14px 8px; border-bottom:1px solid var(--edge); }
+  header .brand { font:600 11px/1 "IBM Plex Mono",Consolas,monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); }
+  header .site { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  section { padding: 6px 14px 8px; }
+  .sum { color:var(--dim); font-size:12px; margin:4px 0 6px; }
+  h3 { margin:10px 0 2px; font:600 10px/1 "IBM Plex Mono",Consolas,monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
+  .row { display:flex; align-items:center; gap:8px; min-height:32px; padding:3px 0; border-top:1px solid rgba(255,255,255,.06); }
+  .row:first-of-type { border-top:0; }
+  label.row { cursor:pointer; }
+  .row input[type=checkbox], .row input[type=radio] { accent-color:var(--accent); width:15px; height:15px; margin:0; flex:none; }
+  .dest { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dest b { font-weight:600; }
+  .dest .meta { color:var(--faint); font-size:12px; margin-left:6px; }
+  .count { font:600 13px "IBM Plex Mono",Consolas,monospace; color:var(--accent); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+  .btn { font:600 12px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#2A2F38; border:1px solid var(--edge); border-radius:8px; padding:5px 10px; cursor:pointer; white-space:nowrap; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.primary { background:var(--accent); color:var(--bezel); border-color:var(--accent); }
+  .btn[disabled] { opacity:.6; cursor:default; }
+  .empty { color:var(--dim); padding:6px 0; }
+  .seg { display:inline-flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
+  .seg label { padding:4px 9px; cursor:pointer; font-size:12px; color:var(--dim); }
+  .seg label.on { background:var(--accent); color:var(--bezel); font-weight:600; }
+  .seg input { position:absolute; opacity:0; width:0; height:0; }
+  .sources { display:flex; gap:10px; padding:2px 0 4px 23px; font-size:12px; color:var(--dim); }
+  .sources label { display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .disk { display:inline-block; width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
+  .mono { font:600 12px "IBM Plex Mono",Consolas,monospace; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .err { color:var(--accent); font-size:12px; }
+  footer { padding:8px 14px 10px; border-top:1px solid var(--edge); color:var(--faint); font-size:11px; }
+  /* Tooltips: one styled panel for every row (native title bubbles are
+     unformatted and wrap badly). Content is our own HTML: a lead line, then
+     short bullets. Shown on hover/focus of a [data-tip] row. */
+  #tip { position:fixed; z-index:9; left:14px; right:14px; background:#0F1216; color:#F2F4F7; border:1px solid #3A4250; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.45; box-shadow:0 8px 24px #0009; pointer-events:none; }
+  #tip[hidden] { display:none; }
+  #tip b { color:#FFFFFF; font-weight:600; }
+  #tip p { margin:0 0 5px; }
+  #tip p:last-child { margin-bottom:0; }
+  #tip .d { display:inline-block; width:8px; height:8px; border-radius:50%; margin:0 4px 0 0; vertical-align:-1px; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
+</style>
+</head>
+<body>
+  <header><span class="brand">prism</span><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open this site's controls on the page: popups intercepted here, per-site switches, this site's reliability rating">This site</button></header>
+  <section id="view"></section>
+
+  <section>
+    <h3>Veil</h3>
+    <label class="row" data-tip="The bottom-right Prism button on pages. On = every site (clears any per-site hides). Off = hidden on this site only; the button's × does the same."><input type="checkbox" id="pill-on"><span class="dest">Show the Prism button</span></label>
+    <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
+    <label class="row" data-tip="When you pause a page's main video player, show the intermission with the show's position and a Resume button (live streams say LIVE). Off = a pause looks like a normal pause."><input type="checkbox" id="veil-paused"><span class="dest">Veil the screen while paused</span></label>
+    <label class="row" data-tip="A small ⚑ Report ad chip bottom-left on every page. Click it, then click an ad the veil missed (or a veil that shouldn't be there) to send a report. Nothing is sent without your click."><input type="checkbox" id="report-chip"><span class="dest">Show the ⚑ Report button</span></label>
+    <div class="row" data-tip="How the intermission over a video ad looks. Full card: art with the countdown and controls in the middle. Corner chip: art only, a small chip top-left that opens the controls."><span class="dest">Intermission</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
+  </section>
+
+  <section>
+    <h3>Content</h3>
+    <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labelled content</span></label>
+    <label class="row" data-tip="<p><b>Three-disk cylinder</b> next to links to rated outlets, and on the Prism button for the site you're on. One disk per source, on that source's own scale:</p><p><span class='d' style='background:#3fb950'></span>green &middot; <span class='d' style='background:#d29922'></span>yellow &middot; <span class='d' style='background:#f85149'></span>red</p><p>grey = no information &middot; hollow = source switched off</p><p>Click a disk to open the discussion behind the rating</p><p>Nothing is hidden or blocked. Unlisted is not &ldquo;bad&rdquo;.</p>"><input type="checkbox" id="src-marks"><span class="dest">Mark source reliability</span></label>
+    <div class="sources" id="sources" hidden>
+      <label data-tip="<p><b>Wikipedia &ndash; Perennial Sources</b> (CC BY-SA)</p><p>Community-adjudicated: reliable / no consensus / unreliable / deprecated</p><p>Every rating links to the discussion that set it</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>
+      <label data-tip="<p><b>Iffy Index</b> (CC BY 4.0)</p><p>Sites that Media Bias/Fact Check rates low credibility</p><p>Colour = MBFC&rsquo;s factual-reporting grade</p><p>The disk links to the MBFC review</p>"><input type="checkbox" data-src="iffy"><span class="disk" style="background:#d29922"></span>Iffy Index</label>
+      <label data-tip="<p><b>Steven Black hosts</b> &ndash; fakenews list (MIT)</p><p>A plain domain list: red if listed, grey if not</p><p>No per-site rationale exists, so the disk links to the list itself</p>"><input type="checkbox" data-src="sb"><span class="disk" style="background:#f85149"></span>Steven Black</label>
+    </div>
+  </section>
+
+  <section>
+    <h3>Photos</h3>
+    <div class="row" id="photos-row" data-tip="The photos behind every veil. Built-in: the 24 that ship inside Prism. Server: 24 random photos from the signed pool at prism.entangled.world (CC0 / public domain, each photo checked against the signed index; no identifiers sent)."><span class="dest" id="photos-text">…</span><button class="btn primary" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Restore defaults</button></div>
+    <div class="err" id="photos-err" hidden></div>
+    <label class="row" data-tip="Fetch a fresh random 24 from the server once a week, automatically (catches up at next start if the browser was closed)."><input type="checkbox" id="art-weekly"><span class="dest">Refresh photos weekly</span></label>
+  </section>
+
+  <section>
+    <h3>Prism page</h3>
+    <label class="row" data-tip="Every new tab opens Prism's start page (art, clock, search, your links, weather, calendar). Asks once for the 'tabs' permission it needs."><input type="checkbox" id="startpage-on"><span class="dest">Use Prism as my new-tab page</span></label>
+    <label class="row" data-tip="When the browser starts or a new window opens, its first tab is Prism's start page."><input type="checkbox" id="homepage-on"><span class="dest">Use Prism as my start page</span></label>
+  </section>
+
+  <section>
+    <h3>Time reclaimed</h3>
+    <div class="row" data-tip="Time spent behind the veil instead of watching ads: measured for video breaks, 30 s estimated per covered display ad. Local only - a receipt, not a scoreboard."><span class="dest" id="reclaimed">…</span><button class="btn" id="reclaimed-reset" type="button" data-tip="Start the count again from zero">Reset</button></div>
+  </section>
+
+  <footer>Local only — nothing here ever leaves this browser.</footer>
+  <div id="tip" hidden></div>
+  <script src="src/core-popups.js"></script>
+  <script src="src/core-reclaimed.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

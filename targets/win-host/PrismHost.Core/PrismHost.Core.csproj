@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PrismHost</RootNamespace>
+    <Description>Non-UI logic of the Prism Windows host (win-host-spec): the §10-safe store, channel message parsing, boot cache. No WinUI dependency so the §10 guarantees run headless in CI.</Description>
+  </PropertyGroup>
+</Project>

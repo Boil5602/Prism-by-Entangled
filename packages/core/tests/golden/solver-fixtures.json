@@ -1,0 +1,6803 @@
+{
+  "generator": "reference-solver.mjs (verbatim prototype)",
+  "cases": [
+    {
+      "name": "sweep/tablet/n1/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n1/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n1/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n1/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n2/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 456.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n2/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n2/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n2/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 625
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n3/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "radio": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 625
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 456.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n3/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 625
+        },
+        "radio": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 343.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n3/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 625
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 620,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n3/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 312.5
+        },
+        "radio": {
+          "x": 850,
+          "y": 312.5,
+          "w": 150,
+          "h": 312.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n4/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 150,
+          "h": 228.125
+        },
+        "radio": {
+          "x": 150,
+          "y": 168.75,
+          "w": 150,
+          "h": 228.125
+        },
+        "photos": {
+          "x": 0,
+          "y": 396.875,
+          "w": 300,
+          "h": 228.125
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n4/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 312.5
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 500,
+          "y": 312.5,
+          "w": 500,
+          "h": 312.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n4/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 625
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        },
+        "photos": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n4/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 208.33333333333334
+        },
+        "radio": {
+          "x": 850,
+          "y": 208.33333333333334,
+          "w": 150,
+          "h": 208.33333333333334
+        },
+        "photos": {
+          "x": 850,
+          "y": 416.6666666666667,
+          "w": 150,
+          "h": 208.33333333333334
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n5/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "weather": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 625
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 150,
+          "h": 228.125
+        },
+        "radio": {
+          "x": 150,
+          "y": 168.75,
+          "w": 150,
+          "h": 228.125
+        },
+        "photos": {
+          "x": 0,
+          "y": 396.875,
+          "w": 300,
+          "h": 228.125
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n5/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 500,
+          "y": 312.5,
+          "w": 500,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 281.25,
+          "w": 250,
+          "h": 343.75
+        },
+        "weather": {
+          "x": 250,
+          "y": 281.25,
+          "w": 250,
+          "h": 343.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n5/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "radio": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        },
+        "weather": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n5/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 156.25
+        },
+        "radio": {
+          "x": 850,
+          "y": 156.25,
+          "w": 150,
+          "h": 156.25
+        },
+        "photos": {
+          "x": 850,
+          "y": 312.5,
+          "w": 150,
+          "h": 156.25
+        },
+        "weather": {
+          "x": 850,
+          "y": 468.75,
+          "w": 150,
+          "h": 156.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n6/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "radio": {
+          "x": 300,
+          "y": 0,
+          "w": 350,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 650,
+          "y": 0,
+          "w": 350,
+          "h": 312.5
+        },
+        "weather": {
+          "x": 300,
+          "y": 312.5,
+          "w": 350,
+          "h": 312.5
+        },
+        "notes": {
+          "x": 650,
+          "y": 312.5,
+          "w": 350,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 456.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n6/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 312.5
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 312.5
+        },
+        "weather": {
+          "x": 500,
+          "y": 312.5,
+          "w": 250,
+          "h": 312.5
+        },
+        "notes": {
+          "x": 750,
+          "y": 312.5,
+          "w": 250,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 343.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n6/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "radio": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 276.25
+        },
+        "weather": {
+          "x": 206.66666666666666,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 276.25
+        },
+        "notes": {
+          "x": 413.3333333333333,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n6/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 0,
+          "y": 478.125,
+          "w": 170,
+          "h": 146.875
+        },
+        "radio": {
+          "x": 170,
+          "y": 478.125,
+          "w": 170,
+          "h": 146.875
+        },
+        "photos": {
+          "x": 340,
+          "y": 478.125,
+          "w": 170,
+          "h": 146.875
+        },
+        "weather": {
+          "x": 510,
+          "y": 478.125,
+          "w": 170,
+          "h": 146.875
+        },
+        "notes": {
+          "x": 680,
+          "y": 478.125,
+          "w": 170,
+          "h": 146.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n7/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 312.5
+        },
+        "weather": {
+          "x": 533.3333333333334,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 312.5
+        },
+        "notes": {
+          "x": 766.6666666666667,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 312.5
+        },
+        "ticker": {
+          "x": 300,
+          "y": 312.5,
+          "w": 700,
+          "h": 312.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 228.125
+        },
+        "photos": {
+          "x": 0,
+          "y": 396.875,
+          "w": 300,
+          "h": 228.125
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n7/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 500,
+          "y": 312.5,
+          "w": 500,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 171.875
+        },
+        "weather": {
+          "x": 166.66666666666666,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 171.875
+        },
+        "notes": {
+          "x": 333.3333333333333,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 171.875
+        },
+        "ticker": {
+          "x": 0,
+          "y": 453.125,
+          "w": 500,
+          "h": 171.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n7/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 625
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 155,
+          "h": 138.125
+        },
+        "photos": {
+          "x": 155,
+          "y": 348.75,
+          "w": 155,
+          "h": 138.125
+        },
+        "weather": {
+          "x": 310,
+          "y": 348.75,
+          "w": 155,
+          "h": 138.125
+        },
+        "notes": {
+          "x": 465,
+          "y": 348.75,
+          "w": 155,
+          "h": 138.125
+        },
+        "ticker": {
+          "x": 0,
+          "y": 486.875,
+          "w": 620,
+          "h": 138.125
+        }
+      }
+    },
+    {
+      "name": "sweep/tablet/n7/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 125
+        },
+        "radio": {
+          "x": 850,
+          "y": 125,
+          "w": 150,
+          "h": 125
+        },
+        "photos": {
+          "x": 850,
+          "y": 250,
+          "w": 150,
+          "h": 125
+        },
+        "weather": {
+          "x": 850,
+          "y": 375,
+          "w": 150,
+          "h": 125
+        },
+        "notes": {
+          "x": 850,
+          "y": 500,
+          "w": 150,
+          "h": 125
+        },
+        "ticker": {
+          "x": 0,
+          "y": 478.125,
+          "w": 850,
+          "h": 146.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n1/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n1/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n1/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n1/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n2/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 393.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n2/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n2/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n2/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 562.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n3/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "radio": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 562.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 393.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n3/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 281.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n3/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 620,
+          "h": 213.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n3/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 850,
+          "y": 281.25,
+          "w": 150,
+          "h": 281.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n4/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "radio": {
+          "x": 150,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "photos": {
+          "x": 0,
+          "y": 365.625,
+          "w": 300,
+          "h": 196.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n4/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 281.25
+        },
+        "photos": {
+          "x": 500,
+          "y": 281.25,
+          "w": 500,
+          "h": 281.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n4/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 213.75
+        },
+        "photos": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 213.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n4/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 187.5
+        },
+        "radio": {
+          "x": 850,
+          "y": 187.5,
+          "w": 150,
+          "h": 187.5
+        },
+        "photos": {
+          "x": 850,
+          "y": 375,
+          "w": 150,
+          "h": 187.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n5/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "weather": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 562.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "radio": {
+          "x": 150,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "photos": {
+          "x": 0,
+          "y": 365.625,
+          "w": 300,
+          "h": 196.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n5/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "photos": {
+          "x": 500,
+          "y": 281.25,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 0,
+          "y": 281.25,
+          "w": 250,
+          "h": 281.25
+        },
+        "weather": {
+          "x": 250,
+          "y": 281.25,
+          "w": 250,
+          "h": 281.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n5/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        },
+        "photos": {
+          "x": 206.66666666666666,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        },
+        "weather": {
+          "x": 413.3333333333333,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n5/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 140.625
+        },
+        "radio": {
+          "x": 850,
+          "y": 140.625,
+          "w": 150,
+          "h": 140.625
+        },
+        "photos": {
+          "x": 850,
+          "y": 281.25,
+          "w": 150,
+          "h": 140.625
+        },
+        "weather": {
+          "x": 850,
+          "y": 421.875,
+          "w": 150,
+          "h": 140.625
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n6/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "photos": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 562.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "radio": {
+          "x": 150,
+          "y": 168.75,
+          "w": 150,
+          "h": 196.875
+        },
+        "weather": {
+          "x": 0,
+          "y": 365.625,
+          "w": 150,
+          "h": 196.875
+        },
+        "notes": {
+          "x": 150,
+          "y": 365.625,
+          "w": 150,
+          "h": 196.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n6/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 281.25
+        },
+        "photos": {
+          "x": 500,
+          "y": 281.25,
+          "w": 500,
+          "h": 281.25
+        },
+        "weather": {
+          "x": 0,
+          "y": 281.25,
+          "w": 250,
+          "h": 281.25
+        },
+        "notes": {
+          "x": 250,
+          "y": 281.25,
+          "w": 250,
+          "h": 281.25
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n6/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "radio": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 281.25
+        },
+        "photos": {
+          "x": 620,
+          "y": 281.25,
+          "w": 380,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        },
+        "weather": {
+          "x": 206.66666666666666,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        },
+        "notes": {
+          "x": 413.3333333333333,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 213.75
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n6/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 112.5
+        },
+        "radio": {
+          "x": 850,
+          "y": 112.5,
+          "w": 150,
+          "h": 112.5
+        },
+        "photos": {
+          "x": 850,
+          "y": 225,
+          "w": 150,
+          "h": 112.5
+        },
+        "weather": {
+          "x": 850,
+          "y": 337.5,
+          "w": 150,
+          "h": 112.5
+        },
+        "notes": {
+          "x": 850,
+          "y": 450,
+          "w": 150,
+          "h": 112.5
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n7/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 281.25
+        },
+        "weather": {
+          "x": 533.3333333333334,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 281.25
+        },
+        "notes": {
+          "x": 766.6666666666667,
+          "y": 0,
+          "w": 233.33333333333334,
+          "h": 281.25
+        },
+        "ticker": {
+          "x": 300,
+          "y": 281.25,
+          "w": 700,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 196.875
+        },
+        "photos": {
+          "x": 0,
+          "y": 365.625,
+          "w": 300,
+          "h": 196.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n7/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 281.25,
+          "w": 125,
+          "h": 140.625
+        },
+        "photos": {
+          "x": 125,
+          "y": 281.25,
+          "w": 125,
+          "h": 140.625
+        },
+        "weather": {
+          "x": 250,
+          "y": 281.25,
+          "w": 125,
+          "h": 140.625
+        },
+        "notes": {
+          "x": 375,
+          "y": 281.25,
+          "w": 125,
+          "h": 140.625
+        },
+        "ticker": {
+          "x": 0,
+          "y": 421.875,
+          "w": 500,
+          "h": 140.625
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n7/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 562.5
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 155,
+          "h": 106.875
+        },
+        "photos": {
+          "x": 155,
+          "y": 348.75,
+          "w": 155,
+          "h": 106.875
+        },
+        "weather": {
+          "x": 310,
+          "y": 348.75,
+          "w": 155,
+          "h": 106.875
+        },
+        "notes": {
+          "x": 465,
+          "y": 348.75,
+          "w": 155,
+          "h": 106.875
+        },
+        "ticker": {
+          "x": 0,
+          "y": 455.625,
+          "w": 620,
+          "h": 106.875
+        }
+      }
+    },
+    {
+      "name": "sweep/tv/n7/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 112.5
+        },
+        "radio": {
+          "x": 850,
+          "y": 112.5,
+          "w": 150,
+          "h": 112.5
+        },
+        "photos": {
+          "x": 850,
+          "y": 225,
+          "w": 150,
+          "h": 112.5
+        },
+        "weather": {
+          "x": 850,
+          "y": 337.5,
+          "w": 150,
+          "h": 112.5
+        },
+        "notes": {
+          "x": 850,
+          "y": 450,
+          "w": 150,
+          "h": 112.5
+        },
+        "ticker": {
+          "x": 0,
+          "y": 478.125,
+          "w": 850,
+          "h": 84.375
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n1/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1777.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n1/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1777.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n1/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1777.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n1/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1777.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n2/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 1000,
+          "h": 1244.4444444444443
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n2/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 1000,
+          "h": 888.8888888888889
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n2/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 1000,
+          "h": 675.5555555555557
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n2/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 1000,
+          "h": 266.66666666666674
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n3/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 1000,
+          "h": 622.2222222222222
+        },
+        "radio": {
+          "x": 0,
+          "y": 1155.5555555555557,
+          "w": 1000,
+          "h": 622.2222222222222
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n3/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 888.8888888888889
+        },
+        "radio": {
+          "x": 500,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 888.8888888888889
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n3/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 675.5555555555557
+        },
+        "radio": {
+          "x": 500,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 675.5555555555557
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n3/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 500,
+          "h": 266.66666666666674
+        },
+        "radio": {
+          "x": 500,
+          "y": 1511.111111111111,
+          "w": 500,
+          "h": 266.66666666666674
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n4/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 622.2222222222222
+        },
+        "radio": {
+          "x": 500,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 622.2222222222222
+        },
+        "photos": {
+          "x": 0,
+          "y": 1155.5555555555557,
+          "w": 1000,
+          "h": 622.2222222222222
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n4/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "radio": {
+          "x": 500,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "photos": {
+          "x": 0,
+          "y": 1333.3333333333335,
+          "w": 1000,
+          "h": 444.44444444444446
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n4/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "radio": {
+          "x": 500,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "photos": {
+          "x": 0,
+          "y": 1440,
+          "w": 1000,
+          "h": 337.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n4/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 333.3333333333333,
+          "h": 266.66666666666674
+        },
+        "radio": {
+          "x": 333.3333333333333,
+          "y": 1511.111111111111,
+          "w": 333.3333333333333,
+          "h": 266.66666666666674
+        },
+        "photos": {
+          "x": 666.6666666666666,
+          "y": 1511.111111111111,
+          "w": 333.3333333333333,
+          "h": 266.66666666666674
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n5/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 622.2222222222222
+        },
+        "radio": {
+          "x": 500,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 622.2222222222222
+        },
+        "photos": {
+          "x": 0,
+          "y": 1155.5555555555557,
+          "w": 500,
+          "h": 622.2222222222222
+        },
+        "weather": {
+          "x": 500,
+          "y": 1155.5555555555557,
+          "w": 500,
+          "h": 622.2222222222222
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n5/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "radio": {
+          "x": 500,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "photos": {
+          "x": 0,
+          "y": 1333.3333333333335,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "weather": {
+          "x": 500,
+          "y": 1333.3333333333335,
+          "w": 500,
+          "h": 444.44444444444446
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n5/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "radio": {
+          "x": 500,
+          "y": 1102.2222222222222,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "photos": {
+          "x": 0,
+          "y": 1440,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "weather": {
+          "x": 500,
+          "y": 1440,
+          "w": 500,
+          "h": 337.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n5/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 250,
+          "h": 266.66666666666674
+        },
+        "radio": {
+          "x": 250,
+          "y": 1511.111111111111,
+          "w": 250,
+          "h": 266.66666666666674
+        },
+        "photos": {
+          "x": 500,
+          "y": 1511.111111111111,
+          "w": 250,
+          "h": 266.66666666666674
+        },
+        "weather": {
+          "x": 750,
+          "y": 1511.111111111111,
+          "w": 250,
+          "h": 266.66666666666674
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n6/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "radio": {
+          "x": 500,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "photos": {
+          "x": 0,
+          "y": 948.1481481481482,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "weather": {
+          "x": 500,
+          "y": 948.1481481481482,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "notes": {
+          "x": 0,
+          "y": 1362.962962962963,
+          "w": 1000,
+          "h": 414.8148148148148
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n6/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 333.3333333333333,
+          "h": 444.44444444444446
+        },
+        "radio": {
+          "x": 333.3333333333333,
+          "y": 888.8888888888889,
+          "w": 333.3333333333333,
+          "h": 444.44444444444446
+        },
+        "photos": {
+          "x": 666.6666666666666,
+          "y": 888.8888888888889,
+          "w": 333.3333333333333,
+          "h": 444.44444444444446
+        },
+        "weather": {
+          "x": 0,
+          "y": 1333.3333333333335,
+          "w": 500,
+          "h": 444.44444444444446
+        },
+        "notes": {
+          "x": 500,
+          "y": 1333.3333333333335,
+          "w": 500,
+          "h": 444.44444444444446
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n6/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 333.3333333333333,
+          "h": 337.7777777777778
+        },
+        "radio": {
+          "x": 333.3333333333333,
+          "y": 1102.2222222222222,
+          "w": 333.3333333333333,
+          "h": 337.7777777777778
+        },
+        "photos": {
+          "x": 666.6666666666666,
+          "y": 1102.2222222222222,
+          "w": 333.3333333333333,
+          "h": 337.7777777777778
+        },
+        "weather": {
+          "x": 0,
+          "y": 1440,
+          "w": 500,
+          "h": 337.7777777777778
+        },
+        "notes": {
+          "x": 500,
+          "y": 1440,
+          "w": 500,
+          "h": 337.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n6/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 266.66666666666674
+        },
+        "radio": {
+          "x": 200,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 266.66666666666674
+        },
+        "photos": {
+          "x": 400,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 266.66666666666674
+        },
+        "weather": {
+          "x": 600,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 266.66666666666674
+        },
+        "notes": {
+          "x": 800,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 266.66666666666674
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n7/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 533.3333333333334
+        },
+        "calendar": {
+          "x": 0,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "radio": {
+          "x": 500,
+          "y": 533.3333333333334,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "photos": {
+          "x": 0,
+          "y": 948.1481481481482,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "weather": {
+          "x": 500,
+          "y": 948.1481481481482,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "notes": {
+          "x": 0,
+          "y": 1362.962962962963,
+          "w": 500,
+          "h": 414.8148148148148
+        },
+        "ticker": {
+          "x": 500,
+          "y": 1362.962962962963,
+          "w": 500,
+          "h": 414.8148148148148
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n7/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 888.8888888888889
+        },
+        "calendar": {
+          "x": 0,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 296.2962962962963
+        },
+        "radio": {
+          "x": 500,
+          "y": 888.8888888888889,
+          "w": 500,
+          "h": 296.2962962962963
+        },
+        "photos": {
+          "x": 0,
+          "y": 1185.1851851851852,
+          "w": 500,
+          "h": 296.2962962962963
+        },
+        "weather": {
+          "x": 500,
+          "y": 1185.1851851851852,
+          "w": 500,
+          "h": 296.2962962962963
+        },
+        "notes": {
+          "x": 0,
+          "y": 1481.4814814814815,
+          "w": 500,
+          "h": 296.2962962962963
+        },
+        "ticker": {
+          "x": 500,
+          "y": 1481.4814814814815,
+          "w": 500,
+          "h": 296.2962962962963
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n7/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1102.2222222222222
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1102.2222222222222,
+          "w": 200,
+          "h": 337.7777777777778
+        },
+        "radio": {
+          "x": 200,
+          "y": 1102.2222222222222,
+          "w": 200,
+          "h": 337.7777777777778
+        },
+        "photos": {
+          "x": 400,
+          "y": 1102.2222222222222,
+          "w": 200,
+          "h": 337.7777777777778
+        },
+        "weather": {
+          "x": 600,
+          "y": 1102.2222222222222,
+          "w": 200,
+          "h": 337.7777777777778
+        },
+        "notes": {
+          "x": 800,
+          "y": 1102.2222222222222,
+          "w": 200,
+          "h": 337.7777777777778
+        },
+        "ticker": {
+          "x": 0,
+          "y": 1440,
+          "w": 1000,
+          "h": 337.7777777777778
+        }
+      }
+    },
+    {
+      "name": "sweep/portrait/n7/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 1777.7777777777778,
+      "device": "portrait",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 1511.111111111111
+        },
+        "calendar": {
+          "x": 0,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 133.33333333333337
+        },
+        "radio": {
+          "x": 200,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 133.33333333333337
+        },
+        "photos": {
+          "x": 400,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 133.33333333333337
+        },
+        "weather": {
+          "x": 600,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 133.33333333333337
+        },
+        "notes": {
+          "x": 800,
+          "y": 1511.111111111111,
+          "w": 200,
+          "h": 133.33333333333337
+        },
+        "ticker": {
+          "x": 0,
+          "y": 1644.4444444444443,
+          "w": 1000,
+          "h": 133.33333333333337
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n1/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n1/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n1/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n1/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 1000,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n2/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n2/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n2/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n2/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 750
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n3/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 290.625
+        },
+        "radio": {
+          "x": 0,
+          "y": 459.375,
+          "w": 300,
+          "h": 290.625
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n3/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 750
+        },
+        "radio": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 468.75
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n3/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        },
+        "radio": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n3/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 0,
+          "y": 478.125,
+          "w": 425,
+          "h": 271.875
+        },
+        "radio": {
+          "x": 425,
+          "y": 478.125,
+          "w": 425,
+          "h": 271.875
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n4/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 350,
+          "h": 375
+        },
+        "radio": {
+          "x": 650,
+          "y": 0,
+          "w": 350,
+          "h": 375
+        },
+        "photos": {
+          "x": 300,
+          "y": 375,
+          "w": 700,
+          "h": 375
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n4/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 375
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 375
+        },
+        "photos": {
+          "x": 500,
+          "y": 375,
+          "w": 500,
+          "h": 375
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n4/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 375
+        },
+        "radio": {
+          "x": 620,
+          "y": 375,
+          "w": 380,
+          "h": 375
+        },
+        "photos": {
+          "x": 0,
+          "y": 348.75,
+          "w": 620,
+          "h": 401.25
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n4/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 0,
+          "y": 478.125,
+          "w": 283.3333333333333,
+          "h": 271.875
+        },
+        "radio": {
+          "x": 283.3333333333333,
+          "y": 478.125,
+          "w": 283.3333333333333,
+          "h": 271.875
+        },
+        "photos": {
+          "x": 566.6666666666666,
+          "y": 478.125,
+          "w": 283.3333333333333,
+          "h": 271.875
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n5/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 700,
+          "h": 750
+        },
+        "radio": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 193.75
+        },
+        "photos": {
+          "x": 0,
+          "y": 362.5,
+          "w": 300,
+          "h": 193.75
+        },
+        "weather": {
+          "x": 0,
+          "y": 556.25,
+          "w": 300,
+          "h": 193.75
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n5/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 250,
+          "h": 375
+        },
+        "radio": {
+          "x": 750,
+          "y": 0,
+          "w": 250,
+          "h": 375
+        },
+        "photos": {
+          "x": 500,
+          "y": 375,
+          "w": 500,
+          "h": 375
+        },
+        "weather": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 468.75
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n5/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "photos": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 375
+        },
+        "weather": {
+          "x": 620,
+          "y": 375,
+          "w": 380,
+          "h": 375
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        },
+        "radio": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n5/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 187.5
+        },
+        "radio": {
+          "x": 850,
+          "y": 187.5,
+          "w": 150,
+          "h": 187.5
+        },
+        "photos": {
+          "x": 850,
+          "y": 375,
+          "w": 150,
+          "h": 187.5
+        },
+        "weather": {
+          "x": 850,
+          "y": 562.5,
+          "w": 150,
+          "h": 187.5
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n6/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "calendar": {
+          "x": 300,
+          "y": 0,
+          "w": 350,
+          "h": 375
+        },
+        "radio": {
+          "x": 650,
+          "y": 0,
+          "w": 350,
+          "h": 375
+        },
+        "photos": {
+          "x": 300,
+          "y": 375,
+          "w": 700,
+          "h": 375
+        },
+        "weather": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 290.625
+        },
+        "notes": {
+          "x": 0,
+          "y": 459.375,
+          "w": 300,
+          "h": 290.625
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n6/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "calendar": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 750
+        },
+        "radio": {
+          "x": 0,
+          "y": 281.25,
+          "w": 250,
+          "h": 234.375
+        },
+        "photos": {
+          "x": 250,
+          "y": 281.25,
+          "w": 250,
+          "h": 234.375
+        },
+        "weather": {
+          "x": 0,
+          "y": 515.625,
+          "w": 250,
+          "h": 234.375
+        },
+        "notes": {
+          "x": 250,
+          "y": 515.625,
+          "w": 250,
+          "h": 234.375
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n6/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "radio": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 250
+        },
+        "photos": {
+          "x": 620,
+          "y": 250,
+          "w": 380,
+          "h": 250
+        },
+        "weather": {
+          "x": 620,
+          "y": 500,
+          "w": 380,
+          "h": 250
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        },
+        "notes": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 401.25
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n6/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 850,
+          "y": 0,
+          "w": 150,
+          "h": 250
+        },
+        "weather": {
+          "x": 850,
+          "y": 250,
+          "w": 150,
+          "h": 250
+        },
+        "notes": {
+          "x": 850,
+          "y": 500,
+          "w": 150,
+          "h": 250
+        },
+        "radio": {
+          "x": 0,
+          "y": 478.125,
+          "w": 425,
+          "h": 271.875
+        },
+        "photos": {
+          "x": 425,
+          "y": 478.125,
+          "w": 425,
+          "h": 271.875
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n7/hs0.3",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.3,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 300,
+          "h": 168.75
+        },
+        "radio": {
+          "x": 300,
+          "y": 0,
+          "w": 350,
+          "h": 250
+        },
+        "photos": {
+          "x": 650,
+          "y": 0,
+          "w": 350,
+          "h": 250
+        },
+        "weather": {
+          "x": 300,
+          "y": 250,
+          "w": 350,
+          "h": 250
+        },
+        "notes": {
+          "x": 650,
+          "y": 250,
+          "w": 350,
+          "h": 250
+        },
+        "ticker": {
+          "x": 300,
+          "y": 500,
+          "w": 700,
+          "h": 250
+        },
+        "calendar": {
+          "x": 0,
+          "y": 168.75,
+          "w": 300,
+          "h": 581.25
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n7/hs0.5",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "radio": {
+          "x": 500,
+          "y": 0,
+          "w": 500,
+          "h": 375
+        },
+        "photos": {
+          "x": 500,
+          "y": 375,
+          "w": 500,
+          "h": 375
+        },
+        "calendar": {
+          "x": 0,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 234.375
+        },
+        "weather": {
+          "x": 166.66666666666666,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 234.375
+        },
+        "notes": {
+          "x": 333.3333333333333,
+          "y": 281.25,
+          "w": 166.66666666666666,
+          "h": 234.375
+        },
+        "ticker": {
+          "x": 0,
+          "y": 515.625,
+          "w": 500,
+          "h": 234.375
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n7/hs0.62",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 375
+        },
+        "weather": {
+          "x": 620,
+          "y": 375,
+          "w": 380,
+          "h": 375
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 200.625
+        },
+        "photos": {
+          "x": 206.66666666666666,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 200.625
+        },
+        "notes": {
+          "x": 413.3333333333333,
+          "y": 348.75,
+          "w": 206.66666666666666,
+          "h": 200.625
+        },
+        "ticker": {
+          "x": 0,
+          "y": 549.375,
+          "w": 620,
+          "h": 200.625
+        }
+      }
+    },
+    {
+      "name": "sweep/monitor/n7/hs0.85",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "notes",
+          "hint": 0.75,
+          "weight": 0.5
+        },
+        {
+          "id": "ticker",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.85,
+      "W": 1000,
+      "H": 750,
+      "device": "monitor",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 850,
+          "h": 478.125
+        },
+        "calendar": {
+          "x": 0,
+          "y": 478.125,
+          "w": 170,
+          "h": 135.9375
+        },
+        "radio": {
+          "x": 170,
+          "y": 478.125,
+          "w": 170,
+          "h": 135.9375
+        },
+        "photos": {
+          "x": 340,
+          "y": 478.125,
+          "w": 170,
+          "h": 135.9375
+        },
+        "weather": {
+          "x": 510,
+          "y": 478.125,
+          "w": 170,
+          "h": 135.9375
+        },
+        "notes": {
+          "x": 680,
+          "y": 478.125,
+          "w": 170,
+          "h": 135.9375
+        },
+        "ticker": {
+          "x": 0,
+          "y": 614.0625,
+          "w": 850,
+          "h": 135.9375
+        }
+      }
+    },
+    {
+      "name": "hero-rotation/youtube",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "youtube",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "radio": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "photos": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        },
+        "calendar": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        },
+        "weather": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "hero-rotation/calendar",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "calendar",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "calendar": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 625
+        },
+        "youtube": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 156.25
+        },
+        "radio": {
+          "x": 620,
+          "y": 156.25,
+          "w": 380,
+          "h": 156.25
+        },
+        "photos": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 156.25
+        },
+        "weather": {
+          "x": 620,
+          "y": 468.75,
+          "w": 380,
+          "h": 156.25
+        }
+      }
+    },
+    {
+      "name": "hero-rotation/radio",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "radio",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "radio": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 465
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "weather": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        },
+        "youtube": {
+          "x": 0,
+          "y": 465,
+          "w": 310,
+          "h": 160
+        },
+        "photos": {
+          "x": 310,
+          "y": 465,
+          "w": 310,
+          "h": 160
+        }
+      }
+    },
+    {
+      "name": "hero-rotation/photos",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "photos",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "photos": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 413.3333333333333
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "weather": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        },
+        "youtube": {
+          "x": 0,
+          "y": 413.3333333333333,
+          "w": 310,
+          "h": 211.66666666666669
+        },
+        "radio": {
+          "x": 310,
+          "y": 413.3333333333333,
+          "w": 310,
+          "h": 211.66666666666669
+        }
+      }
+    },
+    {
+      "name": "hero-rotation/weather",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        },
+        {
+          "id": "photos",
+          "hint": 1.5,
+          "weight": 0.8
+        },
+        {
+          "id": "weather",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "weather",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "weather": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 625
+        },
+        "youtube": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 156.25
+        },
+        "calendar": {
+          "x": 620,
+          "y": 156.25,
+          "w": 380,
+          "h": 156.25
+        },
+        "radio": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 156.25
+        },
+        "photos": {
+          "x": 620,
+          "y": 468.75,
+          "w": 380,
+          "h": 156.25
+        }
+      }
+    },
+    {
+      "name": "edge/unknown-hero",
+      "tiles": [
+        {
+          "id": "youtube",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "calendar",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "radio",
+          "hint": 1.3333333333333333,
+          "weight": 0.2
+        }
+      ],
+      "heroId": "nope",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "youtube": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "calendar": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 625
+        },
+        "radio": {
+          "x": 0,
+          "y": 348.75,
+          "w": 620,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "edge/tie-identical-sats",
+      "tiles": [
+        {
+          "id": "hero",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "sat-a",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "sat-b",
+          "hint": 1,
+          "weight": 0.5
+        }
+      ],
+      "heroId": "hero",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "hero": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 348.75
+        },
+        "sat-a": {
+          "x": 0,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        },
+        "sat-b": {
+          "x": 310,
+          "y": 348.75,
+          "w": 310,
+          "h": 276.25
+        }
+      }
+    },
+    {
+      "name": "edge/sliver-snap",
+      "tiles": [
+        {
+          "id": "square",
+          "hint": 1,
+          "weight": 0.5
+        },
+        {
+          "id": "cal",
+          "hint": 0.75,
+          "weight": 0.6
+        },
+        {
+          "id": "tick",
+          "hint": 8,
+          "weight": 0.9
+        }
+      ],
+      "heroId": "square",
+      "heroSize": 0.62,
+      "W": 1000,
+      "H": 625,
+      "device": "tablet",
+      "rects": {
+        "square": {
+          "x": 0,
+          "y": 0,
+          "w": 620,
+          "h": 625
+        },
+        "cal": {
+          "x": 620,
+          "y": 0,
+          "w": 380,
+          "h": 312.5
+        },
+        "tick": {
+          "x": 620,
+          "y": 312.5,
+          "w": 380,
+          "h": 312.5
+        }
+      }
+    },
+    {
+      "name": "edge/zero-weight-sats",
+      "tiles": [
+        {
+          "id": "hero",
+          "hint": 1.7777777777777777,
+          "weight": 1
+        },
+        {
+          "id": "free-a",
+          "hint": 1.3333333333333333,
+          "weight": 0
+        },
+        {
+          "id": "free-b",
+          "hint": 0.75,
+          "weight": 0
+        },
+        {
+          "id": "free-c",
+          "hint": 1,
+          "weight": 0
+        }
+      ],
+      "heroId": "hero",
+      "heroSize": 0.5,
+      "W": 1000,
+      "H": 562.5,
+      "device": "tv",
+      "rects": {
+        "hero": {
+          "x": 0,
+          "y": 0,
+          "w": 500,
+          "h": 281.25
+        },
+        "free-a": {
+          "x": 0,
+          "y": 281.25,
+          "w": 500,
+          "h": 93.75
+        },
+        "free-b": {
+          "x": 0,
+          "y": 375,
+          "w": 500,
+          "h": 93.75
+        },
+        "free-c": {
+          "x": 0,
+          "y": 468.75,
+          "w": 500,
+          "h": 93.75
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "fandango",
+  "name": "Fandango at Home",
+  "url": "https://athome.fandango.com/",
+  "adapter": "fandango",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "docs/reports/video-drm-matrix.md - 2026-09-20 15:33 and 16:11, signed in: the EME-protected pre-roll buffered fully and froze at its last frame (readyState 1, no error) on both runs; the feature never started. FAILS in WebView2: the Edge hand-off, no workarounds."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "wishlist",
+      "label": "My Wish List",
+      "selector": "wishlist"
+    }
+  ],
+  "notes": "Fandango at Home (formerly Vudu; vudu.com redirects). Buy, rent, and a free ad-supported tier; My Library holds owned titles, My Wish List the titles saved to watch - the wall's My list row reads the wish list. Sign in inside the tile; sessions persist (\u00a710). Ads on free titles: the adapter's observe-only watcher raises the section 26 veil. Playback FAILS inside the wall (the protected pre-roll freezes at its last frame, twice); the title hands off to Edge."
+}

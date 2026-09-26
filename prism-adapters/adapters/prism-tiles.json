@@ -1,0 +1,22 @@
+{
+  "match": [
+    "tiles.prism"
+  ],
+  "selectors": {
+    "chore-list": "section.list-pane",
+    "chore-notes": "section.notes-pane",
+    "chore-board": "div.board",
+    "timer-remaining": "div.stage",
+    "timer-controls": "div.row.transport",
+    "agenda-week": "section.week",
+    "agenda-today": "section.today"
+  },
+  "verified": {
+    "chore-list": "true - the id belongs to Prism's own page (targets/win-host/PrismHost/Assets/tiles/chores/index.html), so it cannot drift without this repo changing",
+    "chore-notes": "true - same page, same repo",
+    "chore-board": "true - same page, same repo",
+    "timer-remaining": "true - targets/win-host/PrismHost/Assets/tiles/timer/index.html",
+    "timer-controls": "true - same page, same repo"
+  },
+  "notes": "The first-party micro-facets (docs/concept-scenes.md §6): prism-chores and prism-timer, both served by the host at https://tiles.prism/. One adapter because they share a host. No `js`: these pages carry no ads, so there is nothing for §26 detection to observe, and no `controls`/`presentation`: they play nothing."
+}

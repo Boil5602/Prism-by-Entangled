@@ -1,0 +1,34 @@
+<Application
+    x:Class="PrismHost.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Design tokens (prototypes/prism-build-wizard.jsx): amber accent, 8/12 radii. The accent drives
+                 every checked toggle, focus ring and selection, so the config pages read as one product. -->
+            <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">12</CornerRadius>
+            <Color x:Key="SystemAccentColor">#F0A83C</Color>
+            <Color x:Key="SystemAccentColorLight1">#F5BE66</Color>
+            <Color x:Key="SystemAccentColorLight2">#F8D08F</Color>
+            <Color x:Key="SystemAccentColorLight3">#FBE2B8</Color>
+            <Color x:Key="SystemAccentColorDark1">#D68F2C</Color>
+            <Color x:Key="SystemAccentColorDark2">#B8771F</Color>
+            <Color x:Key="SystemAccentColorDark3">#9A6014</Color>
+            <FontFamily x:Key="PrismText">Segoe UI Variable Text, Segoe UI</FontFamily>
+            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
+            <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
+            <Style TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
+            <!-- Every tooltip opens below what it belongs to, with a clear gap (2026-09-25, "only get focus on initial hover and immediately
+                 disappears"): a tooltip that opened on or at the edge of the pointer took the pointer from its button, whose hover went out
+                 half a second in. One rule for every button, not one button at a time (memory: hover-loss-tooltips). -->
+            <Style TargetType="ToolTip" BasedOn="{StaticResource DefaultToolTipStyle}">
+                <Setter Property="Placement" Value="Bottom" />
+                <Setter Property="VerticalOffset" Value="12" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

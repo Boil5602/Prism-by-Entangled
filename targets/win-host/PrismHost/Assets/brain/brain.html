@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>prism brain</title>
+<script>
+/* The bridge the runtime expects (packages/core/src/runtime.ts), wired to the
+   host's one JSON channel (win-host-spec §2). __prismStoreSnapshot is injected
+   by the host BEFORE this script (AddScriptToExecuteOnDocumentCreated). */
+window.__prismStoreSnapshot = window.__prismStoreSnapshot || {};
+window.PrismBridge = {
+  dispatch: function (json) {
+    /* mirror store.set into the snapshot so storeGet stays coherent */
+    try { var m = JSON.parse(json); if (m && m.op === "store.set") window.__prismStoreSnapshot[m.key] = m.value; } catch (e) {}
+    window.chrome.webview.postMessage(json);
+  },
+  storeGet: function (key) {
+    return Object.prototype.hasOwnProperty.call(window.__prismStoreSnapshot, key)
+      ? window.__prismStoreSnapshot[key] : null;
+  },
+};
+/* a silently rejected promise inside core is a stalled frame — surface it */
+window.addEventListener("unhandledrejection", function (ev) {
+  var r = ev.reason;
+  window.chrome.webview.postMessage(JSON.stringify({ op: "runtime.error", message: "unhandled rejection: " + String(r && r.stack || r) }));
+});
+window.addEventListener("error", function (ev) {
+  window.chrome.webview.postMessage(JSON.stringify({ op: "runtime.error", message: "error: " + ev.message + " @" + ev.filename + ":" + ev.lineno }));
+});
+/* host → core: {fn, args} routed onto the PrismRuntime API */
+window.chrome.webview.addEventListener("message", function (ev) {
+  var m = ev.data;
+  try {
+    var api = window.PrismRuntime;
+    if (!api || typeof api[m.fn] !== "function") {
+      window.chrome.webview.postMessage(JSON.stringify({ op: "runtime.error", message: "no PrismRuntime." + (m && m.fn) }));
+      return;
+    }
+    api[m.fn].apply(api, m.args || []);
+  } catch (e) {
+    window.chrome.webview.postMessage(JSON.stringify({ op: "runtime.error", message: String(e && e.stack || e) }));
+  }
+});
+</script>
+<script src="prism-runtime.js"></script>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,4 @@
+# StevenBlack "fakenews" hosts — OFF by default (spec section 5). Attribution: sources.json.
+# Deliberately empty in the bundled baseline: this category is populated only by
+# syncing the attributed upstream list the user enables. The shell never ships
+# its own judgment of which sites are scams or disinformation.

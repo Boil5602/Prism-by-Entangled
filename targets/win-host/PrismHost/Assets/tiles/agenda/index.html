@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenda</title>
+<!--
+  prism-agenda — the household's week (docs/concept-scenes.md §6, CS-10.3).
+
+  Served by the host at https://tiles.prism/agenda/ from Assets/tiles. ZERO
+  network: every byte this page needs is beside it, and the week itself is a
+  document core owns (`tiles:agenda`, packages/core/src/tiles-data.ts), read
+  through the host bridge and editable from a phone over the §6 remote API.
+
+  This is NOT a calendar client. It fetches nothing, subscribes to nothing and
+  signs in to nothing — personal calendars connect through Merge (charter
+  §2.1), and work calendars are a Merge roadmap item. What this page renders is
+  a week the box already holds, which is exactly what the demo household seeds.
+
+  Names on this page are names a person typed ("Sam", "everyone"), never
+  accounts, so nothing here identifies anybody to anything (§19/§22).
+-->
+<link rel="stylesheet" href="../shared/tiles.css">
+<style>
+  .board { display: flex; flex-direction: column; gap: var(--gap); flex: 1 1 auto; min-height: 0; }
+
+  /* Today leads; the rest of the week follows. A tall slot (3:4) shows today
+     alone — the "today" focus preset cuts exactly this section. */
+  section.today { flex: 0 0 auto; }
+  section.week { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
+  .daylist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: calc(var(--gap) * 0.5); }
+
+  .day {
+    display: flex; gap: calc(var(--gap) * 0.75); align-items: baseline;
+    padding: calc(var(--gap) * 0.35) 0;
+    border-top: 1px solid var(--rule);
+  }
+  .day:first-child { border-top: 0; }
+  .day .dayname { flex: 0 0 5.5em; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-size: .78em; }
+  .day .events { flex: 1 1 auto; display: flex; flex-direction: column; gap: calc(var(--gap) * 0.3); min-width: 0; }
+
+  .event { display: flex; gap: .6em; align-items: baseline; min-width: 0; }
+  .event .at { flex: 0 0 auto; color: var(--dim); font-variant-numeric: tabular-nums; font-size: .82em; }
+  .event .what { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event .who { flex: 0 0 auto; color: var(--dim); font-size: .78em; }
+  .event.allday .at { font-style: italic; }
+
+  /* Today's own block, above the week */
+  .todaycard { display: flex; flex-direction: column; gap: calc(var(--gap) * 0.35); }
+  .todaycard .heading { display: flex; align-items: baseline; gap: .6em; }
+  .todaycard .heading .big { font-size: 1.25em; font-weight: 600; }
+  .todaycard .heading .date { color: var(--dim); font-size: .82em; }
+  .todaycard .none { color: var(--dim); font-style: italic; }
+
+  /* A square or narrow slot (Family Hub's 1:1·M) drops the day column to a
+     single line per day so seven days still fit without scrolling. */
+  @media (max-aspect-ratio: 5/4) {
+    .day { flex-direction: column; gap: calc(var(--gap) * 0.2); }
+    .day .dayname { flex: none; }
+  }
+
+  .empty { color: var(--dim); font-style: italic; padding: var(--gap) 0; }
+</style>
+</head>
+<body>
+  <main class="pane board">
+    <section class="today" aria-label="Today">
+      <div class="todaycard">
+        <div class="heading"><span class="big" id="todayName">Today</span><span class="date" id="todayDate"></span></div>
+        <div id="todayEvents"></div>
+      </div>
+    </section>
+
+    <section class="week" aria-label="The week">
+      <ul class="daylist" id="week"></ul>
+    </section>
+  </main>
+
+<script src="../shared/tiles.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // Local wall-clock ISO only ("2026-09-07T07:40:00") — no timezone is parsed,
+  // because none is stored. new Date(string) would reinterpret it; this does not.
+  function parts(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(iso || ""));
+    if (!m) return null;
+    return { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5] };
+  }
+  function dayKey(iso) { return String(iso || "").slice(0, 10); }
+  function weekdayOf(key) {
+    var p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+    if (!p) return null;
+    return new Date(+p[1], +p[2] - 1, +p[3]).getDay();
+  }
+  function hhmm(p) {
+    if (!p) return "";
+    var h = p.h, ap = h < 12 ? "am" : "pm", hh = h % 12; if (hh === 0) hh = 12;
+    return hh + (p.mi ? ":" + (p.mi < 10 ? "0" : "") + p.mi : "") + ap;
+  }
+  function todayKey() {
+    var n = new Date(), p = function (x) { return (x < 10 ? "0" : "") + x; };
+    return n.getFullYear() + "-" + p(n.getMonth() + 1) + "-" + p(n.getDate());
+  }
+
+  function eventRow(ev) {
+    var li = document.createElement("div");
+    li.className = "event" + (ev.allDay ? " allday" : "");
+    var at = document.createElement("span"); at.className = "at";
+    at.textContent = ev.allDay ? "all day" : hhmm(parts(ev.start));
+    var what = document.createElement("span"); what.className = "what";
+    what.textContent = ev.title || "";                       // textContent: the week is data, never markup
+    li.appendChild(at); li.appendChild(what);
+    if (ev.who) {
+      var who = document.createElement("span"); who.className = "who";
+      who.textContent = ev.who;                              // a NAME the household typed, never an account
+      li.appendChild(who);
+    }
+    return li;
+  }
+
+  function render(doc) {
+    var events = (doc && Array.isArray(doc.events)) ? doc.events : [];
+    var today = todayKey();
+
+    // ---- today
+    var wd = weekdayOf(today), tp = parts(today + "T00:00");
+    document.getElementById("todayName").textContent = wd === null ? "Today" : DAYS[wd];
+    document.getElementById("todayDate").textContent = tp ? MONTHS[tp.mo - 1] + " " + tp.d : "";
+    var box = document.getElementById("todayEvents");
+    box.textContent = "";
+    var mine = events.filter(function (e) { return dayKey(e.start) === today; });
+    if (!mine.length) {
+      var none = document.createElement("div");
+      none.className = "none";
+      none.textContent = events.length ? "Nothing today." : "";
+      box.appendChild(none);
+    } else mine.forEach(function (e) { box.appendChild(eventRow(e)); });
+
+    // ---- the rest of the week, grouped by day, today excluded
+    var list = document.getElementById("week");
+    list.textContent = "";
+    if (!events.length) {
+      var empty = document.createElement("li");
+      empty.className = "empty";
+      empty.textContent = "No week here yet.";
+      list.appendChild(empty);
+      return;
+    }
+    var order = [], byDay = {};
+    events.forEach(function (e) {
+      var k = dayKey(e.start);
+      if (k === today) return;
+      if (!byDay[k]) { byDay[k] = []; order.push(k); }
+      byDay[k].push(e);
+    });
+    order.sort();
+    order.forEach(function (k) {
+      var li = document.createElement("li");
+      li.className = "day";
+      var name = document.createElement("span");
+      name.className = "dayname";
+      var d = weekdayOf(k), kp = parts(k + "T00:00");
+      name.textContent = (d === null ? k : SHORT[d]) + (kp ? " " + kp.d : "");
+      var evs = document.createElement("div");
+      evs.className = "events";
+      byDay[k].forEach(function (e) { evs.appendChild(eventRow(e)); });
+      li.appendChild(name); li.appendChild(evs);
+      list.appendChild(li);
+    });
+  }
+
+  render(null);
+  if (window.PrismTiles) {
+    window.PrismTiles.onDoc(function (key, doc) { if (key === "tiles:agenda") render(doc); });
+    window.PrismTiles.get("tiles:agenda");
+    // The day rolls over while the panel is up: re-render on the minute so
+    // "today" is still today at midnight. No network, no timer on the document.
+    setInterval(function () { window.PrismTiles.get("tiles:agenda"); }, 60000);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "id": "ribbon",
+  "name": "Ribbon",
+  "blurb": "A smooth waveform trail sweeping across the surface, older passes fading behind.",
+  "program": "ribbon",
+  "bands": 64,
+  "palette": ["#5CC8C0", "#C86CF0", "#F0A83C", "#F05C7A"],
+  "background": "transparent",
+  "motion": { "speed": 0.9, "attack": 0.45, "release": 0.2, "beat": 0.2 },
+  "reducedMotion": { "speed": 0.2, "beat": 0 },
+  "params": { "trail": 6, "thickness": 0.01, "amplitude": 0.35, "tension": 0.5 }
+}

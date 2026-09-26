@@ -1,0 +1,46 @@
+{
+  "name": "site-drop-restore",
+  "spec": "keepPresentation: the drop correlates with an ad-break (site-initiated) -> the shell re-invokes the player's own fullscreen control at the boundary, not during the ad",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 5100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 20000,
+      "kind": "tick"
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 35000,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

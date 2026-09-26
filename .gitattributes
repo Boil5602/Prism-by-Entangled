@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+# the §24 chime (targets/win-host/PrismHost/Assets/tiles/shared/chime.wav) must
+# survive a checkout byte-for-byte: scripts/make-chime.mjs --check compares it
+# against what the generator writes, and the gate runs that check.
+*.wav binary

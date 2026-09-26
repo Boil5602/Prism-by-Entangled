@@ -1,0 +1,25 @@
+{
+  "id": "hbomax",
+  "name": "HBO Max",
+  "url": "https://www.hbomax.com/",
+  "adapter": "hbomax",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - PROVISIONAL (2026-09-19): the signed-in run is pending; the tier is software until the row is read."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "HBO Max (max.com redirects here). Redesigns often: expect the adapter to churn. Sign in inside the tile; sessions persist (§10)."
+}

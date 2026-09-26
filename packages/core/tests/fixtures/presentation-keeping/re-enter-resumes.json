@@ -1,0 +1,69 @@
+{
+  "name": "re-enter-resumes",
+  "spec": "keeping resumes only after the human re-enters the state: a second user fullscreen after an Esc re-arms the keeper",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 8000,
+      "kind": "input",
+      "key": "Escape"
+    },
+    {
+      "t": 8050,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "user"
+    },
+    {
+      "t": 9000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 30000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 40000,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 45000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 45100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 60000,
+      "kind": "ad-break",
+      "active": false
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 60000,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

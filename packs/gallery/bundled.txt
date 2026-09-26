@@ -1,0 +1,15 @@
+# Gallery — the subset copied into the host at build (Assets/packs/gallery).
+# One file name per line; every name must have a pack.json entry. Edit by hand.
+aic-76571.jpg
+aic-90048.jpg
+aic-64724.jpg
+aic-71971.jpg
+aic-109228.jpg
+aic-100829.jpg
+aic-27163.jpg
+met-10481.jpg
+met-10945.jpg
+met-11311.jpg
+met-11050.jpg
+met-10793.jpg
+met-10154.jpg

@@ -1,0 +1,22 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# Android (shells/android)
+shells/android/.gradle/
+shells/android/**/build/
+shells/android/local.properties
+shells/android/.idea/
+# generated core bundle asset — produced by `npm run android:assets`
+shells/android/app/src/main/assets/prism-runtime.js
+targets/**/bin/
+targets/**/obj/
+prototypes/prism-veil-extension/sign.log
+
+# Claude Code agent worktrees (local only)
+.claude/
+# the developer's TMDB application key, a build asset only (video-menu-spec section 4a): never committed
+targets/win-host/PrismHost/Assets/tmdb.key
+prototypes/webview2-poc/obj/

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chores &amp; notes</title>
+<!--
+  prism-chores — the household list (docs/concept-scenes.md §6).
+
+  Served by the host at https://tiles.prism/chores/ from Assets/tiles. ZERO
+  network: every byte this page needs is beside it. The list and the notes live
+  in the host store (§10 never-wipe) and are edited from here or from a phone
+  over the §6 remote API; core owns the document either way.
+
+  Nothing on this page checks an item off. There is no timer, no schedule and
+  no "tidy up" pass — a chore goes grey because a person pressed it.
+-->
+<link rel="stylesheet" href="../shared/tiles.css">
+<style>
+  .add-row { flex: 0 0 auto; }
+
+  .board { display: flex; flex-direction: column; gap: var(--gap); flex: 1 1 auto; min-height: 0; }
+  /* Wider than 4:3 (a strip, a hero) puts the notes beside the list; at 4:3·M
+     and 1:1·M — the two classes the templates point here — it stays a column. */
+  @media (min-aspect-ratio: 3/2) {
+    .board { flex-direction: row; }
+    .board > .list-pane { flex: 3 1 0; }
+    .board > .notes-pane { flex: 2 1 0; }
+  }
+
+  .list-pane, .notes-pane { display: flex; flex-direction: column; min-height: 0; gap: calc(var(--gap) * 0.6); }
+  .list-pane { flex: 1 1 auto; }
+  .notes-pane { flex: 0 0 auto; min-height: 22%; }
+
+  ul.items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--panel-edge) transparent;
+  }
+
+  li.item {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--gap) * 0.6);
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  li.item:last-child { border-bottom: none; }
+
+  /* The check target is the whole label, not a 14px box: a thumb at arm's length. */
+  .check {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    min-height: var(--tap);
+    padding: calc(var(--gap) * 0.4) 0;
+    background: none;
+    border: none;
+    text-align: left;
+    color: inherit;
+    min-width: 0;
+  }
+  .box {
+    flex: 0 0 auto;
+    width: clamp(20px, 4.2vmin, 34px);
+    height: clamp(20px, 4.2vmin, 34px);
+    border: 2px solid var(--ink-faint);
+    border-radius: calc(var(--radius) * 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(13px, 2.9vmin, 24px);
+    line-height: 1;
+    color: var(--wall);
+  }
+  .item.done .box { background: var(--ok); border-color: var(--ok); }
+  .label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+  .item.done .label { color: var(--ink-faint); text-decoration: line-through; }
+  .who {
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: var(--small);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .item.done .who { color: var(--ink-faint); }
+
+  .item-tools { flex: 0 0 auto; display: flex; gap: calc(var(--gap) * 0.3); opacity: 0.75; }
+  .item-tools button { min-height: var(--tap); }
+
+  .empty { color: var(--ink-faint); font-size: var(--small); padding: var(--gap) 0; line-height: 1.4; }
+
+  .notes-pane textarea { flex: 1 1 auto; min-height: calc(var(--tap) * 1.6); }
+  .saved { color: var(--ok); }
+</style>
+</head>
+<body>
+
+<header class="tile-head">
+  <h1>Chores &amp; notes</h1>
+  <span class="meta" id="meta"></span>
+</header>
+
+<div class="offline" id="offline" hidden>
+  This page is part of Prism and keeps its list on the device it runs on. It is
+  open outside Prism right now, so nothing here can be saved.
+</div>
+
+<div class="row add-row">
+  <input class="grow" type="text" id="new-item" placeholder="Add to the list…" maxlength="200"
+         autocomplete="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done">
+  <button class="primary" id="add" type="button">Add</button>
+</div>
+
+<div class="board">
+  <section class="list-pane" aria-label="The list">
+    <ul class="items" id="items"></ul>
+    <div class="row">
+      <span class="note-line grow" id="count"></span>
+      <button class="ghost" id="clear-done" type="button">Clear done</button>
+    </div>
+  </section>
+
+  <section class="notes-pane" aria-label="Notes">
+    <div class="row">
+      <span class="note-line grow">Notes</span>
+      <span class="note-line" id="notes-state"></span>
+    </div>
+    <textarea id="notes" placeholder="Anything the list has no room for…" maxlength="4000" spellcheck="false"></textarea>
+  </section>
+</div>
+
+<script src="../shared/tiles.js"></script>
+<script>
+(function () {
+  "use strict";
+  var KEY = "tiles:chores";
+  var T = window.PrismTiles;
+
+  var elItems = document.getElementById("items");
+  var elCount = document.getElementById("count");
+  var elMeta = document.getElementById("meta");
+  var elNew = document.getElementById("new-item");
+  var elAdd = document.getElementById("add");
+  var elClear = document.getElementById("clear-done");
+  var elNotes = document.getElementById("notes");
+  var elNotesState = document.getElementById("notes-state");
+  var elOffline = document.getElementById("offline");
+
+  var doc = { items: [], notes: "", updated: "" };
+  var notesTimer = null;
+
+  if (!T.connected) {
+    elOffline.hidden = false;
+    elAdd.disabled = elClear.disabled = elNew.disabled = elNotes.disabled = true;
+  }
+
+  function render() {
+    var items = doc.items || [];
+    var html = "";
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      html +=
+        '<li class="item' + (it.done ? " done" : "") + '" data-id="' + T.text(it.id) + '">' +
+          '<button class="check" type="button" data-act="check" aria-pressed="' + (it.done ? "true" : "false") + '">' +
+            '<span class="box" aria-hidden="true">' + (it.done ? "✓" : "") + "</span>" +
+            '<span class="label">' + T.text(it.text) + "</span>" +
+            (it.who ? '<span class="who">' + T.text(it.who) + "</span>" : "") +
+          "</button>" +
+          '<span class="item-tools">' +
+            '<button class="icon ghost" type="button" data-act="up" aria-label="Move up"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
+            '<button class="icon ghost" type="button" data-act="down" aria-label="Move down"' + (i === items.length - 1 ? " disabled" : "") + ">↓</button>" +
+            '<button class="icon ghost" type="button" data-act="remove" aria-label="Remove">×</button>' +
+          "</span>" +
+        "</li>";
+    }
+    elItems.innerHTML = html ||
+      '<li class="empty">Nothing on the list. Add the first thing above — or from a paired phone, which writes to this same list.</li>';
+
+    var left = 0, done = 0;
+    for (var j = 0; j < items.length; j++) { if (items[j].done) done++; else left++; }
+    elCount.textContent = items.length === 0 ? "" : left + " to do" + (done ? "  ·  " + done + " done" : "");
+    elClear.disabled = !T.connected || done === 0;
+    elClear.textContent = done > 1 ? "Clear " + done + " done" : "Clear done";
+    elMeta.textContent = doc.updated ? "updated " + doc.updated : "";
+
+    // Never overwrite what someone is typing; the echo lands when they leave.
+    if (document.activeElement !== elNotes) elNotes.value = doc.notes || "";
+  }
+
+  function send(intent) { if (T.connected) T.apply(KEY, intent); }
+
+  elItems.addEventListener("click", function (ev) {
+    var btn = ev.target.closest ? ev.target.closest("button[data-act]") : null;
+    if (!btn || btn.disabled) return;
+    var li = btn.closest("li.item");
+    if (!li) return;
+    var id = li.getAttribute("data-id");
+    var act = btn.getAttribute("data-act");
+    if (act === "check") {
+      // The one place an item's done-ness changes: a person pressed it.
+      var wasDone = li.classList.contains("done");
+      send({ op: "chores.check", id: id, done: !wasDone });
+    } else if (act === "remove") {
+      send({ op: "chores.remove", id: id });
+    } else if (act === "up" || act === "down") {
+      var index = Array.prototype.indexOf.call(elItems.children, li);
+      send({ op: "chores.reorder", id: id, to: act === "up" ? index - 1 : index + 1 });
+    }
+  });
+
+  function addFromInput() {
+    var text = elNew.value.trim();
+    if (!text) { elNew.focus(); return; }
+    send({ op: "chores.add", text: text });
+    elNew.value = "";
+    elNew.focus();
+  }
+  elAdd.addEventListener("click", addFromInput);
+  elNew.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); addFromInput(); } });
+
+  elClear.addEventListener("click", function () { send({ op: "chores.clear-done" }); });
+
+  elNotes.addEventListener("input", function () {
+    elNotesState.textContent = "saving…";
+    elNotesState.className = "note-line";
+    if (notesTimer) clearTimeout(notesTimer);
+    notesTimer = setTimeout(function () { send({ op: "chores.notes", notes: elNotes.value }); }, 600);
+  });
+  elNotes.addEventListener("blur", function () {
+    if (notesTimer) { clearTimeout(notesTimer); notesTimer = null; }
+    if ((doc.notes || "") !== elNotes.value) send({ op: "chores.notes", notes: elNotes.value });
+    else render();
+  });
+
+  T.onDoc(function (key, incoming) {
+    if (key !== KEY || !incoming) return;
+    doc = incoming;
+    if (elNotesState.textContent) {
+      elNotesState.textContent = "saved";
+      elNotesState.className = "note-line saved";
+      setTimeout(function () { if (elNotesState.textContent === "saved") elNotesState.textContent = ""; }, 1800);
+    }
+    render();
+  });
+  T.onError(function (key, message) {
+    if (key !== KEY) return;
+    elNotesState.textContent = message || "not saved";
+    elNotesState.className = "note-line";
+  });
+
+  render();
+  T.get(KEY);
+})();
+</script>
+</body>
+</html>

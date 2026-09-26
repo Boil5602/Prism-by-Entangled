@@ -1,0 +1,14 @@
+# Cosmos — the subset copied into the host at build (Assets/packs/cosmos).
+# One file name per line; every name must have a pack.json entry. Edit by hand.
+nasa-PIA07902.jpg
+nasa-PIA15656.jpg
+nasa-STS047-20-015.jpg
+nasa-STS052-23-022.jpg
+nasa-PIA02241.jpg
+nasa-PIA14096.jpg
+nasa-NHQ202606040044.jpg
+nasa-PIA02098.jpg
+nasa-MAF_20240408_NOLAeclipse02.jpg
+nasa-PIA24576.jpg
+nasa-GSFC_20171208_Archive_e001896.jpg
+nasa-PIA22228.jpg
