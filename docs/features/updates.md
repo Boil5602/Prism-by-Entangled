@@ -60,6 +60,12 @@ release, and no later publish passes `--also stable` until there is one.
 
 ## Publishing a release
 
+*Decision (2026-10-07):* the public source goes out with every release. `publish-windows.py` first runs `scripts/release/public-snapshot.py
+check` (the tree against the household's details listed in `~/.prism/public-scrub.txt` on the publishing machine, never in the tree; a match
+or a missing list stops the release before anything is built), then pushes a snapshot - one commit of the archive's file tree on top of the
+public repo's history, never the archive's own history - and makes the GitHub Release's tag point at it. Until then the public code had stood
+still at the first release for eleven days; 0.26.27's source went out as f1e6f74c.
+
 ```
 python scripts/release/publish-windows.py --notes "What changed." [--channel alpha|beta|stable] [--also <track>] [--site C:\path\to\website]
 ```

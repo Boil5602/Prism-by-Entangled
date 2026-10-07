@@ -61,6 +61,14 @@ commit = sh(["git", "rev-parse", "--short=8", "HEAD"])
 dirty = sh(["git", "status", "--porcelain"])
 if dirty and not a.allow_dirty:
     sys.exit("the tree is not clean; commit first (or --allow-dirty):\n" + dirty)
+# the public source goes out with every release (2026-10-07: the public repo's code had stood still at the first release for eleven days
+# while the releases moved on). The tree is checked for the household's details first, before anything is built
+SNAP = os.path.join(ROOT, "scripts", "release", "public-snapshot.py")
+if not a.no_github:
+    chk = subprocess.run([sys.executable, SNAP, "check"], capture_output=True, text=True)
+    if chk.returncode != 0:
+        sys.exit("the household's details are in the tree, nothing published:" + NL + (chk.stdout + chk.stderr).strip())
+    print("scrub check: clean")
 name = f"Prism-{version}-{commit}.zip"
 print(f"release {version} ({commit}) on the {TRACK_LABEL[a.channel]} track" + (", also " + ", ".join(a.also) if a.also else "") + f": {name}")
 
@@ -219,8 +227,12 @@ if not a.dry_run:
     if not a.no_github:
         body = (a.notes + NL + NL + f"- download: {BASE_URL + name}" + NL + f"- sha256: `{sha}`" + NL + f"- size: {size/1048576:.1f} MB" + NL
                 + f"- channel: {a.channel}" + NL + NL + f"Updates: Prism menu, Updates. The same release is named in {BASE_URL}manifest.json.")
+        # the source of this release on the public repo first, and the release's tag on it
+        snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True)
+        target = snap.stdout.strip().splitlines()[-1] if snap.returncode == 0 and snap.stdout.strip() else None
+        print("public snapshot:", target[:8] if target else "FAILED " + (snap.stdout + snap.stderr).strip())
         r = subprocess.run(["gh", "release", "create", f"v{version}", zip_path, "--repo", a.public_repo, "--title", f"Prism {version}", "--notes", body]
-                           + (["--prerelease"] if a.channel != "stable" else []), capture_output=True, text=True)
+                           + (["--target", target] if target else []) + (["--prerelease"] if a.channel != "stable" else []), capture_output=True, text=True)
         print("github release:", r.stdout.strip() if r.returncode == 0 else "FAILED " + r.stderr.strip())
 
 if a.site:

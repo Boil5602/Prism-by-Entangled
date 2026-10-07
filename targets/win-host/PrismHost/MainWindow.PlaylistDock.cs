@@ -85,7 +85,7 @@ public sealed partial class MainWindow
         _plRunWas = run is not null;
         _plBarFill?.Invoke(v);
         var was = _plDock.Visibility;
-        if (lists.Count == 0 && run is null) { _plDock.Visibility = Visibility.Collapsed; if (was != Visibility.Collapsed) _stackShape?.Invoke(); return; }   // no playlists: nothing to start
+        if (!_playlistsActive || (lists.Count == 0 && run is null)) { _plDock.Visibility = Visibility.Collapsed; if (was != Visibility.Collapsed) _stackShape?.Invoke(); return; }   // no TMDB account linked, or no playlists: nothing to start
         _plDock.Visibility = Visibility.Visible;
         if (was != Visibility.Visible && _plDockH > 0) _stackShape?.Invoke();
         var body = new StackPanel { Spacing = 8 };

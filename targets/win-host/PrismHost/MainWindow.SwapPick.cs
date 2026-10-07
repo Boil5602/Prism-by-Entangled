@@ -70,7 +70,8 @@ public sealed partial class MainWindow
         _swapBadges.Clear();
     }
 
-    /// <summary>Each window's number over its top-left corner, above the pages; the chosen one in amber.</summary>
+    /// <summary>Each window's number, large and centered over it (2026-10-07, "Lets make the swap number large and centered in each window. I
+    /// imagine it takes up 1/3 of the screen area"); the chosen one in amber.</summary>
     private void DrawSwapBadges()
     {
         foreach (var b in _swapBadges) TileCanvas.Children.Remove(b);
@@ -80,19 +81,23 @@ public sealed partial class MainWindow
             var tile = (_mvWindows[i] as JsonObject)?["tile"]?.GetValue<string>();
             if (tile is null || _surfaces.RectOf(tile) is not { } r || r.W < 40 || r.H < 30) continue;
             var on = i == _swapPick;
-            var size = r.W >= 600 ? 44 : 30;
-            var badge = new Border
+            // the digit about half the window's height (so its card covers about a third of the window), never wider than the window allows
+            var size = Math.Max(30, Math.Min(r.H * 0.5, r.W * 0.4));
+            var card = new Border
             {
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x0B, 0x0E, 0x12)),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x0B, 0x0E, 0x12)),
                 BorderBrush = on ? HubAmber : new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xE8, 0xEC, 0xF2)),
-                BorderThickness = new Thickness(on ? 3 : 1),
-                CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(size / 2.2, 2, size / 2.2, 4),
-                IsHitTestVisible = false,
-                Child = new TextBlock { Text = (i + 1).ToString(), FontSize = size, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubInk },
+                BorderThickness = new Thickness(on ? Math.Max(3, size / 30) : 1),
+                CornerRadius = new CornerRadius(size / 5),
+                Padding = new Thickness(size / 3, size / 5, size / 3, size / 5),   // even above and below: the digit's own box is trimmed to its ink (below)
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                // trimmed to the cap height and the baseline: a digit has no descender, and the room a text box keeps under the baseline put it at
+                // the top of its card (2026-10-07, "Swap numbers are all at the top of their borders, please center vertically")
+                Child = new TextBlock { Text = (i + 1).ToString(), FontSize = size, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubInk, TextLineBounds = TextLineBounds.Tight, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center },
             };
-            Canvas.SetLeft(badge, r.X + 14);
-            Canvas.SetTop(badge, r.Y + 14);
+            var badge = new Grid { Width = r.W, Height = r.H, IsHitTestVisible = false, Children = { card } };   // the window's own box: the card sits in its middle
+            Canvas.SetLeft(badge, r.X);
+            Canvas.SetTop(badge, r.Y);
             Canvas.SetZIndex(badge, 2000);
             TileCanvas.Children.Add(badge);
             _swapBadges.Add(badge);

@@ -151,6 +151,10 @@ public sealed partial class MainWindow
             if (text == "close") { CloseVideoHub(); return; }
             if (text.StartsWith("press ", StringComparison.Ordinal)) { DevPress(text.Substring(6).Trim()); return; }   // "press <label>": the visible button with that label, pressed (2026-09-29)
             if (text.StartsWith("welcome", StringComparison.Ordinal)) { DevWelcome(text); return; }
+            if (text == "updates") { _ = ShowUpdatesAsync(); return; }
+            if (text == "swap show") { if (_mvOn && _mvWindows.Count >= 2) { _swapPick = 0; DrawSwapBadges(); } return; }   // the numbers drawn, window 1 picked: no swap follows (2026-10-07)
+            if (text == "swap hide") { EndSwapChoice(); return; }   // the Updates dialog, as the Prism menu opens it (2026-10-07)
+            if (text == "updates close") { _updatesDlg?.Hide(); return; }
             if (text == "shortcuts") { _ = AskShortcutsAsync(false); return; }   // the Shortcuts dialog, as the Device page opens it (2026-10-06)   // the welcome page, driven (2026-09-29)
             if (text == "show video") { _stayOnVideo = true; CloseVideoHub(); return; }   // Show video as pressed (2026-09-25)
             if (text == "readers on" || text == "readers off") { SetReadersDark(text == "readers on"); return; }   // readers dark (2026-10-03)

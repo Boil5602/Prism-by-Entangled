@@ -35,7 +35,8 @@ public sealed partial class MainWindow
         {
             VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 18, 0),
             Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xCC, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)),
-            BorderThickness = new Thickness(1, 0, 1, 1), CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(2, 0, 2, 2), Child = flag,
+            BorderThickness = new Thickness(1, 0, 1, 1), CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(2, 0, 2, 2),
+            Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Children = { BuildUpdateButton(), flag } },   // the update, when there is one, beside the flag
         };
         Canvas.SetZIndex(grip, 1000);
         RootGrid.Children.Add(grip);

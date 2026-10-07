@@ -1012,6 +1012,9 @@ public sealed partial class MainWindow
     /// <summary>Open (or rebuild) the menu from core's current word (videoMenu + videoState).</summary>
     public async Task ShowVideoHubAsync()
     {
+        // whether playlists are usable (a TMDB account linked) before the tabs are drawn; a page left on Playlists without one opens on Watch
+        await PlaylistsActiveAsync();
+        if (_hubTab == "playlists" && !_playlistsActive) _hubTab = "watch";
         JsonObject? menu = null; JsonArray? vs = null;
         try
         {
@@ -1099,6 +1102,9 @@ public sealed partial class MainWindow
         headRule.SizeChanged += HeadRuleSized;
         foreach (var (tabId, tabName) in new[] { ("watch", "Watch"), ("live", "Live"), ("library", "Library"), ("browse", "Browse"), ("playlists", "Playlists") })
         {
+            // playlists are the TMDB account's lists: no tab until one is linked (2026-10-07, "Why does the playlists tab show when TMDB isnt
+            // configured? ... would prefer they dont show up if TMDB isnt configured")
+            if (tabId == "playlists" && !_playlistsActive) continue;
             var on = _hubTab == tabId;
             var tab = new Button
             {

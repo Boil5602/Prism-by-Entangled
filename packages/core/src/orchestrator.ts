@@ -4774,6 +4774,7 @@ export class Orchestrator {
   adapterNameForUrl(url: string | null | undefined): string | null { return this.adapters.forUrl(url); }
   /** Quick play of a title on a video tile (a human's tap). */
   videoPlay(tileId: string, kind: string, id: string, url: string | null, name?: string) {
+    this.notePickFrom(tileId);
     this.bootTitles.delete(tileId);
     this.pickedAt.set(tileId, Date.now()); this.personAt.set(tileId, Date.now());
     this.releaseStop(tileId); this.lastTitleSeen.delete(tileId);   // a pick of the wall's: not an autoplay
@@ -4786,18 +4787,40 @@ export class Orchestrator {
    * that had already begun is paused - a human asked, so the pause is theirs (section 26 pass-through). The catalog's own background
    * resolve is dropped by the runtime's pick counter.
    */
-  videoCancelPick(): { ok: true; paused: string[] } {
+  videoCancelPick(): { ok: true; paused: string[]; restored: string[] } {
     this.videoPlayQueued.clear(); this.videoTuneQueued.clear(); this.videoSearchQueued.clear();
-    const paused: string[] = [];
+    const paused: string[] = [], restored: string[] = [];
     const hero = this.videoMultiviewHero();
     for (const t of this.videoState()) {
       // multiview: the small windows play on - only the big one (where the pick was going) and a tile with the pick pending stop
       if (hero && t.id !== hero && !t.pending) continue;
       this.video.cancelPick(t.id);
+      // what the window had up before the pick comes back (2026-10-07, "I accidentally started southpark ... and cancelled it. It spun the gold
+      // ring for a while and returned to the youtubetv page ... we should not be taking people to the pages through the video players"): the
+      // channel tuned again, the title opened again, on the same service; with nothing to go back to the window is paused as before
+      const before = this.beforePick.get(t.id);
+      this.beforePick.delete(t.id);
+      const tile = this.tile(t.id);
+      if (before && Date.now() - before.at < Orchestrator.PICK_UNDO_MS && tile?.url && sameRegistrableDomain(before.up.url, tile.url)) {
+        const canTune = !!(tile.adapter && this.adapters.get(tile.adapter)?.videoTune);
+        if (before.up.tune && canTune) void Promise.resolve(this.videoTune(t.id, before.up.tune, before.up.name || undefined)).catch(() => undefined);
+        else void this.videoPlay(t.id, "title", before.up.url, before.up.url, before.up.name || undefined).catch(() => undefined);
+        this.beforePick.delete(t.id);   // the return is no pick of its own to go back from
+        restored.push(t.id);
+        continue;
+      }
       if (t.playing) { void this.tileCommand(t.id, "pause"); paused.push(t.id); }
       else this.pickCancelledAt.set(t.id, Date.now());
     }
-    return { ok: true, paused };
+    return { ok: true, paused, restored };
+  }
+  /** What each window had up when a pick was made on it (the kept record, videoUp), for the pick's Cancel. */
+  private readonly beforePick = new Map<string, { up: { url: string; name: string; pos?: number; tune?: string; paused?: boolean }; at: number }>();
+  /** A Cancel this long after its pick still takes the window back. */
+  static readonly PICK_UNDO_MS = 300_000;
+  private notePickFrom(tileId: string): void {
+    const up = this.videoUp.get(tileId);
+    if (up) this.beforePick.set(tileId, { up: { ...up }, at: Date.now() }); else this.beforePick.delete(tileId);
   }
   private readonly pickCancelledAt = new Map<string, number>();
 
@@ -5103,15 +5126,21 @@ export class Orchestrator {
       if (rec && typeof rec === "object") for (const [id, v] of Object.entries(rec)) if (v && typeof v.url === "string") this.videoUp.set(id, { url: v.url, name: typeof v.name === "string" ? v.name : "", ...(typeof v.pos === "number" && v.pos > 0 ? { pos: v.pos } : {}), ...(typeof v.tune === "string" && v.tune ? { tune: v.tune } : {}) , ...(v.paused === true ? { paused: true } : {}) });
       if (boot) { const m = await this.drivers.store.get(this.multiviewKey(doc.id)); mvRec = m ? JSON.parse(m) : null; }
     } catch { /* unreadable: the wall comes back as a fresh one */ }
-    if (!boot) return;
+    // what each window had up comes back whenever its window is made again, not only at a start (2026-10-07, "All of the multiview windows
+    // are gone, and the big window is sitting on a youtubetv page": the Music player and back destroyed and remade all five YouTube TV
+    // windows, none was tuned back to its channel, and multiview closed the four small ones as empty a minute later). A window still up
+    // keeps what it plays (below: it has a surface). Multiview's own record is read at a start only: a switch keeps it in memory.
     const has = (id: unknown): id is string => typeof id === "string" && doc.tiles.some((t) => t.id === id);
-    if (mvRec?.on === true && has(mvRec.slot) && !this.mv.on) {
+    if (boot && mvRec?.on === true && has(mvRec.slot) && !this.mv.on) {
       const order = Array.isArray(mvRec.order) ? mvRec.order.filter(has) : [];
       this.mv = { on: true, slot: mvRec.slot, order: (order.length ? order : [mvRec.slot]).slice(0, MV_MAX), ...((mvRec as { collapsed?: unknown }).collapsed === true ? { collapsed: true } : {}) };
     }
     let stale = false;   // records of windows that no longer exist (2026-09-29: closed multiview windows stayed in the record for good)
     for (const [id, up] of this.videoUp) {
       const tile = doc.tiles.find((t) => t.id === id);
+      // outside a start, a window the scene does not hold is the other player's (both players are the one document: the Music player's
+      // scene has no video windows), and one still up plays on - their records stay; a start alone tidies records of windows gone for good
+      if (!boot && (!tile || this.surfaces.has(id))) continue;
       if (!tile?.url || this.surfaces.has(id) || !sameRegistrableDomain(up.url, tile.url)) { this.videoUp.delete(id); if (!tile) stale = true; continue; }
       // (a record whose window is gone was dropped above: the record on the device follows, below)
       // a channel comes back through its service's tune: the tile loads its home, the tune is asked once it is up
@@ -5162,7 +5191,7 @@ export class Orchestrator {
   private readonly pauseHeld = new Map<string, number>();
   private rePausing = false;
   /** VP-3: the title to play on this tile once its page is up (the screen is being switched to its service). */
-  videoPlayWhenUp(tileId: string, pick: { kind: string; id: string; url: string | null; name?: string }): void { this.videoPlayQueued.set(tileId, { ...pick, at: Date.now() }); }
+  videoPlayWhenUp(tileId: string, pick: { kind: string; id: string; url: string | null; name?: string }): void { this.notePickFrom(tileId); this.videoPlayQueued.set(tileId, { ...pick, at: Date.now() }); }
   private readonly videoTuneQueued = new Map<string, { channelId: string; at: number; name?: string; page?: string }>();
   /** The screen slot re-assigned to another service: what the last service left on the tile is cleared (a pick, a hint, a face, a queued play or tune). */
   videoClearTile(tileId: string): void { this.forgetVideoRules(tileId); if (this.videoUp.delete(tileId)) this.persistVideoUp(); this.bootTitles.delete(tileId); this.video.clearTile(tileId); this.videoPlayQueued.delete(tileId); this.videoTuneQueued.delete(tileId); this.videoSearchQueued.delete(tileId); }
@@ -7276,11 +7305,11 @@ export class Orchestrator {
   /** Phase 2: the person's words entered into the service's own search on this tile (the adapter's videoSearch script); `open` = the result to press once shown. */
   videoSearchIn(tileId: string, q: string, open?: string | null) { return this.video.search(tileId, q, open); }
   /** Phase 2: the channel to tune on this tile once its guide page is up. */
-  videoTuneWhenUp(tileId: string, channelId: string, name?: string, page?: string | null): void { this.videoTuneQueued.set(tileId, { channelId, at: Date.now(), ...(name ? { name } : {}), ...(page ? { page } : {}) }); }
+  videoTuneWhenUp(tileId: string, channelId: string, name?: string, page?: string | null): void { this.notePickFrom(tileId); this.videoTuneQueued.set(tileId, { channelId, at: Date.now(), ...(name ? { name } : {}), ...(page ? { page } : {}) }); }
   /** Phase 2: a human's press on a Live now card - the channel's guide item pressed in the service's own page. */
   // a pick on a window is newer than any title a restart meant to bring back there: the kept record follows the window again (2026-10-07,
   // TBS's window was never kept - a boot title whose page never came up stood in the way of every later record, and each restart closed it)
-  videoTune(tileId: string, channelId: string, name?: string, page?: string | null) { this.bootTitles.delete(tileId); return this.video.tune(tileId, channelId, name, page); }
+  videoTune(tileId: string, channelId: string, name?: string, page?: string | null) { this.notePickFrom(tileId); this.bootTitles.delete(tileId); return this.video.tune(tileId, channelId, name, page); }
   /** VP-3: a human's pick on a service's profile gate; `always` makes it the household's standing choice. */
   videoProfile(tileId: string, id: string, always: boolean) { return this.video.pickProfile(tileId, id, always); }
   videoTrack(tileId: string, kind: "subtitles" | "audio", id: string) { return this.video.pickTrack(tileId, kind, id); }

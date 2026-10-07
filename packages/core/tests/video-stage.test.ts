@@ -64,6 +64,25 @@ describe("the stage", () => {
     expect(ops.filter((o) => o.op === "inject" && o.id === "screen" && /pause/i.test(String(o.js))).length).toBe(0);
   });
 
+  it("a pick called off takes the window back to what it had up before the pick, never the page the pick reached (2026-10-07)", async () => {
+    const { rt, ops } = await setup({ hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoCmd: "/*cmd*/" } });
+    expect(JSON.parse(rt.videoPlayOn("hu", "title", "e1", "https://www.hulu.com/watch/e1", "Ep One"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/e1" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", id: "e1", title: "Ep One", series: "Show", url: "https://www.hulu.com/watch/e1", playing: true, position: 300, duration: 1800 } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    // the second pick, called off while its page loads: Ep One comes back, and nothing is paused
+    expect(JSON.parse(rt.videoPlayOn("hu", "title", "e2", "https://www.hulu.com/watch/e2", "Ep Two"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/hub/search" }));
+    ops.length = 0;
+    const r = JSON.parse(rt.videoCancelPick());
+    expect(r).toMatchObject({ ok: true, restored: ["screen"], paused: [] });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ops.some((o) => (o.op === "navigate" && String(o.url).includes("/watch/e1")) || (o.op === "inject" && String(o.js).includes("/watch/e1")))).toBe(true);
+    expect(ops.some((o) => String(o.url ?? o.js ?? "").includes("/watch/e2"))).toBe(false);
+  });
+
   it("a human's play enters the player's own fullscreen once it plays - once, through the adapter's control", async () => {
     const { rt, ops } = await setup({ hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoCmd: "/*cmd*/" } });
     expect(JSON.parse(rt.videoPlayOn("hu", "title", "e1", "https://www.hulu.com/watch/e1", "Ep One"))).toMatchObject({ ok: true });

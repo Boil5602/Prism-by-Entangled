@@ -304,6 +304,9 @@ public sealed partial class MainWindow
             text.Children.Add(new TextBlock { Text = on ? "on now" + (p["end"] is JsonValue ? ", until " + LiveClock(pe) : "") : LiveClock(shown), FontSize = 11, Foreground = on ? HubAmber : HubInk });
             var block = new Border { Width = x2 - x - 4, Height = LiveRowH - 8, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Background = on ? HubChipOn : HubCard, BorderBrush = hit ? HubAmber : null, BorderThickness = new Thickness(hit ? 2 : 0), Child = text };
             if (S(p, "desc") is { Length: > 0 } desc) ToolTipService.SetToolTip(block, S(p, "title") + ": " + desc);
+            // a program still to come plays nothing yet (2026-10-07, "they should be able to do it to the channel or the current episode, not one
+            // in the future"): a press on it says when it starts
+            if (!on) block.Tag = "later:" + S(p, "title") + " starts " + LiveClock(shown);
             Canvas.SetLeft(block, x); line.Children.Add(block);
         }
 
@@ -341,12 +344,56 @@ public sealed partial class MainWindow
             // the menu opens at the press, not at the row (2026-09-29, "The menu to send an item to a screen on the live screen comes nowhere
             // close to the cursor. It often closes before the cursor can get to it"): a row is as wide as the whole schedule, and a flyout
             // shown at the row stood at its middle, thousands of pixels from the pointer, across pages that dismiss a flyout on hover
+            // a click plays the channel in the big window, as a card's click plays its title; held and pulled, the channel lifts onto the windows
+            // as a card does; the menu of windows is the right-click (2026-10-07, "it doesn't let me drag a channel from the schedule up to the
+            // windows. It only allows me to click one and choose a dropdown menu, but single clicks should just launch videos")
             Windows.Foundation.Point? pressAt = null;
-            b.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) => pressAt = e.GetCurrentPoint(RootGrid).Position), true);
-            b.Click += (_, __) =>
+            Windows.Foundation.Point downAt = default; long downT = 0; var down = false; var lifted = false; uint pid = 0;
+            string? later = null;   // the press landed on a program still to come: what it is and when
+            string? LaterUnder(object? src)
             {
-                var at = pressAt ?? b.TransformToVisual(RootGrid).TransformPoint(new Windows.Foundation.Point(Math.Min(120, b.ActualWidth / 2), b.ActualHeight / 2));   // a key or a touch with no point: near the row's left
+                for (var d = src as DependencyObject; d is not null && !ReferenceEquals(d, b); d = VisualTreeHelper.GetParent(d))
+                    if (d is FrameworkElement { Tag: string tg } && tg.StartsWith("later:", StringComparison.Ordinal)) return tg.Substring(6);
+                return null;
+            }
+            void SayLater() => SetPill("Prism" + Mid + later + ". Press " + name + " or what's on now to watch it");
+            b.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                var pt = e.GetCurrentPoint(RootGrid);
+                pressAt = pt.Position;
+                later = LaterUnder(e.OriginalSource);
+                if (!pt.Properties.IsLeftButtonPressed) return;
+                down = true; lifted = false; downAt = pt.Position; downT = Environment.TickCount64; pid = e.Pointer.PointerId;
+            }), true);
+            b.AddHandler(UIElement.PointerMovedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (!down || e.Pointer.PointerId != pid) return;
+                var p = e.GetCurrentPoint(RootGrid).Position;
+                double dx = Math.Abs(p.X - downAt.X), dy = Math.Abs(p.Y - downAt.Y);
+                if (dx < 16 && dy < 16) return;   // a press that barely moves is a click
+                down = false;
+                // a lift wants the press held a moment or a pull up or down off the row; a quick sideways pull is the schedule's scroll
+                if (Environment.TickCount64 - downT < 350 && dx > dy) return;
+                if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
+                if (later is not null) { SayLater(); return; }
+                b.ReleasePointerCapture(e.Pointer);
+                if (_videoHub is { } hub && BeginLiveDrag(hub, e, new LivePick(facet, id, url, name, service, logo))) { lifted = true; e.Handled = true; }
+            }), true);
+            b.AddHandler(UIElement.PointerReleasedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, __) => down = false), true);
+            b.Click += async (_, __) =>
+            {
                 pressAt = null;
+                if (lifted) { lifted = false; return; }   // the end of a drag, not a click
+                if (later is not null) { SayLater(); return; }
+                if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
+                await TuneIntoAsync(0, facet, id, url, name, service, logo);
+            };
+            b.RightTapped += (_, e) =>
+            {
+                e.Handled = true;
+                var at = e.GetPosition(RootGrid);
+                later = LaterUnder(e.OriginalSource);
+                if (later is not null) { SayLater(); return; }
                 if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
                 LiveMenu(at, facet, id, url, name, service, logo);
             };

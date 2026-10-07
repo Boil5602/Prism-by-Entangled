@@ -13,11 +13,13 @@ namespace PrismHost.Surfaces;
 public sealed partial class SurfaceManager
 {
     private bool _adDebug;
-    private readonly Dictionary<string, (Border Strip, Border State, TextBlock StateText)> _debugStrips = new();
+    private readonly Dictionary<string, (Viewbox Strip, Border State, TextBlock StateText)> _debugStrips = new();
+    private double _lastBigFoot = -1;
     /// <summary>A debug report from a window's strip: the window, and whether the person says an ad is playing.</summary>
     public event Action<string, bool>? AdDebugReport;
-    /// <summary>How far above the big window's foot its strip sits: clear of the Prism controls (set by the window as the bar sizes).</summary>
-    public double BigWindowFoot { get; set; } = 120;
+    /// <summary>The top of the Prism controls in window coordinates, last seen while they showed (NaN until then): the big window's strip
+    /// sits just above them (set by the window as the bar moves).</summary>
+    public double ControlsTop { get; set; } = double.NaN;
 
     public bool AdDebug
     {
@@ -52,11 +54,28 @@ public sealed partial class SurfaceManager
         if (!_adDebug) return;
         // at each window's foot (2026-10-07, "New buttons are overlapping with prism menu. How about at the bottom above the controls"): the big
         // window's strip sits above the Prism controls that come up over its foot
+        // measured from the big window's own foot (2026-10-07, "the Not an ad, This is an ad, and Intermission: ON do not show up for the big
+        // window"): the bar's distance from the bottom of Prism's window put the strip past the top of a big window laid out above the others
         var big = _tiles.Values.Where(DebugWindow).OrderByDescending(x => x.Container.ActualWidth * x.Container.ActualHeight).FirstOrDefault();
+        double bigFoot = 120;
+        if (big is not null && big.Container.ActualHeight > 0)
+        {
+            try
+            {
+                // the controls' top in the big window's own units (the window may be drawn scaled, as in Watch's corner)
+                var local = double.IsNaN(ControlsTop) ? double.NaN : big.Container.TransformToVisual(null).Inverse.TransformPoint(new Windows.Foundation.Point(0, ControlsTop)).Y;
+                var above = double.IsNaN(local) || local >= big.Container.ActualHeight ? 10 : big.Container.ActualHeight - local + 8;
+                bigFoot = Math.Clamp(above, 10, Math.Max(10, big.Container.ActualHeight - 40));
+                if (Math.Abs(bigFoot - _lastBigFoot) > 1) { _lastBigFoot = bigFoot; _onStatus("ad debug: " + big.Id + " strip " + Math.Round(bigFoot) + " up (controls at " + (double.IsNaN(local) ? "unknown" : Math.Round(local).ToString()) + " of " + Math.Round(big.Container.ActualHeight) + ")"); }
+            }
+            catch { }
+        }
         foreach (var (sid, ds) in _debugStrips)
         {
-            var want = new Thickness(0, 0, 0, big is not null && sid == big.Id ? BigWindowFoot : 10);
+            var want = new Thickness(0, 0, 0, big is not null && sid == big.Id ? bigFoot : 10);
             if (!ds.Strip.Margin.Equals(want)) ds.Strip.Margin = want;
+            // a small window gets the strip shrunk to fit it, whole (it was cut off at "Intermission: OFF | No", 2026-10-07)
+            if (Get(sid) is { } st && st.Container.ActualWidth > 40) ds.Strip.MaxWidth = st.Container.ActualWidth - 16;
         }
         foreach (var t in _tiles.Values)
         {
@@ -68,12 +87,15 @@ public sealed partial class SurfaceManager
         }
     }
 
+    /// <summary>The big window: the largest window a person watches (null with none).</summary>
+    public string? BigWindowId() => _tiles.Values.Where(DebugWindow).OrderByDescending(x => x.Container.ActualWidth * x.Container.ActualHeight).FirstOrDefault()?.Id;
+
     /// <summary>A window a person watches: on the wall, not a hidden page, not a work or lookup page, not a soundscape.</summary>
     private static bool DebugWindow(Tile t) =>
         t.Kind != SurfaceKind.Hidden && !t.HiddenPresence && t.View is not null
         && !t.Id.StartsWith("app:", StringComparison.Ordinal) && !t.Id.StartsWith("ambient:", StringComparison.Ordinal);
 
-    private (Border Strip, Border State, TextBlock StateText) MakeStrip(Tile t)
+    private (Viewbox Strip, Border State, TextBlock StateText) MakeStrip(Tile t)
     {
         var ink = Windows.UI.Color.FromArgb(0xFF, 0xE8, 0xEC, 0xF2);
         var stateText = new TextBlock { FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(ink) };
@@ -96,10 +118,15 @@ public sealed partial class SurfaceManager
         row.Children.Add(state);
         row.Children.Add(Report("Not an ad", false, "The show is playing here: report it if Intermission says ON"));
         row.Children.Add(Report("This is an ad", true, "An ad is playing here: report it if Intermission says OFF"));
-        var strip = new Border
+        var ground = new Border
         {
-            Child = row, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 10),
-            Padding = new Thickness(4), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0x0A, 0x0C, 0x0F)),
+            Child = row, Padding = new Thickness(4), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0x0A, 0x0C, 0x0F)),
+        };
+        // shrinks to the window's width, never grows past its own size
+        var strip = new Viewbox
+        {
+            Child = ground, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 10),
         };
         Canvas.SetZIndex(strip, 60);   // above the (undrawn) cover and the page
         t.Container.Children.Add(strip);

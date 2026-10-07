@@ -262,7 +262,7 @@ export const HOST_CALLS: string[] = [
   "videoPresetSave",       // (name) -> {ok, preset} (sync): the services' current profiles saved as a named preset
   "videoPresetDelete",     // (presetId) -> {ok} (sync)
   "videoPresetApply",      // (presetId) -> {ok, switched, missing} (sync): every service in the preset switched at once
-  "videoCancelPick",       // () -> {ok, paused} (sync): a pick called off before it played - the curtain's "Cancel and return to Watch"
+  "videoCancelPick",       // () -> {ok, paused, restored} (sync): a pick called off before it played - the curtain's "Cancel and return to Watch"
   "videoRemoveInfo",       // (appId) -> {can, warning} (sync): whether a Continue Watching card can be removed on its service
   "videoRemoveContinue",   // (appId, itemId, title) -> {status, error?} (sync): start or report removing a title from the service's own Continue Watching
   "videoEpisodes",         // () -> EpisodesView (sync): every season and episode of the series on the screen - the stage bar's Episodes menu

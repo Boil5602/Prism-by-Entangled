@@ -178,6 +178,7 @@ public sealed partial class SurfaceManager
         _art = art;
         _forwardEvent = forwardEvent;
         _onStatus = onStatus;
+        StartLoaderWatch();   // the loading mark on a window still covered (SurfaceManager.Loader.cs)
         SessionMute = new(m => _onStatus("audio " + m));
         // B-191 (2026-09-09): "When I mute it, the background visuals stop animating" - a mute while the source was idle found no
         // session to duck, so the WebView2 mute stayed as the fallback; when the music came back its new session was ducked at
@@ -509,6 +510,7 @@ public sealed partial class SurfaceManager
             try { json = e.TryGetWebMessageAsString(); } catch { }
             if (json is null) return;
             if (TryTap(tile.Id, json)) return;   // a window's tap for a listening phone (SurfaceManager.Tap): the host's, never core's
+            if (json.Contains("\"prism-media\"")) { MediaNote?.Invoke(tile.Id, json); return; }   // the video's seeks, pauses and plays: the ad debug recording's, never core's
             if (json.Contains("\"eme\"")) { EmeResult?.Invoke(tile.Id, json); return; }   // diagnostics, not a SurfaceEvent
             if (json.Contains("\"prism-eme\""))                                            // the page's own key-system asks and grants: logged, never core's
             {
@@ -2871,13 +2873,26 @@ public sealed partial class SurfaceManager
     public async Task<(byte[] Gray, SoftwareBitmap? Big, byte[]? BigGray)?> CaptureForWatchAsync(string id, bool withBig)
     {
         if (Get(id) is not { } t || t.View?.CoreWebView2 is not { } core) return null;
+        // a capture is given 2.5 s, and a window whose last capture never answered is passed over until it does (2026-10-07, "lots of ads, did
+        // something break?": the Watch page hid the small windows at 16:08:16, a hidden window's capture never answered, and the watch, which
+        // looks at its windows one after another, stood waiting on it for five minutes - the big window's ads uncovered all the while)
+        if (_capturePending.TryGetValue(id, out var pending) && !pending.IsCompleted) return null;
+        var mem = new InMemoryRandomAccessStream();
+        async Task Capture() => await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Jpeg, mem);
+        var cap = Capture();
+        _capturePending[id] = cap;
         try
         {
-            using var mem = new InMemoryRandomAccessStream();
-            await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Jpeg, mem);
+            if (await Task.WhenAny(cap, Task.Delay(2500)) != cap) { _ = cap.ContinueWith(_ => mem.Dispose(), TaskScheduler.Default); return null; }
+            await cap;
+        }
+        catch { mem.Dispose(); return null; }
+        try
+        {
+            using var memOwned = mem;
             mem.Seek(0);
             var dec = await BitmapDecoder.CreateAsync(mem);
-            var data = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, new BitmapTransform { ScaledWidth = BreakModel.W, ScaledHeight = BreakModel.H, InterpolationMode = BitmapInterpolationMode.Linear }, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+            var data = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, VideoArea(dec.PixelWidth, dec.PixelHeight, (uint)BreakModel.W, (uint)BreakModel.H), ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
             var px = data.DetachPixelData();
             var g = new byte[BreakModel.W * BreakModel.H];
             for (int i = 0, j = 0; j < g.Length; i += 4, j++) g[j] = (byte)((px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8);
@@ -2885,7 +2900,7 @@ public sealed partial class SurfaceManager
             if (withBig)
             {
                 // one 960x540 read for both the text reader (its bitmap) and the QR finder (its grey)
-                var bd = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, new BitmapTransform { ScaledWidth = 960, ScaledHeight = 540, InterpolationMode = BitmapInterpolationMode.Linear }, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+                var bd = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, VideoArea(dec.PixelWidth, dec.PixelHeight, 960, 540), ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
                 var bp = bd.DetachPixelData();
                 big = SoftwareBitmap.CreateCopyFromBuffer(bp.AsBuffer(), BitmapPixelFormat.Bgra8, 960, 540, BitmapAlphaMode.Premultiplied);
                 bigGray = new byte[960 * 540];
@@ -2894,6 +2909,35 @@ public sealed partial class SurfaceManager
             return (g, big, bigGray);
         }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// The 16:9 picture inside a window of any shape, scaled to w x h (2026-10-07, a TBS wrong cover reported from Ad debug: the big window was
+    /// 2550x1340, wider than 16:9, so the player drew bars down both sides; the whole window squeezed into 320x180 moved the channel's logo seven
+    /// pixels from where it was learned, its match fell from 0.96 to 0.25 and Friends was covered two minutes). Every layout now hands the
+    /// break watch the same picture: the logo, the fingerprints and the text reader see the video, not the window.
+    /// </summary>
+    private static BitmapTransform VideoArea(uint pw, uint ph, uint w, uint h)
+    {
+        var tf = new BitmapTransform { ScaledWidth = w, ScaledHeight = h, InterpolationMode = BitmapInterpolationMode.Linear };
+        if (pw == 0 || ph == 0) return tf;
+        double r = (double)pw / ph, want = (double)w / h;
+        if (Math.Abs(r - want) < 0.01) return tf;
+        if (r > want)
+        {
+            // wider: scale to the height, keep the middle w columns
+            var sw = (uint)Math.Round(pw * (double)h / ph);
+            tf.ScaledWidth = Math.Max(w, sw); tf.ScaledHeight = h;
+            tf.Bounds = new BitmapBounds { X = (tf.ScaledWidth - w) / 2, Y = 0, Width = w, Height = h };
+        }
+        else
+        {
+            // taller: scale to the width, keep the middle h rows
+            var sh = (uint)Math.Round(ph * (double)w / pw);
+            tf.ScaledWidth = w; tf.ScaledHeight = Math.Max(h, sh);
+            tf.Bounds = new BitmapBounds { X = 0, Y = (tf.ScaledHeight - h) / 2, Width = w, Height = h };
+        }
+        return tf;
     }
 
     /// <summary>A signal the host read about a window, sent on as the page's own would be (the break watch's ad-break).</summary>
@@ -2947,6 +2991,10 @@ public sealed partial class SurfaceManager
     // ---------------------------------------------------------- diagnostics
     /// <summary>EME probe for the M1 report (§12 windows tests): logs per-tile robustness.</summary>
     public event Action<string, string>? EmeResult;
+    /// <summary>A window's video seeked, paused, played or changed speed (the page's own element, whoever asked): tile id, the page's json.</summary>
+    public event Action<string, string>? MediaNote;
+    /// <summary>Each window's last capture for the break watch, while it has not answered (CaptureForWatchAsync).</summary>
+    private readonly Dictionary<string, Task> _capturePending = new();
 
     public async Task ProbeEmeAsync(string id)
     {
@@ -3164,6 +3212,17 @@ public sealed partial class SurfaceManager
   (function () { var last = 0; var orig = console.error; console.error = function () { try { var now = Date.now(); if (now - last > 1000) { last = now; var parts = []; for (var i = 0; i < arguments.length && i < 4; i++) { var a = arguments[i]; parts.push(typeof a === 'string' ? a : (a && a.message) ? a.message : String(a)); } post({ type: 'prism-console', text: parts.join(' ').slice(0, 240) }); } } catch (e) {} return orig.apply(console, arguments); }; })();
   var lastMove = 0;   // the stage bar rides a pointer MOVE too (a tap pauses most players): host-only, never an interaction for core's keeper
   addEventListener('pointermove', function () { var now = Date.now(); if (now - lastMove > 1500) { lastMove = now; post({ type: 'pointer-move' }); } }, true);
+  // the video's own seeks, pauses and plays, for the ad debug recording (2026-10-07, 'I backed up 10 seconds so I could perform the report
+  // ... Maybe you should log those control interactions'): whoever asked (a Prism control, the phone, a key on the page itself), the element
+  // says what happened. A seek names the position it left (the last timeupdate) and the one it went to; a jump under 1.5 s is not a seek
+  (function () {
+    var at = new WeakMap();
+    var r1 = function (x) { return Math.round(x * 10) / 10; };
+    var ok = function (m) { return !!m && m.tagName === 'VIDEO' && !keepalive(m); };
+    document.addEventListener('timeupdate', function (e) { var m = e.target; if (ok(m) && !m.seeking) at.set(m, m.currentTime); }, true);
+    document.addEventListener('seeking', function (e) { var m = e.target; if (!ok(m)) return; var from = at.get(m), to = m.currentTime; if (from != null && Math.abs(to - from) < 1.5) return; post({ type: 'prism-media', what: 'seek', from: from == null ? null : r1(from), to: r1(to) }); }, true);
+    ['pause', 'play', 'ratechange'].forEach(function (k) { document.addEventListener(k, function (e) { var m = e.target; if (ok(m)) post({ type: 'prism-media', what: k === 'ratechange' ? 'rate ' + m.playbackRate : k, to: r1(m.currentTime) }); }, true); });
+  })();
   // Spec 32 Media Session capture: the page registers its own handlers for
   // the OS media keys. Remembering them lets Prism's player control run the
   // service's own next / previous / seek - the page's code, on a human's tap.

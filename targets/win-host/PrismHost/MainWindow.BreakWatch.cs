@@ -31,6 +31,16 @@ public sealed partial class MainWindow
         public readonly List<uint> Sound = new();       // the sound's fingerprint words, the last 20 s
         public readonly List<(double At, uint W)> BreakSound = new();   // a sure break's words, kept when it ends
         public readonly Queue<(double At, ulong[] Fp)> PendingPrints = new();
+        public int Skips;   // a quiet small window's skipped looks
+        // the last two minutes of pictures and sound, each with whether the logo was away: when a break is confirmed, its opening is learned
+        // too (2026-10-07, "With the ad fingerprints, can't we tighten these known ads up?" - Domino's was known only 14 s in, because a break's
+        // first fifteen seconds were never taught)
+        public readonly Queue<(double At, ulong[] Fp, bool Away)> RecentPrints = new();
+        public readonly Queue<(double At, uint W, bool Away)> RecentSound = new();
+        public bool Backfilled;
+        // the break being taught: its clip in the library and when it began, so each picture keeps its place (a run of them is an ad playing)
+        public int Clip; public double ClipStart;
+        public readonly PrintRuns Runs = new();
     }
 
     private DispatcherTimer? _breakWatch;
@@ -44,17 +54,25 @@ public sealed partial class MainWindow
     private static bool BreakWatchOn => HostPrefs.GetBool("video.breakWatch", true);
     private static string BreakWatchDir => Path.Combine(HostPaths.DataDir, "breakwatch");
 
+    /// <summary>The break watch's cover on a window lifted by the person's word, and none there for five minutes (the cover's Not an ad, and
+    /// Ad debug's, 2026-10-07: "it isn't an ad but intermission shows on" - five presses of Ad debug's Not an ad only reported).</summary>
+    private bool DismissBreak(string id, out BreakWatchState st, out double now)
+    {
+        now = _watchClock.Elapsed.TotalSeconds;
+        if (_surfaces is null || !_watches.TryGetValue(id, out st!)) { st = null!; return false; }
+        st.PendingPrints.Clear();
+        st.Model.Dismiss(now);
+        _surfaces.WatchAdBreak(id, false);
+        _surfaces.SetNotAnAd(id, false);
+        LogLine("break watch " + id + ": the person said Not an ad (" + st.ChannelName + ") - uncovered, no cover here for five minutes");
+        return true;
+    }
+
     private void InitBreakWatch()
     {
         _notAdHandler = id =>
         {
-            if (_surfaces is null || !_watches.TryGetValue(id, out var st)) return;
-            var now = _watchClock.Elapsed.TotalSeconds;
-            st.PendingPrints.Clear();
-            st.Model.Dismiss(now);
-            _surfaces.WatchAdBreak(id, false);
-            _surfaces.SetNotAnAd(id, false);
-            LogLine("break watch " + id + ": the person said Not an ad (" + st.ChannelName + ") - uncovered, no cover here for five minutes");
+            if (!DismissBreak(id, out var st, out var now)) return;
             Correction(id, st.ChannelName, "not an ad");
             Bench(id, now, null, "notanad");
             ShowNotAdReport(id, st.ChannelName, st.Recent.ToList());
@@ -88,6 +106,7 @@ public sealed partial class MainWindow
             st.Model.Save(ModelPath(st.Channel));
             _watches.Remove(gone);
         }
+        var bigId = _surfaces.BigWindowId();
         foreach (var id in ids)
         {
             var channel = ChannelOf(_surfaces.SourceOf(id));
@@ -102,9 +121,15 @@ public sealed partial class MainWindow
                 st = new BreakWatchState { Model = BreakModel.Load(ModelPath(channel)), Channel = channel };
                 _watches[id] = st;
                 LogLine("break watch " + id + ": channel " + channel + (st.Model.HasLogo ? " (logo known)" : " (learning its logo)"));
+                // in a break when Prism closed a moment ago, on this channel: the cover goes straight back up
+                if (st.Model.HasLogo && BreakWasUp(id, channel)) { st.Model.ResumeBreak(_watchClock.Elapsed.TotalSeconds); _surfaces.WatchAdBreak(id, true); _surfaces.SetNotAnAd(id, true); LogLine("break watch " + id + ": the break that was up before the restart is covered again"); }
                 Bench(id, _watchClock.Elapsed.TotalSeconds, null, "channel " + channel);
             }
-            var withText = st.Ticks % 2 == 0;   // the text reader every other look: every two seconds a window
+            // the big window first (2026-10-07, "Are we able to prioritize the big window's throughput over the others?"): a quiet small window
+            // is looked at every other second, every second once a break is up or its chance is rising. With Ad debug on, every window every
+            // second ("Can we just include the extra screenshotting and performance hit when the Ad debug mode is enabled")
+            if (!s_adDebug && id != bigId && !st.Model.Active && st.Model.Chance < 0.2 && (st.Skips++ % 2 == 1)) continue;
+            var withText = st.Ticks % 2 == 0;   // the text reader every other look: every two seconds a window (four on a quiet small one)
             var shot = await _surfaces.CaptureForWatchAsync(id, withText);
             if (shot is null) continue;
             var now = _watchClock.Elapsed.TotalSeconds;
@@ -147,6 +172,7 @@ public sealed partial class MainWindow
                             {
                                 st.Sound.Add(w);
                                 if (st.Model.LearnableAt(now)) st.BreakSound.Add((now, w));
+                                st.RecentSound.Enqueue((now, w, st.Model.LogoAwayNow));
                             }
                         if (st.Sound.Count > 400) st.Sound.RemoveRange(0, st.Sound.Count - 400);
                         if (Sounds.Heard(st.Sound)) st.Model.SoundSeen(now);
@@ -190,11 +216,39 @@ public sealed partial class MainWindow
             {
                 if (Prints.Seen(fp)) st.Model.PrintSeen(now);
                 else if (st.Model.LearnableAt(now)) st.PendingPrints.Enqueue((now, fp));
+                // a run of a known break's pictures in order, matched loosely (2026-10-07, "lets proceed with #1"): a known ad at once
+                if (st.Runs.Look(now, Prints.Places(fp, PrintRuns.Loose))) { st.Model.PrintSeen(now); st.Model.PrintSeen(now); }
+                st.RecentPrints.Enqueue((now, fp, st.Model.LogoAwayNow));
+            }
+            while (st.RecentPrints.Count > 0 && now - st.RecentPrints.Peek().At > 120) st.RecentPrints.Dequeue();
+            while (st.RecentSound.Count > 0 && now - st.RecentSound.Peek().At > 120) st.RecentSound.Dequeue();
+            // the break's opening, once an ad has named itself in it: back from now while the logo stayed away (the show's last frames have it),
+            // less the first three seconds of that run (a fade, a cut). Only a break the watch is sure of and an ad spoke in teaches, as before.
+            if (st.Model.LearnableAt(now) && !st.Backfilled)
+            {
+                st.Backfilled = true;
+                var pics = st.RecentPrints.ToArray();
+                var i = pics.Length - 1;
+                while (i >= 0 && pics[i].Away) i--;
+                var runStart = i + 1 < pics.Length ? pics[i + 1].At : now;
+                st.Clip = Prints.NextClip(); st.ClipStart = runStart;
+                var taught = 0;
+                foreach (var pic in pics)
+                    if (pic.Away && pic.At >= runStart + 3 && pic.At < now - 1 && !Prints.Seen(pic.Fp)) { Prints.Learn(pic.Fp, st.Clip, (float)(pic.At - runStart)); taught++; }
+                var snd = st.RecentSound.ToArray();
+                var j = snd.Length - 1;
+                while (j >= 0 && snd[j].Away) j--;
+                var sRun = j + 1 < snd.Length ? snd[j + 1].At : now;
+                var early = snd.Where(x => x.Away && x.At >= sRun + 3 && !st.BreakSound.Any(b => b.At == x.At)).Select(x => (x.At, x.W)).ToList();
+                st.BreakSound.InsertRange(0, early);
+                if (taught > 0 || early.Count > 0)
+                    LogLine("break watch " + id + ": the break's opening learned (" + taught + " pictures, " + (early.Count / 20) + " s of sound from " + Math.Round(now - runStart) + " s back)");
             }
             // a picture is learned only once the break has gone on twenty seconds past it: the last seconds before a show returns (its rating
             // card, its first shot) are never taught as an ad (FX's TV-14 card matched and covered the film's return 17 s, 2026-10-06 23:08)
             if (!st.Model.Active)
             {
+                st.Backfilled = false; st.Clip = 0;
                 st.PendingPrints.Clear();
                 // the break's sound, all but its last twenty seconds (the show's return), as one known ad stretch
                 if (st.BreakSound.Count > 0)
@@ -205,7 +259,7 @@ public sealed partial class MainWindow
                     st.BreakSound.Clear();
                 }
             }
-            else while (st.PendingPrints.Count > 0 && now - st.PendingPrints.Peek().At >= 20) Prints.Learn(st.PendingPrints.Dequeue().Fp);
+            else while (st.PendingPrints.Count > 0 && now - st.PendingPrints.Peek().At >= 20) { var pp = st.PendingPrints.Dequeue(); Prints.Learn(pp.Fp, st.Clip, st.Clip == 0 ? 0 : (float)(pp.At - st.ClipStart)); }
             {
             }
             // the guide's program on this window, every 30 s (a new program's times as it starts)
@@ -218,6 +272,7 @@ public sealed partial class MainWindow
                     if (er is { Length: > 4 } && System.Text.Json.Nodes.JsonNode.Parse(er) is System.Text.Json.Nodes.JsonObject eo)
                     {
                         st.ChannelName = eo["channel"]?.GetValue<string>() ?? "";
+                        st.Model.ShowTitle = eo["title"]?.GetValue<string>() ?? "";   // the program on now, by the guide
                         st.EdgeStart = (long)(eo["start"]?.GetValue<double>() ?? 0);
                         st.EdgeEnd = eo["end"] is { } en ? (long)en.GetValue<double>() : 0;
                     }
@@ -267,8 +322,39 @@ public sealed partial class MainWindow
             else if (st.Ticks % 30 == 0)
                 LogLine("break watch " + id + ": " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " break" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : ""));
             if (st.Ticks % 300 == 0) { st.Model.Save(ModelPath(channel)); Prints.Save(); Sounds.Save(); }   // the learned logo and the ads seen, every five minutes
+            if (changed || (st.Model.Active && st.Ticks % 10 == 0)) NoteBreakUp(id, channel, st.Model.Active);   // what a restart resumes
         }
     }
+
+    // the windows in a break, kept on this PC so a restart puts their covers back (breakwatch/up.json: window, channel, when last seen up)
+    private static readonly Dictionary<string, (string Channel, long At)> s_breakUp = LoadBreakUp();
+    private static string BreakUpPath => Path.Combine(BreakWatchDir, "up.json");
+    private static Dictionary<string, (string Channel, long At)> LoadBreakUp()
+    {
+        var d = new Dictionary<string, (string, long)>();
+        try
+        {
+            if (File.Exists(BreakUpPath) && System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(BreakUpPath)) is System.Text.Json.Nodes.JsonObject o)
+                foreach (var (k, v) in o) if (v is System.Text.Json.Nodes.JsonObject e) d[k] = (e["channel"]?.GetValue<string>() ?? "", e["at"]?.GetValue<long>() ?? 0);
+        }
+        catch { }
+        return d;
+    }
+    private static void NoteBreakUp(string id, string channel, bool up)
+    {
+        if (up) s_breakUp[id] = (channel, DateTimeOffset.UtcNow.ToUnixTimeSeconds()); else if (!s_breakUp.Remove(id)) return;
+        try
+        {
+            var o = new System.Text.Json.Nodes.JsonObject();
+            foreach (var (k, v) in s_breakUp) o[k] = new System.Text.Json.Nodes.JsonObject { ["channel"] = v.Channel, ["at"] = v.At };
+            Directory.CreateDirectory(BreakWatchDir);
+            File.WriteAllText(BreakUpPath, o.ToJsonString());
+        }
+        catch { }
+    }
+    /// <summary>The window was in a break on this channel within the last minute (a restart, not a new day).</summary>
+    private static bool BreakWasUp(string id, string channel) =>
+        s_breakUp.TryGetValue(id, out var b) && b.Channel == channel && DateTimeOffset.UtcNow.ToUnixTimeSeconds() - b.At <= 60;
 
     /// <summary>What the screen says, read on the PC (Windows' own text reader; nothing leaves the machine).</summary>
     private async System.Threading.Tasks.Task<string?> ReadScreenAsync(Windows.Graphics.Imaging.SoftwareBitmap bmp)
@@ -324,9 +410,28 @@ public sealed partial class MainWindow
     /// </summary>
     private static readonly bool BenchOn = Environment.GetEnvironmentVariable("PRISM_FRAME_SAMPLER") == "1";
     private static int _benchPrune;
+    /// <summary>Ad debug is on: the full ad watching and, on a dev machine, the bench's recording (set as the switch changes).</summary>
+    private static bool s_adDebug;
+    /// <summary>
+    /// A window's video seeked, paused, played or changed speed (SurfaceManager.MediaNote, 2026-10-07): a line of the bench's events.log,
+    /// "media seek 4682.1 -> 4672.0" or "media pause at 4682.1". A report made after going back 10 s is then read against what the screen
+    /// showed, and the hindsight labeller sees a replayed stretch as the replay it is.
+    /// </summary>
+    private void OnMediaNote(string id, string json)
+    {
+        try
+        {
+            using var d = System.Text.Json.JsonDocument.Parse(json);
+            var r = d.RootElement;
+            var what = r.TryGetProperty("what", out var w) ? w.GetString() ?? "" : "";
+            string P(string k) => r.TryGetProperty(k, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number ? v.GetDouble().ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : "?";
+            Bench(id, _watchClock.Elapsed.TotalSeconds, null, what == "seek" ? "media seek " + P("from") + " -> " + P("to") : "media " + what + " at " + P("to"));
+        }
+        catch { }
+    }
     private static void Bench(string id, double t, byte[]? frame, string? evt)
     {
-        if (!BenchOn) return;
+        if (!BenchOn || !s_adDebug) return;   // the recording only while Ad debug is on (2026-10-07)
         try
         {
             var dir = Path.Combine(HostPaths.DataDir, "diagnostics", "bench", id);

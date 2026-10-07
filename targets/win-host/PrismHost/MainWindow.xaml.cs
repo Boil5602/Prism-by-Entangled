@@ -44,7 +44,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
+        InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   InitBigWindowFirst();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
         ShowInstalledNoteIfAny();   // the first-run note: where Prism now lives, and that the downloaded folder can go (2026-10-06)
         InitReportFlag();   // the report flag in the top-right corner, on both players (docs/features/report-flag.md, 2026-10-06)
         InitBootCover();   // the Video player last on: a dark cover until Watch is drawn - never a service's home page (2026-09-24)
@@ -69,6 +69,7 @@ public sealed partial class MainWindow : Window
             forwardEvent: (_, eventJson) => { PerfNoteEvent(eventJson); LogRaw("-> " + PrismHost.Diagnostics.LogCompact.Event(PrismHost.Diagnostics.Redact.Line(eventJson))); NoteAmbientEvent(eventJson); NoteNavigated(eventJson); _brain?.Call(HostCalls.Event, eventJson); NoteSessionEvent(eventJson); },
             onStatus: SetStatus);
         _surfaces.EmeResult += OnEmeResult;
+        _surfaces.MediaNote += OnMediaNote;
         _surfaces.SetWallVolume(HostPrefs.GetDouble("wallVolume", 1.0));   // B-176: the wall's volume, remembered on this machine
         _fft = new WasapiLoopbackFft(LogLine);
         _surfaces.AudioSource = _fft;

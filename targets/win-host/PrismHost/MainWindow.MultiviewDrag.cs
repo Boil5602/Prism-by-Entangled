@@ -27,6 +27,9 @@ public sealed partial class MainWindow
     private static Func<Button, PointerRoutedEventArgs, bool>? s_cardLift;
 
     private CardPick? _dragCard;            // a card in the air
+    /// <summary>A Live channel lifted off the schedule (2026-10-07): dropped on a place, the channel is tuned into it.</summary>
+    internal sealed record LivePick(string Facet, string Id, string? Url, string Name, string Service, string? Logo);
+    private LivePick? _dragLive;
     private string? _dragTile;              // or a window from the strip
     private int _dragFrom = -1;
     private uint _dragPointer;
@@ -70,20 +73,28 @@ public sealed partial class MainWindow
 
     private bool BeginDrag(Grid overlay, PointerRoutedEventArgs e, CardPick? card, string? tile, int from)
     {
-        if (!_dragWired || !ReferenceEquals(_videoHub, overlay) || (card is null && tile is null)) return false;
+        if (!_dragWired || !ReferenceEquals(_videoHub, overlay) || (card is null && tile is null && _dragLive is null)) return false;
         if (!overlay.CapturePointer(e.Pointer)) return false;
         _dragCard = card; _dragTile = tile; _dragFrom = from; _dragPointer = e.Pointer.PointerId;
-        var name = card?.Title ?? MvWindowName(tile!);
+        var name = card?.Title ?? _dragLive?.Name ?? MvWindowName(tile!);
         var ghostBody = new StackPanel { Spacing = 4, Width = 200 };
-        if (card?.Art is { Length: > 0 } art) { try { ghostBody.Children.Add(new Border { CornerRadius = new CornerRadius(6), Height = 112, Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(art)), Stretch = Stretch.UniformToFill } }); } catch { } }
+        if ((card?.Art ?? _dragLive?.Logo) is { Length: > 0 } art) { try { ghostBody.Children.Add(new Border { CornerRadius = new CornerRadius(6), Height = 112, Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(art)), Stretch = Stretch.UniformToFill } }); } catch { } }
         ghostBody.Children.Add(new TextBlock { Text = Shorten(name, 30), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
         _dragGhost = new Border { Child = ghostBody, Padding = new Thickness(8), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0x1A, 0x1D, 0x24)), BorderBrush = HubAmber, BorderThickness = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = 0.92 };
         Canvas.SetZIndex(_dragGhost, 50);
         overlay.Children.Add(_dragGhost);
         ShowDropBar(overlay);
         DragMoved(overlay, e);
-        LogLine("multiview drag: " + (card is not null ? "card " + card.Title + " (" + card.Service + ")" : "window " + tile + " from " + from));
+        LogLine("multiview drag: " + (card is not null ? "card " + card.Title + " (" + card.Service + ")" : _dragLive is not null ? "channel " + _dragLive.Name + " (" + _dragLive.Service + ")" : "window " + tile + " from " + from));
         return true;
+    }
+
+    private bool BeginLiveDrag(Grid overlay, PointerRoutedEventArgs e, LivePick pick)
+    {
+        _dragLive = pick;
+        if (BeginDrag(overlay, e, null, null, -1)) return true;
+        _dragLive = null;
+        return false;
     }
 
     private string MvWindowName(string tile)
@@ -198,11 +209,12 @@ public sealed partial class MainWindow
     {
         if (_dragGhost is null || e.Pointer.PointerId != _dragPointer) return;
         var at = ZoneAt(overlay, e.GetCurrentPoint(overlay).Position);
-        var (card, tile, from) = (_dragCard, _dragTile, _dragFrom);
+        var (card, tile, from, live) = (_dragCard, _dragTile, _dragFrom, _dragLive);
         e.Handled = true;
         EndDrag(overlay);
         overlay.ReleasePointerCaptures();
         if (card is not null) { if (at >= 0) await DropCardAsync(card, at); return; }
+        if (live is not null) { if (at >= 0) { await TuneIntoAsync(at, live.Facet, live.Id, live.Url, live.Name, live.Service, live.Logo); DrawMvStrip(); } return; }
         if (tile is null) return;
         if (at >= 0 && at != from) { await MvCallAsync("place", tile + ":" + at); SetPill("Prism · " + Shorten(MvWindowName(tile), 40) + " → " + (at == 0 ? "the big window" : "window " + (at + 1))); }
         else if (at < 0)
@@ -221,7 +233,7 @@ public sealed partial class MainWindow
         if (_dragGhost is not null) overlay.Children.Remove(_dragGhost);
         if (_dropBar is not null) overlay.Children.Remove(_dropBar);
         _dragGhost = null; _dropBar = null; _dropZones.Clear();
-        _dragCard = null; _dragTile = null; _dragFrom = -1;
+        _dragCard = null; _dragTile = null; _dragFrom = -1; _dragLive = null;
         if (_stripDragging) { _stripDragging = false; DrawMvStrip(); }   // the strip plain again: Swap and Turn off back
     }
 

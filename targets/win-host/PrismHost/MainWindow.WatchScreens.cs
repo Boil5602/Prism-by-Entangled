@@ -458,7 +458,7 @@ public sealed partial class MainWindow
             var verbs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
             var canPause = (w["can"] as JsonObject)?["pause"]?.GetValue<bool>() != false;
             if (title.Length > 0) ScreenVerbs(verbs, tile, w["playing"]?.GetValue<bool>() == true, canCmd, canTracks, 12, canPause);
-            PlaylistBar(verbs, 12);
+            if (_playlistsActive) PlaylistBar(verbs, 12);   // the TMDB account's playlists: offered once one is linked (2026-10-07)
             NotePlaylistWindowChanged(title);   // a title of its own on the big window: the playlist selection is None
             row.Children.Add(verbs);
         }

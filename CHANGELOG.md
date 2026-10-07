@@ -2,6 +2,22 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.26.28 - 2026-10-07 (alpha, 0ffe6c09)
+
+YouTube TV break covers are more accurate, including live sports. Prism reads a game's commentary in the captions as the show, ignores a stadium's sponsor signs, and covers ads on channels with no logo by their own words. Ads Prism has seen before are recognised by their pictures in order. The big window gets the PC's attention first. In the Live guide a click plays a channel, and you can drag it onto a window. Cancel while a video starts takes the window back to what it was playing. YouTube TV windows show Prism's triangle while they load. An update button appears beside the report flag when an update is waiting. Playlists show only once a TMDB account is linked. Video player windows come back after a trip to the Music player. Swap shows each window's number large in its middle.
+
+- download: https://prism.entangled.world/windows/Prism-0.26.28-0ffe6c09.zip
+- sha256: ddabf4b1b53f506e959ecca72a43c30995a059f9991d1a0acd3943cc0c602ecc
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.26.28
+
+## 0.26.27 - 2026-10-07 (alpha, 9fbd7d30)
+
+A new PC no longer crashes on its first start. YouTube TV break covers are more accurate. A network's own promos stay covered, a show comes back uncovered sooner, and YouTube TV's own ads inside a break no longer lift the cover. Watch settings has a Video ads choice: veiled and muted, muted with the picture visible, or shown. YouTube TV windows stay dark with a loading ring until the channel plays. The report flag has Ad debug for telling Prism about ads it missed or covered by mistake. Updates can show what's changed beside the dialog.
+
+- download: https://prism.entangled.world/windows/Prism-0.26.27-9fbd7d30.zip
+- sha256: a2077f729d619fadd358d0f914b36e92af930d22cfa18716cc59d70c5e711fb2
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.26.27
+
 ## 0.26.26 - 2026-10-06 (alpha, 6354f6fb)
 
 YouTube TV channel breaks are now covered. Prism watches the picture for the channel's logo, cuts to black and web addresses or phone numbers on screen, and covers a break it's sure of. Turn it off in Watch settings. Peacock live channel ads are covered. The playback fixer no longer restarts a show that's playing fine, and if it can't fix one it opens the title again where you were.

@@ -42,6 +42,15 @@ internal sealed class BreakModel
     private double _pb = 0.05;
     private double _lastBlack = -99, _since;
     private double _adTextAt = -99, _showTextAt = -99;
+    // the reading of an ad's words before the last one, and when the logo was last plainly seen (the flat-corner rule below)
+    private double _adTextPrevAt = -999, _logoUpAt = -99;
+    // an ad's words with no logo to read (the bare rule below): its last two readings, and how long each word has stayed on screen
+    private double _bareAdAt = -99, _bareAdPrevAt = -999;
+    private readonly Dictionary<string, (double First, double Last)> _tokenSpan = new();
+    private readonly Dictionary<string, double> _scenery = new();
+    // a game's commentary (GameSaid): the game words heard lately, and when the commentary last said it is the game
+    private readonly Queue<(double At, int N)> _gameWords = new();
+    private double _gameSaidAt = -99;
     // the show's own card (below): only these start the minute and a half in which the logo alone covers nothing
     private double _showCardAt = -99;
     // a channel's promo for its own show ("Season finale, Friday 10/9c") carries its logo: seen inside a break, it holds the break (below)
@@ -86,6 +95,9 @@ internal sealed class BreakModel
     /// <summary>The window's channel carries no commercials.</summary>
     public bool AdFreeChannel { get; set; }
     private double _dismissedUntil = -1;
+    /// <summary>A Not an ad taken back (Ad debug's This is an ad right after it, 2026-10-07, "I had one I falsely reported not an ad then
+    /// clicked this is an ad right after"): the window may be covered again at once. True when there was a hold to lift.</summary>
+    public bool Undismiss(double t) { if (t >= _dismissedUntil) return false; _dismissedUntil = -1; return true; }
     /// <summary>The person said this is no ad (the card's Not an ad): uncovered now, nothing covers here for five minutes, and the pictures
     /// of the last minute are never learned.</summary>
     public bool Dismiss(double t)
@@ -199,7 +211,7 @@ internal sealed class BreakModel
             // it) or the channel changed its mark - learned again from here, and a break called on it is let go
             if (!_suspended)
             {
-                if (z >= 0.6) _absentSince = -1;   // only a plain mark says the logo is there (a faint half-match kept the clock from ever running)
+                if (z >= 0.6) { _absentSince = -1; _logoUpAt = t; }   // only a plain mark says the logo is there (a faint half-match kept the clock from ever running)
                 else if (_absentSince < 0) _absentSince = t;
                 // missing four minutes with nothing in the last minute saying ad, or six minutes whatever else: longer than any break
                 // read (4:46 the longest) - the channel is showing no logo, not an ad
@@ -221,10 +233,27 @@ internal sealed class BreakModel
         // the show's own words in the last ten seconds outweigh an ad's: a show can name a web address (Family Guy said "zillow.com" over its
         // opening credits and was covered four seconds, 2026-10-06 21:31)
         var showSaid = t - _showTextAt <= 10;
+        // a game's commentary (GameSaid below) is the show: on a channel with no logo to read it holds off a cover, and under a cover that has
+        // stood ten seconds it lifts it (the captions run a few seconds behind the picture, so a game's last words come after its break began)
+        var gameSaid = t - _gameSaidAt <= 6;
+        var gameShow = gameSaid && (!HasLogo || _suspended || (Active && t - _since > 10));
+        if (gameShow) { showSaid = true; llr -= 3.0; why.Add("game commentary"); }
         // an ad's words on the screen count only with the channel's learned logo plainly away: a show can put a phone number or an address
         // on screen too (Unbreakable's news broadcast showed "800-656-1482" with FX's logo just back, 2026-10-07 07:10, covered 14 s)
         var logoAway = HasLogo && !_suspended && LogoScore is { } la && la / _level < 0.3;
-        var adText = t - _adTextAt <= 5 && logoAway && !showSaid;
+        // ... or with the corner too flat to read and the logo not plainly seen for 15 s, when the words come twice within eight seconds (an Ad
+        // debug report 2026-10-07 10:54: USA's Progressive ad named progressive.com in eight readings over a flat corner and covered nothing,
+        // because a corner that can't be seen says nothing either way). A light scene of the show still flashes its logo within 15 s, and its
+        // phone number in a news banner is a single reading.
+        var faintOk = faint && HasLogo && !_suspended && t - _logoUpAt >= 15 && _adTextAt - _adTextPrevAt <= 8 && t - _showTextAt > 60;   // and no show's words in the last minute: a film's credits end on its studio's address (Friends on TBS, www.warnerbros.com, 2026-10-07 10:30:41)
+        // no logo to read (set aside, or not learned yet): an ad's own words still cover, read twice within eight seconds with no show's words
+        // for a minute, and never words that have stayed on screen for 40 s (the scenery's: the ALDS backdrop's Booking.com). TBS's postseason
+        // coverage (2026-10-07 15:34-16:00) carried no corner logo, the logo was set aside, and a break's Liberty Mutual, Grubhub and Bimzelx
+        // addresses covered nothing: only a QR code did
+        var bare = (!HasLogo || _suspended) && t - _bareAdAt <= 5 && _bareAdAt - _bareAdPrevAt <= 8 && t - _showTextAt > 60 && t - _gameSaidAt > 20;
+        if (bare) why.Add("ad text, no logo");
+        var adText = (t - _adTextAt <= 5 && (logoAway || faintOk) && !showSaid) || bare;
+        if (adText && faintOk && !logoAway) why.Add("corner flat");
         if (adText) { llr += 3.0; why.Add("ad text"); }
         // words heard in the captions are weaker than words on the screen (a show's dialogue says brand names too): some weight, and only
         // with the channel's logo learned and away - never a cover on their own
@@ -330,14 +359,41 @@ internal sealed class BreakModel
     public void SoundSeen(double t) => _soundAt = t;
     private bool KnownAd(double t) { while (_printHits.Count > 0 && t - _printHits.Peek() > 8) _printHits.Dequeue(); return _printHits.Count >= 2; }
     /// <summary>A frame the watch may learn from: well inside a break it is sure of, the logo plainly away.</summary>
+    /// <summary>The channel's learned logo is plainly away on this frame (the back-fill of a break's opening reads it frame by frame).</summary>
+    /// <summary>The channel's learned logo is plainly there on this frame (the show, for the replay's count of false matches).</summary>
+    /// <summary>When the break watch's cover went up (NaN with none): a Not an ad over it says how long the show was covered.</summary>
+    public double ActiveSince => Active ? _since : double.NaN;
+    public bool LogoUpNow => HasLogo && !_suspended && LogoScore is { } lu && lu / _level >= 0.6;
+    public bool LogoAwayNow => HasLogo && !_suspended && LogoScore is { } lz && lz / _level < 0.3;
     public bool LearnableAt(double t) => Active && t - _since >= 15 && t - _wordSeenAt <= 20 && !_suspended && LogoScore is { } lz && lz / _level < 0.3;
+
+    /// <summary>A break that was up when Prism closed, taken up again on the same channel (2026-10-07: every restart threw the running covers
+    /// away and the windows' breaks played uncovered a minute while the watch began again). The logo plainly back still lifts it at once.</summary>
+    public void ResumeBreak(double t) { Active = true; _since = t; _changedAt = t; _pb = 0.95; _adSeenAt = t; _wordSeenAt = t; _sureSince = t; }
+
+    /// <summary>The program on now by the guide (set by the window's watch): its name on screen is the show's own banner.</summary>
+    public string ShowTitle { get; set; } = "";
+    private static bool HasWord(string s, string w)
+    {
+        for (var i = s.IndexOf(w, StringComparison.OrdinalIgnoreCase); i >= 0; i = s.IndexOf(w, i + 1, StringComparison.OrdinalIgnoreCase))
+        {
+            var before = i == 0 || !char.IsLetterOrDigit(s[i - 1]);
+            var after = i + w.Length >= s.Length || !char.IsLetterOrDigit(s[i + w.Length]);
+            if (before && after) return true;
+        }
+        return false;
+    }
 
     public string? Text(string text, double t, bool spoken = false)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
         var flat = text.Replace('\n', ' ');
+        // the show's own name on screen is the show's banner, never an ad's (2026-10-07, "Seems confused by friends, keeps muting and calling
+        // it an ad": TBS slid "Friends Back to Back Next" over its logo mid-scene, the logo read as gone and the quick re-cover covered the show)
+        if (!spoken && ShowTitle.Length >= 4 && HasWord(flat, ShowTitle)) { _showTextAt = t; return "show: its own name (" + ShowTitle + ")"; }
         if (ShowWords.Match(flat) is { Success: true } sw) { _showTextAt = t; if (ShowCard.IsMatch(flat)) _showCardAt = t; return "show: " + sw.Value; }
         if (spoken && RepeatsBeforeBreak(flat, t) is { } rep) { _showTextAt = t; _showCardAt = t; return rep; }
+        if (spoken && GameSaid(flat, t) is { } game) return game;
         string? promo = null;
         if (!spoken && PromoWords.Match(flat) is { Success: true } pw) { _promoAt = t; promo = "promo: " + pw.Value.ToLowerInvariant(); }
         var tokens = new List<string>();
@@ -355,8 +411,72 @@ internal sealed class BreakModel
             return null;
         }
         foreach (var tk in tokens)
-            if (!(_showTokens.TryGetValue(tk, out var c) && c >= 3)) { if (spoken) _ccAdAt = t; else _adTextAt = t; return "ad: " + tk; }
+            if (!(_showTokens.TryGetValue(tk, out var c) && c >= 3))
+            {
+                if (spoken) _ccAdAt = t;
+                else
+                {
+                    _adTextPrevAt = _adTextAt; _adTextAt = t;
+                    // a word that keeps coming back over 40 s is the scenery's, gaps of up to a quarter of an hour and all (the text reader
+                    // catches a backdrop now and then: the ALDS game's booking.com came 42 s apart, read as new, and covered the game 24 s,
+                    // 2026-10-07 16:19:45), and stays the scenery's for a quarter of an hour. An ad aired twice in that time is the price
+                    // on a channel with no logo; its pictures still cover it (AdPrints)
+                    var span = _tokenSpan.TryGetValue(tk, out var sp) && t - sp.Last <= 900 ? (sp.First, t) : (t, t);
+                    _tokenSpan[tk] = span;
+                    if (t - span.Item1 >= 40) _scenery[tk] = t;
+                    if (_tokenSpan.Count > 200) foreach (var old in _tokenSpan.Where(x => t - x.Value.Last > 900).Select(x => x.Key).ToList()) _tokenSpan.Remove(old);
+                    // the reader garbles a backdrop's address a new way each time (Booking.co, Booking.cem, &ooking.com, 16:03-16:59): a word sharing
+                    // five letters in a row with the scenery's is the scenery's, and an address of under four letters is a fragment
+                    var scenery = _scenery.Any(x => t - x.Value < 900 && SameStem(x.Key, tk));
+                    if (scenery) _scenery[tk] = t;
+                    else if (!Fragment(tk)) { _bareAdPrevAt = _bareAdAt; _bareAdAt = t; }
+                }
+                return "ad: " + tk;
+            }
         return null;
+    }
+
+    /// <summary>Two readings of the same words (the scenery rule): five letters in a row in common, ignoring everything but letters.</summary>
+    private static bool SameStem(string a, string b)
+    {
+        if (a == b) return true;
+        var x = new string(a.Where(char.IsLetter).ToArray()); var y = new string(b.Where(char.IsLetter).ToArray());
+        for (var i = 0; i + 5 <= x.Length; i++) if (y.Contains(x.Substring(i, 5), StringComparison.Ordinal)) return true;
+        return false;
+    }
+    /// <summary>An address with under four letters before its dot (tg.com, l.cnm): a piece of something the reader half saw.</summary>
+    private static bool Fragment(string tk)
+    {
+        if (tk.StartsWith("www.", StringComparison.Ordinal)) tk = tk[4..];
+        var dot = tk.IndexOf('.');
+        if (dot < 0 || tk.Contains('/') || tk.Any(char.IsDigit) && !tk.Any(char.IsLetter)) return false;   // an address with a path is whole (ro.co/meganfox)
+        return tk[..dot].Count(char.IsLetter) < 4;
+    }
+
+    // a game's own words (2026-10-07, "I think the captions should clue you into the show being on"): play-by-play names the inning, the
+    // pitch, the bullpen, every few seconds, and an ad almost never does. Words an ad says as often (walk, count, base, plate, top, bottom)
+    // are left out. Measured on TBS's ALDS coverage: 40% of the game's caption lines had one within eight seconds, no line of a break did.
+    private static readonly HashSet<string> GameWords = new(StringComparer.Ordinal)
+    {
+        "inning", "innings", "pitch", "pitches", "pitched", "pitcher", "pitchers", "pitching", "strikeout", "strikeouts", "bullpen", "homer", "homers",
+        "homered", "batter", "hitter", "hitters", "catcher", "dugout", "rbi", "rbis", "bunt", "slider", "fastball", "curveball", "changeup", "sinker",
+        "cutter", "grounder", "flyout", "infield", "outfield", "shortstop", "umpire", "baserunner", "doubleplay", "southpaw", "lefty", "righty",
+        "quarterback", "touchdown", "interception", "linebacker", "sideline", "endzone", "scrimmage", "punt", "rebound", "rebounds", "layup",
+        "dunk", "pointer", "puck", "goalie", "faceoff", "powerplay", "penalty", "crossbar", "offside",
+    };
+    /// <summary>A line of captions in a game's commentary: one of the game's words within eight seconds, on a channel whose captions have
+    /// sounded like a game for a while (six game words in five minutes), so a drama that says "pitch" once is never a game.</summary>
+    private string? GameSaid(string text, double t)
+    {
+        var n = 0;
+        foreach (Match m in Regex.Matches(text.ToLowerInvariant(), "[a-z]+")) if (GameWords.Contains(m.Value)) n++;
+        if (n > 0) _gameWords.Enqueue((t, n));
+        while (_gameWords.Count > 0 && t - _gameWords.Peek().At > 300) _gameWords.Dequeue();
+        if (n == 0) return null;
+        var lately = _gameWords.Where(x => t - x.At <= 8).Sum(x => x.N);
+        if (lately < 1 || _gameWords.Sum(x => x.N) < 6) return null;
+        _gameSaidAt = t;
+        return "show: the game's commentary";
     }
 
     // the show's last lines before a break (2026-10-07, an Ad debug report 08:54: HGTV came back on "Welcome to your new primary suite", the

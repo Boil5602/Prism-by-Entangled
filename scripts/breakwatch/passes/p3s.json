@@ -1,0 +1,6 @@
+{"from":"18:55:20","to":"19:05:00","since":"00:00:00","windows":{
+"youtube-tv-home-16x9-XL":{"name":"FX","ads":[]},
+"youtube-tv-home-16x9-XL-w2":{"name":"AMC","ads":[["18:56:20","19:00:25"]],"neutral":[["19:00:25","19:00:56"]]},
+"youtube-tv-home-16x9-XL-w4":{"name":"BBC America","ads":[["19:00:41","19:05:00"]],"neutral":[["19:00:05","19:00:41"]]},
+"youtube-tv-home-16x9-XL-w5":{"name":"C-SPAN2","ads":[]},
+"screen":{"name":"FOX 8","ads":[["18:56:52","19:00:00"]],"neutral":[["19:00:00","19:00:57"]]}}}
