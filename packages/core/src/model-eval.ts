@@ -22,7 +22,7 @@ import {
   slotClassRatio,
   type Layout,
 } from "./scene-model.js";
-import { FACET_PICK_POLL_JS, FACET_PICK_STOP_JS, facetPickerJs, facetPresetsFor, loginRedirect, presetFacet, sessionProbeJs, sessionVerdict, representativeRect, selectorRectJs, setupStatusFor, tunedPresetFor, type CatalogEntryWithFacets } from "./adapters-facets.js";
+import { FACET_PICK_POLL_JS, FACET_PICK_STOP_JS, facetPickerJs, facetPresetsFor, loginRedirect, presetFacet, sessionProbeJs, sessionVerdict, signInPage, signInPressJs, representativeRect, selectorRectJs, setupStatusFor, tunedPresetFor, type CatalogEntryWithFacets } from "./adapters-facets.js";
 
 const json = (v: unknown): string => JSON.stringify(v);
 
@@ -86,6 +86,9 @@ const modelEval = {
     return sessionProbeJs({ signedIn, signedOut });
   },
   /** "signed-in" | "needs-attention" | null from the probe's raw ExecuteScript result. */
+  /** The adapter's login as a page to open, or "" when the sign-in is on the service's own page. */
+  signInPage(login: string | null, signIn?: string | null): string { return signInPage(login, signIn) ?? ""; },
+  signInPressJs(signedOut: string | null): string { return signInPressJs(signedOut); },
   sessionVerdict(resultJson: string | null): string {
     return json(sessionVerdict(resultJson));
   },

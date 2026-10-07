@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Orchestrator } from "../src/orchestrator.js";
 import type { Drivers } from "../src/drivers.js";
 import type { DashboardDocument } from "../src/types.js";
@@ -202,6 +202,37 @@ describe("Quick play: the song playing now, on another service", () => {
     await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicLookup"), op: "lookup", ok: true, candidates: [{ id: "x1", title: "Shame", artist: "Lauren Mayberry" }] });
     expect(await pending).toBe("found");
     expect(o.musicLookupState("am").cannot).toEqual({ add: "Not here." });
+  });
+
+  it("a play the page did not take is sent once more after six seconds, and only once (2026-10-04, a page just woken did nothing with the first)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { drivers, calls } = fakeDrivers();
+      (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
+      const o = new Orchestrator(drivers);
+      o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" }, musicPlay: "/*play*/" } as never, spotify: { id: "spotify", controls: { play: ".play" } } as never });
+      await o.load(doc, { w: 1000, h: 625 });
+      await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: false, title: "", artist: "", library: { playlists: [{ id: "p.1", name: "Vibes", kind: "playlist" }], stations: [] } } });
+      const injects = (fn: string) => calls.filter((c) => c.op === "inject" && String(c.js).includes(fn)).map((c) => String(c.js));
+      calls.length = 0;
+      expect(await o.playCollection("am", "playlist", "p.1", "normal")).toBe("ok");
+      expect(injects("__prismMusicPlay").length).toBe(1);
+      // silence from the page: the second send at six seconds, then no third
+      await vi.advanceTimersByTimeAsync(Orchestrator.MUSIC_PLAY_RETRY_MS - 1);
+      expect(injects("__prismMusicPlay").length).toBe(1);
+      await vi.advanceTimersByTimeAsync(2);
+      expect(injects("__prismMusicPlay").length).toBe(2);
+      expect(o.musicPlayRetries).toBe(1);
+      await vi.advanceTimersByTimeAsync(Orchestrator.MUSIC_PLAY_RETRY_MS * 3);
+      expect(injects("__prismMusicPlay").length).toBe(2);
+      // a page that plays within the window needs no second send
+      calls.length = 0;
+      expect(await o.playCollection("am", "playlist", "p.1", "normal")).toBe("ok");
+      await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "A", artist: "x", context: { kind: "playlist", id: "p.1", label: "Vibes", playing: true } } });
+      await vi.advanceTimersByTimeAsync(Orchestrator.MUSIC_PLAY_RETRY_MS + 10);
+      expect(injects("__prismMusicPlay").length).toBe(1);
+      expect(o.musicPlayRetries).toBe(1);
+    } finally { vi.useRealTimers(); }
   });
 
   it("play orders (2026-09-17, spec 32 layer 5): the service's shuffle switch, Prism's true shuffle and reverse through the page's track list, a standing order the state names", async () => {
@@ -489,7 +520,7 @@ describe("Quick play: the song playing now, on another service", () => {
     const vibes = o.playCollection("am", "playlist", "p.1", "true-shuffle");
     await tick();
     expect(injects("__prismMusicTracks").length).toBe(1);
-    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicWork).toMatchObject({ what: "reading the track list", name: "Vibes" });
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicWork).toMatchObject({ what: "True shuffle: reading the track list", name: "Vibes" });
     await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicTracks"), op: "tracks", ok: true, candidates: [{ id: "1", title: "A", artist: "x" }, { id: "2", title: "B", artist: "x" }] });
     await tick();
     await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicQueue"), op: "queue", ok: true });
@@ -518,7 +549,7 @@ describe("Quick play: the song playing now, on another service", () => {
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: false, title: "", artist: "", library: { playlists: [{ id: "p.1", name: "Vibes", kind: "playlist" }], stations: [] } } });
     const rev = o.playCollection("am", "playlist", "p.1", "reverse");
     await tick();
-    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicWork).toMatchObject({ what: "reading the track list", name: "Vibes" });
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicWork).toMatchObject({ what: "Reverse: reading the track list", name: "Vibes" });
     await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicTracks"), op: "tracks", ok: false, error: "the page lists no track links to read" });
     expect(await rev).toBe("unsupported");
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicWork).toMatchObject({ what: "could not read the track list", name: "Vibes", error: "the page lists no track links to read" });
@@ -826,5 +857,32 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(await o.musicLookup("am")).toBe("found");               // the pick stands; nothing was wiped
     expect(o.musicLookupState("am")).toMatchObject({ status: "found", picked: true, match: { id: "b" } });
     expect(o.musicLookupPick("am", "zzz")).toBe(false);
+  });
+  it("a Prism order read while the other source plays on (2026-10-05): the audio changes hands only when the ordered list is ready", async () => {
+    const { drivers, calls } = fakeDrivers();
+    (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" }, musicPlay: "/*play*/", musicTracks: "/*tracks*/", musicQueue: "/*queue*/" } as never, spotify: { id: "spotify", controls: { play: ".play", pause: ".pause" } } as never });
+    await o.load(doc, { w: 1000, h: 625 });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: false, title: "", artist: "", library: { playlists: [{ id: "p.1", name: "Vibes", kind: "playlist" }], stations: [] } } });
+    // Spotify plays and owns the audio
+    o.arm("sp");
+    await o.onSurfaceEvent({ type: "playback", id: "sp", playing: true });
+    expect(o.getState()?.audioOwner).toBe("sp");
+    calls.length = 0;
+    const ts = o.playCollection("am", "playlist", "p.1", "true-shuffle");
+    await tick();
+    // the list is being read: Spotify still has the audio, nothing muted or paused it
+    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicTracks"))).toBe(true);
+    expect(calls.some((c) => c.op === "setMuted" && c.id === "sp" && c.muted === true)).toBe(false);
+    expect(o.getState()?.audioOwner).toBe("sp");
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicTracks"), op: "tracks", ok: true, candidates: [{ id: "1", title: "A", artist: "x" }, { id: "2", title: "B", artist: "x" }] });
+    await tick();
+    // the list is ordered and handed over: now Spotify goes quiet and Apple takes the audio
+    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicQueue"))).toBe(true);
+    expect(calls.some((c) => c.op === "setMuted" && c.id === "sp" && c.muted === true)).toBe(true);
+    expect(o.getState()?.audioOwner).toBe("am");
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicQueue"), op: "queue", ok: true });
+    expect(await ts).toBe("ok");
   });
 });

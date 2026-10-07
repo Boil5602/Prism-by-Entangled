@@ -15,15 +15,17 @@
  * The Kotlin side executes commands and decides nothing (§23).
  */
 
+import { asUpdateChannel } from "./updates.js";
 import { FRESH_EPISODES, FRESH_MOVIES } from "./fresh-rows.js";
 import { KIDS_AGES, THE_BINGE, bingeDay, bingeGenreRows, bingeSettingsOf, bingeWords, selectBinge, type BingeThresholds, type KidsMode } from "./binge.js";
 import { libraryForWorks, libraryHits, searchWorks, type LibraryEntry, type LibraryHit, type SearchRowIn } from "./search-view.js";
 import { HUB_SORTS, hubSortOf, filterLookupRows, type HubSort } from "./hub-sort.js";
 import { MOST_READ_CATALOG } from "./most-read.js";
 import { BROWSE_GENRES, BROWSE_OFFERS, BROWSE_REGION, BROWSE_ROWS, browseGenre, browseOfferOf } from "./browse.js";
-import { dedupeKey, newEpisodeBadge } from "./menu-order.js";
+import { dedupeKey, newEpisodeBadge, CONTINUE_ORDERS, LIST_ORDERS, continueOrderOf, listOrderOf, reverseOf } from "./menu-order.js";
 import { orderLookup } from "./video-lookup.js";
-import type { VideoItem } from "./types.js";
+import type { VideoChannel, VideoItem } from "./types.js";
+import { SCORE_SOURCE, appsCarrying, gamesOfLastDay, namesGame, scoreLine, sportOf } from "./scores.js";
 import { normalizeTrackText } from "./music-lookup.js";
 import { MV_MAX, Orchestrator, type DashboardBundle, type LayoutRequest, type TilePatch } from "./orchestrator.js";
 import { customTile, pickerTile, validCatalogEntry, type PickerChoices } from "./catalog.js";
@@ -43,11 +45,20 @@ import { PrismModelEval } from "./model-eval.js";
 import { SLOT_PURPOSES, type DashboardDocument, type NowPlaying } from "./types.js";
 import { SceneModelStore } from "./scene-model-store.js";
 import type { App, Facet, FloatingPlacement, Scene } from "./scene-model.js";
-import { PLAYER_TEMPLATES, carryHiddenMusic, isPlayerKind, playerOfScene, playerScenes, type PlayerKind } from "./players.js";
+import { setupPlayers, setupServices, removeFromPlayers, parseRemoved, profileFor, REMOVED_KEY, type SetupEntry } from "./player-setup.js";
+import { SIGN_INS_KEY, FIRST_SIGN_IN_NAME, SHARED_PROFILE, isSharedProfile, sharedPlan, accountKey, addSignIn, hideSignIn, labelFromPage, noteStatus, parseSignIns, renameSignIn, showSignIn, signInById, signInByProfile, wantsLabel, withProfile, type SignInState } from "./sign-ins.js";
+import { accountLabel, accountReadJs } from "./adapters-facets.js";
+import { PLAYER_TEMPLATES, withWarmMusic, withoutMusic, isPlayerKind, playerOfScene, playerScenes, type PlayerKind } from "./players.js";
 import { NEWS_SHELF } from "./news-shelf.data.js";
 import { applyTilesIntent, parseTilesIntent, readTilesDoc } from "./tiles-data.js";
 import type { Rect } from "./solver.js";
 import { decodeBase64Bytes } from "./visualization.js";
+import { createPlaylists, type PlSource } from "./playlists.js";
+import { liveGuide, programOnNow } from "./live-guide.js";
+import { leftOutWhy, pairFeeds, storiesOf, type NewsFeedSpec, type NewsGuideRow } from "./news-feeds.js";
+import { isKidsRating, isShowName, typeFromGenres } from "./live-titles.js";
+import { liveItemsOf } from "./video.js";
+import { titleKey } from "./lenses.js";
 
 interface PrismBridgeHost {
   dispatch(json: string): void;
@@ -183,6 +194,30 @@ export interface PrismRuntimeApi {
   modelApplyScene(sceneId: string): string;
   /** Sync JSON: the two players (players.ts) - {active: "music"|"video"|null, music: {id, name}|null, video: {id, name}|null}. */
   players(): string;
+  /** Sync JSON (2026-10-06, the report flag): what a report may carry - the player on now, each service with its adapter, the adapter's version and the page its tile is on (origin and path, never the query), and the service to preselect. {active, services:[{app,name,kind,adapter,version,page}], selected}. */
+  reportContext(): string;
+  /** The window a phone listens to in multiview (2026-10-05): set from the phone; the host clears it when the last phone stops listening. */
+  listenWindow(tile: string | null): Promise<string>;
+  /** §28 updates for the host's Device screen (2026-10-05): the status, a check now, an install now, the channel. */
+  updateStatus(): string;
+  updateCheck(): Promise<string>;
+  updateInstallNow(): Promise<string>;
+  updateSetChannel(channel: string): Promise<string>;
+  /** Sync JSON: when the update check runs (2026-10-06, "Let the user check for updates at a scheduled time") - {"at":"HH:MM","weekday":0-6|null} or null for a day after the last; enabled false = Never. Taken at once; answers the status. */
+  updateSetSchedule(scheduleJson: string | null, enabled: boolean): string;
+  /** Plays the next episode of the series on screen from the Episodes list, when the service's own Next did nothing (2026-10-05). */
+  videoPlayNextEpisode(): string;
+  /** "Play after this track" from the wall's own Quick play (2026-10-05): one queued pick, as the phone's; -> {ok, started?, error?}. */
+  musicPlayNext(tile: string, kind: string, id: string): string;
+  musicNextNow(): string;
+  /** Sync JSON [{id, name, kind: "music"|"video", added, status}]: the catalog's services as the first-run page lists them (player-setup.ts); entries = [{id, name, url, adapter, audio}]. */
+  playerSetupServices(entriesJson: string): string;
+  /** Sync JSON {ok, error?, music, video, made, services}: the Music and Video players made from the services chosen; what is there already is kept. */
+  playerSetup(entriesJson: string, catalogJson?: string | null): string;
+  /** The profile a new App of this catalog entry gets (player-setup profileFor): one a shared account, else its own id. */
+  playerProfileFor(entryJson: string, catalogJson: string): string;
+  /** Sync JSON {ok, kind, changed, removed}: a service leaves the players and Watch; its App and its sign-in stand. The setup page brings it back. */
+  playerRemove(appId: string): string;
   /** VP-2 sync JSON: every video tile with its face (video.ts VideoTileState[]): what plays, Continue Watching / My List, the resume point, what it can do. */
   videoState(): string;
   /** VP-2 async JSON: a video tile's library {continue, list}, from the page's last report or the store. */
@@ -217,6 +252,28 @@ export interface PrismRuntimeApi {
   videoPresetSave(name: string): string;
   /** Sync JSON {ok}: a preset deleted. */
   videoPresetDelete(presetId: string): string;
+  /** Sync JSON {ok, error?}: a preset given another name (two never share one). */
+  videoPresetRename(presetId: string, name: string): string;
+  /**
+   * Sign-ins (sign-ins.ts). Sync JSON {services:[{app, name, kind:"music"|"video", status, account, shares:[name], signIns:[{id, name}], current}]}:
+   * every service of the two players with the sign-ins its account has on this device and the one it uses. catalogJson (the shell's
+   * catalog entries, with signInWith) teaches core which services share an account; null leaves what it knows.
+   */
+  signInsView(catalogJson: string | null): string;
+  /** Sync JSON {ok, signIn:{id, name}, made}: a new sign-in for the service's account under a person's name; nobody is signed in to it yet. */
+  signInAdd(appId: string, name: string): string;
+  /** Sync JSON {ok, changed, status}: the service uses this sign-in from now; its windows are made again in it. */
+  signInUse(appId: string, signInId: string): string;
+  /** Sync JSON {ok}: a sign-in renamed. */
+  signInRename(appId: string, signInId: string, name: string): string;
+  /** Sync JSON {ok, error?}: a sign-in taken off the list (its login kept, untouched) - never the one a service is on, nor the last one; and one brought back. */
+  signInHide(appId: string, signInId: string): string;
+  signInShow(appId: string, signInId: string): string;
+  /**
+   * Sync JSON {ok, asked:[app]}: the sign-ins nobody has named are named from their services' own account pages (adapter `account`), read
+   * on hidden pages one at a time; only services signed in, only a sign-in not read in the last week. The names land as they are read.
+   */
+  signInsLabel(): string;
   /** Sync JSON {ok, switched:[app], missing:[app]}: every service in the preset switched to its profile at once. */
   videoPresetApply(presetId: string): string;
   /** Sync JSON {ok, removed}: a watch taken out of the local log (and the App's resume point / recents) by its id, address or title - the person's eraser. */
@@ -235,6 +292,10 @@ export interface PrismRuntimeApi {
   videoRefreshApp(appId: string): string;
   /** Sync JSON {ok, pause}: the timed refresh's quiet hours (off by default); HH:MM local. */
   videoSetPause(on: boolean, from: string, to: string): string;
+  /** Sync JSON {ok, look}: Watch settings' Video ads - "veil" (scenery and mute, the default), "mute" (the ad's picture, its sound off) or "show". */
+  videoSetAdsLook(look: string): string;
+  /** Sync JSON {ok}: a muted-only break's Unmute (true) or Mute again (false), for this break. */
+  intermissionUnmute(tileId: string, on: boolean): string;
   /** §4a lenses. Sync JSON {ok, active}: the lens over the menu's rows, or null for none (the default). Not persisted: every boot starts with none. */
   lensChoose(lensId: string | null): string;
   /** Sync JSON {ok, set}: the person's own TMDB key kept on the device (lens:tmdb:key:<dash>); null clears it and every TMDB number. */
@@ -259,6 +320,11 @@ export interface PrismRuntimeApi {
   videoStartOver(): string;
   /** Sync JSON {ok, did: "nudged" | "reopened"}: the big screen's sound and picture brought back together - pause and play, or pressed again within 10 s, the title opened again at its place. */
   videoResync(): string;
+  /** Sync JSON {ok, did}: the shell saw a window's picture stand still while its player plays (2026-10-06, "FOX 8, freezes should be detected and
+   *  video reloaded"): the playback doctor opens it again (a channel tuned again), within its usual tries. */
+  videoPictureFrozen(tileId: string, seconds: number): string;
+  /** Sync JSON {title, start, end} | null: the program a channel window is on, as its guide lists it (the break watch's program edges, 2026-10-06). */
+  videoProgramEdges(tileId: string): string;
   /** Sync JSON {now, rowsCache, menuReady, lists:{app: ms}}: startup milestones in ms since this runtime began, null until reached. */
   bootTimings(): string;
   /** Sync JSON EpisodesView: a series' episodes on a service, for its Details page (poll until ready); itemId/season/episode = what Continue watching knows. */
@@ -272,6 +338,33 @@ export interface PrismRuntimeApi {
   videoEpisodesForget(appId: string, series: string): string;
   /** Sync JSON {state: "yes"|"no"|"checking"|"n/a", app, name}: whether the service that also carries a service's titles has this one (Hulu's in the Disney+ app), checked in the background on its own search and kept a week. */
   titleAlsoOn(kind: string, id: number, title: string, viaApp: string): string;
+  /** Which services to ask about a title that plays on these apps (2026-09-28, the host no longer names them): [{via, viaName, app, name}]. */
+  titleAlsoOnPlan(appsJson: string): string;
+  /** Sync JSON {ok, service, ...}: a live game watched on the service that carries it - its event played, or its channel tuned (2026-10-01). */
+  liveScoreWatch(league: string, id: string): string;
+  /**
+   * Sync JSON (2026-09-30, the Live tab's Sports mode): the day's games from ESPN - {source, readAt, reading, games:[{league, leagueName, id, start,
+   * state, detail, home, away, tv, short, line}], errors}; in play first, then over, then to come. A read starts when stale (two minutes) or forced.
+   */
+  liveScores(force: boolean): string;
+  liveNews(force: boolean, mode?: string | null): string;
+  watchlistSet(kind: string, id: number, on: boolean | string): string;
+  watchlistHas(kind: string, id: number): string;
+  watchlistImport(): string;
+  watchlistView(force: boolean): string;
+  watchlistHasTitle(title: string, kind: string | null): string;
+  watchlistSetTitle(title: string, kind: string | null, on: boolean | string): string;
+  tmdbLinkState(): string;
+  tmdbLinkStart(): string;
+  tmdbLinkFinish(): string;
+  tmdbUnlink(): string;
+  tmdbRated(kind: string, id: number): string;
+  tmdbRate(kind: string, id: number, value: number | null): string;
+  liveNowOn(type: string | null): string;
+  /** The Live tab (docs/features/live.md): the guide - rows, type chips, live events, each service's read - filtered by type and the live search. */
+  videoLiveGuide(type: string | null, q: string | null): string;
+  /** The Live tab open (or Refresh): each service's guide page read on its hidden page; forced = Refresh. */
+  videoLiveRead(force: boolean): string;
   /** The details card (2026-09-23): {status: working | ready | none, details?, why?} - ask again until it is not working. */
   titleDetails(title: string, kind: string | null, app: string | null): string;
   /** A work's details by TMDB id (a person's credit): the same shape as titleDetails. */
@@ -301,6 +394,43 @@ export interface PrismRuntimeApi {
    * suggestions: [{app, name, facet, shelves}], log: n, now}. Ordered by §4 through menu-order.ts alone.
    */
   videoMenu(): string;
+  /** The menu's rows alone - continue, list, the watchlist, orders, lens, screen, now; the lens rows too when asked - without the Library (2026-10-03). */
+  videoMenuRows(withLenses?: boolean | string): string;
+  /** A row's order, kept on the device (2026-09-26): row "continue" ("title" the default, "service") or "list" ("prism" the default, "title",
+   *  "service"), and reverse ("1"/"0"); a null leaves that part as it is. Returns {row, order, reverse, orders}. */
+  videoRowOrder(row: string, order?: string | null, reverse?: string | null): string;
+  /** Playlists (docs/features/playlists.md, 2026-09-27), all sync JSON, kept per profile set on the device: the Playlists screen's view
+   *  {lists, total, open, run, undo, services} (filter q by name and contained titles; sort "name" | "updated"); the Send to picker
+   *  {items (the open playlist first, then recent ones), total}; create / open / rename / delete / undo. */
+  playlistsView(q?: string | null, sort?: string | null, listId?: string | null): string;
+  playlistsPicker(): string;
+  playlistCreate(name: string, isPublic?: boolean | string): string;
+  /** Whether playlists are on (a TMDB account with lists linked), with the link's state for the gate's wording (2026-10-03). */
+  playlistGate(): string;
+  /** TMDB's lists read now. */
+  playlistSync(): string;
+  /** The device's own earlier playlists copied onto TMDB as private lists. */
+  playlistCopyLocal(): string;
+  /** A playlist public on TMDB or private. */
+  playlistSetPublic(id: string, on: boolean | string): string;
+  playlistOpen(listId: string): string;
+  playlistRename(listId: string, name: string): string;
+  playlistDelete(listId: string): string;
+  playlistUndo(): string;
+  /** Send a title: target {id} or {newName}; source {type:"movie", title, services:[{app,id,url}]} or {type:"series", show, app, services:[app],
+   *  scope:"all"|"season"|"episode"|"rest", season, episode}. Returns {job}; playlistJob(job) -> {status: reading|confirm|done|error, message,
+   *  count, added, skipped}; a large add waits for playlistJobConfirm(job, "1"). */
+  playlistSend(targetJson: string, sourceJson: string): string;
+  playlistImport(targetJson: string, appsJson: string, scope: string): string;
+  playlistJob(jobId: string): string;
+  playlistJobConfirm(jobId: string, yes: string): string;
+  /** An edit {op: move|moveBy|mark|markShow|remove|removeShow|clearCompleted|pin|view|order, ...}; a reorder outside Manual is refused. */
+  playlistEdit(listId: string, opJson: string): string;
+  /** Play from the first not-completed item (or the item named), on to the next as each ends; stop "after" this one or "now". */
+  playlistPlay(listId: string, itemKey?: string | null): string;
+  playlistStop(mode: string): string;
+  /** Sync JSON {ok, error?}: the playing playlist goes to its previous or next item ("previous" | "next"). */
+  playlistMove(dir: string): string;
   /** Phase 2 (§2 row 5): open a service's own search page with the words in place, the screen switched to it first when needed - {ok, switched}. */
   videoSearch(facetId: string, q: string, open?: string | null): string;
   /** Sync JSON: cross-service search started - {ok, q, token, done, services:[{app,name,facet,status,candidates}]}; every signed-in service asked at once on hidden surfaces (§2 row 5). */
@@ -385,6 +515,12 @@ export interface PrismRuntimeApi {
   musicLookupPick(tileId: string, songId: string): void;
   /** Add the found song to one of the service's own playlists (ids the page itself listed / returned). */
   musicAddToPlaylist(tileId: string, playlistId: string, songId: string): void;
+  /** Sync JSON (2026-10-06): the track playing on a music tile and the collections Prism has read that hold it - {songId, title, artist, lists} | null. */
+  musicPlayingIn(tileId: string): string;
+  /** Remove the track playing now from one of the person's own playlists, by the playlist page's own control on a hidden page; dry stops before the press. Sync JSON {ok, asked} | {ok:false, error}. */
+  musicRemovePlaying(tileId: string, playlistId: string, dry?: boolean): string;
+  /** Sync JSON: what the last removal on a tile did - {song, playlist, status: pending | ok | error | dry, error?} | null. */
+  musicRemoveState(tileId: string): string;
   /** Start the service's station seeded from the found song; the stage follows it. */
   musicStationFromSong(tileId: string, songId: string): void;
   /** B-124 recovery: destroy and recreate the App's wall surfaces (by profile) after App setup closes - a stranded engine starts over. */
@@ -412,6 +548,10 @@ export interface PrismRuntimeApi {
   modelLoginRedirect(url: string, loginPrefix: string | null, baseUrl: string | null): string;
   /** Page JS for an adapter's session probe (selectors as JSON literals; either may be null). */
   modelSessionProbeJs(signedIn: string | null, signedOut: string | null): string;
+  /** The adapter's login address when it is a page to open, else "" (the sign-in is on the service's own page). */
+  modelSignInPage(login: string | null, signIn?: string | null): string;
+  /** Page JS that presses the service's own Sign In control (the adapter's signed-out marker); a person's press only. */
+  modelSignInPressJs(signedOut: string | null): string;
   /** JSON of "signed-in" | "needs-attention" | null from the probe's raw ExecuteScript result. */
   modelSessionVerdict(resultJson: string | null): string;
   modelFacetPickerJs(): string;
@@ -499,10 +639,13 @@ const bridgeAudio: { transports: Array<"webrtc" | "http">; streamPath: string | 
   streamPath: null,
 };
 
+/** One browser, many sign-ins (sign-ins.ts, 2026-10-03): once the legacy folders have been moved, every surface asks for a shared profile -
+ *  a legacy id still named by a kept document, a multiview window or a first-party page goes to the first shared one, whose sessions it had. */
+let sharedProfilesOn = false;
 export function createBridgeDrivers(): Drivers {
   return {
     surface: {
-      create: (opts: SurfaceCreateOptions) => send("surface.create", { ...opts, placeholder: !!opts.placeholder }),
+      create: (opts: SurfaceCreateOptions) => send("surface.create", { ...opts, ...(sharedProfilesOn && !isSharedProfile(opts.profile) ? { profile: SHARED_PROFILE } : {}), placeholder: !!opts.placeholder }),
       destroy: (id: string) => send("surface.destroy", { id }),
       setRect: (id: string, rect: Rect) => send("surface.setRect", { id, rect }),
       setOpacity: (id: string, opacity: number) => send("surface.setOpacity", { id, opacity }),
@@ -519,8 +662,8 @@ export function createBridgeDrivers(): Drivers {
       // §25: brackets one peek — the shell keeps the still up until readiness and never lets an
       // aborted peek's freeze replace it (no white frames, §16).
       setPeek: (id: string, peeking: boolean) => send("surface.setPeek", { id, peeking }),
-      showIntermission: (id: string, source: string) =>
-        send("surface.showIntermission", { id, source }),
+      showIntermission: (id: string, source: string, look?: string) =>
+        send("surface.showIntermission", { id, source, ...(look ? { look } : {}) }),
       hideIntermission: (id: string) => send("surface.hideIntermission", { id }),
       setIntermissionSkip: (id: string, available: boolean, target?: string) =>
         send("surface.setIntermissionSkip", { id, available, target: target ?? null }),
@@ -553,6 +696,10 @@ export function createBridgeDrivers(): Drivers {
       // concept-scenes §5: the verdict of one tap, back to whoever is showing state (pill, phone).
       tapResult: (id: string, r: import("./drivers.js").TapOutcome) =>
         send("ui.tapResult", { id, action: r.action, did: r.did, audio: r.audio ?? null, error: r.error ?? null }),
+      videoPick: (title: string, service: string, poster: string | null) => send("ui.videoPick", { title, service, poster }),
+      privateMute: (on: boolean) => send("ui.privateMute", { on }),
+      listenRoutes: (json: string) => send("ui.listenRoutes", { json }),
+      breakWatch: (on: boolean) => send("ui.breakWatch", { on }),
     },
     display: {
       setBrightness: (value: number) => send("display.setBrightness", { value }),
@@ -588,7 +735,24 @@ export function createBridgeDrivers(): Drivers {
     },
     store: {
       get: (key: string) => bridge().storeGet(key),
-      set: (key: string, value: string) => send("store.set", { key, value }),
+      // a value the store already holds is not sent again (2026-09-28: a music page's library, saved on every one-second report, unchanged -
+      // 1,551 saves in 35 minutes, each a rewrite of the whole store on the host). A value that keeps changing reaches the host once per quiet
+      // five seconds, thirty seconds at the most (2026-10-03, perf.log: the watch log, the recents and the resume point were set 54 times a
+      // minute by three playing windows, and the host wrote its whole 7 MB store 20 times a minute - a gigabyte of churn a minute). The
+      // brain's own snapshot takes the value at once, so a get sees it; only the host's write waits.
+      set: (key: string, value: string) => {
+        storeSend ??= (k, v) => send("store.set", { key: k, value: v });
+        const pend = storePending.get(key);
+        try { if (!pend && bridge().storeGet(key) === value) return; } catch { /* send it */ }
+        try { const snap = (globalThis as unknown as { __prismStoreSnapshot?: Record<string, string> }).__prismStoreSnapshot; if (snap) snap[key] = value; } catch { /* no snapshot: the host's copy stands */ }
+        if (pend) {
+          pend.value = value;
+          if (Date.now() - pend.first >= STORE_COALESCE_MAX_MS) { storeFlush(key); return; }
+          clearTimeout(pend.timer); pend.timer = setTimeout(() => storeFlush(key), STORE_COALESCE_MS);   // quiet five seconds, counted from the latest change
+          return;
+        }
+        storePending.set(key, { value, first: Date.now(), timer: setTimeout(() => storeFlush(key), STORE_COALESCE_MS) });
+      },
     },
     alarm: {
       setTone: (playing: boolean) => send("alarm.setTone", { playing }),
@@ -599,16 +763,175 @@ export function createBridgeDrivers(): Drivers {
       // §5 list sync: exactly this URL, nothing appended.
       fetchStatic: (url: string) => request<string>("net.fetchStatic", { url }),
       // §4a: the person's own keyed call (their TMDB key), headers as core built them
-      fetchKeyed: (url: string, headers: Record<string, string>) => request<string>("net.fetchKeyed", { url, headers: JSON.stringify(headers) }),
+      fetchKeyed: (url: string, headers: Record<string, string>, method?: string, body?: string) => request<string>("net.fetchKeyed", { url, headers: JSON.stringify(headers), ...(method ? { method } : {}), ...(body !== undefined ? { body } : {}) }),
       applyBlockHosts: (sourceId: string, name: string, hosts: string[]) =>
         send("net.applyBlockHosts", { sourceId, name, hosts }),
     },
   };
 }
 
+// the person's TMDB account as the host sees it (tmdb-account.ts, 2026-10-03): the link's page and error, the account's own ratings read
+const tmdbUi = { state: null as null | { linked: boolean; username: string | null; linkedAt: number | null; pending: boolean; hasKey: boolean; lists?: boolean; listsPossible?: boolean }, loading: false, busy: false, url: null as string | null, error: null as string | null, rated: new Map<string, number | null>(), reading: new Set<string>() };
+// the brain's store writes coalesced per key (2026-10-03): the host hears a changing value every quiet five seconds, thirty at the most
+const STORE_COALESCE_MS = 5_000, STORE_COALESCE_MAX_MS = 30_000;
+const storePending = new Map<string, { value: string; first: number; timer: ReturnType<typeof setTimeout> }>();
+let storeSend: ((key: string, value: string) => void) | null = null;
+function storeFlush(key: string): void {
+  const p = storePending.get(key);
+  if (!p) return;
+  clearTimeout(p.timer);
+  storePending.delete(key);
+  storeSend?.(key, p.value);
+}
+/** Every pending value to the host now (the page going away). */
+export function storeFlushAll(): void { for (const key of [...storePending.keys()]) storeFlush(key); }
+try { (globalThis as unknown as { addEventListener?: (n: string, f: () => void) => void }).addEventListener?.("pagehide", storeFlushAll); } catch { /* no window */ }
+
 export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRuntimeApi {
   const orchestrator = new Orchestrator(drivers);
   const remote = new RemoteApi(orchestrator, drivers.store);
+  // the phone's Music tab (2026-10-04): the sources by name, and the play of a collection with the wall's own follow
+  const musicSourcesNow = () => orchestrator.musicSourceTiles().map((s) => {
+    const appId = itemContext(s.tile)?.app ?? null;
+    const app = appId ? model.app(appId) : undefined;
+    return { tile: s.tile, app: appId, name: app?.name ?? appId ?? s.tile, session: orchestrator.sessionOf(s.tile) ?? null, active: s.stages.length > 0, stages: s.stages };
+  });
+  remote.musicQuick = () => musicSourcesNow();
+  remote.players = () => players();
+  // a pick from the phone cuts the sound at once (2026-10-04, "cant we cut the audio immediately"): every other music source that plays is
+  // paused before the new collection is asked for, so the room does not hear the old one under the new one's loading
+  const phonePlay = (tile: string, kind: string, id: string, order: string | undefined) => {
+    const o = order === "normal" || order === "shuffle" || order === "true-shuffle" || order === "reverse" ? order : "auto";
+    const playing = orchestrator.getState()?.tiles.filter((t) => t.id !== tile && t.nowPlaying?.playing && orchestrator.musicSourceTiles().some((s) => s.tile === t.id)) ?? [];
+    for (const t of playing) orchestrator.tileCommand(t.id, "pause").then((r) => { if (r !== "ok") report(new Error("phone pick: pause " + t.id + ": " + r)); }, report);
+    orchestrator.playCollection(tile, kind, id, o).then((r) => { if (r !== "ok") report(new Error("playCollection (phone) " + tile + " " + o + ": " + r)); else followMusic(tile); }, report);
+  };
+  remote.playCollection = (tile, kind, id, order) => phonePlay(tile, kind, id, order);
+  // "play after this track" (2026-10-04): one queued pick. It starts when the track playing now gives way - the page names another title,
+  // or stops at its end - never on a person's pause; with nothing playing it starts at once. A newer queue replaces it; the phone can drop it.
+  let musicNext: { tile: string; kind: string; id: string; name: string; service: string; order: string | undefined; from: string; title: string; at: number } | null = null;
+  const musicNextStart = (why: string) => {
+    const n = musicNext; if (!n) return; musicNext = null;
+    report(new Error("music next: starting " + n.name + " on " + n.tile + " (" + why + ")"));
+    phonePlay(n.tile, n.kind, n.id, n.order);
+  };
+  remote.musicNext = {
+    get: () => (musicNext ? { tile: musicNext.tile, kind: musicNext.kind, id: musicNext.id, name: musicNext.name, service: musicNext.service, after: musicNext.title, at: musicNext.at } : null),
+    set: (tile, kind, id, order) => {
+      const lib = orchestrator.musicLibraryNow(tile);
+      const item = [...lib.playlists, ...lib.stations].find((x) => x.id === id && x.kind === kind);
+      if (!item) return { ok: false, error: "that collection is not in the service's list" };
+      const src = musicSourcesNow().find((s) => s.tile === tile);
+      // the track playing now, else one held paused (2026-10-05: a paused track is still "this track" to wait behind)
+      const sourcesNow = orchestrator.musicSourceTiles();
+      const held = orchestrator.getState()?.tiles.filter((t) => t.nowPlaying?.title && sourcesNow.some((s) => s.tile === t.id)) ?? [];
+      const nowOn = held.find((t) => t.nowPlaying?.playing) ?? held[0];
+      const title = nowOn?.nowPlaying?.title ?? "";
+      if (!nowOn || !title) { phonePlay(tile, kind, id, order); return { ok: true, started: true }; }
+      musicNext = { tile, kind, id, name: item.name, service: src?.name ?? tile, order, from: nowOn.id, title, at: Date.now() };
+      return { ok: true, started: false };
+    },
+    clear: () => { musicNext = null; },
+  };
+  // the previous session (2026-10-04, "restore whatever collection and order setting and if a playlist, the song that was playing and the time
+  // elapsed"): what the audible music source held is written as it plays (every few seconds, and on a new title), kept in the store across a
+  // restart. While nothing plays the phone is offered it; Restore plays the collection in its order, then - a playlist or album, through the
+  // service's own player - jumps to the track and the spot. A station starts where the station starts. The offer goes when music plays
+  // again on its own, when dismissed, or after a day.
+  const SESSION_KEY = "music:last-session";
+  type LastSession = { tile: string; service: string; kind: string; id: string; label: string | null; order: string; repeat: boolean; title: string; artist: string; position: number | null; duration: number | null; at: number };
+  let lastSession: LastSession | null = null;
+  let sessionWroteAt = 0;
+  let restoreOffered: LastSession | null = null;
+  let restoreDismissed = false;
+  // read once the store is up (the record is a store key like the orders; the store answers after the model's load, which is declared below)
+  setTimeout(() => void (async () => {
+    try {
+      const raw = await drivers.store?.get(SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw) as LastSession;
+      if (s && typeof s.tile === "string" && Date.now() - s.at < 24 * 3600_000) { lastSession = s; restoreOffered = s; }
+    } catch (e) { report(e); }
+  })(), 0);
+  const sessionWatch = (ev: SurfaceEvent) => {
+    if (ev.type !== "now-playing" || !ev.info) return;
+    const info = ev.info as { playing?: boolean; title?: string; artist?: string; context?: { kind?: string; id?: string; label?: string; position?: number | null; duration?: number | null } | null };
+    if (!orchestrator.musicSourceTiles().some((s) => s.tile === ev.id)) return;
+    if (!info.playing || !info.title) return;
+    // music plays on its own: the offer is spent, unless the restore itself is what plays
+    if (restoreOffered && !restoring) restoreOffered = null;
+    const cx = info.context;
+    const o = orchestrator.musicOrderOf(ev.id);
+    // the collection: the page's own word for what it holds, else Prism's standing order (a Prism-made queue - true shuffle, reverse - is a list
+    // of songs to the page, which then names no playlist; 2026-10-04: the record froze before a reverse and Restore came back in order)
+    let kind: string, id: string, label: string | null, order: string;
+    if (cx?.kind && cx.id) { kind = cx.kind; id = cx.id; label = cx.label ?? null; order = o && o.kind === kind && o.id === id ? o.order : "normal"; }
+    else if (o) { kind = o.kind; id = o.id; label = o.name; order = o.order; }
+    else return;
+    const rec: LastSession = {
+      tile: ev.id, service: musicSourcesNow().find((s) => s.tile === ev.id)?.name ?? ev.id, kind, id, label,
+      order, repeat: orchestrator.musicRepeatOf(ev.id),
+      title: info.title, artist: info.artist ?? "", position: typeof cx?.position === "number" ? cx.position : null, duration: typeof cx?.duration === "number" ? cx.duration : null, at: Date.now(),
+    };
+    const fresh = !lastSession || lastSession.title !== rec.title || lastSession.id !== rec.id || Date.now() - sessionWroteAt > 5000;
+    lastSession = rec;
+    if (fresh) { sessionWroteAt = Date.now(); try { void drivers.store?.set(SESSION_KEY, JSON.stringify(rec)); } catch (e) { report(e); } }
+  };
+  let restoring = false;
+  remote.musicRestore = {
+    offer: () => {
+      if (!restoreOffered || restoreDismissed) return null;
+      const anyPlaying = orchestrator.getState()?.tiles.some((t) => t.nowPlaying?.playing && orchestrator.musicSourceTiles().some((s) => s.tile === t.id));
+      if (anyPlaying) return null;
+      const s = restoreOffered;
+      return { tile: s.tile, service: s.service, kind: s.kind, label: s.label, order: s.order, repeat: s.repeat, title: s.kind === "station" ? null : s.title, artist: s.kind === "station" ? null : s.artist, position: s.kind === "station" ? null : s.position, duration: s.duration, at: s.at };
+    },
+    dismiss: () => { restoreDismissed = true; },
+    restore: () => {
+      const s = restoreOffered;
+      if (!s) return { ok: false, error: "nothing to restore" };
+      restoreOffered = null; restoring = true;
+      // a Prism order (true shuffle, reverse) still standing for this collection carries on at its saved spot through "auto"; one no longer
+      // standing is named outright and starts afresh (the track and spot are then found by name below); a station starts where the station starts
+      const standing = orchestrator.musicOrderOf(s.tile);
+      const stands = !!standing && standing.kind === s.kind && standing.id === s.id && standing.order === s.order;
+      const named = s.order === "true-shuffle" || s.order === "reverse" || s.order === "shuffle" ? s.order : "auto";
+      phonePlay(s.tile, s.kind, s.id, s.kind === "station" || s.order === "normal" || stands ? "auto" : named);
+      if (s.repeat) void orchestrator.setMusicRepeat(s.tile, true);
+      if (s.kind !== "station" && s.title) {
+        // once the collection plays: the track, then the spot (the service's own player, where the adapter has the verbs)
+        const t0 = Date.now();
+        const tick = () => {
+          const t = orchestrator.getState()?.tiles.find((x) => x.id === s.tile);
+          const np = t?.nowPlaying;
+          if (np?.playing && np.title && !t?.musicPending) {
+            const same = np.title === s.title;
+            void (async () => {
+              try {
+                if (!same) { await orchestrator.musicPlayerVerb(s.tile, "jumpto:" + s.title + "|" + s.artist); await new Promise((r) => setTimeout(r, 1800)); }
+                if (typeof s.position === "number" && s.position > 3) await orchestrator.musicPlayerVerb(s.tile, "seekto:" + Math.floor(s.position));
+              } catch (e) { report(e); }
+              restoring = false;
+            })();
+            return;
+          }
+          if (Date.now() - t0 > 40_000) { restoring = false; return; }
+          setTimeout(tick, 700);
+        };
+        setTimeout(tick, 1500);
+      } else { setTimeout(() => { restoring = false; }, 15_000); }
+      return { ok: true };
+    },
+  };
+  const musicNextWatch = (ev: SurfaceEvent) => {
+    const n = musicNext;
+    if (!n || ev.type !== "now-playing" || ev.id !== n.from || !ev.info) return;
+    const info = ev.info as { playing?: boolean; title?: string; context?: { position?: number | null; duration?: number | null } | null };
+    const title = info.title || "";
+    if (title && title !== n.title) { musicNextStart("the next track began: " + title); return; }
+    const pos = info.context?.position, dur = info.context?.duration;
+    if (info.playing === false && typeof pos === "number" && typeof dur === "number" && dur > 0 && pos >= dur - 2) musicNextStart("the track ended");
+  };
   // §30 popup doctrine for the host: the same policy the extension runs (functional
   // sign-in / payment popups, click consistency, same-site, the local allow-list + ledger)
   // §14 chip labels: token -> the paired device's human name. The host call is
@@ -646,11 +969,21 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     } catch { return null; }
   };
 
+  // A scene as the wall draws it - every path that puts a scene on the wall comes through here (a switch, and the boot's reconcile: the
+  // first cut left the boot out, and a restart in the Video player came up without the music). The Video player is drawn with the Music
+  // player's sources warm beside it; its scene holds none of them (players.ts).
+  const drawScene = (sceneId: string, canvas: { w: number; h: number }, dashId: string, base?: DashboardDocument) => {
+    const asked = model.scene(sceneId);
+    const isVideo = !!asked && playerOfScene(asked, model.layout(asked.layout), (id) => model.facet(id)) === "video";
+    return isVideo
+      ? model.materializeScene(withWarmMusic(asked!, playersNow().music, (id) => model.facet(id)), canvas, dashId, base)
+      : model.materialize(sceneId, canvas, dashId, base);
+  };
   // the wall becomes a scene (schedules, carousel, the remote, the rail all come through here)
   const applyScene = (sceneId: string, after?: () => void): { ok: boolean; notes?: string[]; error?: string } => {
     const st = orchestrator.getState();
     if (!st) return { ok: false, error: "no dashboard loaded" };
-    const m = model.materialize(sceneId, orchestrator.canvasSize(), st.dashboard);
+    const m = drawScene(sceneId, orchestrator.canvasSize(), st.dashboard);
     if (!m) return { ok: false, error: "unknown scene or layout " + sceneId };
     model.setActiveScene(sceneId);
     orchestrator.applyModelDocument(m.doc).then((r) => {
@@ -661,12 +994,26 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     return { ok: true, notes: m.notes };
   };
   // The two players (players.ts, 2026-09-19): the household's Music Lounge and its Movie Night, switched from the
-  // Prism menu. The Video player carries the lounge's hidden sources so the switch keeps them warm; the way back
-  // resumes the source that was playing when the wall left the Music player, if a video has since paused it.
+  // Prism menu. The Video player keeps the lounge's sources warm on the wall; the switch to it pauses the one that was
+  // playing (2026-10-05), and the way back resumes it.
   const playersNow = () => {
     const snap = model.snapshot();
     return playerScenes(snap.scenes, (id) => model.layout(id), (id) => model.facet(id), snap.activeScene);
   };
+  /** A catalog entry is a music service when its adapter speaks the media session: the adapter it names, the one of its id, else the one its address binds. */
+  const speaksMediaSession = (e: SetupEntry): boolean => {
+    const spec = (e.adapter ? orchestrator.adapterSpec(e.adapter) : undefined) ?? orchestrator.adapterSpec(e.id) ?? ((n) => (n ? orchestrator.adapterSpec(n) : undefined))(orchestrator.adapterNameForUrl(e.url));
+    return !!spec?.capabilities?.includes("media-session");
+  };
+  // the services a person took off the players (player-setup.ts): kept on the device, read as it stands
+  let removedKept: string[] | null = null;
+  const removedNow = (): string[] => (removedKept ??= parseRemoved(tilesRead(REMOVED_KEY)));
+  const setRemoved = (list: string[]): void => { removedKept = [...list]; try { void drivers.store?.set(REMOVED_KEY, JSON.stringify(removedKept)); } catch (e) { report(e); } };
+  // once the stores are read: music sources an earlier build wrote into the Video player's scene leave it (players.ts - the two players are
+  // separate; the wall as it stands is not touched, it keeps the music warm)
+  void Promise.resolve(modelLoaded).then(() => {
+    try { const v = playersNow().video; const clean = v ? withoutMusic(v, (id) => model.facet(id)) : null; if (clean) model.saveScene(clean); } catch (e) { report(e); }
+  });
   let playerReturn: string | null = null;
   const players = (): { active: PlayerKind | null; music: { id: string; name: string } | null; video: { id: string; name: string } | null } => {
     const found = playersNow();
@@ -682,7 +1029,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const isVideoFacet = (f: Facet, apps: readonly App[]): boolean => !f.music && (f.audio === "exclusive" || apps.find((a) => a.id === f.app)?.render?.audio === "exclusive");
   const videoServices = () => {
     const snap = model.snapshot();
-    const facets = snap.facets.filter((f) => isVideoFacet(f, snap.apps));
+    const off = removedNow();
+    const facets = snap.facets.filter((f) => isVideoFacet(f, snap.apps) && !off.includes(f.app));   // a service taken off the players is not the Video player's
     const scene = playersNow().video;
     const active = !!scene && model.activeScene() === scene.id;
     const screenEntry = scene ? Object.entries(scene.assign).find(([, ref]) => facets.some((f) => f.id === ref)) : undefined;
@@ -732,6 +1080,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     return out.sort((a, b) => rank(a.tile) - rank(b.tile)).slice(0, MV_MAX);
   };
   /** A floating video window the order no longer holds leaves the scene - nothing is left drawn behind the windows. Returns whether it changed. */
+  /** A line in the shell's log about a window multiview closed (why), never an error that stops the close. */
+  const mvNote = (line: string): void => { try { report(new Error(line)); } catch { /* no shell (tests) */ } };
   const mvReconcile = (): boolean => {
     const sv = videoServices();
     const scene = sv.scene ? model.scene(sv.scene) : undefined;
@@ -740,6 +1090,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const videoFacets = new Set(sv.services.map((x) => x.facet));
     const keep = (scene.floating ?? []).filter((fl) => !fl.facet || !videoFacets.has(fl.facet) || st.order.includes(fl.facet));
     if (keep.length === (scene.floating ?? []).length) return false;
+    mvNote("multiview: reconcile drops " + JSON.stringify((scene.floating ?? []).filter((fl) => !keep.includes(fl)).map((fl) => fl.facet)) + " (order " + JSON.stringify(st.order) + ")");
     const r = model.saveScene({ ...scene, floating: keep });
     if (!r.ok) { report(new Error("multiview reconcile: " + r.error)); return false; }
     mvDropCopies();
@@ -773,7 +1124,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     for (const f of model.snapshot().facets) if (MV_COPY.test(f.id)) model.removeFacet(f.id);
   };
   /** Where a pick lands with multiview on: {tile, ready} - ready when the service already had a window (play now), else once its page is up. */
-  const mvPlace = (facetId: string): { tile: string; ready: boolean; sceneId?: string } | null => {
+  const mvPlace = (facetId: string): { tile: string; ready: boolean; sceneId?: string; refused?: string } | null => {
     const st = orchestrator.videoMultiviewState();
     if (!st.on || !st.slot) return null;
     const sv = videoServices();
@@ -794,6 +1145,16 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       return { tile: st.slot, ready: true };
     }
     if (have) return { tile: have.tile, ready: true };
+    // the service's own limit on streams at once (adapter maxStreams): a window past it would sit on an empty player with no word from the
+    // service (2026-09-29, a fourth Paramount+ live window) - refused, in words, before it is made
+    const app = model.app(facet.app);
+    const cap = orchestrator.adapterSpec(app?.adapter ?? app?.catalogRef ?? orchestrator.adapterNameForUrl(facet.url) ?? facet.app)?.maxStreams;
+    const outgoing = target > 0 && target < order.length ? wins[target] : undefined;   // the window that would give way
+    // ... or the oldest small window, when the wall is full and a new window is made (the overflow rule below)
+    let dropped: (typeof wins)[number] | undefined;
+    if (!outgoing && order.length >= MV_MAX) { let drop = order.length - 1; while (drop > 0 && order[drop] === st.slot) drop--; dropped = wins.find((w) => w.tile === order[drop] && !w.slot); }
+    const open = wins.filter((w) => w.app === facet.app && w !== outgoing && w !== dropped).length;
+    if (cap && open >= cap) return { tile: "", ready: false, refused: (app?.name ?? facet.app) + " plays " + cap + " at once on one account. Close one of its windows first" };
     // a new window for the service - or the service replaces the one in the target place
     let floating = [...(scene.floating ?? [])];
     let assign = scene.assign;
@@ -817,7 +1178,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       }
     }
     const r = model.saveScene({ ...scene, assign, floating });
-    if (!r.ok) { report(new Error("multiview: " + r.error)); return null; }
+    if (!r.ok) { mvNote(("multiview: " + r.error)); return null; }
     mvDropCopies();   // a copy whose window gave way
     const applied = applyScene(scene.id);
     void orchestrator.videoMultiviewOrder(order);
@@ -839,17 +1200,22 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     for (const w of wins.slice(1)) {
       const t = vs.find((x) => x.id === w.tile);
       // a pick that never started counts as failed after MV_PICK_MS (Gilmore Girls on Hulu stopped on the show's page, "loading" for good)
-      const failed = !!t?.pending?.failed || (!!t?.pending && now - t.pending.at > MV_PICK_MS);
-      const loading = !!t?.pending && !failed;
-      // a window a restart is bringing back has 3 minutes, not 45 s (2026-09-24: Georgie & Mandy's window was closed 45 s after a restart)
+      // a window a restart is bringing back has 3 minutes, not 45 s (2026-09-24: Georgie & Mandy's window was closed 45 s after a restart) - and
+      // its pick is not failed by age inside them (2026-10-06: five YouTube TV channels walked the guide at once after a restart; C-SPAN2's took
+      // longer than the pick's clock and its window was closed, twice)
       const restoring = !!t?.pending?.restored && now - t.pending.at < 180_000;
-      if (t?.video || loading || restoring) { mvEmptySince.delete(w.tile); continue; }
+      const failed = !restoring && (!!t?.pending?.failed || (!!t?.pending && now - t.pending.at > MV_PICK_MS));
+      const loading = !!t?.pending && !failed;
+      // ... and a window in an ad break is not empty (2026-09-28, the Live tab: a Paramount+ channel tuned into window 2 opened on a 2.5-minute
+      // ad break, its page naming nothing until the channel itself began - the window was closed as empty in the middle of the break)
+      // ... and a window whose player plays is not empty, even before its page names what it plays (C-SPAN2's, playing for five seconds when closed)
+      if (t?.video || t?.playing || loading || restoring || orchestrator.inAdBreak(w.tile)) { mvEmptySince.delete(w.tile); continue; }
       const since = mvEmptySince.get(w.tile) ?? now;
       mvEmptySince.set(w.tile, since);
       if (failed || now - since >= MV_EMPTY_MS) gone.push(w.tile);
     }
     for (const t of new Set(mvEmptySince.keys())) if (!wins.some((w) => w.tile === t)) mvEmptySince.delete(t);
-    for (const tile of gone) { mvEmptySince.delete(tile); videoMultiview("remove", tile); }
+    for (const tile of gone) { const t = vs.find((x) => x.id === tile); mvNote("multiview: window " + tile + " closed as empty (" + JSON.stringify({ pending: t?.pending ?? null, video: !!t?.video, playing: !!t?.playing }) + ")"); mvEmptySince.delete(tile); videoMultiview("remove", tile); }
     return gone;
   };
   // the episode lists for Continue watching series read ahead (2026-09-24, "season and episode on Continue watching"): one series at a time on
@@ -871,9 +1237,76 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         orchestrator.episodesOf(s, it.title, { kind: "episode", title: "", series: it.title, id: it.id } as import("./types.js").VideoContext);
         return;   // one at a time
       }
+      // nothing new to read: the kept list read longest ago, once it is a week old, is read again (one at a time, the same quiet rules)
+      const old = orchestrator.oldestEpisodeList(7 * 24 * 3_600_000);
+      const os = old ? hs.find((x) => x.app === old.app) : undefined;
+      if (old && os && os.status === "signed-in" && orchestrator.adapterSpec(os.adapter)?.videoEpisodes) {
+        orchestrator.episodesOf(os, old.series, { kind: "episode", title: "", series: old.series } as import("./types.js").VideoContext);
+      }
     } catch (e) { report(e); }
   };
   setInterval(cwReadAhead, 90_000);
+  // sign-ins nobody named, named from their account pages: two minutes after the start, then every half hour (each read once a week at most)
+  setTimeout(() => { try { labelSignIns(); } catch (e) { report(e); } }, 120_000);
+  // the Live tab's channels with TMDB's word (2026-10-02): a show-named channel's type, and the modes what is on now adds
+  const withShowType = (ch: VideoChannel): VideoChannel => {
+    if ((ch.category ?? "").trim() || ch.event || !isShowName(ch.name)) return ch;
+    const t = orchestrator.liveTitle(ch.name);
+    if (!t) return ch;
+    const type = typeFromGenres(t.genres);
+    return type ? { ...ch, tmdbType: type, tmdbTitle: t.title } : ch;
+  };
+  // what is on now, by TMDB's word (2026-10-02, Movies mode): a film on makes the channel count in Movies, a documentary in Documentary
+  const withNowTypes = (ch: VideoChannel): VideoChannel => {
+    if (ch.event) return ch;
+    // the same reading of the schedule the guide draws (review 2026-10-02: a raw end ran past the next program's start, and a channel
+    // stayed under Movies after its film had given way)
+    const on = programOnNow(ch, Date.now())?.title ?? null;
+    if (!on) return ch;
+    const t = orchestrator.liveTitle(on);
+    if (!t) return ch;
+    const nowTypes: Array<{ type: string; title: string; of: string }> = [];
+    if (t.kind === "movie") nowTypes.push({ type: "Movies", title: t.title, of: on });
+    if (t.genres.includes("Documentary")) nowTypes.push({ type: "Documentary", title: t.title, of: on });
+    return nowTypes.length ? { ...ch, nowTypes } : ch;
+  };
+  const withTmdbWord = (ch: VideoChannel): VideoChannel => withNowTypes(withShowType(ch));
+  /**
+   * A live game's way in on this wall (2026-10-01): the services ESPN names as carrying it, signed in here, searched for the game by the teams'
+   * names - an event of the service's (Apple TV's MLS) first, else a live channel whose program names it (Paramount+'s CBS games). Null when
+   * no service on the wall carries it, or none names it.
+   */
+  const scoreWatch = (g: { league: string; id: string; state: string; tv: string[]; home: { name: string; abbr: string }; away: { name: string; abbr: string } }): { service: string; app: string; facet: string; how: "event" | "channel"; id: string; url: string | null; title: string } | null => {
+    if (g.state !== "in") return null;
+    const sv = videoServices();
+    const apps = appsCarrying(g.tv, sv.services.map((s) => ({ app: s.app, broadcasters: orchestrator.adapterSpec(s.adapter)?.broadcasters })));
+    if (!apps.length) return null;
+    for (const app of apps) {
+      const s = sv.services.find((x) => x.app === app && x.status === "signed-in");
+      if (!s) continue;
+      const ev = orchestrator.liveEvents(s.app).find((e) => e.live && namesGame(e.title, g as never));
+      if (ev) return { service: s.name, app: s.app, facet: s.facet, how: "event", id: ev.id, url: ev.url ?? null, title: ev.title };
+      const ch = s.live.find((c) => namesGame((c.now ?? "") + " " + c.name, g as never));
+      if (ch) return { service: s.name, app: s.app, facet: s.facet, how: "channel", id: ch.id, url: ch.url, title: ch.name };
+    }
+    return null;
+  };
+  // live events (Apple TV's Formula 1 and MLS pages): the kept ones at once, read afresh a minute and a half after the start, then every half hour
+  setTimeout(() => { try { void orchestrator.videoEventsLoad(hiddenServices()); } catch (e) { report(e); } }, 5_000);
+  // the scores kept across the day: read back at the start, then ESPN's header read every quarter hour (one bare address) so the last day's
+  // games are there when Sports mode opens, finals included
+  setTimeout(() => { try { void orchestrator.scoresLoad(); } catch (e) { report(e); } }, 6_000);
+  setTimeout(() => { try { orchestrator.scores(false, 15 * 60_000); } catch (e) { report(e); } }, 60_000);
+  setInterval(() => { try { orchestrator.scores(false, 15 * 60_000); } catch (e) { report(e); } }, 15 * 60_000);
+  // the per-league day pages, today's and yesterday's, in a hidden page: three minutes after the start, then hourly
+  setTimeout(() => { try { orchestrator.scoresDayRead(); } catch (e) { report(e); } }, 180_000);
+  setInterval(() => { try { orchestrator.scoresDayRead(); } catch (e) { report(e); } }, 60 * 60_000);
+  setTimeout(() => { try { orchestrator.videoEventsRead(hiddenServices()); } catch (e) { report(e); } }, 90_000);
+  setInterval(() => { try { orchestrator.videoEventsRead(hiddenServices()); } catch (e) { report(e); } }, 30 * 60_000);
+  setInterval(() => { try { labelSignIns(); } catch (e) { report(e); } }, 30 * 60_000);
+  // the music services' playlist pages (adapter musicLibraryUrl): a minute after the start, then every ten (each service at most every six hours)
+  setTimeout(() => { try { orchestrator.musicLibraryRefresh(); } catch (e) { report(e); } }, 60_000);
+  setInterval(() => { try { orchestrator.musicLibraryRefresh(); } catch (e) { report(e); } }, 10 * 60_000);
   // the Library's TMDB answers (its pictures, genres and ratings) in memory before it is opened (2026-09-25, "When I go from watch to library, I'm
   // surprised by how slow it is to load the images"): kept on the device for three days, but read back one title at a time when Library first
   // asked - its rows filled and re-sorted for seconds. Once, a little after the start; the services' own libraries are not read here
@@ -885,6 +1318,19 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   }, 20_000);
   // checked every few seconds while multiview is on - nothing may be asking for its state while a person just watches
   setInterval(() => { try { if (orchestrator.videoMultiviewState().on) mvPruneEmpty(); } catch (e) { report(e); } }, 5000);
+  // the wall's cover over the service's pages while a press moves the screen to another episode (2026-10-06: start-over's previous episode,
+  // "I pressed back episode 3x ... it showed the pages while I was navigating"; the next episode, "it showed the big door prize home page, and
+  // then started the video"): the same word a phone pick sends; the screen only, and not while multiview's small windows are up (that word
+  // steps their target, and the wall is not one screen then)
+  const coverScreen = (tile: string, title: string): void => {
+    const sv = videoServices();
+    if (!sv.screen || sv.screen.slot !== tile) return;
+    const mv = orchestrator.videoMultiviewState();
+    if (mv.on && !mv.collapsed) return;
+    const s = sv.services.find((x) => x.facet === sv.screen!.facet);
+    void drivers.ui?.videoPick?.(title, s?.name ?? sv.screen.app, orchestrator.videoArtOf(tile)?.art ?? null);
+  };
+  orchestrator.episodeMoveHook = coverScreen;
   const videoMultiview = (action: string, arg?: string | null): Record<string, unknown> => {
     if (action === "state") { try { mvReconcile(); mvPruneEmpty(); } catch (e) { report(e); } }
     const sv = videoServices();
@@ -923,7 +1369,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (st.on && scene) { const r = videoMultiview("close"); if (typeof r.sceneId === "string") sceneId = r.sceneId; }
       const sv2 = videoServices();
       for (const t of orchestrator.videoState()) if (t.playing) orchestrator.tileCommand(t.id, "pause").catch(report);
+      for (const w of mvWindows()) if (w.tile !== sv2.screen?.slot) orchestrator.noteTitleCleared(w.tile);   // their services' Continue Watching read soon (2026-09-26)
       if (sv2.screen) {
+        orchestrator.noteTitleCleared(sv2.screen.slot);
         orchestrator.videoClearTile(sv2.screen.slot);
         // the page leaves the title too (2026-09-25, "I had to click the X just now on the big window twice to get rid of Paramount. it
         // disappeared and came back the first time"): paused on its watch page, its next report named the title again and the screen was back
@@ -949,6 +1397,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const wins = mvWindows();
       const w = wins.find((x) => x.tile === arg);
       if (!w) return { ok: false, error: "no such window", ...mvState() };
+      orchestrator.noteTitleCleared(arg);   // a window's X: its service's Continue Watching read soon (2026-09-26)
       const order = wins.map((x) => x.tile).filter((t) => t !== arg);
       let sceneId: string | undefined;
       void orchestrator.videoMultiviewOrder(order);   // the order first (set at once): the scene's apply lays out without the window
@@ -985,7 +1434,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const wins = mvWindows().map((w, i) => {
       const t = vs.find((x) => x.id === w.tile);
       const v = t?.video ?? null;
-      return { index: i, tile: w.tile, app: w.app, facet: w.facet, name: sv.services.find((x) => x.app === w.app)?.name ?? w.app, title: v ? [v.series, v.title].filter(Boolean).join(" \u00B7 ") : null, playing: !!t?.playing };
+      return { index: i, tile: w.tile, app: w.app, facet: w.facet, name: sv.services.find((x) => x.app === w.app)?.name ?? w.app, title: v ? [v.series, v.title].filter(Boolean).join(" \u00B7 ") : null, playing: !!t?.playing, can: t?.can ?? null };   // can: the big window's bar draws the screen's verbs (2026-10-01)
     });
     // what the big screen holds, with multiview on or off (2026-09-24, "Should screen 2 show if nothing has been added to screen 1?"): a
     // second window is offered only once the big one has a title playing or loading
@@ -993,11 +1442,12 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const bt = scr ? vs.find((x) => x.id === scr.slot) : undefined;
     const loading = !!bt?.pending && !bt.pending.failed && !bt.video;
     const bigTitle = bt?.video ? [bt.video.series, bt.video.title].filter(Boolean).join(" \u00B7 ") : loading ? bt!.pending!.name : null;
-    const big = scr ? { tile: scr.slot, app: scr.app, name: sv.services.find((x) => x.app === scr.app)?.name ?? scr.app, title: bigTitle, loading, has: !!bt?.video || loading } : null;
+    const big = scr ? { tile: scr.slot, app: scr.app, name: sv.services.find((x) => x.app === scr.app)?.name ?? scr.app, title: bigTitle, loading, playing: !!bt?.playing, starting: !!scr && orchestrator.videoStartingOpen(scr.slot), has: !!bt?.video || loading } : null;   // playing: the host's corner holds a loading title out until it plays (2026-10-06)
     return { on: st.on && !st.collapsed, target: mvTarget, max: MV_MAX, windows: st.collapsed ? wins.slice(0, 1) : wins, big };
   };
   const videoSwitch = (facetId: string): Record<string, unknown> => {
     const mv = mvPlace(facetId);   // multiview: the service gets a window (or its window comes forward); the screen slot is never re-pointed under it
+    if (mv?.refused) return { ok: false, error: mv.refused };
     if (mv) return { ok: true, switched: !mv.ready, multiview: true, slot: mv.tile, ...(mv.sceneId ? { sceneId: mv.sceneId } : {}) };
     const sv = videoServices();
     const scene = sv.scene ? model.scene(sv.scene) : undefined;
@@ -1032,16 +1482,39 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         if (!have) byTitle.set(k, { app: s.app, service: s.name, facet: s.facet, item, also: [] });
         else if (have.app !== s.app && !have.also.some((x) => x.app === s.app)) have.also.push({ app: s.app, service: s.name, facet: s.facet, item });
       }
-    // TMDB's landscape backdrop first (a store's art is a tall poster), else the store's own landscape picture (videoOwnedArtWide,
-    // 2026-09-24: Fandango's background still, darkened by Fandango for its own page - so second), else the store's art, else TMDB's poster
+    // TMDB's landscape backdrop first (a store's art is a tall poster), else the store's own poster, drawn bright and centred in the wide card,
+    // else the store's own landscape picture (videoOwnedArtWide: Fandango's background still, darkened by Fandango for its own page), else
+    // TMDB's poster. The still came before the poster until 2026-10-06 ("without TMDB connected, I have a library but all of the posters are
+    // dimmed ... We shouldn't intentionally degrade any functionality"): without a key nearly every Fandango card showed the darkened still.
     const adapterOf = new Map(sv.services.map((s) => [s.app, s.adapter]));
     const ownWide = (c: { app: string; item: VideoItem; also: Array<{ app: string; item: VideoItem }> }) => [c, ...c.also].map((x) => orchestrator.ownedWideArt(adapterOf.get(x.app) ?? x.app, x.item.id)).find((u) => !!u) ?? null;
-    return [...byTitle.values()].map((c) => { const wide = orchestrator.backdropFor(c.item.title, c.item.kind) ?? ownWide(c); return wide ? { ...c, item: { ...c.item, artwork: wide } } : c.item.artwork ? c : { ...c, item: { ...c.item, artwork: c.also.find((x) => x.item.artwork)?.item.artwork ?? orchestrator.posterFor(c.item.title, c.item.kind) } }; }).sort((a, b) => a.item.title.localeCompare(b.item.title, undefined, { sensitivity: "base" }));
+    return [...byTitle.values()].map((c) => { const backdrop = orchestrator.backdropFor(c.item.title, c.item.kind); if (backdrop) return { ...c, item: { ...c.item, artwork: backdrop } }; const own = c.item.artwork ?? c.also.find((x) => x.item.artwork)?.item.artwork ?? null; const art = own ?? ownWide(c) ?? orchestrator.posterFor(c.item.title, c.item.kind); return art && art !== c.item.artwork ? { ...c, item: { ...c.item, artwork: art } } : c; }).sort((a, b) => a.item.title.localeCompare(b.item.title, undefined, { sensitivity: "base" }));
   };
   // the Library tab: the owned titles by genre, rated (orchestrator.videoLibraryRows)
   // the Library tab's sort (2026-09-22; the Watch tab's rows keep their own order - a global sort there made every lens row look the same): the person's choice kept on the device; the host passes it with each ask and reads it back in the answer
-  const hubSortNow = (): HubSort => hubSortOf(tilesRead("video:hub-sort"));
-  const hubSortSet = (v: unknown): HubSort => { const sort = hubSortOf(v); if (v !== undefined && v !== null && sort !== hubSortNow()) { try { void drivers.store?.set("video:hub-sort", sort); } catch (e) { report(e); } } return v === undefined || v === null ? hubSortNow() : sort; };
+  // the sort settings are the profile set's (2026-09-27, "Make sure the sort settings are saved by profile set too. So if I switch, they get updated
+  // to the new profile set preference"): kept under <key>:<preset> for the active set (the first while none is active); a set that never chose
+  // reads the shared value, which is also where a choice goes while no set exists
+  const setKeyOf = (key: string): string | null => { const st = presetsNow(); return st.presets.length ? key + ":" + (st.active ?? st.presets[0]!.id) : null; };
+  const setRead = (key: string): string | null => { const k = setKeyOf(key); return (k ? tilesRead(k) : null) ?? tilesRead(key); };
+  const setWrite = (key: string, v: string): void => { try { void drivers.store?.set(setKeyOf(key) ?? key, v); } catch (e) { report(e); } };
+  const hubSortNow = (): HubSort => hubSortOf(setRead("video:hub-sort"));
+  // Continue watching's order (2026-09-26): grouped by service or A to Z, the person's choice kept on the device
+  const rowOrderNow = (row: "continue" | "list"): string => row === "continue" ? continueOrderOf(setRead("video:continue-order")) : listOrderOf(setRead("video:list-order"));
+  const rowOrderSet = (row: "continue" | "list", v: unknown): string => {
+    const o = row === "continue" ? continueOrderOf(v) : listOrderOf(v);
+    if (v !== undefined && v !== null && o !== rowOrderNow(row)) setWrite(row === "continue" ? "video:continue-order" : "video:list-order", o);
+    return v === undefined || v === null ? rowOrderNow(row) : o;
+  };
+  const rowReverseNow = (row: "continue" | "list"): boolean => reverseOf(setRead("video:" + row + "-reverse"));
+  const rowReverseSet = (row: "continue" | "list", v: unknown): boolean => {
+    if (v === undefined || v === null || v === "") return rowReverseNow(row);
+    const r = reverseOf(v);
+    if (r !== rowReverseNow(row)) setWrite("video:" + row + "-reverse", r ? "1" : "0");
+    return r;
+  };
+  orchestrator.rowOrders = () => ({ continue: continueOrderOf(rowOrderNow("continue")), list: listOrderOf(rowOrderNow("list")), continueReverse: rowReverseNow("continue"), listReverse: rowReverseNow("list") });
+  const hubSortSet = (v: unknown): HubSort => { const sort = hubSortOf(v); if (v !== undefined && v !== null && sort !== hubSortNow()) setWrite("video:hub-sort", sort); return v === undefined || v === null ? hubSortNow() : sort; };
   const LIBRARY_GROUPS = [
     { id: "genre", label: "Genre", hint: "A row per genre (TMDB's first genre for each title), the biggest genres first." },
     { id: "none", label: "None", hint: "Every title in one list, in the sort you chose." },
@@ -1051,16 +1524,27 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     orchestrator.modelApps = () => model.snapshot().apps.map((a) => ({ id: a.id, ...(a.adapter ? { adapter: a.adapter } : {}), ...(a.catalogRef ? { catalogRef: a.catalogRef } : {}) }));
     const cards = ownedCards();
     const sort = hubSortSet(sortArg);
-    const group = groupArg === "none" ? "none" : "genre";
+    // no TMDB key: one A to Z grid (2026-10-06, "I should be able to just view an A-Z grid of all items even when TMDB isn't connected. Right
+    // now it says Unsorted 2223"): genres are TMDB's, so without a key every title had sat in one Unsorted row; Genre is offered with a key
+    const hasKey = orchestrator.lensHasKey();
+    const group = groupArg === "none" || !hasKey ? "none" : "genre";
     const r = orchestrator.videoLibraryRows(cards, sort, group);
     const services = [...new Set(cards.flatMap((c) => [c.service, ...c.also.map((a) => a.service)]))];
-    return { ...r, total: cards.length, twice: cards.filter((c) => c.also.length > 0).length, services, tmdbKey: orchestrator.lensHasKey(), sort, sorts: HUB_SORTS, group, groups: LIBRARY_GROUPS };
+    return { ...r, total: cards.length, twice: cards.filter((c) => c.also.length > 0).length, services, tmdbKey: hasKey, sort, sorts: HUB_SORTS, group, groups: hasKey ? LIBRARY_GROUPS : LIBRARY_GROUPS.filter((g) => g.id === "none") };
   };
   let bootRowsAsked = false;
   // startup timings (2026-09-24): measured from this runtime's creation, read by the host into host.log ("boot timing")
   let episodeHealthResult: unknown = null;
   const bootAt = Date.now();
   let menuReadyAt: number | null = null;   // the boot's Phase 2 has asked for every service's kept rows
+  // the services' My List titles not on the watchlist yet (by name and kind against the watchlist's titles; the copy matches properly)
+  const watchOffer = (list: ReadonlyArray<{ item: { title: string; kind?: string } }>, w: { cards: ReadonlyArray<{ title: string; kind: string }> }): number => {
+    const on = new Set(w.cards.map((c) => normalizeTrackText(c.title) + "|" + (c.kind === "movie" ? "movie" : "tv")));
+    const seen = new Set<string>();
+    let n = 0;
+    for (const c of list) { const k = normalizeTrackText(c.item.title) + "|" + (c.item.kind === "movie" ? "movie" : "tv"); if (seen.has(k)) continue; seen.add(k); if (!on.has(k)) n++; }
+    return n;
+  };
   const videoMenu = () => {
     try { videoRefreshLists(false); } catch (e) { report(e); }   // the lists as of now, for the next open (stale-guarded)
     const sv = videoServices();
@@ -1109,7 +1593,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // ready: the kept rows are in (2026-09-24, "Would like to not see this whole page refresh on relaunch (no results, replaced with
       // results)"): at boot the page waits for this and opens once, full
       ready: ((r) => { if (r && menuReadyAt === null) menuReadyAt = Date.now(); return r; })(bootRowsAsked && !orchestrator.videoWarming()),
-      continue: rows.continue, list: rows.list, lens, lensRows,
+      // My list is the TMDB watchlist while an account is linked (2026-10-03); the offer counts the services' list titles not on it yet
+      watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); return w.active ? { ...w, offer: watchOffer(rows.list as Array<{ item: { title: string; kind?: string } }>, w), importing: orchestrator.watchlistImportState() } : null; } catch (e) { report(e); return null; } })(),
+      continue: rows.continue, list: rows.list, orders: orchestrator.rowOrders(), orderChoices: { continue: CONTINUE_ORDERS, list: LIST_ORDERS }, lens, lensRows,
       // what the person owns, every service's purchases as ONE library ("it will be nice to see a consolidated library", 2026-09-22): the
       // titles alphabetical, each card badged with its service; the same title bought twice is two cards, one per service
       owned,
@@ -1118,6 +1604,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       services: sv.services.map((s) => ({ app: s.app, name: s.name, facet: s.facet, status: s.status, onScreen: s.onScreen, adapter: s.adapter, profiles: s.profiles, profile: s.profile })),
       search: sv.services.filter((s) => s.hasSearch).map((s) => ({ app: s.app, name: s.name, facet: s.facet })),
       suggestions: sv.services.filter((s) => (s.library.shelves ?? []).length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, shelves: s.library.shelves })),
+      // the person's own rows on a service (2026-10-05: Twitch's Followed channels and latest videos): drawn on Watch always, never a suggestion
+      ownRows: sv.services.filter((s) => (s.library.own ?? []).length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, rows: s.library.own })),
       screen: sv.screen, active: sv.active, log: rows.log, now: Date.now(),
     };
   };
@@ -1129,6 +1617,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // else once the screen has become the service (Hulu ignores the address; Peacock's search page is a deep link)
     if (orchestrator.adapterSpec(s.adapter)?.videoSearch) {
       const mv = mvPlace(facetId);
+      if (mv?.refused) return { ok: false, error: mv.refused };
       if (mv) {
         if (mv.ready) orchestrator.videoSearchIn(mv.tile, q, open).then((r) => { if (r !== "ok") report(new Error("videoSearch " + facetId + ": " + r)); }, report);
         else orchestrator.videoSearchWhenUp(mv.tile, q, open);
@@ -1151,11 +1640,171 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // (orchestrator.videoLookupStart); the host polls videoLookupState until done and draws one labeled row. A result plays
   // through the paths that exist: its own address (a play or a details page), else the service's search with the result
   // pressed once shown.
+  // ---- sign-ins (sign-ins.ts, 2026-09-29): one login kept on the device, by name; a service uses one at a time; a profile set names one
+  // for any service of either player
+  let signInsKept: SignInState | null = null;
+  const signInsNow = (): SignInState => (signInsKept ??= parseSignIns(tilesRead(SIGN_INS_KEY)));
+  const signInsWrite = (st: SignInState): void => { if (st === signInsKept) return; signInsKept = st; try { void drivers.store?.set(SIGN_INS_KEY, JSON.stringify(st)); } catch (e) { report(e); } };
+  const learnAccounts = (entries: readonly SetupEntry[]): void => {
+    const st = signInsNow();
+    let accountOf = st.accountOf, accounts = st.accounts;
+    for (const e of entries) {
+      if (!e || typeof e.id !== "string" || !e.id) continue;
+      const key = accountKey(e.id, e.signInWith);
+      const old = accountOf[e.id];
+      if (old === key) continue;
+      accountOf = { ...accountOf, [e.id]: key };
+      // a service's account changed (a catalog that now shares it): its sign-ins come along, names and all (2026-09-29 review)
+      if (old && accounts[old]?.length) {
+        const there = accounts[key] ?? [];
+        const renamed: Array<[string, string]> = [];
+        const moved = accounts[old]!.filter((s) => !there.some((t) => t.profile === s.profile)).map((s) => { if (!there.some((t) => t.id === s.id)) return s; const id = s.id + "-" + old.replace(/[^a-z0-9]+/gi, "-"); renamed.push([s.id, id]); return { ...s, id }; });
+        // the old account stays for any other service still on it (a service un-shared from an account keeps nobody else's sign-ins from it)
+        const othersOnOld = Object.entries(accountOf).some(([app, k]) => app !== e.id && k === old);
+        const rest = othersOnOld ? accounts : Object.fromEntries(Object.entries(accounts).filter(([k]) => k !== old));
+        accounts = { ...rest, [key]: [...there, ...moved] };
+        if (renamed.length) { const ps = presetsNow(); let changed = false; for (const p of ps.presets) for (const [was, is] of renamed) if (p.signIns?.[e.id] === was) { p.signIns[e.id] = is; changed = true; } if (changed) presetsWrite(ps); }
+      }
+    }
+    if (accountOf !== st.accountOf || accounts !== st.accounts) signInsWrite({ ...st, accountOf, accounts });
+  };
+  const accountOfApp = (appId: string): string => signInsNow().accountOf[appId] ?? accountKey(appId);
+  const adapterKeyOf = (appId: string): string => { const a = model.app(appId); return a?.adapter ?? a?.catalogRef ?? orchestrator.adapterNameForUrl(a?.baseUrl) ?? appId; };
+  /** The services of the two players: the Video player's, and the Music player's sources. */
+  const playerApps = (): Array<{ app: string; name: string; kind: "music" | "video"; status: string }> => {
+    const out: Array<{ app: string; name: string; kind: "music" | "video"; status: string }> = [];
+    const music = playersNow().music;
+    for (const h of music?.hidden ?? []) {
+      const f = model.facet(h.facet);
+      const a = f?.music ? model.app(f.app) : undefined;
+      if (a && !out.some((x) => x.app === a.id)) out.push({ app: a.id, name: a.name, kind: "music", status: a.setup.status });
+    }
+    for (const s of videoServices().services) if (!out.some((x) => x.app === s.app)) out.push({ app: s.app, name: s.name, kind: "video", status: s.status });
+    return out;
+  };
+  /** Every service's present profile is a sign-in of its account (a device from before sign-ins, a first sign-in). */
+  // ---- one browser, many sign-ins (sign-ins.ts, 2026-10-03): the one-time move of legacy profiles onto the shared ones. Core plans the
+  // move (every account's sign-ins onto slots) and asks the host to copy each old folder's sessions - cookies, local storage for the
+  // service's origin, IndexedDB - onto the shared folder, then moves the sign-ins and the Apps. The old folders stay (section 10). A host
+  // that does not answer leaves everything as it was for the next boot. Marker: PROFILES_SHARED_KEY, with what was done.
+  const PROFILES_SHARED_KEY = "profiles:shared";
+  let sharedMigrated: ((ev: Extract<SurfaceEvent, { type: "profile-migrated" }>) => void) | null = null;
+  const sharedMoves = new Map<string, string>();
+  const sharedMovesMap = () => sharedMoves;
+  const originOf = (url: string | null | undefined): string | null => { try { return url ? new URL(url).origin : null; } catch { return null; } };
+  const sharedProfilesMigrate = async (): Promise<void> => {
+    try {
+      if (tilesRead(PROFILES_SHARED_KEY)) { sharedProfilesOn = true; return; }
+      const apps = model.snapshot().apps;
+      const plan = sharedPlan(signInsSettled());
+      for (const a of apps) if (!isSharedProfile(a.profileId) && !plan.moves.some((m) => m.from === a.profileId)) plan.moves.push({ from: a.profileId, to: SHARED_PROFILE });
+      if (!plan.moves.length) { void drivers.store?.set(PROFILES_SHARED_KEY, JSON.stringify({ moves: [] })); sharedProfilesOn = true; return; }
+      const moves = plan.moves.map((m) => {
+        const origins = new Set<string>();
+        for (const a of apps) if (a.profileId === m.from) { const o = originOf(a.baseUrl); if (o) origins.add(o); for (const f of model.snapshot().facets) if (f.app === a.id) { const fo = originOf(f.url); if (fo) origins.add(fo); } }
+        return { ...m, origins: [...origins] };
+      });
+      const answer = await new Promise<Extract<SurfaceEvent, { type: "profile-migrated" }> | null>((resolve) => {
+        const timer = setTimeout(() => { sharedMigrated = null; resolve(null); }, 240_000);
+        sharedMigrated = (ev) => { clearTimeout(timer); sharedMigrated = null; resolve(ev); };
+        send("profile.migrate", { moves });
+      });
+      if (!answer || !answer.ok) { report(new Error("shared profiles: the host " + (answer ? "could not move the sessions: " + (answer.note ?? "") : "did not answer") + " - left as they were")); return; }
+      for (const m of plan.moves) sharedMoves.set(m.from, m.to);
+      signInsWrite(plan.state);
+      for (const a of apps) { const to = sharedMoves.get(a.profileId); if (to) model.saveApp({ ...a, profileId: to }); }
+      void drivers.store?.set(PROFILES_SHARED_KEY, JSON.stringify({ moves: answer.moves, note: answer.note ?? null }));
+      sharedProfilesOn = true;
+    } catch (e) { report(e); }
+  };
+  const signInsSettled = (): SignInState => {
+    let st = signInsNow();
+    for (const s of playerApps()) { const a = model.app(s.app); if (a) st = withProfile(st, accountOfApp(s.app), a.profileId, a.name); }
+    signInsWrite(st);
+    return st;
+  };
+  const signInsView = () => {
+    const st = signInsSettled();
+    const apps = playerApps();
+    return { services: apps.map((s) => {
+      const key = accountOfApp(s.app);
+      const list = st.accounts[key] ?? [];
+      const cur = signInByProfile(st, key, model.app(s.app)?.profileId ?? "");
+      // a hidden sign-in is not offered - unless a service is on it still (a set brought it back): then it is listed, marked
+      return { app: s.app, name: s.name, kind: s.kind, status: s.status, account: key, shares: apps.filter((o) => o.app !== s.app && accountOfApp(o.app) === key).map((o) => o.name), signIns: list.filter((x) => !x.hidden || x.id === cur?.id).map((x) => ({ id: x.id, name: x.name, ...(x.hidden ? { hidden: true } : {}) })), hidden: list.filter((x) => x.hidden && x.id !== cur?.id).map((x) => ({ id: x.id, name: x.name })), current: cur?.id ?? null };
+    }) };
+  };
+  // A sign-in nobody named is named from what its service's own account page shows (2026-09-29, "Instead of even naming the sign ins,
+  // can you just capture the username or likely email address that is used?"): the page is read once, hidden, after the person has signed
+  // in - never the sign-in form, never a page's script data. One service at a time; an account's label found on one of its services names
+  // the sign-in for all of them.
+  let labelling = false;
+  const labelSignIns = (): string[] => {
+    const now = Date.now();
+    const st = signInsSettled();
+    const jobs: Array<{ app: string; key: string; profile: string; adapter: string; url: string; within?: string; name?: string }> = [];
+    const taken = new Set<string>();
+    for (const s of playerApps()) {
+      if (s.status !== "signed-in") continue;
+      const app = model.app(s.app);
+      if (!app) continue;
+      const key = accountOfApp(s.app);
+      const cur = signInByProfile(st, key, app.profileId);
+      if (!cur || !wantsLabel(cur, now) || taken.has(key + "|" + cur.id)) continue;
+      const adapter = adapterKeyOf(s.app);
+      const spec = orchestrator.adapterSpec(adapter)?.account;
+      if (!spec?.url || !/^https:\/\//i.test(spec.url)) continue;
+      taken.add(key + "|" + cur.id);
+      jobs.push({ app: s.app, key, profile: app.profileId, adapter, url: spec.url, ...(spec.within ? { within: spec.within } : {}), ...(spec.name ? { name: spec.name } : {}) });
+    }
+    if (!jobs.length || labelling) return [];
+    labelling = true;
+    void (async () => {
+      try {
+        for (const j of jobs) {
+          const raw = await orchestrator.readHiddenPage({ app: j.app, adapter: j.adapter, profile: j.profile }, j.url, accountReadJs(j), (r) => accountLabel(r) !== null);
+          // the service may have moved to another sign-in while its page was read: the label is this profile's
+          if (model.app(j.app)?.profileId !== j.profile) continue;
+          signInsWrite(labelFromPage(signInsNow(), j.key, j.profile, accountLabel(raw)?.label ?? null, Date.now()));
+        }
+      } catch (e) { report(e); } finally { labelling = false; }
+    })();
+    return jobs.map((j) => j.app);
+  };
+  /** The sign-in each player service uses now, by App - what a profile set keeps. */
+  const signInsInUse = (): Record<string, string> => Object.fromEntries(signInsView().services.filter((s) => s.current).map((s) => [s.app, s.current!]));
+  /** One service to one sign-in; the wall is NOT applied here (the caller applies once for every move it makes). */
+  const moveToSignIn = (appId: string, signInId: string): { ok: boolean; changed: boolean; status?: string; error?: string } => {
+    const app = model.app(appId);
+    if (!app) return { ok: false, changed: false, error: "unknown service" };
+    const key = accountOfApp(appId);
+    let st = withProfile(signInsSettled(), key, app.profileId, app.name);
+    const to = signInById(st, key, signInId);
+    if (!to) return { ok: false, changed: false, error: "not a sign-in of this service" };
+    if (to.profile === app.profileId) return { ok: true, changed: false, status: app.setup.status };
+    const from = signInByProfile(st, key, app.profileId)!;
+    st = noteStatus(st, key, app.profileId, appId, app.setup.status);   // what it knew here, for its return
+    const status = to.status?.[appId] === "signed-in" || to.status?.[appId] === "needs-attention" ? to.status[appId]! : "unknown";
+    const r = model.saveApp({ ...app, profileId: to.profile, setup: { status } });
+    appSignedIn(appId);   // another sign-in: the hidden page's word about the last one is over (2026-09-30 review)
+    if (!r.ok) return { ok: false, changed: false, error: r.error };
+    signInsWrite(st);
+    orchestrator.appSignInChanged(appId, adapterKeyOf(appId), from.id, to.id, from.profile);
+    return { ok: true, changed: true, status };
+  };
+  /** Several services moved, the wall applied once after (its windows are made again in the new profiles). */
+  const moveToSignIns = (picks: Record<string, string>): { moved: string[]; failed: string[] } => {
+    const moved: string[] = [], failed: string[] = [];
+    for (const [app, id] of Object.entries(picks)) { const r = moveToSignIn(app, id); if (!r.ok) failed.push(app); else if (r.changed) moved.push(app); }
+    if (moved.length) { const active = model.activeScene(); if (active) applyScene(active); }
+    return { moved, failed };
+  };
   // ---- profile presets (2026-09-24, "allow the user to save any number of profile presets. So if another user logs in, they can change the
   // preset and therefore all service profiles"): {presets:[{id, name, picks:{app:{id,name}}}], active} on the device
   // off: the services EXCLUDED for the person on now (2026-09-24, "add an <Exclude> option too, so if someone doesn't want to use a specific
   // service for their profile specific items Continue + My list, they can, but we'll still bring it into the lists below, library and browse")
-  type ProfilePreset = { id: string; name: string; picks: Record<string, { id: string; name: string }>; off?: string[] };
+  // signIns (2026-09-29): the sign-in each service uses for this person, music and video alike - the Music player's people are these sets
+  type ProfilePreset = { id: string; name: string; picks: Record<string, { id: string; name: string }>; off?: string[]; signIns?: Record<string, string> };
   type PresetState = { presets: ProfilePreset[]; active: string | null; off: string[] };
   const PRESETS_KEY = "video:profile-presets";
   const presetsNow = (): PresetState => {
@@ -1197,7 +1846,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (s) orchestrator.videoEpisodes(tileId, s);
   };
   // the combined My list (2026-09-20): each service's own list page read on a hidden surface; stale after half an hour
-  const videoRefreshLists = (force: boolean): Record<string, unknown> => ({ ok: true, asked: orchestrator.videoRefreshLists(hiddenServices(), force) });
+  const videoRefreshLists = (force: boolean): Record<string, unknown> => ({ ok: true, asked: orchestrator.videoRefreshLists(hiddenServices(), force, force) });   // forced = a person's Refresh: at once
   // the wall keeps itself current (2026-09-23): a tick every few minutes; core decides whether it is time and whether the wall is quiet
   // the household's optional quiet hours for the timed refresh (Watch settings, 2026-09-24 - off by default: "people watch tv overnight")
   const BG_PAUSE_KEY = "video:bg-pause";
@@ -1208,6 +1857,19 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     } catch { /* the default: no pause */ }
   };
   let pauseLoaded = false;
+  // Watch settings' Video ads (2026-10-07): veil (the default), mute or show - read once the store answers, kept on every change
+  const ADS_LOOK_KEY = "video:ads-look";
+  let adsLookLoaded = false;
+  const loadAdsLook = () => {
+    if (adsLookLoaded) return;
+    try {
+      const v = tilesRead(ADS_LOOK_KEY);
+      if (v === "veil" || v === "mute" || v === "show") orchestrator.videoAdsLook = v;
+      adsLookLoaded = true;
+    } catch { /* tried again below */ }
+  };
+  loadAdsLook();
+  setTimeout(loadAdsLook, 5_000);
   setInterval(() => { try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } orchestrator.backgroundTick(hiddenServices()); } catch (e) { report(e); } }, 4 * 60_000);
   // the row as the host draws it: a catalog search's rows come ordered from catalog-search.ts (TMDB's order, the title
   // that IS the words first, one card per household service that carries it); a services search orders through the pure
@@ -1334,12 +1996,43 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const BINGE_MISS_MS = 24 * 3_600_000;
   const bingeSettingsNow = (): { thresholds: BingeThresholds; kids: KidsMode; animation: boolean } => { try { return bingeSettingsOf(JSON.parse(tilesRead(BINGE_SETTINGS_KEY) ?? "null")); } catch { return bingeSettingsOf(null); } };
   type BingeNote = { id: string; why: "hidden" | "missing"; app?: string; at: number; title?: string | undefined };
-  const bingeNotes = (): BingeNote[] => { try { const v = JSON.parse(tilesRead(BINGE_HIDDEN_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((n): n is BingeNote => !!n && typeof n.id === "string") : []; } catch { return []; } };
-  const bingeHidden = (): Set<string> => new Set(bingeNotes().filter((n) => n.why === "hidden" || Date.now() - n.at < BINGE_MISS_MS).map((n) => n.id));
+  // a hidden title is the profile set's (2026-09-26, "When someone hides something in the binge, that should be stored by profile set. So if its
+  // set to Alex, thats where it's saved. i guess if no profile set is saved, then just save it to the base and once a profile set is saved, move
+  // it to the first one"): hidden notes live under video:binge-hidden:<preset> for the active set (the first set while none is active), in the
+  // base key only while no set exists; the base's hidden notes move to the first set once one does. A title found missing on its service is
+  // about the service, not the person: those notes stay in the base, shared.
+  const bingeRead = (key: string): BingeNote[] => { try { const v = JSON.parse(tilesRead(key) ?? "[]"); return Array.isArray(v) ? v.filter((n): n is BingeNote => !!n && typeof n.id === "string") : []; } catch { return []; } };
+  const bingeLive = (x: BingeNote) => x.why === "hidden" || Date.now() - x.at < BINGE_MISS_MS;
+  const bingeSetKey = (): string | null => {
+    const st = presetsNow();
+    if (!st.presets.length) return null;
+    const first = BINGE_HIDDEN_KEY + ":" + st.presets[0]!.id;
+    const base = bingeRead(BINGE_HIDDEN_KEY);
+    if (base.some((x) => x.why === "hidden")) {   // the base's hidden titles move to the first set, once
+      const into = bingeRead(first);
+      const moved = [...into, ...base.filter((x) => x.why === "hidden" && !into.some((y) => y.id === x.id))];
+      try { void drivers.store?.set(first, JSON.stringify(moved)); void drivers.store?.set(BINGE_HIDDEN_KEY, JSON.stringify(base.filter((x) => x.why !== "hidden"))); } catch (e) { report(e); }
+    }
+    return BINGE_HIDDEN_KEY + ":" + (st.active ?? st.presets[0]!.id);
+  };
+  const bingeNotes = (): BingeNote[] => {
+    const set = bingeSetKey();
+    const base = bingeRead(BINGE_HIDDEN_KEY);
+    return set ? [...base.filter((x) => x.why !== "hidden"), ...bingeRead(set).filter((x) => x.why === "hidden")] : base;
+  };
+  const bingeHidden = (): Set<string> => new Set(bingeNotes().filter(bingeLive).map((n) => n.id));
   const bingeNote = (n: BingeNote | null, dropId?: string) => {
-    const list = bingeNotes().filter((x) => x.id !== (n?.id ?? dropId) && (x.why === "hidden" || Date.now() - x.at < BINGE_MISS_MS));
-    if (n) list.push(n);
-    void drivers.store?.set(BINGE_HIDDEN_KEY, JSON.stringify(list));
+    const id = n?.id ?? dropId;
+    const set = bingeSetKey();
+    const write = (key: string, keep: (x: BingeNote) => boolean, add: boolean) => {
+      const list = bingeRead(key).filter((x) => x.id !== id && bingeLive(x) && keep(x));
+      if (add && n) list.push(n);
+      void drivers.store?.set(key, JSON.stringify(list));
+    };
+    if (set) {
+      write(BINGE_HIDDEN_KEY, () => true, !!n && n.why === "missing");
+      write(set, (x) => x.why === "hidden", !!n && n.why === "hidden");
+    } else write(BINGE_HIDDEN_KEY, () => true, !!n);
   };
   const BINGE_CAVEAT = "Each network sets its own ratings. TV-PG has no official age, so where it falls here is Prism's own choice. Unrated titles are hidden while Kids mode is on.";
   const bingeHead = () => {
@@ -1348,6 +2041,52 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     return { id: THE_BINGE.id, name: THE_BINGE.name, label: w.label, counted: w.counted, who: THE_BINGE.who, decides: THE_BINGE.decides, source: THE_BINGE.source, sourceUrl: THE_BINGE.sourceUrl, formula: w.formula,
       thresholds, attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data from JustWatch, through TMDB." };
   };
+  // ---- Playlists (docs/features/playlists.md, 2026-09-27): playlists.ts, wired to the real services, the details window's episode path and the
+  // existing play path; continuous play follows the screen through the orchestrator's watch reports and the player's `ended`
+  const playlists = createPlaylists({
+    read: (k) => tilesRead(k),
+    write: (k, v) => { try { void drivers.store?.set(k, v); } catch (e) { report(e); } },
+    presets: () => presetsNow(),
+    services: () => { const byApp = new Map(videoServices().services.map((s) => [s.app, s])); return hiddenServices().map((h) => ({ ...h, facet: byApp.get(h.app)?.facet ?? h.facet, status: byApp.get(h.app)?.status ?? h.status })); },
+    screen: () => videoServices().screen?.slot ?? null,
+    state: (id) => (orchestrator.videoState().find((t) => t.id === id) as never) ?? null,
+    playOn: (facet, kind, id, url, name) => videoPlayOn(facet, kind, id, url, name),
+    playCatalog: (s, title, kind) => playCatalog(s, title, kind),
+    episodesOf: (s, series) => orchestrator.episodesOf({ app: s.app, name: s.name, adapter: s.adapter, profile: s.profile ?? s.app, home: s.home ?? "", status: s.status }, series, { kind: "series", title: "", series } as import("./types.js").VideoContext),
+    episodeByNumber: (app, series, sn, en) => orchestrator.episodeByNumber(app, series, sn, en),
+    myList: () => (videoMenu().list as never) ?? [],
+    onEndOf: (id) => orchestrator.onEndOf(id),
+    pause: (id) => { orchestrator.tileCommand(id, "pause").catch(report); },
+    atEnd: (id) => orchestrator.titleAtEnd(id),
+    releaseOf: (title, kind) => orchestrator.releaseFor(title, kind),
+    airDatesOf: (show) => orchestrator.tvAirDates(show),
+    tvSeasonsById: (id) => orchestrator.tvSeasonsById(id),
+    altTitlesOf: (id) => orchestrator.tvAltTitles(id),
+    tmdbIdOf: (title, kind) => orchestrator.tmdbIdOf(title, kind),
+    // playlists on the person's TMDB lists (playlist-tmdb.ts, 2026-10-03): the account with lists, the lens primitives, TMDB's seasons, the
+    // services here that carry a title
+    tmdb: {
+      account: () => orchestrator.tmdbLists.listsAccount(),
+      api: orchestrator.tmdbLists,
+      seasonsOf: async (id) => { const s = await orchestrator.tvSeasonsById(id); return s ? s.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => ({ episode: e.episode, title: e.title, still: e.still, airDate: e.airDate })) })) : null; },
+      carriedBy: (kind, id) => orchestrator.carriedBy(hiddenServices(), kind, id),
+    },
+    pictureOf: (title, kind) => {
+      const wide = orchestrator.backdropFor(title, kind) ?? orchestrator.posterFor(title, kind);
+      if (wide) return wide;
+      const k = titleKey(title);
+      const own = ownedCards().find((c) => titleKey(c.item.title) === k || [c, ...c.also].some((x) => titleKey(x.item.title) === k));
+      return own ? ([own, ...own.also].map((x) => x.item.artwork).find((a) => !!a) ?? null) : null;
+    },
+    now: () => Date.now(),
+    later: (fn, ms) => void setTimeout(fn, ms),
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    report,
+  });
+  orchestrator.onWatchReport = (id) => playlists.step(id, false);
+  orchestrator.onPlaybackEnded = (id) => playlists.step(id, true);
+  const plJson = <T,>(fn: () => T): string => { try { return json(fn()); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } };
+  const parseObj = (s: unknown): Record<string, unknown> => { try { const v = JSON.parse(String(s ?? "")); return v && typeof v === "object" ? v : {}; } catch { return {}; } };
   const bingeEntry = () => orchestrator.videoBinge(hiddenServices(), browseOfferOf(tilesRead("video:browse-offer")), bingeSettingsNow().thresholds);
   const bingeRow = (): Record<string, unknown> | null => {
     const e = bingeEntry();
@@ -1470,17 +2209,18 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // goes to the page now and the script walks the app's own route; off the screen, the screen becomes the service (its
     // home mounts) and the press waits for the page.
     const mv = mvPlace(facetId);
+    if (mv?.refused) return { ok: false, error: mv.refused };
     if (mv) {
-      if (mv.ready) orchestrator.videoTune(mv.tile, channelId).then((r) => { if (r !== "ok") report(new Error("videoTune " + facetId + ": " + r)); }, report);
-      else orchestrator.videoTuneWhenUp(mv.tile, channelId);
+      if (mv.ready) orchestrator.videoTune(mv.tile, channelId, name ?? undefined, url).then((r) => { if (r !== "ok") report(new Error("videoTune " + facetId + ": " + r)); }, report);
+      else orchestrator.videoTuneWhenUp(mv.tile, channelId, name ?? undefined, url);
       return { ok: true, switched: !mv.ready, multiview: true, ...(mv.sceneId ? { sceneId: mv.sceneId } : {}) };
     }
     if (sv.active && sv.screen?.facet === facetId) {
-      orchestrator.videoTune(sv.screen.slot, channelId).then((r) => { if (r !== "ok") report(new Error("videoTune " + facetId + ": " + r)); }, report);
+      orchestrator.videoTune(sv.screen.slot, channelId, name ?? undefined, url).then((r) => { if (r !== "ok") report(new Error("videoTune " + facetId + ": " + r)); }, report);
       return { ok: true, switched: false };
     }
     const r = videoSwitch(facetId);
-    if (r.ok && typeof r.slot === "string") orchestrator.videoTuneWhenUp(r.slot, channelId);
+    if (r.ok && typeof r.slot === "string") orchestrator.videoTuneWhenUp(r.slot, channelId, name ?? undefined, url);
     return { ...r, switched: true };
   };
   const videoPlayOn = (facetId: string, kind: string, id: string, url: string | null, name: string | null): Record<string, unknown> => {
@@ -1497,6 +2237,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (ep && same) { kind = "episode"; id = ep; url = ep; }
     }
     const mv = mvPlace(facetId);
+    if (mv?.refused) return { ok: false, error: mv.refused };
     if (mv) {
       if (mv.ready) orchestrator.videoPlay(mv.tile, kind, id, url, name ?? undefined).then((r) => { if (r !== "ok") report(new Error("videoPlayOn " + facetId + ": " + r)); }, report);
       else orchestrator.videoPlayWhenUp(mv.tile, { kind, id, url, ...(name ? { name } : {}) });
@@ -1511,6 +2252,63 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (r.ok && typeof r.slot === "string") orchestrator.videoPlayWhenUp(r.slot, { kind, id, url, ...(name ? { name } : {}) });
     return { ...r, switched: true };
   };
+  // ---- no spot keeper: the service's own position wins, as a rule (B-318, 2026-10-06, "I think the position the service thinks you're at
+  // should win. Just as a rule."). Prism had kept where a title was left and sought there when a replay began near the top; that fought a
+  // service resuming itself to a newer point (watched further on a TV app). Prism never seeks to a spot of its own now; the record it kept
+  // (video:spots) stays in the store unread (section 10).
+  // ---- a cold deep link the service bounced (2026-10-05, Show video after a restart "ended up on the main apple tv page"): the screen's
+  // page went to the resume point's own address and the service sent it to its home within seconds (Apple TV does this on a cold load);
+  // once the page says it is signed in, the title is asked for again through the adapter's own play, once per boot
+  let bounced: { app: string; facet: string; slot: string; url: string; at: number } | null = null;
+  let bounceRecovered = false;
+  const bounceWatch = (ev: SurfaceEvent) => {
+    if (ev.type === "navigated") {
+      const sv = videoServices();
+      if (!sv.screen || ev.id !== sv.screen.slot) return;
+      const s = sv.services.find((x) => x.facet === sv.screen!.facet);
+      const resume = s?.resume;
+      if (!resume?.url) { bounced = null; return; }
+      const url = (ev as { url?: string }).url ?? "";
+      if (url === resume.url) { bounced = { app: s!.app, facet: s!.facet, slot: sv.screen.slot, url, at: Date.now() }; return; }
+      if (bounced && Date.now() - bounced.at < 15_000) {
+        let home = false;
+        try { const u = new URL(url), r = new URL(bounced.url); home = u.host === r.host && (u.pathname === "/" || u.pathname.split("/").filter(Boolean).length <= 1); } catch { home = false; }
+        if (home && !bounceRecovered) {
+          bounceRecovered = true;
+          const b = bounced; bounced = null;
+          // the ask waits for the page's own signed-in report (the session probe) and two seconds more: 2.5 s after the bounce it bounced again
+          // (09:25, 2026-10-05) - the app had not finished its sign-in; without the report, 20 s
+          report(new Error("cold link bounced to " + url + "; " + resume.title + " will be asked for again through " + b.app + "'s own play once the page is signed in"));
+          const ask = () => { if (!bounceAsk) return; bounceAsk = null; const r = videoPlayOn(b.facet, resume.kind, resume.id ?? resume.url ?? resume.title, resume.url ?? null, resume.title); report(new Error("cold link recovery: asked" + (r.ok ? "" : ", " + String(r.error)))); };
+          bounceAsk = { slot: b.slot, ask };
+          setTimeout(ask, 20_000);
+          return;
+        }
+      }
+      bounced = null;
+    }
+    if (ev.type === "session" && bounceAsk && ev.id === bounceAsk.slot && (ev as { state?: string }).state === "signed-in") {
+      const a = bounceAsk.ask; setTimeout(a, 2000);
+    }
+  };
+  let bounceAsk: { slot: string; ask: () => void } | null = null;
+  const nextEpisodeFromList = (): Record<string, unknown> => {
+    const sv = videoServices();
+    if (!sv.screen) return { ok: false, error: "no Video player screen" };
+    const tile = sv.screen.slot;
+    const v = orchestrator.videoState().find((x) => x.id === tile)?.video ?? null;
+    if (!v?.series || typeof v.season !== "number" || typeof v.episode !== "number") return { ok: false, error: "the page names no episode" };
+    const list = orchestrator.videoEpisodes(tile, hiddenServices().find((x) => x.app === sv.screen!.app) ?? null);
+    const season = list.seasons.find((x) => x.season === v.season);
+    let next = season?.episodes.filter((e) => e.episode > v.episode!).sort((a, b) => a.episode - b.episode)[0] ?? null;
+    let sn = v.season;
+    if (!next) { const after = list.seasons.filter((x) => x.season > v.season!).sort((a, b) => a.season - b.season)[0]; if (after) { next = after.episodes.slice().sort((a, b) => a.episode - b.episode)[0] ?? null; sn = after.season; } }
+    if (!next) return { ok: false, error: "no episode after this one in the list" };
+    orchestrator.videoExpectEpisode(tile, { series: v.series, season: sn, episode: next.episode, title: next.title || `Episode ${next.episode}`, id: next.id ?? null });
+    if (next.id && next.url) { const p = videoPlayOn(sv.screen.facet, "title", next.id, next.url, next.title || `S${sn} E${next.episode}`); if (p.ok) return { ok: true, did: "list", season: sn, episode: next.episode }; }
+    const r = orchestrator.videoPlayEpisodeNumber(tile, sn, next.episode);
+    return r === "ok" ? { ok: true, did: "number", season: sn, episode: next.episode } : { ok: false, error: String(r) };
+  };
   const switchPlayer = (kind: string): Record<string, unknown> => {
     if (!isPlayerKind(kind)) return { ok: false, error: "unknown player " + kind };
     const found = playersNow();
@@ -1519,13 +2317,19 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const leaving = model.activeScene() !== target.id;
     let after: (() => void) | undefined;
     if (kind === "video") {
-      if (found.music) {
-        const carried = carryHiddenMusic(target, found.music, (id) => model.facet(id));
-        if (carried) { const r = model.saveScene(carried); if (!r.ok) report(new Error("switchPlayer: could not carry the music sources: " + r.error)); }
-      }
+      // music sources an earlier build wrote into the Video player's scene leave it (the wall keeps them warm without them there)
+      const clean = withoutMusic(target, (id) => model.facet(id));
+      if (clean) { const r = model.saveScene(clean); if (!r.ok) report(new Error("switchPlayer: could not take the music sources out of the Video player: " + r.error)); }
+      // the screen takes the sound back (2026-10-05): the music source that played kept the audio across the trip, and the video ran muted
+      const layout = model.layout(target.layout);
+      const screenSlot = layout?.slots.find((sl) => sl.id === "screen")?.id ?? layout?.slots[0]?.id ?? null;
+      after = () => { const slot = videoServices().screen?.slot ?? screenSlot; if (slot) orchestrator.videoTakeAudio(slot).catch(report); };
       if (leaving) {
         const sources = new Set(orchestrator.musicSourceTiles().map((s) => s.tile));
         playerReturn = orchestrator.getState()?.tiles.find((t) => sources.has(t.id) && t.nowPlaying?.playing)?.id ?? null;
+        // the music pauses on the way out (2026-10-05, "I switched from Music to Video, but the song continues to play. Please pause it when
+        // switching to Video"): through its own player, so the way back can resume it where it stopped
+        if (playerReturn) { const back = playerReturn; orchestrator.tileCommand(back, "pause").then((r) => { if (r !== "ok") report(new Error("switchPlayer: pause " + back + ": " + r)); }, report); }
       }
     } else if (leaving) {
       const back = playerReturn;
@@ -1572,6 +2376,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // it; a signed-in is written at once. Section 26 in spirit: cover slow, uncover fast.
   const SESSION_SETTLE_MS = 15_000;
   const sessionSettle = new Map<string, ReturnType<typeof setTimeout>>();
+  // a service's hidden page saying "signed out" on the service's own pages, not its sign-in page, is not believed at once (Apple TV's
+  // watch sees a Sign In control for seconds while signed in) - but one that has said so for ten minutes with no account seen since, on
+  // any page of the service, is believed (2026-09-30: Peacock's session lapsed at noon, its hidden page said signed out every twenty
+  // minutes for five hours, and the wall still called it signed in)
+  const HIDDEN_OUT_MS = 10 * 60_000;
+  const hiddenOutSince = new Map<string, number>();
+  /** An App written signed in by any path (the wizard's Done, a sign-in switch, a page seeing the account): the hidden page's streak ends (2026-09-30 review). */
+  const appSignedIn = (appId: string): void => { hiddenOutSince.delete(appId); };
   orchestrator.setSceneHooks({
     apply: (id) => applyScene(id),
     ids: () => model.snapshot().scenes.map((sc) => sc.id),
@@ -1583,7 +2395,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     route: (route, source, id) => drivers.ui?.route(route, source, id),
   };
 
-  return {
+  const api: PrismRuntimeApi = {
     init(docJson, w, h, optionsJson) {
       if (optionsJson) {
         try {
@@ -1630,12 +2442,17 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         // base for everything a projection does not own - so a repaired projection reaches the wall on the
         // next start instead of the next hand-apply. The persisted document stands when there is no active
         // scene, the scene is gone, or the model could not load.
-        modelLoaded.then(() => {
+        // one browser, many sign-ins (sign-ins.ts, 2026-10-03): the legacy profiles moved onto the shared ones before the first surface
+        modelLoaded.then(() => sharedProfilesMigrate()).then(() => {
           let doc = parsed;
           try {
             const active = model.activeScene();
-            const m = active && parsed.id ? model.materialize(active, { w, h }, parsed.id, parsed) : null;
+            const m = active && parsed.id ? drawScene(active, { w, h }, parsed.id, parsed) : null;
             if (m) doc = { ...m.doc, id: parsed.id };
+            if (!m && Array.isArray((doc as { tiles?: unknown }).tiles)) {   // no scene drawn: the kept document's tiles follow the moved profiles too
+              const map = sharedMovesMap();
+              if (map.size) doc = { ...doc, tiles: doc.tiles.map((t) => (typeof t.profile === "string" && map.has(t.profile) ? { ...t, profile: map.get(t.profile)! } : t)) };
+            }
           } catch (e) { report(e); }
           return orchestrator.load(doc, { w, h });
         }).then(() => { try { videoServices(); videoRefreshLists(false); videoMenu(); } catch { /* no video services yet */ } finally { bootRowsAsked = true; } }, report);   // Phase 2: the services' kept rows read now, so the menu's first open is full; the lists from their own pages; the lens cache (ratings) read back at boot (§4a)
@@ -1646,6 +2463,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     event(json) {
       const ev = JSON.parse(json) as SurfaceEvent;
+      if (ev.type === "profile-migrated") { sharedMigrated?.(ev); return; }
+      try { musicNextWatch(ev); sessionWatch(ev); bounceWatch(ev); } catch (e) { report(e); }
       orchestrator.onSurfaceEvent(ev).catch(report);
       // Phase 2: the rows a person browses on an App's popped-out page (App setup, the sign-in wizard) are kept the way
       // the screen's are - the surface is app:<id>:preview, the rows belong to the App
@@ -1663,6 +2482,36 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // B-129: the stage follows whichever source is audible - a play started in the service's own page (setup,
       // the revealed player) moves the visual and its transport there, the same as a Quick play pick would
       if (ev.type === "now-playing" && ev.info?.playing && orchestrator.getState()?.audioOwner === ev.id) followMusic(ev.id);
+      // a service's hidden page tells the truth about its sign-in too (2026-09-28, the connections sweep: Hulu and Disney+ had been signed out all
+      // day - their hidden pages went to MyDisney's login at every read - while the wall still called them signed in and kept reading them): a
+      // hidden page still on the service's own sign-in page a while after it went there makes the App "needs attention"; its watch seeing the
+      // account makes it signed in again. Every service with a sign-in page named.
+      const hiddenApp = /^app:([^:]+):(lookup|work)$/.exec(ev.id)?.[1];
+      if (hiddenApp) {
+        const writeApp = (status: "signed-in" | "needs-attention") => {
+          try { const app = model.app(hiddenApp); if (app && app.setup?.status !== status) model.saveApp({ ...app, setup: { status, lastVerified: new Date().toISOString().slice(0, 10), evidence: "probe" } }); } catch (e) { report(e); }
+        };
+        const svc = hiddenServices().find((x) => x.app === hiddenApp);
+        const onLogin = (url: string | null | undefined): boolean => {
+          const login = svc ? orchestrator.adapterSpec(svc.adapter)?.login : undefined;
+          if (!login || !url) return false;
+          try { const a = new URL(url), b = new URL(login); return a.host === b.host && a.pathname.replace(/[/]+$/, "").startsWith(b.pathname.replace(/[/]+$/, "")); } catch { return false; }
+        };
+        const standing = sessionSettle.get(ev.id);
+        if (ev.type === "navigated" && onLogin(ev.url)) {
+          if (!standing) sessionSettle.set(ev.id, setTimeout(() => { sessionSettle.delete(ev.id); if (onLogin(orchestrator.currentUrlOf(ev.id))) writeApp("needs-attention"); }, SESSION_SETTLE_MS));
+        } else if (ev.type === "session" && ev.state === "signed-in") {
+          // the account seen: signed in (again). A hidden page's "signed out" is not taken alone - Apple TV's watch saw a Sign In control on its
+          // episode pages twice today while signed in; the sign-in page itself is the evidence
+          if (standing) { clearTimeout(standing); sessionSettle.delete(ev.id); }
+          appSignedIn(hiddenApp);
+          writeApp("signed-in");
+        } else if (ev.type === "session" && ev.state === "signed-out") {
+          const since = hiddenOutSince.get(hiddenApp) ?? Date.now();
+          hiddenOutSince.set(hiddenApp, since);
+          if (Date.now() - since >= HIDDEN_OUT_MS) writeApp("needs-attention");
+        }
+      }
       if (ev.type === "session" && orchestrator.sessionOf(ev.id) === ev.state) {   // B-124: a boot-window signed-out that triggers the one recycle is not believed
         const write = (status: "signed-in" | "needs-attention") => {
           try {
@@ -1673,7 +2522,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         };
         const standing = sessionSettle.get(ev.id);
         if (standing) { clearTimeout(standing); sessionSettle.delete(ev.id); }
-        if (ev.state === "signed-in") write("signed-in");
+        if (ev.state === "signed-in") { write("signed-in"); const app = itemContext(ev.id)?.app; if (app) appSignedIn(app); }
         else sessionSettle.set(ev.id, setTimeout(() => { sessionSettle.delete(ev.id); if (orchestrator.sessionOf(ev.id) === "signed-out") write("needs-attention"); }, SESSION_SETTLE_MS));   // B-217
       }
     },
@@ -1848,6 +2697,25 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       }, report);
     },
     tileCommand(tileId, cmd) {
+      if (cmd === "play") orchestrator.videoPersonPlay(String(tileId));   // the person's Play on the wall: a stopped autoplay is theirs after all
+      // Next episode (2026-10-05, Apple TV: "the scan time indicator switched episodes but the video never did"): the service's own Next first;
+      // when the page still names the same episode three seconds on, the next one from the Episodes list, through the same play as a card
+      if (cmd === "nextepisode") {
+        const sv0 = videoServices();
+        const before = sv0.screen && sv0.screen.slot === tileId ? orchestrator.videoState().find((x) => x.id === tileId)?.video ?? null : null;
+        orchestrator.tileCommand(tileId, cmd).then((r) => {
+          if (r !== "ok") report(new Error("tileCommand " + cmd + ": " + r));
+          if (!before) return;
+          setTimeout(() => {
+            const now = orchestrator.videoState().find((x) => x.id === tileId)?.video ?? null;
+            const same = !!now && now.id === before.id && now.episode === before.episode && now.season === before.season;
+            if (!same) return;
+            const r2 = nextEpisodeFromList() as { ok?: boolean; error?: string; did?: string };
+            report(new Error("next episode: the service's own Next did nothing; " + (r2.ok ? "played the next from the Episodes list (" + r2.did + ")" : "the list could not: " + r2.error)));
+          }, 3000);
+        }, report);
+        return;
+      }
       orchestrator.tileCommand(tileId, cmd).then((r) => {
         if (r !== "ok") report(new Error("tileCommand " + cmd + ": " + r));
       }, report);
@@ -1961,7 +2829,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       return json(model.snapshot());
     },
     modelSaveApp(appJson) {
-      try { return json(model.saveApp(JSON.parse(appJson))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+      try {
+        const r = model.saveApp(JSON.parse(appJson));
+        if (r.ok && r.value.setup?.status === "signed-in") appSignedIn(r.value.id);   // the wizard's Done, the setup window
+        return json(r);
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     modelSaveFacet(facetJson) {
       try { return json(model.saveFacet(JSON.parse(facetJson))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
@@ -1987,9 +2859,73 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     modelApplyScene(sceneId) {
       return json(applyScene(sceneId));
     },
-    players() {
-      try { return json(players()); } catch (e) { report(e); return json({ active: null, music: null, video: null }); }
+    playerSetupServices(entriesJson) {
+      try { return json(setupServices(model, JSON.parse(entriesJson || "[]") as SetupEntry[], speaksMediaSession, removedNow())); } catch (e) { report(e); return "[]"; }
     },
+    playerSetup(entriesJson, catalogJson) {
+      try {
+        const entries = JSON.parse(entriesJson || "[]") as SetupEntry[];
+        const catalog = catalogJson ? (JSON.parse(catalogJson) as SetupEntry[]) : undefined;
+        learnAccounts(catalog ?? entries);
+        const r = setupPlayers(model, entries, speaksMediaSession, orchestrator.canvasSize(), catalog);
+        // a service chosen again is on the players again
+        if (r.ok) { const back = new Set(r.services.map((s) => s.id)); const was = removedNow(); if (was.some((a) => back.has(a))) setRemoved(was.filter((a) => !back.has(a))); }
+        return json(r);
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    playerProfileFor(entryJson, catalogJson) {
+      try { const e = JSON.parse(entryJson) as SetupEntry; return profileFor(model, e, JSON.parse(catalogJson || "[]") as SetupEntry[]); } catch (e) { report(e); return ""; }
+    },
+    playerRemove(appId) {
+      try {
+        const r = removeFromPlayers(model, String(appId ?? ""), removedNow());
+        if (!r.ok) return json(r);
+        setRemoved(r.removed);
+        const active = model.activeScene();
+        // its pages leave the wall now - a music service's warm page beside the Video player too (2026-09-29 review)
+        if (active && (r.changed.includes(active) || (r.kind === "music" && playersNow().video?.id === active))) applyScene(active);
+        return json(r);
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    reportContext() {
+      try {
+        const active = players().active;
+        const pageOf = (tile: string | null | undefined): string | null => { const u = tile ? orchestrator.currentUrlOf(tile) : null; try { if (!u) return null; const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.origin + x.pathname : null; } catch { return null; } };
+        const sv = videoServices();
+        const ms = orchestrator.musicState() as unknown as { feeds?: Array<{ source?: string; active?: boolean }>; sources?: Record<string, { playbackState?: string }> };
+        const musicTile = (ms.feeds ?? []).find((f) => f.active)?.source ?? Object.entries(ms.sources ?? {}).find(([, v]) => v.playbackState === "playing")?.[0] ?? null;
+        const services = playerApps().map((a) => {
+          const adapter = adapterKeyOf(a.app);
+          const facets = model.snapshot().facets.filter((f) => f.app === a.app).map((f) => f.id);
+          const onScreen = sv.screen && sv.services.find((x) => x.app === a.app)?.facet === sv.screen.facet ? sv.screen.slot : null;
+          const tile = onScreen ?? facets.find((f) => !!orchestrator.currentUrlOf(f)) ?? null;
+          return { app: a.app, name: a.name, kind: a.kind, adapter, version: orchestrator.adapterSpec(adapter)?.version ?? null, page: pageOf(tile) };
+        });
+        const videoApp = sv.screen ? sv.services.find((x) => x.facet === sv.screen!.facet)?.app ?? null : null;
+        const musicApp = musicTile ? model.facet(musicTile)?.app ?? null : null;
+        const selected = active === "video" ? videoApp : active === "music" ? musicApp : null;
+        return json({ active, services, selected });
+      } catch (e) { report(e); return json({ active: null, services: [], selected: null, error: String(e) }); }
+    },
+    players() {
+      try { return json(players()); } catch (e) { report(e); return json({ active: null, music: null, video: null, error: String(e) }); }
+    },
+    async listenWindow(tile) { try { return json({ result: await orchestrator.setListenWindow(tile ? String(tile) : null), tile: orchestrator.listenWindow }); } catch (e) { report(e); return json({ error: String(e) }); } },
+    updateStatus() { try { return json(orchestrator.updateStatus()); } catch (e) { report(e); return json({ error: String(e) }); } },
+    async updateCheck() { try { return json(await orchestrator.checkUpdates()); } catch (e) { report(e); return json({ error: String(e) }); } },
+    async updateInstallNow() { try { return json({ result: await orchestrator.installUpdateNow(), ...orchestrator.updateStatus() }); } catch (e) { report(e); return json({ error: String(e) }); } },
+    updateSetSchedule(scheduleJson, enabled) {
+      try {
+        let s: { at: string; weekday?: number | null } | null = null;
+        if (scheduleJson) { const j = JSON.parse(String(scheduleJson)) as { at?: unknown; weekday?: unknown }; if (typeof j.at === "string") s = { at: j.at, weekday: typeof j.weekday === "number" && j.weekday >= 0 && j.weekday <= 6 ? Math.floor(j.weekday) : null }; }
+        orchestrator.setUpdateSchedule(s, enabled !== false);
+        return json(orchestrator.updateStatus());
+      } catch (e) { report(e); return json({ error: String(e) }); }
+    },
+    async updateSetChannel(channel) { try { await orchestrator.setUpdateChannel(asUpdateChannel(channel)); return json(orchestrator.updateStatus()); } catch (e) { report(e); return json({ error: String(e) }); } },
+    musicPlayNext(tile, kind, id) { try { return json(remote.musicNext ? remote.musicNext.set(String(tile), String(kind), String(id)) : { ok: false, error: "no queue" }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    musicNextNow() { try { return json(remote.musicNext?.get() ?? null); } catch (e) { report(e); return "null"; } },
+    videoPlayNextEpisode() { try { return json(nextEpisodeFromList()); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoState() {
       try { return json(orchestrator.videoState()); } catch (e) { report(e); return "[]"; }
     },
@@ -2008,11 +2944,53 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     videoPlayOn(facetId, kind, id, url, name) {
       try { return json(videoPlayOn(facetId, kind, id, url ?? null, name ?? null)); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
+    // the menu without the Library (2026-10-03, perf): the Watch page's follow loops asked for the whole menu every three seconds - 1.5 MB a
+    // call, the owned library 1 MB of it - and parsed it; the rows they follow are 30 KB, the lens rows 160 KB more
+    videoMenuRows(withLenses) {
+      try {
+        const m = videoMenu() as Record<string, unknown>;
+        const keep = ["ready", "watchlist", "continue", "list", "orders", "lens", "screen", "active", "log", "now", ...(withLenses === true || withLenses === "true" || withLenses === "1" ? ["lensRows"] : [])];
+        return json(Object.fromEntries(keep.map((k) => [k, m[k]])));
+      } catch (e) { report(e); return json({ error: String(e) }); }
+    },
     videoMenu() {
       try { return json(videoMenu()); } catch (e) { report(e); return json({ continue: [], list: [], live: [], services: [], search: [], suggestions: [], screen: null, active: false, log: 0, now: Date.now() }); }
     },
+    playlistsView(q, sort, listId) { return plJson(() => playlists.view(q ?? null, sort ?? null, listId ?? null)); },
+    playlistsPicker() { return plJson(() => playlists.picker()); },
+    playlistCreate(name, isPublic) { return plJson(() => playlists.create(String(name ?? ""), isPublic === true || isPublic === "true" || isPublic === "1")); },
+    playlistGate() { return plJson(() => ({ ...playlists.gate(), ...(tmdbUi.state ? { linked: tmdbUi.state.linked, lists: !!tmdbUi.state.lists, listsPossible: !!tmdbUi.state.listsPossible, hasKey: tmdbUi.state.hasKey } : {}) })); },
+    playlistSync() { return plJson(() => playlists.sync()); },
+    playlistCopyLocal() { return plJson(() => playlists.copyLocal()); },
+    playlistSetPublic(id, on) { return plJson(() => playlists.setPublic(String(id ?? ""), on === true || on === "true" || on === "1")); },
+    playlistOpen(listId) { return plJson(() => playlists.open(String(listId ?? ""))); },
+    playlistRename(listId, name) { return plJson(() => playlists.rename(String(listId ?? ""), String(name ?? ""))); },
+    playlistDelete(listId) { return plJson(() => playlists.remove(String(listId ?? ""))); },
+    playlistUndo() { return plJson(() => playlists.undo()); },
+    playlistSend(targetJson, sourceJson) { orchestrator.notePersonAbout(); return plJson(() => playlists.send(parseObj(targetJson), parseObj(sourceJson) as unknown as PlSource)); },
+    playlistImport(targetJson, appsJson, scope) { orchestrator.notePersonAbout(); return plJson(() => playlists.importMyList(parseObj(targetJson), (() => { try { const a = JSON.parse(String(appsJson ?? "[]")); return Array.isArray(a) ? a.filter((x): x is string => typeof x === "string") : []; } catch { return []; } })(), scope === "s1" ? "s1" : "all")); },
+    playlistJob(jobId) { return plJson(() => playlists.job(String(jobId ?? ""))); },
+    playlistJobConfirm(jobId, yes) { return plJson(() => playlists.confirm(String(jobId ?? ""), yes === "1" || yes === "true")); },
+    playlistEdit(listId, opJson) { return plJson(() => playlists.edit(String(listId ?? ""), parseObj(opJson))); },
+    playlistPlay(listId, itemKey) { orchestrator.notePersonAbout(); return plJson(() => playlists.play(String(listId ?? ""), itemKey ? String(itemKey) : null)); },
+    playlistStop(mode) { return plJson(() => playlists.stop(mode === "now" ? "now" : "after")); },
+    playlistMove(dir) { return plJson(() => playlists.move(dir === "previous" ? "previous" : "next")); },
+    videoRowOrder(row, order, reverse) {
+      const r = row === "list" ? "list" : "continue";
+      const orders = r === "list" ? LIST_ORDERS : CONTINUE_ORDERS;
+      try { return json({ row: r, order: rowOrderSet(r, order || null), reverse: rowReverseSet(r, reverse ?? null), orders }); } catch (e) { report(e); return json({ row: r, order: r === "list" ? "prism" : "title", reverse: false, orders }); }
+    },
     videoTune(facetId, channelId, url, name) {
-      try { return json(videoTune(facetId, channelId, url ?? null, name ?? null)); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+      try {
+        // an event row of the grid (2026-09-30): the event plays as one, not as a channel
+        const f = model.facet(String(facetId ?? ""));
+        const ev = f ? orchestrator.liveEvents(f.app).find((e) => e.id === String(channelId ?? "")) : undefined;
+        // one still to come is not opened (2026-09-30 review: its page's first primary button is not Watch, and a press there could write to
+        // the household's Up Next); the answer says when
+        if (ev && !ev.live) return json({ ok: false, error: ev.title + " has not started" + (ev.start ? ". It starts " + new Date(ev.start).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }) : "") });
+        if (ev) return json(videoPlayOn(String(facetId), "live", ev.id, ev.url ?? (url ?? null), ev.title));
+        return json(videoTune(facetId, channelId, url ?? null, name ?? null));
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoSearch(facetId, q, open) {
       try { return json(videoSearch(facetId, String(q ?? ""), open ?? null)); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
@@ -2083,7 +3061,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     videoRefreshApp(appId) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? "")) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
-      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState() }); }
+      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook }); }
       catch (e) { report(e); return json({ pause: { on: false, from: "23:00", to: "07:00" }, tmdbKey: false }); }
     },
     videoSetPause(on, from, to) {
@@ -2094,6 +3072,17 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         void drivers.store?.set(BG_PAUSE_KEY, JSON.stringify(orchestrator.bgPause));
         return json({ ok: true, pause: orchestrator.bgPause });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoSetAdsLook(look) {
+      try {
+        if (look !== "veil" && look !== "mute" && look !== "show") return json({ ok: false, error: "look is veil, mute or show" });
+        orchestrator.videoAdsLook = look; adsLookLoaded = true;
+        void drivers.store?.set(ADS_LOOK_KEY, look);
+        return json({ ok: true, look });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    intermissionUnmute(tileId, on) {
+      try { return json({ ok: orchestrator.intermissionUnmute(String(tileId ?? ""), on === true) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     lensChoose(lensId) {
       try { return json({ ok: true, active: orchestrator.lensChoose(lensId ?? null) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
@@ -2108,7 +3097,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     /** Dev: what the automatic removal retries did (2026-09-23). */
     listRetries() { return json(orchestrator.listRetries); },
     backgroundState() { return json(orchestrator.backgroundState()); },
-    devHoldPage(appId: string, url: string | null, height?: number) { const s = hiddenServices().find((x) => x.app === String(appId)); if (!s) return "unknown app " + appId; void orchestrator.devHoldPage(s, url, typeof height === "number" ? height : undefined).catch(report); return "asked"; },
+    devHoldPage(appId: string, url: string | null, height?: number) {
+      // a music service too (2026-09-29, the account pages read for a sign-in's label): its App, in its profile
+      const s = hiddenServices().find((x) => x.app === String(appId)) ?? ((a) => (a ? { app: a.id, name: a.name, adapter: adapterKeyOf(a.id), profile: a.profileId, home: a.baseUrl, status: a.setup.status } : undefined))(playerApps().some((x) => x.app === String(appId)) ? model.app(String(appId)) : undefined);
+      if (!s) return "unknown app " + appId; void orchestrator.devHoldPage(s, url, typeof height === "number" ? height : undefined).catch(report); return "asked"; },
     videoHideContinue(appId, itemId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); if (!s) return json({ ok: false, error: "unknown service" }); orchestrator.videoHideContinue(s.adapter, String(itemId ?? "")); return json({ ok: true }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRemoveInfo(appId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoRemoveInfo(s.adapter) : { can: false, warning: null }); } catch (e) { report(e); return json({ can: false, warning: null }); } },
     videoListInfo(appId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoListInfo(s.adapter) : { can: false, name: "My List" }); } catch (e) { report(e); return json({ can: false, name: "My List" }); } },
@@ -2153,6 +3145,224 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoMultiview(action, arg) { try { return json(videoMultiview(String(action ?? "state"), arg === undefined || arg === null ? null : String(arg))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    videoLiveGuide(type, q) {
+      try {
+        const sv = videoServices();
+        // a channel named after one show and given no category by its service takes the Live type TMDB's first genre names (2026-10-02,
+        // Entertainment mode: "Are We There Yet?" to Comedy, "Below Deck" to Reality); TMDB is asked once a week a name, one at a time
+
+        // a service's live events stand in the grid as rows too (2026-09-30, "Why does your screenshot not show apple in the jump to items"): the
+        // series as the channel's type, one on now as what is on, one to come as its schedule - so Apple TV groups and jumps like the others
+        const eventRows = (app: string): VideoChannel[] => eventRowsOf(orchestrator, app);
+        const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: [...s.live.map(withTmdbWord), ...eventRows(s.app)] })).filter((s) => s.channels.length > 0);
+        const g = liveGuide(services, Date.now(), { type: type ? String(type) : null, q: q ? String(q) : null });
+        const reads = orchestrator.liveReadState();
+        const guides = sv.services.filter((s) => !!orchestrator.adapterSpec(s.adapter)?.videoLiveUrl || s.live.length > 0 || orchestrator.liveEvents(s.app).length > 0)
+          .map((s) => ({ app: s.app, name: s.name, status: s.status, channels: s.live.length, readAt: reads[s.app]?.readAt ?? null, reading: reads[s.app]?.reading ?? false, canRead: !!orchestrator.adapterSpec(s.adapter)?.videoLiveUrl,
+            events: orchestrator.liveEvents(s.app).length, eventsReadAt: orchestrator.eventsReadState()[s.app]?.readAt ?? null, eventsReading: orchestrator.eventsReadState()[s.app]?.reading ?? false }));
+        // live events: the ones a service's rows list as live, and the ones its events pages list (Apple TV's Formula 1 and MLS, 2026-09-30) - on now first, then by start
+        const now = Date.now();
+        const events = sv.services.flatMap((s) => [
+          ...liveItemsOf(s.library).map((it) => ({ app: s.app, service: s.name, facet: s.facet, id: it.id, title: it.title, url: it.url ?? null, artwork: it.artwork ?? null, badge: it.badge ?? null, start: null as number | null, end: null as number | null, live: true, group: null as string | null })),
+          ...orchestrator.liveEvents(s.app, now).map((it) => ({ app: s.app, service: s.name, facet: s.facet, id: it.id, title: it.title, url: it.url ?? null, artwork: it.artwork ?? null, badge: it.badge ?? null, start: it.start ?? null, end: it.end ?? null, live: !!it.live, group: it.group ?? null, sport: sportOf(it.title, it.group) })),
+        ]).sort((a, b) => Number(b.live) - Number(a.live) || (a.start ?? 0) - (b.start ?? 0));
+        const eventReads = orchestrator.eventsReadState();
+        return json({ ...g, guides, events, eventReads });
+      } catch (e) { report(e); return json({ window: null, types: [], rows: [], guides: [], events: [], error: String(e) }); }
+    },
+    liveScoreWatch(league, id) {
+      try {
+        const g = orchestrator.scores(false).games.find((x) => x.league === String(league ?? "") && x.id === String(id ?? ""));
+        if (!g) return json({ ok: false, error: "no such game" });
+        const w = scoreWatch(g);
+        if (!w) return json({ ok: false, error: "no service on this wall carries " + g.short });
+        if (w.how === "event") return json({ ...videoPlayOn(w.facet, "live", w.id, w.url, w.title), service: w.service });
+        return json({ ...videoTune(w.facet, w.id, w.url, w.title), service: w.service });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    liveNowOn(type) {
+      try {
+        // what is on across a mode's channels, as TMDB knows it (2026-10-02, Entertainment mode: "A Now-on strip ... a row of posters for
+        // what's on across the Entertainment channels, each with TMDB's rating and year, press to tune"): the program on now, or the show
+        // a loop channel is named after; a card where TMDB matched the name exactly, in the guide's own order - Prism ranks nothing
+        const sv = videoServices();
+        const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: s.live.map(withTmdbWord) }));
+        const g = liveGuide(services, Date.now(), { type: type ? String(type) : null, q: null });
+        const cards: Array<Record<string, unknown>> = [];
+        let asked = 0, none = 0;
+        for (const r of g.rows) {
+          const on = r.programs.find((p) => p.now);
+          const name = on?.title ?? (isShowName(r.name) ? r.name : null);
+          if (!name) continue;
+          const t = orchestrator.liveTitle(name);
+          if (t === undefined) { asked++; continue; }
+          if (t === null) { none++; continue; }
+          cards.push({ name, kind: t.kind, tmdb: t.id, title: t.title, year: t.year, poster: t.poster, backdrop: t.backdrop, rating: t.rating, overview: t.overview, genres: t.genres, from: on ? "program" : "channel",
+            cert: t.cert ?? null, kids: isKidsRating(t.cert),
+            // the program's span, for the poster's elapsed part (2026-10-02, "If the show has already started can we show the lapsed time on the poster?")
+            // the program's real start; none when only "what is on" is known (review 2026-10-02: the window's edge had read as "just started")
+            start: on?.began ?? on?.startsAt ?? (on && on.start > g.window.start ? on.start : null), end: on?.end ?? null,
+            channel: { id: r.id, name: r.name, service: r.service, app: r.app, facet: r.facet, url: r.url, logo: r.logo } });
+        }
+        // one poster a title (2026-10-02, Reality mode: Survivor on two channels): the first channel in the guide's order is the press,
+        // the others are named on the card
+        const seenTitle = new Map<string, Record<string, unknown>>();
+        const merged: Array<Record<string, unknown>> = [];
+        for (const c of cards) {
+          const k = c.kind + ":" + c.tmdb;
+          const first = seenTitle.get(k);
+          if (first) { (first.also as Array<Record<string, unknown>>).push(c.channel as Record<string, unknown>); continue; }
+          const card = { ...c, also: [] as Array<Record<string, unknown>> };
+          seenTitle.set(k, card); merged.push(card);
+        }
+        return json({ cards: merged, pending: orchestrator.liveTitlesHaveKey() ? Math.max(orchestrator.liveTitlesPending(), asked) : 0, unmatched: none, source: "TMDB", hasKey: orchestrator.liveTitlesHaveKey() });
+      } catch (e) { report(e); return json({ cards: [], pending: 0, unmatched: 0, source: "TMDB", hasKey: false, error: String(e) }); }
+    },
+    // the person's TMDB account and their ratings (tmdb-account.ts, 2026-10-03): the host's calls are synchronous, so each starts the work
+    // and answers the state it has; the host asks again a moment later (the pattern titleDetails uses)
+    tmdbLinkState() {
+      try {
+        if (!tmdbUi.state && !tmdbUi.loading) { tmdbUi.loading = true; void orchestrator.tmdbLinkState().then((s) => { tmdbUi.state = s; }).catch(report).finally(() => { tmdbUi.loading = false; }); }
+        return json({ ...(tmdbUi.state ?? { linked: false, username: null, linkedAt: null, pending: false, hasKey: false, loading: true }), url: tmdbUi.url, error: tmdbUi.error, busy: tmdbUi.busy });
+      } catch (e) { report(e); return json({ linked: false, error: String(e) }); }
+    },
+    tmdbLinkStart() {
+      try {
+        tmdbUi.busy = true; tmdbUi.error = null; tmdbUi.url = null;
+        void orchestrator.tmdbLinkStart().then((r) => { if ("url" in r) tmdbUi.url = r.url; else tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); }).finally(() => { tmdbUi.busy = false; tmdbUi.state = null; });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    tmdbLinkFinish() {
+      try {
+        tmdbUi.busy = true; tmdbUi.error = null;
+        void orchestrator.tmdbLinkFinish().then((r) => { if (r.ok) { tmdbUi.url = null; tmdbUi.rated.clear(); } else tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); }).finally(() => { tmdbUi.busy = false; tmdbUi.state = null; });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    tmdbUnlink() {
+      try {
+        tmdbUi.busy = true; tmdbUi.error = null; tmdbUi.url = null;
+        void orchestrator.tmdbUnlink().catch(report).finally(() => { tmdbUi.busy = false; tmdbUi.state = null; tmdbUi.rated.clear(); });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    tmdbRated(kind, id) {
+      try {
+        const k = (String(kind) === "tv" ? "tv" : "movie") + ":" + Number(id);
+        if (tmdbUi.rated.has(k)) return json({ value: tmdbUi.rated.get(k) ?? null, working: false });
+        if (!tmdbUi.reading.has(k)) { tmdbUi.reading.add(k); void orchestrator.tmdbRated(String(kind) === "tv" ? "tv" : "movie", Number(id)).then((v) => { tmdbUi.rated.set(k, v); }).catch(report).finally(() => { tmdbUi.reading.delete(k); }); }
+        return json({ value: null, working: true });
+      } catch (e) { report(e); return json({ value: null, working: false, error: String(e) }); }
+    },
+    tmdbRate(kind, id, value) {
+      try {
+        const kk = String(kind) === "tv" ? "tv" : "movie"; const k = kk + ":" + Number(id);
+        const v = value === null || value === undefined || (typeof value === "string" && value === "") ? null : Number(value);
+        tmdbUi.rated.delete(k); tmdbUi.reading.add(k);
+        void orchestrator.tmdbRate(kk, Number(id), v).then((r) => { if (r.ok) tmdbUi.rated.set(k, r.value); else tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); }).finally(() => { tmdbUi.reading.delete(k); });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    // the TMDB watchlist (2026-10-03): a toggle by TMDB title, its state, and the copy of the services' lists
+    watchlistSet(kind, id, on) {
+      try {
+        const kk = String(kind) === "tv" || String(kind) === "series" ? "tv" : "movie";
+        tmdbUi.error = null;
+        void orchestrator.watchlistSet(kk, Number(id), on === true || on === "true" || on === "1").then((r) => { if (!r.ok) tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    watchlistHas(kind, id) {
+      try { const kk = String(kind) === "tv" || String(kind) === "series" ? "tv" : "movie"; return json({ on: orchestrator.watchlistHas(kk, Number(id)), linked: orchestrator.watchlistActive(), error: tmdbUi.error }); }
+      catch (e) { report(e); return json({ on: null, linked: false }); }
+    },
+    watchlistView(force) {
+      try { const w = orchestrator.videoWatchlist(hiddenServices(), force === true); const menu = w.active ? videoMenu() : null; return json({ ...w, offer: menu ? watchOffer(menu.list as Array<{ item: { title: string; kind?: string } }>, w) : 0, importing: orchestrator.watchlistImportState(), error: tmdbUi.error }); }
+      catch (e) { report(e); return json({ active: false, reading: false, cards: [], count: 0, offer: 0 }); }
+    },
+    watchlistHasTitle(title, kind) {
+      try { return json({ ...orchestrator.watchlistHasTitle(String(title ?? ""), kind ? String(kind) : null), error: tmdbUi.error }); }
+      catch (e) { report(e); return json({ on: null, work: null }); }
+    },
+    watchlistSetTitle(title, kind, on) {
+      try {
+        tmdbUi.error = null;
+        void orchestrator.watchlistSetTitle(String(title ?? ""), kind ? String(kind) : null, on === true || on === "true" || on === "1").then((r) => { if (!r.ok) tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); });
+        return json({ status: "working" });
+      } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
+    },
+    // one private list made, a long comment written and read back, the list deleted (2026-10-03, asked for: "Yes"): how much a comment keeps
+    watchlistImport() {
+      try {
+        const sv = videoServices();
+        const menu = videoMenu();
+        const seen = new Set<string>();
+        const items: Array<{ title: string; kind: string; providers: number[] }> = [];
+        for (const c of (menu.list ?? []) as Array<{ app: string; item: { title: string; kind?: string } }>) {
+          const k = normalizeTrackText(c.item.title) + "|" + (c.item.kind ?? "");
+          if (seen.has(k)) continue; seen.add(k);
+          const s = sv.services.find((x) => x.app === c.app);
+          items.push({ title: c.item.title, kind: c.item.kind ?? "title", providers: s ? orchestrator.providersOfAdapter(s.adapter) : [] });
+        }
+        return json({ started: orchestrator.watchlistImportStart(items), total: items.length });
+      } catch (e) { report(e); return json({ started: false, error: String(e) }); }
+    },
+    liveNews(force, mode) {
+      try {
+        // Local mode's front page is the stations' (2026-10-02): a station's feed shows there and not in News mode
+        const wantLocal = String(mode ?? "") === "Local";
+        // what a live news show reported (2026-10-01): the adapters' feed pairings against the guide's news rows and what is on them now
+        const sv = videoServices();
+        const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: s.live }));
+        const g = liveGuide(services, Date.now(), { type: null, q: null });
+        const rows: NewsGuideRow[] = g.rows.map((r) => ({ id: r.id, name: r.name, service: r.service, app: r.app, facet: r.facet, url: r.url ?? null, now: r.programs.find((p) => p.now)?.title ?? null }));
+        const specs: NewsFeedSpec[] = sv.services.flatMap((s) => orchestrator.adapterSpec(s.adapter)?.newsFeeds ?? []).filter((f) => !!f.local === wantLocal);
+        // several feeds paired with one channel under one name (NBC News' sections, each with the stream's segments) make one group
+        const byGroup = new Map<string, { name: string; show: string | null; feeds: string[]; readAt: number | null; reading: boolean; error: string | null; stories: ReturnType<typeof storiesOf>; leftOut: Record<string, number>; channel: Record<string, string | null> }>();
+        for (const p of pairFeeds(specs, rows)) {
+          const f = orchestrator.newsFeed(p.spec.feed, force === true);
+          const key = p.row.id + "|" + p.name;
+          const g0 = byGroup.get(key) ?? { name: p.name, show: p.spec.show ?? null, feeds: [], readAt: null, reading: false, error: null, stories: [], leftOut: {},
+            channel: { id: p.row.id, name: p.row.name, service: p.row.service, app: p.row.app, facet: p.row.facet, url: p.row.url ?? null, now: p.row.now ?? null } };
+          g0.feeds.push(p.spec.feed);
+          g0.readAt = g0.readAt === null ? f.readAt : f.readAt === null ? g0.readAt : Math.max(g0.readAt, f.readAt);
+          g0.reading = g0.reading || f.reading;
+          g0.error = g0.error ?? f.error;
+          for (const it of f.items) { const why = leftOutWhy(it, p.spec); if (why) g0.leftOut[why] = (g0.leftOut[why] ?? 0) + 1; }
+          const seen = new Set(g0.stories.map((x) => x.link));
+          g0.stories = storiesOf([...g0.stories, ...storiesOf(f.items, p.spec, 50).filter((x) => !seen.has(x.link))], {}, 24);
+          byGroup.set(key, g0);
+        }
+        const groups = [...byGroup.values()].map((g0) => ({ ...g0, feed: g0.feeds.join(" "), stories: g0.stories.slice(0, 12) }));
+        return json({ groups, rules: ["the networks' opinion sections are never paired", "a full episode is the show, not a story", "a shopping segment is not news"] });
+      } catch (e) { report(e); return json({ groups: [], rules: [], error: String(e) }); }
+    },
+    liveScores(force) {
+      try {
+        const s = orchestrator.scores(force === true);
+        // the last day's games (2026-10-01): a line a game with the day's word when it was not today's
+        const now = Date.now();
+        const clock = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        const games = gamesOfLastDay(s.games, now).map((g) => ({ ...g, watch: scoreWatch(g), line: scoreLine(g, clock), day: new Date(g.start).toDateString() === new Date(now).toDateString() ? "today" : new Date(g.start).toDateString() === new Date(now - 24 * 3_600_000).toDateString() ? "yesterday" : new Date(g.start).toLocaleDateString(undefined, { weekday: "short" }) }));
+        return json({ source: s.source, readAt: s.readAt, reading: s.reading, games, errors: s.errors });
+      } catch (e) { report(e); return json({ source: SCORE_SOURCE, readAt: null, reading: false, games: [], errors: { all: String(e) } }); }
+    },
+    videoLiveRead(force) {
+      try { orchestrator.notePersonAbout(); const hs = hiddenServices(); if (force === true) orchestrator.scoresDayRead(true); return json({ ok: true, asked: [...orchestrator.videoLiveRead(hs, force === true), ...orchestrator.videoEventsRead(hs, force === true)] }); }
+      catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    titleAlsoOnPlan(appsJson) {
+      // the decision is core's (2026-09-28, "standardize the ruleset outside of the adapters"): the host had named Hulu and Disney+ itself - for a
+      // title that plays on these apps, each service that also carries one of them and is not among them already is worth asking
+      try {
+        let list: unknown = [];
+        try { list = JSON.parse(String(appsJson ?? "[]")); } catch { return "[]"; }   // nothing to plan for
+        const apps = new Set((Array.isArray(list) ? list : []).map((a) => String(a)));
+        const named = (app: string) => videoServices().services.find((x) => x.app === app)?.name ?? app;
+        return json(Object.entries(ALSO_VIA).filter(([via, app]) => apps.has(via) && !apps.has(app)).map(([via, app]) => ({ via, viaName: named(via), app, name: named(app) })));
+      } catch (e) { report(e); return "[]"; }
+    },
     titleAlsoOn(kind, id, title, viaApp) {
       // Hulu's shows in the Disney+ app (2026-09-25): not every title, and JustWatch lists them under Hulu alone - so Disney+ is asked, once per
       // title a week, when that title's Details opens; the page shows the answer when it comes
@@ -2235,13 +3445,21 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         // the episode's own address when the Episodes list has it (most services), else the service's episode-by-number control (Peacock)
         const ep = list.seasons.find((x) => x.season === season)?.episodes.find((e) => e.episode === episode);
         orchestrator.videoExpectEpisode(tile, { series: v.series, season, episode, title: ep?.title || `Episode ${episode}`, id: ep?.id ?? null });   // shown at once, not when the service says so
+        // the wall's cover over the service's pages while it moves to the episode (2026-10-06, "I pressed back episode 3x to go to episode 6, and it
+        // showed the pages while I was navigating"): the same word a pick from the phone sends, so the stage bar's press and the phone's both get it
+        const cover = () => coverScreen(tile, `${v.series}, S${season} E${episode}`);
         if (ep?.id && ep.url) {
           const p = videoPlayOn(sv.screen.facet, "title", ep.id, ep.url, ep.title || `S${season} E${episode}`);
-          if (p.ok) return json({ ok: true, did: "previous", season, episode });
+          if (p.ok) { cover(); return json({ ok: true, did: "previous", season, episode }); }
         }
         const r = orchestrator.videoPlayEpisodeNumber(tile, season, episode);
-        return r === "ok" ? json({ ok: true, did: "previous", season, episode }) : start();
+        if (r === "ok") { cover(); return json({ ok: true, did: "previous", season, episode }); }
+        return start();
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoProgramEdges(tileId) { try { return json(orchestrator.videoProgramEdges(String(tileId))); } catch (e) { report(e); return "null"; } },
+    videoPictureFrozen(tileId, seconds) {
+      try { return json(orchestrator.videoPictureFrozen(String(tileId), Number(seconds))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoResync() {
       try {
@@ -2275,7 +3493,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // window. Also give me a save & exit button"): the whole draft committed at once - only the services whose profile changed are switched
     videoProfilesCommit(draftJson) {
       try {
-        const d = JSON.parse(String(draftJson ?? "{}")) as { picks?: Record<string, string>; off?: string[]; preset?: string | null; name?: string | null };
+        const d = JSON.parse(String(draftJson ?? "{}")) as { picks?: Record<string, string>; off?: string[]; preset?: string | null; name?: string | null; signIns?: Record<string, string> };
+        const asked = Object.fromEntries(Object.entries(d.signIns ?? {}).filter(([, id]) => typeof id === "string" && !!id));
+        const movedTo = moveToSignIns(asked);
         const view0 = profilesView();
         const known = new Map(view0.services.map((s) => [s.app, s]));
         const picks: Record<string, string> = {};
@@ -2299,13 +3519,13 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         if (newName || target) {
           let fresh = "p" + Date.now().toString(36);
           for (let i = 2; st.presets.some((p) => p.id === fresh); i++) fresh = "p" + Date.now().toString(36) + "-" + i;
-          const preset: ProfilePreset = { id: target?.id ?? fresh, name: newName || target!.name, picks: presetPicks, off: [...off] };
+          const preset: ProfilePreset = { id: target?.id ?? fresh, name: newName || target!.name, picks: presetPicks, off: [...off], signIns: signInsInUse() };
           st.presets = target ? st.presets.map((p) => (p.id === target!.id ? preset : p)) : [...st.presets, preset];
           target = preset;
         }
         st.active = target?.id ?? null;
         presetsWrite(st);
-        return json({ ok: true, switched, preset: target ? { id: target.id, name: target.name } : null });
+        return json({ ok: true, switched, moved: movedTo.moved, preset: target ? { id: target.id, name: target.name } : null });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoProfileExclude(appId, on) {
@@ -2326,16 +3546,113 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         if (!n) return json({ ok: false, error: "a preset needs a name" });
         const picks: Record<string, { id: string; name: string }> = {};
         for (const s of profilesView().services) if (s.current) picks[s.app] = s.current;
-        if (!Object.keys(picks).length && !presetsNow().off.length) return json({ ok: false, error: "no service has a profile chosen yet" });
+        const inUse = signInsInUse();
+        if (!Object.keys(picks).length && !presetsNow().off.length && !Object.keys(inUse).length) return json({ ok: false, error: "no service has a profile chosen yet" });
         const st = presetsNow();
         const same = st.presets.find((p) => p.name.toLowerCase() === n.toLowerCase());
         let fresh = "p" + Date.now().toString(36);
         for (let i = 2; st.presets.some((p) => p.id === fresh); i++) fresh = "p" + Date.now().toString(36) + "-" + i;   // two saves in one millisecond
-        const preset: ProfilePreset = { id: same?.id ?? fresh, name: n, picks, off: [...st.off] };
+        const preset: ProfilePreset = { id: same?.id ?? fresh, name: n, picks, off: [...st.off], signIns: inUse };
         st.presets = same ? st.presets.map((p) => (p.id === same.id ? preset : p)) : [...st.presets, preset];
         st.active = preset.id;
         presetsWrite(st);
         return json({ ok: true, preset });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    signInsView(catalogJson) {
+      try { if (catalogJson) learnAccounts(JSON.parse(catalogJson) as SetupEntry[]); return json(signInsView()); } catch (e) { report(e); return json({ services: [] }); }
+    },
+    signInAdd(appId, name) {
+      try {
+        const app = model.app(String(appId ?? ""));
+        if (!app) return json({ ok: false, error: "unknown service" });
+        const key = accountOfApp(app.id);
+        const st = withProfile(signInsSettled(), key, app.profileId, app.name);
+        const taken = new Set(model.snapshot().apps.map((a) => a.profileId));
+        const r = addSignIn(st, key, String(name ?? ""), taken);
+        if ("error" in r) return json({ ok: false, error: r.error });
+        // the way back: before the first other person is added, the wall as it stands is kept as a set of its own ("Household"), so
+        // there is one to switch back to
+        if (r.made) {
+          const ps = presetsNow();
+          if (!ps.presets.length) {
+            const picks: Record<string, { id: string; name: string }> = {};
+            for (const s of profilesView().services) if (s.current) picks[s.app] = s.current;
+            const first: ProfilePreset = { id: "p" + Date.now().toString(36), name: FIRST_SIGN_IN_NAME, picks, off: [...ps.off], signIns: signInsInUse() };
+            presetsWrite({ ...ps, presets: [first], active: first.id });
+          }
+        }
+        signInsWrite(r.state);
+        return json({ ok: true, made: r.made, signIn: { id: r.signIn.id, name: r.signIn.name } });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    signInUse(appId, signInId) {
+      try {
+        const r = moveToSignIn(String(appId ?? ""), String(signInId ?? ""));
+        if (r.ok && r.changed) {
+          const st = presetsNow(); if (st.active) { st.active = null; presetsWrite(st); }   // a hand-picked sign-in: no set is the one on now
+          const active = model.activeScene(); if (active) applyScene(active);
+        }
+        return json(r);
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    signInsLabel() {
+      try { return json({ ok: true, asked: labelSignIns() }); } catch (e) { report(e); return json({ ok: false, asked: [] }); }
+    },
+    signInHide(appId, signInId) {
+      try {
+        const app = model.app(String(appId ?? ""));
+        if (!app) return json({ ok: false, error: "unknown service" });
+        const key = accountOfApp(app.id);
+        const inUse = new Set(model.snapshot().apps.filter((a) => accountOfApp(a.id) === key).map((a) => a.profileId));
+        const r = hideSignIn(signInsSettled(), key, String(signInId ?? ""), inUse);
+        if ("error" in r) return json({ ok: false, error: r.error });
+        signInsWrite(r);
+        return json({ ok: true });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    signInShow(appId, signInId) {
+      try {
+        const app = model.app(String(appId ?? ""));
+        if (!app) return json({ ok: false, error: "unknown service" });
+        const r = showSignIn(signInsSettled(), accountOfApp(app.id), String(signInId ?? ""));
+        if ("error" in r) return json({ ok: false, error: r.error });
+        signInsWrite(r);
+        return json({ ok: true });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    signInRename(appId, signInId, name) {
+      try {
+        const before = signInsSettled();
+        const key = accountOfApp(String(appId ?? ""));
+        const was = signInById(before, key, String(signInId ?? ""))?.name ?? "";
+        const r = renameSignIn(before, key, String(signInId ?? ""), String(name ?? ""));
+        if ("error" in r) return json({ ok: false, error: r.error });
+        // the name is a person's: every other account's sign-in that carried it takes the new one too ("Household" renamed is renamed
+        // on every service), where that account has no sign-in of the new name already
+        let st = r, also = 0;
+        for (const [k, list] of Object.entries(before.accounts)) {
+          if (k === key) continue;
+          for (const s of list) {
+            if (s.name.toLowerCase() !== was.toLowerCase()) continue;
+            const n = renameSignIn(st, k, s.id, String(name ?? ""));
+            if (!("error" in n)) { st = n; also++; }
+          }
+        }
+        signInsWrite(st);
+        return json({ ok: true, also });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoPresetRename(presetId, name) {
+      try {
+        const n = String(name ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+        if (!n) return json({ ok: false, error: "a preset needs a name" });
+        const st = presetsNow();
+        if (!st.presets.some((p) => p.id === presetId)) return json({ ok: false, error: "unknown preset" });
+        if (st.presets.some((p) => p.id !== presetId && p.name.toLowerCase() === n.toLowerCase())) return json({ ok: false, error: "another preset has that name" });
+        st.presets = st.presets.map((p) => (p.id === presetId ? { ...p, name: n } : p));
+        presetsWrite(st);
+        return json({ ok: true });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoPresetDelete(presetId) {
@@ -2352,6 +3669,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         const st = presetsNow();
         const p = st.presets.find((x) => x.id === presetId);
         if (!p) return json({ ok: false, error: "unknown preset" });
+        // the person's sign-ins first, music and video alike: a login's profiles are its own, so the profiles are pressed after
+        const movedTo = moveToSignIns(p.signIns ?? {});
         const svcs = hiddenServices();
         const off = p.off ?? [];
         const picks = Object.fromEntries(Object.entries(p.picks).filter(([app]) => !off.includes(app)).map(([app, c]) => [app, c.id]));   // an excluded service is left as it is
@@ -2360,7 +3679,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         st.active = p.id;
         st.off = [...off];
         presetsWrite(st);
-        return json({ ok: true, switched, missing });
+        return json({ ok: true, switched, missing, moved: movedTo.moved });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoProfileAsk(appId) {
@@ -2401,11 +3720,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       orchestrator.setIntermissionAmbient(sound && sound !== "off" ? sound : null).catch(report);
     },
     musicSources() {
-      return json(orchestrator.musicSourceTiles().map((s) => {
-        const appId = itemContext(s.tile)?.app ?? null;
-        const app = appId ? model.app(appId) : undefined;
-        return { tile: s.tile, app: appId, name: app?.name ?? appId ?? s.tile, session: orchestrator.sessionOf(s.tile) ?? null, active: s.stages.length > 0, stages: s.stages };
-      }));
+      return json(musicSourcesNow());
     },
     musicPrepareOrder(tileId, kind, id) {
       try { orchestrator.prepareOrder(tileId, kind, id); } catch (e) { report(e); }
@@ -2433,6 +3748,20 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     musicLookupPick(tileId, songId) {
       if (!orchestrator.musicLookupPick(tileId, songId)) report(new Error("musicLookupPick " + tileId + ": not a candidate"));
     },
+    musicPlayingIn(tileId) { try { return json(orchestrator.musicPlayingIn(String(tileId))); } catch (e) { report(e); return "null"; } },
+    musicRemovePlaying(tileId, playlistId, dry) {
+      try {
+        const tile = String(tileId);
+        const appId = model.facet(tile)?.app ?? null;
+        const a = appId ? model.app(appId) : undefined;
+        if (!a) return json({ ok: false, error: "no service for " + tile });
+        const s = { app: a.id, adapter: adapterKeyOf(a.id), profile: a.profileId };
+        orchestrator.notePersonAbout();
+        orchestrator.musicRemovePlaying(s, tile, String(playlistId), dry === true).then((r) => { if (r === "unknown" || r === "unknown-tile") report(new Error("musicRemovePlaying " + tile + ": " + r)); }, report);
+        return json({ ok: true, asked: true });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    musicRemoveState(tileId) { try { return json(orchestrator.musicRemoveState(String(tileId))); } catch (e) { report(e); return "null"; } },
     musicAddToPlaylist(tileId, playlistId, songId) {
       orchestrator.musicAddToPlaylist(tileId, playlistId, songId).then((r) => { if (r === "unknown" || r === "unknown-tile") report(new Error("musicAddToPlaylist " + tileId + ": " + r)); }, report);
     },
@@ -2468,6 +3797,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     modelPresetFacet: (entryJson, presetId, appId, slotClass, selectorTableJson, facetId) => PrismModelEval.presetFacet(entryJson, presetId, appId, slotClass, selectorTableJson, facetId),
     modelLoginRedirect: (url, loginPrefix, baseUrl) => PrismModelEval.loginRedirect(url, loginPrefix, baseUrl),
     modelSessionProbeJs: (signedIn, signedOut) => PrismModelEval.sessionProbeJs(signedIn, signedOut),
+    modelSignInPage: (login, signIn) => PrismModelEval.signInPage(login, signIn ?? null),
+    modelSignInPressJs: (signedOut) => PrismModelEval.signInPressJs(signedOut),
     modelSessionVerdict: (resultJson) => PrismModelEval.sessionVerdict(resultJson),
     modelFacetPickerJs: () => PrismModelEval.facetPickerJs(),
     modelFacetPickPollJs: () => PrismModelEval.facetPickPollJs(),
@@ -2524,10 +3855,138 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       }
     },
   };
+  // the phone's Video tab (2026-10-04, "a full watch (with no video) page for video"): the Watch screen's two rows and the live channels,
+  // the big window's state with its art, and the plays the PC's own bar makes - never a picture (the services' video is DRM, and
+  // Prism does not touch it: docs/third-party-services-policy.md)
+  remote.video = {
+    view: () => {
+      const sv = videoServices();
+      const order = model.snapshot().apps.map((a) => a.id);
+      const names = [...sv.services].sort((a, b) => order.indexOf(a.app) - order.indexOf(b.app)).map((s) => ({ app: s.app, name: s.name, facet: s.facet, adapter: s.adapter }));
+      const rows = orchestrator.videoMenuRows(names);
+      const off = excludedNow();
+      const card = (c: { app: string; service: string; facet: string; item: VideoItem }) => ({
+        app: c.app, service: c.service, facet: c.facet,
+        item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, progress: c.item.progress ?? null },
+      });
+      const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem }>) => cs.filter((c) => !off.has(c.app)).slice(0, 40).map(card);
+      const tile = sv.screen?.slot ?? null;
+      const st = tile ? orchestrator.videoState().find((x) => x.id === tile) ?? null : null;
+      const art = tile ? orchestrator.videoArtOf(tile) : null;
+      const now = st ? { tile, playing: st.playing, video: st.video, skip: st.skip ?? null, error: st.error, can: st.can, pending: st.pending, art: art?.art ?? null, artTitle: art?.title ?? null } : null;
+      return {
+        active: sv.active, screen: sv.screen, now,
+        continue: trim(rows.continue), list: trim(rows.list),
+        // each channel's program on now with its span (2026-10-05, "a data bar in each live channel in the companion app showing how much runtime and
+        // how close to complete each current show is"): start and end from the guide's schedule; a service that names only what is on gives the end alone
+        // a service's live events stand among its rows here as on the PC's tab (2026-10-05, "Isn't Live supposed to show the Formula 1 stuff
+        // from Apple?": the phone's list came from the channel guides alone, and Apple TV has events and no channels, so it was never listed)
+        live: sv.services.filter((s) => (s.live.length > 0 || orchestrator.liveEvents(s.app).length > 0) && !off.has(s.app)).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: [...s.live, ...eventRowsOf(orchestrator, s.app)].slice(0, 160).map((c) => {
+          const on = programOnNow(c, Date.now());
+          return { id: c.id, name: c.name, url: c.url, now: on?.title ?? c.now ?? null, logo: c.logo ?? null, event: !!c.event, series: c.series ?? null, start: on?.start ?? null, end: on?.end ?? null };
+        }) })),
+        // the guides being read right now, so the phone can say so instead of "none" (2026-10-05)
+        liveReading: Object.values(orchestrator.liveReadState()).some((r) => r.reading),
+        liveCanRead: sv.services.some((s) => !!orchestrator.adapterSpec(s.adapter)?.videoLiveUrl),
+        services: sv.services.map((s) => ({ app: s.app, name: s.name, facet: s.facet, status: s.status, onScreen: s.onScreen })),
+      };
+    },
+    play: (facet, kind, id, url, name) => {
+      orchestrator.notePersonAbout();
+      const r = videoPlayOn(facet, kind, id, url, name);
+      // the PC's Watch screen stood over the playing video (2026-10-05, "No video playing on the PC"): the same close-and-curtain its own press does
+      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? id, sv?.name ?? facet, null); }
+      return r;
+    },
+    tune: (facet, channel, url, name) => {
+      orchestrator.notePersonAbout();
+      const r = videoTune(facet, channel, url, name);
+      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? channel, sv?.name ?? facet, null); }
+      return r;
+    },
+    seek: (tile, seconds) => orchestrator.videoSeek(tile, seconds),
+    // the service's own subtitle and audio tracks for the phone's Captions sheet (2026-10-05, "The caption button should open the menu of
+    // options and allow selection"): read from the page as the PC's menu reads them, a pick through core, and the sheet closed
+    tracks: (tile) => orchestrator.videoTracks(tile),
+    track: (tile, kind, id) => orchestrator.videoTrack(tile, kind === "audio" ? "audio" : "subtitles", id),
+    tracksDone: (tile) => orchestrator.videoTracksDone(tile),
+    startOver: () => { try { return JSON.parse(api.videoStartOver()) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
+    // more of the Watch screen (2026-10-05): every play below is the Watch screen's own path, with the curtain signal the PC's own press gives
+    search: (q) => { orchestrator.notePersonAbout(); return videoLookup(q); },
+    searchState: () => videoLookupNow(),
+    playResult: (app, candidate) => {
+      orchestrator.notePersonAbout();
+      const c = candidate as { title?: string };
+      const r = videoPlayResult(app, JSON.stringify(candidate));
+      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(c.title ?? "the title", sv?.name ?? app, null); }
+      return r;
+    },
+    episodes: () => { try { return JSON.parse(api.videoEpisodes()) as unknown; } catch (e) { report(e); return { ready: true, seasons: [], error: String(e) }; } },
+    playEpisode: (id) => {
+      orchestrator.notePersonAbout();
+      try {
+        const sv = videoServices();
+        const ep = sv.screen ? orchestrator.videoEpisodeById(sv.screen.slot, sv.screen.app, id) : null;
+        const r = JSON.parse(api.videoPlayEpisode(id)) as { ok?: boolean };
+        if (r.ok && sv.screen) { const s = sv.services.find((x) => x.facet === sv.screen!.facet); void drivers.ui?.videoPick?.(ep?.title ?? "the episode", s?.name ?? sv.screen.app, null); }
+        return r;
+      } catch (e) { report(e); return { ok: false, error: String(e) }; }
+    },
+    lenses: () => {
+      const m = videoMenu() as { lensRows?: Array<Record<string, unknown>> };
+      const rows = (m.lensRows ?? []).map((lr) => {
+        const catalog = lr.catalog === true;
+        const cards = ((lr.cards as Array<Record<string, unknown>>) ?? []).slice(0, 30).map((c) => {
+          if (catalog) {
+            const svcs = (c.services as Array<{ app: string; name: string; facet: string; offer: string }>) ?? [];
+            return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) };
+          }
+          const it = c.item as VideoItem;
+          return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, progress: it.progress ?? null } };
+        });
+        return { id: lr.id, name: lr.name, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards };
+      }).filter((r) => r.cards.length || r.reading);
+      return { rows };
+    },
+    browsePlay: (app, cardId) => {
+      orchestrator.notePersonAbout();
+      const card = orchestrator.videoBrowseCard(cardId, app);
+      const r = videoBrowsePlay(app, cardId);
+      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(card?.title ?? "the title", sv?.name ?? app, card?.poster ?? null); }
+      return r;
+    },
+    liveRead: () => { try { return JSON.parse(api.videoLiveRead(false)) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
+    // the windows a phone can listen to (2026-10-05): multiview's, big first, each with what it plays and which one the phone hears now
+    listenWindows: (listener?: string) => {
+      const st = mvState();
+      const wins = (st.windows as Array<Record<string, unknown>> | undefined) ?? [];
+      const listening = listener ? orchestrator.listenWindowOf(listener) : orchestrator.listenWindow;   // this phone's own choice
+      const owner = orchestrator.getState()?.audioOwner ?? null;
+      return { on: !!st.on, listening, windows: wins.map((w, i) => ({ tile: w.tile, index: i, label: i === 0 ? "Big window" : "Window " + (i + 1), name: w.name, title: w.title, playing: w.playing, heard: (listening ?? wins[0]?.tile) === w.tile, owner: owner === w.tile })) };
+    },
+    listenWindow: async (tile: string | null, listener?: string) => { const r = await orchestrator.setListenWindow(tile, listener); return { ok: r === "ok", result: r, listening: listener ? orchestrator.listenWindowOf(listener) : orchestrator.listenWindow }; },
+    privateMute: (on: boolean) => { void drivers.ui?.privateMute?.(on); return { ok: !!drivers.ui?.privateMute, on }; },
+    breakWatch: (on: boolean) => { void drivers.ui?.breakWatch?.(on); return { ok: !!drivers.ui?.breakWatch, on }; },
+  };
+  return api;
 }
 
 // When bundled for a shell (IIFE), install the runtime globally on load.
 // Guarded so importing this module from tests/Node does not require a bridge.
 if (typeof globalThis.PrismBridge !== "undefined") {
   globalThis.PrismRuntime = createRuntime();
+}
+
+/**
+ * A service's live events as rows of its guide (2026-09-30, "Why does your screenshot not show apple in the jump to items"): type Sports,
+ * the series (Formula 1, MLS) a label of its own (2026-10-01, "Would rather these fall under sports"), one on now as what is on, one to
+ * come as its schedule. The PC's Live tab and the phone's Live section take the same rows (2026-10-05).
+ */
+function eventRowsOf(orchestrator: Orchestrator, app: string): VideoChannel[] {
+  return orchestrator.liveEvents(app).map((e) => ({
+    id: e.id, name: e.title, url: e.url ?? "", logo: e.artwork ?? null, favorite: false, category: "Sports", event: true, ...(e.group ? { series: e.group } : {}),
+    now: e.live ? (e.badge && /^live/i.test(e.badge) ? e.title + (e.badge.length > 4 ? " (" + e.badge.slice(4).trim() + ")" : "") : e.title) : null,
+    ...(e.live ? { nowEnds: e.end ?? (e.start ? e.start + 3 * 3_600_000 : Date.now() + 2 * 3_600_000) } : {}),
+    ...(e.start ? { schedule: [{ title: e.title, start: e.start, end: e.end ?? e.start + 3 * 3_600_000, desc: null }] } : {}),
+  }));
 }

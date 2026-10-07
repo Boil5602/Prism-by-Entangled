@@ -22,7 +22,8 @@
     "test": "vitest run",
     "golden:generate": "node scripts/generate-golden.mjs",
     "bundle": "esbuild src/runtime.ts --bundle --format=iife --outfile=dist/prism-runtime.js",
-    "routes:generate": "node scripts/generate-routes-registry.mjs"
+    "routes:generate": "node scripts/generate-routes-registry.mjs",
+    "wordmark:generate": "node scripts/generate-wordmark.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.12",

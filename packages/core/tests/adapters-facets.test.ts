@@ -199,3 +199,14 @@ describe("stable selector + element picker (§31 tap records a selector)", () =>
     expect(document.querySelectorAll("[data-prism-ui='facet-pick']")).toHaveLength(0);
   });
 });
+
+describe("loginRedirect: a login prefix that is the App's own root says nothing (2026-10-05, Amazon Music)", () => {
+  it("reads the App's home as the App, not as its sign-in page, and still catches a real sign-in address", () => {
+    const opts = { login: "https://music.amazon.com/", baseUrl: "https://music.amazon.com/" };
+    expect(loginRedirect("https://music.amazon.com/?useHorizonte=true&hasSeenMusicAuthPage=true", opts)).toBe("app");
+    expect(loginRedirect("https://music.amazon.com/my/library", opts)).toBe("app");
+    expect(loginRedirect("https://www.amazon.com/ap/signin?openid.return_to=x", opts)).toBe("login");
+    // a real prefix on the App's own host still wins
+    expect(loginRedirect("https://www.netflix.com/login", { login: "https://www.netflix.com/login", baseUrl: "https://www.netflix.com/" })).toBe("login");
+  });
+});

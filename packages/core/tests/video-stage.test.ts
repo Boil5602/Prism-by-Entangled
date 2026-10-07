@@ -152,4 +152,25 @@ describe("the page's own playback error (2026-09-21)", () => {
     await vi.advanceTimersByTimeAsync(10);
     expect(JSON.parse(rt.videoState()).find((t: { id: string }) => t.id === "screen").video?.title).toBe("Ep One");
   });
+  it("a page that finishes loading after its player went full-screen keeps the stage while the page says so (Twitch, 2026-10-05)", async () => {
+    const { rt, drivers } = await setup({ hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoCmd: "/*cmd*/" } });
+    let answer = "true";
+    (drivers.surface as { evaluate?: (id: string, js: string) => string }).evaluate = (_id, js) => (js.includes("fullscreenElement") ? answer : "null");
+    rt.videoPlayOn("hu", "title", "e1", "https://www.hulu.com/watch/e1", "Ep One");
+    await vi.advanceTimersByTimeAsync(50);
+    playing(rt, "Ep One");
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));
+    await vi.advanceTimersByTimeAsync(10);
+    const stage = () => (JSON.parse(rt.videoState()) as Array<{ id: string; stage: boolean }>).find((t) => t.id === "screen")?.stage;
+    expect(stage()).toBe(true);
+    // the SPA's late load-finished: the page still says it is full-screen, so the stage stands
+    rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(stage()).toBe(true);
+    // a real new document (the page answers no): the mark goes, as before
+    answer = "false";
+    rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(stage()).toBe(false);
+  });
 });

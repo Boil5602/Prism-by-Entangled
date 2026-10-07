@@ -107,6 +107,7 @@ public sealed partial class MainWindow
         try { raw = await _brain.EvalAsync("PrismRuntime." + fn + "(" + string.Join(",", parts) + ")"); }
         catch (Exception ex) { SetStatus(fn + ": " + ex.Message); return null; }
         if (raw is null) return null;
+        PerfNoteCall(fn, raw.Length);
         try
         {
             using var outer = JsonDocument.Parse(raw);
@@ -114,6 +115,51 @@ public sealed partial class MainWindow
         }
         catch { return raw; }
     }
+
+    /// <summary>
+    /// <see cref="ModelCallAsync"/> for an api function that answers a promise (updateCheck, updateInstallNow, updateSetChannel): WebView2's
+    /// ExecuteScript does not await, so the plain call handed back "{}" and the Updates dialog read "last check never" right after a check
+    /// (2026-10-05). The promise's answer is parked on the brain's window under a ticket and polled for, up to <paramref name="timeoutMs"/>.
+    /// </summary>
+    private async Task<string?> ModelCallAwaitAsync(string fn, int timeoutMs, params object?[] args)
+    {
+        var parts = new List<string>();
+        foreach (var a in args)
+        {
+            parts.Add(a switch
+            {
+                null => "null",
+                bool b => b ? "true" : "false",
+                string s => JsonSerializer.Serialize(s),
+                JsonNode n => JsonSerializer.Serialize(n.ToJsonString()),
+                _ => JsonSerializer.Serialize(JsonSerializer.Serialize(a)),
+            });
+        }
+        var ticket = "t" + Interlocked.Increment(ref _awaitTicket);
+        LogLine("call " + ClipForLog("{\"fn\":\"" + fn + "\",\"args\":[" + string.Join(",", parts) + "],\"await\":\"" + ticket + "\"}", 400));
+        var js = "(function(){ var w = window; w.__prismAwait = w.__prismAwait || {}; Promise.resolve().then(function(){ return PrismRuntime." + fn + "(" + string.Join(",", parts) + "); })"
+               + ".then(function(r){ w.__prismAwait[" + JsonSerializer.Serialize(ticket) + "] = typeof r === 'string' ? r : JSON.stringify(r === undefined ? null : r); }, function(e){ w.__prismAwait[" + JsonSerializer.Serialize(ticket) + "] = JSON.stringify({ error: String(e) }); }); return true; })()";
+        try { await _brain.EvalAsync(js); } catch (Exception ex) { SetStatus(fn + ": " + ex.Message); return null; }
+        var take = "(function(){ var w = window, k = " + JsonSerializer.Serialize(ticket) + "; if (!w.__prismAwait || !(k in w.__prismAwait)) return null; var r = w.__prismAwait[k]; delete w.__prismAwait[k]; return r; })()";
+        var started = Environment.TickCount64;
+        while (Environment.TickCount64 - started < timeoutMs)
+        {
+            await Task.Delay(120);
+            string? raw;
+            try { raw = await _brain.EvalAsync(take); } catch { return null; }
+            if (raw is null || raw == "null") continue;
+            PerfNoteCall(fn, raw.Length);
+            try
+            {
+                using var outer = JsonDocument.Parse(raw);
+                return outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString() : raw;
+            }
+            catch { return raw; }
+        }
+        LogLine("call " + fn + ": no answer in " + timeoutMs + " ms");
+        return null;
+    }
+    private static int _awaitTicket;
 
     private static string ClipForLog(string s, int max)
     {
@@ -849,9 +895,18 @@ public sealed partial class MainWindow
         // never sit in the rail wearing a "needs attention" badge for an account
         // that does not exist.
         var noAccount = CatalogSaysNoAccount(entry.Json);
+        // services that sign in with one account share a profile (core's rule, player-setup profileFor): one sign-in serves them
+        var profile = entry.Id;
+        try
+        {
+            var one = WelcomeEntriesJson(e => e.Id == entry.Id);
+            var asked = (await ModelCallAsync("playerProfileFor", JsonNode.Parse(one) is JsonArray { Count: > 0 } arr ? arr[0]!.ToJsonString() : "{}", WelcomeEntriesJson()))?.Trim().Trim('"');
+            if (asked is { Length: > 0 }) profile = asked;
+        }
+        catch { }
         var app = new JsonObject
         {
-            ["id"] = entry.Id, ["name"] = entry.Name, ["baseUrl"] = entry.Url, ["profileId"] = entry.Id, ["catalogRef"] = entry.Id,
+            ["id"] = entry.Id, ["name"] = entry.Name, ["baseUrl"] = entry.Url, ["profileId"] = profile, ["catalogRef"] = entry.Id,
             ["setup"] = noAccount
                 ? new JsonObject { ["status"] = "signed-in", ["lastVerified"] = DateTime.Now.ToString("yyyy-MM-dd") }
                 : new JsonObject { ["status"] = "unknown" },
@@ -883,6 +938,11 @@ public sealed partial class MainWindow
     }
 
     // ------------------------------------------------ Device
+    /// <summary>The media hub switch's state in words, for the Device page (2026-10-06).</summary>
+    private static string MediaHubStateLine(bool on) => on
+        ? "Remote Desktop Support: On. When a remote desktop leaves, Prism keeps its sound and its screen."
+        : "Remote Desktop Support: Off. A remote desktop that leaves takes Prism's sound and screen until someone signs in at the PC.";
+
     private UIElement RailDevice()
     {
         var col = new StackPanel { Spacing = 8 };
@@ -924,6 +984,22 @@ public sealed partial class MainWindow
         col.Children.Add(Meta("Boot is silent; the first human play lifts exactly the facet it happened in (§3). The test signal drives visualizations without audio, for development; the WASAPI feed replaces it when the source plays."));
         col.Children.Add(Section("KIOSK"));
         col.Children.Add(Small(_wallFs ? "Exit full-screen wall  (F11)" : "Full-screen wall  (F11)", ToggleWallFullscreen));
+        // the media hub switch in the options (2026-10-06, "It does need to be available to be turned off in some options screen"): its state as
+        // Windows has it (the task's existence), and the same dialog as the Prism menu's item to turn it off or on (docs/features/media-hub.md)
+        // the phone's firewall rule beside it (2026-10-06, Services/DeviceSetup): set at first run on Set up services, checked and set again here
+        col.Children.Add(Section("PHONE REMOTE"));
+        var fwIn = Services.DeviceSetup.FirewallRuleInPlace();
+        col.Children.Add(new TextBlock { Text = fwIn ? "Windows Firewall lets phones on your home network reach Prism (port " + Services.DeviceSetup.RemotePort + ", the installed Prism only)." : "Windows Firewall has no rule for Prism's phone remote yet, so Windows may ask the first time a phone connects.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+        if (!fwIn) col.Children.Add(Small("Allow phones through Windows Firewall" + (char)0x2026, async () => { var ok = await Services.DeviceSetup.SetUpAsync(true, false, LogLine); SetPill("Prism" + Mid + (ok ? "phones can reach Prism" : "Windows did not allow it. Nothing changed.")); if (_railSection == "device") await RenderRailAsync(); }));
+        col.Children.Add(Section("REMOTE DESKTOP SUPPORT"));
+        var hubState = new TextBlock { Text = MediaHubStateLine(Services.MediaHub.On), Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap };
+        col.Children.Add(hubState);
+        col.Children.Add(Meta("When a Remote Desktop connection to this PC is closed, Windows takes the sound and the screen away from this sign-in. With this on, a scheduled task puts the session back on the PC's own screen, so Prism carries on. The PC's screen then shows the desktop signed in."));
+        col.Children.Add(Small(Services.MediaHub.On ? "Turn off" + (char)0x2026 : "Turn on" + (char)0x2026, async () => { await ToggleMediaHubAsync(); if (_railSection == "device") await RenderRailAsync(); }));
+        _ = Services.MediaHub.RefreshAsync(force: true).ContinueWith(t => DispatcherQueue.TryEnqueue(() => hubState.Text = MediaHubStateLine(t.Result)));
+        col.Children.Add(Section("SHORTCUTS"));
+        col.Children.Add(new TextBlock { Text = ShortcutsLine(), Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+        col.Children.Add(Small("Choose shortcuts" + (char)0x2026, async () => { await AskShortcutsAsync(false); if (_railSection == "device") await RenderRailAsync(); }));
         col.Children.Add(Section("RESET"));
         var resetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         resetRow.Children.Add(Small("Reset to defaults…", () => _ = ResetToDefaultsAsync()));

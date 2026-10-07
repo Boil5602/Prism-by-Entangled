@@ -88,7 +88,6 @@
     paintUi();
   }
   function paintUi() {
-    $("veil-paused").checked = ui.veilPaused !== false;
     $("report-chip").checked = !!ui.reportChip;
     $("ai-veil").checked = !!ui.aiVeil;
     $("src-marks").checked = !!ui.srcMarks;
@@ -99,7 +98,6 @@
     Array.prototype.forEach.call(document.querySelectorAll("#hud label"), function (l) { var on = l.querySelector("input").value === hud; l.classList.toggle("on", on); l.querySelector("input").checked = on; });
     $("art-weekly").checked = !!ui.artWeekly;
   }
-  $("veil-paused").addEventListener("change", function () { setUi("veilPaused", $("veil-paused").checked); });
   $("report-chip").addEventListener("change", function () { setUi("reportChip", $("report-chip").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
   $("src-marks").addEventListener("change", function () { setUi("srcMarks", $("src-marks").checked); });

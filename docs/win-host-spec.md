@@ -121,6 +121,92 @@ should land, put a picture there (artwork above a find), not only a brighter wor
 - §19 compat reports only (opt-in, per-incident, whitelisted, inspectable). §22 inventory applies: the host writes nothing off-device except user-initiated reports, updates checks, and relay traffic the user enabled.
 - Ledger, popup ledger, snapshots, settings: local only.
 
+## 10b. The wall's cost (perf.log, 2026-10-03)
+
+Once a minute the host writes one line to `diagnostics/perf.log` (MainWindow.PerfWatch.cs): the host and every WebView2 process it owns -
+CPU share over the minute, GPU share from Windows' per-process GPU engine counters, working set, IO rate (file and network together, the
+nearest Windows gives without a capture) - summed, then by profile (each service's browser as a whole: its browser, GPU, utility and
+renderer processes, since a profile's video decoding lands in its one GPU process that no page owns), then the three costliest renderers
+with the surfaces they draw and whether each is parked hidden. A `stalls` count is the UI thread arriving more than 200 ms late on a
+half-second timer. Local only; rotated in place at 2 MB. "Measure first" (2026-10-03): the baseline before hidden pages are made cheaper
+(docs/features/live.md carries that plan). First reading, three windows playing: ~10 GB working set over ~70 processes, CPU 12-20%, GPU
+15-20%; Apple TV's hidden lookup page pulling ~1 MB/s with its profile's GPU at 9-11% (a promo reel playing to nobody); the host itself
+at 1.9 GB.
+
+What the first night found and fixed (2026-10-03, 01:24 to 02:25, three windows playing throughout; the lines are in perf.log):
+
+| | before | after |
+|---|---|---|
+| CPU, all cores | 11-21% | 7.5-9% |
+| GPU | 14-20% | 4.7-6% |
+| working set, all processes | 9.2-10.5 GB | 7.5-7.9 GB |
+| the host's working set | 1.9-3.3 GB | 1.0-1.2 GB |
+| the host's allocation rate | 1.0-1.7 GB/min | 0.3-0.6 GB/min |
+| store writes from the brain | 170/min | 6/min |
+| store file writes (the whole 7 MB each) | 20/min | 1-2/min |
+
+- **Readers dark** (SurfaceManager.DozeIdleReadersAsync, host-prefs `perf.readersDark`, the dev hook "readers on|off"): a hidden reader page
+  (core's "app:<service>:lookup" / "work" pages) untouched for ninety seconds is frozen through Chromium's page lifecycle
+  (`Page.setWebLifecycleState frozen`: scripts, timers, animation and media stop; the layout stands so the adapters' readers see the
+  same shape) and woken before any script, navigation or pointer reaches it. The music players' facets are kind "hidden" too and play
+  while hidden: never readers. Apple TV's lookup page had been the busiest renderer on the wall (5% CPU, 1 MB/s) for nobody.
+- **Decorative loops paused on hidden surfaces** (SurfaceManager.DecorJs): Apple Music's home page looped two muted animated-artwork
+  videos, one 1662 by 2216, under the Video player - its profile's GPU process at 13% decoding for nobody. A page action on a surface
+  entering hidden presence pauses every muted looping video (new ones too) and resumes the ones Prism paused when it comes back.
+- **Store writes coalesced per key** (runtime.ts store.set): the watch log, the recents and the resume point were set 54 times a minute by
+  three playing windows; a changing value now reaches the host after a quiet five seconds, thirty at the most (the brain's snapshot takes
+  it at once, so a read sees it); the host waits four seconds, twenty at the most, before writing the file.
+- Still to look at: the 10 MB/s of IO three playing windows draw, and whether readers should be suspended outright (`TrySuspendAsync`)
+  for memory.
+
+The second pass (2026-10-03, morning, one window playing, the Watch page open): the host's own share. A heap dump showed 267 MB live
+against 1.5-2.4 GB of working set, so the gap was garbage the GC was allowed to keep; a 40-second allocation trace (dotnet-trace,
+`Microsoft-Windows-DotNETRuntime:0x1:5`, the ticks grouped by stack) named the sources. perf.log now carries the brain's answers by
+function and the surfaces' events by type (bytes a minute), the host's allocation by type (an in-process listener on the runtime's
+allocation ticks, host-prefs `perf.allocTypes`), the sampler's own cost, and the beat's.
+
+| | before | after |
+|---|---|---|
+| the host's working set | 1.0-2.4 GB, climbing between restarts | 0.5 GB, flat |
+| the host's managed heap | 0.2-2.0 GB | 55-95 MB |
+| the host's allocation rate | 300-450 MB/min | 60-80 MB/min |
+| the brain's answers to the host | 19 x 1.5 MB a minute | 20 x 30 KB + 15 x 190 KB (the first four minutes) |
+
+- **The Watch page's follow loops asked for the whole menu** (`videoMenu`, 1.47 MB: the owned library 1.06 MB of it) every three seconds
+  and parsed it. They ask for `videoMenuRows` now - the two rows, the watchlist, orders, lens, screen - with the lens rows only for the
+  loop that fills ratings in. The hub's open still reads the whole menu once.
+- **The store's save** was half the remaining churn: `Utf8JsonWriter.WriteString` rents a six-times escape buffer for every megabyte
+  value and grows its output buffer to the whole file (12 MB, three times a minute). StoreService.Save escapes each string by hand
+  into a 16 KB StreamWriter buffer; the file's shape is unchanged (a round-trip test covers every string shape, a lone surrogate
+  becomes U+FFFD as the serializer made it).
+- **The GC conserves memory** (`System.GC.ConserveMemory` 5 in runtimeconfig.template.json): the heap is compacted sooner instead of
+  growing while memory is plentiful - a wall is a device, and a 2 GB heap means long gen-2 pauses (the `stalls` count).
+- What is left is the traffic itself: strings from WinRT (every script result from a page), the host's answers to the brain's page
+  reads serialized to JSON, and the brain's answers to the host - 30-50 MB a minute, proportional to what the pages are asked.
+
+The third pass (2026-10-03, afternoon): **one browser, many sign-ins** (docs/features/sign-ins.md) - every service in one shared
+Chromium profile instead of a browser a service: 41 processes and 5.5-6.8 GB at 9 surfaces became 26 processes and 3.3-3.7 GB at
+15 surfaces, CPU 8-9% to 2-3%. Inside the one browser (the hub request "perf" lists every process in host.log): the frozen readers
+are 5-15 MB each - Chromium purges a frozen page well - so the weight was the idle music players (Apple Music 430 MB, Spotify 216,
+Amazon Music 160, Pandora 147) and the playing window. **Music parked**: a music facet that is not playing and has not been touched
+for ten minutes is frozen like a reader (SurfaceManager.IsMusicFacet, MusicIdle), woken before any script, navigation, pointer,
+placement or reveal reaches it. Behind the same readers-dark switch.
+
+**The store in files a key** (StoreService, 2026-10-03): the whole store had been rewritten on every change - 12 MB, three times a
+minute while something played, 50 GB a day on a mini PC's SSD. A changed key now writes its own file under `store\` (the key made
+safe plus a short hash, `{"key","value"}`, swapped in whole); `store.json` stays as the full snapshot, written at exit and every half
+hour, so backups, the migration scripts and the Device screen read it as before. Loading takes the snapshot and lays each per-key
+file over it when the file is newer (a snapshot a later run wrote without per-key files - tests, tools - wins). A corrupt per-key
+file is set aside, never erased (section 10). perf.log's `saves` now counts the per-key writes: six files and a megabyte a minute
+while something plays, nothing at all while the wall idles.
+
+**The stats on the wall** (MainWindow.PerfPanel.cs, 2026-10-03, "resource charts under the options menu on watch gated behind a
+performance stats checkbox"): Watch settings has a Performance tab - the stats switch (host-prefs `perf.panel`), readers dark, and the
+panel: perf.log's last hour as five small charts (CPU, GPU, memory with the host's own line under it, downloads and disk, the host's
+allocation with its heap under it), the last minute's split by service, the busiest pages, and the host's traffic line. With the switch
+on the same panel sits at the foot of the Watch page and refills as each minute's line lands. It reads the log alone; nothing is
+measured twice, nothing leaves the device. The first line after a start (the host alone) is left out of the charts.
+
 ## 11. Packaging & requirements
 
 - Targets: Windows 10 22H2+ / Windows 11, x64 (ARM64 build after v1).

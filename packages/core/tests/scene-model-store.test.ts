@@ -106,6 +106,25 @@ describe("SceneModelStore — the five stores", () => {
     expect(m.snapshot().scenes[0]).toMatchObject({ id: "kitchen-classic-1", name: "Our kitchen", layout: "kitchen-classic-1" });
     expect(r.ok && r.warnings).toEqual(["hero: \"f1\" is not a saved facet", "calendar: \"f2\" is not a saved facet", "weather: \"f3\" is not a saved facet", "ticker: \"f4\" is not a saved facet"]);
   });
+  it("a model made on the device is never migrated over: the players a new device made stand after its next boot (2026-09-29)", async () => {
+    const { store } = rig(REAL.data);   // the wall's dashboard is in the store, as after any first run
+    for (const k of Object.values(SCENE_MODEL_KEYS)) store.delete(k);
+    const drv = { get: (k: string) => store.get(k) ?? null, set: (k: string, v: string) => void store.set(k, v) };
+    const first = new SceneModelStore(drv, { readAll: () => Object.fromEntries(store) });
+    await first.load();
+    first.saveApp({ id: "netflix", name: "Netflix", baseUrl: "https://www.netflix.com/browse" });
+    first.saveFacet({ id: "netflix-home-16x9-XL", app: "netflix", url: "https://www.netflix.com/browse", slotClass: "16:9·XL", label: "Home", audio: "exclusive", touch: "full" });
+    expect(first.instantiateTemplate("movie-night", FHD, { screen: "netflix-home-16x9-XL" }).ok).toBe(true);
+    // the next boot: a new instance over the same store, and the host's first-boot migration call
+    const next = new SceneModelStore(drv, { readAll: () => Object.fromEntries(store) });
+    expect(next.migrate(FHD)).toEqual({ status: "not-ready", report: null });   // before the stores are read: nothing is decided
+    await next.load();
+    expect(next.migrate(FHD)).toEqual({ status: "native-model", report: null });
+    expect(next.snapshot().scenes.map((x) => x.id)).toEqual(["movie-night-1"]);
+    expect(next.snapshot().apps.map((x) => x.id)).toEqual(["netflix"]);
+    expect(store.get(SCENE_MODEL_KEYS.migration)).toContain("native");   // the one-shot gate is closed
+    expect(next.migrate(FHD)).toEqual({ status: "already-migrated", report: null });
+  });
   it("migrate: explicit, one-shot, writes only new keys, returns the report; refuses to run twice without force", async () => {
     const { store } = rig(REAL.data);
     const before = new Map(store);

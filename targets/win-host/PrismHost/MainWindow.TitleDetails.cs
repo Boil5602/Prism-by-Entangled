@@ -96,6 +96,8 @@ public sealed partial class MainWindow
     private static readonly SolidColorBrush DetCard = new(Windows.UI.Color.FromArgb(0xFF, 0x12, 0x13, 0x1A));
     private static readonly SolidColorBrush DetChip = new(Windows.UI.Color.FromArgb(0xFF, 0x22, 0x25, 0x2E));
 
+    /// <summary>The open Details page's dim and card, fitted again to where the corner is now.</summary>
+    private Action? _detailsReshape;
     /// <summary>Open the details window for a title (the card's own words; the service's App when the card has one, which tells a same-name pair apart).</summary>
     public void ShowTitleDetails(string title, string? kind, string? app) => ShowTitleDetails(title, kind, app, null);
     /// <summary>The details window on a title; <paramref name="backTo"/> names what its first Back returns to ("Search results"), null for none.</summary>
@@ -114,6 +116,7 @@ public sealed partial class MainWindow
         var dimBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD8, 0x05, 0x06, 0x09));
         var dim = new Microsoft.UI.Xaml.Shapes.Path { Fill = dimBrush };
         scrim.Children.Add(dim);
+        Border? cardOf = null;
         void ShapeDim()
         {
             var w = scrim.ActualWidth; var h = scrim.ActualHeight;
@@ -125,9 +128,13 @@ public sealed partial class MainWindow
                 hole = new Windows.Foundation.Rect(hole.X - 6, hole.Y - 6, hole.Width + 12, hole.Height + 12);
                 geo.Children.Add(new RectangleGeometry { Rect = hole });
             }
+            // the card stays left of the corner, centred in the room beside it (2026-09-26, "Can we move details over to the left enough not to
+            // cover a portion of the video preview on the watch screen?"): centred on the page it ran over the big screen's left edge
+            if (cardOf is { } cd) cd.Margin = new Thickness(60, 40, StackBounds(scrim) is { } sb && sb.X > 0 ? Math.Max(60, w - sb.X + 24) : 60, 40);
             dim.Data = geo;
         }
         scrim.SizeChanged += (_, __) => ShapeDim();
+        _detailsReshape = ShapeDim;   // and again as the corner moves or fills
         scrim.Loaded += (_, __) => ShapeDim();
         var body = new StackPanel { Spacing = 18 };
         var card = new Border
@@ -143,6 +150,7 @@ public sealed partial class MainWindow
         card.PointerPressed += (_, e) => e.Handled = true;
         dim.PointerPressed += (_, __) => CloseTitleDetails();   // the dim, not the hole: the screens there take their own presses
         scrim.Children.Add(card);
+        cardOf = card;
         var esc = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
         esc.Invoked += (_, e) => { e.Handled = true; CloseTitleDetails(); };
         scrim.KeyboardAccelerators.Add(esc);
@@ -318,6 +326,7 @@ public sealed partial class MainWindow
         if (_detailsWin is null) return;
         RootGrid.Children.Remove(_detailsWin);
         _detailsWin = null;
+        _detailsReshape = null;
         _detailsRun++;
     }
 
@@ -346,15 +355,33 @@ public sealed partial class MainWindow
     /// <summary>The page's Watch on row, and where its service buttons end (a service found later is added there).</summary>
     private StackPanel? _detailsWatch;
     private int _detailsWatchAt;
-    /// <summary>Whether Disney+ carries a Hulu title (asked of Disney+ in the background): its ringed button joins the Stream row when it does.</summary>
-    private async Task FollowAlsoOnAsync(int run, JsonObject d, StackPanel streamRow, TextBlock note)
+    /// <summary>Core's plan for a title's Stream row (2026-09-28): each service worth asking about it - Disney+ for a title Hulu lists - gets a
+    /// "Checking ..." line, shown only while that service is really being asked, and its answer followed.</summary>
+    private async Task StartAlsoOnAsync(int run, JsonObject d, StackPanel streamRow, Panel where, List<string> playApps)
+    {
+        JsonArray? plan = null;
+        try { plan = JsonNode.Parse(await ModelCallAsync("titleAlsoOnPlan", new JsonArray(playApps.Select(a => (JsonNode?)JsonValue.Create(a)).ToArray()).ToJsonString()) ?? "[]") as JsonArray; } catch { }
+        if (run != _detailsRun) return;
+        foreach (var step in plan?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+        {
+            var via = step["via"]?.GetValue<string>() ?? ""; var viaName = step["viaName"]?.GetValue<string>() ?? via; var alsoName = step["name"]?.GetValue<string>() ?? "";
+            if (via.Length == 0) continue;
+            // a household with Hulu and no Disney+ never sees it (2026-09-25, "Hulu could be configured without Disney, keep that in mind")
+            var alsoNote = new TextBlock { Text = "Checking " + alsoName + (char)0x2026, FontSize = 12, Foreground = DetDim, Visibility = Visibility.Collapsed };
+            where.Children.Add(alsoNote);
+            _ = FollowAlsoOnAsync(run, d, streamRow, alsoNote, via, viaName);
+        }
+    }
+    /// <summary>Whether a service carries a title another service lists (Disney+ for a Hulu title - core's plan, asked in the background): its ringed
+    /// button joins the Stream row when it does.</summary>
+    private async Task FollowAlsoOnAsync(int run, JsonObject d, StackPanel streamRow, TextBlock note, string via, string viaName)
     {
         string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
         var tkind = S(d, "kind"); var tid = d["id"]?.GetValue<double>() ?? 0; var ttitle = S(d, "title"); var tposter = d["poster"]?.GetValue<string>();
         for (var i = 0; i < 80 && run == _detailsRun; i++)
         {
             JsonObject? r = null;
-            try { r = JsonNode.Parse(await ModelCallAsync("titleAlsoOn", tkind, (long)tid, ttitle, "hulu") ?? "null") as JsonObject; } catch { }
+            try { r = JsonNode.Parse(await ModelCallAsync("titleAlsoOn", tkind, (long)tid, ttitle, via) ?? "null") as JsonObject; } catch { }
             if (run != _detailsRun) return;
             var state = S(r, "state");
             if (state == "checking") { note.Visibility = Visibility.Visible; await Task.Delay(1500); continue; }
@@ -365,7 +392,7 @@ public sealed partial class MainWindow
             var chip = new Border { Background = DetChip, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 6, 10, 6), Child = new TextBlock { Text = name, FontSize = 13, Foreground = DetInk } };
             var ring = new Border { BorderBrush = DetAmber, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(10), Padding = new Thickness(2), Child = chip };
             var pb = new Button { Content = ring, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(0) };
-            ToolTipService.SetToolTip(pb, "Play " + ttitle + " on " + name + ". It's there through the Hulu bundle.");
+            ToolTipService.SetToolTip(pb, "Play " + ttitle + " on " + name + ". It's there through the " + viaName + " bundle.");
             pb.Click += (_, __) =>
             {
                 CloseTitleDetails();
@@ -374,7 +401,7 @@ public sealed partial class MainWindow
             };
             HoverReact(pb, ring);
             streamRow.Children.Add(pb);
-            note.Text = name + " has it too, through the Hulu bundle.";
+            note.Text = name + " has it too, through the " + viaName + " bundle.";
             note.Visibility = Visibility.Visible;
             // and in Watch on, beside the other services
             if (_detailsWatch is { } wr && _detailsWatchAt <= wr.Children.Count)
@@ -382,7 +409,7 @@ public sealed partial class MainWindow
                 var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ServiceMark(app, name, 24), new TextBlock { Text = name, FontSize = 14, Foreground = DetInk, VerticalAlignment = VerticalAlignment.Center } } };
                 var wb = new Button { Content = line, Background = DetChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(18), Padding = new Thickness(10, 6, 14, 6) };
                 OwnHover(wb);   // its own hover, never the system's (memory: hover-loss-tooltips)
-                ToolTipService.SetToolTip(wb, "Play " + ttitle + " on " + name + " in the big window. It's there through the Hulu bundle.");
+                ToolTipService.SetToolTip(wb, "Play " + ttitle + " on " + name + " in the big window. It's there through the " + viaName + " bundle.");
                 HoverReact(wb);
                 wb.Click += (_, __) => { CloseTitleDetails(); if (PickLeavesWatch(ttitle)) { CloseVideoHub(); ShowStageCurtain(ttitle, name, tposter); } _ = PlayResultAsync(app, cand.ToJsonString(), ttitle, name); };
                 wr.Children.Insert(_detailsWatchAt, wb);
@@ -565,7 +592,20 @@ public sealed partial class MainWindow
                 }
                 _ = ReadMineAsync();
             }
-            watch.Children.Add(mine);
+            // the TMDB watchlist in place of the services' My List while an account is linked (2026-10-03)
+            if (_watchActive) watch.Children.Add(WatchlistToggle(tkind == "tv" ? "tv" : "movie", (long)tid, ttitle)); else watch.Children.Add(mine);
+            // Send to playlist (docs/features/playlists.md, 2026-09-27): a series sends every episode (specials left out), a movie itself
+            var sendApps = mineSvcs.Select(x => x.app).ToList();
+            var sendTmdb = tkind + ":" + ((long)tid).ToString();
+            int? sendYear = d["year"] is JsonValue syv && syv.TryGetValue<double>(out var syd) ? (int)syd : null;
+            JsonObject SendSrc() => CardSource(ttitle, tkind == "tv" ? "series" : "movie", _detailsApp is { Length: > 0 } dap && sendApps.Contains(dap) ? dap : sendApps.FirstOrDefault(), sendApps, sendTmdb, poster0, sendYear);
+            var sendBtn = new Button { Background = DetChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 6, 14, 6),
+                Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = ((char)0xE8FD).ToString(), FontSize = 13 }, new TextBlock { Text = "Send to playlist", FontSize = 14, Foreground = DetInk } } } };
+            OwnHover(sendBtn);
+            ToolTipService.SetToolTip(sendBtn, tkind == "tv" ? "Send every episode of " + ttitle + " to a playlist (specials left out)" : "Send " + ttitle + " to a playlist");
+            var sendFly = SendToFlyout((tkind == "tv" ? "Send all episodes to" : "Send to", SendSrc));
+            sendBtn.Flyout = sendFly;
+            if (_playlistsActive) watch.Children.Add(sendBtn);   // playlists are the TMDB account's lists: offered once one is linked (2026-10-06)
             head.Children.Add(new ScrollViewer { Content = watch, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Enabled });
         }
         top.Children.Add(head);
@@ -580,11 +620,21 @@ public sealed partial class MainWindow
         var left = new StackPanel { Spacing = 14 };
         var right = new StackPanel { Spacing = 14 };
         Grid.SetColumn(right, 1);
+        RatingLineUi? detailsRating = null;
         if (d["rating"] is JsonObject rating && rating["mean"] is JsonValue mv && mv.TryGetValue<double>(out var mean))
         {
             var votes = rating["votes"] is JsonValue vv && vv.TryGetValue<double>(out var vn) ? (int)vn : 0;
-            left.Children.Add(Fact("TMDB rating", DetStar + " " + mean.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " / 10", votes.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " votes by TMDB members who chose to rate it; each vote counts equally"));
+            // the star carries the person's own rating as its amber share (MainWindow.RatingLine.cs, 2026-10-03); the number is TMDB's
+            var ratingUi = MakeRatingLine(DetStar + " " + mean.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " / 10", null, 17, DetInk);
+            var ratingFact = new StackPanel { Spacing = 2 };
+            ratingFact.Children.Add(new TextBlock { Text = "TMDB rating", FontSize = 13, Foreground = DetDim });
+            ratingFact.Children.Add(ratingUi.Root);
+            ratingFact.Children.Add(new TextBlock { Text = votes.ToString("N0", System.Globalization.CultureInfo.InvariantCulture) + " votes by TMDB members who chose to rate it; each vote counts equally", FontSize = 12, Foreground = DetDim, TextWrapping = TextWrapping.Wrap });
+            left.Children.Add(ratingFact);
+            detailsRating = ratingUi;
         }
+        // the person's own rating, written to TMDB under their linked account (MainWindow.TmdbAccount.cs, 2026-10-03)
+        if (d["id"]?.GetValue<double>() is { } ownId && ownId > 0) _ = AddOwnRatingAsync(left, tv ? "tv" : "movie", (int)ownId, detailsRating);
         if (d["by"] is JsonObject by && L(by["names"]).ToList() is { Count: > 0 } byNames) left.Children.Add(Fact(S(by, "label"), string.Join(", ", byNames), null));
         if (L(d["writers"]).ToList() is { Count: > 0 } wr) left.Children.Add(Fact("Written by", string.Join(", ", wr), null));
         if (L(d["makers"]).ToList() is { Count: > 0 } mk) right.Children.Add(Fact(tv ? "Network" : "Studios", string.Join(", ", mk), null));
@@ -641,14 +691,8 @@ public sealed partial class MainWindow
             // Hulu's shows in the Disney+ app (2026-09-25): JustWatch lists them under Hulu alone and not every one is there, so Disney+ is asked
             // (core's titleAlsoOn, on its own search, kept a week) and its button joins Stream when it has it
             var playApps = new[] { "stream", "free" }.SelectMany(k => (prov[k] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>()).Select(o => (o["play"] as JsonObject)?["app"]?.GetValue<string>() ?? "").ToList();
-            if (streamRow is not null && playApps.Contains("hulu") && !playApps.Contains("disneyplus"))
-            {
-                // shown only while Disney+ is really being asked: a household with Hulu and no Disney+ never sees it (2026-09-25, "Hulu could be
-                // configured without Disney, keep that in mind")
-                var alsoNote = new TextBlock { Text = "Checking Disney+" + (char)0x2026, FontSize = 12, Foreground = DetDim, Visibility = Visibility.Collapsed };
-                where.Children.Add(alsoNote);
-                _ = FollowAlsoOnAsync(_detailsRun, d, streamRow, alsoNote);
-            }
+            // which services to ask is core's call (2026-09-28): the host names none of them
+            if (streamRow is not null) _ = StartAlsoOnAsync(_detailsRun, d, streamRow, where, playApps);
             if (where.Children.Count > 0)
             {
                 main.Children.Add(SectionHead("Where to watch"));

@@ -2,6 +2,7 @@
   "id": "appletv",
   "name": "Apple TV",
   "url": "https://tv.apple.com/",
+  "signInWith": "apple",
   "adapter": "appletv",
   "aspectHint": "16:9",
   "audio": "exclusive",

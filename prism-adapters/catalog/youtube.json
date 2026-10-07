@@ -3,6 +3,7 @@
   "name": "YouTube",
   "url": "https://www.youtube.com/",
   "adapter": "youtube",
+  "signInWith": "google",
   "aspectHint": "16:9",
   "audio": "exclusive",
   "poster": { "source": "site", "fallback": "wordmark" },

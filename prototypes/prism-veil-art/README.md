@@ -35,7 +35,7 @@ Tigris' global edge. The bucket is attached to the fly.io app `prism-entangled`
 
 - DNS (Cloudflare, DNS-only): `CNAME prism.entangled.world -> prism.entangled.world.t3.tigrisbucket.io` (registered with `fly storage update <bucket> --custom-domain prism.entangled.world`)
   TLS for the domain is issued by Tigris.
-- Credentials: `~/.prism/tigris.env` on Mark's machine (from `fly storage create`;
+- Credentials: `~/.prism/tigris.env` on the publishing machine (from `fly storage create`;
   never in git). `python upload-pool.py --cors` once to set CORS, then plain
   `python upload-pool.py` (or `refresh-pool.cmd`) to sync.
 - Photos are uploaded with `Cache-Control: public, max-age=31536000, immutable`;
@@ -70,7 +70,7 @@ switched off; sources are individually switchable.
 The extension treats prism.entangled.world as hostile. `hosted/list.json` lists each
 photo with its SHA-256; `list.sig` is an ECDSA P-256 signature over the exact
 bytes of `list.json`, made with a private key that lives only at
-`~/.prism/veil-art-signing.pem` on Mark's machine (never in git, never on Fly).
+`~/.prism/veil-art-signing.pem` on the publishing machine (never in git, never on Fly).
 The extension ships the public key (`ART_PUBKEY` in `ntp.js`), verifies the
 signature, fetches each image with `no-referrer`, checks its hash and shows it
 as a blob. Anything that fails verification is dropped and the bundled photos
@@ -95,7 +95,7 @@ The bundle (32 photos, 1200px, ~7 MB → `../prism-veil-extension/art/` and
 
 `fetch-candidates.py` pulls CC0 / public-domain candidates (Commons Featured,
 US agencies via Commons) and `--upload` pushes them to the curation gallery at
-**https://prism-reports.fly.dev/curate/** (same fly app as the report inbox;
+**https://prism-reports.fly.dev/curate/** (off unless `fly secrets set CURATE_ENABLED=1 -a prism-reports` - unset it again after; same fly app as the report inbox;
 key = the `CURATE_KEY` fly secret, kept in `~/.prism/curate.key`). In the
 gallery: **A** approve, **X** reject, **U** undo, arrows move, **Enter** shows
 it large; decisions save as you go to the private bucket (`curate/`), so any

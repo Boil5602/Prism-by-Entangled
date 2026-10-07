@@ -63,11 +63,11 @@ export function orderMostRead<T extends { reads: number }>(cards: readonly T[]):
 
 /** The row's head (the three layers, source and formula) when it reads the catalog; {offer} and {date} are filled in by the caller. */
 export const MOST_READ_CATALOG = {
-  counted: "Views of each title's English Wikipedia article over the last seven full days.",
-  who: "Everyone who opened the article, in any country, on any device; Wikimedia's own filter leaves automated traffic out.",
+  counted: "How often each title's Wikipedia article was read over the last seven full days.",
+  who: "Everyone who opened the article, in any country, on any device. Wikimedia counts people only: its own filter leaves bots, crawlers and other automated traffic out, so this is not a bot-inflated number.",
   decides: "Readers, by reading. Which titles are in the pool is Wikipedia's own daily lists of its most-read articles. Which of them your services carry is JustWatch's listing, through TMDB.",
   source: "Wikimedia REST API (pageviews top and per article, page summaries) · TMDB · JustWatch",
-  formula: "The films and series among English Wikipedia's most-read articles on any of the last seven days that your services carry ({offer}), ordered by their article's reads over those seven days, through {date}.",
+  formula: "The films and series among Wikipedia's most-read articles on any of the last seven days that your services carry ({offer}), ordered by their article's reads over those seven days, through {date}.",
 } as const;
 
 /** How many articles from the top lists are looked up in all (each costs one paced Wikipedia read the first time, then a month in the store). */

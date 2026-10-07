@@ -2,6 +2,7 @@
   "id": "apple-music",
   "name": "Apple Music",
   "url": "https://music.apple.com/",
+  "signInWith": "apple",
   "kind": "floating",
   "float": {
     "x": 0.62,

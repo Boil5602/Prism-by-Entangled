@@ -34,9 +34,13 @@ export interface BingeEntry { at: number; done: boolean; cands: BingeCandidate[]
 /** One fresh row as it stands (fresh-rows.ts). */
 export interface FreshEntry { at: number; done: boolean; cards: Array<import("./browse.js").BrowseCard & { date: string }>; through: string | null }
 import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
-import { cleanLibrary, isVideoAdapter } from "./video.js";
+import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
+import { SCORE_URL, SCORE_SOURCE, SCORE_DAY_LEAGUES, mergeKept, parseLeagueScoreboard, parseScoreboard, scoreDayUrl, type ScoreGame } from "./scores.js";
+import { parseFeed, type NewsItem } from "./news-feeds.js";
+import { LIVE_TITLE_KEEP_MS, acceptSearch, certificationOf, type LiveTitle, type LiveTitleEntry } from "./live-titles.js";
 import { episodeCount, episodeHealth, fillFromTmdb, type EpisodeHealth } from "./episode-health.js";
-import { LENSES, LensResolver, factsFor, lensById, lensDataDate, orderByLens, outboundLinks, ratingLabel, titleKey, type LensDef, type LensedCard, TMDB_ATTRIBUTION } from "./lenses.js";
+import { showsMatch } from "./playlist-play.js";
+import { LENSES, LensResolver, factsFor, lensById, lensDataDate, mineOf, orderByLens, outboundLinks, ratingLabel, titleKey, type LensDef, type LensedCard, TMDB_ATTRIBUTION } from "./lenses.js";
 
 /** What the menu says about its lens (§4a): the active one with its full disclosure, the choices, the data date, the work in flight. */
 export interface LensBlock { active: LensDef | null; lenses: Array<{ id: string; name: string; needsKey: string | null }>; dataDate: string | null; pending: number; tmdbKey: boolean; attribution: string | null }
@@ -123,6 +127,25 @@ export function mvLayout(base: MvRect, smalls: number): { hero: MvRect; smalls: 
     for (let i = 0; i < k; i++) out.push({ x: x0 + (i % best.c) * (w + gap), y: y0 + Math.floor(i / best.c) * (h + gap), w, h });
     return { hero: { x: base.x, y: base.y, w: heroW, h: base.h }, smalls: out };
   }
+  // a slot much taller than 16:9 (the window made narrow, 2026-10-06, "the layout I was talking about is when I have it in a small window ...
+  // there is a lot of black space that could be used and the multiwindows are quite tiny"): the big window across the top at the slot's full
+  // width, exactly 16:9, and the small ones in the largest grid that fits the space below it, centred
+  const heroH = Math.round(base.w * 9 / 16);
+  if (base.w / base.h < (16 / 9) / 1.2 && base.h - heroH - gap > base.h * 0.15) {
+    const area = { x: base.x, y: base.y + heroH + gap, w: base.w, h: base.h - heroH - gap };
+    let best = { c: 1, r: k, w: 0 };
+    for (let c = 1; c <= k; c++) {
+      const r = Math.ceil(k / c);
+      const w = Math.floor(Math.min((area.w - gap * (c - 1)) / c, ((area.h - gap * (r - 1)) / r) * 16 / 9));
+      if (w > best.w) best = { c, r, w };
+    }
+    const w = best.w, h = Math.round(w * 9 / 16);
+    const gridW = best.c * w + gap * (best.c - 1), gridH = best.r * h + gap * (best.r - 1);
+    const x0 = area.x + Math.round((area.w - gridW) / 2), y0 = area.y + Math.round((area.h - gridH) / 2);
+    const out: MvRect[] = [];
+    for (let i = 0; i < k; i++) out.push({ x: x0 + (i % best.c) * (w + gap), y: y0 + Math.floor(i / best.c) * (h + gap), w, h });
+    return { hero: { x: base.x, y: base.y, w: base.w, h: heroH }, smalls: out };
+  }
   const pips = Array.from({ length: k }, (_, i) => mvPipRect(base, i));
   const last = pips[k - 1]!;
   if (last.y + last.h <= base.y + base.h) return { hero: { ...base }, smalls: pips };
@@ -136,7 +159,7 @@ export function mvLayout(base: MvRect, smalls: number): { hero: MvRect; smalls: 
 export const WATCH_LENS = "wiki-reads";
 
 export interface LensRow { id: string; name: string; counted: string; who: string; decides: string; source: string; sourceUrl: string; formula: string; attribution: string | null; dataDate: string | null; cards: LensedCard[] }
-import { VIDEO_ONLY_CMDS, VideoController, type VideoTileState } from "./video.js";
+import { VIDEO_ONLY_CMDS, SKIP_PRESS_JS, SKIP_AD_PRESS_JS, VideoController, type VideoTileState } from "./video.js";
 import { sessionWatchJs } from "./adapters-facets.js";
 import { PresentationKeeperRunner, type ResolvedPresentationAction } from "./adapters-presentation.js";
 import { CORRELATION_MS, type KeeperEvent } from "./presentation-keeper.js";
@@ -145,6 +168,7 @@ import { AudioFocusMachine, type AudioCommand } from "./audio-focus.js";
 import { CompatTracker, type CompatContext, type CompatReport, type PendingOffer, type ReportKind } from "./compat.js";
 import { CLEAR_FRAMING_JS, focusFramingJs } from "./focus.js";
 import { IntermissionController } from "./intermission.js";
+import type { AdLook } from "./intermission.js";
 import { LifecycleManager } from "./lifecycle.js";
 import { nextTileInDirection, overriddenDevices, resolveBinding, type FocusDirection } from "./input.js";
 import {
@@ -162,7 +186,7 @@ import {
   type ListeningStatus,
   type SpeakerMode,
 } from "./listening.js";
-import { UpdateChecker, type UpdateChannel, type UpdateConfig, type UpdateStatus } from "./updates.js";
+import { UpdateChecker, type UpdateChannel, type UpdateConfig, type UpdateSchedule, type UpdateStatus } from "./updates.js";
 import { VpnManager, type VpnStatus } from "./vpn.js";
 import {
   CLEAR_VEIL_JS,
@@ -964,12 +988,14 @@ export class Orchestrator {
     );
     this.refresh.onReadinessTimeout = (id) => void this.recordCompat("readiness-timeout", id);
     this.intermission = new IntermissionController({
-      show: (id, source) => this.drivers.surface.showIntermission?.(id, source),
+      show: (id, source, look) => this.drivers.surface.showIntermission?.(id, source, look),
+      // the Video ads setting is the Video player's (Watch settings): a music service's break keeps its own (§26, veil)
+      look: (id) => (this.video.isVideoTile(id) ? this.videoAdsLook : "veil"),
       hide: (id) => this.drivers.surface.hideIntermission?.(id),
       // B-147 (2026-09-08): the break's end gives the sound back only to the tile that still OWNS the audio (section 3).
       // A person who muted the music during the break (or before it) has said what they want; the engine's
       // "restore" is not a reason to override them, and a source another service out-ranks stays silent too.
-      setMuted: (id, muted) => this.drivers.surface.setMuted(id, muted || this.wallMuted || this.audio.focusedMedia !== id),
+      setMuted: (id, muted) => this.drivers.surface.setMuted(id, muted || this.wallMuted || this.audio.focusedMedia !== id || this.heldQuiet(id)),
       ambient: (id, sound, on) => this.ambientSound(id, sound, on),
       setSkip: (id, available, target) => this.drivers.surface.setIntermissionSkip?.(id, available, target ?? undefined),
     });
@@ -1010,7 +1036,7 @@ export class Orchestrator {
           for (const id of this.surfaces) {
             if (mode === "normal") {
               // Back to policy: only the audio-focused tile is audible.
-              await this.drivers.surface.setMuted(id, id !== this.audio.focusedMedia);
+              await this.drivers.surface.setMuted(id, id !== this.audio.focusedMedia || this.heldQuiet(id));
             } else {
               await this.drivers.surface.setMuted(id, true);
             }
@@ -1080,6 +1106,7 @@ export class Orchestrator {
 
   /** Single-dashboard convenience — a bundle of one. */
   async load(doc: DashboardDocument, viewport: Viewport): Promise<void> {
+    this.firstLoadAt ??= Date.now();
     await this.loadBundle({ dashboards: [doc] }, viewport);
   }
 
@@ -1088,6 +1115,7 @@ export class Orchestrator {
     if (!bundle.dashboards.length) return;
     this.viewport = viewport;
     this.bootAt = Date.now();
+    this.bootTiles = new Set(bundle.dashboards.flatMap((d) => (d.tiles ?? []).map((t) => t.id)));
     // §24: an armed alarm whose time passed while we were off is surfaced,
     // never silently skipped.
     if (this.drivers.store) {
@@ -1235,10 +1263,14 @@ export class Orchestrator {
     const reshaped = (id: string): boolean => {
       const a = prevById.get(id), b = nextById.get(id);
       if (!a || !b) return false;
-      return !!a.placeholder !== !!b.placeholder || (a.url ?? "") !== (b.url ?? "") || JSON.stringify(a.visualization ?? null) !== JSON.stringify(b.visualization ?? null)
+      // a tile given another profile is another browser session (a service moved to another sign-in, 2026-09-29): made again in it
+      return (a.profile ?? a.id) !== (b.profile ?? b.id) || !!a.placeholder !== !!b.placeholder || (a.url ?? "") !== (b.url ?? "") || JSON.stringify(a.visualization ?? null) !== JSON.stringify(b.visualization ?? null)
         || (a.kind ?? "") !== (b.kind ?? "") || (a.launch?.package ?? "") !== (b.launch?.package ?? "");
     };
     for (const id of [...this.surfaces]) {
+      // nor is an App's setup window (2026-09-29, a new device: a wall refresh - a music service had just said it was signed out - closed the
+      // sign-in window's page 300 ms after it opened; the window stood there with nothing in it)
+      if (this.previews.has(id)) continue;
       if (this.lookups.has(id)) continue;   // a hidden search / list surface is not the wall's: a scene switch had destroyed one 30 ms into a catalog card's press (Gilmore Girls on Hulu, 2026-09-21), and the press fell back to Hulu's search page
       if (!wanted.has(id) || reshaped(id)) {
         this.refresh.stop(id);
@@ -1264,6 +1296,7 @@ export class Orchestrator {
           await this.drivers.surface.reveal(tile.id, 300);
           continue;
         }
+        this.surfaceProfile.set(tile.id, tile.profile ?? tile.id);
         await this.drivers.surface.create({
           id: tile.id,
           ...(tile.kind === "floating" ? { kind: tile.float?.hidden ? "hidden" as const : "floating" as const } : {}),
@@ -1292,6 +1325,10 @@ export class Orchestrator {
     }
 
     for (const cmd of this.audio.initialCommands()) {
+      // the boot is silent (rule 5 of the audio section); a document applied again is not a boot - the tile that has the sound keeps it (2026-09-28,
+      // "I added a video to window 2 and it muted the big window, why is that still happening": adding window 2 applied the document again, this
+      // muted every tile, the big screen with it, and nothing gave the sound back)
+      if (previous && cmd.tile === this.audio.focusedMedia && this.surfaces.has(cmd.tile)) { await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.heldQuiet(cmd.tile)); continue; }
       await this.drivers.surface.setMuted(cmd.tile, true);
     }
 
@@ -1804,7 +1841,7 @@ export class Orchestrator {
    * word (its page, its collection, whether it played) is kept for a minute, and the recycled music tile
    * picks it up - by id through the player where there is one, else by address with the page's own Play.
    */
-  private lastClosedPreview: { profile: string; url: string | undefined; np: NowPlaying | null; at: number } | null = null;
+  private lastClosedPreview: { profile: string; app: string; adapter: string | null; url: string | undefined; np: NowPlaying | null; at: number } | null = null;
 
   /** Surfaces outside the wall: App setup mode and facet previews (scene-model-spec §2 / §4, win-host-spec §5). */
   private readonly previews = new Map<string, { app: string; profile: string; adapter: string | null }>();
@@ -1833,7 +1870,7 @@ export class Orchestrator {
 
   closeAppSurface(id: string): boolean {
     const p = this.previews.get(id);
-    if (p) this.lastClosedPreview = { profile: p.profile, url: this.currentUrl.get(id), np: this.nowPlaying.get(id) ?? null, at: Date.now() };
+    if (p) this.lastClosedPreview = { profile: p.profile, app: p.app, adapter: p.adapter, url: this.currentUrl.get(id), np: this.nowPlaying.get(id) ?? null, at: Date.now() };
     this.nowPlaying.delete(id); this.currentUrl.delete(id);
     if (!this.previews.delete(id)) return false;
     if (this.surfaces.has(id)) { this.surfaces.delete(id); void this.drivers.surface.destroy(id); }
@@ -1990,11 +2027,15 @@ export class Orchestrator {
     // back." and the row read it as the station's last track; a face under a break (the adapter's ad signal, or the
     // keeper's cover) is the break, not the collection. The station played before it stays the resume point.
     const underBreak = this.adActive.has(tileId) || this.intermission.isCovered(tileId);
-    if (info?.playing && info.title && this.doc && this.drivers.store && !underBreak) {
+    // a page still up from the profile before a sign-in switch (the document names the new profile before the old page is closed): its
+    // last report is the last person's, not this one's (2026-09-30 review)
+    const ownPage = this.surfaceProfile.get(tileId) === (this.tile(tileId)?.profile ?? tileId);
+    if (info?.playing && info.title && this.doc && this.drivers.store && !underBreak && ownPage) {
       // the page's own word about the collection wins (a station started from Home never navigates anywhere)
       const rawUrl = (ctx?.url && /^https?:\/\//.test(ctx.url) ? ctx.url : null) ?? this.currentUrl.get(tileId) ?? this.tile(tileId)?.url;
       const url = rawUrl ? normalizeCollectionUrl(rawUrl) : rawUrl;
-      if (url) {
+      const ownSite = this.tile(tileId)?.url;
+      if (url && (!ownSite || sameRegistrableDomain(url, ownSite))) {   // only the service's own pages (2026-10-05: a tile sent to another site must not remember it)
         const point = { url, title: info.title, ...(info.artist ? { artist: info.artist } : {}), ...(info.album ? { album: info.album } : {}), ...(ctx?.label ? { label: ctx.label } : {}), ...(ctx?.kind ? { kind: ctx.kind } : {}), ...(ctx?.id ? { id: ctx.id } : {}), at: Date.now() };
         try { void this.drivers.store.set(this.resumeKey(this.doc.id, tileId), JSON.stringify(point)); } catch { /* best effort */ }
         this.resumeCache.set(tileId, point);   // B-204: the wall row reads it without a store round-trip
@@ -2010,8 +2051,18 @@ export class Orchestrator {
    */
   async recentMusic(tileId: string): Promise<RecentMusic[]> {
     if (!this.doc || !this.drivers.store) return [];
+    const cached = this.recentCache.get(tileId);   // read once a document; a play updates the list in memory before the store (no race between the two)
+    if (cached) return cached;
+    const inFlight = this.recentReading.get(tileId);   // two readers before the cache is set share one read (2026-09-30 review)
+    if (inFlight) return inFlight;
+    const reading = this.recentMusicRead(tileId).finally(() => this.recentReading.delete(tileId));
+    this.recentReading.set(tileId, reading);
+    return reading;
+  }
+  private readonly recentReading = new Map<string, Promise<RecentMusic[]>>();
+  private async recentMusicRead(tileId: string): Promise<RecentMusic[]> {
     try {
-      const raw = await this.drivers.store.get(this.recentKey(this.doc.id, tileId));
+      const raw = await this.personRead("recent", tileId);
       const list = raw ? (JSON.parse(raw) as unknown) : [];
       const out = (!Array.isArray(list) ? [] : list.filter((e): e is RecentMusic => !!e && typeof e === "object" && typeof (e as RecentMusic).url === "string" && typeof (e as RecentMusic).label === "string").slice(0, Orchestrator.RECENT_MAX))
         .map((e) => ({ ...e, url: normalizeCollectionUrl(e.url) }))   // B-124: a stored bad address heals on read
@@ -2030,9 +2081,46 @@ export class Orchestrator {
    * wizard, the rail's Setup mode), the App's wall surfaces are destroyed and created again through the
    * ordinary apply path: a new engine, the App's own profile, the remembered page. Returns how many.
    */
-  async recycleAppSurfaces(profile: string): Promise<number> {
+  /** One tile's page in a fresh window: its surface closed and made again by the document, then sent to `url` (the playback doctor's last try). */
+  async renewSurface(tileId: string, url: string): Promise<void> {
+    if (!this.doc || !this.surfaces.has(tileId)) return;
+    this.refresh.stop(tileId);
+    this.lifecycle.drop(tileId);
+    await this.drivers.surface.destroy(tileId);
+    this.surfaces.delete(tileId);
+    this.dropKeeper(tileId);
+    this.nowPlaying.delete(tileId);
+    await this.applyDocument(this.doc);
+    if (this.surfaces.has(tileId)) await this.drivers.surface.navigate(tileId, url);
+  }
+  /**
+   * The App's wall surfaces, by the App (2026-10-05): since every service shares one browser profile (one-browser, 2026-10-03), keying this on
+   * the profile recycled EVERY music page when any service's setup closed, and the carry-over below handed Twitch's autoplaying front page to
+   * the first music tile it found - Amazon Music's - whose Play then went back to Twitch for good through its resume point. `key` is the App's
+   * id or its adapter name (the host passes the App id); a profile id still works for a wall with one profile per service.
+   */
+  async recycleAppSurfaces(key: string): Promise<number> {
     if (!this.doc) return 0;
-    const ids = this.doc.tiles.filter((t) => !t.visualization && !t.placeholder && (t.profile ?? t.id) === profile && this.surfaces.has(t.id)).map((t) => t.id);
+    const adapterOf = (t: TileSpec) => t.adapter ?? null;
+    const shared = /^shared(-\d+)?$/.test(key);   // the one browser's profile names no App
+    // a tile by its own id too (2026-10-05 review): a tile with no adapter on the shared profile had no key that matched it, so the boot
+    // self-heal (B-124) recycled nothing for it
+    const ofApp = (t: TileSpec) => adapterOf(t) === key || t.id === key || (!shared && (t.profile ?? t.id) === key) || (this.lastClosedPreview?.app === key && adapterOf(t) !== null && adapterOf(t) === this.lastClosedPreview.adapter);
+    const all = this.doc.tiles.filter((t) => !t.visualization && !t.placeholder && this.surfaces.has(t.id) && ofApp(t)).map((t) => t.id);
+    // a window that is playing is left alone (2026-10-06, "I went to the youtube tv sign in page ... All of my youtube tv videos stopped in the
+    // multiview windows, and they were just showing the youtube tv pages" / "if I open the login page, theres no reason all of the videos
+    // should lose their focus, right?"): every service shares one browser profile, so a sign-in reaches a playing page without a new window
+    const ids = all.filter((id) => !(this.video.isVideoTile(id) && this.video.state([id])[0]?.playing === true));   // video windows; a music page is recycled as before (B-124's heal needs it)
+    // ... and one made again comes back to the title or channel it had up, not the service's front page (as after a restart: bootTitles)
+    for (const id of ids) {
+      if (!this.video.isVideoTile(id)) continue;
+      const v = this.video.state([id])[0]?.video;
+      const tile = this.doc.tiles.find((t) => t.id === id);
+      if (!v || !tile || v.ad) continue;
+      const name = v.series ?? v.title ?? "";
+      if (v.kind === "live" && v.channel && tile.adapter && this.adapters.get(tile.adapter)?.videoTune) this.bootTitles.set(id, { url: tile.url ?? v.url ?? "", name, tune: v.channel });
+      else if (v.url && /^https?:\/\//.test(v.url)) this.bootTitles.set(id, { url: v.url, name });
+    }
     for (const id of ids) {
       this.refresh.stop(id);
       this.lifecycle.drop(id);
@@ -2044,10 +2132,12 @@ export class Orchestrator {
       this.musicPending.delete(id);
     }
     if (ids.length) await this.applyDocument(this.doc);
+    for (const id of ids) { const back = this.bootTitles.get(id); if (back && !back.tune && this.surfaces.has(id)) await this.drivers.surface.navigate(id, back.url); }
     const carry = this.lastClosedPreview;
-    if (carry && carry.profile === profile && carry.np?.playing && Date.now() - carry.at < 60_000) {
+    if (carry && (carry.app === key || carry.adapter === key || carry.profile === key) && carry.np?.playing && Date.now() - carry.at < 60_000) {
       this.lastClosedPreview = null;
-      const tile = this.doc.tiles.find((t) => (t.profile ?? t.id) === profile && this.music.source(t.id));
+      // the carry goes to the App's OWN music tile, never another service's
+      const tile = this.doc.tiles.find((t) => carry.adapter !== null && t.adapter === carry.adapter && this.music.source(t.id));
       if (tile) {
         const ctx = carry.np.context && typeof carry.np.context === "object" ? carry.np.context : null;
         const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
@@ -2073,7 +2163,7 @@ export class Orchestrator {
     if (cached) return merged(cached);
     if (!this.doc || !this.drivers.store) return merged({ playlists: [], stations: [] });
     try {
-      const raw = await this.drivers.store.get(this.libraryKey(this.doc.id, tileId));
+      const raw = await this.personRead("library", tileId);
       const p = raw ? (JSON.parse(raw) as { playlists?: LibraryItem[]; stations?: LibraryItem[] }) : {};
       const lib = { playlists: Array.isArray(p.playlists) ? p.playlists : [], stations: Array.isArray(p.stations) ? p.stations : [] };
       this.libraryCache.set(tileId, lib);
@@ -2210,14 +2300,22 @@ export class Orchestrator {
     this.arm(tileId);   // B-126: a pick on the wall is a human's ask to HEAR it - the playback that follows is not autoplay
     if (order === "true-shuffle" || order === "reverse") {
       // Prism's order (spec 32 layer 5, 2026-09-17): the page's track list, put in order here, handed to the player's queue
-      await this.claimAudio(tileId);
-      const ids = await this.musicTracks(tileId, kind, id);
-      if (!ids.length) return "unsupported";
+      this.musicPending.delete(tileId);   // a plain pick still pending is superseded: its second send (MUSIC_PLAY_RETRY_MS) must not undo this queue (2026-10-04)
+      // the track list is read BEFORE the audio changes hands (2026-10-05, "there was a long pause where pandora could've kept playing
+      // while that prepared"): the read is the slow part, and whatever played on keeps playing through it; the other source goes quiet
+      // only when the ordered list is ready to hand to the player
+      const ids = await this.musicTracks(tileId, kind, id, order);
+      if (!ids.length) { this.readingFor.delete(tileId); return "unsupported"; }
       const ordered = orderTracks(ids, order);
+      await this.claimAudio(tileId);
+      // the queueing said as work too (2026-10-04, the phone: "When I hit reverse, I don't really see anything happening or finishing"): the list
+      // read, now handed to the player in the order asked
+      this.readingFor.delete(tileId);
+      this.musicWork.set(tileId, { what: order === "reverse" ? "Reverse: sending the player every song, last to first" : "True shuffle: sending the player every song once, in a new order", name: item.name, count: ordered.length, at: Date.now() });
       // 2026-09-18: no cap - the player gets the order in windows (the first now, the next appended as the spot nears its end)
       const token = this.musicToken("qu");
       const r = await this.askMusic(tileId, token, `window.__prismMusicQueue && window.__prismMusicQueue(${JSON.stringify(token)}, ${JSON.stringify(ordered.slice(0, this.orderWindow))}, ${JSON.stringify({ kind, id })})`, Orchestrator.TRACKS_TIMEOUT_MS);
-      this.musicWork.delete(tileId);
+      this.musicWork.delete(tileId); this.readingFor.delete(tileId);
       if (!r?.ok) return "unsupported";
       // no pending here: the queue answered after the player's own play() resolved, and a Prism-made queue names no
       // collection the pending could clear on (the page's container is the song, not the playlist)
@@ -2239,11 +2337,26 @@ export class Orchestrator {
     await this.claimAudio(tileId);   // B-137: the quick jump - the other source goes quiet now; this one sounds the moment its queue starts
     if (shuffleJs) await this.drivers.surface.inject(tileId, null, shuffleJs);
     await this.applyServiceRepeat(tileId, this.musicRepeatOf(tileId));   // the standing repeat, on the service's own switch
-    await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(id)})`);
+    const playJs = `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(id)})`;
+    await this.drivers.surface.inject(tileId, null, playJs);
     this.setMusicPending(tileId, { kind, id, name: item.name });
+    // one more send when the page has not said it plays within MUSIC_PLAY_RETRY_MS (2026-10-04, "Keep trying to start vibes in the companion
+    // app but nothing is happening": a page just woken from its parked state took the first play and did nothing; the same call two
+    // minutes later played). Bounded to one; a page that reports playing, or a newer pick, stands it down.
+    const at = this.musicPending.get(tileId)?.at ?? 0;
+    setTimeout(() => {
+      const q = this.musicPending.get(tileId);
+      if (!q || q.at !== at || q.failed || q.retried || this.nowPlaying.get(tileId)?.playing) return;
+      q.retried = true;
+      this.musicPlayRetries++;
+      void Promise.resolve(this.drivers.surface.inject(tileId, null, playJs)).catch(() => {});
+    }, Orchestrator.MUSIC_PLAY_RETRY_MS);
     if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId);
     return "ok";
   }
+  static readonly MUSIC_PLAY_RETRY_MS = 6_000;
+  /** How many picks needed the second send (perf / tests). */
+  musicPlayRetries = 0;
 
   // ---------------------------------------------------------------- play orders (spec 32 layer 5, 2026-09-17)
   /** What this service can do about order: true, or the reason it cannot (the menu's grey rows carry it). */
@@ -2316,12 +2429,15 @@ export class Orchestrator {
     void this.musicTracks(tileId, kind, id);
   }
   /** The collection's track ids in the service's own order, from the page (the adapter's musicTracks script), or the list read a moment ago. Empty when it cannot say. */
-  private async musicTracks(tileId: string, kind: string, id: string): Promise<string[]> {
+  /** The words a work line opens with while the list is read for an order: "True shuffle: reading ...". */
+  private readingFor = new Map<string, string>();
+  private async musicTracks(tileId: string, kind: string, id: string, forOrder?: PlayOrder): Promise<string[]> {
+    if (forOrder) this.readingFor.set(tileId, forOrder === "reverse" ? "Reverse: reading" : "True shuffle: reading");
     const have = this.trackLists.get(tileId);
     if (have && have.kind === kind && have.id === id && Date.now() - have.at < this.tracksFreshMs) return have.ids.slice();
     const key = tileId + "|" + kind + "|" + id;
     if (this.trackReads.has(key)) {   // a read is under way (the prefetch): wait for it rather than ask twice - and say so
-      if (!this.musicWork.has(tileId)) this.musicWork.set(tileId, { what: "reading the track list", name: this.collectionName(tileId, kind, id), at: Date.now() });
+      if (!this.musicWork.has(tileId)) this.musicWork.set(tileId, { what: this.readingWhat(tileId), name: this.collectionName(tileId, kind, id), at: Date.now() });
       for (let i = 0; i < 1200 && this.trackReads.has(key); i++) await new Promise((r) => setTimeout(r, 200));
       const got = this.trackLists.get(tileId);
       return got && got.kind === kind && got.id === id ? got.ids.slice() : [];
@@ -2355,9 +2471,11 @@ export class Orchestrator {
     const lib = this.musicLibraryNow(tileId);
     return [...lib.playlists, ...lib.stations].find((x) => x.id === id && x.kind === kind)?.name ?? (kind === "album" ? "the album" : "the playlist");
   }
+  /** "True shuffle: reading the track list" while a Prism order is being made, "reading the track list" for a prefetch. */
+  private readingWhat(tileId: string): string { const f = this.readingFor.get(tileId); return f ? f + " the track list" : "reading the track list"; }
   private async readTracks(tileId: string, kind: string, id: string): Promise<string[]> {
     const name = this.collectionName(tileId, kind, id);
-    this.musicWork.set(tileId, { what: "reading the track list", name, at: Date.now() });
+    this.musicWork.set(tileId, { what: this.readingWhat(tileId), name, at: Date.now() });
     let error: string | null = null;
     try {
       const { ids, error: why } = await this.readTracksInner(tileId, kind, id);
@@ -2623,7 +2741,9 @@ export class Orchestrator {
     this.musicLookups.set(tileId, this.lookupBlank("searching", q, key, undefined, carried));
     const token = this.musicToken("lk");
     const ask = { ...q, term: lookupTerm(song) };
+    const before = this.currentUrl.get(tileId) ?? null;
     const result = await this.askMusic(tileId, token, `window.__prismMusicLookup && window.__prismMusicLookup(${JSON.stringify(token)}, ${JSON.stringify(ask)})`);
+    this.musicLookupReturnLater(tileId, before);
     const cur = this.musicLookups.get(tileId);
     if (!cur || cur.key !== key || cur.status !== "searching") return cur?.status ?? "idle";   // superseded by a newer song
     if (!result) { this.musicLookups.set(tileId, { ...cur, status: "error", reason: "the page did not answer", at: Date.now() }); return "error"; }
@@ -2639,6 +2759,26 @@ export class Orchestrator {
     return next.status;
   }
 
+  /**
+   * A music window a song search left on the service's search page goes back where it was (2026-09-28, the connections sweep: Pandora and Amazon
+   * Music sat on "greatest journey halo" search pages for hours - their libraries, read from their own pages, never came, and Pandora's sign-in
+   * watch never ran): MUSIC_LOOKUP_RETURN_MS after the search, unless a person or the wall picked something on it since, or it plays. The search
+   * page stays for that while because a pick may be made from it (Pandora's picks press its results). Every music service.
+   */
+  static readonly MUSIC_LOOKUP_RETURN_MS = 3 * 60_000;
+  private musicLookupReturnLater(tileId: string, before: string | null): void {
+    const at = Date.now();
+    setTimeout(() => {
+      const tile = this.tile(tileId);
+      if (!tile || !this.surfaces.has(tileId) || (this.pickedAt.get(tileId) ?? 0) > at || this.nowPlaying.get(tileId)?.playing) return;
+      const here = this.currentUrl.get(tileId);
+      if (!here || here === before) return;
+      // never back to a page the wall itself was only visiting (the service's library page)
+      const libPage = tile.adapter ? this.adapters.get(tile.adapter)?.musicLibraryUrl : undefined;
+      const back = before && !/[/?]search\b|[?&]q=/i.test(before) && before.split("?")[0] !== libPage?.split("?")[0] ? before : tile.url;
+      if (back && back !== here) void this.drivers.surface.navigate(tileId, back);
+    }, Orchestrator.MUSIC_LOOKUP_RETURN_MS);
+  }
   /** An ambiguous lookup: the person names the candidate that is the song. False when the id is not one the service offered. */
   musicLookupPick(tileId: string, songId: string): boolean {
     const st = this.musicLookups.get(tileId);
@@ -2676,6 +2816,60 @@ export class Orchestrator {
     const ok = !!r?.ok;
     const error: string | undefined = r ? r.error || "the service refused" : "the page did not answer";
     this.setLookupAction(tileId, { op: "add", status: ok ? "ok" : "error", playlist: playlist.name, song: song.title, ...(ok ? {} : { error: error || "the service refused" }), at: Date.now() });
+    return ok ? "ok" : "error";
+  }
+
+  /**
+   * The track playing on a music tile and the collections Prism has read that hold it (2026-10-06, "if this song is IN this playlist, I want
+   * to have the option to Remove Playing Title from Playlist"): the Prism order's list and the track list read for an order (both the
+   * service's own ids for the collection's tracks). A collection Prism has not read is not claimed either way.
+   */
+  musicPlayingIn(tileId: string): { songId: string; title: string; artist: string; lists: string[]; canRemove: boolean } | null {
+    const np = this.nowPlaying.get(tileId);
+    const tile = this.tile(tileId);
+    const canRemove = !!(tile?.adapter && this.adapters.get(tile.adapter)?.musicRemove && this.adapters.get(tile.adapter)?.musicPlaylistUrl);
+    const songId = np?.context?.trackId ?? null;
+    if (!np?.title || !songId) return null;
+    const lists = new Set<string>();
+    const o = this.musicOrder.get(tileId);
+    if (o?.ids?.includes(songId)) lists.add(o.id);
+    const t = this.trackLists.get(tileId);
+    if (t?.ids.includes(songId)) lists.add(t.id);
+    return { songId, title: np.title, artist: np.artist ?? "", lists: [...lists], canRemove };
+  }
+  /** What the last removal on a tile did, for the wall's pill and the phone. */
+  private readonly musicRemovals = new Map<string, { song: string; playlist: string; status: "pending" | "ok" | "error" | "dry"; error?: string; at: number }>();
+  musicRemoveState(tileId: string): { song: string; playlist: string; status: string; error?: string; at: number } | null { return this.musicRemovals.get(tileId) ?? null; }
+  /**
+   * Remove the track playing now from one of the person's own playlists, by the playlist page's own control on the service's hidden work
+   * page (the adapter's musicRemove script, opened at musicPlaylistUrl): page actions only, never an endpoint the service does not publish
+   * (docs/third-party-services-policy.md). Only a playlist the library marks editable, and only while the track is known to be in it.
+   * A dry run finds the row and its Remove control and stops before the press. The Prism order and the read track list drop the track.
+   */
+  async musicRemovePlaying(s: { app: string; adapter: string; profile: string }, tileId: string, playlistId: string, dry = false): Promise<"ok" | "error" | "unknown" | "unknown-tile"> {
+    const tile = this.tile(tileId);
+    if (!tile) return "unknown-tile";
+    const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
+    const playing = this.musicPlayingIn(tileId);
+    const playlist = (await this.musicLibrary(tileId)).playlists.find((p) => p.id === playlistId);
+    if (!spec?.musicRemove || !spec.musicPlaylistUrl || !playing || !playlist || playlist.edit !== true || !playing.lists.includes(playlistId)) return "unknown";
+    this.musicRemovals.set(tileId, { song: playing.title, playlist: playlist.name, status: "pending", at: Date.now() });
+    const url = spec.musicPlaylistUrl.replace("{id}", encodeURIComponent(playlistId));
+    // where the playlist lists it, in the service's own order (the read track list): the page draws a long playlist a hundred rows at a time,
+    // slowly on a hidden page, so the search stops once it is well past that spot; minutes are allowed for a list of thousands
+    const listed = this.trackLists.get(tileId);
+    const hint = listed?.id === playlistId ? listed.ids.indexOf(playing.songId) : -1;
+    const call = (token: string) => `window.__prismMusicRemove && window.__prismMusicRemove(${JSON.stringify(token)}, ${JSON.stringify(playing.title)}, ${JSON.stringify(playing.artist)}, ${dry ? "true" : "false"}, ${hint})`;
+    const a = await this.askHiddenPage(s, url, spec.musicRemove, "rm", call, 630_000);
+    const ok = !!a.r?.ok;
+    const error = ok ? undefined : (a.r?.error || a.error || "the service's page did not answer");
+    if (ok && !dry) {
+      const o = this.musicOrder.get(tileId);
+      if (o?.id === playlistId && o.ids) { const k = o.ids.indexOf(playing.songId); if (k >= 0) { o.ids.splice(k, 1); if (typeof o.index === "number" && k < o.index) o.index--; if (typeof o.count === "number") o.count = o.ids.length; const q = this.orderQueuedUpTo.get(tileId); if (typeof q === "number" && k < q) this.orderQueuedUpTo.set(tileId, q - 1); } }
+      const t = this.trackLists.get(tileId);
+      if (t?.id === playlistId) t.ids = t.ids.filter((x) => x !== playing.songId);
+    }
+    this.musicRemovals.set(tileId, { song: playing.title, playlist: playlist.name, status: ok ? (dry ? "dry" : "ok") : "error", ...(error ? { error } : {}), at: Date.now() });
     return ok ? "ok" : "error";
   }
 
@@ -2731,9 +2925,23 @@ export class Orchestrator {
     if (kind === null) return;                                              // a home / search / library page is not a collection
     const label = point.label ?? (kind === "album" && point.album ? point.album : collectionSlug(point.url) ?? point.album ?? point.title);
     const entry: RecentMusic = { url: point.url, label, kind, ...(point.id ? { id: point.id } : {}), ...(point.artist ? { artist: point.artist } : {}), ...(point.album ? { album: point.album } : {}), title: point.title, at: point.at };
-    const list = (await this.recentMusic(tileId)).filter((e) => e.url !== point.url);
+    // one entry per collection (2026-10-05, "Under amazon, I'm seeing all hits radio 3x"): the same station named from a search page
+    // carried the search page's address and a made-up id, so it stood beside itself. A match is the address, or the kind and the label;
+    // a page that is not the collection's own (a search, the home) keeps the address an earlier entry had, and is skipped without one
+    const have = await this.recentMusic(tileId);
+    // an album's name is not its own (two "Greatest Hits", 2026-10-05 review): an album matches by its artist too, a station or a playlist by its name
+    const same = (e: RecentMusic) => e.url === point.url || (e.kind === kind && e.label.trim().toLowerCase() === label.trim().toLowerCase() && (kind !== "album" || (e.artist ?? "").toLowerCase() === (point.artist ?? "").toLowerCase()));
+    if (collectionKind(point.url) === null) {
+      const earlier = have.find(same);
+      if (!earlier) return;
+      entry.url = earlier.url;
+      if ((!point.id || /^[a-z]+:/.test(point.id)) && earlier.id) entry.id = earlier.id;   // a derived id ("station:all-hits-radio") never replaces the service's own
+    }
+    const list = have.filter((e) => !same(e));
     list.unshift(entry);
-    try { await this.drivers.store.set(this.recentKey(this.doc.id, tileId), JSON.stringify(list.slice(0, Orchestrator.RECENT_MAX))); } catch { /* best effort */ }
+    const kept = list.slice(0, Orchestrator.RECENT_MAX);
+    this.recentCache.set(tileId, kept);
+    try { await this.drivers.store.set(this.recentKey(this.doc.id, tileId), JSON.stringify(kept)); } catch { /* best effort */ }
   }
 
   /** Quick play: go to one of the remembered collections and press the page's Play (the resume path, at a chosen page). */
@@ -2771,6 +2979,16 @@ export class Orchestrator {
     if (this.mvKeepsAudio(tileId)) { await this.drivers.surface.setMuted(tileId, true); return; }
     await this.applyAudioCommands(this.audio.takeAudioFocus(tileId));
   }
+  /** The Video player's sound back on its screen (2026-10-05): after a trip to the Music player the music source kept the audio, and the
+   *  screen played on muted ("no audio is coming through"). The window heard is the big one, or the one a phone chose. */
+  async videoTakeAudio(screenSlot: string): Promise<void> {
+    const hero = this.mv.on ? this.videoMultiviewHero() : null;
+    const heard = this.listenTile && this.mv.on && this.mv.order.includes(this.listenTile) ? this.listenTile : hero ?? screenSlot;
+    if (!this.tile(heard)) return;
+    await this.claimAudio(heard);
+  }
+  /** The person's mute of the whole wall (B-150), for the phone's buttons. */
+  get wallMutedNow(): boolean { return this.wallMuted; }
   async setWallMuted(on: boolean): Promise<void> {
     this.wallMuted = on;
     void Promise.resolve(this.drivers.store?.set(Orchestrator.PERSON_MUTED_KEY, on ? "1" : "")).catch(() => {});
@@ -2781,15 +2999,32 @@ export class Orchestrator {
     // 2026-09-14: an unmute mid-break lifted the OWNER - the ad under the intermission - along with the soundscape ("it
     // sounds like the ad and the sound are playing at the same time"). The cover holds the source silent for the
     // length of the break, whatever the wall's switch says; the soundscape (below) is what the unmute brings in.
-    else if (owner) await this.drivers.surface.setMuted(owner, this.intermission.isCovered(owner));
+    else if (owner) await this.drivers.surface.setMuted(owner, this.intermission.isCovered(owner) || this.heldQuiet(owner));
     for (const [tile, amb] of this.ambient) if (amb.active && this.surfaces.has(amb.surface)) await this.drivers.surface.setMuted(amb.surface, on || this.audio.focusedMedia !== tile);
   }
 
   /** A human's music ask on the wall (play, a pick, Start over): arms the tile for audio focus and releases the boot hold for good (B-142). */
-  private arm(tileId: string): void { this.lastInteract.set(tileId, Date.now()); this.humanPlayed.add(tileId); this.bootPaused.delete(tileId); this.bootHeld.delete(tileId); }
+  private arm(tileId: string): void { this.lastInteract.set(tileId, Date.now()); this.pickedAt.set(tileId, Date.now()); this.humanPlayed.add(tileId); this.bootPaused.delete(tileId); this.bootHeld.delete(tileId); }
+  /** When a person or the wall's own pick last started something on the tile - kept, unlike lastInteract, which the playback it explains uses up
+   *  (2026-09-28 review: a pick made after a title ended was paused as "unrelated autoplay" because its mark was gone by the time the check ran). */
+  private readonly pickedAt = new Map<string, number>();
+  /** When a PERSON last chose on the tile - a pick from Watch, the wall's Play, a playlist's next item - never the wall's own restore or stage. */
+  private readonly personAt = new Map<string, number>();
+  /** A person acted on the tile since `t`: their pick or Play, a press or a seek on the page, a pause of the wall's. The restore after a restart
+   *  goes through arm() when its title starts, so pickedAt alone would count the wall's own doing (2026-09-28: Silo was not taken back to its
+   *  spot because the restore's own start read as the person acting). */
+  private personActedSince(tileId: string, t: number): boolean {
+    return (this.personAt.get(tileId) ?? 0) >= t || (this.pageTouchedAt.get(tileId) ?? 0) >= t || (this.pauseHeld.get(tileId) ?? 0) >= t;
+  }
+  /** A person or the wall acted on the tile since `t`: a pick, a play, a press or a seek on the page, a pause of the wall's. */
+  private actedSince(tileId: string, t: number): boolean {
+    return (this.pickedAt.get(tileId) ?? 0) >= t || (this.pageTouchedAt.get(tileId) ?? 0) >= t || (this.pauseHeld.get(tileId) ?? 0) >= t;
+  }
   /** B-142: tiles a human has played on this run - the boot hold never re-arms for them (lastInteract is one-shot, consumed by the playback it explains). */
   private readonly humanPlayed = new Set<string>();
 
+  /** The collection a source holds now, for the phone's now-playing line (2026-10-04, "make sure the service and station/playlist names show"). */
+  musicCollectionOf(tileId: string): { kind: string; id: string; label?: string; url?: string } | null { return this.heldCollection(tileId); }
   /** The collection the page says it holds right now (its context's kind + id), or null. */
   private heldCollection(tileId: string): { kind: string; id: string; label?: string; url?: string } | null {
     const cx = this.nowPlaying.get(tileId)?.context;
@@ -2805,6 +3040,15 @@ export class Orchestrator {
    * person switched back ("we might as well still be holding the last song"). The page keeps its place for as long as
    * the service lets it; when it has let go, its context names something else and the pick queues afresh.
    */
+  /** A verb to a music source's own player as the adapter spells it ("seekto:83", "jumpto:Too Sweet|Hozier"), for a restored session (2026-10-04);
+   *  false when the service's adapter has no player commands. */
+  async musicPlayerVerb(tileId: string, verb: string): Promise<boolean> {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    if (!spec?.musicCmd) return false;
+    await this.drivers.surface.inject(tileId, null, `window.__prismMusicCmd && window.__prismMusicCmd(${JSON.stringify(verb)})`);
+    return true;
+  }
   /** Pause a music source through its own player (the adapter's musicCmd, else its declared pause control, else the bare element). Not a human press: no wake, no offer. */
   private async pauseSource(tileId: string): Promise<void> {
     const tile = this.tile(tileId);
@@ -2870,10 +3114,12 @@ export class Orchestrator {
   async resumePoint(tileId: string): Promise<{ url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number } | null> {
     if (!this.doc || !this.drivers.store) return null;
     try {
-      const raw = await this.drivers.store.get(this.resumeKey(this.doc.id, tileId));
+      const raw = await this.personRead("resume", tileId);
       if (!raw) return null;
       const p = JSON.parse(raw) as { url?: unknown; title?: unknown; artist?: unknown; album?: unknown; label?: unknown; kind?: unknown; id?: unknown; at?: unknown };
       if (typeof p.url !== "string" || typeof p.title !== "string") return null;
+      const own = this.tile(tileId)?.url;
+      if (own && !sameRegistrableDomain(p.url, own)) return null;   // another site's page is not this service's resume point (2026-10-05)
       return { url: normalizeCollectionUrl(p.url), title: p.title, ...(typeof p.artist === "string" ? { artist: p.artist } : {}), ...(typeof p.album === "string" ? { album: p.album } : {}), ...(typeof p.label === "string" ? { label: p.label } : {}), ...(typeof p.kind === "string" ? { kind: p.kind } : {}), ...(typeof p.id === "string" ? { id: p.id } : {}), at: typeof p.at === "number" ? p.at : 0 };
     } catch { return null; }
   }
@@ -3736,12 +3982,18 @@ export class Orchestrator {
     return this.updates.check();
   }
 
+  /** The person's choice of when the update check runs (2026-10-06): taken at once. */
+  setUpdateSchedule(schedule: UpdateSchedule | null, enabled: boolean): void { this.updates.setSchedule(schedule, enabled); }
   setUpdateChannel(channel: UpdateChannel): Promise<void> {
     return this.updates.setChannel(channel);
   }
 
   dismissReleaseNotes(): Promise<void> {
     return this.updates.dismissNotes();
+  }
+  /** The person's own "install now" (2026-10-05): the same path the night window takes - the shell downloads, verifies and stages. */
+  installUpdateNow(): Promise<"applied" | "staged" | "failed" | "none"> {
+    return this.updates.onNightWindow();
   }
 
   /* -------------------------- §14 private listening ---------------------- */
@@ -4036,6 +4288,12 @@ export class Orchestrator {
         }
         const declared = tile.adapter ? this.adapters.get(tile.adapter)?.controls?.skip : undefined;
         const selector = this.intermission.skipTargetSelector(tileId) ?? declared;
+        // no control declared: the ad's own Skip as core found it on the page (SKIP_AD_OFFER_JS), pressed because a person asked
+        if (!selector && this.video.skipOfferOf(tileId) === "Skip Ad" && this.drivers.surface.evaluate) {
+          let said = "";
+          try { const raw = await this.drivers.surface.evaluate(tileId, SKIP_AD_PRESS_JS); said = raw ? String(JSON.parse(raw)) : ""; } catch { said = ""; }
+          return said ? "ok" : "unavailable";
+        }
         if (!selector) return "unknown-cmd";
         if (!this.intermission.isSkipAvailable(tileId)) return "unavailable";
         await this.drivers.surface.inject(tileId, null, clickControlJs(selector));
@@ -4201,11 +4459,20 @@ export class Orchestrator {
           const v = this.video.state([tileId])[0]?.video;
           const hit = v?.series && v.id ? this.listEpisodeById(v.series, String(v.id)) : null;
           if (v?.series && hit?.next) this.videoExpectEpisode(tileId, { series: v.series, season: hit.next.season, episode: hit.next.episode, title: hit.next.title, id: hit.next.id });
+          // the wall's cover while the service moves to it (2026-10-06, "I pressed next video twice, and it showed the big door prize home page,
+          // and then started the video"): the runtime raises it, naming the service
+          if (v?.series) this.episodeMoveHook?.(tileId, hit?.next ? `${v.series}, S${hit.next.season} E${hit.next.episode}` : `${v.series}, the next episode`);
         }
         // VP-2 (2026-09-19): verbs only a video adapter's own script can take - Netflix's Skip Intro, the next episode, the
         // captions control - clicked only because a human asked (section 26 pass-through); no element fallback makes sense
         const tile = this.tile(tileId)!;
         const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
+        // the wall's Skip presses the button core found on the page (SKIP_PRESS_JS, every service); a page that answers nothing has the adapter's own
+        if (cmd === "skipintro" && this.drivers.surface.evaluate) {
+          let said = "";
+          try { const raw = await this.drivers.surface.evaluate(tileId, this.video.skipOfferOf(tileId) === "Skip Ad" ? SKIP_AD_PRESS_JS : SKIP_PRESS_JS); said = raw ? String(JSON.parse(raw)) : ""; } catch { said = ""; }
+          if (said) { this.arm(tileId); return "ok"; }
+        }
         const js = this.video.cmdJs(spec, cmd);
         if (!js || !VIDEO_ONLY_CMDS.includes(cmd)) return "unavailable";
         if (cmd !== "captions") this.arm(tileId);
@@ -4224,9 +4491,12 @@ export class Orchestrator {
     tileExists: (id) => !!this.tile(id),
     inject: (id, js) => Promise.resolve(this.drivers.surface.inject(id, null, js)),
     navigate: (id, url) => Promise.resolve(this.drivers.surface.navigate(id, url)),
+    renew: (id, url) => this.renewSurface(id, url),
     dashId: () => this.doc?.id ?? null,
     store: () => this.drivers.store,
     arm: (id) => this.arm(id),
+    inAd: (id) => this.adActive.has(id),
+    adSkip: (id, available) => this.intermission.onSkipAvailable(id, available),
     urlOf: (id) => this.currentUrl.get(id) ?? this.tile(id)?.url ?? null,
     onStage: (id) => this.elementFullscreen.has(id),
     claimAudio: (id) => this.claimAudio(id),
@@ -4245,7 +4515,14 @@ export class Orchestrator {
   /** Every video tile on the wall with its face, library, resume point and what it can do. */
   /** A series pick's own episode: the one left partway on this service, when the wall saw it (VideoController.seriesEpisodeUrl). */
   videoSeriesEpisodeUrl(adapterKey: string, series: string): string | null { return this.video.seriesEpisodeUrl(adapterKey, series); }
-  videoState(): VideoTileState[] { return this.withListEpisodes(this.video.state((this.doc?.tiles ?? []).map((t) => t.id))); }
+  videoState(): VideoTileState[] {
+    return this.withListEpisodes(this.video.state((this.doc?.tiles ?? []).map((t) => t.id))).map((t) => {
+      const extra: Record<string, boolean> = {};
+      if (this.autoplayStopped.has(t.id)) extra.stoppedAutoplay = true;
+      if (this.titleAtEnd(t.id)) extra.atEnd = true;
+      return Object.keys(extra).length ? { ...t, ...extra } : t;
+    });
+  }
   /**
    * An episode the player names only by number (Netflix's face: "E2", "Episode 2", no season - 2026-09-25) is found in the service's own
    * episode list by its id: the list's season, number and title fill in what the face left out. A face that names its season is left alone.
@@ -4264,6 +4541,15 @@ export class Orchestrator {
   }
   /** The person's Re-sync on a screen: pause and play, or - pressed again soon - the title opened again at its place (VideoController.resync). */
   videoResync(tileId: string): "nudged" | "reopened" | "unavailable" { return this.video.resync(tileId); }
+  /** The guide's program on a channel window now (VideoController.programEdges), for the shell's break watch. */
+  videoProgramEdges(tileId: string): { channel: string; title: string; start: number; end: number | null } | null { return this.video.programEdges(tileId); }
+  /** The shell's picture watch: a video window's picture stood still for this long while its player plays - healed like a frozen clock
+   *  (a live channel's clock can keep counting over a frozen picture: FOX 8 sat on one ad frame for seven minutes, 2026-10-06 19:47). */
+  videoPictureFrozen(tileId: string, seconds: number): { ok: boolean; did: string } {
+    if (!this.tile(tileId) || !this.video.isVideoTile(tileId)) return { ok: false, did: "not a video window" };
+    if ((this.lastInteract.get(tileId) ?? 0) > Date.now() - 60_000) return { ok: false, did: "a person acted there" };
+    return this.video.healStall(tileId, "the picture froze (" + Math.round(seconds) + " s still)") ? { ok: true, did: "reopened" } : { ok: false, did: "no reopen (given up or under way)" };
+  }
   videoExpectEpisode(tileId: string, e: { series: string; season: number; episode: number; title: string; id?: string | null }): void {
     const now = this.video.state([tileId])[0]?.video ?? null;
     this.expecting.set(tileId, { series: e.series, season: e.season, episode: e.episode, title: e.title, id: e.id ?? null, at: Date.now(), from: Orchestrator.episodeMark(now) });
@@ -4318,16 +4604,18 @@ export class Orchestrator {
     // TMDB alone (withRatings false): the ratings ask had also pulled every title's Wikidata item, paced at one a second, so two thousand titles crawled at that pace (2026-09-22)
     if (hasKey) this.lenses.ensure(cards.slice(0, 2500).map((c) => ({ title: c.item.title, kind: c.item.kind, providers: providersOf(this.adapters.get(this.adapterKeyForApp(c.app) ?? c.app)) })), ["tmdb", "poster"], false);   // poster: the backdrop too, the Library cards in every tab's shape
     const facts = this.lenses.factsOf();
+    const own = this.lenses.ownRatingsMap();
     const byGenre = new Map<string, Array<Record<string, unknown>>>();
     let rated = 0;
     for (const c of cards) {
       const f = factsFor(facts, c.item.title, c.item.kind);
       const rating = ratingLabel(f?.rating);
+      const mine = mineOf(f, own);
       if (rating) rated++;
       // a store's bonus material ("Dolphin Tale 2: Blooper Reel (featurette)", "... - The Making of ...") is owned, and is not a title: the Extras row, last
       const extra = /\(featurette\)|\bfeaturette\b|blooper reel|\bthe making of\b|behind the scenes|deleted scenes|\(bonus\b|bonus feature/i.test(c.item.title);
       const genre = extra ? "Extras" : f?.genres?.[0] ?? (f?.at.tmdb ? "Other" : "Unsorted");
-      const card = { ...c, rating, genres: f?.genres ?? [], released: releaseOf(f) };
+      const card = { ...c, rating, mine, genres: f?.genres ?? [], released: releaseOf(f) };
       (byGenre.get(genre) ?? byGenre.set(genre, []).get(genre)!).push(card);
     }
     // Group by None (2026-09-23, "Add an option for None (so we can just sort the whole library)"): every title in one group, in the sort chosen; the Extras stay apart
@@ -4346,14 +4634,40 @@ export class Orchestrator {
   /** the runtime hands the App list over once, for the Library tab's adapter lookups */
   modelApps: (() => ReadonlyArray<{ id: string; adapter?: string; catalogRef?: string }>) | null = null;
   /** TMDB's poster for a title the service gave none for (the owned cards), when the resolver has it. */
+  /** TMDB's air date for each episode of a series (under the key), for episodes a service listed without one (playlists, 2026-09-27). */
+  async tvAirDates(series: string): Promise<Array<{ season: number; episode: number; airDate: string }> | null> {
+    const tm = await this.lenses.tvSeasons(series);
+    if (!tm) return null;
+    return tm.flatMap((s) => s.episodes.filter((e) => !!e.airDate).map((e) => ({ season: s.season, episode: e.episode, airDate: e.airDate! })));
+  }
+  /** TMDB's seasons for one exact show by its id (playlists: a same-named show told apart, 2026-09-27). */
+  tvSeasonsById(id: number) { return this.lenses.tvSeasons("", [], id); }
+  /** TMDB's other names for a show (its alternative titles, the US ones first) - a service's own name for it ("Star Trek: The Animated Series"). */
+  async tvAltTitles(id: number): Promise<string[]> {
+    if (!this.lenses.hasKey()) return [];
+    const r = await this.lenses.tmdbGet(`/tv/${id}/alternative_titles`);
+    const rows = Array.isArray(r?.results) ? (r!.results as Array<{ title?: unknown; iso_3166_1?: unknown }>) : [];
+    const us = rows.filter((x) => x.iso_3166_1 === "US"), rest = rows.filter((x) => x.iso_3166_1 !== "US");
+    return [...new Set([...us, ...rest].map((x) => (typeof x.title === "string" ? x.title.trim() : "")).filter((t) => t.length > 0))];
+  }
+  /** TMDB's id for a title as the lens facts know it ("tv:253"), or null. */
+  tmdbIdOf(title: string, kind: string): string | null { const t = factsFor(this.lenses.factsOf(), title, kind)?.tmdb; return t ? t.kind + ":" + t.id : null; }
+  /** A title's release date as the lens facts know it (Wikidata, else TMDB, else its year), asked of TMDB when there is a key (playlists, 2026-09-27). */
+  releaseFor(title: string, kind?: string | null): string | null {
+    const r = releaseOf(factsFor(this.lenses.factsOf(), title, kind));
+    if (!r && this.lenses.hasKey()) this.lenses.ensure([{ title, kind: kind ?? null }], ["tmdb"], false);
+    return r;
+  }
   posterFor(title: string, kind?: string | null): string | null { return factsFor(this.lenses.factsOf(), title, kind)?.poster ?? null; }
   /** TMDB's landscape backdrop for a title (2026-09-23, "Library is showing the movie posters, instead of the landscape oriented images ... use the same image style we're using elsewhere"). */
   backdropFor(title: string, kind?: string | null): string | null { return factsFor(this.lenses.factsOf(), title, kind)?.backdrop ?? null; }
+  /** The person's order for Continue watching and My list, kept on the device by the runtime (2026-09-26). */
+  rowOrders: () => { continue: "service" | "title"; list: "prism" | "service" | "title"; continueReverse: boolean; listReverse: boolean } = () => ({ continue: "title", list: "prism", continueReverse: false, listReverse: false });
   videoMenuRows(services: readonly { app: string; name: string; facet: string; adapter: string }[]): { continue: LensedCard[]; list: LensedCard[]; log: number; lens: LensBlock; lensRows: LensRow[] } {
     // TMDB's new-episode banner on My List (2026-09-23): only under a key, only where the service gave none
     const now = Date.now();
     const listBadge = this.lenses.hasKey() ? (it: VideoItem, adapter: string) => newEpisodeBadge(this.lenses.lastAired(it.title, it.kind, providersOf(this.adapters.get(adapter))), now) : undefined;
-    const rows = this.video.menu(services.map((s) => ({ ...s, listMerge: this.adapters.get(s.adapter)?.videoListMerge !== false })), now, listBadge);
+    const rows = this.video.menu(services.map((s) => ({ ...s, listMerge: this.adapters.get(s.adapter)?.videoListMerge !== false })), now, listBadge, this.rowOrders());
     // §4a as rows (2026-09-21, "Continue Watching and My List do not retain their context when moving away from Your Own
     // Order ... make those rows of carousels to look through below"): the two rows keep their OWN order always; every lens
     // is a row of its own beneath them - the household's titles (both rows, each title once) in the lens's order, the
@@ -4384,11 +4698,12 @@ export class Orchestrator {
       if (wide) return { ...c, item: { ...c.item, artwork: wide } };
       return c.item.artwork ? c : { ...c, item: { ...c.item, artwork: this.backdropFor(c.item.title, c.item.kind) ?? this.posterFor(c.item.title, c.item.kind) } };
     };
-    const cont = orderByLens(rows.continue.filter((c) => !removing(c)), null, facts).map(withArt("continue")); const list = this.listRowWithJobs(orderByLens(rows.list, null, facts), services).map(withArt("list"));
+    const own = this.lenses.ownRatingsMap();   // the person's own TMDB ratings on the cards (2026-10-03)
+    const cont = orderByLens(rows.continue.filter((c) => !removing(c)), null, facts, own).map(withArt("continue")); const list = this.listRowWithJobs(orderByLens(rows.list, null, facts, own), services).map(withArt("list"));
     const seen = new Set<string>();
     const once = [...rows.continue, ...rows.list].filter((c) => { const k = titleKey(c.item.title); if (seen.has(k)) return false; seen.add(k); return true; });
     const lensRows: LensRow[] = shown.map((l) => {
-      const cards = orderByLens(once, l, facts).filter((c) => c.lens !== null && c.lens !== undefined);
+      const cards = orderByLens(once, l, facts, own).filter((c) => c.lens !== null && c.lens !== undefined);
       return { id: l.id, name: l.name, counted: l.counted, who: l.who, decides: l.decides, source: l.source, sourceUrl: l.sourceUrl, formula: l.formula, attribution: l.attribution ?? null, dataDate: lensDataDate(cards), cards };
     });
     const lens = this.activeLens;
@@ -4405,7 +4720,7 @@ export class Orchestrator {
   private get lenses(): LensResolver {
     return (this.lensResolver ??= new LensResolver({
       fetchStatic: async (url) => { if (!this.drivers.net?.fetchStatic) throw new Error("no static fetch"); return this.drivers.net.fetchStatic(url); },
-      ...(this.drivers.net?.fetchKeyed ? { fetchKeyed: async (url: string, headers: Record<string, string>) => this.drivers.net!.fetchKeyed!(url, headers) } : {}),
+      ...(this.drivers.net?.fetchKeyed ? { fetchKeyed: async (url: string, headers: Record<string, string>, method?: string, body?: string) => this.drivers.net!.fetchKeyed!(url, headers, method, body) } : {}),
       store: () => this.drivers.store, dashId: () => this.doc?.id ?? null, now: () => Date.now(),
     }));
   }
@@ -4458,7 +4773,12 @@ export class Orchestrator {
   /** The adapter that claims this address's host, if any (the registry's `match`). */
   adapterNameForUrl(url: string | null | undefined): string | null { return this.adapters.forUrl(url); }
   /** Quick play of a title on a video tile (a human's tap). */
-  videoPlay(tileId: string, kind: string, id: string, url: string | null, name?: string) { return this.video.play(tileId, kind, id, url, name); }
+  videoPlay(tileId: string, kind: string, id: string, url: string | null, name?: string) {
+    this.bootTitles.delete(tileId);
+    this.pickedAt.set(tileId, Date.now()); this.personAt.set(tileId, Date.now());
+    this.releaseStop(tileId); this.lastTitleSeen.delete(tileId);   // a pick of the wall's: not an autoplay
+    return this.video.play(tileId, kind, id, url, name);
+  }
   private readonly videoPlayQueued = new Map<string, { kind: string; id: string; url: string | null; name?: string; at: number }>();
   /**
    * Call off a pick that has not played yet (2026-09-22, "If a video is 'Starting on...' give me a 'Cancel and Return to Watch' option"): the
@@ -4506,10 +4826,49 @@ export class Orchestrator {
     this.persistMultiview();
     await this.applyLayout();
     const hero = this.videoMultiviewHero();
-    if (hero) await this.claimAudio(hero);
+    // the sound: the big window's, unless a phone listens to another window (listenTile, 2026-10-05)
+    const heard = this.listenTile && this.mv.order.includes(this.listenTile) ? this.listenTile : hero;
+    if (heard) await this.claimAudio(heard);
     // a new big window is the ask to hear it: its player muted ITSELF while it was small or restored (Peacock's sat at muted, volume 0,
     // after a Swap - "switched to Peacock - Mrs Davis, but there is no audio", 2026-09-23) - the page's own mute is lifted, once, here
-    if (hero && hero !== was && this.video.isVideoTile(hero)) await this.drivers.surface.inject(hero, null, UNMUTE_PLAYER_JS);
+    if (heard && heard !== was && this.video.isVideoTile(heard)) await this.drivers.surface.inject(heard, null, UNMUTE_PLAYER_JS);
+  }
+  /**
+   * The window a phone listens to (2026-10-05, "Remote listening for video should allow the user to select which window they're listening
+   * to ... we should allow any 1 (big or mini) window to be selected"): the room hears the big window as ever, but the phone's stream is the
+   * audio the browser carries, so the chosen window takes the audio - the PC's speakers are muted while a phone listens by default (the
+   * phone's own switch), and with that off the room hears the chosen window too, which is the person's choice. null = the big window again.
+   */
+  private listenTile: string | null = null;
+  /**
+   * Each phone's own window (2026-10-06, "if I'm watching the Prism app, it should provide audio for ONLY the video selected as the big window.
+   * If private listening, it should provide me audio for ONLY the window I have selected on the Private Listening tab. BUT, remember there
+   * could be 10 people private listening, in which case they should each hear whatever they have selected"): listener (its pairing token)
+   * -> the window it chose, null for the big window. The room keeps the big window's sound; the shell taps each chosen window's own page
+   * for the phones that chose it (ui.listenRoutes), so a phone's choice never moves the room's sound.
+   */
+  private readonly listenTiles = new Map<string, string | null>();
+  get listenWindow(): string | null { return this.listenTile; }
+  listenWindowOf(listener: string): string | null { const t = this.listenTiles.get(listener) ?? null; return t && this.tile(t) ? t : null; }
+  /** The routes to the shell: every phone that chose, its window (the big window when its choice is gone or never made). */
+  private pushListenRoutes(): void {
+    const hero = this.videoMultiviewHero();
+    const routes: Record<string, string | null> = {};
+    for (const [who, t] of this.listenTiles) routes[who] = t && this.tile(t) && (!this.mv.on || this.mv.order.includes(t)) ? t : hero;
+    void this.drivers.ui?.listenRoutes?.(JSON.stringify({ routes, hero }));
+  }
+  async setListenWindow(tileId: string | null, listener?: string): Promise<"ok" | "unknown-tile" | "no-multiview"> {
+    if (tileId !== null && !this.tile(tileId)) return "unknown-tile";
+    if (listener) { this.listenTiles.set(listener, tileId); this.pushListenRoutes(); return "ok"; }
+    // no listener named: the last phone left (the shell's call) - every phone's choice forgotten, the sound the big window's
+    this.listenTiles.clear(); this.pushListenRoutes();
+    this.listenTile = tileId;
+    const hero = this.videoMultiviewHero();
+    const heard = tileId && this.mv.on && this.mv.order.includes(tileId) ? tileId : hero ?? (tileId && this.tile(tileId) ? tileId : null);
+    if (!heard) return this.mv.on ? "ok" : "no-multiview";
+    await this.claimAudio(heard);
+    if (this.video.isVideoTile(heard)) await this.drivers.surface.inject(heard, null, UNMUTE_PLAYER_JS);
+    return "ok";
   }
   videoMultiviewState(): { on: boolean; slot: string | null; order: string[]; collapsed: boolean } {
     return { on: this.mv.on, slot: this.mv.slot, order: this.mv.order.filter((id) => !!this.tile(id)), collapsed: !!this.mv.collapsed };
@@ -4539,8 +4898,11 @@ export class Orchestrator {
   private mvKeepsAudio(tileId: string): boolean {
     if (!this.mv.on) return false;
     const hero = this.videoMultiviewHero();
-    // a small window, or the screen slot parked out of multiview: neither takes the sound from the big window (or from nothing)
-    return tileId !== hero && (this.mv.order.includes(tileId) || (tileId === this.mv.slot && !this.mv.order.includes(tileId)));
+    // the window a phone listens to takes the sound wherever it sits (2026-10-05); a window that plays by itself while another is heard is
+    // quiet: the big window otherwise, and the chosen one while a phone has chosen
+    const heard = this.listenTile && this.mv.order.includes(this.listenTile) ? this.listenTile : hero;
+    // a small window, or the screen slot parked out of multiview: neither takes the sound from the heard window (or from nothing)
+    return tileId !== heard && (this.mv.order.includes(tileId) || (tileId === this.mv.slot && !this.mv.order.includes(tileId)));
   }
   // ---- the TV off and on again (2026-09-23, "I'd like a restart to result in the same mode, # of videos, and specific videos playing as
   // when it closed. Like turning off a tv and on again"). What each video tile has up - the title's own address and its name - is kept
@@ -4549,15 +4911,23 @@ export class Orchestrator {
   // script is not run (Netflix's would load the address a second time) - and the title counts as a pick on its way: its name on the
   // feed, the stage asked, the big window's sound. This replaces 2026-09-21's "a video service comes back on its home page" for a
   // title that was UP at close; a tile that was on the service's own pages still comes back home.
-  private videoUp = new Map<string, { url: string; name: string }>();
+  // ... and where it had got to (2026-09-28, "why isnt silo saving my place in this episode? Keeps starting over from the beginning ... whenever
+  // the app restarts": Apple TV's episode page, brought back, had its Play pressed and Apple started the episode over - the wall knew the spot
+  // from the player's own reports and kept none of it). The spot is kept with the title; brought back, a title that starts well short of it is
+  // taken there by its service's own seek - every service with one, never in an ad, never after a person has acted on the page.
+  private videoUp = new Map<string, { url: string; name: string; pos?: number; tune?: string; paused?: boolean }>();
   /** Titles this boot is bringing back: the tile's address to load, until its page is up. */
-  private readonly bootTitles = new Map<string, { url: string; name: string }>();
+  private readonly bootTitles = new Map<string, { url: string; name: string; pos?: number; tune?: string; paused?: boolean }>();
+  /** A title brought back paused (2026-10-06, "If a show is paused when Prism is closed, it should be auto-paused upon resume when Prism starts
+   *  again"): until this time, a play the page starts by itself is paused once. */
+  private readonly restorePaused = new Map<string, number>();
   /** When each tile last loaded a page: a page still loading names no title yet, which is not the title closing. */
   private readonly navAt = new Map<string, number>();
   static readonly VIDEO_UP_SETTLE_MS = 30_000;
   private videoUpKey(dashId: string): string { return `video:up:${dashId}`; }
   private multiviewKey(dashId: string): string { return `video:multiview:${dashId}`; }
   private persistMultiview(): void {
+    if (this.listenTiles.size) this.pushListenRoutes();   // the big window may have changed: phones on "the big window" follow it
     if (!this.doc || !this.drivers.store) return;
     try { void this.drivers.store.set(this.multiviewKey(this.doc.id), this.mv.on ? JSON.stringify(this.mv) : ""); } catch { /* best effort */ }
   }
@@ -4566,24 +4936,158 @@ export class Orchestrator {
     try { void this.drivers.store.set(this.videoUpKey(this.doc.id), JSON.stringify(Object.fromEntries(this.videoUp))); } catch { /* best effort */ }
   }
   /** After each report from a video tile: what it has up now, kept when it changed. */
+  private readonly upReach = new Map<string, number>();
+  private readonly previewMuted = new Set<string>();
+  /** A tile the video rules keep quiet - a home page's preview, a stopped autoplay: no other path gives it its sound back (2026-09-29, "something
+   *  has started to autoplay and there is nothing playing on the screen": the preview was muted, and the audio focus unmuted its owner 300 ms later). */
+  private heldQuiet(tileId: string): boolean { return this.previewMuted.has(tileId) || this.autoplayStopped.has(tileId); }
+  /**
+   * After a title ends, only its next episode carries on (2026-09-28, "It's very common for a service to autoplay something else after a show ends,
+   * even if its the full series. If we're autoplaying the next episode great, autoplaying something unrelated is not"): for every service, when a
+   * title that played to 90% of itself gives way - within three minutes - to a title of another show (or another movie) that nobody picked (no
+   * pick of the wall's open, no press on the page since), the new one is paused and muted and marked stoppedAutoplay, so the host brings Watch back.
+   */
+  private readonly lastTitleSeen = new Map<string, { key: string; series: string; reach: number; endedAt?: number }>();
+  /**
+   * A title stuck at its end is over, on every service (2026-09-28, "Let's merge rules for multiple services wherever we can": Netflix's end-of-series
+   * promo was caught by its adapter alone - any service whose page stops at the last seconds of a title and keeps naming it, an end card or an "up
+   * next" screen, is the same case): the page names the title, it is not playing, and it stands within two seconds of the end for 15 seconds -
+   * the tile's state says ended, so Watch comes back, the title is not brought back after a restart, and a playlist goes on.
+   */
+  private readonly atEndSince = new Map<string, number>();
+  static readonly AT_END_MS = 15_000;
+  titleAtEnd(tileId: string): boolean {
+    const st = this.video.state([tileId])[0];
+    const v = st?.video;
+    const still = !!v && v.kind !== "live" && !st!.playing && !v.ad && typeof v.position === "number" && typeof v.duration === "number" && v.duration > 60 && v.position >= v.duration - 2;
+    if (!still) { this.atEndSince.delete(tileId); return false; }
+    const since = this.atEndSince.get(tileId) ?? Date.now();
+    this.atEndSince.set(tileId, since);
+    return Date.now() - since >= Orchestrator.AT_END_MS;
+  }
+  readonly autoplayStopped = new Set<string>();
+  private unrelatedAutoplayCheck(tileId: string, st: VideoTileState | undefined, titled: boolean): void {
+    const v = st?.video;
+    // a live channel moves from show to show by itself - that is what it is (2026-09-28, "Live channels will automatically transition to new
+    // shows. We're okay with that. That's expected. Unlike where if we stream episodes we don't allow unrelated shows to autoplay"): never stopped,
+    // and what follows it is not a title after a title's end
+    if (v?.kind === "live") { this.lastTitleSeen.delete(tileId); return; }
+    const prev = this.lastTitleSeen.get(tileId);
+    if (!titled || !v) {
+      if (prev && prev.reach >= 0.9 && !prev.endedAt) prev.endedAt = Date.now();
+      return;
+    }
+    // a first report naming only the episode, right after a show (Netflix's "E2" face before its series shows): not known yet - the next report says
+    if (prev?.series && !v.series) return;
+    const key = v.series || v.title || "";
+    const reach = typeof v.position === "number" && typeof v.duration === "number" && v.duration > 0 ? v.position / v.duration : prev && titleKey(prev.key) === titleKey(key) ? prev.reach : 0;
+    if (prev && titleKey(prev.key) !== titleKey(key)) {
+      const endedAt = prev.endedAt ?? (prev.reach >= 0.9 ? Date.now() : null);
+      const nextEpisode = !!v.series && !!prev.series && showsMatch(v.series, prev.series);
+      const chosen = (!!st?.pending && !st.pending.failed) || (endedAt !== null && this.actedSince(tileId, endedAt - 5_000));
+      if (endedAt !== null && Date.now() - endedAt < 180_000 && !nextEpisode && !chosen) {
+        this.autoplayStopped.add(tileId);
+        this.previewMuted.add(tileId);
+        void this.drivers.surface.setMuted(tileId, true);
+        void this.tileCommand(tileId, "pause");
+      }
+    }
+    if (!prev || titleKey(prev.key) !== titleKey(key) || reach !== prev.reach) this.lastTitleSeen.set(tileId, { key, series: v.series ?? "", reach });
+  }
+  /** A stopped autoplay or a muted preview let go: the tile's sound goes back to what the wall would give it (never over an ad's cover). */
+  private releaseStop(tileId: string): void {
+    const had = this.previewMuted.delete(tileId);
+    this.autoplayStopped.delete(tileId);
+    if (had && this.surfaces.has(tileId)) void this.drivers.surface.setMuted(tileId, this.wallMuted || this.audio.focusedMedia !== tileId || this.intermission.isCovered(tileId));
+  }
+  /** The person pressed Play on the wall for this tile: a stopped autoplay is theirs to watch after all. */
+  videoPersonPlay(tileId: string): void { this.pickedAt.set(tileId, Date.now()); this.personAt.set(tileId, Date.now()); this.releaseStop(tileId); }
+  /** Everything the video rules kept about a tile, for a tile cleared or given to another service. */
+  private forgetVideoRules(tileId: string): void {
+    this.releaseStop(tileId);
+    this.lastTitleSeen.delete(tileId); this.atEndSince.delete(tileId); this.upReach.delete(tileId); this.freshFor.delete(tileId); this.pickedAt.delete(tileId); this.personAt.delete(tileId); this.staleEpisode.delete(tileId);
+  }
+  private previewMuteCheck(tileId: string): void {
+    const tile = (this.doc?.tiles ?? []).find((t) => t.id === tileId);
+    if (!tile?.adapter || !this.surfaces.has(tileId)) return;
+    const st = this.video.state([tileId])[0];
+    const titled = !!st?.playing && !!st.video && (!!(st.video.title || st.video.series) || st.video.kind === "live") && st.video.kind !== "title";   // a live channel is what plays, named or not
+    if (isVideoAdapter(this.adapters.get(tile.adapter))) this.unrelatedAutoplayCheck(tileId, st, titled || (!!st?.video && !!(st.video.title || st.video.series)));
+    if (this.autoplayStopped.has(tileId)) return;   // stopped and muted: its sound stays off until a person or a pick plays something
+    // sound only from a title (2026-09-28, "netflix started autoplaying something else. Right now I'm getting a bunch of anime music playing through
+    // my speakers but cant see anything playing": Animal Control's season ended, Netflix went to its home page and autoplayed a trailer, and the
+    // screen still had the sound): a video tile playing with no title named - a home page's preview, an end screen - is muted; the sound comes
+    // back when a title plays on it
+    const isVideo = isVideoAdapter(this.adapters.get(tile.adapter));
+    // (the page's own playing, too: a home page's trailer counts as "not playing" in the video state - the preview rule - while it sounds)
+    if (isVideo && (st?.playing || this.audio.isPlaying(tileId)) && !titled && !this.previewMuted.has(tileId)) { this.previewMuted.add(tileId); void this.drivers.surface.setMuted(tileId, true); }
+    else if (titled && this.previewMuted.has(tileId)) this.releaseStop(tileId);
+  }
+
+  /** Tiles whose page names an episode the player has moved on from, and the episode the player is on (correctStaleEpisode). */
+  private readonly staleEpisode = new Map<string, string>();
+  /**
+   * The player's own name for what plays (the page's media session - the report's title) against the adapter's episode: when they differ, and
+   * the player's name is an episode of the same series in the service's own list the wall keeps (the Episodes menu's), the report is corrected
+   * to that episode - its title, season, number, id and address. Nothing is guessed: a name not in the list, a name that is the show's own, or
+   * one that contains the adapter's title leaves the report as it was.
+   */
+  private correctStaleEpisode(tileId: string, info: NowPlaying): NowPlaying {
+    const v = info.video as VideoContext;
+    const said = typeof info.title === "string" ? info.title.trim() : "";
+    const clear = () => { this.staleEpisode.delete(tileId); return info; };
+    if (!said || !v.series || !v.title || v.ad) return clear();
+    const k = titleKey(said), vt = titleKey(v.title);
+    if (!k || k === vt || vt.includes(k) || k.includes(vt) || showsMatch(said, v.series)) return clear();
+    const app = this.tile(tileId)?.adapter;
+    if (!app) return clear();
+    this.loadEpisodeLists();
+    const e = this.episodeLists.get(app + "|" + titleKey(v.series));
+    if (!e || e.source !== "service") return clear();
+    for (const sn of e.seasons) for (const ep of sn.episodes) {
+      if (titleKey(ep.title) !== k) continue;
+      if (ep.url) this.staleEpisode.set(tileId, ep.url); else this.staleEpisode.delete(tileId);
+      return { ...info, video: { ...v, title: ep.title, season: sn.season, episode: ep.episode, ...(ep.id ? { id: ep.id } : {}), ...(ep.url ? { url: ep.url } : {}) } };
+    }
+    return clear();
+  }
   private noteVideoUp(tileId: string): void {
     const tile = this.tile(tileId);
     if (!this.doc || !tile?.url || !tile.adapter || !isVideoAdapter(this.adapters.get(tile.adapter))) return;
     if (this.bootTitles.has(tileId)) return;   // still coming back: the page has not said anything yet
     const ctx = this.video.state([tileId])[0]?.video ?? null;
-    const url = this.currentUrl.get(tileId) ?? null;
+    // the episode the player moved on to, when the page's address still names the one before (correctStaleEpisode): what a restart loads
+    const url = this.staleEpisode.get(tileId) ?? this.currentUrl.get(tileId) ?? null;
     const was = this.videoUp.get(tileId);
     const bare = (u: string) => u.split("?")[0]!.split("#")[0]!.replace(/[/]+$/, "");
     let next = was;
+    // how far the kept title got: one that played to its end is not brought back (2026-09-28, "You just restarted and immediately when the window
+    // launched it showed sullivans crossing on the big window screen. A short time later, it restarted animal control for me": Animal Control
+    // S4 E12 had ended onto Netflix's end-of-series promo at the same /watch address, so the title was kept, came back onto the promo, and the
+    // restore's Play press started it over)
+    if (ctx && (ctx.title || ctx.series) && typeof ctx.position === "number" && typeof ctx.duration === "number" && ctx.duration > 0) this.upReach.set(tileId, ctx.position / ctx.duration);
     // only a title that PLAYED is brought back after a restart (2026-09-23, "You also continue to open up the apple tv home page ... Watch shouldn't
     // keep closing and defaulting to a service's home page"): Apple TV's episode page names its title before anything plays, and Hijack - never
     // started - came back 'loading' at every boot, its page in Watch's corner
-    if (ctx && !ctx.ad && (ctx.title || ctx.series) && (ctx.playing || (typeof ctx.position === "number" && ctx.position > 5)) && url && sameRegistrableDomain(url, tile.url) && bare(url) !== bare(tile.url)) next = { url, name: ctx.series || ctx.title || "" };
+    if (this.titleAtEnd(tileId)) next = undefined;   // stuck at its end, an end card still naming it: over (every service, 2026-09-28)
+    // ... playing by the page's own word or the window's (YouTube TV names TBS's channel as a paused "video" while it plays - its window was
+    // never kept and every restart closed it, 2026-10-07)
+    else if (ctx && !ctx.ad && (ctx.title || ctx.series) && (ctx.playing || this.video.state([tileId])[0]?.playing === true || (typeof ctx.position === "number" && ctx.position > 5)) && url && sameRegistrableDomain(url, tile.url) && bare(url) !== bare(tile.url)) {
+      const pos = typeof ctx.position === "number" && ctx.position > 0 ? Math.round(ctx.position) : was?.url === url ? was.pos : undefined;
+      // a live channel on a service that tunes by its own walk is kept as the channel (2026-09-29): a restart tunes it again from the service's home
+      const canTune = !!this.adapters.get(tile.adapter)?.videoTune;
+      const tune = !canTune ? undefined : ctx.kind === "live" && ctx.channel ? ctx.channel : was?.url === url ? was.tune : undefined;   // a report that names no channel keeps the one kept, while the address stands
+      const stillNow = ctx.playing !== true && this.video.state([tileId])[0]?.playing !== true && !!pos && pos > 5;
+      next = tune ? { url, name: ctx.series || ctx.title || "", tune } : { url, name: ctx.series || ctx.title || "", ...(pos ? { pos } : {}), ...(stillNow ? { paused: true } : {}) };
+    }
     // the title closed: its browse page, another address - but not in a page's first seconds (2026-09-24: each restart lost titles - a restored
     // page's first report named nothing while its player loaded, often at a moved address, and the kept title was dropped; three restarts
     // took The Rookie, DANG! and Georgie & Mandy, and their windows came back on home pages)
     else if ((!ctx || (!ctx.title && !ctx.series)) && was && url && bare(url) !== bare(was.url) && Date.now() - (this.navAt.get(tileId) ?? 0) > Orchestrator.VIDEO_UP_SETTLE_MS) next = undefined;
-    if ((next?.url ?? null) === (was?.url ?? null) && (next?.name ?? null) === (was?.name ?? null)) return;
+    // the title ended where it stands: no title on the page any more, and the last it said was the end of it
+    else if ((!ctx || (!ctx.title && !ctx.series)) && was && (this.upReach.get(tileId) ?? 0) >= 0.95) { next = undefined; this.upReach.delete(tileId); }
+    // the spot is written as it moves on by 15 seconds or more, not at every report
+    if ((next?.url ?? null) === (was?.url ?? null) && (next?.name ?? null) === (was?.name ?? null) && (next?.tune ?? null) === (was?.tune ?? null) && !!next?.paused === !!was?.paused && Math.abs((next?.pos ?? 0) - (was?.pos ?? 0)) < 15) return;
     if (next) this.videoUp.set(tileId, next); else this.videoUp.delete(tileId);
     this.persistVideoUp();
   }
@@ -4595,8 +5099,8 @@ export class Orchestrator {
     let mvRec: { on?: unknown; slot?: unknown; order?: unknown } | null = null;
     try {
       const raw = await this.drivers.store.get(this.videoUpKey(doc.id));
-      const rec = raw ? JSON.parse(raw) as Record<string, { url?: unknown; name?: unknown }> : null;
-      if (rec && typeof rec === "object") for (const [id, v] of Object.entries(rec)) if (v && typeof v.url === "string") this.videoUp.set(id, { url: v.url, name: typeof v.name === "string" ? v.name : "" });
+      const rec = raw ? JSON.parse(raw) as Record<string, { url?: unknown; name?: unknown; pos?: unknown; tune?: unknown; paused?: unknown }> : null;
+      if (rec && typeof rec === "object") for (const [id, v] of Object.entries(rec)) if (v && typeof v.url === "string") this.videoUp.set(id, { url: v.url, name: typeof v.name === "string" ? v.name : "", ...(typeof v.pos === "number" && v.pos > 0 ? { pos: v.pos } : {}), ...(typeof v.tune === "string" && v.tune ? { tune: v.tune } : {}) , ...(v.paused === true ? { paused: true } : {}) });
       if (boot) { const m = await this.drivers.store.get(this.multiviewKey(doc.id)); mvRec = m ? JSON.parse(m) : null; }
     } catch { /* unreadable: the wall comes back as a fresh one */ }
     if (!boot) return;
@@ -4605,17 +5109,43 @@ export class Orchestrator {
       const order = Array.isArray(mvRec.order) ? mvRec.order.filter(has) : [];
       this.mv = { on: true, slot: mvRec.slot, order: (order.length ? order : [mvRec.slot]).slice(0, MV_MAX), ...((mvRec as { collapsed?: unknown }).collapsed === true ? { collapsed: true } : {}) };
     }
+    let stale = false;   // records of windows that no longer exist (2026-09-29: closed multiview windows stayed in the record for good)
     for (const [id, up] of this.videoUp) {
       const tile = doc.tiles.find((t) => t.id === id);
-      if (!tile?.url || this.surfaces.has(id) || !sameRegistrableDomain(up.url, tile.url)) { this.videoUp.delete(id); continue; }
-      this.bootTitles.set(id, up);
+      if (!tile?.url || this.surfaces.has(id) || !sameRegistrableDomain(up.url, tile.url)) { this.videoUp.delete(id); if (!tile) stale = true; continue; }
+      // (a record whose window is gone was dropped above: the record on the device follows, below)
+      // a channel comes back through its service's tune: the tile loads its home, the tune is asked once it is up
+      this.bootTitles.set(id, up.tune && tile.adapter && this.adapters.get(tile.adapter)?.videoTune ? { url: tile.url, name: up.name, tune: up.tune } : { url: up.url, name: up.name, ...(up.pos ? { pos: up.pos } : {}), ...(up.paused ? { paused: true } : {}) });
     }
+    if (stale) this.persistVideoUp();
+  }
+  /** A title brought back after a restart, taken to the spot it had reached (the spot kept with videoUp): once it plays outside an ad, if it
+   *  started more than 30 seconds short of the spot, its service's own seek takes it there; a service that resumed by itself, a spot in the
+   *  last minute, a person's press on the page, or three minutes without a start - nothing. */
+  static readonly RESUME_WAIT_MS = 180_000;
+  private resumeRestored(tileId: string, pos: number, name: string, at: number): void {
+    const look = () => {
+      // a person's press, pick or seek since the restore is theirs to keep (2026-09-28 review: lastInteract is used up by the playback it explains)
+      if (!this.surfaces.has(tileId) || this.personActedSince(tileId, at + 1) || Date.now() - at > Orchestrator.RESUME_WAIT_MS) return;
+      const st = this.video.state([tileId])[0];
+      const v = st?.video;
+      if (!st?.playing || !v || v.ad || typeof v.position !== "number" || v.position <= 0) { setTimeout(look, 2_000); return; }
+      if (name && !showsMatch(v.series || v.title || "", name)) return;   // another title on the tile now: not this one's spot
+      if (v.position >= pos - 30) return;   // the service came back to the spot itself
+      if (typeof v.duration === "number" && v.duration > 0 && pos > v.duration - 60) return;   // it had all but finished
+      const r = this.video.seekTo(tileId, pos);
+      if (r === "ad") setTimeout(look, 2_000);
+    };
+    setTimeout(look, 2_000);
   }
   /** The titles coming back, marked as picks on their way (the feed's name, the stage asked); the big window - or a lone title - takes the sound. */
   private async videoUpMark(stamp: boolean): Promise<void> {
     const hero = this.videoMultiviewHero();
     const lone = this.bootTitles.size === 1;
-    for (const [id, up] of this.bootTitles) await this.video.restoreTitle(id, up.url, up.name, stamp && (hero ? id === hero : lone));
+    for (const [id, up] of this.bootTitles) {
+      if (up.tune) await this.video.restoreChannel(id, up.tune, up.name, stamp && (hero ? id === hero : lone));
+      else await this.video.restoreTitle(id, up.url, up.name, stamp && (hero ? id === hero : lone));
+    }
   }
   /** The address a tile's page is at now (to take a title into the screen slot when multiview closes). */
   currentUrlOf(tileId: string): string | null { return this.currentUrl.get(tileId) ?? null; }
@@ -4633,9 +5163,9 @@ export class Orchestrator {
   private rePausing = false;
   /** VP-3: the title to play on this tile once its page is up (the screen is being switched to its service). */
   videoPlayWhenUp(tileId: string, pick: { kind: string; id: string; url: string | null; name?: string }): void { this.videoPlayQueued.set(tileId, { ...pick, at: Date.now() }); }
-  private readonly videoTuneQueued = new Map<string, { channelId: string; at: number }>();
+  private readonly videoTuneQueued = new Map<string, { channelId: string; at: number; name?: string; page?: string }>();
   /** The screen slot re-assigned to another service: what the last service left on the tile is cleared (a pick, a hint, a face, a queued play or tune). */
-  videoClearTile(tileId: string): void { if (this.videoUp.delete(tileId)) this.persistVideoUp(); this.bootTitles.delete(tileId); this.video.clearTile(tileId); this.videoPlayQueued.delete(tileId); this.videoTuneQueued.delete(tileId); this.videoSearchQueued.delete(tileId); }
+  videoClearTile(tileId: string): void { this.forgetVideoRules(tileId); if (this.videoUp.delete(tileId)) this.persistVideoUp(); this.bootTitles.delete(tileId); this.video.clearTile(tileId); this.videoPlayQueued.delete(tileId); this.videoTuneQueued.delete(tileId); this.videoSearchQueued.delete(tileId); }
   private readonly videoSearchQueued = new Map<string, { q: string; open?: string | null; at: number }>();
   /** Phase 2: the words to enter into this tile's search once its page is up (and the result to press, for a cross-service pick). */
   videoSearchWhenUp(tileId: string, q: string, open?: string | null): void { this.videoSearchQueued.set(tileId, { q, ...(open ? { open } : {}), at: Date.now() }); }
@@ -4792,6 +5322,14 @@ export class Orchestrator {
     const svc = services.filter((s) => s.status === "signed-in").map((s) => ({ ...s, providers: providersOf(this.adapters.get(s.adapter)) }));
     return { svc, providers: [...new Set(svc.flatMap((s) => s.providers))].sort((a, b) => a - b) };
   }
+  /** The household's signed-in services that carry a TMDB title here (its providers against the adapters' tmdbProviders): the services a
+   *  playlist entry read from TMDB will play on (playlist-tmdb.ts, 2026-10-03). */
+  async carriedBy(services: ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; status: string }>, kind: "movie" | "tv", id: number): Promise<string[]> {
+    const { svc } = this.browseServices(services);
+    const offers = offersFromProviders(await this.watchProvidersOf(kind, id));
+    const ids = new Set(Object.values(offers).flat());
+    return svc.filter((s) => s.providers.some((p) => ids.has(p))).map((s) => s.app);
+  }
   private async watchProvidersOf(kind: "movie" | "tv", id: number): Promise<unknown> {
     const cacheKey = `${kind}:${id}`;
     const cached = this.providersCache.get(cacheKey);
@@ -4867,7 +5405,8 @@ export class Orchestrator {
     if (!services.length) return null;
     services.sort((a, b) => Number(b.offer === "Owned") - Number(a.offer === "Owned"));
     const rating = t.mean !== null && t.votes !== null ? ratingLabel({ mean: t.mean, votes: t.votes }) : null;
-    return { ...(rating ? { rating } : {}), id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), ...(t.genres?.length ? { genres: t.genres } : {}), value, services };
+    const mine = this.lenses.ownRatingsMap().get(t.kind + ":" + t.id) ?? null;   // the person's own, by the TMDB title (2026-10-03)
+    return { ...(rating ? { rating } : {}), ...(mine !== null ? { mine } : {}), id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), ...(t.genres?.length ? { genres: t.genres } : {}), value, services };
   }
 
   // ---- Most read on Wikipedia across the household's services (most-read.ts is the rule, here the reads; 2026-09-22). Read in the background
@@ -5148,7 +5687,84 @@ export class Orchestrator {
     for (const entry of this.browseCache.values()) for (const row of Object.values(entry.rows)) { const c = hit(row); if (c) return c; }
     for (const entry of this.browseFullCache.values()) { const c = hit(entry.cards); if (c) return c; }
     for (const entry of this.mostReadCache.values()) { const c = hit(entry.cards); if (c) return c; }
+    { const c = hit(this.watchCards.cards); if (c) return c; }   // a watchlist card (2026-10-03)
     return null;
+  }
+  // ---- the person's TMDB watchlist as My list (2026-10-03, "disable the existing My List items from different services and replace it with
+  // TMDB My Watchlist ... If this TMDB link gets deleted or removed from prism, then the previous per app setting for populating My List
+  // should be restored"): while an account is linked the row is the watchlist and the services' list pages are not read; unlinked, the
+  // services' own lists come back on their own (nothing of theirs was changed). Each title a card the way Browse makes them - the
+  // household's services that carry it, from JustWatch through TMDB - or, carried by none, a card that says so.
+  private watchCards: { key: string; at: number; cards: BrowseCard[] } = { key: "", at: 0, cards: [] };
+  private watchBuilding = false;
+  /** Whether My list is the watchlist now (an account linked). */
+  watchlistActive(): boolean { return this.lenses.linked(); }
+  videoWatchlist(services: ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; status: string }>, force = false): { active: boolean; reading: boolean; cards: BrowseCard[]; count: number } {
+    if (!this.lenses.linked()) return { active: false, reading: false, cards: [], count: 0 };
+    const w = this.lenses.watchlist(force);
+    const { svc } = this.browseServices(services);
+    const key = w.at + "|" + w.titles.length + "|" + svc.map((s) => s.app).join(",");
+    if (key !== this.watchCards.key && !this.watchBuilding) {
+      this.watchBuilding = true;
+      void (async () => {
+        const cards: BrowseCard[] = [];
+        for (const t of w.titles) {
+          if (!t.title) continue;
+          const card = this.catalogCard(t, offersFromProviders(await this.watchProvidersOf(t.kind, t.id)), svc, "any", "")
+            ?? { id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), value: "Not on your services", services: [] } as BrowseCard;
+          cards.push(card);
+        }
+        this.watchCards = { key, at: Date.now(), cards };
+      })().catch(() => { /* the next look builds again */ }).finally(() => { this.watchBuilding = false; });
+    }
+    return { active: true, reading: w.reading || this.watchBuilding, cards: this.watchCards.cards, count: w.titles.length };
+  }
+  /** A watchlist toggle from a card or a title's page; the cards are built again on the next look. */
+  async watchlistSet(kind: "movie" | "tv", id: number, on: boolean, title?: BrowseTitle): Promise<{ ok: true } | { ok: false; error: string }> {
+    const r = await this.lenses.watchlistSet(kind, id, on, title);
+    if (r.ok) this.watchCards.key = "";
+    return r;
+  }
+  watchlistHas(kind: "movie" | "tv", id: number): boolean | null { return this.lenses.watchlistHas(kind, id); }
+  /** By a card's title (a service's card knows no TMDB id): the work the facts matched, else none yet - the lookup starts. */
+  watchlistHasTitle(title: string, kind: string | null): { on: boolean | null; work: { kind: "movie" | "tv"; id: number } | null } {
+    if (!this.lenses.linked()) return { on: null, work: null };
+    const f = factsFor(this.lenses.factsOf(), title, kind);
+    if (!f?.tmdb) return { on: null, work: null };
+    return { on: this.lenses.watchlistHas(f.tmdb.kind, f.tmdb.id), work: f.tmdb };
+  }
+  async watchlistSetTitle(title: string, kind: string | null, on: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
+    const work = await this.lenses.workOf(title, kind);
+    if (!work) return { ok: false, error: "TMDB does not know " + title };
+    return this.watchlistSet(work.kind, work.id, on);
+  }
+  /**
+   * The copy of the services' own lists onto the watchlist (the offer on the row): each title matched to its TMDB work - the facts kept,
+   * else TMDB's search narrowed by the service's providers - and added at a person's pace. A title TMDB cannot match is counted, not
+   * guessed. The person presses for it; nothing calls this on its own.
+   */
+  private watchImport: { running: boolean; done: number; added: number; already: number; unmatched: string[]; total: number } | null = null;
+  watchlistImportState() { return this.watchImport; }
+  watchlistImportStart(items: ReadonlyArray<{ title: string; kind: string; providers: number[] }>): boolean {
+    if (this.watchImport?.running || !this.lenses.linked()) return false;
+    const job = { running: true, done: 0, added: 0, already: 0, unmatched: [] as string[], total: items.length };
+    this.watchImport = job;
+    void (async () => {
+      for (const it of items) {
+        try {
+          const work = await this.lenses.workOf(it.title, it.kind, it.providers);
+          if (!work) job.unmatched.push(it.title);
+          else if (this.lenses.watchlistHas(work.kind, work.id)) job.already++;
+          else { const r = await this.lenses.watchlistSet(work.kind, work.id, true); if (r.ok) job.added++; else job.unmatched.push(it.title); }
+        } catch { job.unmatched.push(it.title); }
+        job.done++;
+        await new Promise((r) => setTimeout(r, 250));   // a person's pace against TMDB
+      }
+      job.running = false;
+      this.watchCards.key = "";
+      this.lenses.watchlist(true);
+    })();
+    return true;
   }
   /** A Binge title's name by its card id, from any read kept (the hidden list names its titles). */
   videoBingeTitle(cardId: string): string | null {
@@ -5196,7 +5812,7 @@ export class Orchestrator {
     for (const c of cards) {
       const f = factsFor(facts, c.item.title, c.item.kind);
       if (!f?.at.tmdb) unread++;
-      if (inGenre(f?.genres, genre)) out.push({ card: { ...c, rating: ratingLabel(f?.rating) }, key: titleKey(c.item.title) });
+      if (inGenre(f?.genres, genre)) out.push({ card: { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, this.lenses.ownRatingsMap()) }, key: titleKey(c.item.title) });
     }
     out.sort((a, b) => a.key.localeCompare(b.key));
     return { cards: out.map((x) => x.card), unread };
@@ -5437,6 +6053,53 @@ export class Orchestrator {
    * A script on the service's own page, in the App's profile, never shown (2026-09-22): the App's hidden surface (made if missing) goes to
    * `url`, `script` is injected once the page is up, and `call(token)` is asked; the page's answer on that token is returned.
    */
+  /**
+   * What a service's own page shows, read on the App's hidden work page (made if missing, in the App's profile, never shown): the page
+   * goes to `url`, and `js` is evaluated there a few times while the page settles until `done` takes an answer. One job at a time a page,
+   * as askHiddenPage. Returns the answer, or null. Used for a sign-in's label (the account page's email or name).
+   */
+  async readHiddenPage(s: { app: string; adapter: string; profile: string }, url: string, js: string, done: (raw: string) => boolean, tries = 5): Promise<string | null> {
+    if (!this.drivers.surface.evaluate) return null;
+    const surfaceId = `app:${s.app}:work`;
+    const plays = this.adapters.get(s.adapter)?.videoPlaysAt ?? [];
+    let path = ""; try { path = new URL(url).pathname; } catch { path = url; }
+    if (plays.some((p) => path.includes(p))) return null;
+    this.hiddenWork++;
+    this.touchLookups();
+    const before = this.hiddenChains.get(surfaceId) ?? Promise.resolve();
+    let release!: () => void;
+    const mine = new Promise<void>((r) => { release = r; });
+    this.hiddenChains.set(surfaceId, before.then(() => mine));
+    await before;
+    try {
+      let entry = this.lookups.get(surfaceId);
+      if (!entry || !this.surfaces.has(surfaceId)) {
+        entry = { app: s.app, adapter: s.adapter, up: false, upWaits: [], lastUsed: Date.now() };
+        this.lookups.set(surfaceId, entry);
+        await this.drivers.surface.create({ id: surfaceId, profile: s.profile, background: this.doc?.theme?.background ?? DEFAULT_BACKGROUND, kind: "hidden", blocking: true });
+        this.surfaces.add(surfaceId);
+        await this.drivers.surface.setRect(surfaceId, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
+        await this.drivers.surface.setMuted(surfaceId, true);
+      }
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.routeOnUp = false;
+      await this.drivers.surface.navigate(surfaceId, url);
+      const up = await new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
+        entry!.upWaits.push(() => { clearTimeout(timer); resolve(true); });
+      });
+      if (!up) return null;
+      let last: string | null = null;
+      for (let i = 0; i < tries; i++) {
+        await new Promise<void>((r) => setTimeout(r, i === 0 ? 1_500 : 2_000));
+        if (!this.surfaces.has(surfaceId)) return last;
+        let raw: string | null = null;
+        try { raw = await this.drivers.surface.evaluate(surfaceId, js); } catch { raw = null; }
+        if (raw) { last = raw; if (done(raw)) return raw; }
+      }
+      return last;
+    } catch { return null; }
+    finally { release(); this.hiddenWork--; this.touchLookups(); }
+  }
   private async askHiddenPage(s: { app: string; adapter: string; profile: string }, url: string, script: string, tag: string, call: (token: string) => string, timeoutMs: number, partial?: (r: MusicResultEvent) => void): Promise<{ r: MusicResultEvent | null; error?: string }> {
     // background work has a hidden page of its own, apart from the one searches and a catalog pick's resolve use: a person's play is never
     // queued behind a removal, and never takes the page out from under one (2026-09-22, "kick off 2 removals but then play a title")
@@ -5498,6 +6161,296 @@ export class Orchestrator {
     return "holding " + surfaceId + " at " + url;
   }
 
+  // ---- the Live tab (docs/features/live.md, 2026-09-28): each service's channel guide, read while a person has the tab open
+  private readonly liveReadAt = new Map<string, number>();
+  private readonly liveReading = new Set<string>();
+  static readonly LIVE_READ_MS = 15 * 60_000;
+  static readonly LIVE_ANSWER_TIMEOUT_MS = 180_000;
+  /** Any video on a guide page stays paused while the wall reads it (such pages start a channel as they open). */
+  static readonly LIVE_PAUSE_JS = "(function(){if(window.__prismLivePause)return;window.__prismLivePause=1;function p(){try{var v=document.querySelectorAll('video');for(var i=0;i<v.length;i++){v[i].muted=true;if(!v[i].paused)v[i].pause();}}catch(e){}}p();setInterval(p,500);})();";
+  /**
+   * Each signed-in service with a guide page (adapter videoLiveUrl) read on its hidden page, muted, any video paused: the channels its videoLive
+   * script answers (op "live"; "live-part" as it goes) are kept for the Live tab. Only when a person asked - the tab open, Refresh - and at most
+   * every LIVE_READ_MS per service unless forced. Returns the Apps asked.
+   */
+  videoLiveRead(services: ReadonlyArray<{ app: string; adapter: string; profile: string; status: string }>, force = false): string[] {
+    const asked: string[] = [];
+    for (const s of services) {
+      const spec = this.adapters.get(s.adapter);
+      if (s.status !== "signed-in" || !spec?.videoLive || !spec.videoLiveUrl || this.liveReading.has(s.app)) continue;
+      if (!force && Date.now() - (this.liveReadAt.get(s.app) ?? 0) < Orchestrator.LIVE_READ_MS) continue;
+      this.liveReading.add(s.app);
+      asked.push(s.app);
+      const keep = (r: MusicResultEvent) => { if (Array.isArray(r.candidates)) this.video.keepLive(s.adapter, r.candidates as unknown[], true); };
+      void (async () => {
+        try {
+          const call = (token: string) => `window.__prismVideoLiveRead ? window.__prismVideoLiveRead(${JSON.stringify(token)}) : (window.PrismTile && PrismTile.notifyMusicResult({ token: ${JSON.stringify(token)}, op: "live", ok: true, candidates: (window.__prismVideoLive && window.__prismVideoLive.cache) || [] }))`;
+          const a = await this.askHiddenPage(s, spec.videoLiveUrl!, Orchestrator.LIVE_PAUSE_JS + spec.videoLive!, "live", call, Orchestrator.LIVE_ANSWER_TIMEOUT_MS, keep);
+          if (a.r?.ok) keep(a.r);
+          this.liveReadAt.set(s.app, Date.now());
+        } catch { /* the last guide stays */ } finally { this.liveReading.delete(s.app); }
+      })();
+    }
+    return asked;
+  }
+  // ---- live events (2026-09-30): the sporting events a service lists on pages of its own (adapter videoEventsUrls / videoEvents) - Apple TV's
+  // Formula 1 and MLS. Read on the hidden work page every half hour and at the Live tab's refresh; kept on the device for the boot.
+  private readonly eventsByApp = new Map<string, { items: VideoItem[]; readAt: number; /** each page's own last answer, kept when a read of it fails */ byUrl?: Record<string, VideoItem[]> }>();
+  private readonly eventsReading = new Set<string>();
+  static readonly EVENTS_READ_MS = 30 * 60_000;
+  /** An event with no end listed is listed for this long after its start. */
+  static readonly EVENT_SPAN_MS = 3 * 3_600_000;
+  /** An event listed as on at the last read, with no start of its own, is believed on for this long after the read. */
+  static readonly EVENT_LIVE_BELIEVED_MS = 4 * 3_600_000;
+  private eventsKey(app: string): string { return `video:events:${app}`; }
+  /** The kept events of every service, read back at the boot. */
+  async videoEventsLoad(services: ReadonlyArray<{ app: string }>): Promise<void> {
+    if (!this.drivers.store) return;
+    for (const s of services) {
+      if (this.eventsByApp.has(s.app)) continue;
+      try {
+        const raw = await this.drivers.store.get(this.eventsKey(s.app));
+        const j = raw ? JSON.parse(raw) as { items?: unknown; readAt?: unknown; byUrl?: unknown } : null;
+        if (j && Array.isArray(j.items) && typeof j.readAt === "number") {
+          const byUrl: Record<string, VideoItem[]> = {};
+          if (j.byUrl && typeof j.byUrl === "object") for (const [u, list] of Object.entries(j.byUrl as Record<string, unknown>)) if (Array.isArray(list)) byUrl[u] = cleanEvents(list);
+          this.eventsByApp.set(s.app, { items: cleanEvents(j.items), readAt: j.readAt, byUrl });
+        }
+      } catch { /* read afresh */ }
+    }
+  }
+  videoEventsRead(services: ReadonlyArray<{ app: string; adapter: string; profile: string; status: string }>, force = false): string[] {
+    const asked: string[] = [];
+    for (const s of services) {
+      const spec = this.adapters.get(s.adapter);
+      if (s.status !== "signed-in" || !spec?.videoEvents || !spec.videoEventsUrls?.length || this.eventsReading.has(s.app)) continue;
+      if (!force && Date.now() - (this.eventsByApp.get(s.app)?.readAt ?? 0) < Orchestrator.EVENTS_READ_MS) continue;
+      this.eventsReading.add(s.app);
+      asked.push(s.app);
+      const urls = spec.videoEventsUrls.filter((u) => /^https:/.test(u));
+      const js = Orchestrator.LIVE_PAUSE_JS + spec.videoEvents + ";JSON.stringify(window.__prismVideoEvents ? window.__prismVideoEvents() : [])";
+      const parse = (raw: string | null): unknown[] | null => {
+        if (!raw) return null;
+        try { let v: unknown = JSON.parse(raw); if (typeof v === "string") v = JSON.parse(v); return Array.isArray(v) ? v : null; } catch { return null; }
+      };
+      void (async () => {
+        try {
+          // each page answers for itself: a page that did not answer (its load timed out) keeps its last events, so one page's bad
+          // minute does not drop the other's match for half an hour (2026-09-30 review)
+          const byUrl: Record<string, VideoItem[]> = { ...(this.eventsByApp.get(s.app)?.byUrl ?? {}) };
+          let any = false;
+          for (const url of urls) {
+            const raw = await this.readHiddenPage(s, url, js, (r) => (parse(r)?.length ?? 0) > 0, 4);
+            const list = parse(raw);
+            if (!list) continue;
+            any = true;
+            byUrl[url] = cleanEvents(list);
+          }
+          if (any) {
+            const items: VideoItem[] = [];
+            for (const url of urls) for (const it of byUrl[url] ?? []) if (!items.some((x) => x.id === it.id)) items.push(it);
+            const rec = { items, readAt: Date.now(), byUrl };
+            this.eventsByApp.set(s.app, rec);
+            try { void this.drivers.store?.set(this.eventsKey(s.app), JSON.stringify(rec)); } catch { /* best effort */ }
+          }
+        } catch { /* the last read stays */ } finally { this.eventsReading.delete(s.app); }
+      })();
+    }
+    return asked;
+  }
+  /** A service's events as the Live tab lists them: on now first, then by start; an upcoming one within a week (2026-10-05, "Where's the formula one stuff?": a day and a half hid the race weekend until Wednesday); one over is gone. */
+  liveEvents(app: string, now = Date.now()): VideoItem[] {
+    const rec = this.eventsByApp.get(app);
+    if (!rec) return [];
+    const soon = now + 7 * 24 * 3_600_000;
+    return rec.items.filter((it) => {
+      const end = it.end ?? (it.start ? it.start + Orchestrator.EVENT_SPAN_MS : null);
+      // one the page marked on: believed while the read is fresh whatever its scheduled end (a race delayed by rain runs past it, 2026-09-30
+      // review), and otherwise up to its end or for a while after the read
+      if (it.live) return now - rec.readAt < Orchestrator.EVENTS_READ_MS * 2 || (it.start ? (end ?? 0) > now : now - rec.readAt < Orchestrator.EVENT_LIVE_BELIEVED_MS);
+      return !!it.start && it.start < soon && (end ?? 0) > now;
+    }).map((it) => ({ ...it, live: !!it.live || (!!it.start && it.start <= now && (it.end ?? it.start + Orchestrator.EVENT_SPAN_MS) > now) }))
+      .sort((a, b) => Number(b.live) - Number(a.live) || (a.start ?? 0) - (b.start ?? 0));
+  }
+  eventsReadState(): Record<string, { readAt: number | null; reading: boolean }> {
+    const out: Record<string, { readAt: number | null; reading: boolean }> = {};
+    for (const app of new Set([...this.eventsByApp.keys(), ...this.eventsReading])) out[app] = { readAt: this.eventsByApp.get(app)?.readAt ?? null, reading: this.eventsReading.has(app) };
+    return out;
+  }
+  // ---- scores (scores.ts, 2026-09-30): the games from ESPN's scoreboard header, one bare address. ESPN lists only the current slate, so
+  // every read is merged into what is kept (a game a day after its start) and the Live tab shows the last day's (2026-10-01, "all scores
+  // from the last 24 hours"). Read every quarter hour in the background and every two minutes while the tab is open in Sports mode; the
+  // kept games on the device for the boot.
+  private scoresKept: { games: ScoreGame[]; readAt: number; errors: Record<string, string> } | null = null;
+  private scoresReading: Promise<void> | null = null;
+  private scoresLoaded = false;
+  static readonly SCORES_FRESH_MS = 2 * 60_000;
+  static readonly SCORES_KEY = "scores:kept";
+  /** The kept games read back at the boot (before the first read merges into them). */
+  async scoresLoad(): Promise<void> {
+    if (this.scoresLoaded || !this.drivers.store) return;
+    this.scoresLoaded = true;
+    try {
+      const raw = await this.drivers.store.get(Orchestrator.SCORES_KEY);
+      const j = raw ? JSON.parse(raw) as { games?: unknown; readAt?: unknown } : null;
+      if (j && Array.isArray(j.games) && typeof j.readAt === "number" && !this.scoresKept) this.scoresKept = { games: mergeKept([], j.games as ScoreGame[], Date.now()), readAt: j.readAt, errors: {} };
+    } catch { /* read afresh */ }
+  }
+  // the per-league day pages, in a hidden page of Prism's own browser (they refuse the host's fetch): today's and yesterday's, hourly
+  private scoresDayReadAt = 0;
+  private scoresDayReading = false;
+  static readonly SCORES_DAY_MS = 60 * 60_000;
+  scoresDayRead(force = false): boolean {
+    if (this.scoresDayReading || (!force && Date.now() - this.scoresDayReadAt < Orchestrator.SCORES_DAY_MS) || !this.drivers.surface.evaluate) return false;
+    this.scoresDayReading = true;
+    void (async () => {
+      try {
+        await this.scoresLoad();
+        const who = { app: "prism-scores", adapter: "", profile: "prism-scores" };   // a hidden page of its own, no service's session near it
+        const days = [new Date(), new Date(Date.now() - 24 * 3_600_000)];
+        const read: ScoreGame[] = [];
+        for (const l of SCORE_DAY_LEAGUES) for (const day of days) {
+          const raw = await this.readHiddenPage(who, scoreDayUrl(l.path, day), "document.body ? document.body.innerText : ''", (r) => { try { const v = JSON.parse(r); return typeof v === "string" ? v.includes("\"events\"") : false; } catch { return false; } }, 3);
+          if (!raw) continue;
+          let text = ""; try { const v: unknown = JSON.parse(raw); text = typeof v === "string" ? v : ""; } catch { text = ""; }
+          read.push(...parseLeagueScoreboard(l.league, l.leagueName, text));
+        }
+        if (read.length) {
+          const now = Date.now();
+          // the header's word on a game stands when it is newer: the day pages fill in, the header keeps the live ones current
+          const live = (this.scoresKept?.games ?? []).filter((g) => g.state === "in");
+          const games = mergeKept(mergeKept(this.scoresKept?.games ?? [], read, now), live, now);
+          this.scoresKept = { games, readAt: this.scoresKept?.readAt ?? now, errors: this.scoresKept?.errors ?? {} };
+          try { void this.drivers.store?.set(Orchestrator.SCORES_KEY, JSON.stringify({ games, readAt: this.scoresKept.readAt })); } catch { /* best effort */ }
+        }
+        this.scoresDayReadAt = Date.now();
+      } catch { /* the next hour */ } finally { this.scoresDayReading = false; }
+    })();
+    return true;
+  }
+  /** The games as kept, a read started when they are stale (two minutes, or `maxAgeMs`) or forced; {source, readAt, reading, games, errors}. */
+  scores(force = false, maxAgeMs = Orchestrator.SCORES_FRESH_MS): { source: string; readAt: number | null; reading: boolean; games: ScoreGame[]; errors: Record<string, string> } {
+    const stale = !this.scoresKept || Date.now() - this.scoresKept.readAt > maxAgeMs;
+    if ((stale || force) && !this.scoresReading && this.drivers.net?.fetchStatic) {
+      this.scoresReading = (async () => {
+        await this.scoresLoad();
+        const read: ScoreGame[] = []; const errors: Record<string, string> = {};
+        try { read.push(...parseScoreboard(String(await this.drivers.net!.fetchStatic!(SCORE_URL) ?? ""))); }
+        catch (e) { errors.espn = String((e as Error)?.message ?? e).slice(0, 120); }
+        const now = Date.now();
+        if (read.length || !this.scoresKept) {
+          this.scoresKept = { games: mergeKept(this.scoresKept?.games ?? [], read, now), readAt: now, errors };
+          try { void this.drivers.store?.set(Orchestrator.SCORES_KEY, JSON.stringify({ games: this.scoresKept.games, readAt: now })); } catch { /* best effort */ }
+        } else this.scoresKept = { ...this.scoresKept, errors };
+      })().finally(() => { this.scoresReading = null; });
+    }
+    return { source: SCORE_SOURCE, readAt: this.scoresKept?.readAt ?? null, reading: !!this.scoresReading, games: this.scoresKept?.games ?? [], errors: this.scoresKept?.errors ?? {} };
+  }
+  // ---- the Live tab's titles from TMDB (2026-10-02, live-titles.ts): a show's name to its poster, year, rating and genres, kept a week
+  private liveTitles: Map<string, LiveTitleEntry> | null = null;
+  private readonly liveTitleQueue: Array<{ key: string; name: string }> = [];
+  private liveTitleWorking = false;
+  static readonly LIVE_TITLES_KEY = "live:titles:v2";   // v2 (2026-10-02): answers without the vote floor are not kept
+  private liveTitleKey(name: string): string { return name.trim().toLowerCase(); }
+  private async liveTitlesLoad(): Promise<Map<string, LiveTitleEntry>> {
+    if (this.liveTitles) return this.liveTitles;
+    const m = new Map<string, LiveTitleEntry>();
+    try {
+      const raw = await this.drivers.store?.get(Orchestrator.LIVE_TITLES_KEY);
+      const j = raw ? JSON.parse(raw) as Record<string, LiveTitleEntry> : null;
+      if (j && typeof j === "object") for (const [k, v] of Object.entries(j)) if (v && typeof v.at === "number") m.set(k, v);
+    } catch { /* fresh */ }
+    this.liveTitles = this.liveTitles ?? m;
+    return this.liveTitles;
+  }
+  private liveTitlesSave(): void {
+    if (!this.liveTitles) return;
+    const now = Date.now();
+    const out: Record<string, LiveTitleEntry> = {};
+    for (const [k, v] of this.liveTitles) if (now - v.at < LIVE_TITLE_KEEP_MS) out[k] = v;
+    try { void this.drivers.store?.set(Orchestrator.LIVE_TITLES_KEY, JSON.stringify(out)); } catch { /* best effort */ }
+  }
+  /** A name's TMDB answer as kept: the title, null when TMDB named nothing, undefined while unknown (a lookup is queued). */
+  liveTitle(name: string): LiveTitle | null | undefined {
+    const key = this.liveTitleKey(name);
+    if (!key) return null;
+    const m = this.liveTitles;
+    if (!m) { void this.liveTitlesLoad().then(() => this.liveTitle(name)); return undefined; }
+    const had = m.get(key);
+    if (had && Date.now() - had.at < LIVE_TITLE_KEEP_MS && (had.title === null || "cert" in had.title)) return had.title;   // an answer from before the rating was asked is asked again
+    if (!this.lenses.hasKey()) return had ? had.title : undefined;   // nothing to ask without a key (review 2026-10-02: a queue that emptied every tick)
+    if (!this.liveTitleQueue.some((q) => q.key === key)) { this.liveTitleQueue.push({ key, name: name.trim() }); void this.liveTitleWork(); }
+    return had ? had.title : undefined;
+  }
+  /** How many names wait for TMDB. */
+  liveTitlesPending(): number { return this.liveTitleQueue.length + (this.liveTitleWorking ? 1 : 0); }
+  // ---- the person's TMDB account (tmdb-account.ts, 2026-10-03)
+  tmdbLinkState() { return this.lenses.linkState(); }
+  tmdbLinkStart() { return this.lenses.linkStart(); }
+  tmdbLinkFinish() { return this.lenses.linkFinish(); }
+  tmdbUnlink() { return this.lenses.unlink(); }
+  tmdbRated(kind: "movie" | "tv", id: number) { return this.lenses.rated(kind, id); }
+  tmdbRate(kind: "movie" | "tv", id: number, value: number | null) { return this.lenses.rate(kind, id, value); }
+  /** The account's TMDB lists (v4): the primitives the playlists live in. */
+  get tmdbLists() { return this.lenses; }
+  /** Whether a TMDB key is on the device (the lookups need one). */
+  liveTitlesHaveKey(): boolean { return this.lenses.hasKey(); }
+  private async liveTitleWork(): Promise<void> {
+    if (this.liveTitleWorking) return;
+    this.liveTitleWorking = true;
+    try {
+      const m = await this.liveTitlesLoad();
+      let set = false;
+      while (this.liveTitleQueue.length) {
+        const { key, name } = this.liveTitleQueue.shift()!;
+        let title: LiveTitle | null = null;
+        try {
+          const j = await this.lenses.tmdbGet("/search/multi", `query=${encodeURIComponent(name)}&include_adult=false`);
+          if (j === null) { this.liveTitleQueue.length = 0; break; }   // no key, or TMDB unreachable: the queue waits for the next ask
+          title = acceptSearch(name, j.results);
+          // the title's US rating, a second call (Kids mode's word on a poster, 2026-10-02)
+          if (title) {
+            await new Promise((r) => setTimeout(r, 120));
+            const c = await this.lenses.tmdbGet(title.kind === "tv" ? `/tv/${title.id}/content_ratings` : `/movie/${title.id}/release_dates`);
+            title.cert = c ? certificationOf(title.kind, c) : null;
+          }
+        } catch { title = null; }
+        m.set(key, { at: Date.now(), title }); set = true;
+        await new Promise((r) => setTimeout(r, 120));   // a person's pace against TMDB
+      }
+      if (set) this.liveTitlesSave();
+    } finally { this.liveTitleWorking = false; }
+  }
+  // ---- what a live news show reported (2026-10-01): the networks' feeds of the segments their shows aired, by address
+  private readonly newsFeeds = new Map<string, { items: NewsItem[]; readAt: number; error: string | null }>();
+  private readonly newsReading = new Set<string>();
+  static readonly NEWS_FRESH_MS = 10 * 60_000;
+  /** A feed's items as kept, a read started when they are stale or forced; {items, readAt, reading, error}. */
+  newsFeed(url: string, force = false): { items: NewsItem[]; readAt: number | null; reading: boolean; error: string | null } {
+    const had = this.newsFeeds.get(url);
+    const stale = !had || Date.now() - had.readAt > Orchestrator.NEWS_FRESH_MS;
+    if ((stale || force) && !this.newsReading.has(url) && this.drivers.net?.fetchStatic && /^https:\/\//.test(url)) {
+      this.newsReading.add(url);
+      void (async () => {
+        try {
+          const items = parseFeed(String(await this.drivers.net!.fetchStatic!(url) ?? ""));
+          if (items.length || !had) this.newsFeeds.set(url, { items, readAt: Date.now(), error: items.length ? null : "the feed listed nothing" });
+          else this.newsFeeds.set(url, { ...had, readAt: Date.now(), error: "the feed listed nothing; the last read stands" });
+        } catch (e) {
+          const error = String((e as Error)?.message ?? e).slice(0, 120);
+          this.newsFeeds.set(url, had ? { ...had, error } : { items: [], readAt: Date.now(), error });
+        } finally { this.newsReading.delete(url); }
+      })();
+    }
+    return { items: had?.items ?? [], readAt: had?.readAt ?? null, reading: this.newsReading.has(url), error: had?.error ?? null };
+  }
+  /** Per service: when its guide was last read, and whether a read is under way. */
+  liveReadState(): Record<string, { readAt: number | null; reading: boolean }> {
+    const out: Record<string, { readAt: number | null; reading: boolean }> = {};
+    for (const app of new Set([...this.liveReadAt.keys(), ...this.liveReading])) out[app] = { readAt: this.liveReadAt.get(app) ?? null, reading: this.liveReading.has(app) };
+    return out;
+  }
+
   // ---- the Episodes menu (2026-09-22): every season and episode of the series on the screen
   private readonly episodeLists = new Map<string, EpisodesEntry>();
   /**
@@ -5535,6 +6488,17 @@ export class Orchestrator {
     // marks as the one the account is on - never kept in the map, since it moves on as they watch; the list is read again daily
     for (const sn of e.seasons) for (const ep of sn.episodes) if (ep.resume) return { season: sn.season, episode: ep.episode, title: ep.title, fromResume: true };
     return null;
+  }
+  /** The service's own episode list kept longest without a read, older than `olderThanMs` (the background re-read, 2026-09-29: a list an older
+   *  adapter read short - Voyager's 18 a season - stayed short until somebody opened it). */
+  oldestEpisodeList(olderThanMs: number): { app: string; series: string } | null {
+    this.loadEpisodeLists();
+    let best: { app: string; series: string; at: number } | null = null;
+    for (const [k, e] of this.episodeLists) {
+      if (e.status === "working" || !e.series || Date.now() - e.at < olderThanMs) continue;
+      if (!best || e.at < best.at) best = { app: k.split("|")[0]!, series: e.series, at: e.at };
+    }
+    return best ? { app: best.app, series: best.series } : null;
   }
   /** A service's list for a series is being read now, or was read (or tried) within `withinMs`. */
   episodeListRecent(app: string, series: string, withinMs: number): boolean {
@@ -5616,15 +6580,28 @@ export class Orchestrator {
       const via = spec?.videoEpisodesVia ?? "id";
       let url: string | null = null;
       if (spec?.videoEpisodes && via === "id" && v.id) url = (spec.videoEpisodesUrl ?? s.home).replace("{id}", encodeURIComponent(v.id));
-      if (spec?.videoEpisodes && via === "lookup" && spec.videoLookup && spec.videoEpisodesUrl) {
+      // the series' own page as the service's own rows gave it (2026-09-28, the connections sweep: Paramount+ lists "Star Trek: The Original
+      // Series (Remastered)" at /shows/star_trek/ while its search knows that show only as "Star Trek" - the name never found it): used as it is
+      // by a reader that takes the show's address; every service
+      const own = spec?.videoEpisodes && spec.videoEpisodesUrl === "{url}" ? this.video.seriesPageOf(s.adapter, v.id ?? null, seriesKey, series) : null;
+      if (own) url = own;
+      else if (spec?.videoEpisodes && via === "lookup" && spec.videoLookup && spec.videoEpisodesUrl) {
         // the series' own page through the service's own search: its result named as the series, a series (never a movie of the name)
-        const q = series;
-        const lk = await this.askHiddenPage(s, this.videoSearchUrlFor(s.adapter, q) ?? s.home, spec.videoLookup, "eplk", (token) => `window.__prismVideoLookup && window.__prismVideoLookup(${JSON.stringify(token)}, ${JSON.stringify(q)})`, Orchestrator.LOOKUP_ANSWER_TIMEOUT_MS);
         const want = seriesKey(series);
-        const cands = cleanCandidates(lk.r?.candidates, 40).filter((c) => c.kind === "series" || (c.kind === "title" && c.play === false));   // Disney+'s search calls a series a "title" (a details page, not a play)
         // a leading "The" on either side is the same series (2026-09-25, the health check: "Madison" never matched Paramount+'s "The Madison")
         const bare = (k: string) => k.replace(/^the /, "");
-        const hit = cands.find((c) => seriesKey(c.title) === want) ?? cands.find((c) => bare(seriesKey(c.title)) === bare(want)) ?? cands.find((c) => seriesKey(c.title).startsWith(want + " "));
+        const search = async (q: string, also: string) => {
+          const lk = await this.askHiddenPage(s, this.videoSearchUrlFor(s.adapter, q) ?? s.home, spec.videoLookup!, "eplk", (token) => `window.__prismVideoLookup && window.__prismVideoLookup(${JSON.stringify(token)}, ${JSON.stringify(q)})`, Orchestrator.LOOKUP_ANSWER_TIMEOUT_MS);
+          const cands = cleanCandidates(lk.r?.candidates, 40).filter((c) => c.kind === "series" || (c.kind === "title" && c.play === false));   // Disney+'s search calls a series a "title" (a details page, not a play)
+          const hit = cands.find((c) => seriesKey(c.title) === want) ?? cands.find((c) => bare(seriesKey(c.title)) === bare(want)) ?? cands.find((c) => seriesKey(c.title).startsWith(want + " "))
+            ?? (also ? cands.find((c) => seriesKey(c.title) === also) ?? cands.find((c) => bare(seriesKey(c.title)) === bare(also)) : undefined);
+          return { lk, hit };
+        };
+        let { lk, hit } = await search(series, "");
+        // a service's search that finds nothing for a name with a bracketed part is asked again without it (2026-09-28, the connections sweep:
+        // Paramount+'s search found nothing for "Star Trek: The Original Series (Remastered)", its own name for the show; every service)
+        const plain = series.replace(/\s*[(][^)]*[)]\s*/g, " ").replace(/\s+/g, " ").trim();
+        if (!hit && plain && plain !== series) ({ lk, hit } = await search(plain, seriesKey(plain)));
         if (hit) url = spec.videoEpisodesUrl === "{url}" ? hit.url ?? null : spec.videoEpisodesUrl.replace("{id}", encodeURIComponent(hit.id));   // "{url}": the result's own address (Paramount+: /shows/<slug>/)
         else entry.error = lk.r ? "the service's own search did not find the series" : lk.error ?? null;
       }
@@ -5731,6 +6708,8 @@ export class Orchestrator {
    * capture - by design - and the shot shows the title's own art there instead): the playing episode's still from its Episodes list,
    * else the title's card in the service's own rows (Continue Watching, My List, owned, its shelves).
    */
+  /** A pick or a title brought back after a restart, not yet playing (Watch's big window holds it out meanwhile, 2026-10-06). */
+  videoStartingOpen(tileId: string): boolean { return this.video.startingOpen(tileId); }
   videoArtOf(tileId: string): { title: string | null; art: string | null } {
     const t = this.videoState().find((x) => x.id === tileId);
     const v = t?.video ?? null;
@@ -5742,13 +6721,13 @@ export class Orchestrator {
         if (!key.endsWith(suffix)) continue;
         const cur = currentEpisode(e.seasons, v);
         const ep = cur ? e.seasons.find((sn) => sn.season === cur.season)?.episodes.find((x) => x.episode === cur.episode) : undefined;
-        if (ep?.still) return { title: name, art: ep.still };
+        if (ep?.still && /^https?:\/\//.test(ep.still)) return { title: name, art: ep.still };   // a placeholder a reader took (Apple TV's lazy 1x1, 2026-10-05) is no picture
       }
     }
     const lib = t.library;
     const pool = [...(lib.continue ?? []), ...(lib.list ?? []), ...(lib.owned ?? []), ...(lib.shelves ?? []).flatMap((sh) => sh.items)];
     const want = [v.series, v.title].filter((x): x is string => !!x).map(titleKey);
-    const hit = pool.find((i) => !!i.artwork && want.includes(titleKey(i.title)));
+    const hit = pool.find((i) => !!i.artwork && /^https?:\/\//.test(i.artwork) && want.includes(titleKey(i.title)));
     return { title: name, art: hit?.artwork ?? null };
   }
   /** An episode the service itself listed for the series on this tile (the play guard: only its own ids are ever played). */
@@ -5800,12 +6779,12 @@ export class Orchestrator {
     const entry = this.lookups.get(surfaceId);
     if (!entry) return;
     this.lookupReportAt.set(entry.app, Date.now());   // the page answered (the polite client counts a chain with no answer at all)
-    if (entry.onProfiles) { this.video.noteProfiles(adapterKey, info); this.video.pressWantedProfile(surfaceId, adapterKey, info); if (info?.videoProfiles) entry.profilesAt = Date.now(); }   // the household as the gate names it; pressed only for a switch the person asked for
+    if (entry.onProfiles) { this.video.noteProfiles(adapterKey, info); this.video.pressWantedProfile(surfaceId, adapterKey, info); if (info?.videoProfiles) entry.profilesAt = Date.now(); this.profilesReadAt.set(entry.app, Date.now()); }   // the household as the gate names it; pressed only for a switch the person asked for
     else if (!this.video.pressWantedProfile(surfaceId, adapterKey, info)) this.video.applyStandingProfile(surfaceId, adapterKey, info);
     // a switch still to be pressed: this page is the last person's - nothing of it is kept (2026-09-24, the chains move on at the first read)
     if (this.video.switchPending(adapterKey)) return;
     // pressed, and the page not yet loaded again since (2026-09-25, "Switching profile presets, I still see my stuff leave, come back, mix with
-    // holly's, disappear again"): the list page's first report after the press still showed the last person's list, and it was kept as the new
+    // [the other person]'s, disappear again"): the list page's first report after the press still showed the last person's list, and it was kept as the new
     // person's - the settle wait was checked for the other pages, never for this one. Its list counts once the page has loaded since the press
     if (this.video.rowsFrozen(adapterKey)) return;
     if (entry.onList && (entry.listNavAt ?? 0) < this.video.pressedSince(adapterKey)) return;
@@ -5858,10 +6837,30 @@ export class Orchestrator {
     return this.bgLast;
   }
   backgroundState(): { last: string; listsAt: number; ownedAt: number } { return { last: this.bgLast, listsAt: this.listsRefreshedAt, ownedAt: this.ownedRefreshedAt }; }
+  /**
+   * The services' hidden pages wait out the boot, and open one at a time (2026-09-28, "Yes please" to "startup could be smoother if Prism opened the
+   * hidden service pages a few seconds after Watch is drawn"): the boot's list read made nine hidden pages at once, beside the wall's own - the
+   * window's thread was busy for 3.6 s and a click then waited. Every background chain (the timed read, the boot's, Watch opening) starts no
+   * sooner than HIDDEN_BOOT_MS after the first load, and each HIDDEN_STAGGER_MS after the one before; a read a person asked for goes at once.
+   */
+  private firstLoadAt: number | null = null;
+  static readonly HIDDEN_BOOT_MS = 8_000;
+  static readonly HIDDEN_STAGGER_MS = 1_500;
+  /** When the next background chain may start: never before the boot's wait is out, and each a moment after the one before. */
+  private nextChainAt = 0;
+  private chainStartDelay(asked: boolean): number {
+    const now = Date.now();
+    if (asked) return 0;   // a read a person asked for goes at once
+    const bootReady = this.firstLoadAt === null ? now : this.firstLoadAt + Orchestrator.HIDDEN_BOOT_MS;
+    const at = Math.max(now, bootReady, this.nextChainAt);
+    this.nextChainAt = at + Orchestrator.HIDDEN_STAGGER_MS;
+    return at - now;
+  }
   /** Refresh every signed-in service's list from its own page; `force` ignores the staleness guard. Returns the Apps asked. */
-  videoRefreshLists(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, force = false): string[] {
+  videoRefreshLists(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, force = false, person = false): string[] {
     if (this.lookupNow && !this.lookupNow.done) return [];
     if (!force && Date.now() - this.listsRefreshedAt < Orchestrator.LISTS_STALE_MS) return [];
+
     // the owned libraries are long walks (Fandango: some two thousand titles, minutes on each page): read at most every OWNED_STALE_MS
     const withOwned = Date.now() - this.ownedRefreshedAt > Orchestrator.OWNED_STALE_MS;
     if (withOwned) this.ownedRefreshedAt = Date.now();
@@ -5869,7 +6868,7 @@ export class Orchestrator {
     const asked: string[] = [];
     for (const s of services) {
       // the list, the household, Continue Watching, the owned pages - one chain per service, each page as soon as the last one is read (2026-09-24)
-      if (this.refreshChain(s, { profiles: true, owned: withOwned })) asked.push(s.app);
+      if (this.refreshChain(s, { profiles: true, owned: withOwned, now: person })) asked.push(s.app);
     }
     if (asked.length) this.listsRefreshedAt = Date.now();
     this.touchLookups();
@@ -5965,7 +6964,7 @@ export class Orchestrator {
     return out;
   }
   /** One service's pages read in turn: its list, its household (profiles), its Continue Watching page, its owned library. False when there is nothing to read. */
-  private refreshChain(s: { app: string; adapter: string; profile: string; home: string; status: string }, o: { profiles?: boolean; owned?: boolean; list?: boolean; asked?: boolean }): boolean {
+  private refreshChain(s: { app: string; adapter: string; profile: string; home: string; status: string }, o: { profiles?: boolean; owned?: boolean; list?: boolean; asked?: boolean; now?: boolean }): boolean {
     const spec = this.adapters.get(s.adapter);
     if (s.status !== "signed-in" || !spec) return false;
     if (!o.asked && !this.politeMayRead(s.app)) return false;   // a read a person asked for always goes
@@ -5973,16 +6972,29 @@ export class Orchestrator {
     // read: a report kept since the step began - but an empty list beside a Continue row waits for the settle, when it is believed
     const read = (t0: number) => (entry()?.listRead ?? 0) > t0 && !entry()?.lastListEmpty && !this.video.switchPending(s.adapter);
     const steps: Array<{ go: () => Promise<void>; done: (since: number) => boolean; max: number }> = [];
-    if (o.list !== false && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
+    // the services' list pages are not read while My list is the TMDB watchlist (2026-10-03, "This would reduce prism's workload when TMDB is configured")
+    if (o.list !== false && !this.watchlistActive() && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
       steps.push({ go: () => this.listOne(s.app, s.profile, s.adapter, spec.videoListUrl ?? s.home, !!spec.videoListRoute && !spec.videoListUrl), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 });
-    if (o.profiles && spec.videoProfiles && isPageUrl(spec.videoProfilesUrl))
+    // the household's profiles once a day (2026-09-28, "could something we've coded be causing issues with authentication and their security?"):
+    // the Who's watching page had been opened with every background read, every 20 minutes around the clock - some 70 a day per service, nothing
+    // a person does; a household's profiles change rarely. A person's refresh still reads it at once; every service.
+    if (o.profiles && spec.videoProfiles && isPageUrl(spec.videoProfilesUrl) && (o.asked || Date.now() - (this.profilesReadAt.get(s.app) ?? 0) > Orchestrator.PROFILES_STALE_MS))
       steps.push({ go: () => this.profilesOne(s.app, s.profile, s.adapter, spec.videoProfilesUrl!), done: (t0) => (entry()?.profilesAt ?? 0) > t0, max: 12_000 });
     if (spec.videoLibrary && spec.videoContinueUrl) { const cu = spec.videoContinueUrl; steps.push({ go: () => this.ownedOne(s.app, s.profile, s.adapter, cu), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 }); }
     if (o.owned && spec.videoLibrary) for (const u of spec.videoOwnedUrls ?? []) steps.push({ go: () => this.ownedOne(s.app, s.profile, s.adapter, u), done: (t0) => (entry()?.ownedDone ?? 0) > t0, max: Orchestrator.OWNED_STAY_MS });
     if (!steps.length) return false;
-    void this.runChain(s.app, steps);
+    const delay = this.chainStartDelay(!!o.asked || !!o.now);
+    if (delay > 0) {
+      const tok = this.chains.get(s.app) ?? 0;   // a chain started meanwhile (a person's refresh) makes this one moot
+      this.chainRunning.add(s.app);
+      setTimeout(() => { if ((this.chains.get(s.app) ?? 0) !== tok) return; this.chainRunning.delete(s.app); void this.runChain(s.app, steps); this.touchLookups(); }, delay);
+    }
+    else void this.runChain(s.app, steps);
     return true;
   }
+  /** When each service's Who's watching page was last read (the household's profiles): at most once a PROFILES_STALE_MS unless a person asks. */
+  private readonly profilesReadAt = new Map<string, number>();
+  static readonly PROFILES_STALE_MS = 24 * 3_600_000;
   /** The services as the runtime last named them (the after-watch read needs a service's profile and home). */
   private knownServices: Array<{ app: string; adapter: string; profile: string; home: string; status: string }> = [];
   private knowServices(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>): void { if (services.length) this.knownServices = [...services]; }
@@ -6019,21 +7031,109 @@ export class Orchestrator {
   /** A title stopped on a window of the wall: that service's Continue Watching changed - read again half a minute later (debounced per App). */
   private readonly watchEndTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly titledPlaying = new Map<string, boolean>();
+  /**
+   * After a graphics driver reset (2026-09-28, "my prism video is blank now": the NVIDIA driver reset at 8:32, and Netflix's hardware-protected
+   * video went black while its page went on playing; reloading the page brought it back): each video tile playing a title is loaded again at its
+   * own address, a few seconds after the reset - once a reset, at most once a minute. The service carries on from where it was.
+   */
+  private gpuResetAt = 0;
+  static readonly GPU_RESET_SETTLE_MS = 4_000;
+  private recoverFromGpuReset(): void {
+    const now = Date.now();
+    if (now - this.gpuResetAt < 60_000) return;
+    this.gpuResetAt = now;
+    setTimeout(() => {
+      for (const st of this.video.state((this.doc?.tiles ?? []).map((t) => t.id))) {
+        if (!st.playing || !st.video || !this.surfaces.has(st.id)) continue;
+        const url = this.currentUrl.get(st.id) ?? st.video.url;
+        if (url) void this.drivers.surface.navigate(st.id, url);
+      }
+    }, Orchestrator.GPU_RESET_SETTLE_MS);
+  }
+  /**
+   * A service that rolls into its next title inside the page gets that title's page loaded fresh (2026-09-28, "My episode played fine all the way
+   * through, the next episode staarted and it's a black screen": Netflix moved from /watch/82675090 to /watch/82675091 in place, its PlayReady
+   * session said "usable" and the picture stayed black - twice; a reload played it each time). Only for an adapter that asks
+   * (videoFreshPageEachTitle), only when the page moved from one title's address to another's by itself (no pick of the wall's open, no
+   * title coming back after a restart), once a title.
+   */
+  private readonly freshFor = new Map<string, string>();
+  private freshPageOnNextTitle(tileId: string, before: string | null, url: string): void {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    if (!spec?.videoFreshPageEachTitle || !before) return;
+    const idOf = (u: string) => /[/]watch[/]([A-Za-z0-9_-]+)/.exec(u)?.[1] ?? null;
+    const was = idOf(before), now = idOf(url);
+    if (!was || !now || was === now || this.freshFor.get(tileId) === now) return;
+    if (this.bootTitles.has(tileId)) return;
+    const st = this.video.state([tileId])[0];
+    if (st?.pending && !st.pending.failed) return;   // the wall's own pick is taking it there
+    this.freshFor.set(tileId, now);
+    // ... never one stopped as an unrelated autoplay in the meantime (2026-09-28 review: the reload started it again, muted, behind Watch)
+    setTimeout(() => { if (this.surfaces.has(tileId) && this.currentUrl.get(tileId) === url && !this.autoplayStopped.has(tileId)) void this.drivers.surface.navigate(tileId, url); }, 1_500);
+  }
+  /** Playlists' continuous play (docs/features/playlists.md, 2026-09-27): each report from a video tile, and the player's own `ended`. */
+  onWatchReport?: (tileId: string) => void;
+  onPlaybackEnded?: (tileId: string) => void;
+  /** The tile's standing onEnd instruction (none unless its scene assignment sets one): a playlist yields to it. */
+  onEndOf(tileId: string): string { const settings = this.tile(tileId)?.presentation; return settings ? settings.onEnd ?? "none" : "none"; }   // the tile's scene settings, not an adapter's presentation block
   private noteWatchState(tileId: string): void {
+    try { this.onWatchReport?.(tileId); } catch { /* a listener never stops the watch state */ }
     const tile = (this.doc?.tiles ?? []).find((t) => t.id === tileId);
     if (!tile?.adapter) return;
     const st = this.video.state([tileId])[0];
-    const titled = !!st?.playing && !!st.video && !!(st.video.title || st.video.series) && st.video.kind !== "title";
+    const titled = !!st?.playing && !!st.video && (!!(st.video.title || st.video.series) || st.video.kind === "live") && st.video.kind !== "title";   // a live channel is what plays, named or not
+    setTimeout(() => this.previewMuteCheck(tileId), 0);   // after the report is taken in (read at once, the state was one report behind)
     const was = this.titledPlaying.get(tileId) ?? false;
     this.titledPlaying.set(tileId, titled);
+    if (titled) this.lastTitleOf.set(tileId, st!.video!.series || st!.video!.title || "");
     if (!was || titled) return;
     const svc = this.knownServices.find((s) => s.adapter === tile.adapter);
-    if (!svc) return;
-    const t = this.watchEndTimers.get(svc.app);
-    if (t) clearTimeout(t);
-    this.watchEndTimers.set(svc.app, setTimeout(() => { this.watchEndTimers.delete(svc.app); if (!this.titledPlaying.get(tileId)) { this.refreshChain(svc, {}); this.touchLookups(); } }, Orchestrator.WATCH_END_READ_MS));
+    if (svc) this.readUntilContinued(svc, tileId, this.lastTitleOf.get(tileId) ?? "", Orchestrator.WATCH_END_READS_MS);
   }
   static readonly WATCH_END_READ_MS = 30_000;
+  /**
+   * After a title stops, that service's Continue Watching is read again - and again, until the title is on it (2026-09-26, "I cleared schitts
+   * creek and it took a few minutes to appear in continue watching. Maybe clearing a video should trigger the continue watching refresh on that
+   * service?"): one read half a minute later came too early for a title new to the service's row (Hulu hadn't added it yet), and the next was
+   * the timed refresh. The reads stop once the row names the title, or a title plays on the tile again. Clearing a screen starts them at once.
+   */
+  static readonly WATCH_END_READS_MS = [30_000, 90_000, 180_000, 300_000];
+  static readonly CLEARED_READS_MS = [10_000, 45_000, 120_000, 300_000];
+  private readonly lastTitleOf = new Map<string, string>();
+  private readonly watchEndWaits = new Map<string, Map<string, string>>();
+  private readUntilContinued(svc: { app: string; adapter: string; profile: string; home: string; status: string }, tileId: string, title: string, delays: readonly number[]): void {
+    const old = this.watchEndTimers.get(svc.app);
+    if (old) clearTimeout(old);
+    // every title the service's reads are waiting for, by window (review 2026-09-26: two Hulu windows cleared at once kept only the last one's
+    // chain, and its title already on the row stopped the reads before the other, new to Hulu's row, arrived)
+    const waits = this.watchEndWaits.get(svc.app) ?? new Map<string, string>();
+    waits.set(tileId, title);
+    this.watchEndWaits.set(svc.app, waits);
+    const onRow = (t: string) => !!t && (this.video.libraryOf(svc.adapter).library.continue ?? []).some((x) => titleKey(x.title) === titleKey(t));
+    const done = () => { this.watchEndTimers.delete(svc.app); this.watchEndWaits.delete(svc.app); };
+    const step = (i: number) => {
+      if (i >= delays.length) { done(); return; }
+      const wait = delays[i]! - (i > 0 ? delays[i - 1]! : 0);
+      this.watchEndTimers.set(svc.app, setTimeout(() => {
+        for (const [tile, t] of [...waits]) if (this.titledPlaying.get(tile) || (i > 0 && onRow(t))) waits.delete(tile);   // playing again, or on the row
+        if (!waits.size) { done(); return; }
+        this.refreshChain(svc, { asked: true }); this.touchLookups();
+        step(i + 1);
+      }, wait));
+    };
+    step(0);
+  }
+  /** A screen cleared by a person (Clear screens, a window's X): its service's Continue Watching is read soon, and until the title is on it. */
+  noteTitleCleared(tileId: string): void {
+    const tile = (this.doc?.tiles ?? []).find((t) => t.id === tileId);
+    if (!tile?.adapter) return;
+    const st = this.video.state([tileId])[0];
+    const title = (st?.video && (st.video.series || st.video.title)) || this.lastTitleOf.get(tileId) || st?.pending?.name || "";
+    const svc = this.knownServices.find((s) => s.adapter === tile.adapter);
+    this.titledPlaying.set(tileId, false);
+    if (svc && title) this.readUntilContinued(svc, tileId, title, Orchestrator.CLEARED_READS_MS);
+  }
   static readonly LIST_CHANGE_READ_MS = 4000;
   /**
    * Watch settings' Content updates tab (2026-09-24, "Background updates should show a grid of items being updated and their statuses"): each
@@ -6085,6 +7185,10 @@ export class Orchestrator {
   }
   /** The household's optional quiet hours for the timed refresh (Watch settings, off by default - people watch at all hours). */
   bgPause: { on: boolean; from: string; to: string } = { on: false, from: "23:00", to: "07:00" };
+  /** Watch settings' Video ads (2026-10-07): how the Video player's breaks look - veiled and muted (the default), muted with the picture up, or shown. */
+  videoAdsLook: AdLook = "veil";
+  /** A muted-only break's Unmute / Mute again, from the window's chip. */
+  intermissionUnmute(id: string, on: boolean): boolean { return this.intermission.unmute(id, on); }
   private inBgPause(now: number): boolean {
     if (!this.bgPause.on) return false;
     const min = (hm: string) => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
@@ -6172,12 +7276,19 @@ export class Orchestrator {
   /** Phase 2: the person's words entered into the service's own search on this tile (the adapter's videoSearch script); `open` = the result to press once shown. */
   videoSearchIn(tileId: string, q: string, open?: string | null) { return this.video.search(tileId, q, open); }
   /** Phase 2: the channel to tune on this tile once its guide page is up. */
-  videoTuneWhenUp(tileId: string, channelId: string): void { this.videoTuneQueued.set(tileId, { channelId, at: Date.now() }); }
+  videoTuneWhenUp(tileId: string, channelId: string, name?: string, page?: string | null): void { this.videoTuneQueued.set(tileId, { channelId, at: Date.now(), ...(name ? { name } : {}), ...(page ? { page } : {}) }); }
   /** Phase 2: a human's press on a Live now card - the channel's guide item pressed in the service's own page. */
-  videoTune(tileId: string, channelId: string) { return this.video.tune(tileId, channelId); }
+  // a pick on a window is newer than any title a restart meant to bring back there: the kept record follows the window again (2026-10-07,
+  // TBS's window was never kept - a boot title whose page never came up stood in the way of every later record, and each restart closed it)
+  videoTune(tileId: string, channelId: string, name?: string, page?: string | null) { this.bootTitles.delete(tileId); return this.video.tune(tileId, channelId, name, page); }
   /** VP-3: a human's pick on a service's profile gate; `always` makes it the household's standing choice. */
   videoProfile(tileId: string, id: string, always: boolean) { return this.video.pickProfile(tileId, id, always); }
   videoTrack(tileId: string, kind: "subtitles" | "audio", id: string) { return this.video.pickTrack(tileId, kind, id); }
+  /** Told when a press moves a video tile to another episode (the next one; the runtime raises the wall's cover over the service's pages). */
+  episodeMoveHook: ((tileId: string, title: string) => void) | null = null;
+  /** The service's own tracks read for the phone's Captions sheet, and the sheet closed (2026-10-05). */
+  videoTracks(tileId: string) { return this.video.readTracks(tileId); }
+  videoTracksDone(tileId: string) { return this.video.tracksDone(tileId); }
   /** The slider (2026-09-23): the person's seek - it counts as their action on the tile (the playback doctor stands back). */
   /** Play an episode by its number on the page's own control (adapter videoEpisodeNumber): a person's pick from the Episodes list. */
   videoPlayEpisodeNumber(tileId: string, season: number, episode: number): "ok" | "unavailable" | "unknown-tile" {
@@ -6218,6 +7329,21 @@ export class Orchestrator {
    * profile page (or its list page, where the switcher is) so the wanted profile is pressed, then reads that person's My List and Continue
    * Watching. Services one after another on their own pages; a search running holds them back as ever.
    */
+  /**
+   * A service moved to another sign-in (sign-ins.ts): its hidden pages are closed - they are made again in the new profile when next
+   * wanted - what the wall kept of the person is swapped (video.switchSignIn), and what it knew of the session is forgotten until the
+   * new pages say. The windows on the wall are made again by the apply that follows (a tile's profile changed).
+   */
+  appSignInChanged(appId: string, adapterKey: string, from: string, to: string, fromProfile?: string): void {
+    for (const id of [`app:${appId}:lookup`, `app:${appId}:work`]) {
+      this.lookups.delete(id);
+      if (this.surfaces.has(id)) { this.surfaces.delete(id); void this.drivers.surface.destroy(id); }
+      this.nowPlaying.delete(id); this.currentUrl.delete(id); this.sessionState.delete(id);
+    }
+    for (const t of this.doc?.tiles ?? []) if ((fromProfile !== undefined && (t.profile ?? t.id) === fromProfile) || t.adapter === adapterKey) { this.sessionState.delete(t.id); this.libraryCache.delete(t.id); }
+    this.switchAt.delete(appId);
+    this.video.switchSignIn(adapterKey, from, to);
+  }
   videoSwitchProfiles(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, picks: Record<string, string>): string[] {
     this.knowServices(services);
     const asked: string[] = [];
@@ -6349,7 +7475,7 @@ export class Orchestrator {
         // behind the person's back. Everything else keeps the mute-only rule (a muted live stream keeps moving).
         if (this.music.source(cmd.tile) && this.audio.isPlaying(cmd.tile)) await this.pauseSource(cmd.tile);
       }
-      else if (cmd.op === "unmute") await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.intermission.isCovered(cmd.tile));   // the owner, heard only while the wall is not muted - and never under its own break (2026-09-14)
+      else if (cmd.op === "unmute") await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.intermission.isCovered(cmd.tile) || this.heldQuiet(cmd.tile));   // the owner, heard only while the wall is not muted - and never under its own break (2026-09-14)
       else if (cmd.op === "pause") {
         // Adapter-mediated pause (§3.4); harmless no-op where no adapter.
         await this.drivers.surface.inject(
@@ -6518,14 +7644,21 @@ export class Orchestrator {
 
   /** Shell pushes surface events here; core answers with driver commands. */
   async onSurfaceEvent(event: SurfaceEvent): Promise<void> {
+    if (event.type === "gpu-reset") { this.recoverFromGpuReset(); return; }
     this.refresh.handleEvent(event); // readiness signals (§16)
     if (event.type === "load-finished" && event.ok) {
       // a window's rows count again after a switch once it has loaded a whole page (2026-09-25): a move inside the page kept the last
       // person's page in memory, and its rows came back. First, before anything awaits: the page's first report follows at once
       this.video.tileNavigated(event.id);
       // a fresh document is never in element fullscreen: the mark the last one left would keep the stage from entering
-      // (Paramount+ after a Hulu play, 2026-09-21 - the shell reports no "left" for a document that navigated away)
-      if (this.elementFullscreen.delete(event.id)) await this.feedKeeper(event.id, { type: "presentation", at: Date.now(), state: "none" });
+      // (Paramount+ after a Hulu play, 2026-09-21 - the shell reports no "left" for a document that navigated away). But a page
+      // that finishes loading AFTER its player went full-screen (Twitch, 2026-10-05: the stage entered at +3 s, load-finished at +4 s,
+      // and the curtain then waited its whole 30 s on a stage core had struck) is asked, and the mark stays while the page says so.
+      if (this.elementFullscreen.has(event.id)) {
+        let still = false;
+        try { const raw = this.drivers.surface.evaluate ? await this.drivers.surface.evaluate(event.id, "!!document.fullscreenElement") : null; still = raw ? JSON.parse(raw) === true : false; } catch { still = false; }
+        if (!still && this.elementFullscreen.delete(event.id)) await this.feedKeeper(event.id, { type: "presentation", at: Date.now(), state: "none" });
+      }
       await this.injectAdapter(event.id, { includeCss: true }); // fresh document
       // VP-3 (2026-09-19): a Quick play on a service that was not on the screen - the screen became it, and now that its page
       // is up the title is asked for (the adapter's videoPlay), once, within a minute of the ask
@@ -6536,7 +7669,14 @@ export class Orchestrator {
         const hero = this.videoMultiviewHero();
         const claim = hero ? event.id === hero : this.bootTitles.size === 1 || [...this.bootTitles.keys()][0] === event.id;
         this.bootTitles.delete(event.id);
+        if (back.tune) {   // a channel: its service's own walk from this page (the tune), the pick standing as restored
+          await this.video.restoreChannel(event.id, back.tune, back.name, claim);
+          await this.drivers.surface.inject(event.id, null, `window.__prismVideoTune && window.__prismVideoTune(${JSON.stringify(back.tune)})`);
+        } else {
         await this.video.restoreTitle(event.id, back.url, back.name, claim);
+        if (back.pos && back.pos > 60) this.resumeRestored(event.id, back.pos, back.name, Date.now());
+        // left paused: the player comes up at its place (a page that waits for Play still gets the press) and is paused once as it starts
+        if (back.paused) this.restorePaused.set(event.id, Date.now() + 45_000);
         // a title that came back and never started - Paramount+'s ad loader sat on "Advertisement is loading..." for good after a restart
         // (2026-09-23, "The bottom right video in multiview is gray"): once, the title's own address again, unless a person has acted there
         const id = event.id, at = Date.now();
@@ -6547,6 +7687,7 @@ export class Orchestrator {
           if (!this.surfaces.has(id) || this.video.state([id])[0]?.playing || (this.lastInteract.get(id) ?? 0) > at) return;
           const spec = this.tile(id)?.adapter ? this.adapters.get(this.tile(id)!.adapter!) : undefined;
           if (!spec?.videoPlay) return;
+          if (this.video.state([id])[0]?.video?.kind === "live") return;   // a channel starts by itself; a title's Play press on its page could open a show (2026-09-29)
           void this.drivers.surface.inject(id, null, `window.__prismVideoPlay && window.__prismVideoPlay("title", ${JSON.stringify(back.url)}, ${JSON.stringify(back.url)})`);
         }, Orchestrator.RESTORE_PRESS_MS);
         setTimeout(() => {
@@ -6560,16 +7701,24 @@ export class Orchestrator {
         // Apple's page in Watch's corner, where a press closed Watch onto it)
         setTimeout(() => {
           if (!this.surfaces.has(id) || this.video.state([id])[0]?.playing || (this.lastInteract.get(id) ?? 0) > at) return;
+          // ... unless it came back paused at its place (2026-10-06, "I restarted the app and it started apple tv up in the big window just showing
+          // the main page for apple tv but should show the last show I had running": Deerfest, paused at 23:04 before a restart, was forgotten
+          // here at the restart after it). A player that names the title and stands past its first seconds is the title, left paused; a page that
+          // only names it while it waits for Play (no player clock) is still over
+          const v = this.video.state([id])[0]?.video;
+          const bareU = (u: string) => u.split("?")[0]!.split("#")[0]!.replace(/[/]+$/, "");
+          if (v && !v.ad && (v.title || v.series) && typeof v.position === "number" && v.position > 5 && bareU(this.currentUrl.get(id) ?? back.url) === bareU(back.url)) return;
           this.video.failPick(id, "did not start again after the restart");
           // ... and it is forgotten: the next boot does not try it again
           if (this.videoUp.get(id)?.url === back.url) { this.videoUp.delete(id); this.persistVideoUp(); }
         }, 2 * Orchestrator.RESTORE_STALL_MS);
+        }
       }
       // the stage asked page-side from the moment the pick's page is up: the loop no-ops until the feature has frames, so the
       // player fills the screen as soon as it plays rather than a report or two later (2026-09-21)
       if (queued && Date.now() - queued.at < 60_000) setTimeout(() => this.videoEnterStage(event.id), 1500);
       const tune = this.videoTuneQueued.get(event.id);
-      if (tune) { this.videoTuneQueued.delete(event.id); if (Date.now() - tune.at < 60_000) void this.videoTune(event.id, tune.channelId); }
+      if (tune) { this.videoTuneQueued.delete(event.id); if (Date.now() - tune.at < 60_000) void this.videoTune(event.id, tune.channelId, tune.name, tune.page); }
       const search = this.videoSearchQueued.get(event.id);
       if (search) { this.videoSearchQueued.delete(event.id); if (Date.now() - search.at < 60_000) void this.videoSearchIn(event.id, search.q, search.open); }
       if (this.tile(event.id)?.preview?.mode === "peek") {
@@ -6580,7 +7729,10 @@ export class Orchestrator {
       else await this.runOnActivate(event.id);
     }
     if (event.type === "navigated") {
+      const before = this.currentUrl.get(event.id) ?? null;
       if (event.url) { this.currentUrl.set(event.id, event.url); this.navAt.set(event.id, Date.now()); }
+      if (event.url) this.freshPageOnNextTitle(event.id, before, event.url);
+      if (event.url) this.video.noteNavigated(event.id, event.url);   // where an address asked for arrived (the doctor keeps watching it)
       await this.applyVeil(event.id); // §27 — SPA moved; the installer updates in place
       this.rememberLocation(event.id, event.url);
     }
@@ -6599,7 +7751,7 @@ export class Orchestrator {
           if (this.lookups.has(event.id) && this.hiddenWork > 0 && typeof event.count === "number" && typeof event.total === "number") void this.drivers.surface.hover?.(event.id, event.count, event.total);
           return;
         }
-        if (event.op === "episodes-part") { wait.partial?.(event); return; }   // the seasons read so far (2026-09-23) - the question stays open
+        if (event.op === "episodes-part" || event.op === "live-part") { wait.partial?.(event); return; }   // the seasons read so far (2026-09-23) - the question stays open
         if (event.op === "progress") {   // 2026-09-18: how far the page has got - the question stays open
           const o = this.musicOrder.get(event.id);
           if (!this.musicWork.has(event.id) && o) this.noteQueueWork(event.id, o.kind, o.id, event.count, event.total); else this.noteWork(event.id, event.count, event.total);
@@ -6646,6 +7798,9 @@ export class Orchestrator {
       // (B-148), so the wall said playing and its clock ran 0:26 -> 0:29 and started over on every poll. The page's own
       // transport saying paused wins over an element; the clock then holds at the page's position.
       if (event.info && event.info.playing && event.info.context?.playing === false) event = { ...event, info: { ...event.info, playing: false } };
+      // the episode the player names, when the page still names the one before (every service, 2026-09-28): Apple TV rolled Silo S3E1 into S3E2
+      // "It's All Good" on the same page - the page's title and address stayed on E1, so the wall called it E1 and a restart brought E1 back
+      if (event.info?.video && typeof event.info.video === "object") event = { ...event, info: this.correctStaleEpisode(event.id, event.info) };
       // ... and its artwork: Pandora sets no Media Session, so the poster is the tuner's own image (2026-09-13); the Media Session's wins when it has one
       if (event.info && !event.info.artwork && event.info.context?.artwork) event = { ...event, info: { ...event.info, artwork: event.info.context.artwork } };
       // The transport a control may offer: the page's registered Media Session actions AND the adapter's declared
@@ -6765,7 +7920,7 @@ export class Orchestrator {
       }
       if (event.active) this.adActive.add(event.id); else { this.adActive.delete(event.id); this.adInfo.delete(event.id); }
       const adSpec = this.tile(event.id)?.adapter ? this.adapters.get(this.tile(event.id)!.adapter!) : undefined;
-      this.intermission.onAdBreak(event.id, event.active, adSpec?.adSignalSustainedMs ?? 0); // §26; the adapter's own sustain counts toward the window
+      this.intermission.onAdBreak(event.id, event.active, adSpec?.adSignalSustainedMs ?? 0, adSpec?.adBackstopMs); // §26; the adapter's own sustain counts toward the window, its backstop for breaks no page counts
       await this.feedKeeper(event.id, { type: "ad-break", at: Date.now(), active: event.active }); // §26 keeping: the boundary signal
     }
     if (event.type === "skip-available") {
@@ -6780,6 +7935,7 @@ export class Orchestrator {
       if (count || remaining >= 0) this.adInfo.set(event.id, { count, remaining }); else this.adInfo.delete(event.id);
       await this.drivers.surface.setAdInfo?.(event.id, count, remaining);
       await this.watchAdClock(event.id, remaining);
+      if (remaining > 0) this.intermission.extend(event.id, remaining);   // a break the page still counts stays covered past the 2-minute backstop (B-336)
     }
     // §26 for native apps: package → launch tile, then the same controller.
     if (event.type === "app-foreground") {
@@ -6810,7 +7966,15 @@ export class Orchestrator {
         await this.drivers.media.launch(tile.launch.package, tile.launch.deepLink);
       }
     }
-    if (event.type === "playback") this.video.notePlayback(event.id, !!event.playing);   // the wall's play / pause toggle reads it at once
+    if (event.type === "playback") this.video.notePlayback(event.id, !!event.playing);
+    // a title brought back paused that starts by itself (or by the restore's own Play press): paused once, as it was left (2026-10-06)
+    if (event.type === "playback" && event.playing && this.restorePaused.has(event.id)) {
+      const until = this.restorePaused.get(event.id)!;
+      this.restorePaused.delete(event.id);
+      // the restore's own arm() set lastInteract at that moment: only a press after it is a person's (2026-10-06: Animal Control came back playing
+      // twice - the arm and the mark fell in the same millisecond and the strict test read the restore as a person)
+      if (Date.now() < until && (this.lastInteract.get(event.id) ?? 0) <= until - 45_000) setTimeout(() => void this.tileCommand(event.id, "pause"), 600);
+    }   // the wall's play / pause toggle reads it at once
     if (event.type === "playback" && event.playing) {
       await this.lifecycle.touch(event.id);
       await this.enforceDecodeCap(event.id);
@@ -6846,11 +8010,13 @@ export class Orchestrator {
       this.bootHeld.delete(event.id);
       this.humanPlayed.add(event.id);
       this.lastInteract.set(event.id, Date.now());
+      if (this.autoplayStopped.has(event.id)) this.releaseStop(event.id);   // the person chose to watch it after all
       this.pageTouchedAt.set(event.id, Date.now());
       await this.feedKeeper(event.id, { type: "user-input", at: Date.now() }); // §26 keeping: a drop after this is the human's
     }
     if (event.type === "playback" && event.ended === true) {
       await this.feedKeeper(event.id, { type: "ended", at: Date.now() }); // §26 onEnd / a drop at video end is site-initiated
+      try { this.onPlaybackEnded?.(event.id); } catch { /* a playlist's listener never stops the keeper */ }
     }
     if (event.type === "playback") {
       // a pause the wall was asked for holds: Hulu's player opened a new stream and played again ten seconds into a pause (2026-09-23,
@@ -7016,6 +8182,49 @@ export class Orchestrator {
   }
 
   /** Forward a human's key into a tile's page (phone d-pad / TV remote in page mode). */
+  /** The surface the phone's keyboard types into (2026-10-03): a service's setup window when one is up (the sign-in), else the tile a
+   *  person entered, else the screen - the first slot tile that is not a hidden page. */
+  keyboardTarget(): string | null {
+    const preview = [...this.surfaces].find((id) => /^app:.+:preview$/.test(id));
+    if (preview) return preview;
+    if (this.entered && this.surfaces.has(this.entered)) return this.entered;
+    for (const id of this.surfaces) { const t = this.tile(id); if (t && (t as { kind?: string }).kind !== "hidden" && !id.startsWith("app:")) return id; }
+    return null;
+  }
+  /**
+   * What the phone's keyboard is typing into (2026-10-04, "look alike labeling for the fields on the screen"): the focused element on the
+   * target surface - its own label (the <label>, aria-label, placeholder or name), its kind, how many characters it holds (never the
+   * characters: a password field's contents are nobody's to read), and the page's name. Nothing when nothing editable is focused.
+   */
+  async keyboardFocus(): Promise<{ target: string; page: string; host: string; editable: boolean; label: string; kind: string; role: string; length: number } | null> {
+    const target = this.keyboardTarget();
+    const ev = this.drivers.surface.evaluate;
+    if (!target || !ev) return null;
+    const js = `(function(){var a=document.activeElement;var tag=a?a.tagName.toLowerCase():'';var ed=!!a&&(tag==='input'||tag==='textarea'||a.isContentEditable);` +
+      `var lab=ed?(((a.labels&&a.labels[0]&&a.labels[0].textContent)||a.getAttribute('aria-label')||a.placeholder||a.getAttribute('title')||a.name||a.id||'').trim()):'';` +
+      // the field's role as the browser's password manager reads it: the autocomplete hint first, then the type, then a password field beside it
+      `var ac=ed?((a.getAttribute('autocomplete')||'').toLowerCase()):'';var type=ed?(tag==='input'?(a.type||'text'):tag):'';` +
+      `var role=type==='password'?'password':(ac.indexOf('password')>=0?'password':(ac==='username'||ac==='email'||type==='email')?'username':'');` +
+      `if(!role&&ed&&a.form){var pw=a.form.querySelector('input[type=password]');if(pw&&pw!==a&&(type==='text'||type==='tel'))role='username';}` +
+      `return JSON.stringify({editable:ed,kind:type,role:role,label:lab.slice(0,60),length:ed?String(a.value!==undefined?a.value:a.textContent||'').length:0,page:(document.title||'').slice(0,60),host:location.hostname});})()`;
+    try {
+      const raw = await ev(target, js);
+      if (!raw) return null;
+      const parsed = JSON.parse(typeof raw === "string" && raw.startsWith("\"") ? JSON.parse(raw) as string : raw) as { editable: boolean; kind: string; role: string; label: string; length: number; page: string; host: string };
+      return { target, ...parsed };
+    } catch { return null; }
+  }
+  /** The phone keyboard's text or key onto any surface, a setup window included (no tile, no field search: the page's own focus). */
+  async typeIntoSurface(id: string, text: string): Promise<boolean> {
+    if (!this.surfaces.has(id) || !this.drivers.surface.typeText) return false;
+    await this.drivers.surface.typeText(id, text);
+    return true;
+  }
+  async sendKeyToSurface(id: string, key: string): Promise<boolean> {
+    if (!this.surfaces.has(id) || !this.drivers.surface.sendKey) return false;
+    await this.drivers.surface.sendKey(id, key);
+    return true;
+  }
   async sendKeyToTile(id: string, key: string): Promise<boolean> {
     if (!this.tile(id) || !this.surfaces.has(id) || !this.drivers.surface.sendKey) return false;
     await this.pageKey(id, key);
@@ -7382,12 +8591,50 @@ export class Orchestrator {
   private currentUrl = new Map<string, string>();
   /** Tiles that should press their page's Play control once the page they were sent to has loaded (resumeMusic). */
   private pendingResumePlay = new Map<string, number>();
-  private resumeKey(dashId: string, tileId: string): string { return `music:resume:${dashId}:${tileId}`; }
+  /**
+   * A music tile's own records - its resume point, its recents, its library - belong to the person signed in, not to the tile
+   * (2026-09-30, sign-ins for both players: "a music tile's resume point is kept a tile, not a sign-in"): keyed by the tile's profile,
+   * which a sign-in is. A record from before sign-ins is read once, under the sign-in in use at that read, and claimed for it (a
+   * marker beside it); another sign-in on the same tile then starts with nothing of the first person's. Nothing is deleted.
+   */
+  private personKey(base: "resume" | "recent" | "library", dashId: string, tileId: string): string {
+    return `music:${base}:${dashId}:${tileId}:${this.tile(tileId)?.profile ?? tileId}`;
+  }
+  /**
+   * The records from before sign-ins, claimed at the document's load - all three at once, for the sign-in the tile is on at that load
+   * (2026-09-30 review: claimed one at a time by whoever read first, a later sign-in could have taken the first person's recents or
+   * library). A marker beside the old record says it was claimed; the old record itself stays.
+   */
+  private async legacyMusicLoad(doc: DashboardDocument): Promise<void> {
+    if (!this.drivers.store) return;
+    for (const t of doc.tiles) {
+      if (!t.adapter) continue;
+      const profile = t.profile ?? t.id;
+      for (const base of ["resume", "recent", "library"] as const) {
+        try {
+          const marker = `music:${base}:${doc.id}:${t.id}:claimed`;
+          if (await this.drivers.store.get(marker)) continue;
+          const legacy = await this.drivers.store.get(`music:${base}:${doc.id}:${t.id}`);
+          if (legacy && !(await this.drivers.store.get(`music:${base}:${doc.id}:${t.id}:${profile}`))) await this.drivers.store.set(`music:${base}:${doc.id}:${t.id}:${profile}`, legacy);
+          await this.drivers.store.set(marker, profile);
+        } catch { /* best effort */ }
+      }
+    }
+  }
+  private async personRead(base: "resume" | "recent" | "library", tileId: string): Promise<string | null> {
+    if (!this.doc || !this.drivers.store) return null;
+    return await this.drivers.store.get(this.personKey(base, this.doc.id, tileId));   // one round trip
+  }
+  private resumeKey(dashId: string, tileId: string): string { return this.personKey("resume", dashId, tileId); }
   /** B-204 (2026-09-15): each music tile's resume point, in memory - the wall row says what Play would resume while nothing is loaded. */
   private resumeCache = new Map<string, { url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number }>();
+  /** The profile each tile's page was made in: a report from a page of another profile (one being replaced) is not the tile's person's. */
+  private readonly surfaceProfile = new Map<string, string>();
   private async primeResumePoints(doc: DashboardDocument): Promise<void> {
     this.resumeCache.clear();
+    this.recentCache.clear();   // a document's tiles may be another person's now (a sign-in switch re-applies the scene)
     if (!this.drivers.store) return;
+    await this.legacyMusicLoad(doc);
     this.musicOrder.clear();
     this.musicRepeat.clear();
     for (const t of doc.tiles) {
@@ -7398,16 +8645,61 @@ export class Orchestrator {
       if (p) this.resumeCache.set(t.id, p);
     }
   }
-  private recentKey(dashId: string, tileId: string): string { return `music:recent:${dashId}:${tileId}`; }
-  private libraryKey(dashId: string, tileId: string): string { return `music:library:${dashId}:${tileId}`; }
+  private recentKey(dashId: string, tileId: string): string { return this.personKey("recent", dashId, tileId); }
+  private libraryKey(dashId: string, tileId: string): string { return this.personKey("library", dashId, tileId); }
   private readonly libraryCache = new Map<string, { playlists: LibraryItem[]; stations: LibraryItem[] }>();
+  /**
+   * A music service whose playlists live on a page of their own (adapter musicLibraryUrl) has that page read on its own window - every music
+   * service with one (2026-09-29: Amazon Music's playlists were read only on /my/playlists, which nothing opened, so its quick-play menu stayed
+   * empty). Only while the window is idle: not playing, not the one with the sound, no pick on its way, nobody's press in the last two minutes;
+   * at most every MUSIC_LIBRARY_MS. The window goes back to its home once the library is reported, or after MUSIC_LIBRARY_STAY_MS.
+   */
+  private readonly musicLibraryAt = new Map<string, number>();
+  static readonly MUSIC_LIBRARY_MS = 6 * 3_600_000;
+  static readonly MUSIC_LIBRARY_STAY_MS = 20_000;
+  musicLibraryRefresh(): string[] {
+    const asked: string[] = [];
+    const now = Date.now();
+    for (const tile of this.doc?.tiles ?? []) {
+      const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
+      if (!spec?.musicLibraryUrl || !spec.musicLibrary || !tile.url || !this.surfaces.has(tile.id) || !this.music.source(tile.id)) continue;
+      if (now - (this.musicLibraryAt.get(tile.id) ?? 0) < Orchestrator.MUSIC_LIBRARY_MS) continue;
+      if (this.nowPlaying.get(tile.id)?.playing || this.audio.focusedMedia === tile.id || this.musicPending.has(tile.id) || this.actedSince(tile.id, now - 120_000)) continue;
+      if (this.sessionState.get(tile.id) === "signed-out") continue;
+      // a window holding a track (paused) keeps its page - a visit would drop its queue; a song search under way keeps it too (2026-09-29 review)
+      if (this.nowPlaying.get(tile.id)?.title || this.musicLookups.get(tile.id)?.status === "searching") continue;
+      this.musicLibraryAt.set(tile.id, now - Orchestrator.MUSIC_LIBRARY_MS + 30 * 60_000);   // until it answers: tried again in half an hour
+      asked.push(tile.id);
+      const id = tile.id, home = tile.url, had = JSON.stringify(this.libraryCache.get(id) ?? null);
+      void this.drivers.surface.navigate(id, spec.musicLibraryUrl);
+      const libUrl = spec.musicLibraryUrl;
+      // home again - once nothing is on its way on the window; tried for two minutes, and only while the window still stands on the library page
+      const back = (tries = 0) => {
+        if (!this.surfaces.has(id) || (this.currentUrl.get(id) ?? "").split("?")[0] !== libUrl.split("?")[0]) return;
+        if (this.nowPlaying.get(id)?.playing) return;   // a person played from here: theirs
+        if ((this.musicPending.has(id) || this.musicLookups.get(id)?.status === "searching") && tries < 24) { setTimeout(() => back(tries + 1), 5_000); return; }
+        void this.drivers.surface.navigate(id, home);
+      };
+      const t0 = now;
+      const look = () => {
+        if (!this.surfaces.has(id)) return;
+        const lib = this.libraryCache.get(id);
+        const got = JSON.stringify(lib ?? null) !== had;
+        if (got || (lib && Date.now() - t0 > 8_000)) { this.musicLibraryAt.set(id, Date.now()); back(); return; }   // answered (a library that has not changed is an answer by now)
+        if (Date.now() - t0 > Orchestrator.MUSIC_LIBRARY_STAY_MS) { back(); return; }
+        setTimeout(look, 1_000);
+      };
+      setTimeout(look, 4_000);
+    }
+    return asked;
+  }
   /**
    * A quick-play pick between the tap and the page playing it. A big playlist takes MusicKit ten seconds
    * and more to queue, and a wall that shows nothing for ten seconds reads as broken (2026-09-07). Cleared
    * when the page reports that collection playing; marked failed when the page's musicPlay says so or
    * MUSIC_PICK_TIMEOUT_MS pass, and dropped a while after that so the note does not stay forever.
    */
-  private readonly musicPending = new Map<string, { kind: string; id: string; name: string; at: number; url?: string; failed?: string; title?: string }>();
+  private readonly musicPending = new Map<string, { kind: string; id: string; name: string; at: number; url?: string; failed?: string; title?: string; retried?: boolean }>();
   /**
    * B-124 boot self-heal (2026-09-07): the very first engine a fresh browser process creates at boot came
    * up signed out on Apple Music every time, on any page, while the same surface recreated a minute
@@ -7421,15 +8713,18 @@ export class Orchestrator {
   /** B-150: the wall's one mute switch, kept across restarts (section 10: never wiped). */
   static readonly PERSON_MUTED_KEY = "audio:wall-muted";
   private readonly bootRecycled = new Set<string>();
+  /** the tiles the wall began with: the boot recycle is theirs alone (2026-09-29: a multiview window made three minutes into a boot said
+   *  signed-out for a moment as its page loaded, and the recycle destroyed it and its neighbour mid-tune) */
+  private bootTiles = new Set<string>();
   /** Whether a session report is to be believed: false exactly when it is the boot-window signed-out that triggers the one recycle. */
   trustSessionReport(tileId: string, state: "signed-in" | "signed-out"): boolean {
     if (state !== "signed-out") return true;
     if (Date.now() - this.bootAt > Orchestrator.BOOT_SESSION_WINDOW_MS) return true;
     if (this.bootRecycled.has(tileId)) return true;
     const tile = this.tile(tileId);
-    if (!tile || tile.visualization || tile.placeholder) return true;
+    if (!tile || tile.visualization || tile.placeholder || !this.bootTiles.has(tileId)) return true;
     this.bootRecycled.add(tileId);
-    void this.recycleAppSurfaces(tile.profile ?? tile.id);
+    void this.recycleAppSurfaces(tile.adapter ?? tile.id);   // the shared profile names no App: the tile itself then (2026-10-05 review)
     return false;
   }
 
@@ -7449,6 +8744,8 @@ export class Orchestrator {
   static readonly MUSIC_PICK_FAILED_LINGER_MS = 15_000;
   /** Tiles whose adapter currently reports an ad break (known the instant it starts, before the veil rises). */
   private adActive = new Set<string>();
+  /** The tile's page is in an ad break (its adapter's signal, or the wall's cover over it). */
+  inAdBreak(tileId: string): boolean { return this.adActive.has(tileId) || this.intermission.isCovered(tileId); }
 
   /**
    * B-175 (2026-09-09): a break whose own clock has stopped is a stalled player - Spotify sat at 0:19 of 0:19 of

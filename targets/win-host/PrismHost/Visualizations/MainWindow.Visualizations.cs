@@ -1200,7 +1200,8 @@ public sealed partial class MainWindow
         IconElement Grey(string glyph) => new FontIcon { Glyph = glyph, Foreground = VizDimInk };
         foreach (var (order, verb, cannot, tip, icon) in new (string, string, string?, string, IconElement?)[] {
             ("normal", "In order", null, "The playlist as the service lists it, from the top", Grey("\uE8FD")),
-            ("shuffle", "Shuffle", cannotShuffle, svc + "'s algorithmic shuffle. It comes from the music service, and music services shuffle with non-transparent algorithms that often weigh your listening habits, a track's popularity, your recent play history and skip rates to curate the queue. True shuffle, below, is Prism's: uniformly random, nothing weighted.", svcIcon ?? Grey("\uE8B1")),
+            // the service's own shuffle is gone from the menu (2026-10-04, "remove Shuffle and only have true shuffle"): its order is the
+            // service's and unexplained; Prism's true shuffle is the one offered
             ("true-shuffle", "True shuffle", cannotOwn, "Prism's true shuffle: every track once, in a uniformly random order, before any repeat - a fresh draw each time; the rule is published, nothing is weighted", prismIcon ?? Grey("\uE8B1")),
             ("reverse", "In reverse", cannotOwn, "From the last track to the first", Grey("\uE74A")) })
         {
@@ -1242,9 +1243,34 @@ public sealed partial class MainWindow
     /// <summary>One service's entries into a menu or submenu: the last five it played from, then its Playlists / Stations. True when anything went in.</summary>
     private async Task<bool> AddServiceMenuItemsAsync(IList<MenuFlyoutItemBase> into, string source, string? service)
     {
-        var raw = await RuntimeEvalAsync("PrismRuntime.musicRecent(" + Q(source) + ")");
         var any = false;
         var prefix = service is { Length: > 0 } ? service + ": " : "";
+        // the service's library first (its orders, the standing order's spot, the repeat switch): every row below is built from it
+        System.Text.Json.Nodes.JsonObject? lib = null;
+        try { var libRaw = await RuntimeEvalAsync("PrismRuntime.musicLibrary(" + Q(source) + ")"); lib = libRaw is null ? null : System.Text.Json.Nodes.JsonNode.Parse(libRaw) as System.Text.Json.Nodes.JsonObject; } catch { }
+        var orders = lib?["orders"] as System.Text.Json.Nodes.JsonObject;
+        var cannotOwn = orders?["own"] is System.Text.Json.Nodes.JsonValue ov && ov.TryGetValue<string>(out var oreason) ? oreason : null;
+        var cannotRepeat = orders?["repeat"] is System.Text.Json.Nodes.JsonValue rv && rv.TryGetValue<string>(out var rreason) ? rreason : null;
+        var repeat = lib?["repeat"] is System.Text.Json.Nodes.JsonValue rpv && rpv.TryGetValue<bool>(out var rp) && rp;
+        var standing = lib?["order"] as System.Text.Json.Nodes.JsonObject;
+        var standingId = standing?["id"]?.GetValue<string>();
+        var standingSpot = standing?["spot"] is System.Text.Json.Nodes.JsonValue spv && spv.TryGetValue<int>(out var spot) ? spot : (int?)null;
+        var standingCount = standing?["count"] is System.Text.Json.Nodes.JsonValue cnv && cnv.TryGetValue<int>(out var cnt) ? cnt : (int?)null;
+        var standingLabel = standing?["label"]?.GetValue<string>();
+        // the track playing now and the playlists that hold it, for Remove from a playlist (2026-10-06, "if this song is IN this playlist, I want to
+        // have the option to Remove Playing Title from Playlist"); only a playlist the library marks editable offers it
+        System.Text.Json.Nodes.JsonObject? playingIn = null;
+        try { var pr = await RuntimeEvalAsync("PrismRuntime.musicPlayingIn(" + Q(source) + ")"); playingIn = pr is null ? null : System.Text.Json.Nodes.JsonNode.Parse(pr) as System.Text.Json.Nodes.JsonObject; } catch { }
+        var editable = new HashSet<string>();
+        if (lib?["playlists"] is System.Text.Json.Nodes.JsonArray pls) foreach (var pl in pls) if (pl is System.Text.Json.Nodes.JsonObject po && po["edit"] is System.Text.Json.Nodes.JsonValue ev && ev.TryGetValue<bool>(out var ed) && ed && po["id"]?.GetValue<string>() is { } pid) editable.Add(pid);
+        var inLists = new HashSet<string>();
+        var canRemove = playingIn?["canRemove"] is System.Text.Json.Nodes.JsonValue crv && crv.TryGetValue<bool>(out var cr) && cr;
+        if (canRemove && playingIn?["lists"] is System.Text.Json.Nodes.JsonArray ls) foreach (var l in ls) if (l?.GetValue<string>() is { } lid) inLists.Add(lid);
+        var ctx = new QuickRowContext(source, prefix, cannotOwn, cannotRepeat, repeat, standingId, standingSpot, standingCount, standingLabel)
+        { PlayingTitle = playingIn?["title"]?.GetValue<string>(), PlayingArtist = playingIn?["artist"]?.GetValue<string>(), PlayingIn = inLists, Editable = editable };
+
+        // the last five it played from
+        var raw = await RuntimeEvalAsync("PrismRuntime.musicRecent(" + Q(source) + ")");
         try
         {
             if (raw is not null && System.Text.Json.Nodes.JsonNode.Parse(raw) is System.Text.Json.Nodes.JsonArray arr)
@@ -1252,29 +1278,30 @@ public sealed partial class MainWindow
                 {
                     var url = e["url"]?.GetValue<string>(); var label = e["label"]?.GetValue<string>() ?? ""; var kind = e["kind"]?.GetValue<string>() ?? ""; var artist = e["artist"]?.GetValue<string>();
                     if (url is null) continue;
-                    var text = label + (artist is { Length: > 0 } && kind == "album" ? "  ·  " + artist : "");
-                    var item = new MenuFlyoutItem { Text = text };
-                    ToolTipService.SetToolTip(item, kind + "  ·  " + url);
+                    var text = label + (artist is { Length: > 0 } && kind == "album" ? "  " + (char)0x00B7 + "  " + artist : "");
                     var u = url;
-                    item.Click += (_, __) => { LogLine("quick play: " + source + " -> " + u); _brain.Call(HostCalls.PlayRecent, source, u); SetPill("Prism · loading " + prefix + text + "…"); };
-                    into.Add(item); any = true;
+                    Action playNow = () => { LogLine("quick play: " + source + " -> " + u); _brain.Call(HostCalls.PlayRecent, source, u); SetPill("Prism" + Mid + "loading " + prefix + text + (char)0x2026); };
+                    var rid = e["id"]?.GetValue<string>();
+                    if (rid is { Length: > 0 } && (kind == "playlist" || kind == "station" || kind == "album"))
+                    {
+                        var row = CollectionRow(ctx, text, kind, rid, text, playNow);
+                        ToolTipService.SetToolTip(row, kind + "  " + (char)0x00B7 + "  " + url);
+                        into.Add(row); any = true;
+                    }
+                    else
+                    {
+                        var item = new MenuFlyoutItem { Text = text };
+                        item.Click += (_, __) => playNow();
+                        ToolTipService.SetToolTip(item, kind + "  " + (char)0x00B7 + "  " + url);
+                        into.Add(item); any = true;
+                    }
                 }
         }
         catch { }
-        // the service's library, as the page listed it: pick and it plays through the service's own queue - no page visit
-        var libRaw = await RuntimeEvalAsync("PrismRuntime.musicLibrary(" + Q(source) + ")");
+        // the library, as the page listed it: Playlists and Stations, each row a submenu (CollectionRow)
         try
         {
-            if (libRaw is not null && System.Text.Json.Nodes.JsonNode.Parse(libRaw) is System.Text.Json.Nodes.JsonObject lib)
-            {
-                // Play orders (2026-09-17): the row is one press, as before ("I hate burying those in the menus") - it carries on a saved
-                // spot in a Prism-ordered play of this playlist, else plays it in order; the order itself is chosen on the transport's
-                // order button. The standing order's playlist says so on its row.
-                var standing = lib["order"] as System.Text.Json.Nodes.JsonObject;
-                var standingId = standing?["id"]?.GetValue<string>();
-                var standingSpot = standing?["spot"] is System.Text.Json.Nodes.JsonValue spv && spv.TryGetValue<int>(out var spot) ? spot : (int?)null;
-                var standingCount = standing?["count"] is System.Text.Json.Nodes.JsonValue cnv && cnv.TryGetValue<int>(out var cnt) ? cnt : (int?)null;
-                var standingLabel = standing?["label"]?.GetValue<string>();
+            if (lib is not null)
                 foreach (var (key, title) in new[] { ("playlists", "Playlists"), ("stations", "Stations") })
                 {
                     if (lib[key] is not System.Text.Json.Nodes.JsonArray items || items.Count == 0) continue;
@@ -1284,28 +1311,136 @@ public sealed partial class MainWindow
                         var id = it["id"]?.GetValue<string>(); var name = it["name"]?.GetValue<string>(); var kind = it["kind"]?.GetValue<string>() ?? (key == "stations" ? "station" : "playlist");
                         if (id is null || name is null) continue;
                         var (i2, k2, n2) = (id, kind, name);
-                        var continues = standingId == id && standingSpot is int sp && standingCount is int sc && sc > 0 && standingLabel is { Length: > 0 };
-                        // a press plays the playlist in its own default order (2026-09-24, "we should just leave it as the default and let the user set the
-                        // order once it has been selected"); a saved spot in a Prism order is carried on only when asked - the row's right-click
-                        var mi = new MenuFlyoutItem { Text = name, Foreground = VizNowInk };
-                        mi.Click += (_, __) => { LogLine("quick play: " + source + " " + k2 + " " + i2 + " (in order)"); if (continues) _brain.Call(HostCalls.PlayCollection, source, k2, i2, "normal"); else _brain.Call(HostCalls.PlayCollection, source, k2, i2); SetPill("Prism · loading " + prefix + n2 + "…"); };
-                        if (continues)
-                        {
-                            var carry = new MenuFlyoutItem { Text = "Carry on: " + standingLabel + ", " + standingSpot + " of " + standingCount };
-                            carry.Click += (_, __) => { LogLine("quick play: " + source + " " + k2 + " " + i2 + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, k2, i2); SetPill("Prism · carrying on " + prefix + n2 + "…"); };
-                            var cf = new MenuFlyout(); cf.Items.Add(carry);
-                            mi.ContextFlyout = cf;
-                            ToolTipService.SetToolTip(mi, "Plays in order. Right-click to carry on the " + standingLabel + " where it left off (" + standingSpot + " of " + standingCount + ").");
-                        }
-                        sub.Items.Add(mi);
+                        var continues = standingId == id && standingSpot is int && standingCount is int sc && sc > 0 && standingLabel is { Length: > 0 };
+                        // Play now plays from the top in the service's own order (2026-09-24, "leave it as the default and let the user set the order once it
+                        // has been selected"); a saved spot in a Prism order is carried on only when asked (the Carry on row)
+                        Action playNow = () => { LogLine("quick play: " + source + " " + k2 + " " + i2 + " (in order)"); if (continues) _brain.Call(HostCalls.PlayCollection, source, k2, i2, "normal"); else _brain.Call(HostCalls.PlayCollection, source, k2, i2); SetPill("Prism" + Mid + "loading " + prefix + n2 + (char)0x2026); };
+                        sub.Items.Add(CollectionRow(ctx, name, k2, i2, n2, playNow));
                     }
                     if (any) into.Add(new MenuFlyoutSeparator());
                     into.Add(sub); any = true;
                 }
-            }
         }
         catch { }
         return any;
+    }
+
+    /// <summary>What every Quick play row of one service is built from: the service's library read once.</summary>
+    private sealed record QuickRowContext(string Source, string Prefix, string? CannotOwn, string? CannotRepeat, bool Repeat, string? StandingId, int? StandingSpot, int? StandingCount, string? StandingLabel)
+    {
+        /// <summary>The track playing on this service and the playlists Prism has read that hold it; the playlists the person may edit (2026-10-06).</summary>
+        public string? PlayingTitle { get; init; }
+        public string? PlayingArtist { get; init; }
+        public HashSet<string> PlayingIn { get; init; } = new();
+        public HashSet<string> Editable { get; init; } = new();
+    }
+
+    /// <summary>
+    /// A collection's row in Quick play: one submenu (2026-10-05, "Still no option" / "Trying to select discovery station but nothing happens":
+    /// a flyout opened at the pressed row never appeared, because the menu closes on the press and takes its row away). It holds Play now,
+    /// Carry on where a Prism order of this playlist has a saved spot, Play after this track (the phone's choice; nothing playing, it starts),
+    /// and for a playlist or an album ("Remember those are only for playlists") Prism's orders, True shuffle and In reverse, with Repeat as
+    /// the switch beside them ("add the shuffle options to those menus like true shuffle, reverse, and repeat as well"). A station has no
+    /// list to order. The standing order of this collection is marked "now"; a verb the service cannot do is grey with the reason.
+    /// </summary>
+    private MenuFlyoutSubItem CollectionRow(QuickRowContext c, string text, string kind, string id, string name, Action playNow)
+    {
+        var source = c.Source;
+        var row = new MenuFlyoutSubItem { Text = text, Foreground = VizNowInk };
+        var continues = c.StandingId == id && c.StandingSpot is int && c.StandingCount is int sc0 && sc0 > 0 && c.StandingLabel is { Length: > 0 };
+        var now = new MenuFlyoutItem { Text = "Play now", Icon = new FontIcon { Glyph = "\uE768" } };
+        ToolTipService.SetToolTip(now, kind == "station" ? "Starts the station" : "From the top, in the order the service lists it");
+        now.Click += (_, __) => playNow();
+        row.Items.Add(now);
+        if (continues)
+        {
+            var carry = new MenuFlyoutItem { Text = "Carry on: " + c.StandingLabel + ", " + c.StandingSpot + " of " + c.StandingCount, Icon = new FontIcon { Glyph = "\uE8A7" } };
+            carry.Click += (_, __) => { LogLine("quick play: " + source + " " + kind + " " + id + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, kind, id); SetPill("Prism" + Mid + "carrying on " + c.Prefix + name + (char)0x2026); };
+            row.Items.Add(carry);
+        }
+        var after = new MenuFlyoutItem { Text = "Play after this track", Icon = new FontIcon { Glyph = "\uE893" } };
+        ToolTipService.SetToolTip(after, name + " starts when the track playing now gives way. Nothing playing, it starts now.");
+        after.Click += async (_, __) =>
+        {
+            LogLine("quick play: " + source + " " + kind + " " + id + " (after this track)");
+            var r = await ModelCallAsync("musicPlayNext", source, kind, id);
+            System.Text.Json.Nodes.JsonObject? jr = null; try { jr = r is null ? null : System.Text.Json.Nodes.JsonNode.Parse(r) as System.Text.Json.Nodes.JsonObject; } catch { }
+            if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "Prism" + Mid + "nothing was playing, so " + c.Prefix + name + " starts now" : "Prism" + Mid + "after this track: " + c.Prefix + name);
+            else SetPill("Prism" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
+        };
+        row.Items.Add(after);
+        if (kind == "station") return row;
+
+        // Prism's orders, as the transport's order menu names them (ShowOrderFlyoutAsync); the service's own shuffle is not offered
+        // (2026-10-04, "remove Shuffle and only have true shuffle")
+        row.Items.Add(new MenuFlyoutSeparator());
+        var current = c.StandingId == id ? c.StandingLabel : null;
+        foreach (var (order, verb, label, tip, glyph) in new[] {
+            ("true-shuffle", "True shuffle", "true shuffle", "Prism's true shuffle: every track once, in a uniformly random order, before any repeat. A fresh draw each time; the rule is published, nothing is weighted", "\uE8B1"),
+            ("reverse", "In reverse", "in reverse", "From the last track to the first", "\uE74A") })
+        {
+            var chosen = current == label;
+            var v = new MenuFlyoutItem { Text = chosen ? verb + "  " + (char)0x00B7 + "  now" : verb, IsEnabled = c.CannotOwn is null, Icon = new FontIcon { Glyph = glyph, Foreground = VizDimInk }, Foreground = chosen ? LookupAmber : VizNowInk };
+            ToolTipService.SetToolTip(v, c.CannotOwn is null ? tip : Cap(c.CannotOwn));
+            var (o2, verb2) = (order, verb);
+            v.Click += (_, __) => { LogLine("quick play: " + source + " " + kind + " " + id + " (" + o2 + ")"); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("Prism" + Mid + c.Prefix + name + ", " + verb2.ToLowerInvariant() + (char)0x2026); };
+            row.Items.Add(v);
+        }
+        // Repeat: the service's switch, beside the orders, not one of them (2026-09-18, "one that can be enabled in addition to the selected order")
+        var prismStanding = c.StandingLabel is "true shuffle" or "in reverse" && c.StandingId == id;
+        var repeatCannot = prismStanding ? null : c.CannotRepeat;
+        var rep = new ToggleMenuFlyoutItem { Text = "Repeat", IsChecked = c.Repeat, IsEnabled = repeatCannot is null, Icon = new FontIcon { Glyph = "\uE8EE", Foreground = VizDimInk }, Foreground = c.Repeat ? LookupAmber : VizNowInk };
+        ToolTipService.SetToolTip(rep, repeatCannot is not null ? Cap(repeatCannot) : "Play the list again when it ends, in the order chosen. True shuffle draws afresh each pass. One switch for everything " + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "this service") + " plays.");
+        rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("quick play: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("Prism" + Mid + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "the service") + (on ? " repeats" : " plays through once")); };
+        row.Items.Add(rep);
+        if (kind == "playlist" && c.PlayingTitle is { Length: > 0 } pt && c.PlayingIn.Contains(id) && c.Editable.Contains(id)) { row.Items.Add(new MenuFlyoutSeparator()); row.Items.Add(RemovePlayingItem(c, id, name, pt)); }
+        ToolTipService.SetToolTip(row, "Play now, after this track, true shuffle, in reverse, repeat" + (continues ? ", or carry on the " + c.StandingLabel + " where it left off (" + c.StandingSpot + " of " + c.StandingCount + ")" : "") + ".");
+        return row;
+    }
+
+    /// <summary>
+    /// Remove the song playing now from this playlist (2026-10-06, "if this song is IN this playlist, I want to have the option to Remove
+    /// Playing Title from Playlist"): offered only when Prism has read that the playlist holds it and the library marks the playlist the
+    /// person's own. A short confirmation names the song and the playlist; the removal runs on the service's hidden page (its own Remove
+    /// from Playlist control) and the status line says what it is doing and how it ended. The song keeps playing.
+    /// </summary>
+    private MenuFlyoutItem RemovePlayingItem(QuickRowContext c, string playlistId, string playlistName, string title)
+    {
+        var q1 = (char)0x201C; var q2 = (char)0x201D;
+        var item = new MenuFlyoutItem { Text = "Remove " + q1 + Shorten(title, 34) + q2 + " from " + playlistName, Icon = new FontIcon { Glyph = "\uE74D", Foreground = VizDimInk }, Foreground = VizNowInk };
+        ToolTipService.SetToolTip(item, "Takes the song playing now off " + playlistName + " in the service itself, on every device. The song keeps playing.");
+        var source = c.Source;
+        item.Click += async (_, __) =>
+        {
+            var dlg = new ContentDialog
+            {
+                Title = "Remove " + q1 + title + q2 + " from " + playlistName + "?",
+                Content = new TextBlock { Text = (c.PlayingArtist is { Length: > 0 } ar ? title + " by " + ar : title) + " comes off " + playlistName + " in " + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "the service") + ", on every device. It keeps playing now. A long playlist can take a minute or two.", TextWrapping = TextWrapping.Wrap, Foreground = VizNowInk, MaxWidth = 480 },
+                PrimaryButtonText = "Remove",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = RootGrid.XamlRoot,
+                RequestedTheme = ElementTheme.Dark,
+            };
+            try { if (await dlg.ShowAsync() != ContentDialogResult.Primary) return; } catch { return; }
+            LogLine("quick play: remove playing from " + source + " playlist " + playlistId);
+            var asked = await RuntimeEvalAsync("PrismRuntime.musicRemovePlaying(" + Q(source) + ", " + Q(playlistId) + ", false)");
+            if (asked is null || !asked.Contains("\"asked\":true")) { SetPill("Prism" + Mid + "could not remove " + title + " from " + playlistName); return; }
+            SetPill("Prism" + Mid + "removing " + title + " from " + playlistName + (char)0x2026, hold: true);
+            for (var i = 0; i < 180; i++)
+            {
+                await Task.Delay(3000);
+                System.Text.Json.Nodes.JsonObject? st = null;
+                try { var raw = await RuntimeEvalAsync("PrismRuntime.musicRemoveState(" + Q(source) + ")"); st = raw is null ? null : System.Text.Json.Nodes.JsonNode.Parse(raw) as System.Text.Json.Nodes.JsonObject; } catch { }
+                var status = st?["status"]?.GetValue<string>();
+                if (status is null || status == "pending") continue;
+                if (status == "ok") ReleasePill("Prism" + Mid + title + " is off " + playlistName);
+                else ReleasePill("Prism" + Mid + "could not remove " + title + " from " + playlistName + (st?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
+                return;
+            }
+            ReleasePill("Prism" + Mid + "the removal of " + title + " is taking long; check " + playlistName + " later");
+        };
+        return item;
     }
 
     private Grid BuildVisualizationChrome(string tileId, string source)
@@ -1874,5 +2009,19 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(b, b.IsEnabled ? tip : tip + ". The player didn't register this action (§32 layer 3: pass-through only, never simulated)");
         }
         ApplyVisualizationRevealState();
+    }
+
+    /// <summary>Anything the music sources hold playing right now (the choice "after this track" needs a track to be after).</summary>
+    private bool AnyMusicPlaying()
+    {
+        try { return _surfaces.AnyMusicPlaying(); } catch { return false; }
+    }
+    private async Task QueueAfterThisTrackAsync(string source, string kind, string id, string name)
+    {
+        LogLine("quick play: " + source + " " + kind + " " + id + " (after this track)");
+        var r = await ModelCallAsync("musicPlayNext", source, kind, id);
+        System.Text.Json.Nodes.JsonObject? jr = null; try { jr = r is null ? null : System.Text.Json.Nodes.JsonNode.Parse(r) as System.Text.Json.Nodes.JsonObject; } catch { }
+        if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "Prism" + Mid + "nothing was playing, so " + name + " starts now" : "Prism" + Mid + "after this track: " + name);
+        else SetPill("Prism" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
     }
 }

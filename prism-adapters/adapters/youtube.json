@@ -2,7 +2,7 @@
   "match": [
     "www.youtube.com"
   ],
-  "version": "0.2.3",
+  "version": "0.2.4",
   "selectors": {
     "subscriptions-feed": "ytd-browse[page-subtype='subscriptions'] #contents",
     "player": "#movie_player"
@@ -28,5 +28,9 @@
     "presentation.enterTheater": ".ytp-size-button is the player chrome theater/default toggle; unverified 2026-09-01 that it reads as theater when already in theater (the keeper only fires after a drop, so it toggles INTO theater)",
     "presentation.play": "state-conditioned on the button aria-label (Play / Replay) so it never pauses; English UI"
   },
-  "notes": "§26 presentation actions are invocable ONLY through core presentation keeper (a standing per-assignment instruction); nothing else in core or the shell reads the presentation block."
+  "notes": "§26 presentation actions are invocable ONLY through core presentation keeper (a standing per-assignment instruction); nothing else in core or the shell reads the presentation block.",
+  "broadcasters": [
+    "YouTube",
+    "YouTube TV"
+  ]
 }

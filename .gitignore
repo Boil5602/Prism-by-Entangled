@@ -20,3 +20,5 @@ prototypes/prism-veil-extension/sign.log
 # the developer's TMDB application key, a build asset only (video-menu-spec section 4a): never committed
 targets/win-host/PrismHost/Assets/tmdb.key
 prototypes/webview2-poc/obj/
+scripts/reports/inbox/
+scripts/reports/.last-list.json

@@ -18,6 +18,7 @@ public static class Ops
 {
     public const string SurfaceCreate = "surface.create";
     public const string SurfaceDestroy = "surface.destroy";
+    public const string ProfileMigrate = "profile.migrate";
     public const string SurfaceSetRect = "surface.setRect";
     public const string SurfaceSetOpacity = "surface.setOpacity";
     public const string SurfaceSetZ = "surface.setZ";
@@ -52,6 +53,10 @@ public static class Ops
     public const string SurfaceSetPresence = "surface.setPresence";
     public const string UiRoute = "ui.route";
     public const string UiTapResult = "ui.tapResult";
+    public const string UiVideoPick = "ui.videoPick";
+    public const string UiPrivateMute = "ui.privateMute";
+    public const string UiListenRoutes = "ui.listenRoutes";
+    public const string UiBreakWatch = "ui.breakWatch";
     public const string DisplaySetBrightness = "display.setBrightness";
     public const string DisplaySetPower = "display.setPower";
     public const string MediaLaunch = "media.launch";
@@ -135,6 +140,26 @@ public static class HostCalls
     public const string ModelSaveScene = "modelSaveScene";
     public const string ModelRemoveScene = "modelRemoveScene";
     public const string ModelApplyScene = "modelApplyScene";
+    public const string PlayerSetupServices = "playerSetupServices";
+    public const string PlayerSetup = "playerSetup";
+    public const string PlayerRemove = "playerRemove";
+    public const string PlayerProfileFor = "playerProfileFor";
+    public const string SignInsView = "signInsView";
+    public const string SignInAdd = "signInAdd";
+    public const string SignInUse = "signInUse";
+    public const string SignInRename = "signInRename";
+    public const string SignInHide = "signInHide";
+    public const string SignInShow = "signInShow";
+    public const string SignInsLabel = "signInsLabel";
+    public const string VideoPresetRename = "videoPresetRename";
+    public const string UpdateStatus = "updateStatus";
+    public const string UpdateCheck = "updateCheck";
+    public const string ListenWindow = "listenWindow";
+    public const string UpdateInstallNow = "updateInstallNow";
+    public const string UpdateSetChannel = "updateSetChannel";
+    public const string VideoPlayNextEpisode = "videoPlayNextEpisode";
+    public const string MusicPlayNext = "musicPlayNext";
+    public const string MusicNextNow = "musicNextNow";
     public const string Players = "players";
     public const string SwitchPlayer = "switchPlayer";
     public const string VideoState = "videoState";
@@ -146,6 +171,26 @@ public static class HostCalls
     public const string VideoProfile = "videoProfile";
     public const string VideoLibraryTab = "videoLibraryTab";
     public const string VideoProfilesView = "videoProfilesView";
+    public const string PlaylistsView = "playlistsView";
+    public const string PlaylistsPicker = "playlistsPicker";
+    public const string PlaylistCreate = "playlistCreate";
+    public const string PlaylistGate = "playlistGate";
+    public const string PlaylistSync = "playlistSync";
+    public const string PlaylistCopyLocal = "playlistCopyLocal";
+    public const string PlaylistSetPublic = "playlistSetPublic";
+    public const string PlaylistOpen = "playlistOpen";
+    public const string PlaylistRename = "playlistRename";
+    public const string PlaylistDelete = "playlistDelete";
+    public const string PlaylistUndo = "playlistUndo";
+    public const string PlaylistSend = "playlistSend";
+    public const string PlaylistImport = "playlistImport";
+    public const string PlaylistJob = "playlistJob";
+    public const string PlaylistJobConfirm = "playlistJobConfirm";
+    public const string PlaylistEdit = "playlistEdit";
+    public const string PlaylistPlay = "playlistPlay";
+    public const string PlaylistStop = "playlistStop";
+    public const string PlaylistMove = "playlistMove";
+    public const string VideoRowOrder = "videoRowOrder";
     public const string VideoProfileSet = "videoProfileSet";
     public const string VideoProfileExclude = "videoProfileExclude";
     public const string VideoRefreshStale = "videoRefreshStale";
@@ -168,14 +213,36 @@ public static class HostCalls
     public const string VideoPlayEpisode = "videoPlayEpisode";
     public const string VideoMultiview = "videoMultiview";
     public const string TitleEpisodes = "titleEpisodes";
+    public const string VideoLiveGuide = "videoLiveGuide";
+    public const string VideoLiveRead = "videoLiveRead";
+    public const string LiveScores = "liveScores";
+    public const string LiveNews = "liveNews";
+    public const string LiveNowOn = "liveNowOn";
+    public const string TmdbLinkState = "tmdbLinkState";
+    public const string TmdbLinkStart = "tmdbLinkStart";
+    public const string TmdbLinkFinish = "tmdbLinkFinish";
+    public const string TmdbUnlink = "tmdbUnlink";
+    public const string TmdbRated = "tmdbRated";
+    public const string TmdbRate = "tmdbRate";
+    public const string WatchlistSet = "watchlistSet";
+    public const string WatchlistHas = "watchlistHas";
+    public const string WatchlistImport = "watchlistImport";
+    public const string WatchlistView = "watchlistView";
+    public const string WatchlistHasTitle = "watchlistHasTitle";
+    public const string WatchlistSetTitle = "watchlistSetTitle";
+    public const string LiveScoreWatch = "liveScoreWatch";
+    public const string TitleAlsoOnPlan = "titleAlsoOnPlan";
     public const string TitleAlsoOn = "titleAlsoOn";
     public const string TitleEpisodePlay = "titleEpisodePlay";
     public const string BootTimings = "bootTimings";
     public const string VideoResync = "videoResync";
+    public const string VideoProgramEdges = "videoProgramEdges";
+    public const string VideoPictureFrozen = "videoPictureFrozen";
     public const string VideoStartOver = "videoStartOver";
     public const string VideoNextEpisode = "videoNextEpisode";
     public const string VideoTrack = "videoTrack";
     public const string VideoMenu = "videoMenu";
+    public const string VideoMenuRows = "videoMenuRows";
     public const string VideoSearch = "videoSearch";
     public const string VideoLookup = "videoLookup";
     public const string VideoLookupState = "videoLookupState";
@@ -259,12 +326,14 @@ public static class SurfaceEvents
     public const string AppSkipAvailable = "app-skip-available";
     public const string AppForeground = "app-foreground";
     public const string IntermissionSkip = "intermission-skip";
+    public const string GpuReset = "gpu-reset";
     public const string MediaPosition = "media-position";
     public const string NowPlaying = "now-playing";
     public const string Session = "session";
     public const string FullscreenElement = "fullscreen-element";
     public const string Popup = "popup";
     public const string MusicResult = "music-result";
+    public const string ProfileMigrated = "profile-migrated";
 }
 
 /// <summary>One command from core; RequestId is set on request-lane ops.</summary>
@@ -289,6 +358,10 @@ public sealed record SurfaceCreateCommand(
 /// <summary>surface.destroy [M1]</summary>
 public sealed record SurfaceDestroyCommand(
     [property: JsonPropertyName("id")] string Id);
+
+/// <summary>profile.migrate [M1]</summary>
+public sealed record ProfileMigrateCommand(
+    [property: JsonPropertyName("moves")] System.Text.Json.JsonElement? Moves = null);
 
 /// <summary>surface.setRect [M1]</summary>
 public sealed record SurfaceSetRectCommand(
@@ -350,7 +423,8 @@ public sealed record SurfaceSetPeekCommand(
 /// <summary>surface.showIntermission [M1]</summary>
 public sealed record SurfaceShowIntermissionCommand(
     [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("source")] string Source);
+    [property: JsonPropertyName("source")] string Source,
+    [property: JsonPropertyName("look")] string? Look = null);
 
 /// <summary>surface.hideIntermission [M1]</summary>
 public sealed record SurfaceHideIntermissionCommand(
@@ -401,7 +475,7 @@ public sealed record SurfaceSetPageInputCommand(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("active")] bool Active);
 
-/// <summary>surface.sendKey [stub until later milestone]</summary>
+/// <summary>surface.sendKey [M1]</summary>
 public sealed record SurfaceSendKeyCommand(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("key")] string Key);
@@ -419,7 +493,7 @@ public sealed record SurfaceScrubCommand(
     [property: JsonPropertyName("y")] double Y,
     [property: JsonPropertyName("press")] bool Press);
 
-/// <summary>surface.typeText [stub until later milestone]</summary>
+/// <summary>surface.typeText [M1]</summary>
 public sealed record SurfaceTypeTextCommand(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("text")] string Text);
@@ -470,6 +544,24 @@ public sealed record UiTapResultCommand(
     [property: JsonPropertyName("did")] string Did,
     [property: JsonPropertyName("audio")] string? Audio = null,
     [property: JsonPropertyName("error")] string? Error = null);
+
+/// <summary>ui.videoPick [M1]</summary>
+public sealed record UiVideoPickCommand(
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("service")] string Service,
+    [property: JsonPropertyName("poster")] string? Poster = null);
+
+/// <summary>ui.privateMute [M1]</summary>
+public sealed record UiPrivateMuteCommand(
+    [property: JsonPropertyName("on")] bool On);
+
+/// <summary>ui.listenRoutes [M1]</summary>
+public sealed record UiListenRoutesCommand(
+    [property: JsonPropertyName("json")] string Json);
+
+/// <summary>ui.breakWatch [M1]</summary>
+public sealed record UiBreakWatchCommand(
+    [property: JsonPropertyName("on")] bool On);
 
 /// <summary>display.setBrightness [stub until later milestone]</summary>
 public sealed record DisplaySetBrightnessCommand(
@@ -530,11 +622,11 @@ public sealed record InputStartPairingCommand();
 /// <summary>input.listRemotes (request lane — answer via PrismRuntime.resolve) [stub until later milestone]</summary>
 public sealed record InputListRemotesCommand();
 
-/// <summary>update.fetchManifest (request lane — answer via PrismRuntime.resolve) [stub until later milestone]</summary>
+/// <summary>update.fetchManifest (request lane — answer via PrismRuntime.resolve) [M1]</summary>
 public sealed record UpdateFetchManifestCommand(
     [property: JsonPropertyName("url")] string Url);
 
-/// <summary>update.apply (request lane — answer via PrismRuntime.resolve) [stub until later milestone]</summary>
+/// <summary>update.apply (request lane — answer via PrismRuntime.resolve) [M1]</summary>
 public sealed record UpdateApplyCommand(
     [property: JsonPropertyName("release")] System.Text.Json.JsonElement? Release = null);
 
@@ -564,7 +656,9 @@ public sealed record NetFetchStaticCommand(
 /// <summary>net.fetchKeyed (request lane — answer via PrismRuntime.resolve) [M1]</summary>
 public sealed record NetFetchKeyedCommand(
     [property: JsonPropertyName("url")] string Url,
-    [property: JsonPropertyName("headers")] string Headers);
+    [property: JsonPropertyName("headers")] string Headers,
+    [property: JsonPropertyName("method")] string? Method = null,
+    [property: JsonPropertyName("body")] string? Body = null);
 
 /// <summary>runtime.error [M1]</summary>
 public sealed record RuntimeErrorCommand(
@@ -597,6 +691,7 @@ public static class ChannelSchema
     {
         ["surface.create"] = false,
         ["surface.destroy"] = false,
+        ["profile.migrate"] = false,
         ["surface.setRect"] = false,
         ["surface.setOpacity"] = false,
         ["surface.setZ"] = false,
@@ -631,6 +726,10 @@ public static class ChannelSchema
         ["surface.setPresence"] = false,
         ["ui.route"] = false,
         ["ui.tapResult"] = false,
+        ["ui.videoPick"] = false,
+        ["ui.privateMute"] = false,
+        ["ui.listenRoutes"] = false,
+        ["ui.breakWatch"] = false,
         ["display.setBrightness"] = false,
         ["display.setPower"] = false,
         ["media.launch"] = false,
@@ -664,6 +763,7 @@ public static class ChannelSchema
     {
         "surface.create",
         "surface.destroy",
+        "profile.migrate",
         "surface.setRect",
         "surface.setOpacity",
         "surface.setZ",
@@ -682,8 +782,10 @@ public static class ChannelSchema
         "surface.setViewport",
         "surface.setNowPlaying",
         "surface.setChrome",
+        "surface.sendKey",
         "surface.hover",
         "surface.scrub",
+        "surface.typeText",
         "surface.evaluate",
         "surface.veilImagery",
         "surface.createVisualization",
@@ -691,6 +793,12 @@ public static class ChannelSchema
         "surface.setPresence",
         "ui.route",
         "ui.tapResult",
+        "ui.videoPick",
+        "ui.privateMute",
+        "ui.listenRoutes",
+        "ui.breakWatch",
+        "update.fetchManifest",
+        "update.apply",
         "store.set",
         "net.fetchStatic",
         "net.fetchKeyed",

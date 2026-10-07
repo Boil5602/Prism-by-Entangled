@@ -1,13 +1,21 @@
 {
-  "$doc": "Allowlist-by-reason for scripts/verify-surface-coverage.mjs (win-host-spec §5 coverage invariant). `allow` = surfaces that legitimately run no §26/§27/§30 engine - every entry says WHY. `knownGaps` = surfaces that MUST get the engine and do not have it yet; each is debt tied to a ledger bug row (docs/bugs/LEDGER.md), never permission. The checker fails when a known gap's `missing` list stops matching reality (fixed -> delete the entry and close the row). Site ids are `<path under targets/win-host/PrismHost>::<enclosing method>`.",
+  "$doc": "Allowlist-by-reason for scripts/verify-surface-coverage.mjs (win-host-spec \u00a75 coverage invariant). `allow` = surfaces that legitimately run no \u00a726/\u00a727/\u00a730 engine - every entry says WHY. `knownGaps` = surfaces that MUST get the engine and do not have it yet; each is debt tied to a ledger bug row (docs/bugs/LEDGER.md), never permission. The checker fails when a known gap's `missing` list stops matching reality (fixed -> delete the entry and close the row). Site ids are `<path under targets/win-host/PrismHost>::<enclosing method>`.",
   "allow": [
     {
       "site": "Brain/BrainHost.cs::StartAsync",
-      "reason": "The brain WebView IS core itself: a 1x1, opacity-0, hit-test-invisible surface loading https://brain.prism/brain.html (a host-mapped local folder, never a third-party page). There is nothing to veil, no ads, no popups, and injecting the tile bootstrap into it would post surface events about the brain to the brain. The §26/§27/§30 engine is what runs INSIDE it."
+      "reason": "The brain WebView IS core itself: a 1x1, opacity-0, hit-test-invisible surface loading https://brain.prism/brain.html (a host-mapped local folder, never a third-party page). There is nothing to veil, no ads, no popups, and injecting the tile bootstrap into it would post surface events about the brain to the brain. The \u00a726/\u00a727/\u00a730 engine is what runs INSIDE it."
     },
     {
       "site": "MainWindow.LinkModal.cs::ShowLinkModal",
       "reason": "The Credits link window (2026-09-25) shows Entangled's own pages only: its top-level navigation is refused for anything but https entangled.world and its subdomains, a new window opens in place only when it stays there and never otherwise, downloads are cancelled, and it keeps its own cookie folder apart from every service's. There is no third-party page to veil, no ad or popup to catch, and no surface for core to steer: it is a modal the person closes with X or Esc."
+    },
+    {
+      "site": "MainWindow.BootCover.cs::ShowSplashWordmarkAsync",
+      "reason": "The splash (2026-10-05, docs/features/animated-wordmark.md): a hit-test-invisible view over the boot cover that loads ONE string, core's own prism-splash.html from Assets/brain (the animated wordmark, no network, no third-party page); every other navigation is cancelled, a new window is refused, and the view closes with the cover a few seconds into the boot. There is nothing to veil, no ad or popup to catch, and no surface for core to steer."
+    },
+    {
+      "site": "MainWindow.ProfileMove.cs::MoveOneProfileAsync",
+      "reason": "The one-time profile move (2026-10-03, one browser, many sign-ins): two 4x4, opacity-0 views parked off the canvas, one on the old folder and one on the shared one, that load each service origin's robots.txt - a text document that runs none of the service's script - to carry its local storage across, then close. Nothing is shown, nothing plays, no third-party page runs: there is nothing to veil or steer, and the engine's own bootstrap would post events about a page that is not a tile."
     }
   ],
   "knownGaps": []

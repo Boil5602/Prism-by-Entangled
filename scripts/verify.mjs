@@ -13,6 +13,7 @@
  *   surface coverage     node scripts/verify-surface-coverage.mjs (win-host-spec §5 invariant)
  *   vocabulary           node scripts/audit-vocabulary.mjs --strict (CLAUDE.md vocabulary; strict since SM-6, --lenient-vocab to report only)
  *   button hover         node scripts/audit-button-hover.mjs      (a host Button with its own colour owns its hover: Chip() or OwnHover - memory: hover-loss-tooltips)
+ *   companion install    node scripts/verify-companion-install.mjs (the phone page's Home Screen nudge: when it shows, what it shows, what it never sends)
  *   adapter selectors    node scripts/audit-adapter-selectors.mjs (an adapter script's literal selectors are valid CSS - an unquoted value with / throws)
  *   tile assets          node scripts/verify-tile-assets.mjs      (concept-scenes §6: the micro-facets reach no network; the §24 chime still reproduces)
  *   tile keys            node scripts/verify-tile-keys.mjs        (concept-scenes §6: a key core declares that the host allowlist misses fails the BUILD, not the wall)
@@ -130,6 +131,10 @@ const steps = [
   {
     id: "button-hover", title: "button hover audit (coloured host buttons own their hover)",
     fn: () => { const r = run("node", ["scripts/audit-button-hover.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
+  },
+  {
+    id: "companion-install", title: "companion install nudge fixtures (docs/features/companion-install.md)",
+    fn: () => { const r = run("node", ["scripts/verify-companion-install.mjs"], root); return { code: r.code, detail: tail(r.out, 16) }; },
   },
   {
     id: "adapter-selectors", title: "adapter selector audit (literal selectors are valid CSS)",

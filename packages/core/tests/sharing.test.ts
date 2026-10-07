@@ -27,11 +27,11 @@ const doc: DashboardDocument = {
       aspectWeight: 1,
       audio: "exclusive",
       persist: true,
-      profile: "mark",
+      profile: "alex",
     },
     {
       id: "cal",
-      url: "https://app.merge.family/calendar?family=graff&token=abc123",
+      url: "https://app.merge.family/calendar?family=parker&token=abc123",
       aspectHint: "3:4",
       aspectWeight: 0.6,
       audio: "mute",
@@ -40,7 +40,7 @@ const doc: DashboardDocument = {
     },
     {
       id: "cams",
-      url: "https://cams.graff-home.internal/dash?key=s3cret",
+      url: "https://cams.parker-home.internal/dash?key=s3cret",
       aspectHint: "4:3",
       aspectWeight: 0.5,
       audio: "mute",
@@ -54,21 +54,21 @@ describe("export sanitization (§15 normative)", () => {
 
   it("profiles never travel", () => {
     expect(JSON.stringify(shared)).not.toContain("profile");
-    expect(JSON.stringify(shared)).not.toContain("mark");
+    expect(JSON.stringify(shared)).not.toContain("alex");
   });
 
   it("known first-party URLs become named slots", () => {
     const cal = shared.tiles.find((t) => t.id === "cal")!;
     expect(cal.slot).toBe("calendar");
     expect(cal.url).toBeUndefined();
-    expect(JSON.stringify(cal)).not.toContain("graff");
+    expect(JSON.stringify(cal)).not.toContain("parker");
     expect(JSON.stringify(cal)).not.toContain("abc123");
   });
 
   it("custom URLs reduce to origin-only suggestions", () => {
     const cams = shared.tiles.find((t) => t.id === "cams")!;
     expect(cams.slot).toBe("custom");
-    expect(cams.suggestedUrl).toBe("https://cams.graff-home.internal");
+    expect(cams.suggestedUrl).toBe("https://cams.parker-home.internal");
     expect(JSON.stringify(cams)).not.toContain("s3cret");
     expect(JSON.stringify(cams)).not.toContain("/dash");
   });
@@ -99,7 +99,7 @@ describe("import = fill the slots (§15)", () => {
   it("importPlan lists exactly the slot tiles", () => {
     expect(importPlan(shared)).toEqual([
       { tile: "cal", slot: "calendar" },
-      { tile: "cams", slot: "custom", suggestedUrl: "https://cams.graff-home.internal" },
+      { tile: "cams", slot: "custom", suggestedUrl: "https://cams.parker-home.internal" },
     ]);
   });
 

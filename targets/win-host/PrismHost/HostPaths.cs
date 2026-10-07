@@ -26,7 +26,9 @@ internal static class HostPaths
 
     public static string Diagnostics => Path.Combine(DataDir, "diagnostics");
     /// <summary>host.log grows with every report the wall makes and was never rotated (1.09 GB on 2026-09-22, B-268): at boot, a log past
-    /// 64 MB is kept once as host.log.prev (the previous one replaced) and a fresh one begins. Nothing else in diagnostics is touched.</summary>
+    /// 64 MB is kept once as host.log.prev (the previous one replaced) and a fresh one begins. Nothing else in diagnostics is touched.
+    /// Called at the start and, since 2026-09-30, every so many lines while the host runs (MainWindow.AppendHostLog): a long run's log
+    /// had reached two gigabytes. The host's own diagnostics folder is the store's root, the same folder this class names.</summary>
     public static void RotateHostLog()
     {
         try
@@ -117,7 +119,16 @@ internal static class HostPaths
             return;
         }
 
-        Directory.Move(dir, parked);                 // everything, sessions included, kept whole
+        // the move itself is tried for up to twenty seconds (2026-10-05: WebView2's browser processes outlive the host by a few seconds and
+        // hold the profile folder; the first try failed with "Access to the path is denied" and the reset did nothing)
+        Exception? last = null;
+        for (var i = 0; i < 80; i++)
+        {
+            try { Directory.Move(dir, parked); last = null; break; }   // everything, sessions included, kept whole
+            catch (IOException ex) { last = ex; Thread.Sleep(250); }
+            catch (UnauthorizedAccessException ex) { last = ex; Thread.Sleep(250); }
+        }
+        if (last is not null) throw last;
         if (wantRestore is not null) Directory.Move(wantRestore, dir);
         else Directory.CreateDirectory(dir);
 

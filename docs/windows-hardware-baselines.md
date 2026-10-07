@@ -27,6 +27,12 @@ Chromium (Chrome/Edge/Brave) + Firefox. Installed PWAs are covered on Chromium â
 
 Runs the extension in Edge kiosk + the compositor companion (topmost overlay, WASAPI per-app mute); later the full dashboard daemon. Flat form factors preferred.
 
+**Memory, measured (Prism for Windows host, 2026-10-03, perf.log on the development wall):** with every service in the one shared
+browser profile and idle pages parked, the whole of Prism - the host and each service's pages - idles at about 1.8 GB with nothing
+playing and about 2.6 GB with one window playing; three windows playing and every reader awake reached about 4 GB. Windows itself
+wants 3 to 4 GB. So **8 GB works** for a one-window wall and **16 GB is comfortable** for multiview and many services; 32 GB buys
+nothing Prism uses. (Before the shared profile the same wall needed 5.5 to 9 GB, which is where the older figures below came from.)
+
 **Minimum (1080p box):**
 - Any 7th-gen+ Intel / Zen+ AMD mini PC, 8GB RAM, 128GB SSD
 - Windows 10 22H2 / Windows 11

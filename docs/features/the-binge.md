@@ -53,6 +53,14 @@ deep link into that service; on a miss, fall back to that service's
 prefilled search and note the mismatch locally so the card can be
 hidden until provider data refreshes.
 
+## Hidden titles belong to the profile set
+*Decision (2026-09-26, "When someone hides something in the binge, that should be stored by profile set. So if its set to Alex, thats where
+it's saved. i guess if no profile set is saved, then just save it to the base and once a profile set is saved, move it to the first one"):*
+a title a person hides is kept for the active profile set (`video:binge-hidden:<preset id>`; the first set while none is active). Before any
+set is saved it goes to the base (`video:binge-hidden`); once a set exists, the base's hidden titles move to the first set, once. A title
+found missing on its service is about the service, not the person, so that note stays in the base and applies to every set. Fixture:
+`binge.test.ts`.
+
 ## Boundaries
 On-device fetch under the user's own TMDB key; local cache; nothing
 routed through Entangled. Off when no TMDB key is set. Attribution for

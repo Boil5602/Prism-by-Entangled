@@ -31,12 +31,13 @@ async function setup() {
   const r = rig();
   const rt = createRuntime(r.drivers);
   rt.init(JSON.stringify(doc), 1920, 1080, JSON.stringify({ adapters: {
-    hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoLibrary: "/*HU-LIB*/", videoListUrl: "https://www.hulu.com/my-stuff", videoProfiles: "/*HU-PROF*/", videoProfilesUrl: "https://www.hulu.com/profiles", videoSearchUrl: "https://www.hulu.com/search?q={q}", videoLookup: "/*HU-LOOKUP*/" },
+    hulu: { match: ["www.hulu.com"], login: "https://auth.hulu.com/web/login", videoContext: "/*c*/", videoLibrary: "/*HU-LIB*/", videoListUrl: "https://www.hulu.com/my-stuff", videoProfiles: "/*HU-PROF*/", videoProfilesUrl: "https://www.hulu.com/profiles", videoSearchUrl: "https://www.hulu.com/search?q={q}", videoLookup: "/*HU-LOOKUP*/" },
     peacock: { match: ["www.peacocktv.com"], videoContext: "/*c*/", videoLibrary: "/*PK-LIB*/", videoListRoute: "/*PK-ROUTE*/", videoPlay: "/*PK-PLAY*/" },
     tubi: { match: ["tubitv.com"], videoContext: "/*c*/", videoLibrary: "/*TB-LIB*/" },   // a library, but no list page named: the home's rows only
     fandango: { match: ["athome.fandango.com"], videoContext: "/*c*/", videoLibrary: "/*FA-LIB*/", videoListUrl: "https://athome.fandango.com/content/browse/mywishlist", videoListMerge: false },   // read, kept, never merged
   } }));
   await vi.advanceTimersByTimeAsync(50);
+  await vi.advanceTimersByTimeAsync(9_000);   // the hidden pages wait out the boot (2026-09-28)
   for (const a of [
     { id: "hulu", name: "Hulu", baseUrl: "https://www.hulu.com/hub/home", profileId: "hulu", setup: { status: "signed-in" }, render: { audio: "exclusive" } },
     { id: "peacock", name: "Peacock", baseUrl: "https://www.peacocktv.com/watch/home", profileId: "peacock", setup: { status: "signed-in" }, render: { audio: "exclusive" } },
@@ -76,6 +77,7 @@ describe("the combined My list", () => {
   });
 
   it("Watch opened: only the services not read in ten minutes are read again; the timed refresh keeps the household's quiet hours", async () => {
+    vi.setSystemTime(new Date(2026, 8, 26, 12, 0, 0));   // noon: run near midnight, the 40 minutes below crossed 23:59, out of "00:00-23:59" (failed at 23:31, 2026-09-26)
     const { rt, ops } = await setup();
     rt.videoRefreshLists(true);
     await vi.advanceTimersByTimeAsync(50);
@@ -85,6 +87,7 @@ describe("the combined My list", () => {
     // quiet hours: the whole day, so the tick is always inside them
     expect(JSON.parse(rt.videoSetPause(true, "00:00", "23:59")).pause).toEqual({ on: true, from: "00:00", to: "23:59" });
     expect(JSON.parse(rt.videoSettings()).pause.on).toBe(true);
+    await vi.advanceTimersByTimeAsync(5_000);   // the reads Watch asked for start a moment apart (2026-09-28): let them all begin
     ops.length = 0;
     await vi.advanceTimersByTimeAsync(40 * 60_000);
     expect(ops.some((o) => o.op === "navigate" && String(o.id).endsWith(":lookup"))).toBe(false);
@@ -171,19 +174,76 @@ describe("the combined My list", () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(known()).toEqual(["Alex", "Ivy"]);
     expect(ops.filter((o) => o.op === "inject" && o.id === "app:hulu:lookup" && String(o.js).includes("__prismVideoProfile(")).length).toBe(0);   // a read only: the standing choice is never pressed from the background
+    // ... and not again with the next reads that day: the household's profiles are read once a day (2026-09-28)
+    ops.length = 0;
+    await vi.advanceTimersByTimeAsync(Orchestrator.LISTS_STALE_MS + 1000);
+    rt.videoMenu();
+    await vi.advanceTimersByTimeAsync(Orchestrator.LIST_SETTLE_MS + 6000);
+    const urls = ops.filter((o) => o.op === "navigate" && o.id === "app:hulu:lookup").map((o) => o.url);
+    expect(urls).toContain("https://www.hulu.com/my-stuff");
+    expect(urls).not.toContain("https://www.hulu.com/profiles");
+  });
+
+  it("background reads open their hidden pages one at a time, a moment apart; a person's Refresh opens them at once (2026-09-28)", async () => {
+    const { rt, ops } = await setup();
+    const made = () => ops.filter((o) => o.op === "create" && String(o.id).endsWith(":lookup")).length;
+    rt.videoRefreshStale();   // Watch opened
+    await vi.advanceTimersByTimeAsync(50);
+    expect(made()).toBe(1);
+    await vi.advanceTimersByTimeAsync(Orchestrator.HIDDEN_STAGGER_MS);
+    expect(made()).toBe(2);
+    await vi.advanceTimersByTimeAsync(Orchestrator.HIDDEN_STAGGER_MS);
+    expect(made()).toBe(3);
+  });
+
+  it("a hidden page left on the service's sign-in page marks it needs-attention (its reads stop); the account seen again marks it signed in (2026-09-28, Hulu/Disney+)", async () => {
+    const { rt } = await setup();
+    const status = () => JSON.parse(rt.videoServices()).services.find((s: { app: string }) => s.app === "hulu").status;
+    expect(status()).toBe("signed-in");
+    rt.event(JSON.stringify({ type: "navigated", id: "app:hulu:lookup", url: "https://auth.hulu.com/web/login?next=https%3A%2F%2Fwww.hulu.com%2Fmy-stuff" }));
+    rt.event(JSON.stringify({ type: "navigated", id: "app:hulu:lookup", url: "https://auth.hulu.com/web/login/enter-email" }));
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(status()).toBe("needs-attention");
+    expect(JSON.parse(rt.videoRefreshLists(true)).asked).not.toContain("hulu");
+    rt.event(JSON.stringify({ type: "session", id: "app:hulu:lookup", state: "signed-out" }));   // a hidden page's word alone changes nothing
+    rt.event(JSON.stringify({ type: "session", id: "app:hulu:lookup", state: "signed-in" }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(status()).toBe("signed-in");
+    // passing through the sign-in page and back out is no sign-out
+    rt.event(JSON.stringify({ type: "navigated", id: "app:hulu:lookup", url: "https://auth.hulu.com/web/login" }));
+    rt.event(JSON.stringify({ type: "navigated", id: "app:hulu:lookup", url: "https://www.hulu.com/my-stuff" }));
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(status()).toBe("signed-in");
+  });
+
+  it("the Live tab's guide: a report naming a service's channels keeps the schedule and category the last one found (docs/features/live.md, 2026-09-28)", async () => {
+    const { rt } = await setup();
+    
+    await vi.advanceTimersByTimeAsync(50);
+    const at = Date.now();
+    const chan = (extra: Record<string, unknown>) => ({ id: "hq", name: "Sports HQ", url: "https://www.hulu.com/live", now: "Scoreboard", ...extra });
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, videoLive: [chan({ category: "Sports", schedule: [{ title: "Scoreboard", start: at - 60_000 }, { title: "Morning Buzz", start: at + 3_600_000 }] })] } }));
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, videoLive: [chan({ now: "Scoreboard Final" })] } }));   // a guide read's first part: the channels alone
+    await vi.advanceTimersByTimeAsync(50);
+    const g = JSON.parse(rt.videoLiveGuide(null, null));
+    const row = g.rows.find((r: { id: string }) => r.id === "hq");
+    expect(row).toMatchObject({ type: "Sports", typeSource: "service" });
+    expect(row.programs.map((p: { title: string }) => p.title)).toEqual(["Scoreboard", "Morning Buzz"]);
+    expect(JSON.parse(rt.videoLiveGuide(null, "buzz")).rows.map((r: { id: string }) => r.id)).toEqual(["hq"]);   // the live search: what is on later
   });
 
   it("stale-guarded: a menu open re-reads the lists only after half an hour; never during a search; a search page's rows never reach the row", async () => {
     const { rt, ops } = await setup();
     rt.videoMenu();   // the first open asks
-    await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(5_000);   // one service's pages a moment after another's (2026-09-28)
     expect(ops.filter((o) => o.op === "navigate").length).toBe(3);
     rt.videoMenu(); rt.videoMenu();
     await vi.advanceTimersByTimeAsync(50);
     expect(ops.filter((o) => o.op === "navigate").length).toBe(3);   // no more within the half hour
     await vi.advanceTimersByTimeAsync(Orchestrator.LISTS_STALE_MS + 100);
     rt.videoMenu();
-    await vi.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(ops.filter((o) => o.op === "navigate").length).toBeGreaterThanOrEqual(7);   // the three list pages again, and Hulu's Who's watching page after its first list settled (the background refresh, 2026-09-23, may have read them meanwhile too)
     // a search takes the surface to the search page: what that page reports is not the list
     rt.event(JSON.stringify({ type: "load-finished", id: "app:hulu:lookup", ok: true }));

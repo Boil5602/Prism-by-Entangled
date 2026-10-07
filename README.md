@@ -61,6 +61,13 @@ node packages/conformance/dist/cli.js http://<frame>:8471 <token> <bundle.json>
 
 A shell that passes is a Prism (§23).
 
+## Building, contributing, security
+
+- **Build the Windows app:** [docs/building-windows.md](docs/building-windows.md)
+- **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md) (GPLv3-or-later, signed-off commits, the gate `node scripts/verify.mjs`)
+- **Report a security problem:** security@entangled.world, see [SECURITY.md](SECURITY.md)
+- **How Prism treats the services it shows:** [docs/third-party-services-policy.md](docs/third-party-services-policy.md)
+
 ## License
 
 Prism is free software: you can redistribute it and/or modify it under the terms of the

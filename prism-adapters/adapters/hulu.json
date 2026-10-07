@@ -2,7 +2,7 @@
   "match": [
     "www.hulu.com"
   ],
-  "version": "0.4.18",
+  "version": "0.4.19",
   "selectors": {
     "live-guide": "[data-testid='epg-grid'], .LiveGuide",
     "my-stuff": "[data-testid='my-stuff-collection'], .MyStuff"
@@ -71,5 +71,8 @@
   "videoEpisodesVia": "lookup",
   "videoPlaysAt": [
     "/watch/"
+  ],
+  "broadcasters": [
+    "Hulu"
   ]
 }

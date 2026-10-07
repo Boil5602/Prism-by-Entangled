@@ -42,6 +42,20 @@ public sealed class RedactTests
         Assert.Contains("/state", red);
     }
 
+    [Fact]
+    public void TheChannelsEscapedQuotes_TheShapeSeen2026_10_04_LoseTheToken()
+    {
+        // the same http call as above, as the channel actually wrote it: the inner JSON's quotes as the escape backslash-u0022,
+        // where neither a quoted-field rule nor a word-boundary hex rule could see the token (it sat between "2" and "u")
+        var q = "\\u0022";
+        var line = "call {" + q + "fn" + q + ":" + q + "http" + q + "," + q + "args" + q + ":[29," + q + "{" + q + "method" + q + ":" + q + "GET" + q + "," + q + "path" + q + ":" + q + "/now-playing" + q + "," + q + "token" + q + ":" + q + Token + q + "}" + q + "]}";
+        var red = Redact.Line(line);
+
+        Assert.False(Redact.Leaks(red, Token));
+        Assert.Contains(Redact.Mask, red);
+        Assert.Contains("/now-playing", red);
+    }
+
     [Theory]
     // the JSON field, spaced and unspaced, and its aliases
     [InlineData("{\"token\":\"" + Token + "\"}")]

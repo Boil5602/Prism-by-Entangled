@@ -1683,7 +1683,10 @@
   // The "Veil the screen while paused" pref. Until pv:ui has been read it is
   // OFF: the in-memory default ({}) read as on, so a pause in that window
   // veiled for someone who had switched it off (Firefox report, 2026-09-23).
-  function pauseVeilPref() { return !!(PV.uiPrefsLoaded && PV.uiPrefs && PV.uiPrefs.veilPaused !== false); }
+  // The pause intermission is gone (2026-09-28, "I'm in Edge browser, and after a youtube trailer finished, it went to the paused/intermission. I
+  // think we're going to have to take out the pause intermission and ONLY show it for ads. It seems to be too problematic"): the cover is for ads
+  // alone; a pause is a pause. (The setting it read, veilPaused, is no longer offered.)
+  function pauseVeilPref() { return false; }
   function pauseVeilAllowed() {
     var src = activeAdSource();
     if (src && src.pauseVeil === false) return false;

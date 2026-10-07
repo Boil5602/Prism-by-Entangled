@@ -113,6 +113,9 @@ export const ROUTES: readonly RouteDef[] = [
   // scenes
   { id: "scenes", route: "prism://scenes", kind: "list", entity: "scene", back: "scene", title: "Scenes" },
   { id: "scene.view", route: "prism://scene/:id", kind: "view", entity: "scene", back: "scene", title: "Scene" },
+  // the two players (players.ts): the shell switches through its own path (core switchPlayer), as its menu and corner toggle do;
+  // a phone asks for one by this route (2026-10-04, "the top right menu lets me choose from the music lounge or the streaming video side")
+  { id: "player.view", route: "prism://player/:kind", kind: "view", entity: "scene", back: "scene", title: "Player" },
   { id: "scene.edit", route: "prism://scene/:id/edit", kind: "editor", entity: "scene", back: "scene", title: "Scene builder", query: ["slot"] },
   { id: "scene.visualization.edit", route: "prism://scene/:id/visualization/:viz/edit", kind: "editor", entity: "visualization", back: "scene", title: "Visualization" },
   // on-scene items (a slot id, a floating / hidden placement id, a visualization id - the tile id on the wall)

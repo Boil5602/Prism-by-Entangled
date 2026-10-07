@@ -17,6 +17,8 @@
  */
 
 import type { MenuCard } from "./menu-order.js";
+import { accessTokenFrom, approveUrlV4, isReadToken, accountFrom, approveUrl, ratedFrom, ratingBody, ratingPath, ratingValue, requestTokenFrom, sessionIdFrom, statesPath, totalPages, watchlistBody, watchlistPagePath, watchlistWritePath, writeOk, type TmdbSession } from "./tmdb-account.js";
+import { discoverTitles, type BrowseTitle } from "./browse.js";
 import { TITLE_DETAILS_APPEND, shapePerson, shapeTitleDetails, type PersonPage, type TitleDetails } from "./title-details.js";
 import { sortTitle } from "./menu-order.js";
 
@@ -46,7 +48,7 @@ export const TMDB_ATTRIBUTION = "This product uses the TMDB API but is not endor
 export const LENSES: readonly LensDef[] = [
   {
     id: "wiki-reads", name: "Most read on Wikipedia",
-    counted: "Views of each title's English Wikipedia article over the last seven full days.",
+    counted: "How often each title's Wikipedia article was read over the last seven full days.",
     who: "Everyone who opened the article, in any country, on any device; Wikimedia's own filter leaves automated traffic out.",
     decides: "Nobody. It is a count of readers, not a judgement.",
     source: "Wikimedia REST API, pageviews per article", sourceUrl: "https://wikimedia.org/api/rest_v1/",
@@ -192,14 +194,22 @@ export function compact(n: number): string {
 }
 function isoDay(ms: number): string { return new Date(ms).toISOString().slice(0, 10); }
 
-export interface LensedCard extends MenuCard { lens?: LensValue | null; rating?: string | null }
+export interface LensedCard extends MenuCard { lens?: LensValue | null; rating?: string | null; /** the person's own rating of the title on TMDB, under their linked account (2026-10-03); the same title on any service */ mine?: number | null }
+
+/** The person's own rating of a title, by the TMDB title the facts matched: the same film on Netflix and on Paramount+ is one rating. */
+export function mineOf(f: TitleFacts | undefined, own: ReadonlyMap<string, number>): number | null {
+  if (!f?.tmdb) return null;
+  const v = own.get(f.tmdb.kind + ":" + f.tmdb.id);
+  return v && v > 0 ? v : null;
+}
+const NO_OWN: ReadonlyMap<string, number> = new Map();
 
 /**
  * The rows under a lens: sorted by the lens's value, highest first; titles the source has nothing for follow, in the
  * order they had. Pure over (cards, lens, facts): same inputs, same order (fixture). No lens: the cards as they came.
  */
-export function orderByLens(cards: readonly MenuCard[], lens: LensDef | null, facts: ReadonlyMap<string, TitleFacts>): LensedCard[] {
-  const rated = (c: MenuCard): LensedCard => ({ ...c, rating: ratingLabel(factsFor(facts, c.item.title, c.item.kind)?.rating) });
+export function orderByLens(cards: readonly MenuCard[], lens: LensDef | null, facts: ReadonlyMap<string, TitleFacts>, own: ReadonlyMap<string, number> = NO_OWN): LensedCard[] {
+  const rated = (c: MenuCard): LensedCard => { const f = factsFor(facts, c.item.title, c.item.kind); return { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, own) }; };
   if (!lens) return cards.map(rated);
   const scored = cards.map((c, i) => ({ c: { ...rated(c), lens: lensValue(lens, factsFor(facts, c.item.title, c.item.kind)) }, i }));
   return scored.sort((a, b) => {
@@ -219,11 +229,14 @@ export function lensDataDate(cards: readonly LensedCard[]): string | null {
 }
 
 // ------------------------------------------------------------------ the resolver: open sources, on-device cache
+/** TMDB v4's word on a write: success true, or status codes 1/12/13. */
+function writeOk4(a: Record<string, unknown> | null): boolean { return !!a && (a.success === true || a.status_code === 1 || a.status_code === 12 || a.status_code === 13); }
+
 export interface LensHooks {
   /** an unparameterized https address, nothing appended (the host's static fetch) */
   fetchStatic(url: string): Promise<string>;
   /** the person's own keyed call (TMDB): their key, their address; absent on a shell without it */
-  fetchKeyed?(url: string, headers: Record<string, string>): Promise<string>;
+  fetchKeyed?(url: string, headers: Record<string, string>, method?: string, body?: string): Promise<string>;
   /** the least time between two open-source reads, ms (default STATIC_GAP_MS; a test's mock may say 0) */
   paceMs?: number;
   store(): { get(key: string): string | null | Promise<string | null>; set(key: string, value: string): void | Promise<void> } | undefined;
@@ -238,6 +251,19 @@ const RETRY_MS = 5 * 60_000;
 /** a series' last aired episode is asked again after six hours */
 const AIRS_TTL_MS = 6 * 3_600_000;
 const KINDS_RE = /\b(film|movie|series|television|tv|show|sitcom|documentary|miniseries|anime|drama|comedy)\b/i;
+
+/** Capitals as a title ("BLUE EYE SAMURAI" to "Blue Eye Samurai"): each word capitalized, the small words lowercase past the start and after a colon. */
+export function titleCase(s: string): string {
+  const small = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "the", "to", "vs", "vs.", "with"]);
+  let afterBreak = true;
+  return s.toLowerCase().replace(/[^\s]+/g, (w) => {
+    const core = w.replace(/[^a-z0-9']/g, "");
+    const out = !afterBreak && small.has(core) ? w : w.charAt(0).toUpperCase() + w.slice(1);
+    afterBreak = /[:\-\u2013\u2014]$/.test(w);
+    return out;
+  });
+}
+
 const CONCURRENCY = 3;
 /** the TMDB-only lane's width (TMDB allows some fifty calls a second; four titles at a time is gentle) */
 const TMDB_CONCURRENCY = 4;
@@ -412,15 +438,20 @@ export class LensResolver {
    * name and the rest; a match must read as a film or a show, and a plain-name page that names another year is passed over.
    */
   private async findArticle(title: string, kind: WorkKind | null, year: number | null): Promise<{ article: string; qid: string | null } | null> {
-    const base = title.replace(/\s+/g, " ").trim();
-    const tv = [`${base} (TV series)`, `${base} (American TV series)`, `${base} (miniseries)`];
-    const film = [`${base} (film)`];
+    const given = title.replace(/\s+/g, " ").trim();
+    // a title a service lists in capitals ("BLUE EYE SAMURAI", "DANG!", 2026-10-05: every candidate answered 404, since Wikipedia keeps a
+    // title's case past its first letter) is asked in title case first; the capitals as given still follow, for the rare article in capitals
+    const bases = /[A-Z]/.test(given) && given === given.toUpperCase() ? [titleCase(given), given] : [given];
     const cands: string[] = [];
-    if (year && kind === "movie") cands.push(`${base} (${year} film)`);
-    if (year && kind === "tv") cands.push(`${base} (${year} TV series)`, `${base} (${year} American TV series)`);
-    if (kind === "tv") cands.push(...tv, base, ...film);
-    else if (kind === "movie") cands.push(...film, base, ...tv);
-    else cands.push(base, ...film, ...tv);
+    for (const base of bases) {
+      const tv = [`${base} (TV series)`, `${base} (American TV series)`, `${base} (miniseries)`];
+      const film = [`${base} (film)`];
+      if (year && kind === "movie") cands.push(`${base} (${year} film)`);
+      if (year && kind === "tv") cands.push(`${base} (${year} TV series)`, `${base} (${year} American TV series)`);
+      if (kind === "tv") cands.push(...tv, base, ...film);
+      else if (kind === "movie") cands.push(...film, base, ...tv);
+      else cands.push(base, ...film, ...tv);
+    }
     for (const cand of cands) {
       try {
         this.lastFetch = "summary:" + cand;
@@ -433,7 +464,7 @@ export class LensResolver {
         if (kind === "tv" && !/series|show|sitcom|miniseries|anime|television|TV/i.test(desc)) continue;   // a show's page says so in its description (the 1353 book had been taken for Netflix's series)
         if (kind === "movie" && !/\bfilm\b|\bmovie\b/i.test(desc)) continue;
         const said = /\b(19|20)\d\d\b/.exec(j.description ?? "");
-        if (year && said && Number(said[0]) !== year && cand === base) continue;   // the plain name is another year's work
+        if (year && said && Number(said[0]) !== year && bases.includes(cand)) continue;   // the plain name is another year's work
         return { article: j.titles?.canonical ?? cand.replace(/ /g, "_"), qid: j.wikibase_item ?? null };
       } catch (e) { if (/\b429\b|Too Many|timeout/i.test(String(e))) throw e; /* else: not that one */ }
     }
@@ -655,9 +686,10 @@ export class LensResolver {
     return e.last;
   }
 
-  async tvSeasons(series: string, providers: readonly number[] = []): Promise<Array<{ season: number; label: string; episodes: Array<{ episode: number; title: string; synopsis: string | null; still: string | null; airDate: string | null; runtime: number | null }> }> | null> {
+  async tvSeasons(series: string, providers: readonly number[] = [], byId?: number): Promise<Array<{ season: number; label: string; episodes: Array<{ episode: number; title: string; synopsis: string | null; still: string | null; airDate: string | null; runtime: number | null }> }> | null> {
     if (!this.tmdbKey) return null;
-    const ref = factsFor(this.facts, series, "tv")?.tmdb ?? (await this.tmdbRef(series, "tv", providers));
+    // byId: one exact show (two shows of one name - "Star Trek" 1966 and 1973 - told apart by TMDB's id, 2026-09-27)
+    const ref = byId ? { kind: "tv" as const, id: byId } : factsFor(this.facts, series, "tv")?.tmdb ?? (await this.tmdbRef(series, "tv", providers));
     if (!ref || ref.kind !== "tv") return null;
     const show = await this.tmdbGet(`/tv/${ref.id}`);
     const list = Array.isArray(show?.seasons) ? (show!.seasons as Array<{ season_number?: number; name?: string }>) : [];
@@ -767,13 +799,238 @@ export class LensResolver {
     return entry;
   }
 
-  async tmdbGet(path: string, query = ""): Promise<Record<string, unknown> | null> {
+  async tmdbGet(path: string, query = ""): Promise<Record<string, unknown> | null> { return this.tmdbCall("GET", path, query); }
+  /** A TMDB call of any method under the person's key (a rating is a POST, taking it back a DELETE); null when it failed or there is no key. */
+  async tmdbCall(method: "GET" | "POST" | "DELETE", path: string, query = "", body?: string): Promise<Record<string, unknown> | null> {
     const key = await this.key(); const fetchKeyed = this.hooks.fetchKeyed;
     if (!key || !fetchKeyed) return null;
     const v3 = /^[0-9a-f]{32}$/i.test(key);
     const url = `https://api.themoviedb.org/3${path}${query ? "?" + query + (v3 ? "&" : "") : v3 ? "?" : ""}${v3 ? "api_key=" + encodeURIComponent(key) : ""}`;
     this.lastFetch = path;
-    try { return JSON.parse(await withTimeout(fetchKeyed(url, v3 ? {} : { Authorization: `Bearer ${key}` }), path)) as Record<string, unknown>; } catch { return null; }
+    try { return JSON.parse(await withTimeout(fetchKeyed(url, v3 ? {} : { Authorization: `Bearer ${key}` }, method, body), path)) as Record<string, unknown>; } catch { return null; }
+  }
+
+  // ---- the person's TMDB account, linked once (tmdb-account.ts, 2026-10-03): a session kept beside the key; ratings written under it
+  private session: TmdbSession | null = null;
+  private sessionLoaded = false;
+  private pendingToken: string | null = null;
+  /** the account's own ratings as read back or written, "kind:id" -> value, kept on the device so a card shows it without a call */
+  private ownRatings: Record<string, number> | null = null;
+  private async sessionLoad(): Promise<TmdbSession | null> {
+    if (this.sessionLoaded) return this.session;
+    const dash = this.hooks.dashId(); const store = this.hooks.store();
+    if (!dash || !store) return null;
+    this.sessionLoaded = true;
+    try { const raw = await store.get(`lens:tmdb:session:${dash}`); if (raw) { const s = JSON.parse(raw) as TmdbSession; if (s && typeof s.sessionId === "string" && s.sessionId) this.session = s; } } catch { /* none */ }
+    try { const raw = await store.get(`lens:tmdb:ratings:${dash}`); this.ownRatings = raw ? JSON.parse(raw) as Record<string, number> : {}; } catch { this.ownRatings = {}; }
+    return this.session;
+  }
+  private sessionSave(): void {
+    const dash = this.hooks.dashId(); const store = this.hooks.store();
+    if (!dash || !store) return;
+    try { void store.set(`lens:tmdb:session:${dash}`, this.session ? JSON.stringify(this.session) : ""); } catch { /* best effort */ }
+    try { void store.set(`lens:tmdb:ratings:${dash}`, JSON.stringify(this.ownRatings ?? {})); } catch { /* best effort */ }
+  }
+  /** Linked or not, and to whom; whether a link is waiting for the person's approval; whether the link can make lists (v4). */
+  async linkState(): Promise<{ linked: boolean; username: string | null; linkedAt: number | null; pending: boolean; hasKey: boolean; lists: boolean; listsPossible: boolean }> {
+    const s = await this.sessionLoad();
+    return { linked: !!s, username: s?.username ?? null, linkedAt: s?.linkedAt ?? null, pending: !!this.pendingToken, hasKey: !!(await this.key()), lists: !!s?.v4Token, listsPossible: isReadToken(await this.key()) };
+  }
+
+  // ---- the person's TMDB lists (v4, 2026-10-03): the primitives the playlists are kept in
+  async listCreate(name: string, isPublic: boolean, description = ""): Promise<number | null> {
+    const a = await this.tmdbCall4("POST", "/list", JSON.stringify({ name, iso_639_1: "en", description, public: isPublic }));
+    return typeof a?.id === "number" ? a.id : null;
+  }
+  /** A list's page; `fresh` reads at an address TMDB has not served before (its cache is by address; a read right after a write at an old address shows the old answer). */
+  async listGet(id: number, page = 1, fresh = false): Promise<Record<string, unknown> | null> { return this.tmdbCall4("GET", `/list/${id}?page=${page}` + (fresh ? `&prism=${this.hooks.now()}` : "")); }
+  async listUpdate(id: number, fields: { name?: string; description?: string; public?: boolean; sort_by?: string }): Promise<boolean> { return writeOk4(await this.tmdbCall4("PUT", `/list/${id}`, JSON.stringify(fields))); }
+  async listDelete(id: number): Promise<boolean> { return writeOk4(await this.tmdbCall4("DELETE", `/list/${id}`)); }
+  async listItems(id: number, method: "POST" | "PUT" | "DELETE", items: Array<{ media_type: "movie" | "tv"; media_id: number; comment?: string }>): Promise<Record<string, unknown> | null> {
+    return this.tmdbCall4(method, `/list/${id}/items`, JSON.stringify({ items }));
+  }
+  async listsOfAccount(page = 1): Promise<Record<string, unknown> | null> {
+    const s = await this.sessionLoad();
+    if (!s?.accountObjectId) return null;
+    return this.tmdbCall4("GET", `/account/${s.accountObjectId}/lists?page=${page}`);
+  }
+  /** A TMDB v4 call: the read token (a request token) or the user's access token (their lists) as the bearer. */
+  async tmdbCall4(method: "GET" | "POST" | "PUT" | "DELETE", path: string, body?: string, user = true): Promise<Record<string, unknown> | null> {
+    const key = await this.key(); const fetchKeyed = this.hooks.fetchKeyed;
+    if (!key || !fetchKeyed) return null;
+    const bearer = user ? (await this.sessionLoad())?.v4Token : key;
+    if (!bearer) return null;
+    this.lastFetch = "/4" + path.split("?")[0];
+    try { return JSON.parse(await withTimeout(fetchKeyed("https://api.themoviedb.org/4" + path, { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json;charset=utf-8" }, method, body), path)) as Record<string, unknown>; } catch { return null; }
+  }
+  private pendingV4 = false;
+  /** A request token, and the page where the person approves it: TMDB's v4 sign-in when the key is a read token (lists need it), else v3. */
+  async linkStart(): Promise<{ url: string } | { error: string }> {
+    if (!(await this.key())) return { error: "a TMDB key comes first" };
+    if (isReadToken(await this.key())) {
+      const a = await this.tmdbCall4("POST", "/auth/request_token", "{}", false);
+      const token = requestTokenFrom(a);
+      if (!token) return { error: "TMDB gave no request token" };
+      this.pendingToken = token; this.pendingV4 = true;
+      return { url: approveUrlV4(token) };
+    }
+    this.pendingV4 = false;
+    const a = await this.tmdbCall("GET", "/authentication/token/new");
+    const token = requestTokenFrom(a);
+    if (!token) return { error: "TMDB gave no request token" };
+    this.pendingToken = token;
+    return { url: approveUrl(token) };
+  }
+  /** After the approval: the token traded for a session, the account read, both kept. */
+  async linkFinish(): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
+    const token = this.pendingToken;
+    if (!token) return { ok: false, error: "no link was started" };
+    if (this.pendingV4) {
+      // the v4 user token, then a v3 session made from it for the ratings and the watchlist: one link for all of them
+      const acc = accessTokenFrom(await this.tmdbCall4("POST", "/auth/access_token", JSON.stringify({ request_token: token }), false));
+      if (!acc) return { ok: false, error: "TMDB has not seen the approval yet" };
+      const conv = await this.tmdbCall("POST", "/authentication/session/convert/4", "", JSON.stringify({ access_token: acc.token }));
+      const sessionId = sessionIdFrom(conv);
+      if (!sessionId) return { ok: false, error: "TMDB did not make a session from the approval" };
+      const acct = accountFrom(await this.tmdbCall("GET", "/account", `session_id=${encodeURIComponent(sessionId)}`));
+      this.session = { sessionId, accountId: acct?.id ?? 0, username: acct?.username ?? "TMDB account", linkedAt: this.hooks.now(), v4Token: acc.token, accountObjectId: acc.accountObjectId };
+      this.pendingToken = null; this.pendingV4 = false;
+      this.ownRatings = {};
+      this.sessionSave();
+      return { ok: true, username: this.session.username };
+    }
+    const a = await this.tmdbCall("POST", "/authentication/session/new", "", JSON.stringify({ request_token: token }));
+    const sessionId = sessionIdFrom(a);
+    if (!sessionId) return { ok: false, error: "TMDB has not seen the approval yet" };
+    const acct = accountFrom(await this.tmdbCall("GET", "/account", `session_id=${encodeURIComponent(sessionId)}`));
+    this.session = { sessionId, accountId: acct?.id ?? 0, username: acct?.username ?? "TMDB account", linkedAt: this.hooks.now() };
+    this.pendingToken = null;
+    this.ownRatings = {};
+    this.sessionSave();
+    return { ok: true, username: this.session.username };
+  }
+  /** The session ended on TMDB's side and forgotten here; the ratings themselves stay on the account. */
+  async unlink(): Promise<void> {
+    const s = await this.sessionLoad();
+    if (s?.v4Token) { try { await this.tmdbCall4("DELETE", "/auth/access_token", JSON.stringify({ access_token: s.v4Token }), false); } catch { /* ours is cleared */ } }
+    if (s) { try { await this.tmdbCall("DELETE", "/authentication/session", "", JSON.stringify({ session_id: s.sessionId })); } catch { /* TMDB's side can fail; ours is cleared */ } }
+    this.session = null; this.ownRatings = {}; this.pendingToken = null;
+    this.watch = null; this.watchSave();   // the watchlist goes with the link; the services' own lists take the row back
+    this.sessionSave();
+  }
+  // ---- the person's TMDB watchlist (2026-10-03): read every ten minutes while linked, kept on the device so the row shows at once
+  private watch: { titles: BrowseTitle[]; at: number } | null = null;
+  private watchLoaded = false;
+  private watchReading = false;
+  static readonly WATCHLIST_FRESH_MS = 10 * 60_000;
+  /** Linked or not, synchronously (the session loads on the first ask; until then, not linked). */
+  linked(): boolean { if (!this.sessionLoaded) void this.sessionLoad(); return !!this.session; }
+  /** The account id for lists (v4) when the link has one, now, without a call; null otherwise (playlists are its lists, 2026-10-03). */
+  listsAccount(): string | null { if (!this.sessionLoaded) void this.sessionLoad(); return this.session?.v4Token && this.session.accountObjectId ? this.session.accountObjectId : null; }
+  private async watchLoad(): Promise<void> {
+    if (this.watchLoaded) return;
+    const dash = this.hooks.dashId(); const store = this.hooks.store();
+    if (!dash || !store) return;
+    this.watchLoaded = true;
+    try { const raw = await store.get(`lens:tmdb:watchlist:${dash}`); if (raw) { const w = JSON.parse(raw) as { titles: BrowseTitle[]; at: number }; if (w && Array.isArray(w.titles)) this.watch = w; } } catch { /* fresh */ }
+  }
+  private watchSave(): void {
+    const dash = this.hooks.dashId(); const store = this.hooks.store();
+    if (!dash || !store) return;
+    try { void store.set(`lens:tmdb:watchlist:${dash}`, this.watch ? JSON.stringify(this.watch) : ""); } catch { /* best effort */ }
+  }
+  /** The watchlist as it stands, a read started when it is stale (or forced); empty and not reading when no account is linked. */
+  watchlist(force = false): { titles: BrowseTitle[]; at: number | null; reading: boolean } {
+    if (!this.watchLoaded) void this.watchLoad();
+    if (this.linked() && !this.watchReading && (force || !this.watch || this.hooks.now() - this.watch.at > LensResolver.WATCHLIST_FRESH_MS)) {
+      this.watchReading = true;
+      void this.watchRead().finally(() => { this.watchReading = false; });
+    }
+    return { titles: this.linked() ? this.watch?.titles ?? [] : [], at: this.watch?.at ?? null, reading: this.watchReading };
+  }
+  private async watchRead(): Promise<void> {
+    await this.watchLoad();
+    const s = await this.sessionLoad();
+    if (!s || !s.accountId) return;
+    const q = (page: number) => `session_id=${encodeURIComponent(s.sessionId)}&sort_by=created_at.desc&page=${page}`;
+    const out: BrowseTitle[] = [];
+    for (const kind of ["movie", "tv"] as const) {
+      const first = await this.tmdbCall("GET", watchlistPagePath(s.accountId, kind), q(1));
+      if (!first) return;   // TMDB unreachable or the session refused: the kept list stands
+      out.push(...discoverTitles(kind, first.results));
+      for (let p = 2; p <= totalPages(first) && p <= 10; p++) {
+        const a = await this.tmdbCall("GET", watchlistPagePath(s.accountId, kind), q(p));
+        if (!a) break;
+        out.push(...discoverTitles(kind, a.results));
+      }
+    }
+    this.watch = { titles: out, at: this.hooks.now() };
+    this.watchSave();
+  }
+  /** Whether a title is on the watchlist (as last read); null when no account is linked. */
+  watchlistHas(kind: "movie" | "tv", id: number): boolean | null {
+    if (!this.linked()) return null;
+    return (this.watch?.titles ?? []).some((t) => t.kind === kind && t.id === id);
+  }
+  /** A title put on the watchlist or taken off: the person's press, nothing else calls this. */
+  async watchlistSet(kind: "movie" | "tv", id: number, on: boolean, title?: BrowseTitle): Promise<{ ok: true } | { ok: false; error: string }> {
+    const s = await this.sessionLoad();
+    if (!s || !s.accountId) return { ok: false, error: "no TMDB account is linked" };
+    const a = await this.tmdbCall("POST", watchlistWritePath(s.accountId), `session_id=${encodeURIComponent(s.sessionId)}`, watchlistBody(kind, id, on));
+    if (!writeOk(a)) return { ok: false, error: on ? "TMDB did not add it" : "TMDB did not take it off" };
+    const titles = (this.watch?.titles ?? []).filter((t) => !(t.kind === kind && t.id === id));
+    if (on) titles.unshift(title ?? { kind, id, title: "", mean: null, votes: null, date: null });
+    this.watch = { titles, at: this.watch?.at ?? this.hooks.now() };
+    this.watchSave();
+    if (on && !title) this.watch.at = 0;   // a title known only by its id: the next look reads the list again for its name and poster
+    return { ok: true };
+  }
+  /** A title's TMDB work by its name (the facts kept, else a search), for the copy of the services' lists. */
+  async workOf(title: string, kind: string | null, providers: readonly number[] = []): Promise<{ kind: "movie" | "tv"; id: number } | null> {
+    const f = factsFor(this.facts, title, kind);
+    if (f?.tmdb) return f.tmdb;
+    const r = await this.tmdbRef(title, workKind(kind), providers);
+    return r ? { kind: r.kind, id: r.id } : null;
+  }
+  /** Every rating of the person's as kept ("kind:id" -> value above 0), for the cards; the session loads on the first ask. */
+  ownRatingsMap(): ReadonlyMap<string, number> {
+    if (!this.sessionLoaded) void this.sessionLoad();
+    const m = new Map<string, number>();
+    if (this.session && this.ownRatings) for (const [k, v] of Object.entries(this.ownRatings)) if (v > 0) m.set(k, v);
+    return m;
+  }
+  /** The account's rating of a title, read back once and kept; null when it has none. */
+  async rated(kind: "movie" | "tv", id: number): Promise<number | null> {
+    const s = await this.sessionLoad();
+    if (!s) return null;
+    const k = kind + ":" + id;
+    if (this.ownRatings && k in this.ownRatings) { const had = this.ownRatings[k]; return had ? had : null; }   // 0 is "none"
+    const a = await this.tmdbCall("GET", statesPath(kind, id), `session_id=${encodeURIComponent(s.sessionId)}`);
+    if (!a) return null;
+    const v = ratedFrom(a);
+    (this.ownRatings ??= {})[k] = v ?? 0;   // 0 remembers "none" so the title is not asked again
+    this.sessionSave();
+    return v;
+  }
+  /** A rating written (a half step from 0.5 to 10), or taken back with null; the person's own press, nothing else calls this. */
+  async rate(kind: "movie" | "tv", id: number, value: number | null): Promise<{ ok: true; value: number | null } | { ok: false; error: string }> {
+    const s = await this.sessionLoad();
+    if (!s) return { ok: false, error: "no TMDB account is linked" };
+    const q = `session_id=${encodeURIComponent(s.sessionId)}`;
+    if (value === null) {
+      const a = await this.tmdbCall("DELETE", ratingPath(kind, id), q);
+      if (!writeOk(a)) return { ok: false, error: "TMDB did not take it back" };
+      (this.ownRatings ??= {})[kind + ":" + id] = 0; this.sessionSave();
+      return { ok: true, value: null };
+    }
+    const v = ratingValue(value);
+    if (v === null) return { ok: false, error: "a rating is a half step from 0.5 to 10" };
+    const a = await this.tmdbCall("POST", ratingPath(kind, id), q, ratingBody(v));
+    if (!writeOk(a)) return { ok: false, error: "TMDB did not take the rating" };
+    (this.ownRatings ??= {})[kind + ":" + id] = v; this.sessionSave();
+    const f = [...this.facts.values()].find((x) => x.tmdb?.kind === kind && x.tmdb.id === id);
+    if (f) delete f.at.tmdb;   // the public mean moved: read again when next wanted
+    return { ok: true, value: v };
   }
   private async tmdb(f: TitleFacts, title: string): Promise<{ rating: TitleFacts["rating"]; tmdb: TitleFacts["tmdb"]; imdb: string | null; latest?: TitleFacts["latest"]; genres?: string[]; first?: string | null } | null> {
     if (!this.tmdbKey || !this.hooks.fetchKeyed) return null;

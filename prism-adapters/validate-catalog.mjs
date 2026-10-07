@@ -105,7 +105,7 @@ for (const name of readdirSync(catalogDir).filter((f) => f.endsWith(".json"))) {
 }
 
 // adapter data blocks: known control / presentation names, non-empty values
-const CONTROL_NAMES = new Set(["play", "pause", "next", "prev", "skip", "fullscreen", "normal", "close"]);
+const CONTROL_NAMES = new Set(["play", "playPage", "pause", "next", "prev", "skip", "fullscreen", "normal", "close", "wake", "thumbUp", "thumbDown", "offer"]);   // core's ControlName (adapters.ts)
 const PRESENTATION_NAMES = new Set(["enterFullscreen", "enterTheater", "play"]);
 const adaptersDir = join(root, "adapters");
 for (const name of readdirSync(adaptersDir).filter((f) => f.endsWith(".json"))) {

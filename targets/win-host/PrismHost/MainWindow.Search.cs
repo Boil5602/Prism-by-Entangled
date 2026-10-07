@@ -21,13 +21,14 @@ public sealed partial class MainWindow
     private static string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
 
     /// <summary>A service's symbol: its own app icon (the one its site gives, kept by the poster cache), else its initials on its colour. The name is the tooltip.</summary>
-    private Border ServiceMark(string app, string name, double size = 26)
+    private Border ServiceMark(string app, string name, double size = 26, bool grey = false)
     {
         var mono = new TextBlock { Text = Monogram(name), FontSize = Math.Round(size * 0.42), FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var box = new Border { Width = size, Height = size, CornerRadius = new CornerRadius(size * 0.22), Background = HubChip, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC0, 0x0F, 0x12, 0x16)), BorderThickness = new Thickness(1.5), Child = mono };
         ToolTipService.SetToolTip(box, name);
         var entry = _catalog.FirstOrDefault(c => c.Id == (_model.App(app)?.CatalogRef ?? app)) ?? _catalog.FirstOrDefault(c => c.Adapter == app);
-        if (entry is not null) _ = LoadMarkAsync(entry, box, mono);
+        if (grey) box.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x3A, 0x3E, 0x44));
+        if (entry is not null) _ = LoadMarkAsync(entry, box, mono, grey);
         return box;
     }
     private static string Monogram(string name)
@@ -38,14 +39,14 @@ public sealed partial class MainWindow
         var letters = string.Concat(words.Where(w => w != "+").Take(2).Select(w => char.ToUpperInvariant(w[0])));
         return letters + (plus ? "+" : "");
     }
-    private async Task LoadMarkAsync(HostCatalogEntry entry, Border box, TextBlock mono)
+    private async Task LoadMarkAsync(HostCatalogEntry entry, Border box, TextBlock mono, bool grey = false)
     {
         try
         {
             var info = await _posters.GetMarkAsync(entry.Id, entry.Name, entry.Url);
             RootGrid.DispatcherQueue.TryEnqueue(() =>
             {
-                if (info.BackgroundColor is { Length: 7 } bg && bg[0] == '#')
+                if (!grey && info.BackgroundColor is { Length: 7 } bg && bg[0] == '#')
                     box.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, Convert.ToByte(bg.Substring(1, 2), 16), Convert.ToByte(bg.Substring(3, 2), 16), Convert.ToByte(bg.Substring(5, 2), 16)));
                 if (info.ImagePath is not { } path) return;
                 try
@@ -60,7 +61,9 @@ public sealed partial class MainWindow
                     box.Child = g;
                     // the icons as the services draw them, on the dark tile (a light tile behind Disney's D, Netflix's N and Paramount's mark was
                     // tried and taken back, 2026-09-23: "I liked the dark icons for disney, netflix, paramount")
-                    bmp.ImageOpened += (_, _) => { if (bmp.PixelWidth <= bmp.PixelHeight * 1.2) { img.Opacity = 1; mono.Visibility = Visibility.Collapsed; } };
+                    // the whole card in greyscale when its service is not signed in (2026-10-03, "Fully grayscale for the whole card"): the icon
+                    // itself made grey from the kept file, the way the Now-on posters are
+                    bmp.ImageOpened += (_, _) => { if (bmp.PixelWidth <= bmp.PixelHeight * 1.2) { if (grey) _ = GreyPosterAsync(path, Services.ArtCache.UriFor(path), img); img.Opacity = 1; mono.Visibility = Visibility.Collapsed; } };
                 }
                 catch { }
             });
@@ -259,7 +262,7 @@ public sealed partial class MainWindow
         var cell = new StackPanel { Spacing = 4, Width = CardCellW };
         cell.Children.Add(stack);
         cell.Children.Add(MarqueeTitle(Shorten(title, 36), title, CardTitleSize, HubInk));
-        if (S(w, "rating") is { Length: > 0 } wr) cell.Children.Add(new TextBlock { Text = wr, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });   // TMDB's rating on every title (2026-09-24)
+        if (S(w, "rating") is { Length: > 0 } wr) cell.Children.Add(MakeRatingLine(wr, w["mine"] is JsonValue smv && smv.TryGetValue<double>(out var smd) ? smd : null, 11, HubDim).Root);   // TMDB's rating on every title (2026-09-24); the person's own as the star's share (2026-10-03)
         var owned = w["owned"]?.GetValue<bool>() == true;
         var offer = owned ? "Owned" : svcs.Select(OfferLine).FirstOrDefault(o => o == "Included" || o.StartsWith("Free", StringComparison.Ordinal)) ?? OfferLine(svcs[0]);
         var via = S(w, "via");
@@ -273,7 +276,9 @@ public sealed partial class MainWindow
         btn.Click += (_, __) => ShowTitleDetails(title, kind, app0, "Search results");
         var s0 = svcs[0]; var c0 = s0["candidate"] as JsonObject;
         var (lsApp, lsSvc, lsId, lsUrl) = (S(s0, "app"), S(s0, "name"), c0 is null ? "" : S(c0, "id"), c0?["url"]?.GetValue<string>());
-        btn.ContextFlyout = lsId.Length > 0 ? RatingFlyout(title, kind, fly => AddListAddItemAsync(fly, lsApp, lsSvc, lsId, title, lsUrl, kind.Length > 0 ? kind : "title", "auto"), lsApp) : RatingFlyout(title, kind, app: lsApp);
+        var wTmdb = svcs.Select(x => S(x["candidate"], "id")).FirstOrDefault(x => x.StartsWith("tmdb:", StringComparison.Ordinal)) is { Length: > 5 } wt ? wt.Substring(5) : null;   // same-named shows told apart (2026-09-27)
+        int? wYear = int.TryParse(year, out var wy) ? wy : null;
+        btn.ContextFlyout = lsId.Length > 0 ? RatingFlyout(title, kind, fly => AddListAddItemAsync(fly, lsApp, lsSvc, lsId, title, lsUrl, kind.Length > 0 ? kind : "title", "auto"), lsApp, wTmdb, wYear) : RatingFlyout(title, kind, app: lsApp);
         return btn;
     }
 
@@ -295,7 +300,7 @@ public sealed partial class MainWindow
         side.Children.Add(new TextBlock { Text = "Top result", FontSize = 11, Foreground = HubAmber });
         side.Children.Add(new TextBlock { Text = title, FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
         side.Children.Add(new TextBlock { Text = string.Join("  ·  ", new[] { year, KindWord(kind) }.Concat(genres).Where(x => x.Length > 0)), FontSize = 13, Foreground = HubDim });
-        if (S(w, "rating") is { Length: > 0 } tr) side.Children.Add(new TextBlock { Text = tr, FontSize = 13, Foreground = HubDim });
+        if (S(w, "rating") is { Length: > 0 } tr) side.Children.Add(MakeRatingLine(tr, w["mine"] is JsonValue tmv && tmv.TryGetValue<double>(out var tmd) ? tmd : null, 13, HubDim).Root);
         var overview = S(w, "overview");
         if (overview.Length > 0) side.Children.Add(new TextBlock { Text = overview, FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxLines = 3, TextTrimming = TextTrimming.WordEllipsis });
         // the first service as a labeled Play, the rest as their square symbols, Details always in view at the end (2026-09-23, "I searched for
@@ -330,6 +335,7 @@ public sealed partial class MainWindow
         var det = Chip(new TextBlock { Text = "Details", FontSize = 13, Foreground = HubInk }, false);
         var app0 = svcs.Count > 0 ? S(svcs[0], "app") : null;
         det.Click += (_, __) => ShowTitleDetails(title, kind, app0, "Search results");
+        ShowOnlyWithTmdb(det);
         // My List on the services themselves (2026-09-23, "that box should have the option(s) to add to the list of the streaming service")
         var mine = Chip(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = "\uE710", FontSize = 12 }, new TextBlock { Text = "My List", FontSize = 13, Foreground = HubInk } } }, false);
         var mfly = new MenuFlyout();

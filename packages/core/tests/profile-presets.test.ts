@@ -72,7 +72,8 @@ describe("profile presets", () => {
 
   it("presets save the current profiles under a name; applying one switches every service at once and reads its rows again", async () => {
     const { rt, ops } = await setup();
-    expect(JSON.parse(rt.videoPresetSave("Alex"))).toMatchObject({ ok: false });   // nothing chosen yet
+    // a set with no profile chosen yet is a set all the same since 2026-09-29: it keeps the sign-in each service uses (sign-ins.ts)
+    expect(JSON.parse(rt.videoPresetSave("Alex"))).toMatchObject({ ok: true, preset: { name: "Alex", picks: {} } });
     expect(JSON.parse(rt.videoProfileSet("netflix", "p1")).ok).toBe(true);
     const mark = JSON.parse(rt.videoPresetSave("Alex")).preset;
     expect(mark.picks).toEqual({ netflix: { id: "p1", name: "Alex" } });
@@ -85,7 +86,7 @@ describe("profile presets", () => {
     expect(view(rt).presets.length).toBe(2);
     ops.length = 0;
     // apply Alex: the choice, the profile page opened on the hidden surface, the wanted profile pressed there, then the list read
-    expect(JSON.parse(rt.videoPresetApply(mark.id))).toEqual({ ok: true, switched: ["netflix"], missing: [] });
+    expect(JSON.parse(rt.videoPresetApply(mark.id))).toEqual({ ok: true, switched: ["netflix"], missing: [], moved: [] });
     expect(view(rt).active).toBe(mark.id);
     expect(view(rt).services[0].current).toEqual({ id: "p1", name: "Alex" });
     await vi.advanceTimersByTimeAsync(50);

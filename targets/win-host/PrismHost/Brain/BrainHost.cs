@@ -81,10 +81,13 @@ public sealed class BrainHost
         {
             if (!e.IsSuccess) { _onStatus($"brain failed to load ({e.WebErrorStatus})"); return; }
             Ready = true;
-            _onStatus("brain ready");
+            _onStatus("brain ready - Prism " + AppVersion.Text);
             FlushPending();
             OnReady?.Invoke();
         };
+        // the runtime is loaded afresh every start (2026-09-30: WebView2's HTTP cache served a prism-runtime.js from a start before, so a
+        // deployed core did not run until the cache's heuristic lifetime passed). The brain profile's disk cache only - nothing stored (section 10)
+        try { await core.Profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache); } catch (Exception e) { _onStatus("brain cache: " + e.Message); }
         core.Navigate("https://brain.prism/brain.html");
     }
 

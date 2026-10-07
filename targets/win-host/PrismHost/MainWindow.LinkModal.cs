@@ -26,6 +26,7 @@ public sealed partial class MainWindow
         if (u.Scheme == "about") return true;
         if (u.Scheme != Uri.UriSchemeHttps) return false;
         var h = u.Host.ToLowerInvariant();
+        if (h == "www.themoviedb.org" && (u.AbsolutePath.StartsWith("/authenticate/", StringComparison.Ordinal) || u.AbsolutePath == "/auth/access")) return true;   // the account's approval page, v3 or v4 (2026-10-03)
         return h == "entangled.world" || h.EndsWith(".entangled.world", StringComparison.Ordinal);
     }
 

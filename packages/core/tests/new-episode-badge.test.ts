@@ -21,12 +21,14 @@ describe("newEpisodeBadge", () => {
     ] };
     expect(orderAlphabetical([row], [], {}, now).map((c) => c.item.title)).toEqual(["Zulu", "Alpha"]);
   });
-  it("TMDB's new episodes first, the one aired longest ago first; then the services' banners A to Z; then the rest (2026-09-24)", () => {
+  it("New first (2026-09-26): every bannered title (TMDB's new episode or the service's own) A to Z, then the rest A to Z; reversed, each group Z to A, banners still first", () => {
     const it = (id: string, title: string, badge?: string, tmdb = false) => ({ id, title, kind: "series", url: null, artwork: null, subtitle: null, progress: null, ...(badge ? { badge } : {}), ...(tmdb ? { badgeFrom: "tmdb" as const } : {}) });
     const row = { app: "a", name: "A", facet: "f", items: [
       it("1", "Alpha"), it("2", "Beta", "New Sep 22", true), it("3", "Gamma", "New Season"), it("4", "Delta", "New Sep 14", true), it("5", "Aardvark", "Leaving Soon"),
     ] };
-    expect(orderAlphabetical([row], [], {}, now).map((c) => c.item.title)).toEqual(["Delta", "Beta", "Aardvark", "Gamma", "Alpha"]);
+    expect(orderAlphabetical([row], [], {}, now).map((c) => c.item.title)).toEqual(["Aardvark", "Beta", "Delta", "Gamma", "Alpha"]);
+    row.items.push(it("6", "Zeta"));
+    expect(orderAlphabetical([row], [], {}, now, true).map((c) => c.item.title)).toEqual(["Gamma", "Delta", "Beta", "Aardvark", "Zeta", "Alpha"]);
   });
 });
 

@@ -18,7 +18,10 @@ namespace PrismHost;
 public sealed partial class MainWindow
 {
     /// <summary>What a card plays - the same six things its press passes to PlayOnAsync, and its service's name.</summary>
-    internal sealed record CardPick(string Facet, string Kind, string Id, string? Url, string Title, string? Art, string Service);
+    /// <summary>What a dragged card plays. A Browse-style card (Most read, New episodes, New movies, The Binge) names no address: it carries the
+    /// service and the catalog id, and plays the way its own press does (2026-09-26, "only the top 2 lines are allowing me to drop them into the video
+    /// player windows while on Watch. I really want all of the video cards to be eligible").</summary>
+    internal sealed record CardPick(string Facet, string Kind, string Id, string? Url, string Title, string? Art, string Service, string? BrowseApp = null, string? PlayVerb = null);
 
     /// <summary>The rows' lift: a static row (Carousel) hands a held card to the page that owns the drag.</summary>
     private static Func<Button, PointerRoutedEventArgs, bool>? s_cardLift;
@@ -224,6 +227,9 @@ public sealed partial class MainWindow
 
     /// <summary>A card let go on a place: multiview on if it was off, the place as the target for this one pick, the pick as a press
     /// would make it - Watch stays up for the next drag, and the target goes back to what it was.</summary>
+    private Task PlayPickAsync(CardPick c) =>
+        c.BrowseApp is { } app ? BrowsePlayAsync(app, c.Id, c.Title, c.Service, c.PlayVerb ?? "videoBrowsePlay") : PlayOnAsync(c.Facet, c.Kind, c.Id, c.Url, c.Title);
+
     private async Task DropCardAsync(CardPick c, int index)
     {
         // a small place with nothing on the big screen: the big screen first (a second window only once the big one has a title, 2026-09-24);
@@ -237,7 +243,8 @@ public sealed partial class MainWindow
         {
             SetPill("Prism \u00B7 " + Shorten(c.Title, 40) + " on the big screen");
             _mvBigHas = true;   // at once: a drop on window 2 right after is window 2's, not a second pick for the big screen
-            await PlayOnAsync(c.Facet, c.Kind, c.Id, c.Url, c.Title);
+            await PlayPickAsync(c);
+            _ = FollowStartingAsync();
             // the big screen in Watch's corner at once (2026-09-24, "immediately open the mini window showing the big screen is playing when they
             // drag an item to it ... That way they can just click the window and start watching"): the page is drawn again once the pick is
             // loading, and the corner comes with it
@@ -255,7 +262,8 @@ public sealed partial class MainWindow
         var was = _mvTarget;
         await MvCallAsync("target", index.ToString());
         SetPill("Prism · " + Shorten(c.Title, 40) + " → " + (index == 0 ? "the big window" : "window " + (index + 1)));
-        await PlayOnAsync(c.Facet, c.Kind, c.Id, c.Url, c.Title);
+        await PlayPickAsync(c);
+        _ = FollowStartingAsync();
         await MvCallAsync("target", was.ToString());
         DrawMvStrip();
         await Task.Delay(2500);   // the window's page is up by now: its name on the strip
@@ -273,7 +281,8 @@ public sealed partial class MainWindow
         // home page. If the videos are all cleared, nothing should be playing"): the service's home under a cleared screen is not a thing to watch.
         // Only while the Video player is the wall; a pick (loading counts) takes it away
         // never over Watch: the stage stands above the tile canvas, Watch included - it comes up as Watch closes
-        var show = !VideoHubOpen && ((_mvOn && _mvWindows.Count == 0) || (!_mvOn && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible));
+        // never over a sign-in or the welcome page (2026-09-29, a new device: the stage stood over the service's sign-in page)
+        var show = !VideoHubOpen && !_asSession && _welcome is null && ((_mvOn && _mvWindows.Count == 0) || (!_mvOn && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible));
         if (!show) { if (_emptyStage is not null) _emptyStage.Visibility = Visibility.Collapsed; return; }
         _emptyStage ??= BuildEmptyStage();
         _emptyStage.Visibility = Visibility.Visible;

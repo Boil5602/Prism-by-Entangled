@@ -208,7 +208,7 @@ public sealed partial class MainWindow
         try
         {
             if (string.IsNullOrEmpty(adapter)) return null;
-            var ap = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters", adapter + ".json");
+            var ap = (Sources.AdapterPath(adapter) ?? "");
             if (!File.Exists(ap)) return null;
             using var ad = JsonDocument.Parse(File.ReadAllText(ap));
             if (!ad.RootElement.TryGetProperty("session", out var s) || s.ValueKind != JsonValueKind.Object) return null;
@@ -218,12 +218,70 @@ public sealed partial class MainWindow
         catch { return null; }
     }
 
+    /// <summary>The adapter an App's pages are read by: the one it names, else the one of its own id (the catalog names none for the music
+    /// services; core binds theirs by the page's host).</summary>
+    private static string? AdapterNameFor(ModelApp app)
+    {
+        if (app.Adapter is { Length: > 0 } named) return named;
+        try { return File.Exists((Sources.AdapterPath(app.Id) ?? "")) ? app.Id : null; } catch { return null; }
+    }
+
+    /// <summary>The adapter's login address when it is a page to open (core's rule, signInPage): null when the sign-in is on the service's own
+    /// page - Apple's sign-in host is an error page when opened, Amazon Music's is its home. Kept per adapter once asked.</summary>
+    private readonly Dictionary<string, string?> _signInPages = new();
+    private async Task<string?> SignInPageAsync(string? adapter)
+    {
+        if (string.IsNullOrEmpty(adapter)) return null;
+        if (_signInPages.TryGetValue(adapter, out var known)) return known;
+        var login = AdapterLoginUrl(adapter);
+        string? named = null;   // the adapter's own word for the page Sign in opens (signIn), when login is not one
+        try { var ap = (Sources.AdapterPath(adapter) ?? ""); if (File.Exists(ap)) { using var ad = JsonDocument.Parse(File.ReadAllText(ap)); named = StrOf(ad.RootElement, "signIn"); } } catch { }
+        string? page = null;
+        if (login is not null || named is not null)
+        {
+            var raw = (await RuntimeEvalAsync("PrismRuntime.modelSignInPage(" + Q(login) + ", " + Q(named) + ")"))?.Trim().Trim('"');
+            if (raw is null || raw.StartsWith("__prism")) return null;   // no answer (the brain busy): asked again next time, not kept (2026-09-29 review)
+            if (raw.Length > 0 && raw.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) page = raw;
+        }
+        _signInPages[adapter] = page;
+        return page;
+    }
+
+    /// <summary>
+    /// Sign in, on a page that is up (2026-09-29, "There is a sign in and other options along the top bar and several don't work"): the
+    /// service's sign-in page when it has one; else the service's own Sign In control on the page, pressed because a person pressed Sign in
+    /// (looked for while the page settles); else the service's home.
+    /// </summary>
+    private async Task SignInOnTileAsync(string? adapter, string name, string? baseUrl, string tileId)
+    {
+        if (await SignInPageAsync(adapter) is { } page) { LogLine("sign in: " + tileId + " -> " + page); _surfaces.Navigate(tileId, page); return; }
+        // the control to press: the adapter's own word for it (loginPress), else its signed-out marker
+        string? press = null;
+        try { var ap = (Sources.AdapterPath(adapter) ?? ""); if (adapter is not null && File.Exists(ap)) { using var ad = JsonDocument.Parse(File.ReadAllText(ap)); press = StrOf(ad.RootElement, "loginPress"); } } catch { }
+        if ((press ?? AdapterSession(adapter)?.SignedOut) is { Length: > 0 } sel)
+        {
+            var js = await RuntimeEvalAsync("PrismRuntime.modelSignInPressJs(" + Q(sel) + ")");
+            if (!string.IsNullOrEmpty(js) && !js.StartsWith("__prism"))
+                for (var i = 0; i < 10; i++)
+                {
+                    if (!_surfaces.LiveTileIds().Contains(tileId)) return;
+                    var r = await _surfaces.EvalOnTileAsync(tileId, js);
+                    if (r is not null && r.Contains("pressed")) { LogLine("sign in: " + tileId + " -> the page's own Sign In control, pressed"); return; }
+                    await Task.Delay(1000);
+                }
+            LogLine("sign in: " + tileId + " -> no Sign In control seen on the page");
+            SetPill("Prism" + Mid + "Use " + name + "'s own Sign In button on the page");
+            return;
+        }
+        if (baseUrl is { Length: > 0 } && IsHttpUrl(baseUrl)) { LogLine("sign in: " + tileId + " -> " + baseUrl); _surfaces.Navigate(tileId, baseUrl); }
+    }
+
     private static string? AdapterLoginUrl(string? adapter)
     {
         try
         {
             if (string.IsNullOrEmpty(adapter)) return null;
-            var ap = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters", adapter + ".json");
+            var ap = (Sources.AdapterPath(adapter) ?? "");
             if (!File.Exists(ap)) return null;
             using var ad = JsonDocument.Parse(File.ReadAllText(ap));
             return StrOf(ad.RootElement, "login");

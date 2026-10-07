@@ -44,7 +44,11 @@ public sealed partial class MainWindow
         if (_viewfinder is not null) CancelViewfinder();
         var app = await FindAppAsync(appId);
         if (app is null) { SetPill("Prism · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("app-setup", appId, saved: false); return; }
-        var tile = await EnsureAppSurfaceAsync(app, url);
+        // the sign-in window opens AT the sign-in page (2026-09-29: opened at the service's home and sent to the sign-in page a moment later, the
+        // two loads crossed and the home page won - Tubi's Sign in "did nothing")
+        var adapter = AdapterNameFor(app);
+        var signInPage = signIn && !AppNeedsNoAccount(app) ? await SignInPageAsync(adapter) : null;
+        var tile = await EnsureAppSurfaceAsync(app, url ?? signInPage);
         if (tile is null) { SetPill("Prism · " + app.Name + " has no live surface yet. Try again once it's up"); EditorClosed("app-setup", appId, saved: false); return; }
         if (url is not null && IsHttpUrl(url) && _surfaces.SourceOf(tile) != url) _surfaces.Navigate(tile, url);   // the reference page, in the App's profile (not persisted as the App's home)
         if (_viewfinder is not null) CancelViewfinder();
@@ -55,6 +59,8 @@ public sealed partial class MainWindow
         CloseRail();
         StepWizardAside(true);   // the wizard's overlay is the same trap one layer up (found live 2026-09-05)
         _asApp = app; _asTile = tile; _asSession = true; _asObserved = "unknown";
+        SyncEmptyStage();   // the empty stage stands above the canvas: down while a sign-in is up
+        SyncEmptyWallNote();
         _asSignIn = signIn; _asProbeRun++; _asSawSignedOut = false;
         _vfMode = "app"; _vfTile = tile; _vfZoom = 1; _vfPicking = false; _vfPlaced = false;
 
@@ -78,13 +84,14 @@ public sealed partial class MainWindow
         card.Children.Add(new TextBlock { Text = signIn && !AppNeedsNoAccount(app) ? "Sign in to " + app.Name : app.Name, FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
         var statusRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _asStatusPill = new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 2, 10, 2), VerticalAlignment = VerticalAlignment.Center };
-        _asStatusLine = new TextBlock { FontSize = 12, Foreground = LeInk, VerticalAlignment = VerticalAlignment.Center };
+        _asStatusLine = new TextBlock { FontSize = 14, Foreground = LeInk, VerticalAlignment = VerticalAlignment.Center };
         _asStatusPill.Child = _asStatusLine;
         statusRow.Children.Add(_asStatusPill);
         card.Children.Add(statusRow);
-        _asUrlLine = new TextBlock { FontSize = 11, Foreground = LeDim, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 };
+        _asUrlLine = new TextBlock { FontSize = 12, Foreground = LeDim, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 };
         card.Children.Add(_asUrlLine);
-        card.Children.Add(new TextBlock { Text = "Profile: " + app.ProfileId + "  ·  sessions persist, never wiped (§10)", FontSize = 11, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
+        // plain words, light ink (2026-09-29: it read "Profile: tubi, sessions persist, never wiped" in small grey)
+        card.Children.Add(new TextBlock { Text = "Your sign-in is kept on this device and stays until you sign out.", FontSize = 14, Foreground = LeInk, TextWrapping = TextWrapping.Wrap });
         // docs/concept-scenes.md §6: a first-party page has no account behind it.
         // Say that instead of offering a sign-in nobody can complete.
         _asNoAccount = AppNeedsNoAccount(app);
@@ -95,12 +102,12 @@ public sealed partial class MainWindow
                 ? "Nothing to set up: this page is part of Prism, runs on this device and reaches no network. What it remembers - your list, your notes, your timer - lives in this device's storage and is never wiped. Done returns to the scene."
                 : _asSignIn ? "Sign in here. Prism watches for " + app.Name + " to take you back, then looks for your account on the page before it says signed in."
                 : "Browse as you would in a browser: sign in, pick a profile, set preferences. Sign-in popups open in a sheet. The status above follows the page: a sign-in page means needs attention; your own pages mean signed in. Done saves the status and returns to the scene.",
-            FontSize = 11, Foreground = LeDim, TextWrapping = TextWrapping.Wrap,
+            FontSize = 14, Foreground = LeInk, TextWrapping = TextWrapping.Wrap,
         };
         card.Children.Add(_asHint);
 
         Button CardButton(string text) => new() { Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 6, 12, 6) };
-        var login = _asNoAccount ? null : AdapterLoginUrl(app.Adapter);
+        var login = _asNoAccount ? null : await SignInPageAsync(adapter);
         if (login is not null)
         {
             var goLogin = CardButton(_asSignIn ? "↻  Back to the sign-in page" : "→  Go to the sign-in page");
@@ -138,9 +145,11 @@ public sealed partial class MainWindow
         floatHost.Children.Add(FloatingPanel((_asSignIn ? "Sign in · " : "App setup · ") + app.Name, card, panelBg, HorizontalAlignment.Right, VerticalAlignment.Top, new Thickness(0, 44, 18, 0)));
         if (barH > 0)
         {
-            var strip = AppBar(kind, app.Name, tile, null, login,
+            var strip = AppBar(kind, app.Name, tile, null,
+                onSignIn: _asNoAccount ? null : () => { if (_asTile is { } t) _ = SignInOnTileAsync(adapter, app.Name, app.BaseUrl, t); },
                 onHome: () => { if (_asTile is { } t && IsHttpUrl(app.BaseUrl)) _surfaces.Navigate(t, app.BaseUrl); },
-                onDone: () => _ = FinishAppSetupAsync(save: true));
+                onDone: () => _ = FinishAppSetupAsync(save: true),
+                onWatch: async () => { _editorContinuations.Remove("app-setup"); CloseWelcome(); await FinishAppSetupAsync(save: true); if (WatchGrip.Visibility == Visibility.Visible) await ShowVideoHubAsync(); });
             strip.Width = Math.Max(1, TileCanvas.ActualWidth - panelColumn); strip.HorizontalAlignment = HorizontalAlignment.Left; strip.VerticalAlignment = VerticalAlignment.Top;
             floatHost.Children.Add(strip);
         }
@@ -151,7 +160,9 @@ public sealed partial class MainWindow
         RenderSetupStatus(app.Status, app.LastVerified, _surfaces.SourceOf(tile) ?? app.BaseUrl);
         // the wizard goes straight to the sign-in page: a live session redirects back at once and the probe closes
         // the wizard by itself; a dead one lands on the form with nothing in the way
-        if (_asSignIn && login is not null) _surfaces.Navigate(tile, login);   // a live session redirects straight back; a dead one lands on the form
+        // (the window opened at the sign-in page: a live session redirects straight back; a dead one lands on the form.) A service that signs
+        // in on its own page has its Sign In control pressed, the person having asked to sign in
+        if (_asSignIn && login is null && !_asNoAccount && AdapterSession(adapter) is not null) _ = SignInOnTileAsync(adapter, app.Name, null, tile);
         await UpdateSetupCardAsync(app, _surfaces.SourceOf(tile) ?? app.BaseUrl);
         cancel.Focus(FocusState.Programmatic);
     }
@@ -165,7 +176,10 @@ public sealed partial class MainWindow
             "needs-attention" => ("needs attention", Windows.UI.Color.FromArgb(0x60, 0xD0, 0x6A, 0x5A)),
             _ => ("unknown", Windows.UI.Color.FromArgb(0x60, 0x9A, 0x9C, 0xA8)),
         };
-        _asStatusLine.Text = text + (lastVerified is null ? "" : "  ·  verified " + lastVerified);
+        // the sign-in window says it in a person's words (2026-09-30 walk: "needs attention, verified now (unsaved)" on a first sign-in);
+        // the setup window keeps the status vocabulary, and says when Done saves it
+        if (_asSignIn) _asStatusLine.Text = status switch { "signed-in" => "Signed in", "needs-attention" => "Not signed in yet", _ => "Checking the page" };
+        else _asStatusLine.Text = text + (lastVerified is null ? "" : "  ·  verified " + (lastVerified == "now (unsaved)" ? "just now, saved on Done" : lastVerified));
         _asStatusPill.Background = new SolidColorBrush(color);
         if (_asUrlLine is not null) _asUrlLine.Text = Shorten(url, 70);
         ToolTipService.SetToolTip(_asUrlLine, url);
@@ -182,19 +196,23 @@ public sealed partial class MainWindow
             RenderSetupStatus("signed-in", app.LastVerified, url);
             return;
         }
-        var r = await LoginRedirectAsync(url, AdapterLoginUrl(app.Adapter), app.BaseUrl);
+        var adapter = AdapterNameFor(app);
+        var r = await LoginRedirectAsync(url, AdapterLoginUrl(adapter), app.BaseUrl);
         if (!_asSession) return;
         var observed = r?.Status ?? (r?.Redirect == "elsewhere" ? _asObserved : "unknown");
         // Signing in happens ON the App's own page (Apple TV: Apple's sheet over tv.apple.com, no sign-in address): being on
         // its pages says nothing about the session - only the page's own account marker does (the probe, at Done).
-        if (SignInOnPage(app.Adapter) && r?.Redirect == "app") observed = "unknown";
+        if (SignInOnPage(adapter) && r?.Redirect == "app") observed = "unknown";
+        // In the sign-in window the page's own account marker decides, not the address (2026-09-29, a new device: Tubi's pages open to anybody,
+        // so the card said "signed in" over a line that said "Still signed out"): until the probe has answered, the card claims nothing.
+        if (_asSignIn && r?.Redirect == "app" && AdapterSession(adapter) is not null) observed = "unknown";
         _asObserved = observed ?? "unknown";
         RenderSetupStatus(_asObserved == "unknown" ? app.Status : _asObserved, _asObserved == "unknown" ? app.LastVerified : "now (unsaved)", url);
         if (_asHint is not null)
             _asHint.Text = r?.Redirect switch
             {
                 "login" => "This is the sign-in page. Sign in here - the session lives in this App's profile and persists. When the site returns you to your own pages the status flips to signed in.",
-                "app" when SignInOnPage(app.Adapter) => "Sign in with " + app.Name + "'s own Sign In button on this page. Prism looks for your account on the page before it says signed in.",
+                "app" when SignInOnPage(adapter) => "Sign in with " + app.Name + "'s own Sign In button on this page. Prism looks for your account on the page before it says signed in.",
                 "app" => "You are on " + app.Name + "'s own pages - that reads as signed in. Browse, set preferences, then Done.",
                 _ => "The page left " + app.Name + " (a third-party sign-in, or another site). The status keeps its last reading until the App's own pages return.",
             };
@@ -214,7 +232,7 @@ public sealed partial class MainWindow
     /// </summary>
     private async Task RunSessionProbeAsync(ModelApp app, int run)
     {
-        var probe = AdapterSession(app.Adapter);
+        var probe = AdapterSession(AdapterNameFor(app));
         if (probe is null)
         {
             if (_asHint is not null) _asHint.Text = "You are on " + app.Name + "'s own pages. Prism cannot check " + app.Name + "'s session yet, so it won't claim you're signed in. Say so below if you are.";
@@ -249,6 +267,8 @@ public sealed partial class MainWindow
             if (verdict == "needs-attention")
             {
                 _asSawSignedOut = true;
+                _asObserved = "needs-attention";
+                RenderSetupStatus("needs-attention", "now (unsaved)", _asTile is { } t3 ? _surfaces.SourceOf(t3) ?? app.BaseUrl : app.BaseUrl);
                 if (_asHint is not null) _asHint.Text = "Still signed out: " + app.Name + "'s page shows its Sign in control. Use Back to the sign-in page.";
                 if (_asMark is not null) _asMark.Visibility = Visibility.Collapsed;
                 return;
@@ -261,12 +281,12 @@ public sealed partial class MainWindow
     }
 
     /// <summary>The App signs in on its own page (a session probe, no sign-in address): the URL can't tell signed in from out.</summary>
-    private static bool SignInOnPage(string? adapter) => AdapterLoginUrl(adapter) is null && AdapterSession(adapter) is not null;
+    private bool SignInOnPage(string? adapter) => adapter is not null && AdapterSession(adapter) is not null && (AdapterLoginUrl(adapter) is null || (_signInPages.TryGetValue(adapter, out var page) && page is null));
 
     /// <summary>One reading of the adapter's session probe on the setup page: signed-in | needs-attention | null (nothing seen).</summary>
     private async Task<string?> ProbeSessionOnceAsync(ModelApp app)
     {
-        var probe = AdapterSession(app.Adapter);
+        var probe = AdapterSession(AdapterNameFor(app));
         if (probe is null || _asTile is not { } tile) return null;
         var js = await RuntimeEvalAsync("PrismRuntime.modelSessionProbeJs(" + Q(probe.Value.SignedIn) + ", " + Q(probe.Value.SignedOut) + ")");
         if (string.IsNullOrEmpty(js) || js.StartsWith("__prism")) return null;
@@ -285,7 +305,7 @@ public sealed partial class MainWindow
         SetPill(ok ? "Prism · " + app.Name + ": " + (evidence == "probe" ? "signed in (your account was seen on the page)" : "marked signed in") : "Prism · " + app.Name + ": could not save the status");
         CloseAppSetup();
         EditorClosed("app-setup", appId, ok);
-        _brain.Call(HostCalls.RecycleApp, app.ProfileId);   // B-124: the App's wall surface starts over on a fresh engine
+        _brain.Call(HostCalls.RecycleApp, app.Id);   // B-124: the App's wall surface starts over on a fresh engine
     }
 
     private async Task FinishAppSetupAsync(bool save)
@@ -296,18 +316,18 @@ public sealed partial class MainWindow
         if (save)
         {
             var url = _asTile is { } t ? _surfaces.SourceOf(t) : null;
-            var r = url is null ? null : await LoginRedirectAsync(url, AdapterLoginUrl(app.Adapter), app.BaseUrl);
+            var r = url is null ? null : await LoginRedirectAsync(url, AdapterLoginUrl(AdapterNameFor(app)), app.BaseUrl);
             var status = r?.Status ?? (_asObserved != "unknown" ? _asObserved : null);
             // Sign-in on the page itself: the address is no evidence (Done on tv.apple.com saved Apple TV "signed in" while it
             // was not, 2026-09-23). Ask the page: its account marker, or its Sign In control, or nothing changes.
-            var onPage = SignInOnPage(app.Adapter) && r?.Redirect == "app";
+            var onPage = SignInOnPage(AdapterNameFor(app)) && r?.Redirect == "app";
             if (onPage) status = await ProbeSessionOnceAsync(app);
             if (status is not null && await SaveAppStatusAsync(app, status, onPage ? "probe" : "url")) SetPill("Prism · " + app.Name + " setup: " + (status == "signed-in" ? "signed in" : "needs attention") + ", verified just now");
             else SetPill("Prism · " + app.Name + " setup: status unchanged (" + app.Status + ")");
         }
         CloseAppSetup();
         EditorClosed("app-setup", appId, save);   // SM-3 integration: the opener (wizard, rail, badge round-trip) resumes
-        _brain.Call(HostCalls.RecycleApp, app.ProfileId);   // B-124: the App's wall surface starts over on a fresh engine
+        _brain.Call(HostCalls.RecycleApp, app.Id);   // B-124: the App's wall surface starts over on a fresh engine
     }
 
     private void CloseAppSetup()
@@ -315,6 +335,8 @@ public sealed partial class MainWindow
         if (!_asSession) return;
         var tile = _asTile;
         _asSession = false;
+        SyncEmptyStage();
+        SyncEmptyWallNote();
         StepWizardAside(false);
         _asNoAccount = false;
         _asSignIn = false; _asMark = null; _asProbeRun++;

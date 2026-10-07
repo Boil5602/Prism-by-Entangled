@@ -55,6 +55,7 @@ function cleanReport(r) {
     ua: STR(r.ua, 24),            // "chromium" | "firefox" + major version, nothing finer
     veil: STR(r.veil, 16),        // extension version
     note: STR(r.note, 280),       // optional free text the user typed
+    kind: ["video", "display", "sponsored", "popup", "other", "not-an-ad", "is-an-ad"].includes(r.kind) ? r.kind : undefined,   // the kind of ad the person chose (2026-09-26); not-an-ad: the break watch covered a show (2026-10-06)
     fb: (r.fb && typeof r.fb === "object" && JSON.stringify(r.fb).length <= 8000) ? r.fb : undefined,   // site diagnostics block (see report.js), capped
     fbErr: STR(r.fbErr, 120),
     diag: (r.diag && typeof r.diag === "object" && JSON.stringify(r.diag).length <= 8000) ? r.diag : undefined,
@@ -70,8 +71,51 @@ function cleanReport(r) {
   };
 }
 
-const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type", "Access-Control-Max-Age": "86400" };
+// ---------------------------------------------------------------- app reports
+// The Windows app's report flag (2026-10-06, "add a bug report mechanism to the app ... People need to be able to report if ads are on their
+// screen, or if a bug is found ... by a specific adapter, and whether on the music or video screen"; "we need to catch those reports in a
+// queue online"). Same privacy as the ad reports: no IP stored, no identifier asked for; the body is only what the person saw in the form's
+// "What is sent" before pressing Send. Each lands OPEN in the private bucket's queue, app-reports/open/<date>/<kind>/<service>/<uuid>.json;
+// scripts/reports/app-reports.py lists, reads and closes them (closing moves a report to app-reports/done/).
+// idea: an improvement asked for (2026-10-06, "make this window flexible enough to accept enhancement requests")
+const APP_KINDS = ["ad", "bug", "idea", "other"], APP_PLAYERS = ["music", "video", "other"];
+function cleanAppReport(r) {
+  if (!r || typeof r !== "object") return null;
+  const kind = APP_KINDS.includes(r.kind) ? r.kind : null;
+  const note = STR(r.note, 2000);
+  if (!kind || !note || !note.trim()) return null;
+  const service = typeof r.service === "string" && /^[a-z0-9][a-z0-9-]{0,39}$/.test(r.service) ? r.service : "prism";
+  // a page address is kept as origin and path only: anything after ? or # is dropped here too, whatever the app sent
+  let page; try { if (typeof r.page === "string") { const u = new URL(r.page); if (/^https?:$/.test(u.protocol)) page = (u.origin + u.pathname).slice(0, 200); } } catch { page = undefined; }
+  return {
+    v: 1, kind, player: APP_PLAYERS.includes(r.player) ? r.player : "other", service,
+    adapter: STR(r.adapter, 40), adapterVersion: STR(r.adapterVersion, 16), page,
+    app: STR(r.app, 32), track: STR(r.track, 8), os: STR(r.os, 32), webview: STR(r.webview, 24),
+    note, log: STR(r.log, 30000),
+    receivedAt: new Date().toISOString(),
+  };
+}
+async function appReport(req, res) {
+  const ip = (req.headers["fly-client-ip"] || req.socket.remoteAddress || "").toString();
+  if (!allow(ip)) return reply(res, 429, "slow down");
+  let report; try { report = cleanAppReport(JSON.parse(await readBody(req, MAX_BYTES))); } catch (e) { return reply(res, /too large/.test(String(e && e.message)) ? 413 : 400, "bad report"); }
+  if (!report) return reply(res, 400, "bad report");
+  const d = report.receivedAt.slice(0, 10).replace(/-/g, "/");
+  const key = `app-reports/open/${d}/${report.kind}/${report.service}/${randomUUID()}.json`;
+  try { await bucketPut(key, report); } catch (e) { console.error("app report put failed:", e.name); return reply(res, 503, "try later"); }
+  reply(res, 204);
+}
+
+// Cross-origin (2026-09-26): the extension posts from its own background page (a chrome-extension:// or moz-extension:// origin), a report
+// form may come later on https://entangled.world, and the Windows app sends no Origin at all (not a browser). Any other web page gets no
+// CORS answer, so a browser won't let it post here. (CORS is not authentication: the abuse limits below apply to every request.)
+const WEB_ORIGINS = new Set(["https://entangled.world", "https://www.entangled.world"]);
+function corsFor(origin) {
+  const ok = typeof origin === "string" && (WEB_ORIGINS.has(origin) || /^(chrome|moz)-extension:\/\/[a-z0-9-]+$/i.test(origin));
+  return ok ? { "Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type", "Access-Control-Max-Age": "86400" } : { "Vary": "Origin" };
+}
+let CORS = {};   // set per request from its Origin
 function reply(res, code, body) { res.writeHead(code, { ...CORS, "Content-Type": "text/plain", "Cache-Control": "no-store" }); res.end(body || ""); }
 
 // ---------------------------------------------------------------- curation
@@ -81,6 +125,9 @@ function reply(res, code, body) { res.writeHead(code, { ...CORS, "Content-Type":
 // the same private bucket under curate/. Nothing here is public: every
 // route but the page itself requires the key; the page holds no data.
 const CURATE_KEY = process.env.CURATE_KEY || "";
+// Off unless switched on for a curation session (2026-09-26: the page loaded for anyone, though its data needed the key):
+// `fly secrets set CURATE_ENABLED=1 -a prism-reports` to use it, `fly secrets unset CURATE_ENABLED -a prism-reports` after.
+const CURATE_ON = process.env.CURATE_ENABLED === "1";
 function keyOk(req) {
   const k = (req.headers["x-curate-key"] || "").toString();
   if (!CURATE_KEY || k.length !== CURATE_KEY.length) return false;
@@ -183,10 +230,58 @@ $('#go').onclick=()=>{KEY=$('#key').value.trim();load();}; $('#key').addEventLis
 if(KEY) load();
 </script>`;
 
+// The download counter (2026-10-05, "when someone runs the install off the website, I want to capture an install counter that everyone can
+// see on the website"): the website's Download button comes here; one is added to the count and the browser is sent on to the current zip,
+// read from the signed manifest in the public bucket. Nothing about the person is kept - no address, no browser string, no time - only the
+// number, in this private bucket (counters/downloads.json), flushed shortly after it changes and read back at boot. Prism itself never
+// reports an install: that would be telemetry, which it promises not to do; this counts download clicks, and the site should say so.
+const MANIFEST_URL = "https://prism.entangled.world/windows/manifest.json";
+const COUNTS_KEY = "counters/downloads.json";
+let counts = null, countsDirty = false, manifestCache = { at: 0, data: null };
+async function countsNow() { if (!counts) counts = await bucketJson(COUNTS_KEY, { windows: 0 }); return counts; }
+async function flushCounts() { if (!countsDirty || !counts) return; countsDirty = false; try { await bucketPut(COUNTS_KEY, counts); } catch (e) { countsDirty = true; console.error("counts:", e.message); } }
+setInterval(flushCounts, 15000).unref();
+async function currentZip(channel) {
+  if (Date.now() - manifestCache.at > 60000) {
+    try { const r = await fetch(MANIFEST_URL, { headers: { "cache-control": "no-cache" } }); if (r.ok) { manifestCache = { at: Date.now(), data: await r.json() }; } }
+    catch (e) { console.error("manifest:", e.message); }
+  }
+  const e = manifestCache.data && manifestCache.data[channel];
+  return e && typeof e.url === "string" && e.url.startsWith("https://prism.entangled.world/") ? e : null;
+}
+/** The newest release on any track (alpha, beta, stable), by version number: what the plain download address sends. */
+async function newestZip() {
+  const tracks = ["alpha", "beta", "stable"];
+  const vnum = (v) => String(v || "0").split(".").map((x) => parseInt(x, 10) || 0);
+  const newer = (a, b) => { const x = vnum(a), y = vnum(b); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+  let best = null;
+  for (const t of tracks) { const e = await currentZip(t); if (e && (!best || newer(e.version, best.version))) best = e; }
+  return best;
+}
+async function downloads(req, res, url) {
+  if (url.pathname === "/v1/downloads") {
+    const c = await countsNow();
+    res.writeHead(200, { ...CORS, "Content-Type": "application/json", "Cache-Control": "public, max-age=30" }); return res.end(JSON.stringify({ windows: c.windows || 0 }));
+  }
+  // the tracks are alpha | beta | stable (docs/features/updates.md); the plain address is the newest version the manifest lists on any
+  // track - the one the website's Download button advertises (2026-10-05 review: it knew stable and beta alone and sent an alpha release's
+  // visitors the older stable zip, and counted the click against it)
+  const m = /^\/v1\/download\/windows(?:\/(stable|beta|alpha))?$/.exec(url.pathname);
+  if (!m) return reply(res, 404, "not found");
+  const e = m[1] ? await currentZip(m[1]) : await newestZip();
+  if (!e) return reply(res, 503, "the release manifest could not be read; try https://prism.entangled.world/windows/manifest.json");
+  if (req.method === "GET") { const c = await countsNow(); c.windows = (c.windows || 0) + 1; countsDirty = true; }
+  res.writeHead(302, { Location: e.url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); return res.end();
+}
+
 createServer(async (req, res) => {
+  CORS = corsFor(req.headers.origin);
   if (req.method === "GET" && req.url === "/healthz") return reply(res, 200, "ok");
   if (req.method === "OPTIONS") return reply(res, 204);
+  if ((req.method === "GET" || req.method === "HEAD") && (req.url.startsWith("/v1/download/") || req.url === "/v1/downloads")) { try { return await downloads(req, res, new URL(req.url, "http://x")); } catch (e) { console.error("downloads:", e.message); return reply(res, 500, "server"); } }
+  if (req.url.startsWith("/curate") && !CURATE_ON) return reply(res, 404, "not found");
   if (req.url.startsWith("/curate")) { try { return await curate(req, res, new URL(req.url, "http://x")); } catch (e) { console.error("curate:", e.message); return json(res, 500, { error: "server" }); } }
+  if (req.method === "POST" && req.url === "/v1/app-report") return appReport(req, res);
   if (req.method !== "POST" || req.url !== "/v1/report") return reply(res, 404, "not found");
   const ip = (req.headers["fly-client-ip"] || req.socket.remoteAddress || "").toString();
   if (!allow(ip)) return reply(res, 429, "slow down");

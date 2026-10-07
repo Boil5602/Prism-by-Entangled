@@ -203,22 +203,73 @@
     offerSend(report, json, "✓ Ad captured" + lbl);
   }
   // Sending is a per-report choice (spec section 19/22: nothing leaves the
-  // machine unasked). The toast says what the report contains (site + element
-  // structure, no page text beyond the ad label) and offers one click to send
-  // it to the Prism report inbox via the background page. Never automatic.
+  // machine unasked). What is sent matches what the panel says, and nothing more
+  // (2026-09-26, "Fix the report payload ... so it matches what the user is told.
+  // By default send only the site's domain, the element details, the kind of ad,
+  // the note, and the version. Send the full page address only if the user ticks
+  // 'Include the full page address', and drop the embedded video addresses unless
+  // that box is ticked"). Copy to clipboard still gives the whole local report:
+  // it never leaves the machine unless the person pastes it somewhere.
+  var AD_KINDS = [["video", "Video ad"], ["display", "Banner or display ad"], ["sponsored", "Sponsored post or result"], ["popup", "Pop-up"], ["other", "Something else"]];
+  function guessKind(r) {
+    try {
+      if ((r.veil && r.veil.mode === "video") || (r.diag && r.diag.vidVeil) || (r.target && r.target.tag === "VIDEO")) return "video";
+      if (/sponsor|promot|paid/i.test(r.nearbyAdLabel || "")) return "sponsored";
+    } catch (e) {}
+    return "display";
+  }
+  // The element's own diagnostics that say nothing about the page beyond the ad itself.
+  var DIAG_KEEP = ["isVisible", "inViewport", "slotMatch", "slotQueryOk", "targetsTotal", "inTargets", "ancestorTargetLevels", "ancestorWhy", "cover", "topBar", "family", "vidVeil"];
+  function sendable(report, opt, version) {
+    var d = (report && report.diag) || {}, diag = {};
+    DIAG_KEEP.forEach(function (k) { if (d[k] !== undefined) diag[k] = d[k]; });
+    var p = {
+      site: report.site, kind: opt.kind, veil: version,
+      rule: (report.veil && report.veil.rule) ? (report.veil.rule + " [" + (report.veil.mode || "?") + "]") : undefined,
+      coveredByPrism: !!report.coveredByPrism, nearbyAdLabel: report.nearbyAdLabel,
+      target: report.target, chain: report.chain, card: report.card, stack: report.stack, diag: diag,
+    };
+    if (opt.note) p.note = opt.note.slice(0, 280);
+    if (opt.full) {
+      p.url = location.href.slice(0, 200);
+      if (d.iframes) diag.iframes = d.iframes;   // the embedded players' addresses (host + path)
+    }
+    return p;
+  }
+  function whatSent(site, full) {
+    return "Sends the site (" + (site || "this site") + "), the ad's element details (its tags, classes and sizes, and the short labels and domains inside it), the kind of ad, your note if you write one, and Prism's version" +
+      (full ? ", plus the full page address and the addresses of the video players embedded in the page" : "") + ". No page text, no account, no cookies.";
+  }
   function offerSend(report, json, headline) {
     var t = document.createElement("div");
     t.setAttribute("data-prism-ui", "1");
-    t.style.cssText = "position:fixed;left:12px;bottom:46px;z-index:2147483647;background:#12131aee;color:#c9cbd6;font:12px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:8px;border:1px solid #ffffff22;max-width:62vw;";
-    var h = document.createElement("div"); h.style.cssText = "color:#7fd08a;font-weight:600;margin-bottom:4px"; h.textContent = headline;
-    var p = document.createElement("div"); p.style.cssText = "opacity:.8;margin-bottom:8px";
-    p.textContent = "Send it to Prism so the veil learns this ad? Contains: " + (report.site || "site") + ", the element's tag/class/size chain, the short labels and link/media hostnames inside its card" + (report.nearbyAdLabel ? ", the “" + report.nearbyAdLabel + "” label" : "") + ". No titles or body text, no account, no cookies.";
+    t.style.cssText = "position:fixed;left:12px;bottom:46px;z-index:2147483647;background:#12131aee;color:#c9cbd6;font:12px/1.45 system-ui,sans-serif;padding:10px 12px;border-radius:8px;border:1px solid #ffffff22;max-width:62vw;min-width:320px;";
+    var h = document.createElement("div"); h.style.cssText = "color:#7fd08a;font-weight:600;margin-bottom:6px"; h.textContent = headline;
+    var ctl = "background:#1c1e27;color:#e8ecf2;border:1px solid #ffffff33;border-radius:6px;padding:4px 6px;font:12px system-ui,sans-serif;";
+    var kindRow = document.createElement("label"); kindRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:6px";
+    kindRow.appendChild(document.createTextNode("Kind of ad"));
+    var kind = document.createElement("select"); kind.style.cssText = ctl;
+    AD_KINDS.forEach(function (k) { var o = document.createElement("option"); o.value = k[0]; o.textContent = k[1]; kind.appendChild(o); });
+    kind.value = guessKind(report);
+    kindRow.appendChild(kind);
+    var note = document.createElement("input"); note.type = "text"; note.maxLength = 280; note.placeholder = "A note (optional)";
+    note.style.cssText = ctl + "width:100%;box-sizing:border-box;margin-bottom:6px";
+    // typing here is ours, never the page's shortcuts
+    ["keydown", "keyup", "keypress"].forEach(function (ev) { note.addEventListener(ev, function (e) { if (e.key !== "Escape") e.stopPropagation(); }, true); });
+    var fullRow = document.createElement("label"); fullRow.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px;cursor:pointer";
+    var full = document.createElement("input"); full.type = "checkbox";
+    fullRow.appendChild(full); fullRow.appendChild(document.createTextNode("Include the full page address"));
+    var p = document.createElement("div"); p.style.cssText = "opacity:.85;margin-bottom:8px";
+    var say = function () { p.textContent = whatSent(report.site, full.checked); };
+    say(); full.addEventListener("change", say);
     var row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px";
     var send = document.createElement("button"); send.textContent = "Send to Prism";
     send.style.cssText = "background:#F0A83C;color:#12131a;border:0;border-radius:6px;padding:6px 10px;font:600 12px system-ui,sans-serif;cursor:pointer";
     var no = document.createElement("button"); no.textContent = "Copy to clipboard";
     no.style.cssText = "background:transparent;color:#c9cbd6;border:1px solid #ffffff33;border-radius:6px;padding:6px 10px;font:12px system-ui,sans-serif;cursor:pointer";
-    var timer = setTimeout(function () { try { t.remove(); } catch (e) {} }, 20000);
+    var timer = setTimeout(function () { try { t.remove(); } catch (e) {} }, 60000);
+    var hold = function () { clearTimeout(timer); };   // a person filling it in keeps it up
+    [kind, note, full].forEach(function (x) { x.addEventListener("focus", hold, true); x.addEventListener("input", hold, true); });
     no.addEventListener("click", function () {
       clearTimeout(timer); t.remove();
       try { navigator.clipboard.writeText(json).then(function () { toast("✓ Copied to clipboard.", "#7fd08a"); }, function () { toast("Couldn't copy - the report is in the console (F12).", "#F0A83C"); }); }
@@ -229,12 +280,8 @@
       // A stale page (extension reloaded under it) throws "Extension context
       // invalidated" on the first chrome.runtime call - stuck on "Sending…"
       // (2026-08-29). Detect it up front and say what fixes it.
-      var payload;
-      // The wire shape carries the extension version as `veil` and the placing
-      // rule as `rule` - the report's own `veil` OBJECT was being overwritten
-      // by the version, so no sent report ever said which rule covered the
-      // element (noticed 2026-09-11 reading the Fox masthead reports).
-      try { payload = Object.assign({}, report, { veil: (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || "", rule: (report && report.veil && report.veil.rule) ? (report.veil.rule + " [" + (report.veil.mode || "?") + "]") : undefined }); }
+      var payload, wantFull = full.checked;
+      try { payload = sendable(report, { kind: kind.value, note: (note.value || "").trim(), full: wantFull }, (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || ""); }
       catch (eCtx) { t.remove(); toast("Couldn't send - Prism was updated under this page. Reload the page (F5) and report again.", "#F0A83C"); return; }
       // A tab still running the PREVIOUS build after an extension reload has
       // no background to talk to: sendMessage never answers ("Sending…"
@@ -243,20 +290,26 @@
         if (done) return; done = true; t.remove();
         toast("Couldn't send - Prism was updated under this page. Reload the page (F5) and report again.", "#F0A83C");
       }, 12000);
-      try {
-        chrome.runtime.sendMessage({ type: "prism-frame-traces-get" }, function (fr) {
-          try { if (fr && Object.keys(fr).length) payload.frames = fr; } catch (eF) {}
-          try { var ft = PV.frameTraces; if (ft && Object.keys(ft).length) payload.framesDirect = ft; } catch (eG) {}
+      var go = function () {
         chrome.runtime.sendMessage({ type: "prism-report-send", report: payload }, function (r) {
           if (done) return; done = true; clearTimeout(to); t.remove();
           if (chrome.runtime.lastError) { toast("Couldn't send - reload the page (F5) and report again.", "#F0A83C"); return; }
           if (r && r.ok) toast("✓ Sent. Thank you.", "#7fd08a");
           else toast("Couldn't send (" + ((r && r.error) || "offline") + ") - the report is in the console (F12).", "#F0A83C");
         });
+      };
+      try {
+        // the embedded players' traces carry their video addresses: only with the box ticked
+        if (!wantFull) { go(); return; }
+        chrome.runtime.sendMessage({ type: "prism-frame-traces-get" }, function (fr) {
+          try { if (fr && Object.keys(fr).length) payload.frames = fr; } catch (eF) {}
+          try { var ft = PV.frameTraces; if (ft && Object.keys(ft).length) payload.framesDirect = ft; } catch (eG) {}
+          go();
         });
       } catch (e) { if (!done) { done = true; clearTimeout(to); t.remove(); toast("Couldn't send - reload the page (F5) and report again.", "#F0A83C"); } }
     }, true);
-    row.appendChild(send); row.appendChild(no); t.appendChild(h); t.appendChild(p); t.appendChild(row);
+    row.appendChild(send); row.appendChild(no);
+    t.appendChild(h); t.appendChild(kindRow); t.appendChild(note); t.appendChild(fullRow); t.appendChild(p); t.appendChild(row);
     document.documentElement.appendChild(t);
     // Click anywhere outside the panel, or Esc, to dismiss it (nothing sent).
     setTimeout(function () {

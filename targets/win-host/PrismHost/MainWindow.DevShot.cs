@@ -1,4 +1,6 @@
+using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -95,6 +97,50 @@ public sealed partial class MainWindow
         catch (Exception ex) { LogLine("dev menu failed: " + ex.GetType().Name + ": " + ex.Message); }
     }
 
+    /// <summary>Dev: the Live tab's first channel row's menu opened at a point of the wall, for a shot of where it lands.</summary>
+    private async void DevLiveMenuAt(Windows.Foundation.Point at)
+    {
+        try
+        {
+            var raw = await ModelCallAsync("videoLiveGuide", null, null);
+            var first = (JsonNode.Parse(raw ?? "null") as JsonObject)?["rows"] is JsonArray rows && rows.Count > 0 ? rows[0] as JsonObject : null;
+            if (first is null) { LogLine("dev live menu: no channel"); return; }
+            LiveMenu(at, first["facet"]?.GetValue<string>() ?? "", first["id"]?.GetValue<string>() ?? "", first["url"]?.GetValue<string>(), first["name"]?.GetValue<string>() ?? "", first["service"]?.GetValue<string>() ?? "", first["logo"]?.GetValue<string>());
+        }
+        catch (Exception e) { LogLine("dev live menu: " + e.Message); }
+    }
+
+    /// <summary>Dev: press the visible, enabled button whose label is (or starts with) the words given - its own Click, through its
+    /// automation peer; no pointer, no keys. The log says which button, or that none was found.</summary>
+    private void DevPress(string label)
+    {
+        static string TextOf(DependencyObject o)
+        {
+            if (o is TextBlock t) return t.Text ?? "";
+            if (o is FontIcon fi && fi.Glyph is { Length: > 0 }) return "glyph:" + ((int)fi.Glyph[0]).ToString("X4");   // an icon-only button: "press glyph:E8FD"
+            if (o is ContentControl { Content: string s }) return s;
+            var sb = new System.Text.StringBuilder();
+            var n = VisualTreeHelper.GetChildrenCount(o);
+            for (var i = 0; i < n; i++) { var x = TextOf(VisualTreeHelper.GetChild(o, i)); if (x.Length > 0) { if (sb.Length > 0) sb.Append(' '); sb.Append(x); } }
+            return sb.ToString();
+        }
+        var found = new List<Button>();
+        void Walk(DependencyObject o)
+        {
+            if (o is UIElement { Visibility: Visibility.Collapsed }) return;
+            if (o is Button b && b.IsEnabled && b.ActualWidth > 0) { var t = TextOf(b).Trim(); if (t.Equals(label, StringComparison.OrdinalIgnoreCase) || t.StartsWith(label, StringComparison.OrdinalIgnoreCase) || t.Contains("  " + label + "  ", StringComparison.OrdinalIgnoreCase)) found.Add(b); }
+            var n = VisualTreeHelper.GetChildrenCount(o);
+            for (var i = 0; i < n; i++) Walk(VisualTreeHelper.GetChild(o, i));
+        }
+        Walk(RootGrid);
+        // the label itself first, then a chip carrying it between its symbol and its count ("  Movies  4"), then a text that begins with it (a channel row named Movies)
+        var hit = found.OrderByDescending(b => Canvas.GetZIndex(b)).FirstOrDefault(b => TextOf(b).Trim().Equals(label, StringComparison.OrdinalIgnoreCase))
+            ?? found.FirstOrDefault(b => TextOf(b).Contains("  " + label + "  ", StringComparison.OrdinalIgnoreCase)) ?? found.FirstOrDefault();
+        if (hit is null) { LogLine("dev press: no button '" + label + "'"); return; }
+        LogLine("dev press: '" + TextOf(hit).Trim() + "' (" + found.Count + " found)");
+        if (Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.CreatePeerForElement(hit) is Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer peer) peer.Invoke();
+    }
+
     private void DevHub(string dir)
     {
         var req = Path.Combine(dir, "hub.request");
@@ -103,8 +149,24 @@ public sealed partial class MainWindow
         try
         {
             if (text == "close") { CloseVideoHub(); return; }
+            if (text.StartsWith("press ", StringComparison.Ordinal)) { DevPress(text.Substring(6).Trim()); return; }   // "press <label>": the visible button with that label, pressed (2026-09-29)
+            if (text.StartsWith("welcome", StringComparison.Ordinal)) { DevWelcome(text); return; }
+            if (text == "shortcuts") { _ = AskShortcutsAsync(false); return; }   // the Shortcuts dialog, as the Device page opens it (2026-10-06)   // the welcome page, driven (2026-09-29)
             if (text == "show video") { _stayOnVideo = true; CloseVideoHub(); return; }   // Show video as pressed (2026-09-25)
+            if (text == "readers on" || text == "readers off") { SetReadersDark(text == "readers on"); return; }   // readers dark (2026-10-03)
+            if (text.StartsWith("signin add ", StringComparison.Ordinal)) { var sp = text.Substring(11).Split('|'); if (sp.Length == 2) _ = AddSignInAsync(sp[0].Trim(), sp[0].Trim(), sp[1].Trim()); return; }   // "signin add <app>|<name>" (2026-09-29)
+            if (text.StartsWith("live menu ", StringComparison.Ordinal)) { var lp = text.Substring(10).Split(','); if (lp.Length == 2 && double.TryParse(lp[0], out var lx) && double.TryParse(lp[1], out var ly)) DevLiveMenuAt(new Windows.Foundation.Point(lx, ly)); return; }   // the first channel's menu, at a point (2026-09-29)
+            if (text.StartsWith("mv remove ", StringComparison.Ordinal)) { _ = MvRemoveWindowAsync(text.Substring(10).Trim()); return; }   // a multiview window closed, the host's own way (2026-09-29)
+            if (text == "signin label") { _ = AfterSignInAsync(); return; }   // name the sign-ins nobody named from their account pages
+            if (text.StartsWith("signin hide ", StringComparison.Ordinal)) { var sp = text.Substring(12).Split('|'); if (sp.Length == 2) _ = HideSignInAsync(sp[0].Trim(), sp[1].Trim(), sp[1].Trim()); return; }
+            if (text.StartsWith("signin show ", StringComparison.Ordinal)) { var sp = text.Substring(12).Split('|'); if (sp.Length == 2) _ = ShowSignInAsync(sp[0].Trim(), sp[1].Trim(), sp[1].Trim()); return; }
+            if (text.StartsWith("signin rename ", StringComparison.Ordinal)) { var sp = text.Substring(14).Split('|'); if (sp.Length == 3) _ = RenameSignInAsync(sp[0].Trim(), sp[1].Trim(), sp[1].Trim(), sp[2].Trim()); return; }   // "signin rename <app>|<id>|<name>"
+            if (text.StartsWith("signin pick ", StringComparison.Ordinal)) { var sp = text.Substring(12).Split('|'); if (sp.Length == 2) { _draftSignIns[sp[0].Trim()] = sp[1].Trim(); DrawProfilesWindow(); } return; }   // the draft's sign-in for a service
+            if (text.StartsWith("profiles name ", StringComparison.Ordinal)) { _draftName = text.Substring(14).Trim(); DrawProfilesWindow(); return; }
+            if (text == "profiles save") { _ = SaveProfilesDraftAsync(); return; }
             if (text == "profiles") { _ = ShowProfilesWindowAsync(); return; }   // the Profiles window (2026-09-24)
+            if (text == "perf") { PerfDumpNow(); return; }   // every process on its own line in host.log (2026-10-03)
+            if (text == "pair") { PairPhone(); return; }   // the Pair a phone card (2026-10-04)
             if (text == "profiles close") { CloseProfilesWindow(); return; }
             if (text == "settings") { _ = ShowWatchSettingsAsync("general"); return; }   // Watch settings (2026-09-24)
             if (text == "settings updates") { _ = ShowWatchSettingsAsync("updates"); return; }
@@ -112,17 +174,26 @@ public sealed partial class MainWindow
             if (text == "settings binge") { _ = ShowWatchSettingsAsync("binge"); return; }
             if (text == "settings hidden") { _ = ShowWatchSettingsAsync("hidden"); return; }
             if (text == "credits") { ShowCredits(); return; }
+            if (text.StartsWith("order ", StringComparison.Ordinal)) { var op = text.Substring(6).Split(' '); if (op.Length == 2) _ = SetRowOrderAsync(op[0], op[1] is "rev" or "fwd" ? null : op[1], op[1] == "rev" ? true : op[1] == "fwd" ? false : null); return; }   // "order <continue|list> <id|rev|fwd>" (2026-09-26)
+            if (text.StartsWith("jump ", StringComparison.Ordinal)) { JumpContinueTo(text.Substring(5)); return; }   // "jump <app>": Continue watching to a service (2026-09-26)
             if (text == "details close") { CloseTitleDetails(); return; }
             if (text.StartsWith("details ", StringComparison.Ordinal)) { var dp = text.Substring(8).Split('|'); ShowTitleDetails(dp[0], dp.Length > 1 ? dp[1] : null, dp.Length > 2 ? dp[2] : null); return; }   // "details <title>|<kind>|<app>" (2026-09-24)
             if (text == "credits close") { CloseCredits(); return; }
             if (text == "link close") { CloseLinkModal(); return; }
+            if (text == "dust hide") { DevDustHide(); return; }   // a removal's dust, then the card back (2026-09-26)
+            if (text == "curtain close") { HideStageCurtain(); return; }
+            if (text.StartsWith("curtain ", StringComparison.Ordinal)) { var cp = text.Substring(8).Split('|'); ShowStageCurtain(cp[0], cp.Length > 1 ? cp[1] : "Hulu", null); return; }   // the start screen, nothing started (2026-09-26)
             if (text == "dust") { DevDust(); return; }
+            if (text == "report close") { CloseReportPanel(); return; }
+            if (text.StartsWith("report ", StringComparison.Ordinal)) { ShowReportPanel(text.Substring(7).Trim()); return; }   // the report panel for a window, nothing sent (2026-09-26)
             if (text == "group none" || text == "group genre") { _hubGroup = text.Substring(6); _hubTab = "library"; _ = ShowVideoHubAsync(); return; }   // the Library grouped (2026-09-25)   // the removal effect on a card, nothing removed (2026-09-25)
             if (text.StartsWith("link ", StringComparison.Ordinal)) { ShowLinkModal(text.Substring(5).Trim(), text.Substring(5).Trim()); return; }
             if (text == "binge") { _hubTab = "watch"; _bingeOpen = true; _ = ShowVideoHubAsync(); return; }   // The Binge in full (2026-09-24)
             // "scroll <px>": the open page's rows scrolled to that offset (a dev shot of a row below the fold, 2026-09-22)
             if (text.StartsWith("scroll ", StringComparison.Ordinal) && double.TryParse(text.Substring(7), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var px)) { _hubScroller?.ChangeView(null, px, null, true); return; }
-            if (text == "library" || text == "watch" || text == "browse") { _hubTab = text; _ = ShowVideoHubAsync(); return; }   // the page on that tab (2026-09-22)
+            // the Live tab's own tune, as its channel menu runs it: "tune|<window index>|<facet>|<channel id>|<url>|<name>" (2026-09-28)
+            if (text.StartsWith("tune|", StringComparison.Ordinal)) { var tp = text.Split('|'); if (tp.Length >= 6 && int.TryParse(tp[1], out var ti)) _ = TuneIntoAsync(ti, tp[2], tp[3], tp[4].Length > 0 ? tp[4] : null, tp[5], "", null); return; }
+            if (text == "library" || text == "watch" || text == "browse" || text == "playlists" || text == "live") { _hubTab = text; _ = ShowVideoHubAsync(); return; }   // the page on that tab (2026-09-22)
             if (text.StartsWith("browse "))
             {
                 // "browse <genre>" and "browse <genre> <row>" (yours | top | newest | voted), the row opened in full (2026-09-22)

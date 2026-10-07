@@ -71,10 +71,11 @@ try { chrome.runtime.onStartup.addListener(function () { chrome.windows.getAll({
 // "Report ad" -> the Prism report inbox. Only ever on a user's explicit click
 // (src/report.js offerSend). Sent from here, not the page, so the request
 // carries no page Origin/Referer and is not subject to the page's CSP.
-var REPORT_URL = "https://prism-reports.fly.dev/v1/report";
+// Entangled's own address for the inbox (2026-09-26; the same Fly app as prism-reports.fly.dev). No host permission is needed: the inbox
+// answers the extension's own origin with CORS, and adding one would put a warning in front of every user on update.
+var REPORT_URL = "https://reports.entangled.world/v1/report";
 function sendReport(report, done) {
-  var ua = /Firefox\/(\d+)/.exec(navigator.userAgent), cr = /Chrom(?:e|ium)\/(\d+)/.exec(navigator.userAgent);
-  report.ua = ua ? "firefox " + ua[1] : (cr ? "chromium " + cr[1] : "other");
+  // sent as the person chose it in the panel (src/report.js sendable) - nothing is added here, not even the browser (2026-09-26)
   fetch(REPORT_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report),
     referrerPolicy: "no-referrer", credentials: "omit", cache: "no-store" })
     .then(function (r) { done({ ok: r.status === 204, error: r.status === 204 ? "" : "http " + r.status }); })
@@ -197,17 +198,29 @@ function credGet(file, cb) {
 // that asked is gone, so the record is the only way back.
 function tabMuteRestore(tid, andUpdate) {
   var mk = "pv:tabmute:" + tid;
-  try {
-    chrome.storage.local.get(mk, function (r) {
-      var rec = r && r[mk]; if (!rec) return;
-      chrome.storage.local.remove(mk);
-      if (andUpdate) { try { chrome.tabs.update(tid, { muted: !!rec.was }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
-    });
-  } catch (e2) {}
+  // in the tab's own queue (2026-09-29 review): run beside a mute it could remove the record between the mute's write and its update
+  tabMuteChain(tid, function (done) {
+    try {
+      chrome.storage.local.get(mk, function (r) {
+        var rec = r && r[mk]; if (!rec) { done(); return; }
+        chrome.storage.local.remove(mk, function () {
+          if (!andUpdate) { done(); return; }
+          try { chrome.tabs.update(tid, { muted: !!rec.was }, function () { void chrome.runtime.lastError; done(); }); } catch (e) { done(); }
+        });
+      });
+    } catch (e2) { done(); }
+  });
 }
 try { chrome.tabs.onRemoved.addListener(function (tid) { tabMuteRestore(tid, false); }); } catch (e) {}
 try { chrome.tabs.onUpdated.addListener(function (tid, info) { if (info && info.status === "loading") tabMuteRestore(tid, true); }); } catch (e) {}
 
+// Per-tab queue for the veil's tab mutes: each request runs when the one before it on that tab has answered.
+var tabMuteQueues = {};
+function tabMuteChain(tid, job) {
+  var prev = tabMuteQueues[tid] || Promise.resolve();
+  var next = prev.then(function () { return new Promise(function (res) { var t = setTimeout(res, 5000); job(function () { clearTimeout(t); res(); }); }); });
+  tabMuteQueues[tid] = next.catch(function () {});
+}
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "prism-report-send") { sendReport(msg.report || {}, sendResponse); return true; }
   if (msg && msg.type === "prism-open-settings") {
@@ -234,26 +247,32 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // state before the veil is kept in storage (the worker may sleep) and put
   // back on unmute; a tab the person had muted stays muted. Needs no
   // permission (tabs.update's muted field is unprivileged).
+  // One tab's mutes are done IN ORDER (2026-09-29, a YouTube report: "Audio is coming through, veil was up"): each is several async steps, and
+  // an ad's end (unmute) followed at once by the next ad's start (mute) could finish the other way round - the mute answered first, the page
+  // gave its elements their sound back, then the late unmute left the tab loud under the veil (and the record it removed left the tab muted
+  // after the next ad). Each request now waits for the one before it on the same tab.
   if (msg && msg.type === "prism-tab-mute" && sender.tab) {
     var tid = sender.tab.id, mk = "pv:tabmute:" + tid, want = !!msg.muted;
-    try {
-      chrome.tabs.get(tid, function (tab) {
-        var was = !!(tab && tab.mutedInfo && tab.mutedInfo.muted);
-        if (want) {
-          chrome.storage.local.get(mk, function (r) {
-            if (!(r && r[mk])) { var o = {}; o[mk] = { was: was, at: Date.now() }; chrome.storage.local.set(o); }
-            chrome.tabs.update(tid, { muted: true }, function () { sendResponse({ ok: !chrome.runtime.lastError }); });
-          });
-        } else {
-          chrome.storage.local.get(mk, function (r) {
-            var rec = r && r[mk];
-            chrome.storage.local.remove(mk);
-            if (!rec) { sendResponse({ ok: true }); return; }   // we never muted it: leave it
-            chrome.tabs.update(tid, { muted: !!rec.was }, function () { sendResponse({ ok: !chrome.runtime.lastError }); });
-          });
-        }
-      });
-    } catch (e) { sendResponse({ ok: false }); }
+    tabMuteChain(tid, function (done) {
+      var answer = function (ok) { try { sendResponse({ ok: ok }); } catch (e1) {} done(); };
+      try {
+        chrome.tabs.get(tid, function (tab) {
+          var was = !!(tab && tab.mutedInfo && tab.mutedInfo.muted);
+          if (want) {
+            chrome.storage.local.get(mk, function (r) {
+              var go = function () { chrome.tabs.update(tid, { muted: true }, function () { answer(!chrome.runtime.lastError); }); };
+              if (!(r && r[mk])) { var o = {}; o[mk] = { was: was, at: Date.now() }; chrome.storage.local.set(o, go); } else go();
+            });
+          } else {
+            chrome.storage.local.get(mk, function (r) {
+              var rec = r && r[mk];
+              if (!rec) { answer(true); return; }   // we never muted it: leave it
+              chrome.storage.local.remove(mk, function () { chrome.tabs.update(tid, { muted: !!rec.was }, function () { answer(!chrome.runtime.lastError); }); });
+            });
+          }
+        });
+      } catch (e) { answer(false); }
+    });
     return true;
   }
   if (msg && msg.type === "prism-cred-get") { credGet(String(msg.src || "list"), sendResponse); return true; }

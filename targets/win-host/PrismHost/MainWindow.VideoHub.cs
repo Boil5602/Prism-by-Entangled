@@ -38,7 +38,7 @@ public sealed partial class MainWindow
     /// <summary>The lines under each card that the sources fill in as they answer (the lens's number, the rating), by card - updated in
     /// place while reads are pending; the page is never rebuilt under a person ("it refreshes and takes me back to the start of the
     /// my list line", 2026-09-21).</summary>
-    private readonly Dictionary<string, List<(TextBlock lens, TextBlock rating)>> _hubLines = new();
+    private readonly Dictionary<string, List<(TextBlock lens, RatingLineUi rating)>> _hubLines = new();
     private TextBlock? _hubLensHead;
     /// <summary>Lens rows drawn while their sources were still reading: the head and the panel the cards go into once they arrive (filled in place, never rebuilt under a person).</summary>
     private readonly Dictionary<string, (TextBlock head, StackPanel host, string name, TextBlock disclosure)> _hubLensPending = new();
@@ -138,6 +138,8 @@ public sealed partial class MainWindow
     private static readonly SolidColorBrush HubChip = new(Windows.UI.Color.FromArgb(255, 0x1C, 0x21, 0x29));
     private static readonly SolidColorBrush HubChipOn = new(Windows.UI.Color.FromArgb(255, 0x3A, 0x2E, 0x14));
     private static readonly SolidColorBrush HubClear = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    private static readonly SolidColorBrush HubTabRule = new(Windows.UI.Color.FromArgb(0x5A, 0xE8, 0xEC, 0xF2));   // the tab strip's rule and the open tab's edge (2026-10-03)
+    private static readonly SolidColorBrush HubRule = new(Windows.UI.Color.FromArgb(28, 0xE8, 0xEC, 0xF2));   // a faint grid line on the dark surface
     /// <summary>A pill's hover and press: its own colour lit, never the system's grey (Chip).</summary>
     private static readonly SolidColorBrush HubChipHover = new(Windows.UI.Color.FromArgb(255, 0x2C, 0x34, 0x42));
     private static readonly SolidColorBrush HubChipPressed = new(Windows.UI.Color.FromArgb(255, 0x24, 0x2A, 0x35));
@@ -176,11 +178,17 @@ public sealed partial class MainWindow
         var toWatch = Chip(new TextBlock { Text = "Return to Watch", FontSize = 15, Foreground = HubInk }, false);
         ToolTipService.SetToolTip(toWatch, title + " keeps starting; Watch opens, and its corner shows it as it comes up.");
         toWatch.Click += (_, __) => { toWatch.IsEnabled = false; _ = ReturnToWatchAsync(); };
-        outs.Children.Add(cancel); outs.Children.Add(toWatch);
+        // and the title's own page (2026-09-26, "we have a cancel and return to watch button when starting and waiting for a video. Can we also add
+        // one that takes them to the series/films details page?"): it keeps starting, as with Return to Watch, and Details opens over Watch
+        var details = Chip(new TextBlock { Text = "Details", FontSize = 15, Foreground = HubInk }, false);
+        ToolTipService.SetToolTip(details, title + " keeps starting; its Details page opens over Watch, with its seasons, episodes and where to watch.");
+        details.Click += (_, __) => { details.IsEnabled = false; _ = DetailsFromCurtainAsync(title); };
+        ShowOnlyWithTmdb(details);
+        outs.Children.Add(cancel); outs.Children.Add(details); outs.Children.Add(toWatch);
         CurtainBody.Children.Add(outs);
         StageCurtain.Visibility = Visibility.Visible;
         StageCurtain.Opacity = 1;
-        LogLine("curtain: up for " + title + " on " + service);
+        _curtainSteadyAt = DateTime.MinValue; _curtainUpAt = DateTime.UtcNow; LogLine("curtain: up for " + title + " on " + service);
         _ = FollowCurtainAsync(run, status, line, verbs, title, service);
     }
     private async Task FollowCurtainAsync(int run, TextBlock status, StackPanel line, StackPanel verbs, string title, string service)
@@ -220,8 +228,14 @@ public sealed partial class MainWindow
                 verbs.Visibility = Visibility.Visible;
                 return;
             }
-            if (tile?["stage"]?.GetValue<bool>() == true || (DateTime.UtcNow - t0).TotalSeconds > 30) { HideStageCurtain(); return; }
-            if (tile?["playing"]?.GetValue<bool>() == true) status.Text = "Playing on " + service + "\u2026";
+            // down when the player is full-screen AND has been playing for a moment (2026-10-05: it dropped the instant the stage went up, while
+            // Apple TV's stream still went play, stop, play - the player's own chrome showed through that half second), or after 30 s regardless
+            var stageUp = tile?["stage"]?.GetValue<bool>() == true;
+            var playingNow = tile?["playing"]?.GetValue<bool>() == true;
+            if (stageUp && playingNow) { if (_curtainSteadyAt == DateTime.MinValue) _curtainSteadyAt = DateTime.UtcNow; }
+            else _curtainSteadyAt = DateTime.MinValue;
+            if ((stageUp && playingNow && (DateTime.UtcNow - _curtainSteadyAt).TotalMilliseconds >= 900) || (DateTime.UtcNow - t0).TotalSeconds > 30) { HideStageCurtain(); return; }
+            if (playingNow) status.Text = "Playing on " + service + "\u2026";
         }
     }
     private async Task RetryOnScreenAsync()
@@ -245,6 +259,36 @@ public sealed partial class MainWindow
         finally { StageCurtain.Visibility = Visibility.Collapsed; StageCurtain.Opacity = 1; }
         SetPill("Prism \u00B7 cancelled " + Shorten(title, 40));
     }
+    /// <summary>The curtain's Details: the start goes on, Watch opens, and the title's Details page over it - named as the service names the show (a
+    /// series, not an episode's label), else the pick's name without its "S2 E3".</summary>
+    private async Task DetailsFromCurtainAsync(string title)
+    {
+        string? app = null, kind = null, name = null;
+        _curtainRun++;   // the curtain's own follow stops now, not after the reads below
+        try
+        {
+            var sv = JsonNode.Parse(await ModelCallAsync("videoServices") ?? "null") as JsonObject;
+            var scr = sv?["screen"] as JsonObject;
+            app = scr?["app"]?.GetValue<string>();
+            var slot = scr?["slot"]?.GetValue<string>();
+            var vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray;
+            var t = vs?.OfType<JsonObject>().FirstOrDefault(x => x["id"]?.GetValue<string>() == slot);
+            var v = t?["video"] as JsonObject;
+            var pend = t?["pending"] as JsonObject;
+            var pk = pend?["kind"]?.GetValue<string>();
+            // a start still open is the title the curtain names: the screen's video can still be the LAST title (review 2026-09-26: Show A's
+            // Details opened while Show B was starting); the curtain's name, without its "S2 E3", and the pick's kind
+            if (pend is not null && pend["failed"] is null) v = null;
+            var series = v?["series"]?.GetValue<string>();
+            if (series is { Length: > 0 }) { name = series; kind = "series"; }
+            else if (v?["title"]?.GetValue<string>() is { Length: > 0 } vt) { name = vt; kind = v["kind"]?.GetValue<string>() == "movie" ? "movie" : null; }
+            if (kind is null && pk is "episode" or "series") kind = "series";
+        }
+        catch { }
+        name ??= System.Text.RegularExpressions.Regex.Replace(title, @"\s+S\d+\s*E\d+.*$", "").Trim();
+        await ReturnToWatchAsync();
+        ShowTitleDetails(name, kind, app);
+    }
     /// <summary>The curtain's Return to Watch: the start goes on; Watch opens over it and the curtain goes.</summary>
     private async Task ReturnToWatchAsync()
     {
@@ -253,7 +297,14 @@ public sealed partial class MainWindow
         HideStageBar();
         try { await ShowVideoHubAsync(); }
         finally { StageCurtain.Visibility = Visibility.Collapsed; StageCurtain.Opacity = 1; }
+        // the start is followed into Watch's big window (2026-10-06, "If I click to start a show, and press return to watch while it's loading, it
+        // doesn't finish loading. It should show on my big window even while I'm in watch"): nothing re-read the corner after Watch opened, so
+        // a title that began playing behind it never moved in. The corner holds "Starting on ..." while the pick is open and takes the screen
+        // in once it plays or fails, as it does for a title dropped on a window
     }
+    private DateTime _curtainSteadyAt = DateTime.MinValue;
+    /// <summary>When the curtain went up: a press within the next moment is the rest of the double-click that raised it, not a tap to lift it.</summary>
+    private DateTime _curtainUpAt = DateTime.MinValue;
     public void HideStageCurtain()
     {
         if (StageCurtain.Visibility != Visibility.Visible) return;
@@ -264,11 +315,13 @@ public sealed partial class MainWindow
         sb.Begin();
         _ = MvCallAsync("state");   // what the screens hold now: a start that failed brings the empty stage back, not the service's page
         LogLine("curtain: down");
+        _curtainDownAt = DateTime.UtcNow;
     }
 
     // ---------------------------------------------------------------- the stage bar (2026-09-20)
     private DispatcherTimer? _stageBarTimer;
     private DispatcherTimer? _stageTick;
+    private bool _stageHasTime;
     private (Grid line, TextBlock times, TextBlock quality)? _stageProgress;
     /// <summary>The bar's title line and its service's name: the tick keeps the words current (2026-09-25, the previous episode's name came late).</summary>
     private (TextBlock text, string service)? _stageFace;
@@ -421,6 +474,9 @@ public sealed partial class MainWindow
             }
             var pos = video?["position"] is JsonValue posV && posV.TryGetValue<double>(out var pd) ? pd : -1;
             var dur = video?["duration"] is JsonValue durV && durV.TryGetValue<double>(out var dd) ? dd : -1;
+            // a bar drawn before the page knew its clock has no slider; the clock known now, the bar is drawn once more with it (2026-10-05,
+            // "The time scan slider didn't appear with the rest of the controls when I brought the mouse up")
+            if (!_stageHasTime && pos >= 0 && !_stageBarBuilding) { _ = ShowStageBarAsync(force: true); return; }
             if (pos < 0 || _stageProgress is null || _seekDragging || DateTime.Now < _seekHoldUntil) return;   // a drag, or a seek on its way: the line is the person's
             var (line, times, quality) = _stageProgress.Value;
             if (slot is not null) { var qt = await ReadQualityAsync(slot); if (qt.Length > 0) quality.Text = qt; }
@@ -439,6 +495,7 @@ public sealed partial class MainWindow
         // grab, i move the mouse over it and it loses focus several times" - every move rebuilt the bar under the pointer); a verb that
         // changes what the bar shows asks for the drawing (force)
         HookStageBarPointer();
+        FadeGrips(false);   // the corner grips come back with the bar (2026-10-05)
         if (!force && StageBar.Visibility == Visibility.Visible) { RestartStageBarTimer(); return; }
         _stageBarBuilding = true;
         try
@@ -455,6 +512,8 @@ public sealed partial class MainWindow
             var video = tile?["video"] as JsonObject;
             var playing = tile?["playing"]?.GetValue<bool>() == true;
             var canCmd = (tile?["can"] as JsonObject)?["cmd"]?.GetValue<bool>() == true;
+            // a live channel has no next or previous episode (2026-10-06, "If a live channel, the next & previous button controls should be disabled")
+            var liveNow = (tile?["video"] as JsonObject)?["kind"]?.GetValue<string>() == "live";
             var pageError = tile?["error"]?.GetValue<string>();
             string face;
             if (pageError is { Length: > 0 }) face = pageError;
@@ -483,6 +542,7 @@ public sealed partial class MainWindow
                 watch0.Click += (_, __) => { HideStageBar(); _ = ShowVideoHubAsync(); };
                 StageBarBody.Children.Add(watch0);
                 StageNext.Visibility = Visibility.Collapsed; StageNext.Children.Clear();
+                PlaceStageBar();
                 StageBar.Visibility = Visibility.Visible;
                 SyncMvBars();
                 RestartStageBarTimer();
@@ -526,6 +586,10 @@ public sealed partial class MainWindow
             ToolTipService.SetToolTip(quality, "The picture as the service's player decodes it right now: its size, and how many of its decoded pictures were dropped since the title started. Read from the player itself.");
             timeRow.Children.Add(quality);
             if (pos >= 0) faceCol.Children.Add(timeRow);
+            // a live channel has no clock to show, but its picture still has a size (2026-10-06, "Is there a reason YoutubeTV doesnt show the resolution
+            // on the control bar like others?"): the size alone under the title
+            else { timeRow.Children.Remove(quality); quality.Margin = new Thickness(0); faceCol.Children.Add(quality); }
+            _stageHasTime = pos >= 0;
             StageBarBody.Children.Add(faceCol);
             _ = StageNextAsync(screenSlot, video);   // the next episode's card under the bar, for a series (2026-09-22)
             _stageProgress = (line, times, quality);
@@ -534,7 +598,7 @@ public sealed partial class MainWindow
             void Verb(string glyph, string tip, string cmd, bool enabled)
             {
                 var b = Chip(VerbIcon(glyph, 15), false); b.IsEnabled = enabled;
-                ToolTipService.SetToolTip(b, enabled ? tip + MvAllTip(cmd) : tip + ". This service's adapter has no control for it yet");
+                ToolTipService.SetToolTip(b, enabled ? tip + MvAllTip(cmd) : liveNow && cmd is "nextepisode" ? tip + ". A live channel has no next episode" : tip + ". This service's adapter has no control for it yet");
                 b.Click += (_, __) => { if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, screenSlot, cmd); RestartStageBarTimer(); };
                 StageBarBody.Children.Add(b);
             }
@@ -550,6 +614,7 @@ public sealed partial class MainWindow
                 var did = so?["did"]?.GetValue<string>();
                 SetPill("Prism \u00B7 " + (did == "previous" ? "previous episode, S" + so!["season"] + " E" + so["episode"] : did == "start" ? "back to the start" : "could not go back" + (so?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + Shorten(er, 60) : "")));
             };
+            if (liveNow) { startOver.IsEnabled = false; ToolTipService.SetToolTip(startOver, "Back to the start. A live channel has no start or previous episode to go back to"); }
             StageBarBody.Children.Add(startOver);
             Verb("\uEB9E", "Back 10 s", "seekbackward", true);
             // Play / Pause follows the page while the bar stays up: its glyph is changed in place (the tick), never by drawing the bar again
@@ -557,17 +622,20 @@ public sealed partial class MainWindow
             var ppIcon = new FontIcon { Glyph = playing ? "\uE769" : "\uE768", FontSize = 15 };
             var pp = Chip(ppIcon, false);
             ToolTipService.SetToolTip(pp, (playing ? "Pause" : "Play") + MvAllTip(playing ? "pause" : "play"));
-            pp.Click += (_, __) =>
+            // a live channel that cannot pause (core's can.pause, the adapter's livePause): drawn dim, and a press says so and offers Mute (2026-10-06)
+            if ((tile?["can"] as JsonObject)?["pause"]?.GetValue<bool>() == false) { ppIcon.Foreground = HubDim; ToolTipService.SetToolTip(pp, CannotPauseTip); }
+            pp.Click += async (_, __) =>
             {
                 var cmd = _stagePlaying ? "pause" : "play";
+                RestartStageBarTimer();
+                if (cmd == "pause" && !await CanPauseAsync(screenSlot)) { SayCannotPause(screenSlot); return; }
                 if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, screenSlot, cmd);
                 SetStagePlaying(!_stagePlaying);
-                RestartStageBarTimer();
             };
             _stagePlayBtn = (pp, ppIcon);
             StageBarBody.Children.Add(pp);
             Verb("\uEB9D", "Forward 10 s", "seekforward", true);
-            Verb("\uE893", "Next episode", "nextepisode", canCmd);
+            Verb("\uE893", "Next episode", "nextepisode", canCmd && !liveNow);
             var canTracks = (tile?["can"] as JsonObject)?["tracks"]?.GetValue<bool>() == true;
             if (canTracks) TracksVerb(screenSlot, 15, b => StageBarBody.Children.Add(b), RestartStageBarTimer);   // the service's own tracks in Prism's chrome
             else Verb("\uED1E", "Captions", "captions", canCmd);
@@ -631,6 +699,7 @@ public sealed partial class MainWindow
             ToolTipService.SetToolTip(watch, "The video player's page: continue watching, my list, live, services, search.");
             watch.Click += (_, __) => { HideStageBar(); _ = ShowVideoHubAsync(); };
             StageBarBody.Children.Add(watch);
+            PlaceStageBar();   // on the big window's own bottom while multiview's small windows are up
             StageBar.Visibility = Visibility.Visible;
             SyncMvBars();   // multiview: the small windows' bars come with the controls
             RestartStageBarTimer();
@@ -640,7 +709,7 @@ public sealed partial class MainWindow
         }
         finally { _stageBarBuilding = false; }
     }
-    private void StageTickHandler(object? sender, object e) { _ = StageTickAsync(); }
+    private void StageTickHandler(object? sender, object e) { PlaceStageBar(); _ = StageTickAsync(); }   // the bar follows a resize while it is up
     /// <summary>A transport key from the stage: the verb on the screen slot ("playpause" reads the face for which), and the bar shown.</summary>
     private async Task StageKeyAsync(string cmd)
     {
@@ -656,6 +725,7 @@ public sealed partial class MainWindow
                 var playing = vs?.OfType<JsonObject>().FirstOrDefault(t => t["id"]?.GetValue<string>() == slot)?["playing"]?.GetValue<bool>() == true;
                 cmd = playing ? "pause" : "play";
             }
+            if (cmd == "pause" && !await CanPauseAsync(slot)) { SayCannotPause(slot); await ShowStageBarAsync(); return; }
             if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, slot, cmd);   // Shift+Space: every multiview window
             if (cmd is "play" or "pause") SetStagePlaying(cmd == "play");
             await ShowStageBarAsync();
@@ -687,8 +757,34 @@ public sealed partial class MainWindow
         _stageBarTimer.Tick -= StageBarTick; _stageBarTimer.Tick += StageBarTick;
         _stageBarTimer.Start();
     }
-    private void StageBarTick(object? sender, object e) { if (_overStageBar || _volumePopup is { IsOpen: true } || _episodesPanel is { IsOpen: true }) { RestartStageBarTimer(); return; } HideStageBar(); }   // the bar holds while the mouse is on it   // the bar holds while the volume slider or the Episodes pop-up is up   // the bar holds while the volume slider is up
-    public void HideStageBar() { _stageBarTimer?.Stop(); _stageTick?.Stop(); StageBar.Visibility = Visibility.Collapsed; CloseVolumeSlider(); CloseEpisodes(); SyncMvBars(); }
+    private void StageBarTick(object? sender, object e)
+    {
+        // over the bar only while the pointer really is (2026-10-06, the controls stuck after the mouse left the window: no PointerExited came)
+        if (_overStageBar && !PointerIsOver(StageBar)) _overStageBar = false;
+        // the volume slider opened by a hover the same way: closed when the pointer is on neither it nor the bar (not mid-drag)
+        if (_volumePopup is { IsOpen: true } vp && !_volumeDragging && vp.Child is FrameworkElement vc && !PointerIsOver(vc) && !PointerIsOver(StageBar)) CloseVolumeSlider();
+        if (_overStageBar || SwapChoosing || _volumePopup is { IsOpen: true } || _episodesPanel is { IsOpen: true }) { RestartStageBarTimer(); return; }   // and while a swap is being chosen
+        HideStageBar(); FadeGrips(true);
+    }   // the bar holds while the mouse is on it   // the bar holds while the volume slider or the Episodes pop-up is up   // the bar holds while the volume slider is up
+    /// <summary>The corner grips (the Prism menu, the Music | Video toggle) fade with the bar when the pointer has been still over a playing
+    /// video (2026-10-05, "When the controls fade ... can we also fade the music/video control at the top right corner"), and come back
+    /// with it; a pointer over a faded grip brings it back alone (its own hover). Never while the menu is open.</summary>
+    private bool _gripsFaded;
+    private void FadeGrips(bool faded)
+    {
+        if (_gripsFaded == faded) return;
+        if (faded && _menuOpen) return;
+        _gripsFaded = faded;
+        foreach (var g in new FrameworkElement?[] { PlayerGrip, MenuGrip, _reportGrip }.OfType<FrameworkElement>())
+        {
+            var anim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { To = faded ? 0 : (ReferenceEquals(g, MenuGrip) ? GripRestOpacity : 1), Duration = new Duration(TimeSpan.FromMilliseconds(450)), EnableDependentAnimation = true };
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, g);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "Opacity");
+            sb.Children.Add(anim); sb.Begin();
+        }
+    }
+    public void HideStageBar() { _stageBarTimer?.Stop(); _stageTick?.Stop(); StageBar.Visibility = Visibility.Collapsed; CloseVolumeSlider(); CloseEpisodes(); SyncMvBars(); FadeGrips(false); }   // the grips back with any hide (2026-10-05 review: a switch to the Music player or a title's end left them at opacity 0)
     /// <summary>The next episode's card under the stage bar ("if a tv series, can we show below them a clickable link with image for the next episode on
     /// that service?", 2026-09-22): TMDB's word on the episode after the one playing (its still, name and air date; under the household's key,
     /// read in the background - asked again while it reads), and a press is the service's own Next episode, the verb the bar already has.</summary>
@@ -748,6 +844,7 @@ public sealed partial class MainWindow
             var raw = await ModelCallAsync("players");
             var active = raw is not null && JsonNode.Parse(raw) is JsonObject p ? p["active"]?.GetValue<string>() : null;
             WatchGrip.Visibility = active == "video" ? Visibility.Visible : Visibility.Collapsed;
+            _ = UpdatePlayerGripAsync();   // the Music | Video toggle at the top-right (MainWindow.PlayerGrip, 2026-10-03)
             SyncEmptyStage();   // the empty stage is the Video player's: away with the Music player
             // the wall left the Video player (the Music player, another scene): its Watch page goes too - it sits above the tiles
             // and covered the Music player ("the Wall for the Video player stays up", 2026-09-21, B-262). The tab is collapsed
@@ -785,6 +882,7 @@ public sealed partial class MainWindow
     private static bool TitleUp(JsonObject? tile)
     {
         if (tile is null) return false;
+        if (tile["atEnd"]?.GetValue<bool>() == true) return false;   // stuck at its end, on an end card that still names it - over (core, every service, 2026-09-28)
         if (tile["stage"]?.GetValue<bool>() == true) return true;
         if (tile["pending"] is JsonObject pd && pd["failed"] is null && pd["restored"]?.GetValue<bool>() != true) return true;   // a title being brought back after a restart is not up until it plays (2026-09-23)
         var v = tile["video"] as JsonObject;
@@ -799,6 +897,15 @@ public sealed partial class MainWindow
     /// <summary>The person pressed Show video: the wall stays on the screens, empty stage and all, until Watch is opened again - Watch's home rule
     /// (no title up: back to Watch) had brought it back three seconds later (2026-09-25, the curtains seen only for a moment).</summary>
     private bool _stayOnVideo;
+    private DateTime _curtainDownAt = DateTime.MinValue;
+    /// <summary>When each surface's page last moved to a new address (the next episode starting, a fresh load): no title for a moment then is not
+    /// "nothing playing" (2026-09-28, "Watch doesnt need to come back if the next episode in a series is starting, right?").</summary>
+    private readonly Dictionary<string, DateTime> _navAt = new();
+    private void NoteNavigated(string eventJson)
+    {
+        if (!eventJson.Contains("\"navigated\"")) return;
+        try { if (System.Text.Json.Nodes.JsonNode.Parse(eventJson)?["id"]?.GetValue<string>() is { } id) _navAt[id] = DateTime.UtcNow; } catch { }
+    }
     private async Task FollowWatchHomeAsync(int run)
     {
         string? slot = null; var gone = 0;
@@ -806,7 +913,7 @@ public sealed partial class MainWindow
         {
             await Task.Delay(1500);
             if (run != _watchHomeRun) return;
-            if (VideoHubOpen || StageCurtain.Visibility == Visibility.Visible || _asSession || _stayOnVideo) { gone = 0; continue; }
+            if (VideoHubOpen || StageCurtain.Visibility == Visibility.Visible || _asSession) { gone = 0; SyncSkipOffer(null, null); continue; }
             JsonObject? tile = null; string? s = null; var signedIn = true;
             try
             {
@@ -819,8 +926,36 @@ public sealed partial class MainWindow
             }
             catch { continue; }
             if (run != _watchHomeRun) return;
+            // a title is up: the "Nothing is playing" stage never stands over it (2026-09-29, "Playing an episode of Animal Control, I hear it, but it
+            // says Nothing is playing": a pick from Details switched the screen from another service; the state asked half a second later, before
+            // the new page was up, said the big screen was empty, and nothing asked again)
+            if (!_mvOn && !_mvBigHas && TitleUp(tile)) { _mvBigHas = true; SyncEmptyStage(); _ = MvCallAsync("state"); }
+            SyncSkipOffer(s, tile);   // the wall's own Skip button, while the page offers a skip
             if (s != slot) { slot = s; gone = 0; }
-            if (s is null || !signedIn || TitleUp(tile)) { gone = 0; continue; }
+            // Show video holds the wall on the screens while nothing plays; a title that plays there ends that hold, so when it ends onto the
+            // service's own page the wall goes back to Watch (2026-09-28, "Sullivan's Crossing is still taking up the entire window": Show video,
+            // pressed earlier, had kept Netflix's end-of-series promo up)
+            // the service autoplayed something unrelated after a title ended and core stopped it (2026-09-28): straight back to Watch
+            if (tile?["stoppedAutoplay"]?.GetValue<bool>() == true)
+            {
+                gone = 0;
+                if (VideoHubOpen || StageCurtain.Visibility == Visibility.Visible || _asSession) continue;
+                LogLine("watch home: the service autoplayed something unrelated - stopped, back to Watch");
+                _stayOnVideo = false;
+                HideStageBar();
+                await ShowVideoHubAsync();
+                continue;
+            }
+            if (TitleUp(tile)) { _stayOnVideo = false; gone = 0; continue; }
+            if (_stayOnVideo) { gone = 0; continue; }
+            if (s is null || !signedIn) { gone = 0; continue; }
+            // a title still starting is not "no title" (2026-09-28, "I just started animal control, and it went to nothing playing. And then I started it
+            // again and it was fine": the screen had been made again for Netflix, the curtain came down with the page still loading, and two reads
+            // 1.5 s apart sent the wall back to Watch half a second before the page finished and played the title under it): an open pick, or the
+            // first 12 seconds after the curtain, never count
+            if (tile?["pending"] is JsonObject pend && pend["failed"] is null) { gone = 0; continue; }
+            if ((DateTime.UtcNow - _curtainDownAt).TotalSeconds < 12) { gone = 0; continue; }
+            if (s is not null && _navAt.TryGetValue(s, out var navAt) && (DateTime.UtcNow - navAt).TotalSeconds < 15) { gone = 0; continue; }   // the next episode loading
             if (++gone < 2) continue;
             gone = 0;
             if (VideoHubOpen || StageCurtain.Visibility == Visibility.Visible || _asSession) continue;
@@ -853,8 +988,12 @@ public sealed partial class MainWindow
         if (focusScreen && WatchGrip.Visibility == Visibility.Visible) _ = FocusScreenAsync();
         _videoHub = null;
         _hubSearch = null;
-        // B-295: the windows Watch covered come back as empty frames unless their views present afresh
-        _surfaces.NudgeSoon(wasPip);
+        // B-295: the windows Watch covered come back as empty frames unless their views present afresh - and the windows that were in Watch's
+        // places too (2026-09-28, "The video page wasn't covering, in fact it was Watch that was on the screen": after Show video the big window,
+        // grown from Watch's corner to the whole window, came back see-through, a still of Watch showing through it while its page took the
+        // clicks). They were left out because a re-link put Peacock's own controls back; those are hidden always now.
+        _ = wasPip;
+        _surfaces.NudgeSoon();
         _hubCur = null;
         SyncEmptyStage();   // nothing on the screens: the empty stage, not a service's home page
         LogLine("video hub: closed");
@@ -916,7 +1055,9 @@ public sealed partial class MainWindow
         // reach the pause or any other controls that are there"); a press anywhere off the cards closes the menu and the
         // screen goes back to full size. Nothing is re-rendered or captured. The page draws a ring around the corner.
         var titleUp = active && TitleUp(tile);
+        _hubHeadRule = null;   // this page's own rule, drawn below; never the last page's (2026-10-06: a reopen measured the old one and fell back)
         BuildWatchStack(overlay);   // the big screen and windows 2 to 5 in the corner (2026-09-25, MainWindow.WatchScreens)
+        _ = FollowStartingAsync(quitIfIdle: true);   // a title still loading (a pick, or the one resumed after a restart) moves in once it plays (2026-10-06)
         // Watch is the Video player's home (2026-09-22): it closes only onto a title that is up ("why do you still X out of Watch to
         // get to the Netflix player"); with nothing playing there is nothing beneath it to close to
         // a press on the page's empty space no longer closes it (2026-09-25, "if I click in the blank area to the left of Service Suggestions, it goes
@@ -946,18 +1087,43 @@ public sealed partial class MainWindow
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 28, 0) };
-        foreach (var (tabId, tabName) in new[] { ("watch", "Watch"), ("library", "Library"), ("browse", "Browse") })
+        // the tabs drawn as tabs (2026-10-03, "Watch live playlists etc tabs across the top, can we make them look like tabs?"): a rule runs under the
+        // whole header, each tab a rounded-top panel standing on it, the open one filled with the card surface and let down over the rule so it
+        // joins the page below; the others see-through, their names in ink
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Stretch, Margin = new Thickness(0, 0, 28, 0) };
+        var headRule = new Border { Height = 1, Background = HubTabRule, VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false };
+        Grid.SetColumnSpan(headRule, 4);
+        head.Children.Add(headRule);
+        _hubHeadRule = headRule;   // the big window's top sits on it (MainWindow.WatchScreens StackTargetDy)
+        void HeadRuleSized(object sender, SizeChangedEventArgs e) { headRule.SizeChanged -= HeadRuleSized; SyncWatchStack(); }   // placed once the rule has its place
+        headRule.SizeChanged += HeadRuleSized;
+        foreach (var (tabId, tabName) in new[] { ("watch", "Watch"), ("live", "Live"), ("library", "Library"), ("browse", "Browse"), ("playlists", "Playlists") })
         {
             var on = _hubTab == tabId;
-            var tab = new Button { Content = new TextBlock { Text = tabName, FontSize = 30, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubDim }, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(0) };
+            var tab = new Button
+            {
+                Content = new TextBlock { Text = tabName, FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubInk, Opacity = on ? 1 : 0.72 },
+                Background = on ? HubCard : HubClear, BorderBrush = on ? HubTabRule : HubClear, BorderThickness = new Thickness(1, 1, 1, 0), CornerRadius = new CornerRadius(10, 10, 0, 0),
+                Padding = new Thickness(18, 8, 18, 10), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, on ? -1 : 0),
+            };
+            Canvas.SetZIndex(tab, on ? 2 : 1);
+            tab.Resources["ButtonBorderBrushPointerOver"] = on ? HubTabRule : HubClear;   // the border stays as drawn through the hover (OwnHover keeps named borders)
+            tab.Resources["ButtonBorderBrushPressed"] = on ? HubTabRule : HubClear;
             ToolTipService.SetPlacement(tab, Microsoft.UI.Xaml.Controls.Primitives.PlacementMode.Bottom);   // under the tab, never on the pointer (see Chip)
-            ToolTipService.SetToolTip(tab, tabId == "library" ? "What you own across your services, one card per title, by genre."
+            if (tabId == "live") ToolTipService.SetToolTip(tab, "Every live channel your services carry, as a schedule. Filter by type, search channels and shows, and send a channel to the big window or a multiview window.");
+            else ToolTipService.SetToolTip(tab, tabId == "playlists" ? "Your playlists: episodes and movies in your own order, played one after another. Send titles here from a card's menu or a Details page."
+                : tabId == "library" ? "What you own across your services, one card per title, by genre."
                 : tabId == "browse" ? "Every genre: your own titles in it, then what TMDB lists on your services - top rated, newest, most voted. Each row says how it is ordered."
                 : "Continue watching, your lists, the lenses, live, search.");
             var id2 = tabId;
             tab.Click += (_, __) => { if (_hubTab != id2 || _bingeOpen) { _hubTab = id2; _browseRow = null; _bingeOpen = false; _ = ShowVideoHubAsync(); } };
+            OwnHover(tab);
             tabs.Children.Add(tab);
+            if (tabId == "playlists")   // the run's tag, on the tab and never over the video (docs/features/playlists.md, 2026-09-27)
+            {
+                _playlistsTabTag = new TextBlock { Text = _plRunTag ?? "", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0), Visibility = _plRunTag is null ? Visibility.Collapsed : Visibility.Visible };
+                tabs.Children.Add(_playlistsTabTag);
+            }
         }
         // the Prism triangle, large, first on the header: its drop-down is the profile presets (2026-09-24, "This needs to be a large triangle
         // button that lets you drop down and select a preset"); the preset on now named beside it
@@ -967,63 +1133,25 @@ public sealed partial class MainWindow
         // Lets replace Multiview with a multi window icon button as well and animate the popout to display the windows")
         var searchSlot = new ContentControl { VerticalAlignment = VerticalAlignment.Center };
         var searchPopSlot = new ContentControl { HorizontalContentAlignment = HorizontalAlignment.Left };   // the search box pops out here, below the header (2026-09-23)
-        if (_hubTab == "watch")
+        if (_hubTab is "watch" or "playlists")
         {
             var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
-            tools.Children.Add(MvIconButton());
+            if (_hubTab == "watch") tools.Children.Add(MvIconButton());
             // Clear screens moved under the corner's screens (2026-09-25, MainWindow.WatchScreens)
             tools.Children.Add(searchSlot);
             tabs.Children.Add(tools);
         }
         var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         _hubHeadLine = line;
-        Grid.SetColumn(line, 1);
-        if (active && tile is not null)   // the On the screens strip is gone (2026-09-25, "I prefer the mini windows at the top right over these"): the big screen's verbs here again
-        {
-            var video = tile["video"] as JsonObject;
-            var playing = tile["playing"]?.GetValue<bool>() == true;
-            var pending = tile["pending"] as JsonObject;
-            string face;
-            var pageErr = tile["error"]?.GetValue<string>();
-            if (pageErr is { Length: > 0 }) face = pageErr;
-            else if (pending is not null) face = pending["failed"] is not null ? "could not start " + S(pending, "name") : "loading " + S(pending, "name") + "…";
-            else if (video is not null && (S(video, "title").Length > 0 || S(video, "series").Length > 0))
-            {
-                var ep = EpisodeLabel(video);
-                face = string.Join("  ·  ", new[] { S(video, "series"), ep, S(video, "title") }.Where(x => !string.IsNullOrEmpty(x)));
-            }
-            else face = "nothing playing";
-            // nothing on the screen: "Nothing playing", no service name (2026-09-25, "dont say Paramount + Nothing playing, show Nothing Playing")
-            if (face == "nothing playing" && (video is not null || playing)) face = playing ? "playing" : "paused";   // a title still to come is not nothing
-            line.Children.Add(new TextBlock { Text = face == "nothing playing" ? "Nothing playing" : onName + "  ·  " + Shorten(face, 60), FontSize = 14, Foreground = pending?["failed"] is not null ? HubAmber : HubInk, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
-            if (video is not null)
-            {
-                var canCmd = (tile["can"] as JsonObject)?["cmd"]?.GetValue<bool>() == true;
-                void Verb(string glyph, string tip, string cmd, bool enabled)
-                {
-                    var b = Chip(VerbIcon(glyph, 14), false); b.IsEnabled = enabled;
-                    ToolTipService.SetToolTip(b, enabled ? tip + MvAllTip(cmd) : tip + ". This service's adapter has no player script yet");
-                    b.Click += (_, __) => { if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, screenSlot!, cmd); };
-                    line.Children.Add(b);
-                }
-                Verb("", "Back 10 s", "seekbackward", true);
-                Verb(playing ? "" : "", playing ? "Pause" : "Play", playing ? "pause" : "play", true);
-                Verb("", "Forward 10 s", "seekforward", true);
-                Verb("", "Next episode", "nextepisode", canCmd);
-                Verb("", "Skip intro / recap", "skipintro", canCmd);
-                if ((tile["can"] as JsonObject)?["tracks"]?.GetValue<bool>() == true) TracksVerb(screenSlot!, 14, b => line.Children.Add(b), null);
-                else Verb("", "Captions", "captions", canCmd);
-                // the wall's mute and volume here too, the same look and the same switch as on the stage bar and the music player
-                var muteIcon2 = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = 14, Foreground = _wallMuted ? HubAmber : HubInk };
-                var mute2 = Chip(muteIcon2, _wallMuted);
-                ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute the wall. Hover for the volume.");
-                mute2.Click += (_, __) => { SetWallMutedFromWall(screenSlot!, !_wallMuted); muteIcon2.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon2.Foreground = _wallMuted ? HubAmber : HubInk; };
-                mute2.PointerEntered += (_, __) => ShowVolumeSlider(mute2, screenSlot!);
-                mute2.PointerExited += (_, __) => _volumeClose?.Start();
-                line.Children.Add(mute2);
-            }
-        }
-        head.Children.Add(line);
+        // the line lives in the header's stretching column, clipped to it: a horizontal StackPanel measures itself without limit and had
+        // drawn on under the chips at the right when the window was narrow (2026-09-30, a 1424-wide fresh run: "N..." under Service suggestions)
+        var lineHost = new Grid { VerticalAlignment = VerticalAlignment.Stretch, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 12, 0) };
+        lineHost.SizeChanged += (sh, se) => lineHost.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, Math.Max(0, se.NewSize.Width), Math.Max(0, se.NewSize.Height)) };
+        lineHost.Children.Add(line);
+        Grid.SetColumn(lineHost, 1);
+        // the status line and the big screen's verbs are gone from the header (2026-10-01, "Get rid of the paramount South Park South Park at the
+        // top of watch ... these controls should either be within the big window or removed"): the title is the big window's tooltip and the verbs
+        // sit on its bar (WatchScreens.PlaceLabel, ScreenVerbs). The line panel is kept, unattached, for the code that still writes to it.
         var headRight = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0 };
         var suggestions = Chip(new TextBlock { Text = SuggestionsOn ? "Service suggestions: on" : "Service suggestions: off", FontSize = 12, Foreground = SuggestionsOn ? HubAmber : HubDim }, SuggestionsOn);
         ToolTipService.SetToolTip(suggestions, "Each service's own rows (\"Netflix suggests…\"). Off by default: Prism ranks nothing and recommends nothing beyond your own lists and what you watched. On, every row is labeled with the service it came from.");
@@ -1057,7 +1185,7 @@ public sealed partial class MainWindow
         // ---- "Who's watching?" while the service on the screen asks
         var gateRow = new StackPanel { Spacing = 8, Margin = new Thickness(0, 14, 0, 0) };
         Grid.SetRow(gateRow, 1);
-        if (_hubTab == "watch") gateRow.Children.Add(searchPopSlot);
+        if (_hubTab is "watch" or "playlists") gateRow.Children.Add(searchPopSlot);
         // no Play into row (2026-09-25, "we dont need the play into boxes once we get these new windows functioning"): the corner's places are the
         // windows - a card dragged onto one plays there, a place's title bar dragged trades places or takes it out. A pressed card plays on the big screen
         _mvStrip = null; _mvPop = null;
@@ -1095,7 +1223,7 @@ public sealed partial class MainWindow
             var list = cards.ToList();
             if (live is null) { if (list.Count == 0) return; rows.Children.Add(RowHead(head, ink)); rows.Children.Add(CardRow(list, badge, now, ref first)); return; }
             // a row the live follow keeps current in place (2026-09-24): its head and its host always there, the head hidden while it is empty
-            var headEl = RowHead(head, ink);
+            FrameworkElement headEl = LiveRowHead(head, ink, live, menu, list);   // its order switch, and Continue watching's service chips (2026-09-26)
             headEl.Visibility = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             rows.Children.Add(headEl);
             var host = new StackPanel { Background = HubClear, Tag = string.Join("|", list.Select(LiveKey)) };
@@ -1124,6 +1252,20 @@ public sealed partial class MainWindow
             rows.Children.Add(browsePanel);
             _ = DrawBrowseAsync(browsePanel, overlay, now);   // not awaited: the page is drawn and put up now, the rows land in this panel
         }
+        else if (_hubTab == "live")
+        {
+            // the Live tab (docs/features/live.md, 2026-09-28): the guide as a schedule, in its own panel
+            var livePanel = new StackPanel { Spacing = 12 };
+            rows.Children.Add(livePanel);
+            _ = DrawLiveAsync(livePanel, overlay);
+        }
+        else if (_hubTab == "playlists")
+        {
+            // the Playlists screen (docs/features/playlists.md, 2026-09-27): its own panel, where the order is managed
+            var plPanel = new StackPanel { Spacing = 14 };
+            rows.Children.Add(plPanel);
+            _ = DrawPlaylistsAsync(plPanel, overlay);
+        }
         else if (_bingeOpen)
         {
             // The Binge in full (2026-09-24): its own panel, the rows below are not drawn
@@ -1134,7 +1276,38 @@ public sealed partial class MainWindow
         else
         {
         Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue");   // its cards offer Remove on the service (2026-09-22)
-        Cards("My list", LiveCards(menu, "list"), true, HubInk, "list");   // its cards offer Remove on the service (2026-09-23)
+        // My list is the TMDB watchlist while an account is linked (MainWindow.Watchlist.cs, 2026-10-03); the services' own lists otherwise
+        _watchActive = menu["watchlist"] is JsonObject wl0 && wl0["active"]?.GetValue<bool>() == true;
+        if (_watchActive) DrawWatchlistRow(rows, overlay, (JsonObject)menu["watchlist"]!);
+        else Cards("My list", LiveCards(menu, "list"), true, HubInk, "list");   // its cards offer Remove on the service (2026-09-23)
+        // a service's own rows (2026-10-05, "I would think we'd place followed content somewhere specific, subscribed content somewhere specific"):
+        // what the account lists as the person's own - Twitch's Followed channels and their latest videos - a row each, named for the service,
+        // always drawn (a suggestion row is the service's pick; these are the person's)
+        if (menu["ownRows"] is JsonArray ownRows)
+            foreach (var sv in ownRows.OfType<JsonObject>())
+            {
+                var name = S(sv, "name"); var facet = S(sv, "facet"); var app = S(sv, "app");
+                if (sv["rows"] is not JsonArray svRows) continue;
+                foreach (var r in svRows.OfType<JsonObject>())
+                {
+                    if (r["items"] is not JsonArray items || items.Count == 0) continue;
+                    // Hide offline (2026-10-06, "Lets add a checkbox on Twitch Followed Channels that says Hide Offline. And if all are offline, then we
+                    // might as well hide the whole row and save the space (if this is enabled)"): a row of channels carries the box; its setting is also
+                    // in Watch settings, for when the whole row is hidden
+                    var all = items.OfType<JsonObject>().ToList();
+                    var channels = all.Any(i => S(i, "kind") == "channel");
+                    var shown = channels && HideOfflineChannels ? all.Where(i => !ChannelOffline(i)).ToList() : all;
+                    if (shown.Count == 0) continue;
+                    var cards = shown.Take(48).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
+                    var headText = name + "  " + Mid.Trim() + "  " + S(r, "title");
+                    if (!channels) { Cards(headText, cards, false, HubInk); continue; }
+                    var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                    headRow.Children.Add(RowHead(headText, HubInk));
+                    headRow.Children.Add(HideOfflineBox(13));
+                    rows.Children.Add(headRow);
+                    rows.Children.Add(CardRow(cards, false, now, ref first));
+                }
+            }
         // what the person owns lives on the Library tab (2026-09-22): a line here says how much, and takes the person there
         if (menu["owned"] is JsonArray ownedCards && ownedCards.Count > 0)
         {
@@ -1222,40 +1395,16 @@ public sealed partial class MainWindow
         }
         // the sources answer in the background: the lines under the cards follow them in place; nothing is rebuilt under a person
         if (lensBlock is not null && lensPending > 0) _ = FollowHubAsync(overlay);
-        // Live now: a channel strip per live-capable service, favorites first as the service marked them; a press tunes it
+        // live channels are the Live tab's (docs/features/live.md, 2026-09-28, "make sure any LIVE items on watch get moved into the Live tab"):
+        // a line here says how many, and takes the person there
         if (menu["live"] is JsonArray live)
         {
-            foreach (var l in live.OfType<JsonObject>())
+            var nLive = live.OfType<JsonObject>().Sum(l => (l["channels"] as JsonArray)?.Count ?? 0);
+            if (nLive > 0)
             {
-                if (l["channels"] is not JsonArray chans || chans.Count == 0) continue;
-                var name = S(l, "name"); var facet = S(l, "facet");
-                rows.Children.Add(RowHead("Live now  ·  " + name, HubInk));
-                var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-                foreach (var c in chans.OfType<JsonObject>().OrderByDescending(c => c["favorite"]?.GetValue<bool>() == true).Take(40))
-                {
-                    var cname = S(c, "name"); var curl = c["url"]?.GetValue<string>(); var cnow = S(c, "now"); var logo = c["logo"]?.GetValue<string>();
-                    var cell = new StackPanel { Spacing = 4, Width = 150 };
-                    var box = new Grid { Width = 150, Height = 56 };
-                    var hasLogo = false;
-                    if (logo is { Length: > 0 }) { try { box.Children.Add(new Border { Background = HubCard, CornerRadius = new CornerRadius(6), Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(logo)), Stretch = Stretch.Uniform, Margin = new Thickness(10, 6, 10, 6) } }); hasLogo = true; } catch { } }
-                    if (!hasLogo) box.Children.Add(new Border { Background = HubCard, CornerRadius = new CornerRadius(6), Child = new TextBlock { Text = Shorten(cname, 18), FontSize = 13, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(6, 0, 6, 0) } });
-                    cell.Children.Add(box);
-                    // the channel's name (under a logo), then what is on - the service's own words
-                    if (hasLogo) cell.Children.Add(new TextBlock { Text = Shorten(cname, 22), FontSize = 12, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
-                    if (cnow.Length > 0) cell.Children.Add(new TextBlock { Text = Shorten(cnow, 24), FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
-                    var b = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
-                    ToolTipService.SetToolTip(b, "Tune " + name + " to " + cname + " in its own player.");
-                    var (f2, u2, n2, id2) = (facet, curl, cname, S(c, "id"));
-                    var (name2, logo2) = (name, logo);
-                    b.Click += (_, __) => { if (PickLeavesWatch(n2)) { CloseVideoHub(); ShowStageCurtain(n2, name2, logo2); } _ = TuneAsync(f2, id2, u2, n2); };
-                    strip.Children.Add(b);
-                    first ??= b;
-                }
-                var guide = Chip(new TextBlock { Text = "Guide", FontSize = 12, Foreground = HubInk }, false); guide.VerticalAlignment = VerticalAlignment.Top;
-                ToolTipService.SetToolTip(guide, "Opens " + name + "'s own guide in its player.");
-                guide.Click += (_, __) => { CloseVideoHub(); _ = SwitchScreenAsync(facet); };
-                strip.Children.Add(guide);
-                rows.Children.Add(Carousel(strip));
+                var toLive = Chip(new TextBlock { Text = "Live" + Mid + nLive + " channels, as a schedule  " + (char)0x2192, FontSize = 13, Foreground = HubAmber }, false);
+                toLive.Click += (_, __) => { _hubTab = "live"; _ = ShowVideoHubAsync(); };
+                rows.Children.Add(toLive);
             }
         }
         // Services: every service the household has, as posters - tap enters it natively (sign in where needed)
@@ -1267,26 +1416,31 @@ public sealed partial class MainWindow
             var facet = S(so, "facet"); var app = S(so, "app"); var name = S(so, "name"); var signedIn = S(so, "status") == "signed-in";
             var on = active && so["onScreen"]?.GetValue<bool>() == true;
             // drawn, every one the same shape (2026-09-25, "is there not a rectangular logo item for each service?"): its icon, its name, its colour
-            var poster = ServiceTile(app, name, on);
+            var poster = ServiceTile(app, name, on, grey: !signedIn);   // a service not signed in in greyscale (2026-10-03)
             var dot = new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(6), Background = HubAmber, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xCC, 0x0F, 0x12, 0x16)), BorderThickness = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(8), Visibility = Visibility.Collapsed };
             poster.Children.Add(dot);
             var cell = new StackPanel { Spacing = 6, Width = 210 };
             cell.Children.Add(poster);
             cell.Children.Add(new TextBlock { Text = on ? "On the screen" : signedIn ? "" : "Sign in first", FontSize = 12, Foreground = on ? HubAmber : signedIn ? HubInk : HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
             var b = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4), VerticalAlignment = VerticalAlignment.Top };   // a cell with a profile chip is taller: the posters stay on one line
-            var tipBase = on ? name + " is on the screen." : signedIn ? "The screen becomes " + name + "; pick one of its titles here." : name + " is not signed in yet: opens its setup page.";
+            var tipBase = on ? name + " is on the screen. Press for its profiles and its own page." : signedIn ? name + ": press for who watches, or its own page." : name + " is not signed in yet: opens its sign-in page.";
             ToolTipService.SetToolTip(b, tipBase);
             _svcDots[app] = (dot, b, tipBase);
             // a signed-in service's own pages are not a place to sit (2026-09-23, "the video player should send me back to watch, not have me
             // sitting on apple tv's home page"): the screen switches to it and Watch stays up to pick from; signing in still happens on its page
-            b.Click += (_, __) => { if (!signedIn) { CloseVideoHub(); OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene"); return; } if (on) { if (titleUp) CloseVideoHub(); return; } _ = SwitchScreenAsync(facet).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { if (VideoHubOpen) _ = ShowVideoHubAsync(); })); };
+            // not signed in: its sign-in page straight away, the window growing out of the card (2026-10-03)
+            // a press is a menu, not a switch (2026-10-05, "We really don't provide anything useful by doing that, just pop up the profile selection menu
+            // but also include an item to visit the site in case they want to change their login"): the profiles the service has shown, and its own page;
+            // a service not signed in still goes straight to its sign-in page, the window growing out of the card (2026-10-03)
+            var svcMenu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
+            b.Click += (_, __) => { if (!signedIn) { ExpandFrom(poster); CloseVideoHub(); OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene&signin=1"); return; } svcMenu.ShowAt(b); };
             // the profile, a plain choice under the service (2026-09-19): the profiles the service has shown the wall, with
             // their pictures; a pick stands until another is made (core keeps it and answers the gate wherever it shows)
             if (so["profiles"] is JsonArray plist2 && plist2.Count > 0)
             {
                 var choice = so["profile"] as JsonObject;
                 var chosen = choice is null ? "" : S(choice, "name");
-                var flyout = new MenuFlyout();
+                var flyout = svcMenu;
                 foreach (var p in plist2.OfType<JsonObject>())
                 {
                     var pid = S(p, "id"); var pname = S(p, "name"); var avatar = p["avatar"]?.GetValue<string>();
@@ -1309,10 +1463,54 @@ public sealed partial class MainWindow
                 chip.Click += (_, __) => flyout.ShowAt(chip);
                 cell.Children.Add(chip);
             }
+            if (signedIn)
+            {
+                if (svcMenu.Items.Count > 0) svcMenu.Items.Add(new MenuFlyoutSeparator());
+                var open = new MenuFlyoutItem { Text = "Open " + name + "'s own page" + Mid + "sign in as someone else", Icon = new FontIcon { Glyph = "\uE8A7" } };
+                ToolTipService.SetToolTip(open, name + "'s own page in the setup window: change the sign-in, or look around. What is playing keeps playing.");
+                var (ao, po) = (app, poster);
+                open.Click += (_, __) => { ExpandFrom(po); CloseVideoHub(); OpenRoute("prism://app/" + Uri.EscapeDataString(ao) + "/setup?return=scene&signin=1"); };
+                svcMenu.Items.Add(open);
+                if (on) { var here = new MenuFlyoutItem { Text = name + " is on the screen", Foreground = HubInk, IsHitTestVisible = false }; svcMenu.Items.Insert(0, here); }   // a label in ink, never a disabled row (CLAUDE.md, host UI contrast)
+            }
             posters.Children.Add(b);
             first ??= b;
         }
         rows.Children.Add(Carousel(posters));
+        // the services' own rows, only when the household asked, each labeled by its source
+        if (menu["suggestions"] is JsonArray sugg)
+        {
+            // their own panel, filled the first time they are shown
+            var suggPanel = new StackPanel { Spacing = 18, Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed };
+            rows.Children.Add(suggPanel);
+            void FillSuggestions()
+            {
+                if (suggPanel.Children.Count > 0) return;
+                var at = rows.Children.Count;
+                SuggestionRows(sugg);
+                while (rows.Children.Count > at) { var el = rows.Children[at]; rows.Children.RemoveAt(at); suggPanel.Children.Add(el); }
+            }
+            if (SuggestionsOn) FillSuggestions();
+            _suggToggle = () => { if (SuggestionsOn) FillSuggestions(); suggPanel.Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed; };
+        }
+        void SuggestionRows(JsonArray sugg)
+        {
+            foreach (var sv in sugg.OfType<JsonObject>())
+            {
+                var name = S(sv, "name"); var facet = S(sv, "facet"); var app = S(sv, "app");
+                if (sv["shelves"] is not JsonArray shelves) continue;
+                foreach (var sh in shelves.OfType<JsonObject>())
+                {
+                    if (sh["items"] is not JsonArray items || items.Count == 0) continue;
+                    var cards = items.OfType<JsonObject>().Take(24).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
+                    Cards(name + " suggests  ·  " + S(sh, "title"), cards, false, HubDim);
+                }
+            }
+        }
+        }
+        // search on the Playlists tab too (2026-09-27, "The search icon isnt available on the playlists screen but I see no reason for that")
+        if (_hubTab is "watch" or "playlists")
+        {
         // Search: the words, then a chip per service that has a search address - each opens that service's own search
         if (menu["search"] is JsonArray search && search.Count > 0)
         {
@@ -1509,7 +1707,7 @@ public sealed partial class MainWindow
                 for (var d = e.OriginalSource as DependencyObject; d is not null; d = VisualTreeHelper.GetParent(d))
                     if (ReferenceEquals(d, modalCard) || ReferenceEquals(d, expander) || ReferenceEquals(d, pop)) return;
                 ClearSearch();
-                box.Focus(FocusState.Unfocused);
+                DropSearchFocus(box);
                 Slide(false);
             }), true);
             searchSlot.Content = expander;
@@ -1520,42 +1718,13 @@ public sealed partial class MainWindow
             // any search that starts shows the strip and the results (a dev search sets the words in code, and the box's TextChanged does not always follow)
             results.Tag = new Action(() => { modal.Visibility = Visibility.Visible; Slide(true); });
             var escM = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
-            escM.Invoked += (_, e) => { e.Handled = true; ClearSearch(); box.Focus(FocusState.Unfocused); Slide(false); };
+            escM.Invoked += (_, e) => { e.Handled = true; ClearSearch(); DropSearchFocus(box); Slide(false); };
             modal.KeyboardAccelerators.Add(escM);
             overlay.Children.Add(modal);
         }
-        // the services' own rows, only when the household asked, each labeled by its source
-        if (menu["suggestions"] is JsonArray sugg)
-        {
-            // their own panel, filled the first time they are shown
-            var suggPanel = new StackPanel { Spacing = 18, Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed };
-            rows.Children.Add(suggPanel);
-            void FillSuggestions()
-            {
-                if (suggPanel.Children.Count > 0) return;
-                var at = rows.Children.Count;
-                SuggestionRows(sugg);
-                while (rows.Children.Count > at) { var el = rows.Children[at]; rows.Children.RemoveAt(at); suggPanel.Children.Add(el); }
-            }
-            if (SuggestionsOn) FillSuggestions();
-            _suggToggle = () => { if (SuggestionsOn) FillSuggestions(); suggPanel.Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed; };
-        }
-        void SuggestionRows(JsonArray sugg)
-        {
-            foreach (var sv in sugg.OfType<JsonObject>())
-            {
-                var name = S(sv, "name"); var facet = S(sv, "facet"); var app = S(sv, "app");
-                if (sv["shelves"] is not JsonArray shelves) continue;
-                foreach (var sh in shelves.OfType<JsonObject>())
-                {
-                    if (sh["items"] is not JsonArray items || items.Count == 0) continue;
-                    var cards = items.OfType<JsonObject>().Take(24).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
-                    Cards(name + " suggests  ·  " + S(sh, "title"), cards, false, HubDim);
-                }
-            }
-        }
         }
         if (_hubTab == "watch" && rows.Children.Count <= 2) rows.Children.Add(new TextBlock { Text = "Watch something on a service once and it appears here. Nothing is ranked or recommended by Prism: rows are your own lists and what you watched, newest first.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+        if (_hubTab == "watch") AddPerfPanel(rows);   // the performance stats at the foot, when on (MainWindow.PerfPanel, 2026-10-03)
         var scroller = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         _hubScroller = scroller;   // no bars anywhere on the page: the rows are carousels the arrows (or a wheel, a swipe) move, the focused card brought to the centre (2026-09-21)
         Grid.SetRow(scroller, 2);
@@ -1856,6 +2025,81 @@ public sealed partial class MainWindow
         sv.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler((_, e) => { if (ReferenceEquals(e.OriginalSource, sv) && dragging && e.Pointer.PointerId == id) { down = false; dragging = false; } }), true);   // the row's own loss only: the card's, bubbling up as the row takes it, had ended the drag
         return sv;
     }
+
+    /// <summary>The big screen's verbs (back 10 s, play or pause, forward, next episode, skip intro, captions or tracks, the wall's mute) into a panel:
+    /// on the big window's bar since 2026-10-01, where they belong, not in the hub's header.</summary>
+    private void ScreenVerbs(StackPanel line, string screenSlot, bool playing, bool canCmd, bool canTracks, int size, bool canPause = true)
+    {
+        void Verb(string glyph, string tip, string cmd, bool enabled)
+        {
+            var b = Chip(VerbIcon(glyph, size), false); b.IsEnabled = enabled;
+            ToolTipService.SetToolTip(b, enabled ? tip + MvAllTip(cmd) : tip + ". This service's adapter has no player script yet");
+            b.Click += (_, __) => { if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, screenSlot, cmd); };
+            line.Children.Add(b);
+        }
+        Verb("", "Back 10 s", "seekbackward", true);
+        {
+            // Play / Pause flips on each press (review 2026-10-01: the bar is drawn once a title, so a pressed Pause stayed a Pause)
+            var isPlaying = playing;
+            var ppIcon = new FontIcon { Glyph = isPlaying ? "\uE769" : "\uE768", FontSize = size };
+            var pp = Chip(ppIcon, false);
+            ToolTipService.SetToolTip(pp, (isPlaying ? "Pause" : "Play") + MvAllTip(isPlaying ? "pause" : "play"));
+            var pressedAt = DateTime.MinValue;
+            void ShowPlaying(bool p)
+            {
+                isPlaying = p;
+                ppIcon.Glyph = p ? "\uE769" : "\uE768";
+                ToolTipService.SetToolTip(pp, (p ? "Pause" : "Play") + MvAllTip(p ? "pause" : "play"));
+            }
+            if (!canPause) { ppIcon.Foreground = HubDim; ToolTipService.SetToolTip(pp, CannotPauseTip); }
+            pp.Click += async (_, __) =>
+            {
+                var cmd = isPlaying ? "pause" : "play";
+                if (cmd == "pause" && !await CanPauseAsync(screenSlot)) { SayCannotPause(screenSlot); return; }
+                if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, screenSlot, cmd);
+                pressedAt = DateTime.UtcNow;
+                ShowPlaying(!isPlaying);
+            };
+            line.Children.Add(pp);
+            // the player's own word, followed while the bar is up (2026-10-06, "the big window playback controls say play when the video is already
+            // playing ... I press it and it turns to a Pause symbol, and then I press it again and it does pause"): the bar is drawn once a title,
+            // often while it is still loading, so its first word was Play; a press is the person's for a moment, then the player's state again
+            var seenLoaded = false;
+            pp.Loaded += (_, __) => seenLoaded = true;
+            _ = FollowPlayingAsync();
+            async Task FollowPlayingAsync()
+            {
+                var t0 = DateTime.UtcNow;
+                while ((DateTime.UtcNow - t0).TotalHours < 12)
+                {
+                    await Task.Delay(1200);
+                    if (seenLoaded && !pp.IsLoaded) return;   // the bar is gone (another title, Watch closed)
+                    if (!seenLoaded && (DateTime.UtcNow - t0).TotalSeconds > 10) return;   // never drawn
+                    if ((DateTime.UtcNow - pressedAt).TotalSeconds < 2.5) continue;
+                    try
+                    {
+                        var vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray;
+                        var t = vs?.OfType<JsonObject>().FirstOrDefault(x => x["id"]?.GetValue<string>() == screenSlot);
+                        if (t?["playing"] is JsonValue pv && pv.TryGetValue<bool>(out var now) && now != isPlaying && (DateTime.UtcNow - pressedAt).TotalSeconds >= 2.5) ShowPlaying(now);
+                    }
+                    catch { }
+                }
+            }
+        }
+        Verb("", "Forward 10 s", "seekforward", true);
+        Verb("", "Next episode", "nextepisode", canCmd);
+        Verb("", "Skip intro / recap", "skipintro", canCmd);
+        if (canTracks) TracksVerb(screenSlot, size, b => line.Children.Add(b), null);
+        else Verb("", "Captions", "captions", canCmd);
+        // the wall's mute and volume here too, the same look and the same switch as on the stage bar and the music player
+        var muteIcon2 = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = size, Foreground = _wallMuted ? HubAmber : HubInk };
+        var mute2 = Chip(muteIcon2, _wallMuted);
+        ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute the wall. Hover for the volume.");
+        mute2.Click += (_, __) => { SetWallMutedFromWall(screenSlot, !_wallMuted); muteIcon2.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon2.Foreground = _wallMuted ? HubAmber : HubInk; };
+        mute2.PointerEntered += (_, __) => ShowVolumeSlider(mute2, screenSlot);
+        mute2.PointerExited += (_, __) => _volumeClose?.Start();
+        line.Children.Add(mute2);
+    }
     private static Button Chip(UIElement content, bool on)
     {
         var b = new Button { Content = content, Background = on ? HubChipOn : HubChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 6, 12, 6), VerticalAlignment = VerticalAlignment.Center };
@@ -2019,11 +2263,13 @@ public sealed partial class MainWindow
             var lensLabel = card["lens"] is JsonObject lv ? S(lv, "label") : "";
             var ratingText = card["rating"]?.GetValue<string>() ?? "";
             var lensTb = new TextBlock { Text = lensLabel, FontSize = 11, Foreground = HubAmber, TextTrimming = TextTrimming.CharacterEllipsis, Visibility = lensLabel.Length > 0 ? Visibility.Visible : Visibility.Collapsed };
-            var ratingTb = new TextBlock { Text = ratingText, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis, Visibility = ratingText.Length > 0 && ratingText != lensLabel ? Visibility.Visible : Visibility.Collapsed };   // under the rating lens the lens line already says it
-            cell.Children.Add(lensTb); cell.Children.Add(ratingTb);
+            // the rating line with the person's own rating as the star's amber share (MainWindow.RatingLine.cs, 2026-10-03)
+            var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
+            var ratingTb = MakeRatingLine(ratingText != lensLabel ? ratingText : "", mine, 11, HubDim);   // under the rating lens the lens line already says it
+            cell.Children.Add(lensTb); cell.Children.Add(ratingTb.Root);
             (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb));
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
-            ToolTipService.SetToolTip(btn, "Plays " + title + " on " + service + "." + (ratingText is { Length: > 0 } ? " Right-click for the rating's disclosure and links." : ""));
+            ToolTipService.SetToolTip(btn, "Plays " + title + " on " + service + ". " + RatingWords(ratingText, mine) + (ratingText is { Length: > 0 } ? " Right-click for the rating's disclosure and links." : ""));
             var fromContinue = card["__continue"]?.GetValue<bool>() == true;
             var (rmApp, rmId, rmTitle, rmService) = (S(card, "app"), id, series.Length > 0 ? series : title, service);
             // the card's service's own lists (2026-09-22 / 2026-09-23): Continue Watching's Remove, My List's Remove, else Add to My List
@@ -2033,10 +2279,14 @@ public sealed partial class MainWindow
             {
                 if (fromContinue) await AddRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);
                 if (fromList) await AddListRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, btn);
-                else await AddListAddItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, null);
+                else if (!_watchActive) await AddListAddItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, null);   // the watchlist is My list while linked
             } : null);
             var (f2, k2, i2, u2, t2, a2, s2) = (facet, kind.Length > 0 ? kind : "title", id.Length > 0 ? id : url ?? title, url, text, art, service);
-            btn.Tag = new CardPick(f2, k2, i2, u2, t2, a2, s2);   // what a drag onto a multiview window plays (MultiviewDrag)
+            // an offline channel has nothing to put in a window (2026-10-06, "if the channel is offline ... it wouldn't make sense to make it draggable"):
+            // no drag; its press still opens the channel's page
+            var offAir = k2 == "channel" && card["item"] is JsonObject chItem && ChannelOffline(chItem);
+            if (offAir) ToolTipService.SetToolTip(btn, title + " is offline on " + service + ". Press to open the channel's page.");
+            else btn.Tag = new CardPick(f2, k2, i2, u2, t2, a2, s2);   // what a drag onto a multiview window plays (MultiviewDrag)
             if (card["also"] is JsonArray also && also.Count > 0)
             {
                 // owned on several services (2026-09-22): the press offers the choice, the card's own service first
@@ -2054,6 +2304,9 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(btn, "Owned on " + service + " and " + string.Join(", ", also.OfType<JsonObject>().Select(x => S(x, "service"))) + ". Press to choose.");
                 btn.Click += (_, __) => pick.ShowAt(btn);
             }
+            // a channel that is off the air (Twitch's Followed row, kind "channel", 2026-10-05) opens its page, where nothing plays: no curtain to
+            // wait on a play that will not come - the hub closes and the page shows
+            else if (k2 == "channel") btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); _ = PlayOnAsync(f2, k2, i2, u2, t2); };
             else btn.Click += (_, __) => { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); };
         return btn;
     }
@@ -2119,7 +2372,7 @@ public sealed partial class MainWindow
         var b = Chip(new FontIcon { Glyph = "\uED1E", FontSize = size }, false);
         ToolTipService.SetToolTip(b, "Subtitles and audio. Choose the service's own tracks here.");
         var fly = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
-        fly.Items.Add(new MenuFlyoutItem { Text = "Reading\u2026", IsEnabled = false });
+        fly.Items.Add(new MenuFlyoutItem { Text = "Reading\u2026", Foreground = HubInk, IsHitTestVisible = false });
         fly.Opening += async (_, __) =>
         {
             hold?.Invoke();
@@ -2136,12 +2389,12 @@ public sealed partial class MainWindow
             }
             catch (Exception e) { LogLine("tracks: " + e.Message); }
             fly.Items.Clear();
-            if (t is null) { fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no tracks right now.", IsEnabled = false }); return; }
+            if (t is null) { fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no tracks right now.", Foreground = HubInk, IsHitTestVisible = false }); return; }
             void Section(string head, string kind)
             {
                 if (t[kind] is not JsonArray list || list.Count == 0) return;
                 if (fly.Items.Count > 0) fly.Items.Add(new MenuFlyoutSeparator());
-                fly.Items.Add(new MenuFlyoutItem { Text = head, IsEnabled = false });
+                fly.Items.Add(new MenuFlyoutItem { Text = head, Foreground = HubInk, IsHitTestVisible = false });
                 foreach (var tr in list.OfType<JsonObject>())
                 {
                     var id = tr["id"]?.GetValue<string>() ?? ""; var name = tr["name"]?.GetValue<string>() ?? id;
@@ -2154,16 +2407,16 @@ public sealed partial class MainWindow
             }
             Section("Subtitles", "subtitles");
             Section("Audio", "audio");
-            if (fly.Items.Count == 0) fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no tracks right now.", IsEnabled = false });
+            if (fly.Items.Count == 0) fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no tracks right now.", Foreground = HubInk, IsHitTestVisible = false });
         };
         fly.Closed += (_, __) => { hold?.Invoke(); _ = _surfaces.EvalOnTileAsync(slot, "(function(){try{return !!(window.__prismVideoTracksDone&&window.__prismVideoTracksDone());}catch(e){return false;}})()"); };   // a service whose lists live in its own panel closes it
         b.Click += (_, __) => fly.ShowAt(b);
         place(b);
     }
-    private MenuFlyout RatingFlyout(string title, string? kind = null, Func<MenuFlyout, Task>? extra = null, string? app = null)
+    private MenuFlyout RatingFlyout(string title, string? kind = null, Func<MenuFlyout, Task>? extra = null, string? app = null, string? tmdb = null, int? year = null)
     {
         var fly = new MenuFlyout();
-        fly.Items.Add(new MenuFlyoutItem { Text = "Reading\u2026", IsEnabled = false });
+        fly.Items.Add(new MenuFlyoutItem { Text = "Reading\u2026", Foreground = HubInk, IsHitTestVisible = false });
         fly.Opening += async (_, __) =>
         {
             JsonObject? d = null;
@@ -2173,18 +2426,21 @@ public sealed partial class MainWindow
             var details = new MenuFlyoutItem { Text = "Details" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE946" } };
             ToolTipService.SetToolTip(details, "Cast, where to watch, the trailer and more, from TMDB.");
             details.Click += (_, ___) => ShowTitleDetails(title, kind, app);
-            fly.Items.Add(details);
+            if (await TmdbKeyAsync()) fly.Items.Add(details);   // TMDB's page: with a key only (MainWindow.TmdbGate)
+            // Send to playlist, next to Details (docs/features/playlists.md, 2026-09-27): a show sends all its episodes, a movie itself
+            if (await PlaylistsActiveAsync()) fly.Items.Add(await SendToSubAsync("Send to playlist", () => CardSource(title, kind, app, null, tmdb, null, year)));   // TMDB's id and year tell same-named shows apart (2026-09-27)
+            await AddWatchlistItemAsync(fly, title, kind);   // the TMDB watchlist, while an account is linked (2026-10-03)
             fly.Items.Add(new MenuFlyoutSeparator());
             if (extra is not null) { await extra(fly); if (fly.Items.Count > 0) fly.Items.Add(new MenuFlyoutSeparator()); }   // a Continue watching card's Remove on the service
             var rating = d?["rating"]?.GetValue<string>();
-            fly.Items.Add(new MenuFlyoutItem { Text = rating is { Length: > 0 } ? rating : "No TMDB rating for this title" + (rating is null ? " (no key, or not matched)" : ""), IsEnabled = false });
+            fly.Items.Add(new MenuFlyoutItem { Text = rating is { Length: > 0 } ? rating : "No TMDB rating for this title" + (rating is null ? " (no key, or not matched)" : ""), Foreground = HubInk, IsHitTestVisible = false });
             if (rating is { Length: > 0 })
             {
-                fly.Items.Add(new MenuFlyoutItem { Text = "What is counted: TMDB members' votes, one to ten", IsEnabled = false });
-                fly.Items.Add(new MenuFlyoutItem { Text = "Who is counted: members who chose to vote on it", IsEnabled = false });
-                fly.Items.Add(new MenuFlyoutItem { Text = "Who decides: each voter equally; TMDB takes the mean", IsEnabled = false });
+                fly.Items.Add(new MenuFlyoutItem { Text = "What is counted: TMDB members' votes, one to ten", Foreground = HubInk, IsHitTestVisible = false });
+                fly.Items.Add(new MenuFlyoutItem { Text = "Who is counted: members who chose to vote on it", Foreground = HubInk, IsHitTestVisible = false });
+                fly.Items.Add(new MenuFlyoutItem { Text = "Who decides: each voter equally; TMDB takes the mean", Foreground = HubInk, IsHitTestVisible = false });
                 var at = (d?["facts"] as JsonObject)?["rating"] is JsonObject r && r["at"] is JsonValue av && av.TryGetValue<double>(out var ad) ? DateTimeOffset.FromUnixTimeMilliseconds((long)ad).ToString("yyyy-MM-dd") : "?";
-                fly.Items.Add(new MenuFlyoutItem { Text = "Source: TMDB API · data date " + at + " · not endorsed or certified by TMDB", IsEnabled = false });
+                fly.Items.Add(new MenuFlyoutItem { Text = "Source: TMDB API · data date " + at + " · not endorsed or certified by TMDB", Foreground = HubInk, IsHitTestVisible = false });
             }
         };
         return fly;
@@ -2218,7 +2474,7 @@ public sealed partial class MainWindow
             await Task.Delay(i == 0 ? 1200 : 4000);
             if (!ReferenceEquals(_videoHub, overlay)) return;
             JsonObject? menu = null;
-            try { menu = JsonNode.Parse(await ModelCallAsync("videoMenu") ?? "null") as JsonObject; } catch { }
+            try { menu = JsonNode.Parse(await ModelCallAsync("videoMenuRows", true) ?? "null") as JsonObject; } catch { }   // the rows and lens rows, not the Library (2026-10-03, perf)
             if (menu is null || !ReferenceEquals(_videoHub, overlay)) return;
             string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
             var pending = (menu["lens"] as JsonObject)?["pending"] is JsonValue pv && pv.TryGetValue<int>(out var pn) ? pn : 0;
@@ -2230,11 +2486,12 @@ public sealed partial class MainWindow
                     {
                         if (!_hubLines.TryGetValue(CardKey(card), out var lineList)) continue;
                         var ratingText = card["rating"]?.GetValue<string>() ?? "";
+                        var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
                         foreach (var lines in lineList)
                         {
                             var lensLabel = lines.lens.Text ?? "";
-                            var showRating = ratingText.Length > 0 && ratingText != lensLabel;
-                            if (lines.rating.Text != ratingText || (lines.rating.Visibility == Visibility.Visible) != showRating) { lines.rating.Text = ratingText; lines.rating.Visibility = showRating ? Visibility.Visible : Visibility.Collapsed; }
+                            var want = ratingText != lensLabel ? ratingText : "";
+                            if (lines.rating.Text != want || lines.rating.Mine != mine) SetRatingLine(lines.rating, want, mine);
                         }
                     }
             // a lens row drawn while its sources were reading: its titles go into its own panel the moment it has any (its order as
@@ -2437,7 +2694,7 @@ public sealed partial class MainWindow
             var summary = total == 0 ? "Nothing owned is known yet. A service's library (Fandango at Home's My Movies, Movies Anywhere's) is read in the background after sign-in."
                 : total + " titles owned on " + libFrom + (twice > 0 ? "  ·  " + twice + " on more than one service (press one to choose)" : "")
                 + (lib?["tmdbKey"]?.GetValue<bool>() == true ? "  ·  " + rated + " rated" + (libPending > 0 ? ", reading " + libPending + " title" + (libPending == 1 ? "" : "s") + "…" : "") : "  ·  a TMDB key sorts them by genre and rates them");
-            built.Children.Add(new TextBlock { Text = summary, FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+            built.Children.Add(new TextBlock { Text = summary, FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
             if (total > 0)
             {
                 // Group by (2026-09-23, "add a group by buttons, default is genre ... Add an option for None ... responsive and easy to understand"):
@@ -2453,7 +2710,7 @@ public sealed partial class MainWindow
                     gchip.Click += (_, __) => { if (_hubGroup != gid2) { _hubGroup = gid2; _ = DrawLibraryAsync(panel, overlay, now); } };
                     groupLine.Children.Add(gchip);
                 }
-                built.Children.Add(Carousel(groupLine));
+                if (((lib?["groups"] as JsonArray)?.Count ?? 0) > 1) built.Children.Add(Carousel(groupLine));   // no TMDB key: one grid, nothing to group by
                 built.Children.Add(Carousel(SortChips(lib, lib?["tmdbKey"]?.GetValue<bool>() == true)));
             }
             if (lib?["rows"] is JsonArray genreRows)
@@ -2464,7 +2721,7 @@ public sealed partial class MainWindow
                     {
                         // one list: a grid as wide as the window, re-flowed when it resizes, drawn a page at a time
                         built.Children.Add(RowHead("All titles  \u00B7  " + gcards.Count, HubInk));
-                        built.Children.Add(LibraryGrid(gcards, now, ref first));
+                        built.Children.Add(LibraryGrid(gcards, now, ref first, letters: _hubSort == "own"));
                         continue;
                     }
                     // the first rows at once, the rest a couple at a time once the page is up (2026-09-24): some 800 cards had been built before
@@ -2498,10 +2755,11 @@ public sealed partial class MainWindow
     private const int LibraryRowsAtOnce = 4;
     /// <summary>The whole library as one grid (Group by None): as many columns as its width holds, laid out again when the window resizes;
     /// 120 cards at first and a "Show more" for the next 120, so two thousand titles stay quick.</summary>
-    private FrameworkElement LibraryGrid(List<JsonObject> cards, double now, ref Button? first)
+    private FrameworkElement LibraryGrid(List<JsonObject> all, double now, ref Button? first, bool letters = false)
     {
         const int Page = 120;
         var host = new StackPanel { Spacing = 12 };
+        var cards = all;
         // the cards wrap at the width they have (2026-09-25, "in the library at the end of the grid, rows were ending with items off screen"):
         // the columns had been counted at 250 a card after the cards grew to 286, and the last column ran under the edge
         var grid = new FlowPanel { HorizontalSpacing = 12, VerticalSpacing = 12 };
@@ -2519,6 +2777,46 @@ public sealed partial class MainWindow
         Add();
         first ??= buttons.FirstOrDefault();
         more.Click += (_, __) => Add();
+        // a letter strip over an A to Z grid (2026-10-06, "on Library I should be able to just view an A-Z grid of all items even when TMDB isn't
+        // connected. Right now it says Unsorted 2223 and I have no way to dive in"): All, then # and each letter the titles begin with; a press
+        // shows that letter's titles alone, from the top
+        if (letters && all.Count > Page)
+        {
+            static string LetterOf(JsonObject c)
+            {
+                var t = ((c["item"] as JsonObject)?["title"]?.GetValue<string>() ?? "").TrimStart();
+                var ch = t.Length > 0 ? char.ToUpperInvariant(t[0]) : '#';
+                return ch >= 'A' && ch <= 'Z' ? ch.ToString() : "#";
+            }
+            var counts = all.GroupBy(LetterOf).ToDictionary(g => g.Key, g => g.Count());
+            var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            var chosen = "";
+            void DrawStrip()
+            {
+                strip.Children.Clear();
+                foreach (var key in new[] { "" }.Concat(new[] { "#" }).Concat(Enumerable.Range('A', 26).Select(i => ((char)i).ToString())))
+                {
+                    if (key.Length > 0 && !counts.ContainsKey(key)) continue;
+                    var on = key == chosen;
+                    var chip = Chip(new TextBlock { Text = key.Length == 0 ? "All" : key, FontSize = 14, Foreground = on ? HubAmber : HubInk }, on);
+                    chip.MinWidth = 36;
+                    ToolTipService.SetToolTip(chip, key.Length == 0 ? "Every title, " + all.Count : (key == "#" ? "Titles starting with a number or a symbol" : "Titles starting with " + key) + ", " + counts[key]);
+                    var k = key;
+                    chip.Click += (_, __) =>
+                    {
+                        if (chosen == k) return;
+                        chosen = k;
+                        cards = k.Length == 0 ? all : all.Where(c => LetterOf(c) == k).ToList();
+                        grid.Children.Clear(); buttons.Clear(); shown = 0;
+                        Add();
+                        DrawStrip();
+                    };
+                    strip.Children.Add(chip);
+                }
+            }
+            DrawStrip();
+            host.Children.Add(Carousel(strip));
+        }
         // the next page as the end comes near (2026-09-25, "If on Library, grouped by None, it doesnt autoload more records as you scroll down, it
         // forces you to manually load more. Cant this be automatic as the user scrolls?"): Show more loads itself once it is within about a screen
         // of the view; the button stays for a remote's press
@@ -2622,13 +2920,16 @@ public sealed partial class MainWindow
     private DateTime _browseWarmAt = DateTime.MinValue;
     /// <summary>The other tabs read ahead (2026-09-22): while the person is on this one, the Browse genre they last chose and the Library's
     /// own rows are asked for once, so the press finds them there. Core keeps both a day (Browse) or in memory (the Library); this only starts
-    /// them earlier, and never while a title is playing on the screen.</summary>
+    /// them earlier, and never while a title is playing on the screen. The live guides too (2026-10-05, "taking a lot of time for live tv to
+    /// get populated, and not in the background while I'm idling on the Watch tab either"): the Watch screen open is a person about to look,
+    /// so the guides are read on their hidden, muted pages while the person is on any tab, at core's own cadence (15 min a service).</summary>
     private async Task WarmTabsAsync()
     {
         if (DateTime.UtcNow - _browseWarmAt < TimeSpan.FromMinutes(5)) return;
         _browseWarmAt = DateTime.UtcNow;
         try
         {
+            if (_hubTab != "live") _ = ModelCallAsync("videoLiveRead", false);
             if (_hubTab != "browse") await ModelCallAsync("videoBrowse", _browseGenre, _browseOffer);
             if (_hubTab != "library") await ModelCallAsync("videoLibraryTab", _hubSort);
         }
@@ -2731,7 +3032,7 @@ public sealed partial class MainWindow
     {
         string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
             var svcs = (c["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
-            if (svcs.Count == 0) return null;
+            if (svcs.Count == 0 && S(c, "value") != "Not on your services") return null;   // a watchlist title on none of the services is shown (2026-10-03)
             var title = S(c, "title"); var cid = S(c, "id"); var poster = c["poster"]?.GetValue<string>(); var backdrop = c["backdrop"]?.GetValue<string>();
             var year = c["year"] is JsonValue yv && yv.TryGetValue<int>(out var yi) ? yi.ToString() : "";
             var kindWord = S(c, "kind") == "series" ? "Series" : "Movie";
@@ -2757,8 +3058,9 @@ public sealed partial class MainWindow
             if (value.Length > 0 && !compact) cell.Children.Add(new TextBlock { Text = value, FontSize = 11, Foreground = HubAmber, TextTrimming = TextTrimming.CharacterEllipsis });
             // TMDB's rating on every title (2026-09-24), as on the Continue / My List cards; not twice under a row that is itself the rating
             var ratingLine = S(c, "rating");
-            if (ratingLine.Length > 0 && ratingLine != value) cell.Children.Add(new TextBlock { Text = ratingLine, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
-            var offer = S(svcs[0], "offer");
+            var mineB = c["mine"] is JsonValue mbv && mbv.TryGetValue<double>(out var mbd) ? mbd : (double?)null;
+            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) cell.Children.Add(MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim).Root);
+            var offer = svcs.Count > 0 ? S(svcs[0], "offer") : "Not on your services";
             var facts = string.Join("  ·  ", new[] { year, kindWord, svcs.Count == 1 ? offer : svcs.Count + " of your services" }.Where(x => x.Length > 0));
             if (!compact) cell.Children.Add(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
@@ -2766,7 +3068,14 @@ public sealed partial class MainWindow
             var where = string.Join(", ", svcs.Select(x => S(x, "name") + (S(x, "offer").Length > 0 ? " (" + S(x, "offer") + ")" : "")));
             ToolTipService.SetToolTip(btn, title + (compact ? "\n" + (value.Length > 0 ? value + "\n" : "") + facts : "") + "\n\nOn " + where + "." + (overview.Length > 0 ? "\n\n" + Shorten(overview, 320) + "\n· TMDB" : ""));
             var playVerb = S(c, "play") == "binge" ? "videoBingePlay" : "videoBrowsePlay";   // The Binge's own guard + mismatch note (2026-09-24)
-            if (svcs.Count == 1)
+            // draggable onto Watch's windows like the rows above (2026-09-26): its first service, played the way its own press plays
+            if (svcs.Count > 0) btn.Tag = new CardPick("", S(c, "kind"), cid, null, title, poster, S(svcs[0], "name"), S(svcs[0], "app"), playVerb);
+            if (svcs.Count == 0)
+            {
+                var dk = S(c, "kind");
+                btn.Click += (_, __) => ShowTitleDetails(title, dk, null);   // none of the services carries it: its page says where it streams
+            }
+            else if (svcs.Count == 1)
             {
                 var (a1, n1) = (S(svcs[0], "app"), S(svcs[0], "name"));
                 btn.Click += (_, __) => { if (PickLeavesWatch(title)) { CloseVideoHub(); ShowStageCurtain(title, n1, poster); } _ = BrowsePlayAsync(a1, cid, title, n1, playVerb); };
@@ -2785,7 +3094,9 @@ public sealed partial class MainWindow
             }
             // Add to a service's My List (2026-09-23): the service's own copy of the catalog title is found first
             var lsKind = S(c, "kind") == "series" ? "series" : "movie";
-            btn.ContextFlyout = RatingFlyout(title, lsKind, async fly => { if (playVerb == "videoBingePlay") BingeHideItem(fly, cid, title); foreach (var sv in svcs) await AddListAddItemAsync(fly, S(sv, "app"), S(sv, "name"), cid, title, null, lsKind, "1"); });
+            var bTmdb = cid.StartsWith("tmdb:", StringComparison.Ordinal) ? cid.Substring(5) : null;
+            int? bYear = c["year"] is JsonValue byv && byv.TryGetValue<double>(out var byd) ? (int)byd : null;
+            btn.ContextFlyout = RatingFlyout(title, lsKind, tmdb: bTmdb, year: bYear, extra: async fly => { if (playVerb == "videoBingePlay") BingeHideItem(fly, cid, title); if (!_watchActive) foreach (var sv in svcs) await AddListAddItemAsync(fly, S(sv, "app"), S(sv, "name"), cid, title, null, lsKind, "1"); });
         return btn;
     }
     /// <summary>Cards laid out in a grid (a row opened in full): as many columns as the canvas fits.</summary>

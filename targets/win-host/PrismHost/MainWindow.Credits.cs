@@ -133,7 +133,7 @@ public sealed partial class MainWindow
             "Streaming availability data provided by JustWatch.",
             "justwatch.com");
         Section("Wikipedia", null,
-            "The Most read about this week row counts daily page views on English Wikipedia. Wikidata helps match each article to the right title.",
+            "The Most read about this week row counts how often each title's Wikipedia article is read each day. Wikidata helps match each article to the right title.",
             null,
             "wikipedia.org  \u00B7  wikidata.org");
         Section("Your services", null,

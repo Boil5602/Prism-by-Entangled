@@ -6,9 +6,15 @@
  * music sources), the Video player its Movie Night (one screen, edge to edge). Nothing new is stored - a scene
  * is told apart by the template its layout came from (scene-model.ts: layout.source.template), or, for a
  * lounge drawn by hand, by what it holds. A switch is a scene switch through the same path the rail and the
- * schedules use, with one addition: the Video player carries the Music player's hidden sources, so the wall
- * keeps them warm across the switch (a scene switch destroys any tile the next scene lacks, orchestrator
- * applyDocument) - the music plays on until a video takes the audio, and the way back is instant.
+ * schedules use, with one addition: while the Video player is the wall, the Music player's sources are kept
+ * warm on it (a scene switch destroys any tile the next scene lacks, orchestrator applyDocument) - the music
+ * plays on until a video takes the audio, and the way back is instant.
+ *
+ * The two scenes are separate (2026-09-29, "Why are we adding music adapters to the movie scene? ... Would
+ * prefer some intuitive separation"): the Music player holds the music services, the Video player holds
+ * none. The warm sources are added to the wall as it is drawn (withWarmMusic, runtime applyScene) and are
+ * never written into the Video player's scene; the ones an earlier build wrote there are taken out
+ * (withoutMusic).
  */
 import type { Facet, Layout, Scene, HiddenPlacement } from "./scene-model.js";
 
@@ -65,6 +71,18 @@ export function playerScenes(scenes: readonly Scene[], layout: (id: string) => L
  * music facet of the lounge, with its audio policy, in the lounge's order; the video scene's own non-music
  * hidden facets stay. Returns the scene to save, or null when it already carries them.
  */
+/** The Video player as the wall draws it: its own scene, and the Music player's sources hidden beside it. Not saved. */
+export function withWarmMusic(video: Scene, music: Scene | null, facet: (id: string) => Facet | undefined): Scene {
+  if (!music || music.id === video.id) return video;
+  return carryHiddenMusic(withoutMusic(video, facet) ?? video, music, facet) ?? video;
+}
+
+/** The scene with no music source among its hidden placements, or null when it has none to take out. */
+export function withoutMusic(scene: Scene, facet: (id: string) => Facet | undefined): Scene | null {
+  const own = scene.hidden.filter((h) => !facet(h.facet)?.music);
+  return own.length === scene.hidden.length ? null : { ...scene, hidden: own };
+}
+
 export function carryHiddenMusic(video: Scene, music: Scene, facet: (id: string) => Facet | undefined): Scene | null {
   const isMusic = (h: HiddenPlacement): boolean => !!facet(h.facet)?.music;
   const sources = music.hidden.filter(isMusic);

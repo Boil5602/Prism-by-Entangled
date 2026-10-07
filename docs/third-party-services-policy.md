@@ -37,7 +37,9 @@ terms go to Entangled Labs LLC.
 7. **No disguises.** Prism does not mask what it is to avoid a service's detection.
 8. **Ads.** On streaming services Prism covers an ad's picture and mutes the tab while the ad
    plays underneath. The ad is still served. It does not block or skip ads on a service's player.
-   Covering ads is part of Prism and stays.
+   When a service itself offers a Skip button on an ad, Prism shows a Skip of its own on the
+   cover, and a person's press on it is passed to the service's button. Prism never presses it
+   by itself. Covering ads is part of Prism and stays.
 9. **Names and logos identify, never endorse.** Service names and logos are shown only to say
    which service something is on. Prism never suggests a service endorses or works with it.
    Credits carries the "not affiliated" statement.

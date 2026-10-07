@@ -2,6 +2,7 @@
   "id": "primevideo",
   "name": "Prime Video",
   "url": "https://www.primevideo.com/",
+  "signInWith": "amazon",
   "aspectHint": "16:9",
   "audio": "exclusive",
   "poster": {

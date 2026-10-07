@@ -63,6 +63,14 @@ describe("a Hulu title on Disney+", () => {
     expect(kv.get("video:also-on")).toContain("v2|disneyplus|tv:4586");
   });
 
+  it("which services to ask is core's plan, not the host's: Disney+ for a Hulu title, nothing when Disney+ already lists it or Hulu is not there (2026-09-28)", async () => {
+    const { rt } = await setup();
+    expect(JSON.parse(rt.titleAlsoOnPlan(JSON.stringify(["hulu", "netflix"])))).toEqual([{ via: "hulu", viaName: "Hulu", app: "disneyplus", name: "Disney+" }]);
+    expect(JSON.parse(rt.titleAlsoOnPlan(JSON.stringify(["hulu", "disneyplus"])))).toEqual([]);
+    expect(JSON.parse(rt.titleAlsoOnPlan(JSON.stringify(["netflix"])))).toEqual([]);
+    expect(JSON.parse(rt.titleAlsoOnPlan("not json"))).toEqual([]);
+  });
+
   it("a title Disney+ does not name is a no; a service with no such partner is n/a", async () => {
     const { rt, ops } = await setup();
     rt.titleAlsoOn("tv", 1, "Only On Hulu", "hulu");

@@ -28,9 +28,12 @@
                    IsHitTestVisible="False" Visibility="Collapsed" Text="" />
         <!-- the pill (spec 30, minimal): quiet proof the engine is armed -->
         <!-- 2026-09-18: the status feed - top centre under the menu grip, held while work is in hand, then fading away -->
-        <Border x:Name="PillBorder" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,34,0,0" Canvas.ZIndex="950"
+        <Border x:Name="PillBorder" Visibility="Collapsed" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,34,0,0" Canvas.ZIndex="950"
                 Background="#CC12131A" CornerRadius="10" Padding="12,5,12,5">
-            <TextBlock x:Name="PillLine" Foreground="#F0A83C" FontSize="12" FontFamily="Consolas" Text="Prism" />
+            <!-- PillRow: the status line, and now and then one button beside it (a new version installed: Restart now, 2026-10-06) -->
+            <StackPanel x:Name="PillRow" Orientation="Horizontal" Spacing="10">
+            <TextBlock x:Name="PillLine" Foreground="#F0A83C" FontSize="12" FontFamily="Consolas" Text="" VerticalAlignment="Center" /><!-- hidden until it has something to say: a bare "Prism" sat under the menu grip (2026-09-28) -->
+            </StackPanel>
         </Border>
         <!-- the app menu grip: hangs off the top-center edge, dim until hovered,
              above every tile and overlay (Canvas.ZIndex) so it survives the picker,
@@ -58,11 +61,14 @@
             <StackPanel x:Name="CurtainBody" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14" MaxWidth="1100" />
         </Grid>
         <Border x:Name="StageBar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Canvas.ZIndex="1000" Visibility="Collapsed"
-                Margin="0,0,0,18" Background="#F812131A" BorderBrush="#3AF0A83C" BorderThickness="1" CornerRadius="12" Padding="14,8,14,8">
-            <StackPanel Spacing="8">
-                <StackPanel x:Name="StageBarBody" Orientation="Horizontal" Spacing="8" />
-                <StackPanel x:Name="StageNext" Visibility="Collapsed" />
-            </StackPanel>
+                Margin="16,0,16,18" Background="#F812131A" BorderBrush="#3AF0A83C" BorderThickness="1" CornerRadius="12" Padding="14,8,14,8">
+            <!-- shrinks to fit a narrow window, never grows (2026-09-28, "The prism controls are off screen but should shrink to fit the available space") -->
+            <Viewbox StretchDirection="DownOnly" Stretch="Uniform">
+                <StackPanel Spacing="8">
+                    <StackPanel x:Name="StageBarBody" Orientation="Horizontal" Spacing="8" />
+                    <StackPanel x:Name="StageNext" Visibility="Collapsed" />
+                </StackPanel>
+            </Viewbox>
         </Border>
         <Border x:Name="MenuGrip" VerticalAlignment="Top" HorizontalAlignment="Center" Canvas.ZIndex="1000"
                 Background="#CC12131A" BorderBrush="#3AF0A83C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10"
@@ -72,6 +78,12 @@
                 <TextBlock Text="Prism" Foreground="#F0A83C" FontSize="12" VerticalAlignment="Center" />
                 <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#F0A83C" FontSize="9" VerticalAlignment="Center" />
             </StackPanel>
+        </Border>
+        <!-- the player toggle (2026-10-03, "a simple toggle to swap between music and video on a corner that is common to both"): the same
+             corner on the Music player and the Video player, the wall's player lit; its two buttons are made in code (MainWindow.PlayerGrip) -->
+        <Border x:Name="PlayerGrip" VerticalAlignment="Top" HorizontalAlignment="Right" Canvas.ZIndex="1000" Margin="0,0,18,0"
+                Background="#CC12131A" BorderBrush="#3AF0A83C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10" Padding="6,0,6,3" Visibility="Collapsed">
+            <StackPanel x:Name="PlayerGripBody" Orientation="Horizontal" Spacing="2" />
         </Border>
     </Grid>
 </Window>

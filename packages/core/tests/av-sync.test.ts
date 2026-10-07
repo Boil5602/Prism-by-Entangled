@@ -54,6 +54,19 @@ describe("the picture keeping time with the sound", () => {
     expect(r.navigated).toEqual([URL]);   // opened again - the wall's "close the app and open it again"
   });
 
+  it("one burst as the player catches up (a restart) does not make a plain 24 read as behind (2026-10-06, the Apple TV episode reloaded three times)", async () => {
+    const r = rig();
+    await r.v.restoreTitle("screen", URL, "Big Door Prize", false);
+    r.report();
+    r.setFps(31);   // the first sample after the start: frames caught up in a burst
+    await r.step(AV_SAMPLE_MS / 1000);
+    await r.step(AV_SAMPLE_MS / 1000);
+    r.setFps(24);   // then the film's own rate, for good
+    for (let i = 0; i < 10; i++) await r.step(AV_SAMPLE_MS / 1000);
+    expect(nudges(r.injected)).toBe(0);
+    expect(r.navigated).toEqual([]);
+  });
+
   it("Re-sync by hand: pause and play; pressed again within 10 s, the title opened again", async () => {
     const r = rig();
     await r.v.restoreTitle("screen", URL, "Animal Control", false);

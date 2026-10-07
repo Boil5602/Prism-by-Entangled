@@ -65,7 +65,7 @@ describe("quick play: the last five collections a music tile played from", () =>
     expect(normalizeCollectionUrl("https://music.apple.com/us/library/playlist/p.1")).toBe("https://music.apple.com/us/library/playlist/p.1");
     // B-125: the service's id read back from an address, for entries recorded before ids travelled
     const { collectionIdFromUrl } = await import("../src/orchestrator.js");
-    expect(collectionIdFromUrl("https://music.apple.com/us/station/mark-graffs-station/ra.u-1da9c0216baa")).toEqual({ kind: "station", id: "ra.u-1da9c0216baa" });
+    expect(collectionIdFromUrl("https://music.apple.com/us/station/alex-parkers-station/ra.u-1da9c0216baa")).toEqual({ kind: "station", id: "ra.u-1da9c0216baa" });
     expect(collectionIdFromUrl("https://music.apple.com/us/station/ra.985")).toEqual({ kind: "station", id: "ra.985" });
     expect(collectionIdFromUrl("https://music.apple.com/us/playlist/todays-hits/pl.f4d1")).toEqual({ kind: "playlist", id: "pl.f4d1" });
     expect(collectionIdFromUrl("https://music.apple.com/us/library/playlist/p.O1kz")).toEqual({ kind: "playlist", id: "p.O1kz" });
@@ -177,6 +177,14 @@ describe("quick play: the last five collections a music tile played from", () =>
     // B-124 boot self-heal: inside the boot window the first signed-out recycles the tile once and is not believed; the next word is
     (o as unknown as { bootAt: number }).bootAt = Date.now();
     (o as unknown as { bootRecycled: Set<string> }).bootRecycled.clear();
+    // ... and only for a tile the wall began with (2026-09-29): a window made after the boot is left alone, its word believed
+    (o as unknown as { bootTiles: Set<string> }).bootTiles = new Set(["stage"]);
+    calls.length = 0;
+    await o.onSurfaceEvent({ type: "session", id: "am", state: "signed-out" });
+    expect(calls.some((c) => c.op === "destroy" && c.id === "am")).toBe(false);
+    expect(o.sessionOf("am")).toBe("signed-out");
+    o.onSurfaceEvent({ type: "session", id: "am", state: "signed-in" });
+    (o as unknown as { bootTiles: Set<string> }).bootTiles = new Set(["am", "stage"]);
     calls.length = 0;
     await o.onSurfaceEvent({ type: "session", id: "am", state: "signed-out" });
     await new Promise((r) => setTimeout(r, 0));
@@ -251,7 +259,7 @@ describe("multi-service lounge (2026-09-07)", () => {
     expect(calls.some((c) => c.op === "setMuted" && c.id === "sp" && c.muted === false)).toBe(true);
     expect(o.getState()?.audioOwner).toBe("sp");
     // a service with no Media Session names the track through its context (Pandora): the face and the recent list use it
-    await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: true, title: "", context: { url: "https://www.pandora.com/station/play/471", label: "Pop Coast Hits Radio", kind: "station", id: "471", title: "Nice To Meet You", artist: "Myles Smith" } } });
+    await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: true, title: "", context: { url: "https://open.spotify.com/station/play/471", label: "Pop Coast Hits Radio", kind: "station", id: "471", title: "Nice To Meet You", artist: "Myles Smith" } } });
     expect(o.getState()?.tiles.find((t) => t.id === "sp")?.nowPlaying).toMatchObject({ title: "Nice To Meet You", artist: "Myles Smith" });
     expect((await o.recentMusic("sp"))[0]).toMatchObject({ label: "Pop Coast Hits Radio", kind: "station", id: "471", title: "Nice To Meet You" });
     // B-132: the page's transport can assert playing; a playback signal asks the page for a fresh report and shows on the tile
@@ -473,7 +481,7 @@ describe("resume: Play with nothing queued goes back to what last played and pre
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "One More Time", artist: "Daft Punk", album: "Discovery" } });
     const point = await o.resumePoint("am");
     expect(point).toMatchObject({ url: "https://music.apple.com/us/album/discovery/697194953", title: "One More Time", artist: "Daft Punk", album: "Discovery" });
-    expect(kv.get("music:resume:lounge:am")).toContain("Discovery");
+    expect([...kv.entries()].find(([k]) => k.startsWith("music:resume:lounge:am") && !k.endsWith(":claimed"))?.[1]).toContain("Discovery");   // keyed by the person (the tile's profile) since 2026-09-30
     // later: the page is back on its home, nothing queued (a restart), and Play is pressed on the wall
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });
     await o.onSurfaceEvent({ type: "navigated", id: "am", url: "https://music.apple.com/us/home" });
@@ -809,7 +817,7 @@ describe("§3 rule 5 — human attribution survives a slow service", () => {
     o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" } } as never });
     await o.load(lounge, VIEWPORT);
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.resume).toBeUndefined();   // never seen playing: nothing to offer
-    const station = "https://music.apple.com/us/station/mark-graffs-station/ra.u-1";
+    const station = "https://music.apple.com/us/station/alex-parkers-station/ra.u-1";
     await o.onSurfaceEvent({ type: "navigated", id: "am", url: station });
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "Gnarly", artist: "KATSEYE", context: { url: station, label: "Alex Parker's Station", kind: "station", id: "ra.u-1" } } });
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.resume).toBeUndefined();   // a track is loaded: the row carries the track, not a memory
@@ -836,7 +844,7 @@ describe("§3 rule 5 — human attribution survives a slow service", () => {
     o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" }, musicPlay: "(function(){})()", musicCmd: "(function(){})()" }, spotify: { id: "spotify", controls: { play: ".play" } } } as never);
     await o.load(lounge, VIEWPORT);
     expect(await o.switchToService("am")).toBe("none");   // nothing held, nothing remembered
-    const station = "https://music.apple.com/us/station/mark-graffs-station/ra.u-1";
+    const station = "https://music.apple.com/us/station/alex-parkers-station/ra.u-1";
     await o.onSurfaceEvent({ type: "navigated", id: "am", url: station });
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "Gnarly", artist: "KATSEYE", context: { url: station, label: "Alex Parker's Station", kind: "station", id: "ra.u-1" } } });
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: false, library: { playlists: [], stations: [] } } });   // the page let go of its queue

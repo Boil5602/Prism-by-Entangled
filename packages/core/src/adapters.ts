@@ -109,8 +109,35 @@ export interface AdapterSpec {
    * (Apple TV: "Sign In" on the home page opens the commerce sheet). The
    * phone's "Go to sign-in page" presses this label AFTER the human tapped —
    * still a forwarded human gesture, never pressed on core's own initiative.
+   * Since 2026-09-29 it is a CSS selector, and the wall's own Sign in presses it (signInPressJs) in place of the signed-out marker when
+   * that marker cannot be pressed as it stands (Apple Music's is guarded by a mark the adapter's script sets on the wall's own tile).
    */
   loginPress?: string;
+  /**
+   * How many of the service's streams one account may play at once (2026-09-29: a fourth Paramount+ live window sat on an empty player with
+   * no word from the service - its accounts play three). The wall refuses a window past it, in words, instead of opening one that will not
+   * play. Absent: no cap the wall knows of.
+   */
+  maxStreams?: number;
+  /**
+   * False: the service's live channels cannot be paused (2026-10-06, "if I cant pause live tv on paramount plus, it should be disabled as an
+   * option. I can press pause/play repeatedly on the paramount live content and nothing happens"). The tile's can.pause is false while a
+   * channel plays; the shell draws Pause as unavailable and offers Mute instead. Absent: live pauses like anything else.
+   */
+  livePause?: boolean;
+  /**
+   * Where the service's own page SHOWS whose account it is (2026-09-29, "Instead of even naming the sign ins, can you just capture the
+   * username or likely email address that is used?"): its account page, and optionally the part of that page to look in. Core reads a
+   * sign-in's label from it once - the email the page shows (the wall shows the part before the @), else the name in `name`. Only what
+   * the page shows to the person signed in: never a sign-in form's fields, never a page's script data (third-party policy, rules 1 and 3).
+   */
+  account?: { url: string; within?: string; name?: string };
+  /**
+   * The page Sign in opens, when `login` is not one (2026-09-29): `login` is first the address the redirect check knows a sign-in page by,
+   * and for some services that is a host or the service's home (Amazon Music: its home; the sign-in is /forceSignIn). Absent, `login` is
+   * opened when it names a page, else the service's own Sign In control is pressed (adapters-facets signInPage / signInPressJs).
+   */
+  signIn?: string;
   /**
    * §32 music (2026-09-06): page-side scripts a MUSIC adapter may declare, each defining one window
    * function, injected after `js` at readiness. They read the service's own player object (Apple
@@ -133,6 +160,9 @@ export interface AdapterSpec {
    * (the Quick play entry reads "Unavailable" with a ? that carries it). For a service with no musicLookup script.
    */
   musicLookupNote?: string;
+  /** The page that lists the person's playlists, when the service's home does not (Amazon Music's /my/playlists): core opens it on the service's
+   *  own window while that window is idle, takes the library the musicLibrary script reports there, and goes back to the window's home. */
+  musicLibraryUrl?: string;
   /** musicLookupCannot (B-218): a verb the service's page cannot do from the wall, with the reason - the row stays grey with it. */
   musicLookupCannot?: { add?: string; station?: string };
   /**
@@ -148,6 +178,11 @@ export interface AdapterSpec {
   musicQueue?: string;
   /** musicQueueAppend (2026-09-18): window.__prismMusicQueueAppend(token, ids) - these ids after what is queued, without touching what plays (MusicKit's playLater); answers op "queue". Core hands a long order to the player in windows through it. */
   musicQueueAppend?: string;
+  /** musicRemove (2026-10-06): window.__prismMusicRemove(token, title, artist, dry) on the playlist's own page (musicPlaylistUrl) - the row of that
+   *  track found and the page's own Remove from Playlist pressed (dry: found, not pressed); answers op "remove" ok | error. Page actions only. */
+  musicRemove?: string;
+  /** The address of one of the person's playlists, {id} for its id (the page musicRemove works on). */
+  musicPlaylistUrl?: string;
   /** musicRepeat (2026-09-18): window.__prismMusicRepeat(on) - the service's OWN repeat-all switch, for a play in the service's order. Prism's orders repeat by Prism's hand (the next pass appended), never the player's. */
   musicRepeat?: string;
   /** musicStartOver (2026-09-19): window.__prismMusicStartOver(kind, id, shuffle) - a page-route service starts the collection it already holds over in the service's own order (in order: its first track; shuffle: a random one, the switch on), and stands down any Prism order driver. */
@@ -315,6 +350,29 @@ export interface AdapterSpec {
    * should"); the list is still read and kept per App, and its Continue Watching merges as any other. Default true.
    */
   videoListMerge?: boolean;
+  /** The service's own move to its next title inside the page is followed by a fresh load of that title's page (2026-09-28: Netflix's
+   *  hardware-protected video went black when it rolled into the next episode in place; a fresh page played it). */
+  videoFreshPageEachTitle?: boolean;
+  /** The Live tab (docs/features/live.md): the page that lists the service's live channels. Read only while a person has the Live tab open -
+   *  such pages play a channel as they open. The videoLive script may define `__prismVideoLiveRead(token)`, answering op "live" with the
+   *  channels (and their category / nowEnds / schedule) when it has walked the page. */
+  videoLiveUrl?: string;
+  /**
+   * Live events (2026-09-30, "Does Apple have live tv we can incorporate? What about their formula one stuff"): pages that list the service's
+   * sporting events - Apple TV's Formula 1 and MLS channel pages. The videoEvents script defines `window.__prismVideoEvents()` answering
+   * [{id, title, url, start (epoch ms | null), live, badge, artwork, group}] for the events the page lists: an upcoming one by its start, one
+   * on by its live mark. Read on the service's hidden work page, muted, every half hour; the Live tab lists them below the channel grid.
+   */
+  videoEventsUrls?: string[];
+  videoEvents?: string;
+  /**
+   * What a live news show reported (2026-10-01, docs/features/live.md): the network's own feed of the segments a show aired, paired with
+   * the channel that carries it - {channel, show?, feed, only?, name?} (news-feeds.ts). Read every ten minutes while the Live tab is in
+   * News mode, through the host's static fetch, one fixed address each.
+   */
+  newsFeeds?: Array<{ channel: string; show?: string; feed: string; only?: string; name?: string; local?: boolean }>;
+  /** The networks the service carries live, as ESPN's scoreboard names them (2026-10-02): a live game one of them shows gets a Watch chip on its score card. */
+  broadcasters?: string[];
   /**
    * videoProfiles (VP-3, 2026-09-19, "add profile selection to the supported capabilities of all the video services"):
    * window.__prismVideoProfiles() -> {gate, profiles:[{id, name, avatar}], current} | null - the service's "Who's watching?"
@@ -352,6 +410,12 @@ export interface AdapterSpec {
    * core held another 1 s, and the person heard three seconds of the ad before the intermission (2026-09-14).
    */
   adSignalSustainedMs?: number;
+  /**
+   * The cover's backstop for this service (ms), past the two-minute default - for breaks no page counts. A live channel's
+   * break runs three to four minutes and YouTube TV's is read off the picture (the host's break watch, 2026-10-06); the signal's
+   * end still uncovers at once, this only keeps a held signal from being dropped mid-break.
+   */
+  adBackstopMs?: number;
   /**
    * The account's presence on the page (adapters-facets sessionProbeJs): signedIn matches the account
    * menu, signedOut the Sign In control. The sign-in wizard probes with these; B-123 (2026-09-07) also

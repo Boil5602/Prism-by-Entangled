@@ -15,7 +15,20 @@
 
 import type { MaybePromise, StoreDriver } from "./drivers.js";
 
-export type UpdateChannel = "stable" | "beta";
+/**
+ * The tracks a release is published on (2026-10-05, "I would call this current track Alpha. And we'll work toward beta and full"):
+ * `alpha` is what ships while Prism is built, `beta` the candidate, `stable` the full release. A shell starts on the track it was
+ * built for and follows it; the manifest names a release per track, and a publisher may point two tracks at one release.
+ */
+export type UpdateChannel = "alpha" | "beta" | "stable";
+export const UPDATE_CHANNELS: readonly UpdateChannel[] = ["alpha", "beta", "stable"];
+export function asUpdateChannel(v: unknown, fallback: UpdateChannel = "stable"): UpdateChannel {
+  return v === "alpha" || v === "beta" || v === "stable" ? v : fallback;
+}
+/** The track's name as a person reads it: Alpha, Beta, Full. */
+export function channelLabel(ch: UpdateChannel): string {
+  return ch === "alpha" ? "Alpha" : ch === "beta" ? "Beta" : "Full";
+}
 
 export interface ReleaseInfo {
   version: string;
@@ -24,7 +37,27 @@ export interface ReleaseInfo {
   /** Artifact URL the shell fetches; signature verification is shell-side. */
   url?: string;
   sha256?: string;
+  /** The release's file list (2026-10-06, incremental updates): its address, and the SHA-256 its bytes must have. The shell fetches only the
+   *  files the running copy lacks; the zip at `url` stays the fallback. Signed with the manifest like everything in it. */
+  files?: string;
+  filesSha256?: string;
+  /** The day it was published (YYYY-MM-DD). */
+  date?: string;
+  /** The track's recent releases, newest first, this one included (2026-10-07, "can we have the option to see a change log feed on the side of
+   *  that modal window"): an incremental update can skip several versions, and the Updates dialog shows what each one changed. Signed with
+   *  the manifest; a manifest without it still reads. */
+  history?: ChangeEntry[];
 }
+
+/** One release's line in the changelog feed. */
+export interface ChangeEntry {
+  version: string;
+  date?: string;
+  notes: string;
+}
+
+/** The most entries a manifest's history is read to. */
+const MAX_HISTORY = 40;
 
 /** The manifest at `<cdn>/manifest.json`: one entry per channel. */
 export type UpdateManifest = Partial<Record<UpdateChannel, ReleaseInfo>>;
@@ -49,6 +82,51 @@ export interface UpdateConfig {
   channel?: UpdateChannel;
   /** Check cadence; default daily. */
   checkIntervalMs?: number;
+  /** When the check runs (2026-10-06, "Let the user check for updates at a scheduled time"): a local time of day, every day or one day a
+   *  week. Without one the check runs a day after the last. */
+  schedule?: UpdateSchedule | null;
+  /** False: no check on its own (the person chose Never); Check now still asks. Default true. */
+  enabled?: boolean;
+}
+
+/** A time of day ("HH:MM", the PC's own clock) and, for a weekly check, the day (0 Sunday to 6 Saturday; null or absent every day). */
+export interface UpdateSchedule {
+  at: string;
+  weekday?: number | null;
+}
+
+/** The schedule's minutes past midnight, or null when "at" is not a time. */
+export function scheduleMinutes(s: UpdateSchedule | null | undefined): number | null {
+  const m = s && /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(s.at.trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** The scheduled moment at or before `now` (the one a check is owed for), on the PC's own clock. */
+export function lastScheduledAt(s: UpdateSchedule, now: number): number | null {
+  const min = scheduleMinutes(s);
+  if (min === null) return null;
+  const d = new Date(now);
+  d.setHours(Math.floor(min / 60), min % 60, 0, 0);
+  for (let i = 0; i < 8; i++) {
+    const okDay = s.weekday === null || s.weekday === undefined || d.getDay() === s.weekday;
+    if (okDay && d.getTime() <= now) return d.getTime();
+    d.setDate(d.getDate() - 1);
+  }
+  return null;
+}
+
+/** The next scheduled moment after `now`, on the PC's own clock (a daylight-saving day shifts with the clock, as a person's alarm does). */
+export function nextScheduledAt(s: UpdateSchedule, now: number): number | null {
+  const min = scheduleMinutes(s);
+  if (min === null) return null;
+  const d = new Date(now);
+  d.setHours(Math.floor(min / 60), min % 60, 0, 0);
+  for (let i = 0; i < 9; i++) {
+    const okDay = s.weekday === null || s.weekday === undefined || d.getDay() === s.weekday;
+    if (okDay && d.getTime() > now) return d.getTime();
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
 }
 
 export interface UpdateStatus {
@@ -61,6 +139,13 @@ export interface UpdateStatus {
   pendingNotes: ReleaseInfo | null;
   /** The shell has staged a release that takes effect on the next boot. */
   staged: ReleaseInfo | null;
+  /** When the check runs next on its own (ISO), or null when it does not (Never). */
+  nextCheck?: string | null;
+  /** The schedule in force, and whether checks run on their own. */
+  schedule?: UpdateSchedule | null;
+  enabled?: boolean;
+  /** The track's newest release as the last good check saw it, newer than this Prism or not: the changelog feed's source when up to date. */
+  latest?: ReleaseInfo | null;
 }
 
 const STORE_KEY = "updates:state";
@@ -77,6 +162,8 @@ interface Persisted {
   pendingNotes: ReleaseInfo | null;
   /** Notes captured for the release we applied/staged, keyed by version. */
   notesFor: Record<string, string>;
+  /** The track's entry at the last good check (the changelog feed). */
+  latest?: ReleaseInfo | null;
 }
 
 /** Semver-ish comparison; numeric segments, pre-release sorts before release. */
@@ -109,12 +196,25 @@ export function isUnparameterized(url: string): boolean {
   }
 }
 
+/** A manifest entry's history: entries with a version and notes, as many as MAX_HISTORY; anything else in the list is skipped. */
+export function parseHistory(list: unknown[]): ChangeEntry[] {
+  const out: ChangeEntry[] = [];
+  for (const h of list) {
+    if (out.length >= MAX_HISTORY) break;
+    if (typeof h !== "object" || h === null) continue;
+    const r = h as Record<string, unknown>;
+    if (typeof r["version"] !== "string" || typeof r["notes"] !== "string") continue;
+    out.push({ version: r["version"], notes: r["notes"], ...(typeof r["date"] === "string" ? { date: r["date"] } : {}) });
+  }
+  return out;
+}
+
 export function parseManifest(text: string): UpdateManifest | null {
   try {
     const raw: unknown = JSON.parse(text);
     if (typeof raw !== "object" || raw === null) return null;
     const out: UpdateManifest = {};
-    for (const ch of ["stable", "beta"] as const) {
+    for (const ch of UPDATE_CHANNELS) {
       const entry = (raw as Record<string, unknown>)[ch];
       if (typeof entry !== "object" || entry === null) continue;
       const e = entry as Record<string, unknown>;
@@ -124,6 +224,9 @@ export function parseManifest(text: string): UpdateManifest | null {
         ...(typeof e["notes"] === "string" ? { notes: e["notes"] } : {}),
         ...(typeof e["url"] === "string" ? { url: e["url"] } : {}),
         ...(typeof e["sha256"] === "string" ? { sha256: e["sha256"] } : {}),
+        ...(typeof e["files"] === "string" && typeof e["filesSha256"] === "string" ? { files: e["files"], filesSha256: e["filesSha256"] } : {}),
+        ...(typeof e["date"] === "string" ? { date: e["date"] } : {}),
+        ...(Array.isArray(e["history"]) ? { history: parseHistory(e["history"]) } : {}),
       };
     }
     return out;
@@ -135,7 +238,7 @@ export function parseManifest(text: string): UpdateManifest | null {
 type Timer = ReturnType<typeof setTimeout>;
 
 export class UpdateChecker {
-  private cfg: Required<Omit<UpdateConfig, "channel">> | null = null;
+  private cfg: { currentVersion: string; manifestUrl: string; checkIntervalMs: number; schedule: UpdateSchedule | null; enabled: boolean } | null = null;
   private state: Persisted = {
     channel: "stable",
     lastCheck: null,
@@ -167,6 +270,8 @@ export class UpdateChecker {
       currentVersion: config.currentVersion,
       manifestUrl: config.manifestUrl,
       checkIntervalMs: config.checkIntervalMs ?? DAY_MS,
+      schedule: config.schedule && scheduleMinutes(config.schedule) !== null ? config.schedule : null,
+      enabled: config.enabled !== false,
     };
     if (config.channel) this.state.channel = config.channel;
 
@@ -184,7 +289,22 @@ export class UpdateChecker {
     this.state.lastBootVersion = config.currentVersion;
     this.state.notesFor = {}; // keep the store small — notes only matter once
     await this.persist();
+    if (this.cfg.enabled) this.schedule(this.dueIn());
+  }
+
+  /** The person's choice of when to check (the Updates dialog): taken at once, no restart. Never stops the checks on their own. */
+  setSchedule(schedule: UpdateSchedule | null, enabled = true): void {
+    if (!this.cfg) return;
+    this.cfg.schedule = schedule && scheduleMinutes(schedule) !== null ? schedule : null;
+    this.cfg.enabled = enabled;
+    if (!enabled) { this.stop(); return; }
     this.schedule(this.dueIn());
+  }
+
+  /** When the next check runs on its own (epoch ms), or null when it does not. */
+  nextCheckAt(): number | null {
+    if (!this.cfg?.enabled) return null;
+    return this.hooks.now() + this.dueIn();
   }
 
   stop(): void {
@@ -201,6 +321,10 @@ export class UpdateChecker {
       lastResult: this.state.lastResult,
       pendingNotes: this.state.pendingNotes,
       staged: this.state.staged,
+      nextCheck: (() => { const n = this.nextCheckAt(); return n === null ? null : new Date(n).toISOString(); })(),
+      schedule: this.cfg?.schedule ?? null,
+      enabled: this.cfg?.enabled ?? false,
+      latest: this.state.latest ?? null,
     };
   }
 
@@ -209,6 +333,7 @@ export class UpdateChecker {
     if (this.state.channel === channel) return;
     this.state.channel = channel;
     this.state.available = null;
+    this.state.latest = null;
     await this.persist();
     if (this.cfg) await this.check();
   }
@@ -240,12 +365,13 @@ export class UpdateChecker {
         this.state.lastResult = "invalid";
       } else {
         this.state.lastResult = "ok";
+        this.state.latest = release;
         this.state.available =
           release && compareVersions(release.version, this.cfg.currentVersion) > 0 ? release : null;
       }
     }
     await this.persist();
-    this.schedule(this.cfg.checkIntervalMs);
+    if (this.cfg.enabled) this.schedule(this.cfg.schedule ? Math.max(1000, (nextScheduledAt(this.cfg.schedule, this.hooks.now()) ?? this.hooks.now() + DAY_MS) - this.hooks.now()) : this.cfg.checkIntervalMs);
     return this.status();
   }
 
@@ -277,6 +403,15 @@ export class UpdateChecker {
   private dueIn(): number {
     if (!this.cfg) return DAY_MS;
     if (!this.state.lastCheck) return 0;
+    if (this.cfg.schedule) {
+      // a scheduled time missed while the PC was off is made up at once; otherwise the next one
+      const now = this.hooks.now();
+      const owed = lastScheduledAt(this.cfg.schedule, now);
+      const last = Date.parse(this.state.lastCheck);
+      if (owed !== null && (!Number.isFinite(last) || last < owed)) return 0;
+      const next = nextScheduledAt(this.cfg.schedule, now);
+      return next === null ? DAY_MS : Math.max(0, next - now);
+    }
     const elapsed = this.hooks.now() - Date.parse(this.state.lastCheck);
     return Math.max(0, this.cfg.checkIntervalMs - (Number.isFinite(elapsed) ? elapsed : 0));
   }

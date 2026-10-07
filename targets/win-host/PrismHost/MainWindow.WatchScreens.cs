@@ -33,6 +33,15 @@ public sealed partial class MainWindow
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _stackTimer;
     private long _stackMoveAt;
     private readonly bool[] _stackWasShown = new bool[WatchPlaces];
+    /// <summary>A window offered but empty: a small box with a + until a title is dragged in (2026-09-27, "Let's make multiview window 2 just a
+    /// smaller box with a + in it until someone drags a window into it. Filled, the current size is good").</summary>
+    private readonly bool[] _stackEmpty = new bool[WatchPlaces];
+    private const double EmptyPlaceSize = 56;
+    /// <summary>The corner's windows whose title is still starting: kept out of the corner (the page behind Watch, unseen) until it plays
+    /// (2026-09-26, "it does show all of the screens of hulu navigating to the video. Why cant it just go direct ... without showing the sausage
+    /// being made?" - Hulu's search, the show's page and its Play press were all in the big window).</summary>
+    private readonly HashSet<string> _startingTiles = new();
+    private int _startingRun;
     private readonly string?[] _stackKey = new string?[WatchPlaces];
     /// <summary>The surfaces moved into Watch's places, to be put back when it closes.</summary>
     private readonly HashSet<string> _pipSlots = new();
@@ -57,6 +66,7 @@ public sealed partial class MainWindow
         }
         foreach (var c in _stackCells) Add(c);
         Add(_stackBar);
+        Add(_plDock);
         return all;
     }
     private static readonly SolidColorBrush StackRing = new(Windows.UI.Color.FromArgb(0x90, 0xE8, 0xEC, 0xF2));
@@ -114,6 +124,7 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(panel, 30);
         overlay.Children.Add(panel);
         _stackBar = panel;
+        BuildPlaylistDock(overlay);   // the playlist panel under the windows (2026-09-27)
         for (var i = 0; i < WatchPlaces; i++)
         {
             var cell = new Border { BorderBrush = StackRing, BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Background = HubCard };
@@ -129,7 +140,8 @@ public sealed partial class MainWindow
             var bw = StackWidth(w); var bh = Math.Round(bw * 9 / 16);
             // the control bar above the screens, fixed at the top (2026-09-25, "put the controls currently under the windows on the right of the watch
             // screen above them so they're not constantly moving around"): the screens start under it
-            var x0 = w - 24 - bw; var y0 = 24.0 + StackBarH + 8;
+            // the playlist panel sits on top of the big screen (2026-09-27, "Show the playlst on top of the big screen, actually"): the screens start under it
+            var x0 = w - 24 - bw; var y0 = 24.0 + StackBarH + 8 + PlaylistDockRoom();
             panel.Margin = new Thickness(0, 24, 24, 0);
             _stackBase[0] = new Windows.Foundation.Rect(x0, y0, bw, bh);
             var cw = Math.Floor((bw - WatchStackGap) / 2); var ch = Math.Round(cw * 9 / 16);
@@ -143,6 +155,7 @@ public sealed partial class MainWindow
             SyncWatchStack();
         }
         overlay.SizeChanged += (_, __) => Shape();
+        _stackShape = Shape;
     }
 
     /// <summary>What each place shows now, from core's multiview word: the surfaces moved in or out, the blanks and labels drawn.</summary>
@@ -150,6 +163,7 @@ public sealed partial class MainWindow
     {
         if (_stackOverlay is not { } overlay || !ReferenceEquals(_videoHub, overlay) || _stackRects[0].Width <= 0) return;
         s_devLog?.Invoke("sync watch stack");
+        if (_detailsReshape is not null) DispatcherQueue.TryEnqueue(() => _detailsReshape?.Invoke());   // an open Details page keeps clear of the corner
         var want = new string?[WatchPlaces];
         var info = new JsonObject?[WatchPlaces];
         if (_mvOn)
@@ -177,6 +191,9 @@ public sealed partial class MainWindow
         var nextFree = -1;
         if (want[0] is not null && !_stackMoving) for (var k = 1; k < WatchPlaces; k++) if (want[k] is null) { nextFree = k; break; }
         var lowest = 0.0;
+        var emptyChanged = false;
+        for (var i = 1; i < WatchPlaces; i++) { var e = want[i] is null; if (_stackEmpty[i] != e) { _stackEmpty[i] = e; emptyChanged = true; } }
+        if (emptyChanged) PlaceStack();   // an empty window small, a filled one its full size
         for (var i = 0; i < WatchPlaces; i++)
         {
             var shown = i == 0 || want[i] is not null || i == nextFree;
@@ -189,12 +206,27 @@ public sealed partial class MainWindow
             if (shown) lowest = Math.Max(lowest, _stackRects[i].Bottom);
         }
 
+        // the big window's title still loading (core's big.loading, not yet playing) stays out of the corner from Watch's first draw (2026-10-06,
+        // "When the software closes while something is actively playing, it autostarts the title from its last known location. I noticed the
+        // apple title that is playing, the homepage for the title displays first before the video (in the big window), it should not")
+        var bigStarting = _mvBig?["starting"]?.GetValue<bool>() == true;   // a pick or a resume open, not failed, nothing playing yet
         for (var i = 0; i < WatchPlaces; i++)
         {
             var r = _stackRects[i];
             var tile = want[i];
             var key = tile is null ? "blank" : tile + "|" + (info[i]?["app"]?.GetValue<string>() ?? "") + "|" + (info[i]?["title"]?.GetValue<string>() ?? "");
             if (tile is not null && _stackMoving) continue;   // it moves in where the glide ends
+            // still starting: a placeholder in the place, the window itself not moved in (its search and its pages stay out of sight)
+            if (tile is not null && (_startingTiles.Contains(tile) || (i == 0 && bigStarting)))
+            {
+                if (_pipSlots.Remove(tile)) _surfaces.EndPip(tile);
+                var skey = "starting|" + tile;
+                if (_stackKey[i] == skey) continue;
+                _stackKey[i] = skey;
+                if (_stackCells[i] is { } scell) { scell.Background = HubCard; scell.Child = StartingPlace(i, info[i]); }
+                if (_stackLabels[i] is { } sold) { TileCanvas.Children.Remove(sold); _stackLabels[i] = null; }
+                continue;
+            }
             if (tile is not null) { _surfaces.BeginPip(tile, new ChannelRect(r.X, r.Y, r.Width, r.Height)); _pipSlots.Add(tile); }
             if (_stackKey[i] == key) continue;
             _stackKey[i] = key;
@@ -225,20 +257,46 @@ public sealed partial class MainWindow
         for (var i = 0; i < WatchPlaces; i++)
         {
             var b = _stackBase[i];
-            var r = _stackRects[i] = new Windows.Foundation.Rect(b.X, b.Y + _stackDy, b.Width, b.Height);
+            var small = i > 0 && _stackEmpty[i];
+            // the empty place offered next (the +) sits up in the control bar, at its left, not under the windows (2026-10-02, "Most of it is
+            // empty": My list had stopped short of the screens for the sake of a 56 px box hanging below them); it is still the drop target
+            var r = _stackRects[i] = small
+                ? new Windows.Foundation.Rect(_stackBase[0].X, 24 + (StackBarH - 38) / 2, 46, 38)
+                : new Windows.Foundation.Rect(b.X, b.Y + _stackDy, b.Width, b.Height);
             if (_stackCells[i] is { } c)
             {
                 c.Margin = new Thickness(r.X - 2, r.Y - 2, 0, 0); c.Width = r.Width + 4; c.Height = r.Height + 4;
                 if (c.Visibility == Visibility.Visible) lowest = Math.Max(lowest, r.Bottom);
             }
         }
+        PlacePlaylistDock();
 
     }
 
     /// <summary>How far down the corner sits: an empty big window level with the middle of Continue watching (its cards); with a title, the whole
     /// group centered there. Only the big window is seen to move between the two; windows 2 to 5 are hidden while it does and fade in after.</summary>
+    /// <summary>The rule under Watch's tabs: the big window's top is level with it (2026-10-06).</summary>
+    private Border? _hubHeadRule;
     private double StackTargetDy(bool bigEmpty)
     {
+        // the big window's top on the line under the tabs (2026-10-06, "could the top of the Big Window be aligned with the bottom of the tabs/top
+        // of the content? ... there is a line directly under them. That is the line I want the top of the big window to be aligned with"), with a
+        // title or without; the Continue watching centering below is kept for a page without the rule
+        // the page's rule not drawn yet (Watch builds the corner before its header): placed once it is (the rule's SizeChanged asks again), never
+        // from the old centering in the meantime - that was the move after a title started and Watch came back (2026-10-06, "Alignment ... was good,
+        // I started a video and went back to watch and it moved it")
+        if (_stackOverlay is { } ov && ReferenceEquals(_videoHub, ov))
+        {
+            if (_hubHeadRule is not { } rule || rule.ActualWidth <= 0) return -1;
+            try
+            {
+                var ry = rule.TransformToVisual(ov).TransformPoint(new Windows.Foundation.Point(0, 0)).Y + rule.ActualHeight;
+                var dy = Math.Max(0, Math.Round(ry - _stackBase[0].Y));
+                _stackFullDy = dy;
+                return dy;
+            }
+            catch { return -1; }
+        }
         if (_stackOverlay is not { } overlay || !_liveRows.TryGetValue("continue", out var row) || row.head.Visibility != Visibility.Visible) { _stackFullDy = 0; return 0; }
         if (row.host.ActualHeight <= 0)
         {
@@ -281,6 +339,7 @@ public sealed partial class MainWindow
             _stackMoving = false;
             for (var i = 0; i < WatchPlaces; i++) _stackKey[i] = null;
             SyncWatchStack();
+            _detailsReshape?.Invoke();
         };
         timer.Start();
         // and a look after its time, whatever the timer did: the surfaces move in, the next window is offered
@@ -295,7 +354,65 @@ public sealed partial class MainWindow
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard(); sb.Children.Add(a); sb.Begin();
     }
 
-    private static FrameworkElement BlankPlace(int i) => new StackPanel
+    /// <summary>A place whose title is on its way: the service and the title, and that it is starting.</summary>
+    private static FrameworkElement StartingPlace(int i, JsonObject? w)
+    {
+        string S(string k) => w?[k]?.GetValue<string>() ?? "";
+        var title = S("title"); var name = S("name");
+        return new StackPanel
+        {
+            Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0),
+            Children =
+            {
+                new ProgressRing { IsActive = true, Width = i == 0 ? 28 : 18, Height = i == 0 ? 28 : 18, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center },
+                new TextBlock { Text = title.Length > 0 ? title : "Starting\u2026", FontSize = i == 0 ? 15 : 11, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, TextAlignment = TextAlignment.Center },
+                new TextBlock { Text = name.Length > 0 ? "Starting on " + name + "\u2026" : "Starting\u2026", FontSize = 11, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
+            },
+        };
+    }
+
+    /// <summary>After a drop: the corner's windows followed while a title starts - a window with a pick still open (not played, not failed) stays
+    /// out of the corner; once it plays, or the pick fails, it moves in. Ends when nothing is starting, or after a minute.</summary>
+    private async Task FollowStartingAsync(bool quitIfIdle = false)
+    {
+        var run = ++_startingRun;
+        var t0 = DateTime.UtcNow; var seen = false;
+        while (run == _startingRun && _stackOverlay is not null && (DateTime.UtcNow - t0).TotalSeconds < 60)
+        {
+            JsonArray? vs = null;
+            try { await MvCallAsync("state"); var raw = await ModelCallAsync("videoState"); if (raw is not null) vs = JsonNode.Parse(raw) as JsonArray; } catch { }
+            if (run != _startingRun) return;
+            // a read that failed says nothing: asked again, never taken as "nothing is starting" and never left with a window held out (review 2026-09-26)
+            if (vs is null) { await Task.Delay(600); continue; }
+            var tiles = new List<string?>();
+            if (_mvBig?["tile"]?.GetValue<string>() is { } bt) tiles.Add(bt);
+            foreach (var w in _mvWindows.OfType<JsonObject>()) tiles.Add(w["tile"]?.GetValue<string>());
+            var now = new HashSet<string>();
+            foreach (var t in tiles.OfType<string>().Distinct())
+            {
+                var st = vs.OfType<JsonObject>().FirstOrDefault(x => x["id"]?.GetValue<string>() == t);
+                if (st?["pending"] is JsonObject pend && pend["failed"] is null && st["playing"]?.GetValue<bool>() != true) now.Add(t);
+            }
+            if (_mvBig?["starting"]?.GetValue<bool>() == true && _mvBig?["tile"]?.GetValue<string>() is { } sbt) now.Add(sbt);   // core's own word: not played yet (a resume lands before it plays)
+            if (now.Count > 0) seen = true;
+            else if (quitIfIdle && !seen) return;   // Watch opened with nothing starting: nothing to follow
+            if (!now.SetEquals(_startingTiles))
+            {
+                _startingTiles.Clear(); foreach (var t in now) _startingTiles.Add(t);
+                for (var i = 0; i < WatchPlaces; i++) _stackKey[i] = null;
+                SyncWatchStack();
+            }
+            if (seen && now.Count == 0) return;
+            await Task.Delay(600);
+        }
+        if (run == _startingRun && _startingTiles.Count > 0) { _startingTiles.Clear(); for (var i = 0; i < WatchPlaces; i++) _stackKey[i] = null; SyncWatchStack(); }
+    }
+
+    /// <summary>Is this tile one of multiview's windows (the big one or 2 to 5)?</summary>
+    private bool IsMultiviewWindow(string tile) =>
+        _mvBig?["tile"]?.GetValue<string>() == tile || _mvWindows.OfType<System.Text.Json.Nodes.JsonObject>().Any(w => w["tile"]?.GetValue<string>() == tile);
+
+    private static FrameworkElement BlankPlace(int i) => i > 0 ? PlusPlace(i) : new StackPanel
     {
         Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
         Children =
@@ -304,6 +421,15 @@ public sealed partial class MainWindow
             new TextBlock { Text = "Drag a title here", FontSize = 11, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
         },
     };
+
+    /// <summary>An empty window: a + in a small box, the words in its tooltip.</summary>
+    private static FrameworkElement PlusPlace(int i)
+    {
+        var plus = new FontIcon { Glyph = ((char)0xE710).ToString(), FontSize = 20, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var box = new Grid { Background = HubClear, Children = { plus } };
+        ToolTipService.SetToolTip(box, "Window " + (i + 1) + ": drag a title here to watch it beside the big screen");
+        return box;
+    }
 
     /// <summary>The service's mark and the title over a filled place, above the surface. The bar is the window's handle: dragged onto another
     /// place the two trade, dragged off the places the window leaves multiview. The rest of the place takes no presses (they reach the player).</summary>
@@ -314,17 +440,33 @@ public sealed partial class MainWindow
         var title = w["title"]?.GetValue<string>() ?? "";
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         var mark = ServiceMark(app, name, big ? 22 : 16); mark.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(mark);
-        row.Children.Add(new TextBlock { Text = title.Length > 0 ? title : name, FontSize = big ? 13 : 11, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = r.Width - (big ? 50 : 38) });
         var g = new Grid { Width = r.Width, Height = r.Height };   // no background: only the bar takes a press
-        var bar = new Border { VerticalAlignment = VerticalAlignment.Bottom, Background = StackLabelBack, Padding = new Thickness(6, 4, 6, 4), Child = row };
-        if (_mvOn)
+        // the service's mark in the window's top-left corner, overlaid with no background (2026-10-01, "Move the paramount (or whatever service)
+        // logo from the control bar in watch on the big window to the top left corner of the window ... Just to make a little more room on
+        // that control bar"); the bar below keeps the verbs
+        // ... and on windows 2 to 5 too (2026-10-06, "when I have 2-5 windows populated with video, I'd like to see each of their service logos on each
+        // screen"): their mark had stood in the bar, which the small windows no longer draw
+        mark.HorizontalAlignment = HorizontalAlignment.Left; mark.VerticalAlignment = VerticalAlignment.Top; mark.Margin = big ? new Thickness(8, 8, 0, 0) : new Thickness(6, 6, 0, 0);
+        ToolTipService.SetToolTip(mark, title.Length > 0 ? title + " on " + name : name);
+        g.Children.Add(mark);
+        // the title is the bar's tooltip, not its text (2026-10-01, "I wouldn't mind the series/movie title being under tooltips for the big & multiview
+        // windows but taking too much room right now"); the big window's bar carries the screen's verbs instead, and the playlist verb always
+        if (big)
         {
-            ToolTipService.SetToolTip(bar, "Drag onto another window to trade places, or off the windows to take it out.");
-            MakeChipDraggable(bar, tile, index);
+            var canCmd = (w["can"] as JsonObject)?["cmd"]?.GetValue<bool>() == true;
+            var canTracks = (w["can"] as JsonObject)?["tracks"]?.GetValue<bool>() == true;
+            var verbs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+            var canPause = (w["can"] as JsonObject)?["pause"]?.GetValue<bool>() != false;
+            if (title.Length > 0) ScreenVerbs(verbs, tile, w["playing"]?.GetValue<bool>() == true, canCmd, canTracks, 12, canPause);
+            PlaylistBar(verbs, 12);
+            NotePlaylistWindowChanged(title);   // a title of its own on the big window: the playlist selection is None
+            row.Children.Add(verbs);
         }
+        var bar = new Border { VerticalAlignment = VerticalAlignment.Bottom, Background = StackLabelBack, Padding = new Thickness(6, 4, 6, 4), Child = row };
+        ToolTipService.SetToolTip(bar, (title.Length > 0 ? title + " on " + name : name) + (_mvOn ? ". Drag the bar onto another window to trade places, or off the windows to take it out." : "."));
+        if (_mvOn) MakeChipDraggable(bar, tile, index);
         // windows 2 to 5 carry the X alone (2026-09-25, "lets get rid of the title bar on each of the mini windows. The X's are great, but none of
-        // the other junk is functional and its all just in the way"): the big window keeps its name
+        // the other junk is functional and its all just in the way"): the big window keeps its bar
         if (big) g.Children.Add(bar);
         // an X in the top right of a screen with something on it (2026-09-25, "If a window has a video playing in it, add an X in the top right
         // corner to allow the user to clear it. If window 1 gets X'd, the content from the next player moves to the previous. Same rule"): core's
@@ -358,8 +500,9 @@ public sealed partial class MainWindow
         for (var i = 0; i < WatchPlaces; i++) { if (_stackLabels[i] is { } l) TileCanvas.Children.Remove(l); _stackLabels[i] = null; _stackCells[i] = null; _stackKey[i] = null; }
         _stackZones.Clear();
         _stackOverlay = null;
+        _plDock = null; _stackShape = null;
         _pipSlot = null;
-        _stackPlaced = false; _stackMoving = false; _stackTimer?.Stop(); _stackTimer = null;
+        _stackPlaced = false; _stackMoving = false; _startingTiles.Clear(); _startingRun++; _stackTimer?.Stop(); _stackTimer = null;
         Array.Clear(_stackWasShown);
         return was;
     }

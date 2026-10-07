@@ -120,14 +120,66 @@ export function newEpisodeBadge(aired: string | null | undefined, now: number, d
   return "New " + MON[air.getMonth()] + " " + air.getDate();   // the card's red corner ribbon; the ribbon's tip names TMDB (badgeFrom)
 }
 
-export function orderAlphabetical(rows: readonly MenuServiceRow[], log: readonly MenuLogEntry[], seen: FirstSeen, now: number): MenuCard[] {
+/**
+ * The Continue watching row, grouped by service (2026-09-26, "Maybe trying to get continue watching to sort latest first is a bad idea for us.
+ * Maybe continue watching should group items by service, and offer a quick jump to different services (only if theyre in the queue)"): the
+ * merged recency order guessed across services from the local log and first-seen stamps, and a service that adds a title late (Hulu) left the
+ * row reshuffling. Now each service's row is shown as the service gives it - its own order, its own idea of what is next - and the services
+ * follow one another A to Z by name ("order the services and groupings the same, we should probably just pick alphabetical", 2026-09-26:
+ * the same order everywhere, and one that needs no outside figure). The cards keep what orderMerged knows (lastWatched, recency), so a
+ * real time still shows. Pure; no service is preferred.
+ */
+export function orderByService(rows: readonly MenuServiceRow[], log: readonly MenuLogEntry[], seen: FirstSeen, now: number, reverse = false): MenuCard[] {
+  const merged = orderMerged(rows, log, seen, now);
+  const out: MenuCard[] = [];
+  const dir = reverse ? -1 : 1;   // reversed: the services Z to A, the titles in each Z to A
+  const byName = rows.map((r, i) => ({ r, i, k: sortTitle(r.name) })).sort((a, b) => (a.k < b.k ? -dir : a.k > b.k ? dir : a.i - b.i)).map((x) => x.r);
+  // the titles inside each service A to Z (2026-09-26, "So by service still doesnt appear to be alphanumeric within the grouping in continue
+  // watching, please double check my list too"): the service's own order had been kept
+  for (const row of byName) {
+    const mine: MenuCard[] = [];
+    for (const it of row.items) { const c = merged.find((m) => m.app === row.app && m.item === it); if (c) mine.push(c); }
+    out.push(...orderContinueByTitle(mine, reverse));
+  }
+  return out;
+}
+
+/**
+ * The rows' orders, each the person's choice and each with a reverse (2026-09-26, "now lets make an alternative ordering then, alphanumeric.
+ * So make a quick switch for the continue watching sorting order", then "We also need this on My List. Except I want to keep our current OOTB
+ * sort/group order as an option too (with the banner items pushed to the front), but we'll need to explain that algorithm in a tooltip", "I want
+ * the default ootb behavior for continue watching to be alphanumeric, and for my list to be the banner push alogrithm ... alphanum for banner
+ * items within the banner group and alphanum for the nonbanner group", "Also add a reverse order for all of these"). Titles sort by sortTitle
+ * (case and accents folded, a leading the / a / an set aside); a title on two services keeps the grouped order. Reverse flips the names (Z to
+ * A) and keeps what is not a name: New first keeps the bannered titles in front. By service is A to Z twice, the services and the titles in each. Pure.
+ */
+export type ContinueOrder = "service" | "title";
+export const CONTINUE_ORDERS: ReadonlyArray<{ id: ContinueOrder; label: string; hint: string }> = [
+  { id: "title", label: "A to Z", hint: "Every title A to Z by name, whatever the service. A leading The, A or An is skipped. Reversed, Z to A." },
+  { id: "service", label: "By service", hint: "Each service's titles together, A to Z, with the services A to Z. Reversed, both go Z to A." },
+];
+export function continueOrderOf(v: unknown): ContinueOrder { return v === "service" ? "service" : "title"; }
+export type ListOrder = "prism" | "service" | "title";
+export const LIST_ORDERS: ReadonlyArray<{ id: ListOrder; label: string; hint: string }> = [
+  { id: "prism", label: "New first", hint: "Titles with a banner come first. That's a new episode in the last " + NEW_EPISODE_DAYS + " days (from TMDB), or a banner the service put on the title itself, like New Season, Recently Added or Leaving Soon. Award banners don't count. The bannered titles go A to Z, then everything else A to Z. Reversed, each group goes Z to A and the bannered titles stay in front. A leading The, A or An is skipped." },
+  { id: "title", label: "A to Z", hint: "Every title A to Z by name, whatever the service. Banners still show but don't move a title. Reversed, Z to A." },
+  { id: "service", label: "By service", hint: "Each service's list together, A to Z, with the services A to Z. Banners still show but don't move a title. Reversed, both go Z to A." },
+];
+export function listOrderOf(v: unknown): ListOrder { return v === "service" ? "service" : v === "title" ? "title" : "prism"; }
+export type RowOrders = { continue: ContinueOrder; list: ListOrder; continueReverse: boolean; listReverse: boolean };
+export function reverseOf(v: unknown): boolean { return v === true || v === "1" || v === "true"; }
+export function orderContinueByTitle<T extends { item: { title: string } }>(cards: readonly T[], reverse = false): T[] {
+  const dir = reverse ? -1 : 1;
+  return cards.map((c, i) => ({ c, i, k: sortTitle(c.item.title) })).sort((a, b) => (a.k < b.k ? -dir : a.k > b.k ? dir : a.i - b.i)).map((x) => x.c);
+}
+
+export function orderAlphabetical(rows: readonly MenuServiceRow[], log: readonly MenuLogEntry[], seen: FirstSeen, now: number, reverse = false): MenuCard[] {
   const cards = orderMerged(rows, log, seen, now);
-  // TMDB's new episodes first, the one that aired longest ago first (2026-09-24, "if a new episode occurred in the last 10, add the banner
-  // and sort to the front (oldest first)") - it leaves the front soonest; then the services' own banners A to Z; then the rest A to Z
-  return cards.map((c, i) => {
-    const day = c.item.badgeFrom === "tmdb" ? bannerDay(c.item.badge, now) : null;
-    return { c, i, b: day !== null ? 0 : c.item.badge ? 1 : 2, d: day ?? 0, k: sortTitle(c.item.title) };
-  }).sort((a, b) => (a.b - b.b) || (a.d - b.d) || (a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i)).map((x) => x.c);
+  // New first: the bannered titles - TMDB's new episode in the last ten days, or the service's own banner - then the rest, each group A to Z
+  // (2026-09-26, "alphanum for banner items within the banner group and alphanum for the nonbanner group"; until then TMDB's came first by
+  // air date). Reversed, each group Z to A, the banners still in front.
+  const dir = reverse ? -1 : 1;
+  return cards.map((c, i) => ({ c, i, b: c.item.badge ? 0 : 1, k: sortTitle(c.item.title) })).sort((a, b) => (a.b - b.b) || (a.k < b.k ? -dir : a.k > b.k ? dir : a.i - b.i)).map((x) => x.c);
 }
 /** The day a TMDB banner ("New Sep 21") names, as the most recent such date on or before `now` (ms), or null. Pure. */
 export function bannerDay(badge: string | null | undefined, now: number): number | null {

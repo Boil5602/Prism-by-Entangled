@@ -12,6 +12,11 @@ self-hosting is always the escape hatch.
 - `docs/win-host-spec.md` — **Prism for Windows host shell spec (Phase-1 flagship). Current build target.**
 - `docs/scene-model-spec.md` — **configuration model (App/Slot/Layout/Facet/Scene), quick actions, IA. Build this natively from day one. Its §7 Migration applies to the pre-scene-model store (`%LOCALAPPDATA%\Prism\store.json`: tiles, shortcuts, master layouts, scenes v0): never deletes source data (§10), writes a review report, is round-trip tested on a COPY of a real config, and the data folder is backed up before the migration merge.**
 - `docs/concept-scenes.md` — **the concept-scenes charter: the shipped Scene Templates (Kitchen Command, Sports Multiview, Movie Night, Family Hub, Music Lounge), the imagery-pack format, the first-party micro-facets, the Parkers demo household, and Appendix A's scene library + enhancement ledger. Its *Decision:* lines are where a correction lands.**
+- `docs/features/tmdb-account.md` — the person's TMDB account linked once for ratings from the wall (their own key, no corporate key, no guests)
+- `docs/features/phone.md` — the phone: pair by QR, a keyboard for the wall, private listening
+- `docs/features/updates.md` — the Windows download and updates: one signed manifest in the bucket, a configurable server address and key for forks, the publish script
+- `docs/network.md` — every connection Prism makes and the one it accepts; a new fetch or listener is added here in the same commit
+- `docs/roadmap.md` — what is deferred and why (household sync of sign-ins, the phone keyboard, tracker blocklist); add here, never build from a chat alone
 - `docs/bugs/LEDGER.md` — bugs + the WORK section (Scene Model work order: task · owner · status · branch)
 - `docs/veil-release-checklist.md` — **the browser extension's release gate** (Edge / Chrome / Firefox): freeze, pre-flight, privacy and art gates, the site matrix walked on both browsers, store assets, submissions. Extension only; the host is in development.
 - `docs/marketing-shots.md` — the six website shots as composition references, each tied to a template + the Parkers seed (reference code: `prototypes/prism-website-mockups.jsx`)

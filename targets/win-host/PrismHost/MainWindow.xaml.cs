@@ -44,7 +44,9 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        InitDevShot();   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
+        InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
+        ShowInstalledNoteIfAny();   // the first-run note: where Prism now lives, and that the downloaded folder can go (2026-10-06)
+        InitReportFlag();   // the report flag in the top-right corner, on both players (docs/features/report-flag.md, 2026-10-06)
         InitBootCover();   // the Video player last on: a dark cover until Watch is drawn - never a service's home page (2026-09-24)
         InitPlaybackDoctor();   // says so on the wall when core reopens a failed video (MainWindow.PlaybackDoctor.cs)
         // the Prism mark (2026-09-09): on the grip at the top, and as the window's icon for the taskbar and Alt+Tab
@@ -58,10 +60,13 @@ public sealed partial class MainWindow : Window
         catch { /* a missing mark is a plain grip, never a failed start */ }
         Title = HostPaths.IsOverridden ? "Prism — fresh run (" + HostPaths.DataDir + ")" : "Prism — M1";
 
-        _store = new StoreService(HostPaths.DataDir);   // PRISM_DATA_DIR moves the whole host (store, profiles, prefs, log) for a from-scratch run
+        _store = new StoreService(HostPaths.DataDir, saveDelayMs: 4_000);   // saves coalesced off the UI thread (2026-09-28: a burst of lookups froze the window); four seconds since 2026-10-03 (perf.log: the whole store written 20 times a minute)
+        // ... and written before a crash takes them (2026-09-28 review: the fail-fast the host has died of never runs ProcessExit)
+        Application.Current.UnhandledException += (_, __) => { try { _store.Flush(); } catch { } };   // PRISM_DATA_DIR moves the whole host (store, profiles, prefs, log) for a from-scratch run
         if (HostPaths.LastStartNote is { } startNote) { LogLine("start: " + startNote); SetPill("Prism · " + startNote); }
         _surfaces = new SurfaceManager(TileCanvas, _store, new ArtService(_store),
-            forwardEvent: (_, eventJson) => { LogRaw("-> " + eventJson); NoteAmbientEvent(eventJson); _brain?.Call(HostCalls.Event, eventJson); NoteSessionEvent(eventJson); },
+            // the event is redacted before the cut too: a cut could strand part of a secret past the redactor's shapes (2026-09-30 review)
+            forwardEvent: (_, eventJson) => { PerfNoteEvent(eventJson); LogRaw("-> " + PrismHost.Diagnostics.LogCompact.Event(PrismHost.Diagnostics.Redact.Line(eventJson))); NoteAmbientEvent(eventJson); NoteNavigated(eventJson); _brain?.Call(HostCalls.Event, eventJson); NoteSessionEvent(eventJson); },
             onStatus: SetStatus);
         _surfaces.EmeResult += OnEmeResult;
         _surfaces.SetWallVolume(HostPrefs.GetDouble("wallVolume", 1.0));   // B-176: the wall's volume, remembered on this machine
@@ -88,7 +93,9 @@ public sealed partial class MainWindow : Window
         };
         _surfaces.BreakWatchPressed += tid => RootGrid.DispatcherQueue.TryEnqueue(async () => { if (VideoHubOpen) CloseVideoHub(); else { HideStageBar(); await ShowVideoHubAsync(); } });
         _surfaces.ShieldPressed += tid => RootGrid.DispatcherQueue.TryEnqueue(async () => { if (await MvShieldPressedAsync(tid)) return; if (VideoHubOpen) CloseVideoHub(); else { var t = ShowStageBarAsync(); } });   // multiview: a press on a small window brings it to the big place   // a press on the stage: the bar; on the corner: back to the stage
-        StageCurtain.PointerPressed += (_, __) => HideStageCurtain();                                                          // a tap lifts the curtain                      // Esc/F8/F10/F11 from a focused page
+        // a tap lifts the curtain - but not the second half of the double-click that raised it (2026-10-06, "I double clicked big door prize, and it
+        // originally shows the apple page for the show": the curtain went up and came down 21 ms later on that second press)
+        StageCurtain.PointerPressed += (_, __) => { if ((DateTime.UtcNow - _curtainUpAt).TotalMilliseconds > 700) HideStageCurtain(); };                                                          // a tap lifts the curtain                      // Esc/F8/F10/F11 from a focused page
         _surfaces.SlotContextMenu += (tid, pt) => RootGrid.DispatcherQueue.TryEnqueue(() => ShowSlotContextMenu(tid, pt));
         WireTiles();                                                                                                 // §6 micro-facets: the tiles.prism pages read/edit through core
         // concept-scenes §5: a single tap where the placement claimed it - core resolves the verb (tapItem), never the host
@@ -116,13 +123,26 @@ public sealed partial class MainWindow : Window
                 case "face:page": _brain.Call(HostCalls.UpdateTile, tid, "{\"float\":{\"face\":\"page\"}}"); break;
                 case "face:control": _brain.Call(HostCalls.UpdateTile, tid, "{\"float\":{\"face\":\"control\"}}"); break;
                 case "mv:remove": _ = MvRemoveWindowAsync(tid); break;   // multiview's X (2026-09-24)
-                case "dock": _brain.Call(HostCalls.UpdateTile, tid, "{\"kind\":null}"); break;
+                case "dock":
+                    // a multiview window is never docked into the wall - that took it away (2026-09-28: window 2 went three times while titles were
+                    // dropped onto it); its X removes it
+                    if (IsMultiviewWindow(tid)) { LogLine("dock ignored for multiview window " + tid); break; }
+                    _brain.Call(HostCalls.UpdateTile, tid, "{\"kind\":null}"); break;
                 case "hide": _brain.Call(HostCalls.UpdateTile, tid, "{\"float\":{\"hidden\":true}}"); SetPill("Prism · " + tid + " is hidden. Prism menu → Floating facets brings it back"); break;
                 default: if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, tid, cmd); break;   // play | pause | next | prev | mute | unmute - the §6 path; Shift on a multiview window's play: all of them
             }
         };
         RestoreWindowBounds();                            // furniture remembers where it stood
         _brain = new BrainHost(TileCanvas, _store, OnCommand, SetStatus);
+        StartGpuWatch();   // a graphics driver reset: playing video pages load again (2026-09-28)
+        StartPerfWatch();  // the wall's cost once a minute to diagnostics/perf.log (2026-10-03)
+        StartStallWatch();   // host.log names every moment the window stopped taking clicks (2026-09-28)
+        // every press the window gets, and what it landed on - even one a control handled (2026-09-28, "its not frozen but it wont accept any clicks,
+        // I see no reason for it": no press was logged at all, so where they went could not be told); a press on a web page never reaches here
+        RootGrid.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+        {
+            try { var pt = e.GetCurrentPoint(RootGrid).Position; LogLine("press at " + (int)pt.X + "," + (int)pt.Y + " on " + (e.OriginalSource?.GetType().Name ?? "?") + ((e.OriginalSource as FrameworkElement)?.Name is { Length: > 0 } nm ? " " + nm : "")); } catch { }
+        }), true);
         _brain.OnCall = (fn, json) => { if (fn != "event" && fn != "resolve") LogLine("call " + json); };   // every host→core call in host.log (file only; events are the "->" lines, resolve is the art request lane)
         _brain.OnReady += TryInit;
         _posters = new PosterService(_store, _brain);
@@ -137,11 +157,12 @@ public sealed partial class MainWindow : Window
             e.Handled = true;
             LogLine("window: Closed fired");
             SaveWindowBounds();
+            try { _store.Flush(); } catch { }   // saves are coalesced: what is pending goes to disk before anything else can go wrong
             try { await _surfaces.FreezeAllAsync(); } catch { }
             // 2026-09-08: the wall died twice as a stowed exception (0xc000027b) because a now-playing timer ticked into the
             // tree while the window tore down; every timer that draws stops first, and the close itself is enqueued rather
             // than called from inside the handled Closed (a Close() from inside was ignored and the wall lived on headless)
-            try { _surfaces.StopTimers(); } catch { }
+            try { _surfaces.StopTimers(); _stallWatch?.Stop(); _breakWatch?.Stop(); SaveBreakWatches(); } catch { }
             try { _remote?.Dispose(); _fft.Dispose(); _surfaces.SessionMute.Dispose(); } catch { }
             DispatcherQueue.TryEnqueue(Close);
         };
@@ -201,17 +222,24 @@ public sealed partial class MainWindow : Window
         RelayoutAppWindowBar();   // B-196: the inline app window's bar follows the new size
     }
 
+    /// <summary>A new device's wall: nothing on it (2026-09-29; it was a demo of two services, up under the welcome page). The players the
+    /// welcome page makes take the wall over.</summary>
+    private static string FirstRunDocJson() =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "first-run-dashboard.json"));
+
     private void TryInit()
     {
         if (_inited || !_brain.Ready || _w <= 0 || _h <= 0) return;
         _inited = true;
         var stored = _store.Get("dashboard");
-        var doc = stored ?? File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "demo-dashboard.json"));
-        SetStatus($"boot doc: {(stored is null ? "DEMO (store had no dashboard)" : "store")} · {_store.StorePath} · exists={File.Exists(_store.StorePath)}");
+        var doc = stored ?? FirstRunDocJson();
+        SetStatus($"boot doc: {(stored is null ? "EMPTY (a new device: the store had no dashboard)" : "store")} · {_store.StorePath} · exists={File.Exists(_store.StorePath)}");
         var options = InitOptionsJson();
         _brain.Call(HostCalls.Init, doc, _w, _h, options);
         SetStatus($"core init ({_w:0}x{_h:0})");
         StartRemote();
+        // §28: core's first check runs soon after boot; a release ready (or staged) is said once on the status line (2026-10-05)
+        _ = Task.Delay(TimeSpan.FromSeconds(75)).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(async () => { await PollUpdateStatusAsync(); RefreshUpdateNotice(); }));
         // win-host-spec §5 launched Edge windows: warn when a hand-off would run without the veil extension (B-24: no hand-off exists yet → reported only)
         var handoff = HandoffCheck.Verify(_store.Root);
         LogLine("handoff check: " + handoff);
@@ -243,11 +271,51 @@ public sealed partial class MainWindow : Window
         try
         {
             _remote = new RemoteServer(8471, (id, json) => RootGrid.DispatcherQueue.TryEnqueue(() => _brain.Call(HostCalls.Http, id, json)), LogLine);
+            // the routes the host answers itself take a paired phone's token only (2026-10-05 review): core's own record of the pairings, read at each ask
+            _remote.TokenOk = t =>
+            {
+                try
+                {
+                    var raw = _store.Get("remote:tokens");
+                    if (raw is null || System.Text.Json.Nodes.JsonNode.Parse(raw) is not System.Text.Json.Nodes.JsonArray list) return false;
+                    foreach (var d in list) if (d is System.Text.Json.Nodes.JsonObject o && o["token"]?.GetValue<string>() == t) return true;
+                }
+                catch { }
+                return false;
+            };
+            // private listening (Services/ListenStream.cs, 2026-10-03): the ticket redeemed with core, the shared browser's sound, the wall quiet
+            _remote.Listen = new Services.ListenStream(
+                redeem: t =>
+                {
+                    // the server answers on its own thread; the brain is asked on the UI thread
+                    var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    RootGrid.DispatcherQueue.TryEnqueue(async () => { try { var r = await ModelCallAsync(HostCalls.RedeemStreamTicket, t); tcs.TrySetResult(r is null || r == "null" ? "" : r.Trim('"')); } catch (Exception ex) { LogLine("listen: redeem " + ex.Message); tcs.TrySetResult(""); } });
+                    return tcs.Task;
+                },
+                browserPid: () => _surfaces.AnyBrowserPid(),
+                listeners: OnListeners, log: LogLine);
+            // each phone's own window (2026-10-06): the windows phones listen to are tapped in their pages, their samples to the stream
+            _remote.Listen.TapsWanted += want => RootGrid.DispatcherQueue.TryEnqueue(() => _surfaces.SetTaps(want));
+            _surfaces.TapFrames += (id, pcm) => _remote?.Listen?.OnTap(id, pcm);
+            var tapLook = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+            tapLook.Tick += (_, __) => { if ((_remote?.Listen?.Count ?? 0) > 0) _surfaces.RefreshTaps(); };
+            tapLook.Start();
             LogLine("remote API listening at " + _remote.BaseUrl());
             _brain.Call(HostCalls.MintPairing, _remote.BaseUrl(), true);
         }
+        catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AddressAlreadyInUse && _remoteRetries < 30)
+        {
+            // the port still held by the process before this one (a phone's stream outliving it, 2026-10-05: the phone had no PC until the next
+            // restart): tried again every second for half a minute, then given up with the message
+            _remoteRetries++;
+            if (_remoteRetries == 1) LogLine("remote API: port 8471 still in use, waiting for it");
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            t.Tick += (_, __) => { t.Stop(); StartRemote(); };
+            t.Start();
+        }
         catch (Exception ex) { SetStatus("remote API not started: " + ex.Message); }
     }
+    private int _remoteRetries;
 
     /// <summary>
     /// concept-scenes §5: core resolved a single tap - on the wall or from the
@@ -319,6 +387,9 @@ public sealed partial class MainWindow : Window
             // chains onto that surface's previous op.
             case Ops.SurfaceCreate: Chain(id, () => _surfaces.CreateAsync(m)); break;
             case Ops.SurfaceDestroy: Chain(id, () => { _surfaces.Destroy(id); return Task.CompletedTask; }); break;
+            case Ops.ProfileMigrate: Chain("profiles", () => ProfileMigrateAsync(m)); break;
+            case Ops.SurfaceTypeText: Chain(id, () => _surfaces.TypeTextAsync(id, m.GetString("text") ?? "")); break;   // the phone keyboard (2026-10-03)
+            case Ops.SurfaceSendKey: Chain(id, () => _surfaces.SendKeyAsync(id, m.GetString("key") ?? "")); break;   // one browser, many sign-ins (MainWindow.ProfileMove, 2026-10-03)
             case Ops.SurfaceNavigate: Chain(id, () => { _surfaces.Navigate(id, m.GetString("url") ?? "about:blank"); return Task.CompletedTask; }); break;
             case Ops.SurfaceInject: Chain(id, () => _surfaces.InjectAsync(id, m.GetString("css"), m.GetString("js"))); break;
             case Ops.SurfaceFreeze: Chain(id, () => _surfaces.FreezeAsync(id)); break;
@@ -338,7 +409,7 @@ public sealed partial class MainWindow : Window
             case Ops.SurfaceSetChrome: Chain(id, () => { _surfaces.SetChrome(id, m.GetString("kind") ?? "slot", m.GetString("face") ?? "page", m.GetBool("hidden")); return Task.CompletedTask; }); break;   // §32 floating chrome
             case Ops.SurfaceSetRect: if (m.GetRect("rect") is { } r) Chain(id, () => { _surfaces.SetRect(id, r); return Task.CompletedTask; }); break;
             case Ops.SurfaceSetOpacity: Chain(id, () => { _surfaces.SetOpacity(id, m.GetNumber("opacity", 1)); return Task.CompletedTask; }); break;
-            case Ops.SurfaceShowIntermission: Chain(id, () => { _surfaces.ShowIntermission(id, m.GetString("source") ?? ""); return Task.CompletedTask; }); SetPill("Prism · intermission: " + id); break;
+            case Ops.SurfaceShowIntermission: Chain(id, () => { _surfaces.ShowIntermission(id, m.GetString("source") ?? "", m.GetString("look")); return Task.CompletedTask; }); LogLine("intermission: " + id); break;   // the cover itself says so on the window; the status line never shows a tile's internal name (2026-09-29)
             case Ops.SurfaceHideIntermission: Chain(id, () => { _surfaces.HideIntermission(id); return Task.CompletedTask; }); break;
             case Ops.SurfaceSetIntermissionSkip: Chain(id, () => { _surfaces.SetIntermissionSkip(id, m.GetBool("available"), m.GetString("target")); return Task.CompletedTask; }); break;
             case Ops.SurfaceSetAdInfo: Chain(id, () => { _surfaces.SetAdInfo(id, m.GetString("count") ?? "", m.GetNumber("remaining", -1)); return Task.CompletedTask; }); break;
@@ -357,17 +428,27 @@ public sealed partial class MainWindow : Window
             // §6a deep links + §6 remote lane
             case Ops.UiRoute: OnUiRoute(m.GetString("route") ?? "", m.GetString("source") ?? "core", m.GetString("id")); break;
             case Ops.UiTapResult: OnTapResult(id, m.GetString("action") ?? "promote", m.GetString("did") ?? "none", m.GetString("audio"), m.GetString("error")); break;
+            // a pick from the phone (2026-10-05): the Watch screen out of the way and the curtain up, as a card pressed here does
+            case Ops.UiPrivateMute: _surfaces.PrivateDeviceMute(m.GetBool("on")); break;   // the phone's "mute Prism on the PC while this phone listens" (2026-10-05)
+            case Ops.UiListenRoutes: _remote?.Listen?.SetRoutes(m.GetString("json") ?? "{}"); break;   // each phone's window (2026-10-06)
+            case Ops.UiBreakWatch: HostPrefs.Set("video.breakWatch", m.GetBool("on")); LogLine("break watch: " + (m.GetBool("on") ? "on" : "off") + " (the phone)"); break;   // the phone's switch (2026-10-07)
+            case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; LogLine("video pick from the phone: " + vt + " on " + vs); if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
             case Ops.HttpResponse: _remote?.OnResponse((int)m.GetNumber("requestId"), (int)m.GetNumber("status", 500), m.GetString("body") ?? "", m.GetString("contentType") ?? "application/json"); break;
-            case Ops.RemotePairing: LogLine("pairing url minted (token withheld from status)"); SetPill("Prism · pair a phone: " + (m.GetString("url") ?? "")); break;
-            case Ops.RemotePaired: SetPill("Prism · phone paired"); break;
+            case Ops.RemotePairing: LogLine("pairing url minted (token withheld from status)"); OnPairingMinted(m.GetString("url") ?? ""); break;   // the QR card when the menu asked (MainWindow.PairPhone)
+            case Ops.RemotePaired: SetPill("Prism · phone paired"); ClosePairCard(); break;
             case Ops.RemotePairedCount: SetStatus($"remote: {m.GetNumber("n"):0} phone(s) paired"); break;
             case Ops.StoreSet:
                 var storedKey = m.GetString("key") ?? "";
-                _store.Set(storedKey, m.GetString("value") ?? "");
+                var storedValue = m.GetString("value") ?? "";
+                _store.Set(storedKey, storedValue);
+                PerfNoteSet(storedKey, storedValue.Length);   // perf.log: which keys are set most, and how big (2026-10-03)
                 OnTilesKeyStored(storedKey);   // §6 micro-facets: a phone's edit reaches the wall page too
                 break;
             case Ops.NetFetchStatic: _ = FetchStaticAsync(m); break;
             case Ops.NetFetchKeyed: _ = FetchKeyedAsync(m); break;
+            // §28 updates (Services/Updates.cs, 2026-10-05): the signed manifest at the configured address; a release downloaded, verified and staged
+            case Ops.UpdateFetchManifest: _ = UpdateFetchAsync(m); break;
+            case Ops.UpdateApply: _ = UpdateApplyAsync(m); break;
             case Ops.SurfaceVeilImagery: AnswerVeilImagery(m); break;
             case Ops.SurfaceEvaluate: _ = AnswerEvaluateAsync(m); break;   // a small read of a page, answered (the playback doctor, 2026-09-23)
             case Ops.RuntimeError: SetStatus("core error: " + (m.GetString("message") ?? "?")); break;
@@ -405,6 +486,27 @@ public sealed partial class MainWindow : Window
 
     /// <summary>§4a lenses: the person's OWN keyed call (their TMDB key) - the address and headers exactly as core built them; the
     /// headers are never logged, the answer goes back to core alone. https only.</summary>
+    private async Task UpdateFetchAsync(CommandMessage m)
+    {
+        var rid = m.RequestId; if (rid is null) return;
+        try { var text = await Services.Updates.FetchManifestAsync(m.GetString("url") ?? "", LogLine); _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize(text), null); LogLine("updates: manifest read and verified"); }
+        catch (Exception ex) { LogLine("updates: " + ex.Message); _brain.Call(HostCalls.Resolve, rid.Value, null, ex.Message); }
+    }
+    private async Task UpdateApplyAsync(CommandMessage m)
+    {
+        var rid = m.RequestId; if (rid is null) return;
+        try
+        {
+            var release = m.Payload.TryGetProperty("release", out var r) && r.ValueKind == JsonValueKind.Object ? JsonNode.Parse(r.GetRawText()) as JsonObject : null;
+            if (release is null) { _brain.Call(HostCalls.Resolve, rid.Value, null, "no release"); return; }
+            // off the window's thread (2026-10-06, "When I check and run an install on the Updates screen, it freezes up the Updates modal window until the
+            // download is complete"): the download, the hashing and the copies are the thread pool's; the status line is set back on the window's
+            var result = await Task.Run(() => Services.Updates.ApplyAsync(release, LogLine, s => RootGrid.DispatcherQueue.TryEnqueue(() => SetPill("Prism · " + s))));
+            _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize(result), null);
+            if (result == "staged") RefreshUpdateNotice();
+        }
+        catch (Exception ex) { LogLine("updates: apply " + ex.Message); _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize("failed"), null); }
+    }
     private async Task FetchKeyedAsync(CommandMessage m)
     {
         var rid = m.RequestId;
@@ -413,7 +515,10 @@ public sealed partial class MainWindow : Window
         try
         {
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("fetchKeyed takes https addresses only");
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            // a write under the person's key (a TMDB rating, 2026-10-03): the method and the JSON body core gave; GET otherwise
+            var method = m.GetString("method") is { Length: > 0 } mm ? new HttpMethod(mm.ToUpperInvariant()) : HttpMethod.Get;
+            using var req = new HttpRequestMessage(method, url);
+            if (m.GetString("body") is { } bodyText && method != HttpMethod.Get) req.Content = new StringContent(bodyText, System.Text.Encoding.UTF8, "application/json");
             try
             {
                 var headers = JsonNode.Parse(m.GetString("headers") ?? "{}") as JsonObject;
@@ -499,15 +604,27 @@ public sealed partial class MainWindow : Window
     /// <summary>Channel trace (diagnostics only): every op, no payload bodies.</summary>
     private void LogOp(CommandMessage m)
     {
-        try
-        {
-            var diag = Path.Combine(_store.Root, "diagnostics");
-            Directory.CreateDirectory(diag);
-            File.AppendAllText(Path.Combine(diag, "host.log"),
-                PrismHost.Diagnostics.Redact.Line(   // B-91/22: redacted AT the write, never scrubbed after
-                    $"{DateTime.Now:HH:mm:ss.fff} <- {m.Op}{(m.RequestId is { } r ? $" #{r}" : "")} {m.GetString("id") ?? ""}{OpDetail(m)}") + "\n");
-        }
+        try { AppendHostLog($"<- {m.Op}{(m.RequestId is { } r ? $" #{r}" : "")} {m.GetString("id") ?? ""}{OpDetail(m)}"); }
         catch { }
+    }
+
+    private static readonly object _hostLogLock = new();
+    private static int _hostLogWrites;
+    private static string? _hostLogDirMade;
+    /// <summary>
+    /// The one write to host.log: redacted at the write (B-91/22, never scrubbed after), one writer at a time (events arrive off the UI
+    /// thread), and the log rotated in place past 64 MB (2026-09-30: a thirteen-hour run left a two-gigabyte log, rotation having run only
+    /// at the start). Event bodies are compacted before they get here (LogCompact).
+    /// </summary>
+    private void AppendHostLog(string text)
+    {
+        var diag = Path.Combine(_store.Root, "diagnostics");
+        lock (_hostLogLock)
+        {
+            if (_hostLogDirMade != diag) { Directory.CreateDirectory(diag); _hostLogDirMade = diag; }
+            if (++_hostLogWrites % 500 == 0) HostPaths.RotateHostLog();
+            File.AppendAllText(Path.Combine(diag, "host.log"), PrismHost.Diagnostics.Redact.Line($"{DateTime.Now:HH:mm:ss.fff} {text}") + "\n");
+        }
     }
 
     /// <summary>The fields worth a flight-recorder glance per op (every op is logged; these add the one value that explains it).</summary>
@@ -530,16 +647,19 @@ public sealed partial class MainWindow : Window
     // ------------------------------------------------ §31 picker (host)
     private sealed record HostCatalogEntry(string Id, string Name, string Adapter, string Url, string Badge, string Json);
 
+    /// <summary>Adapters and catalog entries: the ones Prism ships and the ones added on this device (the data folder's adapters/ and
+    /// catalog/). Read at the start; a newer added adapter stands over a shipped one (PrismHost.Core.AdapterFiles).</summary>
+    internal static readonly PrismHost.Core.AdapterFiles Sources = new(Path.Combine(AppContext.BaseDirectory, "Assets"), HostPaths.DataDir);
+
     private void LoadCatalog()
     {
         try
         {
-            var dir = Path.Combine(AppContext.BaseDirectory, "Assets", "catalog");
-            if (!Directory.Exists(dir)) return;
-            foreach (var file in Directory.GetFiles(dir, "*.json").OrderBy(f => f))
+            // the shipped catalog and the entries added on this device (AdapterFiles: the data folder's catalog/)
+            foreach (var note in Sources.Notes) LogLine("adapters: " + note);
+            foreach (var entry in Sources.Catalog.Values.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
             {
-                if (Path.GetFileName(file).StartsWith("_")) continue;
-                var json = File.ReadAllText(file);
+                var json = File.ReadAllText(entry.Path);
                 using var doc = JsonDocument.Parse(json);
                 var r = doc.RootElement;
                 string Str(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString()! : "";
@@ -653,7 +773,7 @@ public sealed partial class MainWindow : Window
             try
             {
                 var docJson = _store.Get("dashboard")
-                              ?? File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "demo-dashboard.json"));
+                              ?? FirstRunDocJson();
                 using var doc = JsonDocument.Parse(docJson);
                 foreach (var t in doc.RootElement.GetProperty("tiles").EnumerateArray())
                     if (t.TryGetProperty("id", out var idEl) && idEl.GetString() is { } tid) taken.Add(tid);
@@ -675,7 +795,7 @@ public sealed partial class MainWindow : Window
         try
         {
             if (adapter.Length == 0) return null;
-            var ap = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters", adapter + ".json");
+            var ap = (Sources.AdapterPath(adapter) ?? "");
             if (!File.Exists(ap)) return null;
             using var ad = JsonDocument.Parse(File.ReadAllText(ap));
             return ad.RootElement.TryGetProperty("selectors", out var sel) ? sel.GetRawText() : null;
@@ -690,11 +810,9 @@ public sealed partial class MainWindow : Window
         var adapters = new Dictionary<string, JsonElement>();
         try
         {
-            var dir = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters");
-            if (Directory.Exists(dir))
-                foreach (var file in Directory.GetFiles(dir, "*.json"))
-                    adapters[Path.GetFileNameWithoutExtension(file)] =
-                        JsonDocument.Parse(File.ReadAllText(file)).RootElement.Clone();
+            // the shipped adapters and the ones added on this device (AdapterFiles: the data folder's adapters/), one file a name
+            foreach (var e in Sources.Adapters.Values)
+                adapters[e.Name] = JsonDocument.Parse(File.ReadAllText(e.Path)).RootElement.Clone();
         }
         catch { }
         var cosmeticSources = new List<object>();
@@ -722,23 +840,22 @@ public sealed partial class MainWindow : Window
         // non-playing video slot into `warm`, which is what makes a §25 peek possible
         // at all, and previewBudget floors the peek cadence + caps concurrent decode.
         var budget = JsonDocument.Parse(DeviceBudget.OptionsFragmentJson(DeviceBudget.PhysicalMemoryBytes())).RootElement;
+        // §28: the update check, at the configured address, for the configured channel (Services/Updates.cs); off when the person turned it off
+        // the checker runs whether or not checks are on, so Check now works and the schedule can be changed without a restart (2026-10-06)
+        object? update = new { currentVersion = Services.Updates.CurrentVersion, manifestUrl = Services.Updates.Url, channel = Services.Updates.Channel, schedule = Services.Updates.Schedule, enabled = Services.Updates.Enabled };
         return JsonSerializer.Serialize(new
         {
             adapters,
             cosmeticSources,
             maxLiveTiles = budget.GetProperty("maxLiveTiles").GetInt32(),
             previewBudget = budget.GetProperty("previewBudget").Clone(),
+            update,
         });
     }
 
     private void LogRaw(string line)
     {
-        try
-        {
-            var diag = Path.Combine(_store.Root, "diagnostics");
-            Directory.CreateDirectory(diag);
-            File.AppendAllText(Path.Combine(diag, "host.log"), PrismHost.Diagnostics.Redact.Line($"{DateTime.Now:HH:mm:ss.fff} {line}") + "\n");   // B-91/22: redacted AT the write
-        }
+        try { AppendHostLog(line); }
         catch { }
     }
 
@@ -748,7 +865,7 @@ public sealed partial class MainWindow : Window
     // promoteHero / setHeroSize / removeTile; the host renders buttons.
     private string CurrentDocJson() =>
         _store.Get("dashboard")
-        ?? File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "demo-dashboard.json"));
+        ?? FirstRunDocJson();
 
     private async void ToggleArrange()
     {
@@ -1071,8 +1188,8 @@ public sealed partial class MainWindow : Window
         StartSlotPick(
             "Click the slot showing the ad - Esc cancels",
             _surfaces.VeilStates().Select(v => v.Id),
-            id => "\u2691 Report the ad in " + id + "\n(sends site + player structure - no titles, no account)",
-            id => _ = SendReportAsync(id));
+            id => "\u2691 Report the ad in " + id + "\n(you see what is sent before anything goes)",
+            id => ShowReportPanel(id));
     }
 
     /// <summary>Ctrl+digit: tile N (doc order) to full window / back.</summary>
@@ -1090,52 +1207,44 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { SetStatus("fullscreen: " + ex.Message); }
     }
 
-    private async Task SendReportAsync(string tileId)
+    /// <summary>The report as the panel described it (MainWindow.ReportPanel): the site's domain, the ad's details in the window (the probe's ad signs
+    /// and player), the kind, the note, Prism's version - and the full page address and the embedded players' addresses only with the box ticked.</summary>
+    private async Task SendReportAsync(string tileId, string site, string url, JsonElement? probe, string? probeNote, string kind, string note, bool full)
     {
-        SetPill("Prism \u00b7 probing " + tileId + "\u2026");
+        SetPill("Prism \u00b7 sending the report\u2026");
         try
         {
-            var url = _surfaces.SourceOf(tileId) ?? "";
-            var site = "prism-host";
-            try { site = new Uri(url).Host; } catch { }
-            object probe = new { note = "probe unavailable" };
-            var raw = await _surfaces.EvalOnTileAsync(tileId, ReportProbeJs);
-            if (raw is not null && raw.StartsWith("__prism_eval_error"))
+            var ver = AppVersion.Text;
+            var diag = new Dictionary<string, object?> { ["source"] = "prism-host report", ["tile"] = tileId };
+            if (probeNote is not null) diag["probe"] = probeNote;
+            if (probe is { } pj)
             {
-                probe = new { note = raw };
-                raw = null;
+                if (pj.TryGetProperty("signals", out var sg)) diag["signals"] = sg;
+                if (pj.TryGetProperty("players", out var pl)) diag["players"] = pl;
+                if (pj.TryGetProperty("videos", out var vc)) diag["videos"] = vc;
+                if (full && pj.TryGetProperty("iframes", out var fr)) diag["iframes"] = fr;   // the embedded players' addresses: only with the box ticked
             }
-            if (raw == "null") probe = new { note = "script evaluated to null (in-page exception?)" };
-            if (raw is not null && raw != "null")
+            var payload = new Dictionary<string, object?>
             {
-                try
-                {
-                    using var outer = JsonDocument.Parse(raw);
-                    var inner = outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString()! : raw;
-                    probe = JsonSerializer.Deserialize<JsonElement>(inner);
-                }
-                catch { }
-            }
-            var payload = new
-            {
-                v = 1,
-                site,
-                url = url.Length > 120 ? url.Substring(0, 120) : url,
-                ua = "prism-host",
-                veil = "host-m3",
-                target = new { tag = "TILE", id = tileId, cls = "", text = "", w = 0, h = 0, kids = 0 },
-                chain = Array.Empty<object>(),
-                diag = new { source = "prism-host report", tile = tileId, probe },
+                ["v"] = 1,
+                ["site"] = site.Length > 0 ? site : "prism-host",
+                ["kind"] = kind,
+                ["veil"] = ("host " + ver).Length <= 16 ? "host " + ver : ver,
+                ["target"] = new { tag = "TILE", id = tileId, cls = "", text = "", w = 0, h = 0, kids = 0 },
+                ["chain"] = Array.Empty<object>(),
+                ["diag"] = diag,
             };
-            var res = await ReportHttp.PostAsync("https://prism-reports.fly.dev/v1/report",
+            if (note.Length > 0) payload["note"] = note.Length > 280 ? note.Substring(0, 280) : note;
+            if (full) payload["url"] = url.Length > 200 ? url.Substring(0, 200) : url;
+            var res = await ReportHttp.PostAsync("https://reports.entangled.world/v1/report",   // Entangled's address for the inbox (2026-09-26)
                 new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json"));
             SetPill(res.IsSuccessStatusCode
-                ? "Prism \u00b7 \u2713 report sent (" + tileId + ")"
-                : "Prism \u00b7 report failed: http " + (int)res.StatusCode);
+                ? "Prism \u00b7 \u2713 report sent. Thank you."
+                : "Prism \u00b7 the report didn't send (http " + (int)res.StatusCode + ")");
         }
         catch (Exception ex)
         {
-            SetPill("Prism \u00b7 report failed: " + ex.Message);
+            SetPill("Prism \u00b7 the report didn't send: " + ex.Message);
         }
     }
 
@@ -1201,6 +1310,8 @@ public sealed partial class MainWindow : Window
         RootGrid.DispatcherQueue.TryEnqueue(() =>
         {
             PillLine.Text = text;
+            // a line of its own takes the status line: an offer's button goes with the offer's words (2026-10-06)
+            if (_pillAction is not null && text != _pillActionFor) { PillRow.Children.Remove(_pillAction); _pillAction = null; _pillActionFor = null; }
             var idle = string.IsNullOrWhiteSpace(text) || text.Trim() == "Prism";
             _pillFade?.Stop(); _pillFade = null;
             PillBorder.Opacity = 1;
@@ -1239,23 +1350,13 @@ public sealed partial class MainWindow : Window
     /// <summary>host.log only - for high-volume or untrusted text (page titles, call JSON) that must never reach a TextBlock.</summary>
     private void LogLine(string text)
     {
-        try
-        {
-            var diag = Path.Combine(_store.Root, "diagnostics");
-            Directory.CreateDirectory(diag);
-            File.AppendAllText(Path.Combine(diag, "host.log"), PrismHost.Diagnostics.Redact.Line($"{DateTime.Now:HH:mm:ss.fff} {text}") + "\n");   // B-91/22: redacted AT the write
-        }
+        try { AppendHostLog(text); }
         catch { }
     }
 
     private void SetStatus(string text)
     {
-        try
-        {
-            var diag = Path.Combine(_store.Root, "diagnostics");
-            Directory.CreateDirectory(diag);
-            File.AppendAllText(Path.Combine(diag, "host.log"), PrismHost.Diagnostics.Redact.Line($"{DateTime.Now:HH:mm:ss.fff} {text}") + "\n");   // B-91/22: redacted AT the write
-        }
+        try { AppendHostLog(text); }   // the status line is the fourth writer to host.log: through the one lock (it had raced the others, and a line in three lost - firstchance.log, 2026-09-30)
         catch { }
         RootGrid.DispatcherQueue.TryEnqueue(() => StatusLine.Text = text);
     }

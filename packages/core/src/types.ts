@@ -229,7 +229,7 @@ export interface NowPlaying {
    * the adapter's `window.__prismMusicContext` (Apple Music: MusicKit's nowPlayingItem.container).
    * The Media Session never says which playlist or station a track came from; only the page can.
    */
-  context?: { url?: string; label?: string; kind?: string; id?: string; /** the track's own id in the player's queue (Apple: the catalog song id) - the saved spot in a Prism-ordered play (2026-09-17) */ trackId?: string | null; /** the track, when the page names it and the Media Session does not (Pandora) */ title?: string; artist?: string; /** the page's own transport says playing (B-132) */ playing?: boolean; /** the page's own clock, seconds (B-148: Pandora's playing element can be the pre-buffered next track) */ position?: number | null; duration?: number | null; /** B-155: the service's own rating of the current track: 1 thumbs up, -1 down, 0 none */ rating?: number; /** the track's artwork when the page shows it and the Media Session does not (Pandora's tuner image, 2026-09-13) */ artwork?: string | null; /** the service's own offer on screen (Pandora's "Get more skips" at the skip limit, 2026-09-14): its label; pressing it is tileCommand("offer") */ offer?: { label: string } | null; /** the adapter's declared controls the page has hidden or disabled right now (Pandora hides Skip during an ad, 2026-09-14): control names - next, prev, play, pause */ unavailable?: string[] } | null;
+  context?: { url?: string; label?: string; kind?: string; id?: string; /** the track after this one as the player's own queue has it (Apple Music; 2026-10-04, the phone's Up next line) */ next?: { title: string; artist?: string } | null; /** the track's own id in the player's queue (Apple: the catalog song id) - the saved spot in a Prism-ordered play (2026-09-17) */ trackId?: string | null; /** the track, when the page names it and the Media Session does not (Pandora) */ title?: string; artist?: string; /** the page's own transport says playing (B-132) */ playing?: boolean; /** the page's own clock, seconds (B-148: Pandora's playing element can be the pre-buffered next track) */ position?: number | null; duration?: number | null; /** B-155: the service's own rating of the current track: 1 thumbs up, -1 down, 0 none */ rating?: number; /** the track's artwork when the page shows it and the Media Session does not (Pandora's tuner image, 2026-09-13) */ artwork?: string | null; /** the service's own offer on screen (Pandora's "Get more skips" at the skip limit, 2026-09-14): its label; pressing it is tileCommand("offer") */ offer?: { label: string } | null; /** the adapter's declared controls the page has hidden or disabled right now (Pandora hides Skip during an ad, 2026-09-14): control names - next, prev, play, pause */ unavailable?: string[] } | null;
   /** The service's library as the page reports it (the adapter's musicLibrary script): playlists and stations to pick from without setting foot on the page. */
   library?: { playlists?: LibraryItem[]; stations?: LibraryItem[] } | null;
   /** What the adapter's musicPlay script last did (queued | ok | error:...), so a pick that failed says so on the wall. */
@@ -250,6 +250,10 @@ export interface NowPlaying {
 
 /** A live channel a live-capable service lists (video-menu-spec §2 / §3 liveNow). */
 export interface VideoChannel {
+  /** A live event standing in as a channel row of the Live tab's grid (2026-09-30): its press plays it as an event. */
+  event?: boolean;
+  /** An event's series, the page's own word (Formula 1, MLS): shown on the row beside the service; the row's type is Sports. */
+  series?: string;
   id: string;
   name: string;
   /** The address that tunes the channel in the service's own player. */
@@ -258,6 +262,21 @@ export interface VideoChannel {
   now?: string | null;
   logo?: string | null;
   favorite?: boolean;
+  /** The Live tab (docs/features/live.md, 2026-09-28): the service's own word for the channel's kind (Paramount+'s "News", "Kids & Family"). */
+  category?: string | null;
+  /** TMDB's word for a channel named after one show (2026-10-02, live-titles.ts): the Live type its first genre names, and the show it matched. */
+  tmdbType?: string | null;
+  tmdbTitle?: string | null;
+  /** Modes the channel also counts in for what is on now (2026-10-02, Movies mode): "Movies" when TMDB says the program on now is a film,
+   *  "Documentary" when its genres say so - with the title TMDB matched. */
+  nowTypes?: Array<{ type: string; title: string; /** the program's own words the lookup was made from */ of?: string }> | null;
+  /** When core last took this channel from a report or a read (epoch ms): what it said was on "now" is believed for a few hours. */
+  readAt?: number;
+  /** When what is on now ends (epoch ms), and a line about it, when the service says. */
+  nowEnds?: number | null;
+  nowDesc?: string | null;
+  /** What is on later, as the service lists it (epoch ms; each ends where the next begins when the service gives no end). */
+  schedule?: Array<{ title: string; start: number; end?: number | null; desc?: string | null }>;
 }
 
 /** VP-3: a video service's profiles - the gate up or not, who is offered, who is chosen when the page says. */
@@ -288,8 +307,13 @@ export interface VideoContext {
   duration?: number | null;
   /** An ad plays in the player's own stream (the page's word; the veil has its own signal). */
   ad?: boolean;
+  /** A live channel playing: its id as the service's guide (videoLive) gives it - what a tune is asked with, so a restart can tune it again. */
+  channel?: string;
   /** The page's own playback error, in its words and code ("Error playing video · RUNUNK13") - the player shows it instead of the title (2026-09-21). */
   error?: string;
+  /** The player is loading with nothing to play on from (the media element's readyState under HAVE_FUTURE_DATA, not ended): a stopped
+   *  player that says so is stalled, not paused by a person (2026-10-06, a Twitch video sat on its spinner for five minutes). */
+  buffering?: boolean;
   /** The service's own ad-break marks on the title's timeline, in seconds of `position`'s clock; done once watched (2026-09-23, "Can we show ad breaks in the scan bar?"). */
   adBreaks?: Array<{ at: number; done: boolean }>;
 }
@@ -313,6 +337,11 @@ export interface VideoItem {
   /** The badge is already drawn in the card's own picture (Netflix bakes "New Season" / "Recently Added" into its box art, 2026-09-24):
    *  it still orders My List, and the host does not draw it a second time. */
   badgeInArt?: boolean;
+  /** A live event (kind "live" from an events page, 2026-09-30): when it starts and ends (epoch ms), whether it is on now, and its series ("Formula 1", "MLS"). */
+  start?: number | null;
+  end?: number | null;
+  live?: boolean;
+  group?: string | null;
 }
 
 export interface VideoLibrary {
@@ -320,6 +349,10 @@ export interface VideoLibrary {
   list?: VideoItem[];
   /** The page's own rows ("Today's Top Picks for You", "New Releases"...), each a shelf of titles - the menu structure for starting things (VP-3b). */
   shelves?: Array<{ title: string; items: VideoItem[] }>;
+  /** The person's OWN rows on the service, as the account lists them (2026-10-05: Twitch's Followed channels and its latest videos, YouTube's
+   *  Subscriptions, Watch Later and playlists): a row each on Watch, always drawn, never a suggestion. A report's rows replace the kept rows
+   *  of the same title and leave the others (the rows come from different pages). */
+  own?: Array<{ title: string; items: VideoItem[] }>;
   /** The titles the person OWNS on the service (Fandango at Home's My Movies / My TV Shows, 2026-09-22): a library, not a list - its own row, and 'Owned' on a search card. */
   owned?: VideoItem[];
   /** The reader walked the whole owned library this pass (it reached the end): the pass is the library, and a title absent from two such passes is gone. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INFERRED_RECENT_MS, agoLabel, noteLog, noteSeen, orderMerged, type FirstSeen, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, sortTitle } from "../src/menu-order.js";
+import { INFERRED_RECENT_MS, agoLabel, noteLog, noteSeen, orderMerged, orderByService, orderContinueByTitle, continueOrderOf, type FirstSeen, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, sortTitle } from "../src/menu-order.js";
 
 // docs/video-menu-spec.md §4 + the transparency rule (Phase 2, 2026-09-19): the menu's ordering is a PURE function of the
 // four §4 inputs - the services' rows, the local watch log, the first-seen record, now - and nothing else. No ranking or
@@ -28,6 +28,26 @@ describe("menu-order §4 - the merge is a pure function of the four inputs", () 
     // a service badge on every card, the facet to play through
     expect(out.map((c) => c.service)).toEqual(["Netflix", "Hulu", "Netflix", "Netflix", "Hulu"]);
     expect(out.every((c) => c.facet.length > 0)).toBe(true);
+  });
+
+  it("orderByService (Continue watching, 2026-09-26): each service's titles A to Z, the services A to Z by name; times kept", () => {
+    const log: MenuLogEntry[] = [{ app: "hulu", id: "h2", title: "Shrill", at: NOW - DAY }];
+    const out = orderByService(rows, log, {}, NOW);
+    expect(out.map((c) => c.item.id)).toEqual(["h1", "h2", "n1", "n2", "n3"]);   // Hulu: The Bear, Shrill; Netflix: Dark, Heat, Tires
+    expect(out[1]!.lastWatched).toBe(NOW - DAY);
+    expect(orderByService([...rows].reverse(), log, {}, NOW).map((c) => c.item.id)).toEqual(["h1", "h2", "n1", "n2", "n3"]);   // the given order does not matter
+    expect(orderByService(rows, log, {}, NOW, true).map((c) => c.item.id)).toEqual(["n3", "n2", "n1", "h2", "h1"]);   // reversed: services Z to A, titles Z to A
+    const mixed: MenuServiceRow[] = [{ app: "hulu", name: "Hulu", facet: "hu", items: [item("h3", "Zorro"), item("h4", "The Americans"), item("h5", "Mad Men")] }];
+    expect(orderByService(mixed, [], {}, NOW).map((c) => c.item.title)).toEqual(["The Americans", "Mad Men", "Zorro"]);   // A to Z inside the service, not its own order
+  });
+
+  it("Continue watching A to Z (2026-09-26): by title alone, a leading The set aside, ties keep the grouped order; reversed Z to A; the default", () => {
+    const out = orderContinueByTitle(orderByService(rows, [], {}, NOW));
+    expect(out.map((c) => c.item.title)).toEqual(["The Bear", "Dark", "Heat", "Shrill", "Tires"]);
+    expect(orderContinueByTitle(orderByService(rows, [], {}, NOW), true).map((c) => c.item.title)).toEqual(["Tires", "Shrill", "Heat", "Dark", "The Bear"]);
+    expect(continueOrderOf("service")).toBe("service");
+    expect(continueOrderOf("bogus")).toBe("title");   // A to Z is the default
+    expect(continueOrderOf(null)).toBe("title");
   });
 
   it("is deterministic and depends on nothing but its inputs: the same inputs give the same order, in any call order", () => {

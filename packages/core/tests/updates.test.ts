@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   UpdateChecker,
+  asUpdateChannel,
+  channelLabel,
   compareVersions,
   isUnparameterized,
+  lastScheduledAt,
+  nextScheduledAt,
   parseManifest,
+  scheduleMinutes,
 } from "../src/updates.js";
 
 beforeEach(() => {
@@ -38,6 +43,12 @@ describe("parseManifest", () => {
     expect(
       parseManifest(JSON.stringify({ stable: { version: "1.1.0", notes: "hi" }, beta: { nope: 1 }, x: 1 })),
     ).toEqual({ stable: { version: "1.1.0", notes: "hi" } });
+  });
+  it("carries a release's file list and its hash together, never one without the other (2026-10-06, incremental updates)", () => {
+    const sha = "a".repeat(64);
+    expect(parseManifest(JSON.stringify({ alpha: { version: "0.26.0", url: "https://x/z.zip", sha256: sha, files: "https://x/files/l.json", filesSha256: sha } }))?.alpha)
+      .toEqual({ version: "0.26.0", url: "https://x/z.zip", sha256: sha, files: "https://x/files/l.json", filesSha256: sha });
+    expect(parseManifest(JSON.stringify({ alpha: { version: "0.26.0", files: "https://x/files/l.json" } }))?.alpha).toEqual({ version: "0.26.0" });
   });
 });
 
@@ -146,6 +157,71 @@ describe("UpdateChecker (§28)", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(await u.onNightWindow()).toBe("failed");
     expect(u.status()).toMatchObject({ available: { version: "1.1.0" }, staged: null });
+    u.stop();
+  });
+});
+
+describe("tracks (2026-10-05: alpha, beta, full)", () => {
+  it("reads an alpha entry and follows it when the shell is built on alpha", async () => {
+    const m = parseManifest(JSON.stringify({ alpha: { version: "0.23.0" }, stable: { version: "0.22.0" } }));
+    expect(m?.alpha?.version).toBe("0.23.0");
+    expect(m?.stable?.version).toBe("0.22.0");
+    const u = new UpdateChecker({ fetchManifest: () => JSON.stringify({ alpha: { version: "0.23.0" }, stable: { version: "0.22.0" } }), apply: () => "staged", now: () => 0 });
+    await u.start({ currentVersion: "0.22.0", manifestUrl: "https://example.test/manifest.json", channel: "alpha" });
+    const st = await u.check();
+    expect(st.channel).toBe("alpha");
+    expect(st.available?.version).toBe("0.23.0");
+  });
+  it("names the tracks as a person reads them and refuses an unknown one", () => {
+    expect(channelLabel("alpha")).toBe("Alpha");
+    expect(channelLabel("beta")).toBe("Beta");
+    expect(channelLabel("stable")).toBe("Full");
+    expect(asUpdateChannel("nightly")).toBe("stable");
+    expect(asUpdateChannel("alpha")).toBe("alpha");
+  });
+});
+
+describe("a scheduled check (2026-10-06, \"Let the user check for updates at a scheduled time\")", () => {
+  // the clock stands at Monday 24 August 2026, 12:00 local (beforeEach)
+  it("the next time and the time owed are on the PC's own clock, every day or one day a week", () => {
+    const now = Date.now();
+    expect(new Date(nextScheduledAt({ at: "04:00" }, now)!).toString()).toBe(new Date(2026, 7, 25, 4, 0).toString());
+    expect(new Date(lastScheduledAt({ at: "04:00" }, now)!).toString()).toBe(new Date(2026, 7, 24, 4, 0).toString());
+    expect(new Date(nextScheduledAt({ at: "18:30" }, now)!).toString()).toBe(new Date(2026, 7, 24, 18, 30).toString());
+    expect(new Date(nextScheduledAt({ at: "04:00", weekday: 3 }, now)!).toString()).toBe(new Date(2026, 7, 26, 4, 0).toString());   // Wednesday
+    expect(new Date(lastScheduledAt({ at: "04:00", weekday: 6 }, now)!).toString()).toBe(new Date(2026, 7, 22, 4, 0).toString());   // last Saturday
+    expect(scheduleMinutes({ at: "25:00" })).toBeNull();
+  });
+
+  it("a time missed while the PC was off is made up at the start; otherwise the check waits for its time, and runs at it", async () => {
+    const { make, fetched, kv } = rig({ manifest: () => JSON.stringify(manifest) });
+    kv.set("updates:state", JSON.stringify({ lastCheck: new Date(2026, 7, 23, 5, 0).toISOString() }));   // yesterday 05:00, before today's 04:00
+    const u = make();
+    await u.start({ currentVersion: "1.0.0", manifestUrl: URL, schedule: { at: "04:00" } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetched).toHaveLength(1);   // owed: made up at once
+    expect(new Date(u.status().nextCheck!).toString()).toBe(new Date(2026, 7, 25, 4, 0).toString());
+    await vi.advanceTimersByTimeAsync(new Date(2026, 7, 25, 4, 0).getTime() - Date.now() - 1000);
+    expect(fetched).toHaveLength(1);   // not before its time
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(fetched).toHaveLength(2);   // at it
+    u.stop();
+  });
+
+  it("a change takes effect at once; Never stops the checks but Check now still asks", async () => {
+    const { make, fetched } = rig({ manifest: () => JSON.stringify(manifest) });
+    const u = make();
+    await u.start({ currentVersion: "1.0.0", manifestUrl: URL });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetched).toHaveLength(1);
+    u.setSchedule({ at: "13:00" });
+    expect(new Date(u.status().nextCheck!).toString()).toBe(new Date(2026, 7, 24, 13, 0).toString());
+    u.setSchedule(null, false);
+    expect(u.status()).toMatchObject({ enabled: false, nextCheck: null });
+    await vi.advanceTimersByTimeAsync(3 * 86_400_000);
+    expect(fetched).toHaveLength(1);
+    await u.check();
+    expect(fetched).toHaveLength(2);
     u.stop();
   });
 });

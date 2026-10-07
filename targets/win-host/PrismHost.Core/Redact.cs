@@ -39,8 +39,10 @@ public static class Redact
     private static readonly RegexOptions Opts = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled;
 
     /// <summary>`"token": "abc"` / `"authorization":"Bearer abc"` — the JSON the channel carries.</summary>
+    // a quote is " or, in the channel's log line (JSON inside JSON), the escape \u0022 (2026-10-04: a phone's token sent in the
+    // Authorization header reached host.log through that shape; the query form was already masked)
     private static readonly Regex JsonField = new(
-        "(\"(?:token|bearer|authorization|auth|secret|password|passwd|apikey|api_key|ticket)\"\\s*:\\s*)\"[^\"]*\"", Opts);
+        "((?:\"|\\\\u0022)(?:token|bearer|authorization|auth|secret|password|passwd|apikey|api_key|ticket)(?:\"|\\\\u0022)\\s*:\\s*)(?:\"|\\\\u0022)[^\"\\\\]*(?:\"|\\\\u0022)", Opts);
 
     /// <summary>A header line or value: `Authorization: Bearer abc`.</summary>
     private static readonly Regex HeaderValue = new(

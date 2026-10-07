@@ -25,6 +25,14 @@
       "title": "Scene"
     },
     {
+      "id": "player.view",
+      "route": "prism://player/:kind",
+      "kind": "view",
+      "entity": "scene",
+      "back": "scene",
+      "title": "Player"
+    },
+    {
       "id": "scene.edit",
       "route": "prism://scene/:id/edit",
       "kind": "editor",

@@ -219,8 +219,8 @@ describe("video - the adapter contract", () => {
   });
 
   it("cleanLibrary keeps only well-formed items and fills the optional fields", () => {
-    expect(cleanLibrary(null)).toEqual({ continue: [], list: [], shelves: [], owned: [], ownedComplete: false, continueOnly: false });
-    expect(cleanLibrary({ continue: [{ id: "1", title: "A" }, { id: 2, title: "B" }, "x"], list: "no", shelves: [{ title: "Top picks", items: [{ id: "9", title: "Z" }] }, { title: "Empty", items: [] }, "bad"] })).toEqual({ continue: [{ id: "1", title: "A", kind: "video", url: null, artwork: null, subtitle: null, progress: null }], list: [], shelves: [{ title: "Top picks", items: [{ id: "9", title: "Z", kind: "video", url: null, artwork: null, subtitle: null, progress: null }] }], owned: [], ownedComplete: false, continueOnly: false });
+    expect(cleanLibrary(null)).toEqual({ continue: [], list: [], shelves: [], own: [], owned: [], ownedComplete: false, continueOnly: false });
+    expect(cleanLibrary({ continue: [{ id: "1", title: "A" }, { id: 2, title: "B" }, "x"], list: "no", shelves: [{ title: "Top picks", items: [{ id: "9", title: "Z" }] }, { title: "Empty", items: [] }, "bad"] })).toEqual({ continue: [{ id: "1", title: "A", kind: "video", url: null, artwork: null, subtitle: null, progress: null }], list: [], shelves: [{ title: "Top picks", items: [{ id: "9", title: "Z", kind: "video", url: null, artwork: null, subtitle: null, progress: null }] }], own: [], owned: [], ownedComplete: false, continueOnly: false });
   });
 
   it("the controller ignores tiles that are not video tiles", () => {

@@ -46,6 +46,15 @@ public sealed class SessionMuter : IDisposable
         get => _volume;
         set { _volume = Math.Clamp(value, 0f, 1f); if (!_disposed) { EnsureSweep(); QueueSweep(); } }
     }
+    /// <summary>Private listening (2026-10-04): while a phone listens the sessions are held at full level whatever the wall's volume says - the
+    /// phone's loopback taps after the session volume - and the room's level is the playback device's (SurfaceManager.PrivateListening).</summary>
+    private volatile bool _private;
+    public bool Private
+    {
+        get => _private;
+        set { _private = value; if (!_disposed) { EnsureSweep(); QueueSweep(); } }
+    }
+    private float Level => _private ? 1f : _volume;   // full level for the loopback a phone hears; the room's level is the device's then
 
     /// <summary>A browser tree the wall volume applies to even when nothing ever mutes it (a visible page): tracked unmuted.</summary>
     public void Track(uint browserPid)
@@ -98,6 +107,7 @@ public sealed class SessionMuter : IDisposable
         try
         {
             var mgr = Manager();
+            if (mgr is null) return 0;   // no audio device to speak of right now
             mgr.RefreshSessions();
             var sessions = mgr.Sessions;
             var parents = ParentMap();
@@ -111,7 +121,7 @@ public sealed class SessionMuter : IDisposable
                 try
                 {
                     var v = s.SimpleAudioVolume; v.Mute = false;
-                    var want = muted ? Duck : _volume;
+                    var want = muted ? Duck : Level;
                     if (Math.Abs(v.Volume - want) > 0.0005f) { var had = v.Volume; v.Volume = want; _log($"session {pid} (tree {browserPid}): volume {had:0.000} -> {want:0.000} | {Wanted()}"); }
                     n++;
                 }
@@ -146,7 +156,7 @@ public sealed class SessionMuter : IDisposable
     {
         try
         {
-            var mgr = Manager(); mgr.RefreshSessions(); var sessions = mgr.Sessions; var parents = ParentMap();
+            var mgr = Manager(); if (mgr is null) return; mgr.RefreshSessions(); var sessions = mgr.Sessions; var parents = ParentMap();
             for (var i = 0; i < sessions.Count; i++)
             {
                 var s = sessions[i]; uint pid; try { pid = s.GetProcessID; } catch { continue; }
@@ -157,10 +167,16 @@ public sealed class SessionMuter : IDisposable
         catch { }
     }
 
-    private AudioSessionManager Manager()
+    /// <summary>When the default audio device could not be reached: asked again after a while, not on every call (2026-09-29: with no default
+    /// device - the display's audio off - every mute threw "Element not found", 500 times in a minute).</summary>
+    private DateTime _noDeviceAt = DateTime.MinValue;
+    private AudioSessionManager? Manager()
     {
         if (_manager is not null) return _manager;
-        _device = new MMDeviceEnumerator().GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+        if (DateTime.UtcNow - _noDeviceAt < TimeSpan.FromSeconds(10)) return null;
+        try { _device = new MMDeviceEnumerator().GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); }
+        catch (Exception e) { if (_noDeviceAt == DateTime.MinValue) _log("audio: no default device (" + e.Message.Trim() + "); asked again every 10 s"); _noDeviceAt = DateTime.UtcNow; return null; }
+        _noDeviceAt = DateTime.MinValue;
         _manager = _device.AudioSessionManager;
         _manager.OnSessionCreated += (_, newSession) =>
         {
@@ -173,7 +189,7 @@ public sealed class SessionMuter : IDisposable
                     var pid = s.GetProcessID;
                     var parents = ParentMap();
                     foreach (var (root, muted) in _wanted.ToArray())
-                        if (InTree(pid, root, parents)) { s.SimpleAudioVolume.Mute = false; s.SimpleAudioVolume.Volume = muted ? Duck : _volume; if (muted) Ducked?.Invoke(root); _log($"session {pid} born (tree {root}): volume {(muted ? Duck : _volume):0.000}"); }
+                        if (InTree(pid, root, parents)) { s.SimpleAudioVolume.Mute = false; s.SimpleAudioVolume.Volume = muted ? Duck : Level; if (muted) Ducked?.Invoke(root); _log($"session {pid} born (tree {root}): volume {(muted ? Duck : _volume):0.000}"); }
                 }
                 catch (Exception ex) { _log("session birth: " + ex.Message); }
             });

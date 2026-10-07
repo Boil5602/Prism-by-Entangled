@@ -1,0 +1,9 @@
+{
+  "schema": "frame.dashboard/v0.1",
+  "id": "wall",
+  "name": "Wall",
+  "layout": {
+    "mode": "grid"
+  },
+  "tiles": []
+}

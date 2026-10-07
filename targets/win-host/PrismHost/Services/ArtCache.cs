@@ -11,7 +11,19 @@ namespace PrismHost.Services;
 /// </summary>
 internal static class ArtCache
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private static readonly HttpClient Http = MakeHttp();
+    private static HttpClient MakeHttp()
+    {
+        var h = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        // a picture asked for as a picture (2026-09-29: a channel logo's CDN answered 406 Not Acceptable to a bare request, 42 times in an
+        // evening, once every draw); nothing about the device goes with it
+        h.DefaultRequestHeaders.Accept.ParseAdd("image/avif,image/webp,image/png,image/jpeg,image/*;q=0.9,*/*;q=0.5");
+        // named as itself, never as a browser (third-party policy: no disguises); a request with no user agent at all is what some CDNs refuse
+        try { h.DefaultRequestHeaders.UserAgent.ParseAdd("Prism/" + AppVersion.Text.Split('+')[0].Split(' ')[0]); } catch { }
+        return h;
+    }
+    /// <summary>A fetch that failed is not asked again for an hour (a person's pace: the picture is drawn from its address meanwhile).</summary>
+    private static readonly Dictionary<string, DateTime> FailedAt = new();
     private static readonly string Dir = Path.Combine(HostPaths.DataDir, "art-cache");
     private static readonly HashSet<string> Fetching = new();
     private const long MaxBytes = 400L * 1024 * 1024;
@@ -40,17 +52,20 @@ internal static class ArtCache
     private static async Task KeepAsync(string url, string p)
     {
         lock (Fetching) { if (!Fetching.Add(p)) return; }
+        lock (FailedAt) { if (FailedAt.TryGetValue(p, out var at) && DateTime.UtcNow - at < TimeSpan.FromHours(1)) { lock (Fetching) Fetching.Remove(p); return; } }
+        var ok = false;
         try
         {
             Directory.CreateDirectory(Dir);
             var bytes = await Http.GetByteArrayAsync(url);
+            ok = true;
             if (bytes.Length < 64 || bytes.Length > MaxBytesOne || bytes[0] == (byte)'<' || bytes[0] == (byte)'{') return;   // not a raster image
             var tmp = p + ".part";
             await File.WriteAllBytesAsync(tmp, bytes);
             File.Move(tmp, p, true);
         }
         catch { /* drawn from the address this time; kept another time */ }
-        finally { lock (Fetching) Fetching.Remove(p); }
+        finally { if (!ok) lock (FailedAt) FailedAt[p] = DateTime.UtcNow; lock (Fetching) Fetching.Remove(p); }
     }
 
     /// <summary>At start: the oldest kept pictures go once the folder is past its size.</summary>

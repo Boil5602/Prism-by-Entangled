@@ -84,7 +84,16 @@ def derive(source):
     sq.resize((256, 256), Image.LANCZOS).save(os.path.join(HOST, "prism.ico"), sizes=ico_sizes)
     for n in (16, 32, 48, 128):
         sq.resize((n, n), Image.LANCZOS).save(os.path.join(EXT, f"icon-{n}.png"))
-    print("derived: host prism-icon.png + prism.ico, extension icon-16/32/48/128 from", os.path.relpath(source, ROOT))
+    # the companion's home-screen icons (docs/features/companion-install.md, 2026-10-05): 180 for iOS's touch icon, 192 and 512 for the
+    # manifest, and a maskable 512 - the mark on the page's dark surface, inside the safe zone (80% of the side), so a launcher's shape
+    # cut never clips it
+    for n in (180, 192, 512):
+        sq.resize((n, n), Image.LANCZOS).save(os.path.join(HOST, f"prism-icon-{n}.png"))
+    maskable = Image.new("RGBA", (512, 512), (0x14, 0x17, 0x1C, 255))
+    inner = sq.resize((400, 400), Image.LANCZOS)
+    maskable.paste(inner, (56, 56), inner)
+    maskable.save(os.path.join(HOST, "prism-icon-512-maskable.png"))
+    print("derived: host prism-icon.png + prism.ico + prism-icon-180/192/512/512-maskable.png, extension icon-16/32/48/128 from", os.path.relpath(source, ROOT))
 
 
 if __name__ == "__main__":

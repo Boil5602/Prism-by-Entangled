@@ -1,0 +1,20 @@
+{
+  "id": "youtube-tv",
+  "name": "YouTube TV",
+  "url": "https://tv.youtube.com/",
+  "adapter": "youtube-tv",
+  "signInWith": "google",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": { "source": "site", "fallback": "wordmark" },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - to read on this host once the household is signed in (2026-10-05); YouTube TV serves Widevine, the software tier recorded for this host's Chromium."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    { "id": "whole", "label": "Whole page", "selector": null },
+    { "id": "player", "label": "Player only", "selector": "player" }
+  ],
+  "notes": "Live TV, a cloud DVR (Library) and purchases on one Google sign-in (the same as YouTube's). The Live tab reads its guide (tv.youtube.com/live), the Library tab its recordings and purchases (docs/features/live.md: 'YouTube TV will be an important part of this')."
+}

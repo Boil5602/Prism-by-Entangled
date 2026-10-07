@@ -24,14 +24,24 @@
 import { cardAttribution } from "./imagery-pack.js";
 import type { AttributionMode, CardAttribution, PackImage } from "./imagery-pack.js";
 
+/**
+ * How a window's break looks (2026-10-07, "In watch settings, lets add 3 options for Video Ads: Show, Muted (Picture visible) and Veiled
+ * and Muted. Default to Veiled."): veil = the scenery and the mute (§26 as written); mute = the ad's picture with its sound off, and an
+ * Unmute on the window ("If an ad is muted only, I should have the option to unmute it"); show = the ad as it plays. The break is kept in
+ * every look (covered, its backstop, its card state), so the shell can say a break is on and a look changed later applies at the next one.
+ */
+export type AdLook = "veil" | "mute" | "show";
+
 export interface IntermissionHooks {
-  show(id: string, source: string): unknown;
+  show(id: string, source: string, look?: AdLook): unknown;
   hide(id: string): unknown;
   setMuted(id: string, muted: boolean): unknown;
   /** §26 ambient audio (opt-in): start (on) or fade out (off) the tile's soundscape for the break the audio is muted for. */
   ambient?(id: string, sound: string, on: boolean): unknown;
   /** §26 pass-through: show/hide the real Skip chip on the scenery. */
   setSkip?(id: string, available: boolean, target?: string | null): unknown;
+  /** The look for this window's next break (absent: veil). */
+  look?(id: string): AdLook;
 }
 
 export interface IntermissionTileConfig {
@@ -49,6 +59,11 @@ export interface IntermissionOptions {
   /** Backstop for a missed end signal. */
   safetyTimeoutMs?: number;
 }
+
+/** The backstop past a break the page still counts: its clock's end and this much (B-336). */
+const EXTEND_MARGIN_MS = 15_000;
+/** ... and never further than this from now. */
+const MAX_EXTENDED_MS = 10 * 60_000;
 
 const DEFAULTS: Required<IntermissionOptions> = {
   debounceMs: 1_000,
@@ -92,6 +107,17 @@ interface TileState {
   skipTarget: string | null;
   debounceTimer: Timer | null;
   safetyTimer: Timer | null;
+  /** When an extended backstop falls (B-336); unset for the plain one. */
+  safetyDue?: number | undefined;
+  /** The break clock at the last extension: only a clock still counting down extends (a stuck one lets the backstop fall). */
+  clockAt?: number | undefined;
+  /** The service's own backstop (adapter adBackstopMs): a break no page counts that runs past two minutes - a live channel's
+   *  three-to-four-minute break, read off the picture (YouTube TV, 2026-10-06). The signal's end still uncovers at once. */
+  backstopMs?: number | undefined;
+  /** The look this break was put up with. */
+  look: AdLook;
+  /** A muted-only break the person unmuted: its sound stays on until the break ends. */
+  unmuted: boolean;
 }
 
 export class IntermissionController {
@@ -124,8 +150,14 @@ export class IntermissionController {
 
   configure(configs: readonly IntermissionTileConfig[]): void {
     const minimal = new Map([...this.tiles].map(([id, t]) => [id, t.minimal]));
-    for (const id of [...this.tiles.keys()]) this.drop(id);
+    // a re-apply keeps a break that is on (B-346, 2026-10-06, "Ad on paramount displayed": the playback doctor renewed Twitch's window, the
+    // document was applied again, and every tile was dropped - Paramount+'s cover came down 75 s into a 3-minute break). A tile still here
+    // keeps its cover, mute and timers with its new config; a tile gone or turned off is dropped (uncovered) as before
+    const keep = new Set(configs.filter((c) => c.enabled).map((c) => c.id));
+    for (const id of [...this.tiles.keys()]) if (!keep.has(id)) this.drop(id);
     for (const config of configs) {
+      const had = config.enabled ? this.tiles.get(config.id) : undefined;
+      if (had) { had.config = config; continue; }
       if (config.enabled) {
         this.tiles.set(config.id, {
           config,
@@ -138,6 +170,8 @@ export class IntermissionController {
           safetyTimer: null,
           muteHeld: false,
           fastMuted: false,
+          look: "veil",
+          unmuted: false,
         });
       }
     }
@@ -213,9 +247,10 @@ export class IntermissionController {
     return this.tiles.get(id)?.skipTarget ?? null;
   }
 
-  onAdBreak(id: string, active: boolean, sustainedMs = 0): void {
+  onAdBreak(id: string, active: boolean, sustainedMs = 0, backstopMs?: number): void {
     const tile = this.tiles.get(id);
     if (!tile) return; // not intermission-enabled — signals are inert
+    tile.backstopMs = backstopMs && backstopMs > 0 ? Math.min(backstopMs, MAX_EXTENDED_MS) : undefined;
 
     if (!active) {
       // Uncover fast: end signal OR doubt drops the overlay immediately.
@@ -224,9 +259,10 @@ export class IntermissionController {
       return;
     }
     if (tile.covered || tile.debounceTimer) return;
+    const look = this.hooks.look?.(id) ?? "veil";
     // Mute fast (2026-09-15): the sound goes now, on the first sign - the errors are not equal here either, and a
     // wrong mute is a one-second dip in a song, lifted the moment the signal drops (below, in the !active branch)
-    if (tile.config.audio === "mute" && !tile.fastMuted) { tile.fastMuted = true; void this.hooks.setMuted(id, true); }
+    if (tile.config.audio === "mute" && !tile.fastMuted && look !== "show") { tile.fastMuted = true; void this.hooks.setMuted(id, true); }
     // Cover slow: the scenery and the soundscape wait for the signal to sustain the debounce window.
     // A signal the adapter already sustained page-side (adSignalSustainedMs) has done part of the waiting: the window
     // shortens by that much, never below 200 ms (2026-09-14: Pandora's ad was audible for ~3 s before the cover).
@@ -252,19 +288,64 @@ export class IntermissionController {
 
   private cover(id: string, tile: TileState): void {
     tile.covered = true;
-    if (tile.config.audio === "mute" && !tile.fastMuted) void this.hooks.setMuted(id, true);   // already silent since the first sign
-    tile.fastMuted = false;   // from here the cover owns the mute (uncover lifts it, the backstop holds it)
-    if (tile.config.audio === "mute" && tile.config.ambient) void this.hooks.ambient?.(id, tile.config.ambient, true);   // instead of silence
-    void this.hooks.show(id, tile.config.source);
+    tile.look = this.hooks.look?.(id) ?? "veil";
+    tile.unmuted = false;
+    if (tile.look === "show") {
+      // the ad as it plays: a fast mute the look changed under is lifted, nothing drawn - the break is still kept (above)
+      if (tile.fastMuted && tile.config.audio === "mute") void this.hooks.setMuted(id, false);
+      tile.fastMuted = false;
+    } else {
+      if (tile.config.audio === "mute" && !tile.fastMuted) void this.hooks.setMuted(id, true);   // already silent since the first sign
+      tile.fastMuted = false;   // from here the cover owns the mute (uncover lifts it, the backstop holds it)
+      // the soundscape is the scenery's: a muted-only break shows the ad's own picture in silence
+      if (tile.look === "veil" && tile.config.audio === "mute" && tile.config.ambient) void this.hooks.ambient?.(id, tile.config.ambient, true);   // instead of silence
+    }
+    void this.hooks.show(id, tile.config.source, tile.look);
     if (tile.skipAvailable) void this.hooks.setSkip?.(id, true, tile.skipTarget);
+    this.armSafety(id, tile, Math.max(this.opts.safetyTimeoutMs, tile.backstopMs ?? 0));
+  }
+  private armSafety(id: string, tile: TileState, ms: number): void {
+    if (tile.safetyTimer) clearTimeout(tile.safetyTimer);
     tile.safetyTimer = setTimeout(() => {
       tile.safetyTimer = null;
       // §26 backstop - never trapped behind scenery. B-175 (2026-09-09): but a page still saying "ad" is not unmuted into the
       // room (Spotify's stalled break came back at full volume this way); the mute waits for the page's own end signal, and a
       // person's unmute - the wall's switch - still wins at once.
-      if (tile.config.audio === "mute") tile.muteHeld = true;
-      this.uncover(id, tile, true);
-    }, this.opts.safetyTimeoutMs);
+      if (tile.config.audio === "mute" && tile.look !== "show" && !tile.unmuted) tile.muteHeld = true;
+      this.uncover(id, tile, tile.look !== "show" && !tile.unmuted);
+    }, ms);
+  }
+  /**
+   * The page's own break clock says the break goes on (B-336, 2026-10-06, "Sent report of ad on my screen right now": a three-minute
+   * Paramount+ break counting down from 179 s lost its cover at the two-minute backstop with a minute still to run). A covered tile's
+   * backstop is moved to the clock's end and a margin - never shortened, never past MAX_EXTENDED_MS from now - so a break the page
+   * still counts stays covered, and a clock that stops counting still lets the backstop fall.
+   */
+  extend(id: string, remainingSec: number): void {
+    const tile = this.tiles.get(id);
+    if (!tile?.covered || !tile.safetyTimer || !(remainingSec > 0) || !isFinite(remainingSec)) return;
+    if (tile.clockAt !== undefined && remainingSec >= tile.clockAt) return;   // not counting down: no extension
+    tile.clockAt = remainingSec;
+    const want = Math.min(remainingSec * 1000 + EXTEND_MARGIN_MS, MAX_EXTENDED_MS);
+    const due = tile.safetyDue ?? 0;
+    if (Date.now() + want <= due) return;
+    tile.safetyDue = Date.now() + want;
+    this.armSafety(id, tile, want);
+  }
+
+  /** A muted-only break's Unmute (on) and Mute again (off): the person's word for this break; the break's end clears it. */
+  unmute(id: string, on: boolean): boolean {
+    const tile = this.tiles.get(id);
+    if (!tile?.covered || tile.look !== "mute") return false;
+    tile.unmuted = on;
+    void this.hooks.setMuted(id, !on);
+    return true;
+  }
+
+  /** The look a covered window's break was put up with (null when no break is on). */
+  lookOf(id: string): AdLook | null {
+    const tile = this.tiles.get(id);
+    return tile?.covered ? tile.look : null;
   }
 
   private uncover(id: string, tile: TileState, keepMute = false): void {
@@ -282,6 +363,8 @@ export class IntermissionController {
       tile.safetyTimer = null;
     }
     tile.covered = false;
+    tile.unmuted = false;
+    tile.safetyDue = undefined; tile.clockAt = undefined;
     // Restore audio BEFORE the fade completes (§26 asymmetry).
     if (tile.config.audio === "mute" && !keepMute) void this.hooks.setMuted(id, false);
     if (tile.config.ambient) void this.hooks.ambient?.(id, tile.config.ambient, false);

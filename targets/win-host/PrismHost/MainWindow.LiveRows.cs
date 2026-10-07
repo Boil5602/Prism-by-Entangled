@@ -23,6 +23,7 @@ public sealed partial class MainWindow
     private readonly Dictionary<string, (Border dot, Button button, string tip)> _svcDots = new();
     private int _liveRun;
     private const int LiveFollowMs = 3000;
+    private int _plDockTick;
     /// <summary>A pass wanted now, not at the next three seconds (a profile switch, a service read - 2026-09-24, "make this profile switch a very
     /// fluid activity, animated movie swapouts for those top 2 rows").</summary>
     private bool _liveKick;
@@ -49,12 +50,15 @@ public sealed partial class MainWindow
             _liveKick = false;
             if (!Here()) return;
             JsonObject? menu = null, fresh = null;
-            try { menu = JsonNode.Parse(await ModelCallAsync("videoMenu") ?? "null") as JsonObject; } catch { }
+            // the rows alone, not the whole menu with the Library in it (2026-10-03, perf: 1.5 MB parsed every three seconds was the host's churn)
+            try { menu = JsonNode.Parse(await ModelCallAsync("videoMenuRows", false) ?? "null") as JsonObject; } catch { }
             try { fresh = JsonNode.Parse(await ModelCallAsync("videoFreshness") ?? "null") as JsonObject; } catch { }
             if (!Here()) return;
+            if (_plDock is not null && !_plDockBusy && ++_plDockTick % 2 == 0) _ = FillPlaylistDockAsync();   // the playlist panel kept current too: what Play starts with moves as episodes are watched (2026-09-27)
             if (menu is not null)
             {
                 var now = menu["now"] is JsonValue nv && nv.TryGetValue<double>(out var nd) ? nd : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                SyncRowOrders(menu);   // a profile set's own orders (2026-09-27)
                 foreach (var key in new[] { "continue", "list" })
                 {
                     if (!_liveRows.TryGetValue(key, out var r)) continue;
@@ -69,6 +73,7 @@ public sealed partial class MainWindow
                         if (line is null) { r.host.Children.Clear(); Button? f = null; if (cards.Count > 0) r.host.Children.Add(CardRow(cards, r.badge, now, ref f)); }
                         else UpdateCardRowInPlace(line, cards, r.badge, now);
                         r.host.Tag = sig;
+                        if (key == "continue") FillContinueJumps(cards);   // the services it holds now
                     }
                     catch (Exception e) { LogLine("live rows: " + e.GetType().Name + ": " + e.Message); }
                 }
@@ -220,7 +225,9 @@ public sealed partial class MainWindow
         _ = DisintegrateAsync(line, el);
     }
 
-    private async Task DisintegrateAsync(StackPanel line, UIElement el, bool remove = true)
+    /// <summary>`hidden` (a person's own removal, 2026-09-26): the card is hidden, not taken out, and whole again underneath - a removal the service
+    /// refuses brings it back. Otherwise it is taken out of its row.</summary>
+    private async Task DisintegrateAsync(StackPanel line, UIElement el, bool remove = true, Action? hidden = null)
     {
         var fe = el as FrameworkElement;
         Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap? shot = null;
@@ -235,7 +242,7 @@ public sealed partial class MainWindow
         }
         catch { shot = null; }
         LogLine("card dust: " + (shot is null ? "no picture, it fades" : shot.PixelWidth + "x" + shot.PixelHeight) + (remove ? "" : " (a look)"));
-        if (shot is null || fe is null) { if (remove) ShrinkAway(line, el, 0, true); return; }
+        if (shot is null || fe is null) { if (remove) ShrinkAway(line, el, 0, true, hidden is null ? null : () => HideWhole(el, hidden)); return; }
 
         // the picture as a plain bitmap (a RenderTargetBitmap shown in many Images drew nothing in a look, 2026-09-25)
         Microsoft.UI.Xaml.Media.ImageSource src = shot;
@@ -289,7 +296,19 @@ public sealed partial class MainWindow
         el.Opacity = 0;   // the dust stands where the card was
         sb.Completed += (_, __) => { RootGrid.Children.Remove(dust); if (!remove) el.Opacity = 1; };
         sb.Begin();
-        if (remove) ShrinkAway(line, el, 260, false);   // the gap closes while the dust drifts
+        if (remove) ShrinkAway(line, el, 260, false, hidden is null ? null : () => HideWhole(el, hidden));   // the gap closes while the dust drifts
+    }
+
+    /// <summary>Dev: the first card of a live row goes as a person's removal does, then comes back as a refused one does (hub.request "dust hide").</summary>
+    internal void DevDustHide()
+    {
+        foreach (var key in new[] { "list", "continue" })
+        {
+            if (!_liveRows.TryGetValue(key, out var r) || FindChild<ScrollViewer>(r.host)?.Content is not StackPanel line || line.Children.OfType<Button>().FirstOrDefault(b => b.Visibility == Visibility.Visible) is not { } card) continue;
+            HideCardForRemoval(card);
+            _ = Task.Delay(3000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => { card.Visibility = Visibility.Visible; LogLine("dust hide: back, width " + card.ActualWidth); }));
+            return;
+        }
     }
 
     /// <summary>Dev: the first card of a live row turns to dust and comes back (hub.request "dust", a look at the effect with nothing removed).</summary>
@@ -303,8 +322,18 @@ public sealed partial class MainWindow
         }
     }
 
-    /// <summary>The card's place in its row closes (the cards after it slide in), and it is taken out; `fade` fades it too (no dust).</summary>
-    private static void ShrinkAway(StackPanel line, UIElement el, int afterMs, bool fade)
+    /// <summary>A card turned to dust by a person's removal, hidden and whole again: its size and look back as they were, so it can return.</summary>
+    private static void HideWhole(UIElement el, Action after)
+    {
+        el.Visibility = Visibility.Collapsed;
+        el.Opacity = 1;
+        el.IsHitTestVisible = true;
+        after();
+    }
+
+    /// <summary>The card's place in its row closes (the cards after it slide in), and it is taken out - or, with `done`, left in the row hidden
+    /// (the animation stopped, so its width is its own again); `fade` fades it too (no dust).</summary>
+    private static void ShrinkAway(StackPanel line, UIElement el, int afterMs, bool fade, Action? done = null)
     {
         var sb = new Storyboard();
         if (fade)
@@ -319,7 +348,7 @@ public sealed partial class MainWindow
             Storyboard.SetTarget(shrink, fe); Storyboard.SetTargetProperty(shrink, "Width");
             sb.Children.Add(shrink);
         }
-        sb.Completed += (_, __) => line.Children.Remove(el);
+        sb.Completed += (_, __) => { if (done is null) line.Children.Remove(el); else { sb.Stop(); done(); } };
         sb.Begin();
     }
 

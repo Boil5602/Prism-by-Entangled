@@ -4,7 +4,7 @@
     "primevideo.com",
     "www.amazon.com"
   ],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "selectors": {
     "my-stuff": "a[href*='/mystuff'], a[href*='/watchlist'], [data-testid='pv-nav-my-stuff']"
   },
@@ -34,5 +34,10 @@
     119,
     2100,
     613
+  ],
+  "broadcasters": [
+    "Prime Video",
+    "Amazon Prime Video",
+    "Amazon"
   ]
 }

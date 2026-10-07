@@ -48,6 +48,9 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // surface outside the wall, full-window, destroyed on close - B-41). Absent = slot.
   { op: "surface.create", m1: true, fields: { id: "string", profile: "string", background: "string", viewport: "string?", uaPlatform: "string?", zoom: "number", launch: "string?", blocking: "boolean", placeholder: "boolean", label: "string?", kind: "string?" } },
   { op: "surface.destroy", m1: true, fields: { id: "string" } },
+  // one browser, many sign-ins (sign-ins.ts, 2026-10-03): the legacy profile folders' sessions copied onto the shared ones before any surface
+  // is made - moves = [{from, to, origins:[...]}]; the host answers with a "profile-migrated" event and keeps every old folder (section 10)
+  { op: "profile.migrate", m1: true, fields: { moves: "json" } },
   { op: "surface.setRect", m1: true, fields: { id: "string", rect: "rect" } },
   { op: "surface.setOpacity", m1: true, fields: { id: "string", opacity: "number" } },
   { op: "surface.setZ", m1: true, fields: { id: "string", z: "number" } },
@@ -63,7 +66,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // with peeking=true … peeking=false so the host can hold §16 across it: the still stays up until readiness,
   // and a freeze arriving from the PEEK_TIMEOUT_MS abort keeps the last still instead of capturing a blank.
   { op: "surface.setPeek", m1: true, fields: { id: "string", peeking: "boolean" } },
-  { op: "surface.showIntermission", m1: true, fields: { id: "string", source: "string" } },
+  { op: "surface.showIntermission", m1: true, fields: { id: "string", source: "string", look: "string?" } },
   { op: "surface.hideIntermission", m1: true, fields: { id: "string" } },
   { op: "surface.setIntermissionSkip", m1: true, fields: { id: "string", available: "boolean", target: "string?" } },
   { op: "surface.setAdInfo", m1: true, fields: { id: "string", count: "string", remaining: "number" } },
@@ -73,7 +76,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "surface.setChrome", m1: true, fields: { id: "string", kind: "string", face: "string", hidden: "boolean" } },
   { op: "surface.setFocused", fields: { id: "string", focused: "boolean" } },
   { op: "surface.setPageInput", fields: { id: "string", active: "boolean" } },
-  { op: "surface.sendKey", fields: { id: "string", key: "string" } },
+  { op: "surface.sendKey", m1: true, fields: { id: "string", key: "string" } },   // the phone keyboard (2026-10-03): Enter, Backspace, the D-pad
   // a trusted pointer MOVE over a hidden service page (2026-09-22): some controls draw only for a real hover (Hulu's Continue Watching X).
   // Asked by core alone, only for a job a person confirmed, only on the wall's own hidden lookup surfaces - never a press, never the screen
   { op: "surface.hover", fields: { id: "string", x: "number", y: "number" }, m1: true },
@@ -82,7 +85,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // Prism's slider, at the point the adapter's videoSeekPoint names - never anything else
   // press false: the move alone - the scrubber's own preview thumbnail, drawn only under a real pointer (the slider's preview while dragging)
   { op: "surface.scrub", fields: { id: "string", x: "number", y: "number", press: "boolean" }, m1: true },
-  { op: "surface.typeText", fields: { id: "string", text: "string" } },
+  { op: "surface.typeText", m1: true, fields: { id: "string", text: "string" } },   // the phone keyboard (2026-10-03): text into the focused field
   // a small read of a page, answered (2026-09-23: the playback doctor asks for a stalled player's own error words; the phone's sign-in helper
   // reads the fields on screen) - declared without m1 until now, so every ask was answered "unsupported" by the host's stub
   { op: "surface.evaluate", request: true, m1: true, fields: { id: "string", js: "string" } },
@@ -100,6 +103,11 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // concept-scenes §5: what one tap resolved to. The host calls `tapItem` (fire-and-forget, the promote half is
   // async) and core answers here — from an on-wall tap and from the §6 remote alike, so both report one verdict.
   { op: "ui.tapResult", m1: true, fields: { id: "string", action: "string", did: "string", audio: "string?", error: "string?" } },
+  // a video pick from the phone (2026-10-05): the host closes its Watch screen and raises its curtain, as its own card press does
+  { op: "ui.videoPick", m1: true, fields: { title: "string", service: "string", poster: "string?" } },
+  { op: "ui.privateMute", m1: true, fields: { on: "boolean" } },
+  { op: "ui.listenRoutes", m1: true, fields: { json: "string" } },
+  { op: "ui.breakWatch", m1: true, fields: { on: "boolean" } },   // the phone's switch for covering YouTube TV's channel breaks (2026-10-07)   // each phone's window (2026-10-06): {routes: {listener: tile}, hero}
   // -------------------------------------------------------------- display
   { op: "display.setBrightness", fields: { value: "number" } },
   { op: "display.setPower", fields: { state: "string" } },
@@ -118,8 +126,9 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "input.startPairing", fields: {} },
   { op: "input.listRemotes", request: true, fields: {} },
   // --------------------------------------------------------------- update
-  { op: "update.fetchManifest", request: true, fields: { url: "string" } },
-  { op: "update.apply", request: true, fields: { release: "json" } },
+  // the Windows host serves both since 2026-10-05 (Services/Updates.cs): the signed manifest, the verified install into the data folder
+  { op: "update.fetchManifest", m1: true, request: true, fields: { url: "string" } },
+  { op: "update.apply", m1: true, request: true, fields: { release: "json" } },
   // ---------------------------------------------------------------- store
   { op: "store.set", m1: true, fields: { key: "string", value: "string" } },
   // ---------------------------------------------------------------- misc
@@ -127,7 +136,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "net.submitCompatReport", fields: { report: "string" } },
   { op: "net.applyBlockHosts", fields: { sourceId: "string", name: "string", hosts: "json" } },
   { op: "net.fetchStatic", request: true, m1: true, fields: { url: "string" } },
-  { op: "net.fetchKeyed", request: true, m1: true, fields: { url: "string", headers: "string" } },
+  { op: "net.fetchKeyed", request: true, m1: true, fields: { url: "string", headers: "string", method: "string?", body: "string?" } },
   { op: "runtime.error", m1: true, fields: { message: "string" } },
   { op: "remote.paired", m1: true, fields: { token: "string" } },
   { op: "remote.pairing", m1: true, fields: { url: "string", token: "string" } },
@@ -190,6 +199,26 @@ export const HOST_CALLS: string[] = [
   "modelSaveScene",        // (sceneJson)
   "modelRemoveScene",      // (sceneId)
   "modelApplyScene",       // (sceneId) -> {ok, notes}; the wall becomes the scene (fixed-rect document)
+  "playerSetupServices",
+  "playerSetup",
+  "playerRemove",
+  "playerProfileFor",
+  "signInsView",
+  "signInAdd",
+  "signInUse",
+  "signInRename",
+  "signInHide",
+  "signInShow",
+  "signInsLabel",
+  "videoPresetRename",
+  "updateStatus",          // () -> UpdateStatus (sync): §28 for the Device screen (2026-10-05)
+  "updateCheck",           // () -> UpdateStatus (async): a check now
+  "listenWindow",          // (tile|null) -> {result, tile} (async): the window a phone listens to in multiview; null = the big window (2026-10-05)
+  "updateInstallNow",      // () -> {result, ...UpdateStatus} (async): download, verify, stage - the night window's path, by the person's press
+  "updateSetChannel",      // (channel) -> UpdateStatus (async): stable | beta
+  "videoPlayNextEpisode",  // () -> {ok, did: list|number, season, episode} (sync): plays the next from the Episodes list (2026-10-05)
+  "musicPlayNext",         // (tile, kind, id) -> {ok, started?, error?} (sync): Play after this track from the wall's Quick play (2026-10-05)
+  "musicNextNow",          // () -> {tile, kind, id, name, service, after, at} | null (sync): the queued pick
   "players",               // () -> {active, music:{id,name}|null, video:{id,name}|null} - the two players (players.ts)
   "switchPlayer",          // (kind) -> {ok, kind, sceneId, notes} | {ok:false, reason:"no-scene", template}; the wall becomes the Music or Video player
   "videoState",            // () -> VideoTileState[] (video.ts): each video tile's face, library, resume point, what it can do
@@ -201,6 +230,26 @@ export const HOST_CALLS: string[] = [
   "videoProfile",          // (tileId, profileId, always) - a human's pick on the service's profile gate; always = the household's standing choice
   "videoLibraryTab",       // () -> {rows:[{genre, cards}], pending, rated, total, twice, services, tmdbKey} (sync): the Library tab, the owned titles by genre
   "videoProfilesView",     // () -> {services:[{app,name,status,profiles,current,switching}], presets, active} (sync): the Profiles window (2026-09-24)
+  "playlistsView",        // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistsPicker",      // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistCreate",       // Playlists (docs/features/playlists.md, 2026-09-27); (name, isPublic) on TMDB (2026-10-03)
+  "playlistGate",         // playlists on TMDB lists (2026-10-03): on or the gate
+  "playlistSync",         // TMDB's lists read now
+  "playlistCopyLocal",    // the device's earlier playlists copied up, once
+  "playlistSetPublic",    // a list public or private on TMDB
+  "playlistOpen",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistRename",       // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistDelete",       // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistUndo",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistSend",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistImport",       // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistJob",          // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistJobConfirm",   // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistEdit",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistPlay",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "playlistStop",
+  "playlistMove",         // Playlists (docs/features/playlists.md, 2026-09-27)
+  "videoRowOrder",         // (row, order, reverse) -> {row, order, reverse, orders} (sync): Continue watching / My list order, kept on the device (2026-09-26)
   "videoProfileSet",       // (appId, profileId) -> {ok, error?} (sync): one service switched to a profile - rows swapped, the page pressed, read again
   "videoProfileExclude",   // (appId, on) -> {ok, excluded} (sync): a service left out of Watch's Continue watching / My list for the person on now
   "videoRefreshStale",     // () -> {ok, asked} (sync): the services not read in ten minutes read again - Watch opened (2026-09-24)
@@ -223,14 +272,36 @@ export const HOST_CALLS: string[] = [
   "videoPlayEpisode",      // (episodeId) -> {ok, error?} (sync): play an episode the service itself listed
   "videoMultiview",        // (action, arg?) -> {ok, on, target, max, windows} (sync): multiview - on | off | swap | focus <tile> | target <0..3> | state
   "titleEpisodes",         // (appId, series, itemId|null, season|null, episode|null) -> EpisodesView (sync, poll): a series' episodes for its Details page (2026-09-24)
+  "videoLiveGuide",        // (type, q) -> {window, types, rows, guides, events}: the Live tab's guide (docs/features/live.md, 2026-09-28)
+  "videoLiveRead",
+  "liveScores",
+  "liveNews",             // what a live news show reported (docs/features/live.md, 2026-10-01)
+  "liveNowOn",            // what is on across a mode's channels, as TMDB knows it (2026-10-02)
+  "tmdbLinkState",        // the person's TMDB account (tmdb-account.ts, 2026-10-03): linked or not
+  "tmdbLinkStart",        // a request token and its approval page
+  "tmdbLinkFinish",       // the token traded for a session after the approval
+  "tmdbUnlink",           // the session ended and forgotten
+  "tmdbRated",            // the account's own rating of a title
+  "tmdbRate",             // a rating written, or taken back
+  "watchlistSet",         // the TMDB watchlist (2026-10-03): a title on or off
+  "watchlistHas",         // whether a title is on it
+  "watchlistImport",      // the services' My List titles copied onto it
+  "watchlistView",        // the watchlist row's cards, the offer and the copy's progress
+  "watchlistHasTitle",    // a card's title on the watchlist or not
+  "watchlistSetTitle",    // a card's title put on or taken off
+  "liveScoreWatch",         // (force) -> {ok, asked}: the Live tab open or Refresh - each service's guide page read on its hidden page
+  "titleAlsoOnPlan",       // (appsJson) -> [{via, viaName, app, name}]: the services worth asking about a title that plays on these apps - core's ALSO_VIA (2026-09-28)
   "titleAlsoOn",           // (kind, id, title, viaApp) -> {state: yes|no|checking|n/a, app, name} (sync, poll): Hulu titles on Disney+, asked of Disney+ when Details opens (2026-09-25)
   "titleEpisodePlay",      // (appId, series, season, episode) -> {ok, resolving?}: one episode played on that service
   "bootTimings",           // () -> {now, rowsCache, menuReady, lists} (sync): startup milestones in ms since the runtime began (2026-09-24)
   "videoResync",           // () -> {ok, did: nudged|reopened} (sync): the big screen's sound and picture together again - pause/play, or again soon: reopened at its place
+  "videoProgramEdges",     // (tile) -> {title, start, end}|null (sync): the guide's program on a channel window now - the break watch's program edges (2026-10-06)
+  "videoPictureFrozen",    // (tile, seconds) -> {ok, did} (sync): the shell saw the picture stand still while it plays; the doctor reopens it (2026-10-06)
   "videoStartOver",        // () -> {ok, did: start|previous, season?, episode?} (sync): the big screen back to its start, or in its first 5 s the episode before (2026-09-24)
   "videoNextEpisode",      // (tileId) -> {ready, next, series} (sync): the next episode of the series the tile plays, as TMDB knows it - the stage bar's card
   "videoTrack",            // (tileId, kind, trackId) - a human's pick of the service's own subtitle / audio track from the stage bar (adapter videoTracks)
   "videoMenu",             // () -> the universal video menu's rows (video-menu-spec §2), ordered by §4 through menu-order.ts alone
+  "videoMenuRows",         // (withLenses) -> the menu's rows without the Library, for the page's follow loops (2026-10-03, perf)
   "videoSearch",           // (facetId, q, open|null) -> {ok, switched}: the service's own search page with the words in place (§2 row 5); open = the result to press once shown
   "videoLookup",           // (q) -> {ok, q, token, done, services:[{app,name,facet,status,candidates}]}: cross-service search, every signed-in service at once on hidden surfaces
   "videoLookupState",      // () -> the cross-service search as it stands (poll until done) | null
@@ -274,7 +345,7 @@ export const HOST_CALLS: string[] = [
   "musicLookupPick",       // (tileId, songId) - an ambiguous lookup: the person names which candidate is the song
   "musicAddToPlaylist",    // (tileId, playlistId, songId) - add the found song to one of this service's playlists (ids the page itself listed)
   "musicStationFromSong",  // (tileId, songId) - start this service's station seeded from the found song; the stage follows
-  "recycleApp",            // (profile) - B-124 recovery: destroy + recreate the App's wall surfaces after App setup closes
+  "recycleApp",            // (appId) - B-124 recovery: destroy + recreate the App's own wall surfaces after App setup closes (by App since 2026-10-05, one browser)
   "musicSources",          // () -> JSON [{tile, app, name, session, active, stages}] (sync) - the scene's music sources, for a menu grouped by service
   "setIntermissionAmbient", // (sound|null) - section 26 ambient audio: the soundscape for every music source's breaks, or silence
   "registerStylePalettes", // (json {styleId: ["#RRGGBB", …]}) -> count (sync) - the shell declares the packs it loaded so CORE does the §32 backdrop tint
@@ -303,6 +374,7 @@ export const HOST_CALLS: string[] = [
 export const SURFACE_EVENT_TYPES: string[] = [
   "load-finished", "first-paint", "adapter-ready", "playback", "interaction",
   "navigated", "focus-result", "ad-break", "skip-available", "ad-info", "listener-lost",
-  "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip",
+  "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip", "gpu-reset",
   "media-position", "now-playing", "session", "fullscreen-element", "popup", "music-result",
+  "profile-migrated",
 ];

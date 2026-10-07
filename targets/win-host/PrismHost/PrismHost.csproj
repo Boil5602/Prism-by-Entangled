@@ -18,12 +18,20 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <EnableMsixTooling>false</EnableMsixTooling>
+    <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
+         The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
+    <Version>0.26.27</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <PackageReference Include="NAudio.Lame" Version="2.1.0" />
     <!-- §32 Layer 1 / win-host-spec §6: WASAPI loopback capture for the visualizer FFT (Services/Audio) -->
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <!-- the wall's cost (MainWindow.PerfWatch, 2026-10-03): Windows' per-process GPU engine counters -->
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.1" />
+    <!-- the TMDB account's approval page as a QR for the phone (MainWindow.TmdbAccount.cs, 2026-10-03); MIT -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,9 +45,18 @@
     <Content Include="Assets\brain\brain.html" CopyToOutputDirectory="PreserveNewest" />
     <!-- the Prism mark (the extension's icon, the same prism): the grip at the top, the window and the taskbar (2026-09-09) -->
     <Content Include="Assets\prism-icon.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\prism-icon-180.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\prism-icon-192.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\prism-icon-512.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\prism-icon-512-maskable.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\core\dist\prism-runtime.js" Link="Assets\brain\prism-runtime.js" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the animated wordmark snippet (docs/features/animated-wordmark.md): core emits it, the phone's page inlines it; absent, the page keeps its plain name -->
+    <Content Include="..\..\..\packages\core\dist\prism-wordmark.html" Link="Assets\brain\prism-wordmark.html" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\packages\core\dist\prism-wordmark.html')" />
+    <!-- the splash page the boot cover shows (MainWindow.BootCover.cs, 2026-10-05): the same wordmark, playing once as the wall loads; absent, the cover keeps the mark alone -->
+    <Content Include="..\..\..\packages\core\dist\prism-splash.html" Link="Assets\brain\prism-splash.html" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\packages\core\dist\prism-splash.html')" />
     <Content Include="Assets\demo-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\first-run-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- docs/concept-scenes.md §6: the first-party micro-facets, served at
          https://tiles.prism/ from this folder (SurfaceManager maps it). Everything
          they need ships here - stylesheet, script and the §24 chime; the pages
@@ -66,6 +83,11 @@
        stage-packs.mjs rewrites each staged pack.json to exactly the bundled.txt
        subset it copied, so the device can never read an attribution for an image
        that is not there (and never show an image with no attribution, §5). -->
+  <!-- the animated wordmark snippet (docs/features/animated-wordmark.md): emitted from core's build output before the Content items are
+       gathered, so the phone's page always has it when core has been built; a missing core build leaves the page its plain name -->
+  <Target Name="EmitWordmark" BeforeTargets="BeforeBuild;AssignTargetPaths" Condition="Exists('..\..\..\packages\core\dist\wordmark.js')">
+    <Exec Command="node scripts/generate-wordmark.mjs" WorkingDirectory="..\..\..\packages\core" ContinueOnError="true" StandardOutputImportance="low" />
+  </Target>
   <Target Name="StageImageryPacks" BeforeTargets="AssignTargetPaths" Condition="Exists('..\..\..\packs')">
     <Exec Command="node scripts/stage-packs.mjs --dest=targets/win-host/PrismHost/Assets/packs --quiet" WorkingDirectory="..\..\.." ContinueOnError="true" />
     <ItemGroup>
@@ -88,6 +110,6 @@
       <_PrismXaml Include="$(OutDir)*.xbf;$(OutDir)$(TargetName).pri" />
     </ItemGroup>
     <Copy SourceFiles="@(_PrismXaml)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Prism: XAML and PRI copied to the publish (@(_PrismXaml->Count()) files)" />
+    <Message Importance="high" Text="Prism: XAML and PRI copied to the publish (@(_PrismXaml-&gt;Count()) files)" />
   </Target>
 </Project>

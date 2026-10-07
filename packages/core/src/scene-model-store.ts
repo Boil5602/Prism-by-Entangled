@@ -87,7 +87,10 @@ export class SceneModelStore {
       this.active = (await this.store.get(SCENE_MODEL_KEYS.activeScene)) || null;
       this.migrated = !!(await this.store.get(SCENE_MODEL_KEYS.migration));
     } catch { /* §10 posture */ }
+    this.loadDone = true;
   }
+  /** The stores have been read to the end (load() marks `loaded` as it begins). */
+  private loadDone = false;
 
   isLoaded(): boolean { return this.loaded; }
 
@@ -229,6 +232,13 @@ export class SceneModelStore {
     return sceneDocument({ scene, layout, facets: this.facets, apps: this.apps }, dashId, canvas, base);
   }
 
+  /** A scene that is not the saved one, drawn with the saved layouts, facets and apps (the Video player with the music kept warm: runtime applyScene). */
+  materializeScene(scene: Scene, canvas: CanvasSize, dashId: string, base?: DashboardDocument): { doc: DashboardDocument; notes: string[] } | null {
+    const layout = this.layouts.get(scene.layout);
+    if (!layout) return null;
+    return sceneDocument({ scene, layout, facets: this.facets, apps: this.apps }, dashId, canvas, base);
+  }
+
   setActiveScene(id: string | null): void {
     this.active = id;
     this.persist(SCENE_MODEL_KEYS.activeScene, id ?? "");
@@ -256,9 +266,20 @@ export class SceneModelStore {
    * over an existing migration unless `force` (the human's post-migration
    * edits would be replaced - the source keys still are never touched).
    */
-  migrate(canvas: CanvasSize | undefined, force = false): { status: "migrated" | "already-migrated" | "no-store"; report: MigrationReport | null } {
+  migrate(canvas: CanvasSize | undefined, force = false): { status: "migrated" | "already-migrated" | "no-store" | "not-ready" | "native-model"; report: MigrationReport | null } {
     if (!this.store || !this.options.readAll) return { status: "no-store", report: null };
     if (this.migrated && !force) return { status: "already-migrated", report: null };
+    // A model made on this device (the welcome page, a template) is never replaced by a migration (2026-09-29: a new device made its two
+    // players, and the next boot - the store now held the wall's `dashboard` - migrated that document over them: both players gone). The
+    // marker is written so the one-shot gate is closed; a forced run from the Device screen is the person's own choice.
+    if (!force) {
+      if (!this.loadDone) return { status: "not-ready", report: null };
+      if (this.scenes.size > 0 || this.layouts.size > 0 || this.facets.size > 0 || this.apps.size > 0) {
+        this.persist(SCENE_MODEL_KEYS.migration, { schema: "prism.scene-model-migration/v0.1", at: new Date().toISOString(), native: true });
+        this.migrated = true;
+        return { status: "native-model", report: null };
+      }
+    }
     const data = this.options.readAll();
     const result = migrateStore(data, canvas ? { canvas } : {});
     for (const [k, v] of Object.entries(result.writes)) this.persist(k, v);

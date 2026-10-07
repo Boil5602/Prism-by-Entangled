@@ -45,6 +45,7 @@ async function setup() {
     peacock: { match: ["www.peacocktv.com"], videoContext: "/*c*/", videoLookup: "/*PK-LOOKUP*/" },
   } }));
   await vi.advanceTimersByTimeAsync(50);
+  await vi.advanceTimersByTimeAsync(9_000);   // the hidden pages wait out the boot (2026-09-28)
   for (const a of [
     { id: "netflix", name: "Netflix", baseUrl: "https://www.netflix.com/browse", profileId: "netflix", setup: { status: "signed-in" }, render: { audio: "exclusive" } },
     { id: "hulu", name: "Hulu", baseUrl: "https://www.hulu.com/hub/home", profileId: "hulu", setup: { status: "signed-in" }, render: { audio: "exclusive" } },

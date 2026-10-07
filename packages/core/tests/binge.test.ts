@@ -191,6 +191,27 @@ describe("The Binge - kept on the device", () => {
     rt.videoBingeHide("tmdb:tv:1", false);
     expect(JSON.parse(kv.get("video:binge-hidden")!)).toEqual([]);
   });
+  it("a hidden title is the profile set's (2026-09-26): the base while no set exists, moved to the first set once one does; each set its own; a missing title stays shared", async () => {
+    const kv = new Map<string, string>();
+    const rt = await boot(kv, []);
+    const hidden = () => JSON.parse(rt.videoBingeHidden()).items.map((i: { id: string }) => i.id);
+    rt.videoBingeHide("tmdb:tv:1", true, "Parks and Recreation");   // no set yet: the base
+    expect(JSON.parse(kv.get("video:binge-hidden")!)).toMatchObject([{ id: "tmdb:tv:1", why: "hidden" }]);
+    const missing = { id: "tmdb:tv:9", why: "missing", app: "hulu", at: Date.now(), title: "Gone" };
+    kv.set("video:binge-hidden", JSON.stringify([...JSON.parse(kv.get("video:binge-hidden")!), missing]));
+    // two sets saved, Sam's active: the base's hidden title moves to the FIRST set (Alex's), the missing note stays in the base
+    kv.set("video:profile-presets", JSON.stringify({ presets: [{ id: "pm", name: "Alex", picks: {} }, { id: "ps", name: "Sam", picks: {} }], active: "ps", off: [] }));
+    expect(hidden()).toEqual(["tmdb:tv:9"]);   // Sam sees only the shared missing note
+    expect(JSON.parse(kv.get("video:binge-hidden:pm")!)).toMatchObject([{ id: "tmdb:tv:1", why: "hidden" }]);
+    expect(JSON.parse(kv.get("video:binge-hidden")!)).toMatchObject([{ id: "tmdb:tv:9", why: "missing" }]);
+    rt.videoBingeHide("tmdb:tv:2", true, "Seinfeld");   // hidden while Sam's set is on: Sam's
+    expect(JSON.parse(kv.get("video:binge-hidden:ps")!)).toMatchObject([{ id: "tmdb:tv:2" }]);
+    kv.set("video:profile-presets", JSON.stringify({ presets: [{ id: "pm", name: "Alex", picks: {} }, { id: "ps", name: "Sam", picks: {} }], active: "pm", off: [] }));
+    expect(hidden().sort()).toEqual(["tmdb:tv:1", "tmdb:tv:9"]);   // Alex: his own, and the shared one
+    rt.videoBingeHide("tmdb:tv:1", false);
+    expect(JSON.parse(kv.get("video:binge-hidden:pm")!)).toEqual([]);
+    expect(JSON.parse(kv.get("video:binge-hidden:ps")!)).toMatchObject([{ id: "tmdb:tv:2" }]);   // Sam's untouched
+  });
   it("the hidden list names each title, newest first, and a title shown again leaves it", async () => {
     const rt = await boot(new Map(), []);
     rt.videoBingeHide("tmdb:tv:1", true, "Parks and Recreation");

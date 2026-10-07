@@ -713,9 +713,7 @@ public sealed partial class MainWindow
             if (_adapterIndex is null)
             {
                 _adapterIndex = new();
-                var dir = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters");
-                if (Directory.Exists(dir))
-                    foreach (var f in Directory.GetFiles(dir, "*.json"))
+                    foreach (var f in Sources.Adapters.Values.Select(e => e.Path))
                     {
                         using var doc = JsonDocument.Parse(File.ReadAllText(f));
                         var r = doc.RootElement;

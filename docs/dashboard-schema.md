@@ -344,8 +344,8 @@ Devices hold an ordered set of dashboards and swipe (or remote-key) between them
 Every tile gets its own isolated storage profile (cookies, localStorage, IndexedDB) by default. Two tiles can hold two different logged-in accounts of the same site.
 
 ```json
-{ "id": "cal-holly", "url": "https://app.yourdomain.com/calendar", "profile": "holly" }
-{ "id": "cal-mark",  "url": "https://app.yourdomain.com/calendar", "profile": "mark" }
+{ "id": "cal-sam",   "url": "https://app.yourdomain.com/calendar", "profile": "sam" }
+{ "id": "cal-alex",  "url": "https://app.yourdomain.com/calendar", "profile": "alex" }
 { "id": "yt", "url": "https://www.youtube.com" }
 ```
 
@@ -703,6 +703,7 @@ During in-stream video ad breaks, a tile can fade to an **intermission surface**
 **Detection safety model (normative).** Detection is *passive observation only* — a MutationObserver reading the player's own state markers (ad-mode classes on the player element, ad-badge/skip UI appearing, media-element telltales like a duration collapse from 42:00 to 0:15). Adapters never click, never intercept network requests, never touch player state — reading the DOM cannot break playback, so the worst possible failure is a wrong overlay, never a broken show. And wrong-overlay risk is governed by asymmetric bias, because the two errors are not equal (an ad showing through is free; covering one second of content is the real failure):
 
 - **Mute fast:** a tile whose breaks mute goes silent on the *first* concurrent signal, before any window; if the signal drops inside the window the mute lifts at once and nothing was covered. *Decision (2026-09-15):* the two errors are not equal here either, but the other way round from the cover — a wrong mute is a one-second dip in a song, while every second the mute waits is a second of ad in the room (two to three, measured, with the page-side sustain and this window in series). So the mute leaves the debounce; the scenery and the soundscape keep it. Adapters report the first sighting and the first drop, and keep no sustain of their own.
+- **Video ads look (Watch settings):** the Video player's breaks take one of three looks: *veiled and muted* (the scenery and the mute, the default), *muted, picture visible* (the ad's own picture with its sound off, and an Unmute on the window that holds for that break), or *show* (nothing drawn, nothing muted). The break is kept in every look (its state, its backstop), so a shell can still say a break is on. A music service's break keeps its own cover. *Decision (2026-10-07):* "lets add 3 options for Video Ads: Show, Muted (Picture visible) and Veiled and Muted. Default to Veiled"; "If an ad is muted only, I should have the option to unmute it."
 - **Cover slow:** the overlay (and the soundscape) engage only on multiple concurrent signals sustained for a debounce window (~1s).
 - **Uncover fast:** any single end-signal — or any *doubt*, including signal disagreement or the observer losing its footing after a site change — drops the overlay immediately. The §26 safety timeout backstops a missed end entirely.
 - **Seamless return:** the shell snapshots the tile at ad-start (§16 machinery), and the fade-back lands on live content already playing — the show was never paused, sped, or seeked, so nothing is missed except the ad itself, by the viewer's own eyes only. Muting follows the same asymmetry: restore audio on uncover before the fade completes.

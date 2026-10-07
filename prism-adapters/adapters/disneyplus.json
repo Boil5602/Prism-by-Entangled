@@ -3,7 +3,7 @@
     "www.disneyplus.com",
     "disneyplus.com"
   ],
-  "version": "0.2.20",
+  "version": "0.2.21",
   "login": "https://www.disneyplus.com/identity/login",
   "loginFocus": "form",
   "session": {
@@ -63,5 +63,8 @@
   "videoRemoveContinueUrl": "https://www.disneyplus.com/home",
   "videoPlaysAt": [
     "/play/"
+  ],
+  "broadcasters": [
+    "Disney+"
   ]
 }

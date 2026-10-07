@@ -166,7 +166,7 @@ export { FUNCTIONAL_POPUPS, MorphCoalescer, PopupPolicy, aggregateLedger, allowS
 export { ReclaimedLedger, dayKey, monthStartKey, weekStartKey, windowsFrom } from "./reclaimed.js";
 export type { ReclaimedEntry, ReclaimedWindows } from "./reclaimed.js";
 export type { AggregateRow, AllowedRow, ButtonPrefs, LedgerEntry, PopupAction, PopupAttempt, PopupDecision, PopupEvent, PopupGesture, PopupPolicyState, SitePolicy } from "./popups.js";
-export { UpdateChecker, compareVersions, isUnparameterized, parseManifest } from "./updates.js";
+export { UpdateChecker, UPDATE_CHANNELS, asUpdateChannel, channelLabel, compareVersions, isUnparameterized, parseManifest } from "./updates.js";
 export type { ReleaseInfo, UpdateChannel, UpdateConfig, UpdateHooks, UpdateManifest, UpdateStatus } from "./updates.js";
 export { DEFAULT_AV_OFFSET_MS, PrivateListening, UNNAMED_LISTENER, avOffsetJs, listeningChips } from "./listening.js";
 export type {
@@ -315,3 +315,5 @@ export type { ContextSheetAction, ItemContext, ReachEntry, RouteDef, RouteEntity
 // §32 visualizations: style packs, artwork modes, palette tint, the audio-source contract and the seam op
 export { ARTWORK_CROSSFADE_MS, ARTWORK_MODES, DEFAULT_MOTION, PRISM_BANDS, SILENT_SOURCE, VISUALIZATION_STYLE_IDS, artworkPresentation, dominantColors, hexToRgb, normalizeStylePack, rgbToHex, smoothBands, testSignal, tintPalette } from "./visualization.js";
 export type { ArtworkPresentation, Rgb, StyleMotion, StylePack, VisualizationAudioSource, VisualizationCreateOptions, VisualizationDriver } from "./visualization.js";
+export { WORDMARK_ANGLE, WORDMARK_GUARD_MS, WORDMARK_RUN, WORDMARK_WORD, bandsReachWhite, wordmarkCss, wordmarkFactors, wordmarkHtml, wordmarkScript, wordmarkSnippet } from "./wordmark.js";
+export type { WordmarkOptions } from "./wordmark.js";

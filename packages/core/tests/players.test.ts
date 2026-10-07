@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLAYER_TEMPLATES, carryHiddenMusic, isPlayerKind, playerOfScene, playerScenes } from "../src/players.js";
+import { PLAYER_TEMPLATES, carryHiddenMusic, isPlayerKind, playerOfScene, playerScenes, withWarmMusic, withoutMusic } from "../src/players.js";
 import type { Facet, Layout, Scene } from "../src/scene-model.js";
 import { createRuntime } from "../src/runtime.js";
 import type { Drivers } from "../src/drivers.js";
@@ -47,6 +47,13 @@ describe("players - which scene is which player", () => {
     expect(playerScenes(all, layout, facet, "movie-night-1").video?.id).toBe("movie-night-1");
     expect(playerScenes([demoNight, lounge], layout, facet, null).video?.id).toBe("demo-movie-night");
     expect(playerScenes([lounge], layout, facet, null)).toEqual({ music: lounge, video: null });
+  });
+  it("the Video player as the wall draws it has the music warm beside it; its own scene is left as it is", () => {
+    const drawn = withWarmMusic({ ...night, hidden: [{ facet: "clock", audio: "mute" }, { facet: "am", audio: "exclusive" }] }, lounge, facet);
+    expect(drawn.hidden).toEqual([{ facet: "clock", audio: "mute" }, { facet: "am", audio: "exclusive" }, { facet: "sp", audio: "exclusive" }]);
+    expect(withWarmMusic(night, null, facet)).toBe(night);
+    expect(withoutMusic({ ...night, hidden: [{ facet: "clock", audio: "mute" }, { facet: "am", audio: "exclusive" }] }, facet)?.hidden).toEqual([{ facet: "clock", audio: "mute" }]);
+    expect(withoutMusic(night, facet)).toBeNull();
   });
   it("carries the Music player's hidden sources into the Video player - its own non-music hidden facets stay, and nothing is written when they already match", () => {
     const carried = carryHiddenMusic({ ...night, hidden: [{ facet: "clock", audio: "mute" }] }, lounge, facet);
@@ -100,20 +107,23 @@ describe("players - the runtime switch", () => {
     rt.event(JSON.stringify({ type: "now-playing", id: "am", info: { playing: true, title: "Teenage Messiah", artist: "Some Band" } }));
     await vi.advanceTimersByTimeAsync(50);
 
-    // to the Video player: the sources ride along as hidden placements, so their tiles survive the switch
+    // to the Video player: the music sources are kept warm on the wall, so their tiles survive the switch - and the Video player's
+    // scene holds none of them (2026-09-29: the two players are separate)
     ops.length = 0;
     expect(JSON.parse(rt.switchPlayer("video"))).toMatchObject({ ok: true, kind: "video", sceneId: "movie-night-1" });
     await vi.advanceTimersByTimeAsync(50);
     expect(JSON.parse(rt.players()).active).toBe("video");
     const saved = (JSON.parse(rt.modelState()) as { scenes: Scene[] }).scenes.find((s) => s.id === "movie-night-1")!;
-    expect(saved.hidden).toEqual([{ facet: "am", audio: "exclusive" }, { facet: "sp", audio: "exclusive" }]);
+    expect(saved.hidden).toEqual([]);
     expect(ops.filter((o) => o.op === "destroy").map((o) => o.id)).not.toContain("am");
     expect(ops.filter((o) => o.op === "destroy").map((o) => o.id)).not.toContain("sp");
     const tiles = JSON.parse(rt.state()).tiles as Array<{ id: string; url?: string }>;
     expect(tiles.some((t) => (t.url ?? "").includes("hulu.com"))).toBe(true);   // the screen holds Hulu
     expect(tiles.some((t) => t.id === "am")).toBe(true);                        // and Apple's source is still on the wall
+    // the music is paused on the way out, through its own player (2026-10-05, "the song continues to play. Please pause it when switching to Video")
+    expect(ops.some((o) => o.op === "inject" && o.id === "am" && /__prismMediaAction[\s\S]*"pause"/.test(String(o.js)))).toBe(true);
 
-    // a video takes the audio and the music is paused through its own player (section 3); back to the Music player resumes it
+    // the page reports the pause; back to the Music player resumes it
     rt.event(JSON.stringify({ type: "now-playing", id: "am", info: { playing: false, title: "Teenage Messiah", artist: "Some Band" } }));
     await vi.advanceTimersByTimeAsync(50);
     ops.length = 0;
@@ -124,13 +134,17 @@ describe("players - the runtime switch", () => {
     const playSent = () => ops.some((o) => o.op === "inject" && o.id === "am" && /__prismMediaAction/.test(String(o.js)));
     expect(playSent()).toBe(true);   // the Play verb reached Apple's tile
 
-    // a second trip while the music still plays: the way back sends no Play
+    // a second trip: the music is paused on the way out and resumed on the way back - and the screen takes the sound back (2026-10-05,
+    // "no audio is coming through": the music source had kept the audio across the trip)
     ops.length = 0;
     rt.event(JSON.stringify({ type: "now-playing", id: "am", info: { playing: true, title: "Teenage Messiah", artist: "Some Band" } }));
     await vi.advanceTimersByTimeAsync(50);
     rt.switchPlayer("video");
     await vi.advanceTimersByTimeAsync(50);
+    expect(ops.some((o) => o.op === "inject" && o.id === "am" && /__prismMediaAction[\s\S]*"pause"/.test(String(o.js)))).toBe(true);
+    expect(JSON.parse(rt.state()).audioOwner).toBe("screen");
     ops.length = 0;
+    // the page has not reported the pause yet (still "playing"): the way back sends no Play, nothing to resume
     rt.switchPlayer("music");
     await vi.advanceTimersByTimeAsync(100);
     expect(playSent()).toBe(false);

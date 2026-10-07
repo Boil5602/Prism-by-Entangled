@@ -40,10 +40,15 @@ public sealed partial class MainWindow
         MenuGrip.PointerEntered += (_, __) => MenuGrip.Opacity = 1;
         MenuGrip.PointerExited += (_, __) => { if (!_menuOpen) MenuGrip.Opacity = GripRestOpacity; };
         MenuGrip.PointerPressed += async (_, e) => { e.Handled = true; await OpenAppMenuAsync(); };
-        WatchGrip.Opacity = GripRestOpacity;
-        WatchGrip.PointerEntered += (_, __) => { WatchGrip.Opacity = 1; _ = ShowStageBarAsync(); };
-        WatchGrip.PointerExited += (_, __) => WatchGrip.Opacity = GripRestOpacity;
-        WatchGrip.PointerPressed += async (_, e) => { e.Handled = true; await ShowVideoHubAsync(); };
+        // the Watch tab at the top is gone (2026-09-28, "The watch button at the top open the watch menu screen is redundant, can we remove it? We have
+        // it on the video control area already. Can we add a hotkey like CTRL+SHIFT+W, just as a backup?"): it is never drawn or pressed; its
+        // Visibility still says the Video player is the wall (the stage bar, Esc and the home rule read it). Ctrl+Shift+W opens Watch, as the
+        // stage bar's Watch and Esc on the bare wall do
+        WatchGrip.Opacity = 0;
+        WatchGrip.IsHitTestVisible = false;
+        var ctrlShiftW = new KeyboardAccelerator { Key = Windows.System.VirtualKey.W, Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift };
+        ctrlShiftW.Invoked += async (_, e) => { e.Handled = true; await OpenWatchByKeyAsync(); };
+        RootGrid.KeyboardAccelerators.Add(ctrlShiftW);
         var f10 = new KeyboardAccelerator { Key = Windows.System.VirtualKey.F10 };
         f10.Invoked += async (_, e) => { e.Handled = true; await OpenAppMenuAsync(); };
         RootGrid.KeyboardAccelerators.Add(f10);
@@ -104,6 +109,15 @@ public sealed partial class MainWindow
         // household's Music Lounge or its Movie Night in one press, and back again; the Video player carries the lounge's
         // sources hidden so the music stays warm, and the way back resumes what a video paused.
         foreach (var item in await BuildPlayerItemsAsync()) menu.Items.Add(item);
+        // the people of this wall, for both players (2026-09-29, "we don't yet have the concept of profiles in the music player ... Ideally it
+        // uses the same profiles set on the video side"): the sets, and the Profiles window
+        try
+        {
+            var people = new MenuFlyoutSubItem { Text = "Profiles", Icon = new FontIcon { Glyph = "\uE716" } };
+            foreach (var it in await BuildPresetItemsAsync()) people.Items.Add(it);
+            if (people.Items.Count > 0) menu.Items.Add(people);
+        }
+        catch (Exception e) { LogLine("profiles menu: " + e.Message); }
         // VP-3 (2026-09-19): the Video player as a universal player - Watch: the service on the screen with its verbs, "Watch on"
         // across the household's video services, Continue Watching / My List from every service, the profile gate when it is up
         if (await BuildWatchMenuAsync() is { } watch) menu.Items.Add(watch);
@@ -211,6 +225,12 @@ public sealed partial class MainWindow
         menu.Items.Add(new MenuFlyoutSeparator());
 
         // --- app
+        // the media hub switch (docs/features/media-hub.md, 2026-10-05): the state as last read, refreshed for the next opening
+        var rds = Item(Services.MediaHub.MenuLabel + ": " + (Services.MediaHub.On ? "On" : "Off"), "", null, () => _ = ToggleMediaHubAsync());
+        ToolTipService.SetToolTip(rds, Services.MediaHub.Explain + " Press to turn it " + (Services.MediaHub.On ? "off." : "on."));
+        menu.Items.Add(rds);
+        _ = Services.MediaHub.RefreshAsync();
+        menu.Items.Add(Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()));   // section 28 (2026-10-05)
         menu.Items.Add(Item("About Prism", "", null, () => _ = ShowAboutAsync()));
         menu.Items.Add(Item("Quit Prism", "", "Alt+F4", Close));   // Closed handler runs the snapshot pass
 
@@ -1110,6 +1130,30 @@ public sealed partial class MainWindow
         t.Start();
     }
 
+    /// <summary>The text prompt with a checkbox under the box (a playlist public on TMDB, 2026-10-03): the text, or null, and the box's state.</summary>
+    private async Task<(string? text, bool on)> PromptTextAsync(string title, string initial, string placeholder, string primary, string checkbox)
+    {
+        var box = new TextBox { Text = initial, PlaceholderText = placeholder, MinWidth = 380 };
+        var check = new CheckBox { Content = checkbox, IsChecked = false, Margin = new Thickness(0, 10, 0, 0) };
+        var dlg = new ContentDialog
+        {
+            Title = title,
+            Content = new StackPanel { Children = { box, check } },
+            PrimaryButtonText = primary,
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = RootGrid.XamlRoot,
+            RequestedTheme = ElementTheme.Dark,
+        };
+        try
+        {
+            if (await dlg.ShowAsync() != ContentDialogResult.Primary) return (null, false);
+        }
+        catch (Exception ex) { SetStatus("dialog: " + ex.Message); return (null, false); }
+        var text = box.Text.Trim();
+        return (text.Length > 0 ? text : null, check.IsChecked == true);
+    }
+
     private async Task<string?> PromptTextAsync(string title, string initial, string placeholder, string primary)
     {
         var box = new TextBox { Text = initial, PlaceholderText = placeholder, MinWidth = 380 };
@@ -1180,6 +1224,7 @@ public sealed partial class MainWindow
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
     {
+        if (_welcome is { Visibility: Visibility.Visible }) { CloseWelcome(); return true; }   // the welcome page (Set up services)
         if (_episodesPanel is not null) { CloseEpisodes(); return true; }   // the Episodes menu over the stage (2026-09-22)
         if (StageCurtain.Visibility == Visibility.Visible) { HideStageCurtain(); return true; }   // the curtain lifts first (the page is there beneath)
         if (_surfaces.CloseTopPopup()) return true;                           // §30 a popup sheet closes first
@@ -1199,6 +1244,15 @@ public sealed partial class MainWindow
         return false;
     }
 
+    /// <summary>Ctrl+Shift+W: Watch, from anywhere on the wall while the Video player is up (a press while Watch is open does nothing).</summary>
+    private async Task OpenWatchByKeyAsync()
+    {
+        if (VideoHubOpen) return;
+        if (WatchGrip.Visibility != Visibility.Visible) { SetPill("Prism" + Mid + "Watch is the Video player's page. Switch to the Video player first"); return; }
+        HideStageBar();
+        await ShowVideoHubAsync();
+    }
+
     private void OnHostKey(string key)
     {
         switch (key)
@@ -1207,6 +1261,7 @@ public sealed partial class MainWindow
             case "F8": if (_viewfinder is null) BeginSlotRegion(); break;
             case "F10": _ = OpenAppMenuAsync(); break;
             case "F11": ToggleWallFullscreen(); break;
+            case "Ctrl+Shift+W": _ = OpenWatchByKeyAsync(); break;   // from a page that has the keyboard
             // the universal player's transport keys, from the stage (the page's prelude forwards them only in its fullscreen)
             case "Space": _ = StageKeyAsync("playpause"); break;
             case "ArrowLeft": _ = StageKeyAsync("seekbackward"); break;
@@ -1419,7 +1474,7 @@ public sealed partial class MainWindow
     // ----------------------------------------------------------------- about
     private async Task ShowAboutAsync()
     {
-        var ver = typeof(MainWindow).Assembly.GetName().Version is { } v ? v.ToString(3) : "dev";
+        var ver = AppVersion.Text;
         string wv2;
         try { wv2 = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString(null); }
         catch { wv2 = "unavailable"; }
@@ -1430,7 +1485,7 @@ public sealed partial class MainWindow
         {
             Text = k + "  " + val, FontSize = 12, FontFamily = new FontFamily("Consolas"), Foreground = Muted, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
         });
-        Fact("host      ", "Prism for Windows " + ver + " (M1 host shell)");
+        Fact("host      ", "Prism for Windows " + ver + ", " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track (M1 host shell)");
         Fact("webview2  ", wv2);
         Fact("brain     ", _brain.Ready ? "ready" : "starting");
         Fact("adapters  ", _armedAdapters.Count > 0 ? string.Join(", ", _armedAdapters) : "none armed");

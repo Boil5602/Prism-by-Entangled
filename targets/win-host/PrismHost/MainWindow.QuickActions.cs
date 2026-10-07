@@ -181,6 +181,7 @@ public sealed partial class MainWindow
             case "apps": OpenRail("apps"); break;
             case "device": OpenRail("device"); break;
             case "scene.view": await ApplySceneAsync(hit.P("id")); RouteBack(); break;
+            case "player.view": _routeStack.Remove(hit); await SwitchPlayerAsync(hit.P("kind")); break;   // a phone's choice of player (2026-10-04), the menu's own path
             case "scene.edit": OpenSceneBuilder(hit.P("id"), null, hit.Q("slot")); break;
             case "item.swap": if (_model.ActiveScene is { } swapScene) OpenSceneBuilder(swapScene, null, hit.P("item"), pickNow: true); else { SetPill("Prism · no active scene"); _routeStack.Remove(hit); } break;
             case "item.mute": await ToggleItemMuteAsync(hit.P("item")); _routeStack.Remove(hit); break;
@@ -261,10 +262,16 @@ public sealed partial class MainWindow
             var k = kind;
             var item = Item(label + (name is null ? "" : "  ·  " + Shorten(name, 28)), on ? "" : glyph, null, () => _ = SwitchPlayerAsync(k));
             ToolTipService.SetToolTip(item, kind == "music"
-                ? (name is null ? "No Music player yet: opens the Music Lounge template to make one." : on ? "The wall is your Music player now." : "The wall becomes \"" + name + "\"; music a video paused plays on from where it was.")
-                : (name is null ? "No Video player yet: opens the Movie Night template to make one." : on ? "The wall is your Video player now." : "The wall becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
+                ? (name is null ? "No Music player yet. This opens Set up services to make one." : on ? "The wall is your Music player now." : "The wall becomes \"" + name + "\"; music a video paused plays on from where it was.")
+                : (name is null ? "No Video player yet. This opens Set up services to make one." : on ? "The wall is your Video player now." : "The wall becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
             items.Add(item);
         }
+        var setup = Item("Set up services" + (char)0x2026, "", null, () => _ = ShowWelcomeAsync());
+        ToolTipService.SetToolTip(setup, "Choose your music and video services and sign in to each. Prism sets up both players with them.");
+        items.Add(setup);
+        var pair = Item("Pair a phone" + (char)0x2026, "", null, PairPhone);
+        ToolTipService.SetToolTip(pair, "A QR code for your phone: the page it opens is a keyboard for the wall and plays the wall's sound on the phone, privately.");
+        items.Add(pair);
         return items;
     }
 
@@ -458,6 +465,8 @@ public sealed partial class MainWindow
         }
         if (r?["reason"]?.GetValue<string>() == "no-scene")
         {
+            // no player yet: the welcome page makes both from the services chosen (2026-09-29; it was the template wizard, role by role)
+            if (_catalog.Count > 0) { await ShowWelcomeAsync(1); return; }
             var video = kind == "video";
             SetPill("Prism · no " + (video ? "Video" : "Music") + " player yet. Make one from the " + (video ? "Movie Night" : "Music Lounge") + " template");
             OpenTemplateWizard(r["template"]?.GetValue<string>() ?? (video ? "movie-night" : "music-lounge"));
@@ -471,6 +480,7 @@ public sealed partial class MainWindow
     {
         await ReadModelAsync();
         _ = UpdateWatchGripAsync();
+        SyncEmptyWallNote();   // a wall that has a scene now: the "Nothing is set up yet" note goes (2026-09-29 review)
         var name = _model.Scene(sceneId)?.Name ?? sceneId;
         SetPill("Prism · the wall is now \"" + name + "\"");
         try
@@ -521,10 +531,27 @@ public sealed partial class MainWindow
             try
             {
                 await ReadModelAsync();
-                if (_model.Scenes.Count > 0 || _firstRunShown) return;
+                // core learns which services share an account from the catalog, at every start (sign-ins.ts): a set saved from anywhere
+                // names the right sign-ins
+                try { _ = await ModelCallAsync("signInsView", WelcomeEntriesJson()); } catch { }
+                if (_firstRunShown) return;
+                // a device from before the scene model whose one-shot migration has not run yet is not a new device (2026-09-29 review):
+                // the welcome page would make players beside the ones the migration is about to make
+                // (a device that made a scene of its own before any player has a model already: the migration will not run, and neither should the wait)
+                if (_store.Get("dashboard") is not null && _store.Get(MigrationMarkerKey) is null && _store.Get("scene-model:scenes") is not { Length: > 2 }) { LogLine("first run: not yet - the store's dashboard awaits its migration"); return; }
+                // the page is for a wall with NO player, whatever scenes it has (2026-09-29, "the laptop install still doesn't load right up to
+                // setting up the music and video stages": the laptop had scenes from an earlier build's migration, and none was a player, so
+                // the page never came). Not now is remembered until a player exists.
+                var players = await ModelCallAsync("players");
+                var none = players is not null && JsonNode.Parse(players) is JsonObject pj && pj["error"] is null && pj["music"] is null && pj["video"] is null;   // an answer that failed is no answer
+                // a first run interrupted (2026-10-05, a restart with one service set up: "the service configuration screen is gone"): the page was
+                // left open last time, so it comes back - until Done or Not now closes it for good
+                if (!none) { if (HostPrefs.GetBool("welcome.open", false)) { _firstRunShown = true; LogLine("first run: the welcome page was left open last time - back to it"); await ShowWelcomeAsync(); } return; }
                 _firstRunShown = true;
-                LogLine("first run: no scenes - opening the New scene wizard");
-                OpenRoute("prism://templates");
+                if (HostPrefs.GetBool("welcome.dismissed", false)) { LogLine("first run: no player, the welcome page was dismissed - it is in the Prism menu"); return; }
+                LogLine("first run: no player - opening the welcome page");
+                HostPrefs.Set("welcome.open", true);
+                await ShowWelcomeAsync(1);
                 return;
             }
             catch { /* core not ready: next beat */ }
@@ -617,6 +644,13 @@ public sealed partial class MainWindow
         foreach (var h in scene.Hidden)
             if (h["facet"]?.GetValue<string>() is { } hid && (hid == tileId || hid == baseId) && _model.Facet(hid) is { } hf)
                 return new SceneItem("hidden-facet", sid, tileId, hf.Id, hf.App, null, tile?.Url ?? hf.Url, muted);
+        // the Music player's sources kept warm beside the Video player: on the wall, in no placement of the Video player's scene (2026-09-29,
+        // the two players are separate) - found in the scene that holds them
+        foreach (var other in _model.Scenes)
+            if (other.Id != sid)
+                foreach (var h in other.Hidden)
+                    if (h["facet"]?.GetValue<string>() is { } hid && (hid == tileId || hid == baseId) && _model.Facet(hid) is { Music: true } hf)
+                        return new SceneItem("hidden-facet", sid, tileId, hf.Id, hf.App, null, tile?.Url ?? hf.Url, muted);
         return null;
     }
 
@@ -799,18 +833,12 @@ public sealed partial class MainWindow
     /// <summary>The service's sign-in address from its adapter (Assets/adapters/&lt;app&gt;.json, `login`), else the App's own page.</summary>
     private void NavigateToSignIn(string? appId, string tileId)
     {
-        string? login = null;
-        try
-        {
-            if (appId is { Length: > 0 })
-            {
-                var path = Path.Combine(AppContext.BaseDirectory, "Assets", "adapters", appId + ".json");
-                if (File.Exists(path)) { using var doc = JsonDocument.Parse(File.ReadAllText(path)); if (doc.RootElement.TryGetProperty("login", out var l) && l.ValueKind == JsonValueKind.String) login = l.GetString(); }
-            }
-        }
-        catch { }
-        login ??= appId is { } a && _model.App(a) is { } app ? app.BaseUrl : null;
-        if (login is { Length: > 0 }) { LogLine("sign in: " + tileId + " -> " + login); _surfaces.Navigate(tileId, login); }
+        if (appId is not { Length: > 0 }) return;
+        var app = _model.App(appId);
+        // the rule every Sign in follows (SignInOnTileAsync): the sign-in page, else the page's own Sign In control
+        string? adapter = app?.Json["adapter"]?.GetValue<string>() is { Length: > 0 } named ? named : null;
+        try { adapter ??= File.Exists((Sources.AdapterPath(appId) ?? "")) ? appId : null; } catch { }
+        _ = SignInOnTileAsync(adapter, app?.Name ?? appId, app?.BaseUrl, tileId);
     }
 
     /// <summary>B-194 (2026-09-09): the source the add flow just put on the wall, until its sign-in window closes - signed in, it stays; not, the add is undone.</summary>
@@ -972,13 +1000,13 @@ public sealed partial class MainWindow
     /// Home the App's own page), for anything else Sign in · Home · Done. The inline app window and App setup both draw it;
     /// the last child of its row is always Done.
     /// </summary>
-    private Border AppBar(string kind, string name, string tileId, SceneItem? item, string? loginUrl, Action? onHome, Action onDone)
+    private Border AppBar(string kind, string name, string tileId, SceneItem? item, Action? onSignIn, Action? onHome, Action onDone, Action? onWatch = null)
     {
         var esc = (string s) => Uri.EscapeDataString(s);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
         row.Children.Add(new TextBlock { Text = name.ToUpperInvariant(), Foreground = Amber, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0), CharacterSpacing = 120 });
         if (item is not null) row.Children.Add(Small("Sign in", () => NavigateToSignIn(item.App, tileId)));   // B-193: here, not the setup mode
-        else if (loginUrl is not null) row.Children.Add(Small("Sign in", () => _surfaces.Navigate(tileId, loginUrl)));
+        else if (onSignIn is not null) row.Children.Add(Small("Sign in", onSignIn));
         if (kind == "music" && item is not null)
         {
             var quick = Small("Quick play", () => { });
@@ -988,16 +1016,14 @@ public sealed partial class MainWindow
         }
         if (kind == "video")
         {
-            var watch = Small("Watch", () => _ = ShowVideoHubAsync());
-            ToolTipService.SetToolTip(watch, "The Video player's page: Continue watching and My list from every service, each service's rows.");
-            row.Children.Add(watch);
+            // in a setup window Watch leaves the setup first (2026-09-29: it opened Watch under the window); with no Video player there is no Watch
+            var watch = Small("Watch", onWatch ?? (() => _ = ShowVideoHubAsync()));
+            ToolTipService.SetToolTip(watch, onWatch is not null ? "Finish here and go to Watch, the Video player's page." : "The Video player's page: Continue watching and My list from every service, each service's rows.");
+            if (item is not null || WatchGrip.Visibility == Visibility.Visible) row.Children.Add(watch);
         }
         if (onHome is not null) row.Children.Add(Small("Home", onHome));
-        if (kind != "web")
-        {
-            if (item is not null) row.Children.Add(Small("Mute / unmute", () => OpenRoute("prism://item/" + esc(item.Item) + "/mute")));
-            else { var muted = false; row.Children.Add(Small("Mute / unmute", () => { muted = !muted; _surfaces.SetMuted(tileId, muted); })); }
-        }
+        // a setup window is always silent (core mutes every preview), so it has no Mute button: the one there did nothing (2026-09-29)
+        if (kind != "web" && item is not null) row.Children.Add(Small("Mute / unmute", () => OpenRoute("prism://item/" + esc(item.Item) + "/mute")));
         var done = Small("Done", onDone);
         done.Margin = new Thickness(12, 0, 0, 0);
         row.Children.Add(done);
@@ -1275,9 +1301,13 @@ public sealed partial class MainWindow
                     var wcount = mw.TryGetProperty("count", out var mwc) && mwc.ValueKind == JsonValueKind.Number ? mwc.GetInt32() : (int?)null;
                     var wtotal = mw.TryGetProperty("total", out var mwt) && mwt.ValueKind == JsonValueKind.Number ? mwt.GetInt32() : (int?)null;
                     var werr = mw.TryGetProperty("error", out var mwe) && mwe.ValueKind == JsonValueKind.String ? mwe.GetString() : null;
+                    // an order's own work names the order first (2026-10-05, "it doesn't mention that it's a result of them clicking true shuffle and
+                    // what it's doing"): "True shuffle: Vibes - reading the track list  1,100 of 1,908…"
+                    var colon = what?.IndexOf(": ", StringComparison.Ordinal) ?? -1;
+                    var body = colon > 0 && wname is { Length: > 0 } ? what![..colon] + ": " + wname + " - " + what[(colon + 2)..] : what + (wname is { Length: > 0 } ? " of " + wname : "");
                     work = werr is { Length: > 0 }
-                        ? "!" + what + (wname is { Length: > 0 } ? " of " + wname : "") + " - " + werr
-                        : what + (wname is { Length: > 0 } ? " of " + wname : "") + (wcount is int wc ? "  " + wc.ToString("n0") + (wtotal is int wt && wt > 0 ? " of " + wt.ToString("n0") : "") : "") + "…";
+                        ? "!" + body + " - " + werr
+                        : body + (wcount is int wc ? "  " + wc.ToString("n0") + (wtotal is int wt && wt > 0 ? " of " + wt.ToString("n0") : "") : "") + "…";
                 }
                 if (t.TryGetProperty("musicOrder", out var mo) && mo.ValueKind == JsonValueKind.Object)
                 {

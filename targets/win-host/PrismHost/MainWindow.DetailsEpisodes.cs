@@ -21,6 +21,15 @@ public sealed partial class MainWindow
 {
     /// <summary>The service the Details page was opened from (a card's), or null.</summary>
     private string? _detailsApp;
+    /// <summary>The Details page's services and TMDB id, for its Send to playlist menus (2026-09-27).</summary>
+    private List<string> _detailsSendApps = new();
+    private string? _detailsSendTmdb;
+    private int? _detailsSendYear;
+    private JsonObject EpisodesSource(string series, string app, string scope, int? season, int? episode, string poster)
+    {
+        var apps = new JsonArray(); foreach (var a in _detailsSendApps.Prepend(app).Distinct()) apps.Add(a);
+        return new JsonObject { ["type"] = "series", ["show"] = series, ["app"] = app, ["services"] = apps, ["scope"] = scope, ["season"] = season, ["episode"] = episode, ["tmdb"] = _detailsSendTmdb, ["year"] = _detailsSendYear, ["poster"] = poster };
+    }
 
     private FrameworkElement DetailsEpisodesSection(JsonObject d)
     {
@@ -39,6 +48,9 @@ public sealed partial class MainWindow
         if (app is null or "") return box;
         var name = mine.FirstOrDefault(m => m.app == app).name;
         if (string.IsNullOrEmpty(name)) name = app;
+        _detailsSendApps = mine.Select(m => m.app).ToList();
+        _detailsSendTmdb = "tv:" + ((long)(d["id"]?.GetValue<double>() ?? 0)).ToString();
+        _detailsSendYear = d["year"] is JsonValue dyv && dyv.TryGetValue<double>(out var dyd) ? (int)dyd : null;
         _ = FillDetailsEpisodesAsync(_detailsRun, box, app, name, series, S(d, "poster"));
         return box;
     }
@@ -148,6 +160,10 @@ public sealed partial class MainWindow
                 var fromTmdb = ep["fromTmdb"]?.GetValue<bool>() == true;   // listed by TMDB where the service's own list came back short (2026-09-25)
                 var play = PlayChip("Play", canPlay && !fromTmdb ? "Play S" + sn + " E" + en + " on " + service + "." : fromTmdb ? service + "'s page didn't list this episode, so TMDB's listing fills in. Play opens " + series + " on " + service + "; pick it there." : "Opens " + series + " on " + service + ". Pick the episode there.", () => Play(() => PlayEpisode(sn, epNo, epTitle), series + " S" + sn + " E" + epNo));
                 Grid.SetColumn(play, 2); row.Children.Add(play);
+                // Send to playlist from the row (right click, or the remote's context key): the episode, or it and the rest of its season (2026-09-27)
+                var (rsn, ren) = (sn, en);
+                row.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+                if (_playlistsActive) row.ContextFlyout = SendToFlyout(("Send episode to", () => EpisodesSource(series, app, "episode", rsn, ren, poster)), ("Send this and the rest of the season to", () => EpisodesSource(series, app, "rest", rsn, ren, poster)));
                 into.Children.Add(row);
             }
         }
@@ -172,6 +188,7 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(head, isOpen ? "Close " + label : "Show the episodes of " + label);
                 var n = sn;
                 head.Click += (_, __) => { userPicked = true; openSeason = openSeason == n ? -1 : n; DrawSeasons(); };
+                if (_playlistsActive) head.ContextFlyout = SendToFlyout(("Send season to", () => EpisodesSource(series, app, "season", n, null, poster)));   // 2026-09-27
                 accordion.Children.Add(head);
                 if (isOpen) { var body = new StackPanel { Spacing = 6, Margin = new Thickness(10, 4, 0, 10) }; FillSeason(body, sn); accordion.Children.Add(body); }
             }

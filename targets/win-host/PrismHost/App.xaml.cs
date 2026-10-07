@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.Web.WebView2.Core;
@@ -7,6 +8,7 @@ namespace PrismHost;
 public partial class App : Application
 {
     private Window? _window;
+    [ThreadStatic] private static bool _inFirstChance;
 
     public App()
     {
@@ -17,8 +19,20 @@ public partial class App : Application
         // in an hour. Every managed exception is first-chance before XAML turns one into a fail-fast: the last few
         // with their top frames name the call. Throttled, capped, diagnostics only.
         var fcLock = new object(); var fcCount = 0;
+        // 2026-10-07, a friend's first start: PrismHost.exe 0.26.26 died in coreclr with 0xc00000fd, a stack overflow. On a new PC the data
+        // folder does not exist yet, so the log write below threw, its own exception came back into this handler, which threw again, until
+        // the stack ran out - before any window. The folder is made first, and the handler never re-enters itself.
+        try { Directory.CreateDirectory(HostPaths.Diagnostics); } catch { }
+        try   // one run's worth at a time: the file only ever grew (72 MB on 2026-09-28)
+        {
+            var fcPath = Path.Combine(HostPaths.Diagnostics, "firstchance.log");
+            if (File.Exists(fcPath) && new FileInfo(fcPath).Length > 4_000_000) File.Move(fcPath, fcPath + ".prev", overwrite: true);
+        }
+        catch { }
         AppDomain.CurrentDomain.FirstChanceException += (_, fe) =>
         {
+            if (_inFirstChance) return;   // an exception thrown while logging one is never logged: it would come straight back here
+            _inFirstChance = true;
             try
             {
                 if (fcCount > 600) return;
@@ -29,6 +43,7 @@ public partial class App : Application
                 lock (fcLock) { fcCount++; File.AppendAllText(Path.Combine(HostPaths.Diagnostics, "firstchance.log"), PrismHost.Diagnostics.Redact.Line(line) + "\n"); }
             }
             catch { }
+            finally { _inFirstChance = false; }
         };
         UnhandledException += (_, e) =>
         {
@@ -45,6 +60,11 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         HostPaths.RotateHostLog();
+        // §28 (Services/Updates.cs, 2026-10-05): a newer version staged under the data folder runs instead of this one - the person's
+        // shortcut keeps pointing at the first unpacked folder, and that exe hands off
+        // the fixed install folder (2026-10-06, Services/Updates.AtStart): a staged update installs itself, a copy run from elsewhere installs
+        // itself or hands off to the installed one - before anything opens
+        if (Services.Updates.AtStart(line => { try { File.AppendAllText(Path.Combine(HostPaths.DataDir, "diagnostics", "host.log"), PrismHost.Diagnostics.Redact.Line(DateTime.Now.ToString("HH:mm:ss.fff") + " " + line) + "\n"); } catch { } })) { Exit(); return; }   // B-91: every log write is redacted
         _ = Task.Run(Services.ArtCache.Prune);   // the kept card pictures stay within their size (Services/ArtCache)   // B-268: a log past 64 MB kept once as host.log.prev, before this run's first line
         // Evergreen-only (win-host-spec §2/§11 — Fixed lacks PlayReady): the
         // check asks for the machine-wide Evergreen runtime and FAILS LOUDLY

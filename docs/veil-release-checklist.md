@@ -58,8 +58,8 @@ Walk with DevTools → Network open, filter to the extension's requests.
 |---|---|---|---|
 | PV-1 | fresh profile, open five ordinary pages | the extension makes **no** request at all | CODE |
 | PV-2 | popup → art refresh (or first veil) | requests only to `https://prism.entangled.world/veil/art/…` — the signed index and images; no query string, no cookie, no identifier | CODE |
-| PV-3 | ⚑ Report ad on any ad, read the toast | the report is shown before anything is sent; nothing leaves until **Send to Prism** | USER (0.7.169) |
-| PV-4 | press Send | one `POST https://prism-reports.fly.dev/v1/report`; body = the report shown; no cookies; no IP or id fields (server stores none) | CODE |
+| PV-3 | ⚑ Report ad on any ad, read the panel | it lists exactly what is sent (the site's domain, the element details, the kind of ad, the note, the version); ticking **Include the full page address** adds the page address and the embedded players' addresses to the list; nothing leaves until **Send to Prism** | USER (0.7.181) |
+| PV-4 | press Send | one `POST https://reports.entangled.world/v1/report`; body = only what the panel listed (no `url`, `frames`, `framesDirect` or `diag.iframes` unless the box was ticked; no `ua`, `fb` or settings); no cookies; no IP or id fields (server stores none) | CODE |
 | PV-5 | grep the packages for telemetry hosts | `grep -rl "google-analytics\|sentry\|segment\|mixpanel" dist/` → nothing | AUTO |
 | PV-6 | update checks | there are none in the extension; the stores update it. Confirm no `update_url` in either manifest | AUTO |
 
@@ -182,7 +182,7 @@ Draft once, reuse in all three listings.
 - **Description**: what it covers (display ads, promoted posts, video ad breaks), what it never does (no blocking, no tracking, no data sales, everything open source), the Report ad tool and that sending is a per-report choice, the AI-content veil as opt-in keyed on the platform's own label.
 - **Screenshots (1280×800, five)**: YouTube feed with art tiles; a video intermission card; Fox masthead with the hole over its X; the popup; the Report ad toast.
 - **Icons**: from `assets/brand` (already derived, 0.7.146 / B-190).
-- **Privacy policy page** on `prism.entangled.world` (all three stores require a URL): no data collected; art fetched from Prism's own host without identifiers; reports contain site + element structure only and are sent only when the person presses Send; the receiver keeps no IP and no log. Link the reports receiver's README statement.
+- **Privacy policy page** on `entangled.world` (all three stores require a URL; `prism.entangled.world` is the extension's storage, not a site): no data collected; art fetched from Prism's own host without identifiers; reports contain the site's domain, the ad element's details, the kind of ad, the person's note and the version - the full page address and embedded players' addresses only if the person ticks the box - and are sent only when the person presses Send; the receiver keeps no IP and no log. Link the reports receiver's README statement.
 - **Permission justification** (the reviewers' question is running on every site in the page's own context): *Prism detects ad markup on any page the person visits, so it must run on all sites; it needs the page context to read players' own ad signals; it blocks no requests and reads no user data.* `storage` = settings and the art index; `alarms` = the art refresh timer; the two host permissions = Prism's art host and the opt-in report receiver; `tabs` is optional and only ever requested by the person.
 - **Category**: Productivity / Privacy & Security (each store's nearest).
 - **Content credits**: Wikimedia Commons, CC0 / public domain, per-file provenance in the pool manifest.

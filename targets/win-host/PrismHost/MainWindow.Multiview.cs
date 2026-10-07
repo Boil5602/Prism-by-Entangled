@@ -31,6 +31,9 @@ public sealed partial class MainWindow
     {
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("videoMultiview", action, arg) ?? "null") as JsonObject; } catch { }
+        // the windows moved: each re-linked a moment later (2026-10-06, "Twitch in Windows 3 has disappeared and is currently showing a transparent
+        // border" after a swap moved it there - B-295's see-through window, which a move alone does not bring back)
+        if (action is "swap" or "focus" or "place" or "remove" or "order") _surfaces.NudgeSoon();
         if (r is not null && r["ok"]?.GetValue<bool>() != false)
         {
             _mvOn = r["on"]?.GetValue<bool>() == true;
@@ -42,6 +45,7 @@ public sealed partial class MainWindow
             _mvBig = r["big"] as JsonObject;
             SyncWatchStack();   // Watch's corner places follow the windows (MainWindow.WatchScreens)
             SyncMvBars();   // a window opened, closed or swapped: its bar follows the controls at once
+            PlaceStageBar();   // the controls follow the big window's place
             SyncMvIcon();   // the icon beside the tabs says on / off whichever control changed it (2026-09-24: it stayed gold after Turn off)
             SyncEmptyStage();   // the last window out: the empty stage (MultiviewDrag)
         }
@@ -137,13 +141,8 @@ public sealed partial class MainWindow
         var b = Chip(icon, _mvOn || _mvPopOpen);
         b.Width = 40; b.Height = 40; b.Padding = new Thickness(0); b.CornerRadius = new CornerRadius(20);
         b.Visibility = _mvOn ? Visibility.Visible : Visibility.Collapsed;
-        ToolTipService.SetToolTip(b, "Swap: window 2 becomes the big one, at once, and its sound comes with it.");
-        b.Click += async (_, __) =>
-        {
-            if (!_mvOn || _mvWindows.Count < 2) return;
-            await MvCallAsync("swap");
-            SetPill("Prism \u00B7 swapped: " + Shorten(MvWindowName(_mvWindows.OfType<JsonObject>().FirstOrDefault()?["tile"]?.GetValue<string>() ?? ""), 40) + " on the big screen");
-        };
+        ToolTipService.SetToolTip(b, "Swap: press to choose a window, each press the next one, its number shown on it. Three seconds after your last press it becomes the big one, with its sound.");
+        b.Click += (_, __) => SwapPress(null);   // MainWindow.SwapPick
         _mvIcon = b;
         return b;
     }
@@ -328,9 +327,11 @@ public sealed partial class MainWindow
         // no Multiview switch (2026-09-24): a title dragged onto a small window starts it; Clear all, or the last small window closing, ends it
         if (_mvOn && _mvWindows.Count > 1)
         {
-            var swap = Chip(new TextBlock { Text = "Swap", FontSize = 13, Foreground = HubInk }, false);
-            ToolTipService.SetToolTip(swap, "The next window becomes the big one, at once; its sound comes with it.");
-            swap.Click += async (_, __) => { await MvCallAsync("swap"); await ShowStageBarAsync(true); };
+            var swapText = new TextBlock { Text = SwapLabelText(), FontSize = 13, Foreground = HubInk };
+            var swap = Chip(swapText, false);
+            ToolTipService.SetToolTip(swap, "Press to choose a window: each press picks the next one, and the numbers show on the windows. Three seconds after your last press it becomes the big one, with its sound.");
+            if (SwapChoosing) _swapLabels.Add(swapText);
+            swap.Click += (_, __) => SwapPress(swapText);   // nothing moves until the choice settles (MainWindow.SwapPick)
             bar.Children.Add(swap);
             var clearAll = Chip(new TextBlock { Text = "Clear all", FontSize = 13, Foreground = HubInk }, false);
             ToolTipService.SetToolTip(clearAll, "Close every small window at once; the big one plays on.");

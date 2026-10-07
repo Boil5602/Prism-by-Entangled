@@ -170,6 +170,11 @@ export function loginRedirect(url: string, opts: { login?: string | null; baseUr
   if (opts.login) {
     try {
       const l = new URL(opts.login);
+      // a login prefix that is the App's own root (Amazon Music's sign-in begins from its home page) would make every page of the App read
+      // as the sign-in page - the probe never ran and the card never flipped (2026-10-05): such a prefix says nothing, and the generic
+      // login patterns below still catch a real sign-in page
+      const rootOfApp = (l.pathname === "/" || l.pathname === "") && !!opts.baseUrl && (() => { try { return registrable(new URL(opts.baseUrl!).hostname) === registrable(l.hostname); } catch { return false; } })();
+      if (rootOfApp) throw new Error("login prefix is the app's root");
       if (u.host.toLowerCase() === l.host.toLowerCase() && (u.pathname === l.pathname || u.pathname.startsWith(l.pathname.replace(/\/$/, "") + "/") || (l.pathname === "/" && u.pathname === "/"))) return "login";
     } catch { /* an unparsable login prefix cannot match */ }
   }
@@ -219,6 +224,71 @@ export interface SessionProbe {
 export function sessionWatchJs(probe: SessionProbe): string {
   const q = (s: string | null | undefined) => (s ? `!!document.querySelector(${JSON.stringify(s)})` : "false");
   return `(function(){if(window.__prismSessionWatch)return;window.__prismSessionWatch=1;var n=0;function look(){try{var i=${q(probe.signedIn)},o=${q(probe.signedOut)};var s=i&&!o?'signed-in':o&&!i?'signed-out':null;if(s)window.__prismSession=s;}catch(e){}n++;setTimeout(look,n<15?2000:30000);}look();})();`;
+}
+
+/**
+ * Where "Sign in" goes (2026-09-29, "There is a sign in and other options along the top bar and several don't work"): an adapter's `login` is
+ * first the address the redirect check knows a sign-in page by, and for some services that is only a host (Apple's idmsa.apple.com/, an error
+ * page when opened; Amazon Music's own home). It is a page to open only when it names one: a path, or a query. Otherwise the sign-in is on
+ * the service's own page, behind its own Sign In control (signInPressJs).
+ */
+export function signInPage(login: string | null | undefined, signIn?: string | null): string | null {
+  if (signIn) { try { const s = new URL(signIn); if (s.protocol === "https:") return s.toString(); } catch { /* falls to login */ } }
+  if (!login) return null;
+  try {
+    const u = new URL(login);
+    if (u.protocol !== "https:") return null;
+    return u.pathname.replace(/\/+$/, "") !== "" || u.search.length > 1 ? u.toString() : null;
+  } catch { return null; }
+}
+
+/**
+ * Page JS: press the service's own Sign In control - the adapter's signed-out marker, the one among its matches that says sign in or log in
+ * (never one that only says sign up, register, join). Run only because a person pressed Sign in on the wall; returns "pressed" or "".
+ */
+const SIGN_IN_PRESS_JS = `(function(){try{var SEL=__SEL__;var YES=/(sign|log)[ _-]?in|anmelden|connexion/i,NO=/sign[ _-]?up|register|join|subscribe|free trial|create|start (your|a)|get started/i;var es=[];try{es=[].slice.call(document.querySelectorAll(SEL));}catch(x){}var best=null,score=-1;for(var i=0;i<es.length;i++){var e=es[i];if(!(e.offsetWidth>0&&e.offsetHeight>0))continue;if(e.disabled||e.getAttribute('aria-disabled')==='true')continue;var l=((e.textContent||'').replace(/\\s+/g,' ').trim().slice(0,60)+' '+(e.getAttribute('aria-label')||'')+' '+(e.getAttribute('href')||'')+' '+(e.getAttribute('data-testid')||'')+' '+(e.getAttribute('data-qa')||'')).replace(/[_-]/g,' ');var yes=YES.test(l),no=NO.test(l);if(no&&!yes)continue;var s=(yes?2:0)+(no?0:1);if(s>score){best=e;score=s;}}if(!best)return '';best.click();return 'pressed';}catch(e){return '';}})()`;
+export function signInPressJs(signedOut: string | null | undefined): string {
+  return signedOut ? SIGN_IN_PRESS_JS.replace("__SEL__", () => JSON.stringify(signedOut)) : "''";
+}
+
+/**
+ * Page JS: what the account page shows of whose account it is - the email addresses in its VISIBLE text (never a form's fields, never a
+ * script's data) and the name in the adapter's `name` selector. Returns JSON {emails, name, host}.
+ */
+const ACCOUNT_READ_JS = `(function(){try{var WITHIN=__WITHIN__,NAME=__NAME__;var EMAIL=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}/g;function vis(e){return !!e&&e.offsetWidth>0&&e.offsetHeight>0;}var roots=[];try{roots=WITHIN?[].slice.call(document.querySelectorAll(WITHIN)):[document.body];}catch(x){roots=[document.body];}var emails=[];function walk(n,depth){if(!n||depth>40)return;var kids=n.childNodes||[];for(var i=0;i<kids.length;i++){var k=kids[i];if(k.nodeType===3){var t=k.nodeValue||'';var m=t.match(EMAIL);if(m&&vis(k.parentElement)){for(var j=0;j<m.length;j++)if(emails.indexOf(m[j])<0)emails.push(m[j]);}}else if(k.nodeType===1){var tag=k.tagName;if(tag==='SCRIPT'||tag==='STYLE'||tag==='NOSCRIPT'||tag==='INPUT'||tag==='TEXTAREA'||tag==='FORM')continue;walk(k,depth+1);if(k.shadowRoot)walk(k.shadowRoot,depth+1);}}}for(var r=0;r<roots.length;r++)walk(roots[r],0);var name='';if(NAME){try{var ns=document.querySelectorAll(NAME);for(var q=0;q<ns.length;q++){if(!vis(ns[q]))continue;name=(ns[q].textContent||'').replace(/\\s+/g,' ').trim();if(name)break;}}catch(x){}}return JSON.stringify({emails:emails.slice(0,8),name:name.slice(0,80),host:location.hostname});}catch(e){return JSON.stringify({emails:[],name:'',host:''});}})()`;
+export function accountReadJs(spec: { within?: string | null; name?: string | null }): string {
+  return ACCOUNT_READ_JS.replace("__WITHIN__", () => JSON.stringify(spec.within ?? null)).replace("__NAME__", () => JSON.stringify(spec.name ?? null));
+}
+
+/** Addresses a service prints on its own pages that are not the person's. */
+const NOT_A_PERSON = /^(support|help|info|privacy|legal|contact|no-?reply|donotreply|do-not-reply|feedback|press|abuse|billing|service|customerservice|customer-service|copyright|dmca|accessibility)$/i;
+
+/**
+ * A sign-in's label from what the account page showed: the part of the person's email before the @ (the whole address is not put on a
+ * wall a guest can read), else the name shown. An address of the service itself (its own domain, or support@ and the like) is not the
+ * person's. Null when the page showed nothing to go by.
+ */
+export function accountLabel(raw: string | null | undefined): { label: string; from: "email" | "name" } | null {
+  if (!raw) return null;
+  try {
+    let v: unknown = JSON.parse(raw);
+    if (typeof v === "string") v = JSON.parse(v);
+    if (!v || typeof v !== "object") return null;
+    const r = v as { emails?: unknown; name?: unknown; host?: unknown };
+    const host = typeof r.host === "string" ? r.host.toLowerCase().replace(/^www\./, "") : "";
+    const site = host.split(".").slice(-2).join(".");
+    for (const e of Array.isArray(r.emails) ? r.emails : []) {
+      if (typeof e !== "string") continue;
+      const m = /^([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9.-]+)$/.exec(e.trim());
+      if (!m) continue;
+      const domain = m[2]!.toLowerCase();
+      if (NOT_A_PERSON.test(m[1]!) || (site && (domain === site || domain.endsWith("." + site)))) continue;
+      return { label: m[1]!.slice(0, 40), from: "email" };
+    }
+    const name = typeof r.name === "string" ? r.name.replace(/\s+/g, " ").trim() : "";
+    if (name.length >= 2 && name.length <= 40 && !/@/.test(name) && !/^(my )?(account|profile|settings|sign (in|out)|log (in|out)|menu)$/i.test(name)) return { label: name, from: "name" };
+    return null;
+  } catch { return null; }
 }
 
 export function sessionProbeJs(probe: SessionProbe): string {

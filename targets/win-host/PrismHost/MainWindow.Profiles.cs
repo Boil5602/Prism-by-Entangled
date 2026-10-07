@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -23,6 +24,9 @@ public sealed partial class MainWindow
     private readonly HashSet<string> _draftOff = new();
     private string? _draftPreset;
     private string _draftName = "";
+    // sign-ins (2026-09-29): the sign-in each service uses for this person, music and video alike; changed on Save & exit
+    private JsonObject? _signInView;
+    private readonly Dictionary<string, string> _draftSignIns = new();
 
     public void CloseProfilesWindow()
     {
@@ -38,6 +42,10 @@ public sealed partial class MainWindow
         try { v = JsonNode.Parse(await ModelCallAsync("videoProfilesView") ?? "null") as JsonObject; } catch (Exception e) { LogLine("profiles: " + e.Message); }
         if (v is null) { SetPill("Prism" + Dot + "profiles could not be read"); return; }
         _profView = v;
+        try { _signInView = JsonNode.Parse(await ModelCallAsync("signInsView", WelcomeEntriesJson()) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-ins: " + e.Message); _signInView = null; }
+        _draftSignIns.Clear();
+        foreach (var s in (_signInView?["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+            if (s["current"]?.GetValue<string>() is { Length: > 0 } cur) _draftSignIns[s["app"]?.GetValue<string>() ?? ""] = cur;
         _draftPicks.Clear(); _draftOff.Clear();
         foreach (var s in (v["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
             if ((s["current"] as JsonObject)?["id"]?.GetValue<string>() is { Length: > 0 } cur) _draftPicks[s["app"]?.GetValue<string>() ?? ""] = cur;
@@ -69,7 +77,7 @@ public sealed partial class MainWindow
         var card = new Border
         {
             Background = HubCard, CornerRadius = new CornerRadius(14), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x55, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(1),
-            MinWidth = 640, MaxWidth = 900, Margin = new Thickness(60, 40, 60, 40), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 640, MaxWidth = 1180, Margin = new Thickness(60, 40, 60, 40), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Child = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollMode = ScrollMode.Disabled },
         };
         card.PointerPressed += (_, e) => e.Handled = true;
@@ -100,13 +108,19 @@ public sealed partial class MainWindow
             var (pid, pname) = (p["id"]?.GetValue<string>() ?? "", p["name"]?.GetValue<string>() ?? "");
             var on = pid == _draftPreset && _draftName.Length == 0;
             var chip = Chip(new TextBlock { Text = pname, FontSize = 14, Foreground = on ? HubAmber : HubInk }, on);
-            ToolTipService.SetToolTip(chip, (on ? "Loaded. " : "Load " + pname + "'s profiles and exclusions into the window. ") + "Right-click to delete it.");
+            ToolTipService.SetToolTip(chip, (on ? "Loaded. " : "Load " + pname + "'s profiles and exclusions into the window. ") + "Right-click to rename or delete it.");
             var pj = p;
             chip.Click += (_, __) =>
             {
                 _draftPicks.Clear(); _draftOff.Clear();
+                // the sign-ins start from what is on now, then the preset's own (2026-09-29 review: a preset from before sign-ins loaded after one
+                // with them kept the other's sign-ins in the draft)
+                _draftSignIns.Clear();
+                foreach (var sv in (_signInView?["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+                    if (sv["current"]?.GetValue<string>() is { Length: > 0 } cur) _draftSignIns[sv["app"]?.GetValue<string>() ?? ""] = cur;
                 foreach (var (app, c) in (pj["picks"] as JsonObject) ?? new JsonObject()) if ((c as JsonObject)?["id"]?.GetValue<string>() is { Length: > 0 } id) _draftPicks[app] = id;
                 foreach (var a in (pj["off"] as JsonArray)?.OfType<JsonValue>() ?? Enumerable.Empty<JsonValue>()) _draftOff.Add(a.GetValue<string>());
+                foreach (var (app, sid) in (pj["signIns"] as JsonObject) ?? new JsonObject()) if (sid?.GetValue<string>() is { Length: > 0 } id) _draftSignIns[app] = id;
                 _draftPreset = pid; _draftName = "";
                 DrawProfilesWindow();
             };
@@ -120,82 +134,25 @@ public sealed partial class MainWindow
                 if (_draftPreset == pid) _draftPreset = null;
                 DrawProfilesWindow();
             };
+            var ren = new MenuFlyoutItem { Text = "Rename " + pname + (char)0x2026 };
+            ren.Click += async (_, __) =>
+            {
+                if (await AskNameAsync("Rename " + pname, "A name for this preset", pname) is not { Length: > 0 } to || to == pname) return;
+                JsonObject? rr = null;
+                try { rr = JsonNode.Parse(await ModelCallAsync("videoPresetRename", pid, to) ?? "null") as JsonObject; } catch (Exception e) { LogLine("preset rename: " + e.Message); }
+                if (rr?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(rr?["error"]?.GetValue<string>() ?? "could not rename " + pname)); return; }
+                LogLine("profiles: preset " + pname + " renamed " + to);
+                if (_triangleWho is not null && _triangleWho.Text == pname) _triangleWho.Text = to;
+                await ShowProfilesWindowKeepingDraftAsync();
+            };
+            menu.Items.Add(ren);
             menu.Items.Add(del);
             chip.ContextFlyout = menu;
             presetRow.Children.Add(chip);
         }
         body.Children.Add(new ScrollViewer { Content = presetRow, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Enabled });
 
-        // the services that have profiles, each with its picker and Exclude
-        body.Children.Add(ColumnHeads("Services", true));
-        var services = (v["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
-        if (services.Count == 0) body.Children.Add(new TextBlock { Text = "None of your services has profiles.", FontSize = 13, Foreground = HubDim });
-        foreach (var s in services)
-        {
-            var app = s["app"]?.GetValue<string>() ?? ""; var name = s["name"]?.GetValue<string>() ?? app;
-            var status = s["status"]?.GetValue<string>() ?? "";
-            var profiles = (s["profiles"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
-            var now = (s["current"] as JsonObject)?["id"]?.GetValue<string>();
-            var picked = _draftPicks.TryGetValue(app, out var dp) ? dp : now;
-            var switching = s["switching"]?.GetValue<bool>() == true;
-            var row = new Grid { ColumnSpacing = 14, MinHeight = 44 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ProfileColW) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ExcludeColW) });
-            var mark = ServiceMark(app, name, 30); mark.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(mark);
-            var label = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            label.Children.Add(new TextBlock { Text = name, FontSize = 15, Foreground = HubInk });
-            var changed = picked is not null && picked != now;
-            var note = status != "signed-in" ? "not signed in" : profiles.Count == 0 ? "its profiles show once its " + (char)0x201C + "Who's watching?" + (char)0x201D + " page has been seen" : changed ? "changes on Save & exit" : switching ? "switching" + (char)0x2026 : "";
-            if (note.Length > 0) label.Children.Add(new TextBlock { Text = note, FontSize = 12, Foreground = changed || switching ? HubAmber : HubDim });
-            Grid.SetColumn(label, 1);
-            row.Children.Add(label);
-            if (profiles.Count > 0 && status == "signed-in")
-            {
-                var pick = new ComboBox { MinWidth = 220, VerticalAlignment = VerticalAlignment.Center, PlaceholderText = "Who's watching?" };
-                foreach (var p in profiles) pick.Items.Add(new ComboBoxItem { Content = p["name"]?.GetValue<string>() ?? "", Tag = p["id"]?.GetValue<string>() ?? "" });
-                pick.SelectedIndex = profiles.FindIndex(p => p["id"]?.GetValue<string>() == picked);
-                var a2 = app;
-                pick.SelectionChanged += (_, __) =>
-                {
-                    if (pick.SelectedItem is not ComboBoxItem it || it.Tag is not string pid) return;
-                    if (_draftPicks.TryGetValue(a2, out var had) && had == pid) return;
-                    _draftPicks[a2] = pid;
-                    DrawProfilesWindow();
-                };
-                Grid.SetColumn(pick, 2);
-                row.Children.Add(pick);
-            }
-            var ex = ExcludeBox(app, name);
-            Grid.SetColumn(ex, 3);
-            row.Children.Add(ex);
-            body.Children.Add(row);
-        }
-        // the services without profiles: nothing to pick, only Exclude
-        var others = (v["others"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
-        if (others.Count > 0)
-        {
-            body.Children.Add(ColumnHeads("Services without profiles", false));
-            foreach (var o in others)
-            {
-                var app = o["app"]?.GetValue<string>() ?? ""; var name = o["name"]?.GetValue<string>() ?? app;
-                var row = new Grid { ColumnSpacing = 14, MinHeight = 40 };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ExcludeColW) });
-                var mark = ServiceMark(app, name, 26); mark.VerticalAlignment = VerticalAlignment.Center;
-                row.Children.Add(mark);
-                var label = new TextBlock { Text = name, FontSize = 14, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
-                Grid.SetColumn(label, 1);
-                row.Children.Add(label);
-                var ex = ExcludeBox(app, name);
-                Grid.SetColumn(ex, 2);
-                row.Children.Add(ex);
-                body.Children.Add(row);
-            }
-        }
+        DrawServiceList(body, v);   // every service, one row each: signed in as, profile, exclude (2026-10-06)
 
         // the foot: a new preset's name (optional), Cancel, Save & exit
         var foot = new Grid { ColumnSpacing = 10, Margin = new Thickness(0, 10, 0, 0) };
@@ -230,40 +187,333 @@ public sealed partial class MainWindow
             ["off"] = new JsonArray(_draftOff.Select(a => (JsonNode?)a).ToArray()),
             ["preset"] = _draftName.Length == 0 ? _draftPreset : null,
             ["name"] = _draftName.Length > 0 ? _draftName : null,
+            ["signIns"] = new JsonObject(_draftSignIns.Select(kv => new KeyValuePair<string, JsonNode?>(kv.Key, kv.Value))),
         };
         var r = JsonNode.Parse(await ModelCallAsync("videoProfilesCommit", draft.ToJsonString()) ?? "null") as JsonObject;
         if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + (r?["error"]?.GetValue<string>() ?? "could not save the profiles")); return; }
         CloseProfilesWindow();
         var who = (r["preset"] as JsonObject)?["name"]?.GetValue<string>();
         var n = (r["switched"] as JsonArray)?.Count ?? 0;
+        var moved = (r["moved"] as JsonArray)?.Count ?? 0;
+        if (moved > 0) { LogLine("profiles: " + moved + " service(s) moved to another sign-in"); await ReadModelAsync(); _ = UpdateWatchGripAsync(); }
         LogLine("profiles: saved" + (who is null ? "" : " as " + who) + ", " + n + " switching");
         if (_triangleWho is not null) _triangleWho.Text = who ?? "";   // the rows follow in place (the live follow); the name under the triangle now
         KickLiveRows();
         _ = FollowProfileSwitchAsync(who, n);
     }
 
-    private const double ProfileColW = 240, ExcludeColW = 150;
-    /// <summary>A section's column heads: the section name, "Profile" (where there are profiles) and "Exclude from Continue & My List", the details in their tooltips.</summary>
-    private Grid ColumnHeads(string section, bool profiles)
+    private const string SomeoneElse = "\u0001someone-else";
+    private const string BringBack = "back:";   // a hidden sign-in offered back in the "Signed in as" list
+
+    /// <summary>One service's "Signed in as" cell: the picker, a note under the name, and the menu to rename, hide or bring back a sign-in.</summary>
+    private sealed record SignInCell(string Kind, string Name, ComboBox Pick, string Note, bool Changed, MenuFlyout? Menu);
+
+    /// <summary>
+    /// Sign-ins (2026-09-29, "if my wife wants to see her own movies and queues in Apple TV, she will need to login as herself, same with Apple
+    /// Music. How do we reduce logins where possible" / "we don't yet have the concept of profiles in the music player ... Ideally it uses the
+    /// same profiles set on the video side"): every service of the two players, with the sign-ins its account has on this device. An existing
+    /// one is always offered first - a sign-in made for Apple TV is there for Apple Music - and "Sign in as someone else" adds one under a
+    /// name. A change is part of the draft (Save & exit); a new sign-in opens the service's own sign-in page at once. Drawn as a column of the
+    /// one service list since 2026-10-06 (DrawServiceList).
+    /// </summary>
+    private Dictionary<string, SignInCell> SignInCells()
     {
-        var g = new Grid { ColumnSpacing = 14, Margin = new Thickness(0, 8, 0, 0) };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        if (profiles) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ProfileColW) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ExcludeColW) });
-        g.Children.Add(new TextBlock { Text = section, FontSize = 15, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Bottom });
-        var col = 1;
-        if (profiles)
+        var cells = new Dictionary<string, SignInCell>();
+        foreach (var s in (_signInView?["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {
-            var ph = new TextBlock { Text = "Profile", FontSize = 13, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Bottom };
-            ToolTipService.SetToolTip(ph, "On Save & exit, a service whose profile changed is switched: its own " + (char)0x201C + "Who's watching?" + (char)0x201D + " page or profile menu is pressed in the background, then that person's My List and Continue Watching are read again. That takes a minute or so per service, and each profile's last rows show in the meantime.");
-            Grid.SetColumn(ph, col++);
-            g.Children.Add(ph);
+            var app = s["app"]?.GetValue<string>() ?? ""; var name = s["name"]?.GetValue<string>() ?? app;
+            var kind = s["kind"]?.GetValue<string>() ?? "video";
+            var now = s["current"]?.GetValue<string>();
+            var picked = _draftSignIns.TryGetValue(app, out var dp) ? dp : now;
+            var list = (s["signIns"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
+            var shares = string.Join(" and ", (s["shares"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "").Where(x => x.Length > 0) ?? Array.Empty<string>());
+            var changed = picked is not null && picked != now;
+            var note = changed ? "changes on Save & exit" : shares.Length > 0 ? "same sign-ins as " + shares : "";
+            var pick = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center, PlaceholderText = "Signed in as" };
+            foreach (var x in list) pick.Items.Add(new ComboBoxItem { Content = x["name"]?.GetValue<string>() ?? "", Tag = x["id"]?.GetValue<string>() ?? "" });
+            pick.Items.Add(new ComboBoxItem { Content = "Sign in as someone else" + (char)0x2026, Tag = SomeoneElse });
+            // a sign-in taken off the list is offered back here too, in plain sight (2026-09-30, "How would you bring back x")
+            foreach (var h in (s["hidden"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+                if (h["id"]?.GetValue<string>() is { Length: > 0 } hid) pick.Items.Add(new ComboBoxItem { Content = "Bring back " + (h["name"]?.GetValue<string>() ?? hid), Tag = BringBack + hid });
+            pick.SelectedIndex = list.FindIndex(x => x["id"]?.GetValue<string>() == picked);
+            var (a2, n2) = (app, name);
+            pick.SelectionChanged += (_, __) =>
+            {
+                if (pick.SelectedItem is not ComboBoxItem it || it.Tag is not string id) return;
+                if (id == SomeoneElse) { _ = AddSignInAsync(a2, n2); return; }
+                if (id.StartsWith(BringBack, StringComparison.Ordinal)) { var hid = id.Substring(BringBack.Length); _ = ShowSignInAsync(a2, hid, ((pick.SelectedItem as ComboBoxItem)?.Content as string ?? hid).Replace("Bring back ", "")); return; }
+                if (_draftSignIns.TryGetValue(a2, out var had) && had == id) return;
+                _draftSignIns[a2] = id;
+                DrawProfilesWindow();
+            };
+            ToolTipService.SetToolTip(pick, "Who " + name + " is signed in as. A sign-in already on this device needs no new login. Right-click to rename the one chosen, or take it off the list.");
+            // a sign-in's name is the person's to change ("Household" is only where the names begin); a sign-in can be taken off the list
+            // (2026-09-30, "hide it as long as it's recoverable"): its login stays on the device, and it comes back from the same menu
+            MenuFlyout? sm = null;
+            var hiddenOnes = (s["hidden"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
+            var pickedRow = picked is not null ? list.FirstOrDefault(x => x["id"]?.GetValue<string>() == picked) : null;
+            if (pickedRow is not null || hiddenOnes.Count > 0)
+            {
+                sm = new MenuFlyout();
+                if (pickedRow is not null && picked is not null)
+                {
+                    var wasName = pickedRow["name"]?.GetValue<string>() ?? picked;
+                    var rn = new MenuFlyoutItem { Text = "Rename " + wasName + (char)0x2026 };
+                    var pid2 = picked;
+                    rn.Click += async (_, __) => await RenameSignInAsync(a2, pid2, wasName);
+                    sm.Items.Add(rn);
+                    var rm = new MenuFlyoutItem { Text = "Take " + wasName + " off the list" };
+                    var inUse = picked == now;
+                    var last = list.Count(x => x["hidden"]?.GetValue<bool>() != true) <= 1;
+                    rm.IsEnabled = !inUse && !last;   // a verb that cannot act is disabled, its reason in the tooltip
+                    ToolTipService.SetToolTip(rm, inUse ? wasName + " is what " + name + " is signed in as now. Choose another sign-in and save first." : last ? wasName + " is the only sign-in " + name + " has." : "Its login stays on this device. Bring it back from this menu any time.");
+                    rm.Click += async (_, __) => await HideSignInAsync(a2, pid2, wasName);
+                    sm.Items.Add(rm);
+                }
+                foreach (var h in hiddenOnes)
+                {
+                    var hid = h["id"]?.GetValue<string>() ?? ""; var hname = h["name"]?.GetValue<string>() ?? hid;
+                    if (hid.Length == 0) continue;
+                    var back = new MenuFlyoutItem { Text = "Bring back " + hname };
+                    back.Click += async (_, __) => await ShowSignInAsync(a2, hid, hname);
+                    sm.Items.Add(back);
+                }
+                pick.ContextFlyout = sm;
+            }
+            cells[app] = new SignInCell(kind, name, pick, note, changed, sm);
         }
-        var eh = new TextBlock { Text = "Exclude from" + Environment.NewLine + "Continue & My List", FontSize = 12, Foreground = HubDim, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom };
-        ToolTipService.SetToolTip(eh, "Leaves a service's Continue Watching and My List out of Watch for this person; it still shows in the rows below, the Library, Browse and search. Kept with the preset on Save & exit.");
-        Grid.SetColumn(eh, col);
-        g.Children.Add(eh);
-        return g;
+        return cells;
+    }
+
+    private const double SignInColW = 220, ProfileColW = 220, ExcludeColW = 120;
+
+    /// <summary>
+    /// Every service in one list, a row each (2026-10-06, "Under the profiles window, there is Music Player, Video Player, Services, and Services
+    /// without profiles. Can we get this into 1 list, 1 row per service?"): A to Z, the player named under each; Signed in as, Profile (a
+    /// picker where the service has profiles) and Exclude (the Video player's services) in columns.
+    /// </summary>
+    private void DrawServiceList(StackPanel body, JsonObject v)
+    {
+        var signIns = SignInCells();
+        var withProfiles = ((v["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>()).ToDictionary(s => s["app"]?.GetValue<string>() ?? "", s => s);
+        var without = ((v["others"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>()).ToDictionary(s => s["app"]?.GetValue<string>() ?? "", s => s);
+        var apps = signIns.Keys.Concat(withProfiles.Keys).Concat(without.Keys).Where(a => a.Length > 0).Distinct().ToList();
+        string NameOf(string a) => signIns.TryGetValue(a, out var c) ? c.Name : withProfiles.TryGetValue(a, out var p) ? p["name"]?.GetValue<string>() ?? a : without.TryGetValue(a, out var o) ? o["name"]?.GetValue<string>() ?? a : a;
+        apps = apps.OrderBy(NameOf, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+        Grid Row(double minH)
+        {
+            var g = new Grid { ColumnSpacing = 14, MinHeight = minH };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SignInColW) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ProfileColW) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ExcludeColW) });
+            return g;
+        }
+        TextBlock Head(string text, string tip, int col, bool center = false)
+        {
+            var t = new TextBlock { Text = text, FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Bottom, TextAlignment = center ? TextAlignment.Center : TextAlignment.Left, HorizontalAlignment = center ? HorizontalAlignment.Center : HorizontalAlignment.Left };
+            ToolTipService.SetToolTip(t, tip);
+            Grid.SetColumn(t, col);
+            return t;
+        }
+        var head = Row(0);
+        head.Margin = new Thickness(0, 8, 0, 0);
+        var svcHead = Head("Service", "Every service on your two players.", 1);
+        head.Children.Add(svcHead);
+        head.Children.Add(Head("Signed in as", "Who each service is signed in as for this person. Every sign-in stays on this device, so switching never signs anybody out.", 2));
+        head.Children.Add(Head("Profile", "On Save & exit, a service whose profile changed is switched: its own " + (char)0x201C + "Who's watching?" + (char)0x201D + " page or profile menu is pressed in the background, then that person's My List and Continue Watching are read again. That takes a minute or so per service, and each profile's last rows show in the meantime.", 3));
+        head.Children.Add(Head("Exclude from" + Environment.NewLine + "Continue & My List", "Leaves a service's Continue Watching and My List out of Watch for this person; it still shows in the rows below, the Library, Browse and search. Kept with the preset on Save & exit.", 4, center: true));
+        body.Children.Add(head);
+        body.Children.Add(new Border { Height = 1, Background = HubTabRule, Margin = new Thickness(0, -8, 0, -8) });
+
+        foreach (var app in apps)
+        {
+            var name = NameOf(app);
+            signIns.TryGetValue(app, out var si);
+            withProfiles.TryGetValue(app, out var pv);
+            var isVideo = pv is not null || without.ContainsKey(app) || si?.Kind != "music";
+            var row = Row(48);
+            var mark = ServiceMark(app, name, 30); mark.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(mark);
+
+            // the profile cell, and its note
+            string profNote = ""; var profAmber = false;
+            FrameworkElement? profCell = null;
+            if (pv is not null)
+            {
+                var status = pv["status"]?.GetValue<string>() ?? "";
+                var profiles = (pv["profiles"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
+                var now = (pv["current"] as JsonObject)?["id"]?.GetValue<string>();
+                var picked = _draftPicks.TryGetValue(app, out var dp) ? dp : now;
+                var switching = pv["switching"]?.GetValue<bool>() == true;
+                var changed = picked is not null && picked != now;
+                profNote = status != "signed-in" ? "not signed in" : profiles.Count == 0 ? "its profiles show once its " + (char)0x201C + "Who's watching?" + (char)0x201D + " page has been seen" : changed ? "profile changes on Save & exit" : switching ? "switching profile" + (char)0x2026 : "";
+                profAmber = changed || switching || status != "signed-in";
+                if (profiles.Count > 0 && status == "signed-in")
+                {
+                    var pick = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Center, PlaceholderText = "Who's watching?" };
+                    foreach (var p in profiles) pick.Items.Add(new ComboBoxItem { Content = p["name"]?.GetValue<string>() ?? "", Tag = p["id"]?.GetValue<string>() ?? "" });
+                    pick.SelectedIndex = profiles.FindIndex(p => p["id"]?.GetValue<string>() == picked);
+                    var a2 = app;
+                    pick.SelectionChanged += (_, __) =>
+                    {
+                        if (pick.SelectedItem is not ComboBoxItem it || it.Tag is not string pid) return;
+                        if (_draftPicks.TryGetValue(a2, out var had) && had == pid) return;
+                        _draftPicks[a2] = pid;
+                        DrawProfilesWindow();
+                    };
+                    profCell = pick;
+                }
+            }
+            else profCell = new TextBlock { Text = "No profiles", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
+            if (profCell is not null) { Grid.SetColumn(profCell, 3); row.Children.Add(profCell); }
+
+            // the name, the player under it, and what is about to change
+            var label = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            label.Children.Add(new TextBlock { Text = name, FontSize = 15, Foreground = HubInk });
+            var notes = new List<string> { isVideo ? "Video player" : "Music player" };
+            if (si?.Note is { Length: > 0 } sn) notes.Add(si.Note);
+            if (profNote.Length > 0) notes.Add(profNote);
+            label.Children.Add(new TextBlock { Text = string.Join(Dot, notes), FontSize = 12, Foreground = (si?.Changed == true || profAmber) ? HubAmber : HubDim, TextWrapping = TextWrapping.Wrap });
+            Grid.SetColumn(label, 1);
+            row.Children.Add(label);
+
+            if (si is not null) { Grid.SetColumn(si.Pick, 2); row.Children.Add(si.Pick); if (si.Menu is not null) row.ContextFlyout = si.Menu; }
+            if (isVideo && (pv is not null || without.ContainsKey(app)))
+            {
+                var ex = ExcludeBox(app, name);
+                Grid.SetColumn(ex, 4);
+                row.Children.Add(ex);
+            }
+            body.Children.Add(row);
+        }
+        if (apps.Count == 0) body.Children.Add(new TextBlock { Text = "No services on your players yet.", FontSize = 13, Foreground = HubInk });
+    }
+
+    /// <summary>"Sign in as someone else": a name, a new sign-in for the service's account, the service moved to it and its own sign-in page
+    /// opened. The Profiles window comes back when that closes. Dev: hub.request "signin add app|name" runs the same.</summary>
+    private async Task AddSignInAsync(string app, string name, string? preset = null)
+    {
+        var who = preset;
+        // a service whose own account page shows whose account it is needs no name typed: the sign-in is named from that page once the
+        // person has signed in (2026-09-29, "Instead of even naming the sign ins, can you just capture the username or likely email")
+        if (who is null && AdapterShowsAccount(app)) who = "";
+        if (who is null)
+        {
+            var loaded = (_profView?["presets"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(p => p["id"]?.GetValue<string>() == _draftPreset)?["name"]?.GetValue<string>();
+            var box = new TextBox { Text = _draftName.Length > 0 ? _draftName : loaded ?? "", PlaceholderText = "A name for this sign-in", Width = 320, FontSize = 15 };
+            var col = new StackPanel { Spacing = 10 };
+            col.Children.Add(new TextBlock { Text = "Whose sign-in is this? You can leave the name empty and rename it later. " + name + " switches to it now and opens its sign-in page. The one it uses now stays on this device, and you can switch back any time.", TextWrapping = TextWrapping.Wrap, Foreground = HubInk, FontSize = 14, MaxWidth = 360 });
+            col.Children.Add(box);
+            var dlg = new ContentDialog { Title = "Sign in to " + name + " as someone else", Content = col, PrimaryButtonText = "Continue", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
+            ContentDialogResult res;
+            try { res = await dlg.ShowAsync(); } catch { return; }
+            if (res != ContentDialogResult.Primary) { DrawProfilesWindow(); return; }
+            who = box.Text?.Trim() ?? "";
+        }
+        JsonObject? added = null;
+        try { added = JsonNode.Parse(await ModelCallAsync("signInAdd", app, who) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in add: " + e.Message); }
+        var id = (added?["signIn"] as JsonObject)?["id"]?.GetValue<string>();
+        if (added?["ok"]?.GetValue<bool>() != true || id is null) { SetPill("Prism" + Dot + (added?["error"]?.GetValue<string>() ?? "could not add the sign-in")); DrawProfilesWindow(); return; }
+        var used = JsonNode.Parse(await ModelCallAsync("signInUse", app, id) ?? "null") as JsonObject;
+        who = (added?["signIn"] as JsonObject)?["name"]?.GetValue<string>() ?? who;
+        LogLine("sign-in: " + app + " -> " + who + " (" + id + ") " + (used?.ToJsonString() ?? "null"));
+        if (used?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + "could not switch " + name + " to " + who); DrawProfilesWindow(); return; }
+        _draftSignIns[app] = id;
+        // the list knows the new sign-in at once (it was drawn from what the window read when it opened)
+        try { if (JsonNode.Parse(await ModelCallAsync("signInsView", WelcomeEntriesJson()) ?? "null") is JsonObject fresh) _signInView = fresh; } catch { }
+        try { if (JsonNode.Parse(await ModelCallAsync("videoProfilesView") ?? "null") is JsonObject pv) _profView = pv; } catch { }
+        await ReadModelAsync();
+        if (used["status"]?.GetValue<string>() == "signed-in") { await ShowProfilesWindowKeepingDraftAsync(); return; }   // a sign-in of that name was there already, signed in
+        // the person signs in, on the service's own page; the window comes back after
+        CloseProfilesWindow();
+        _editorContinuations["app-setup"] = (doneId, saved) => RootGrid.DispatcherQueue.TryEnqueue(() => { var again = AfterSignInAsync(); });
+        SetPill("Prism" + Dot + "Sign in to " + name);
+        OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene&signin=1");
+    }
+
+    private static string Sentence(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
+
+    /// <summary>A name asked of the person: the text typed, or null when they cancel.</summary>
+    private async Task<string?> AskNameAsync(string title, string hint, string now)
+    {
+        var box = new TextBox { Text = now, PlaceholderText = hint, Width = 320, FontSize = 15 };
+        box.SelectAll();
+        var dlg = new ContentDialog { Title = title, Content = box, PrimaryButtonText = "Rename", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
+        try { return await dlg.ShowAsync() == ContentDialogResult.Primary ? box.Text?.Trim() ?? "" : null; } catch { return null; }
+    }
+
+    /// <summary>A sign-in renamed (core signInRename): the account's, so every service that shares it names it the same. Dev: hub.request
+    /// "signin rename app|id|name" runs it with the name given.</summary>
+    private async Task RenameSignInAsync(string app, string id, string was, string? to = null)
+    {
+        to ??= await AskNameAsync("Rename " + was, "A name for this sign-in", was);
+        if (to is not { Length: > 0 } || to == was) return;
+        JsonObject? r = null;
+        try { r = JsonNode.Parse(await ModelCallAsync("signInRename", app, id, to) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in rename: " + e.Message); }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not rename " + was)); return; }
+        LogLine("sign-in: " + app + " " + id + " renamed " + to);
+        await ShowProfilesWindowKeepingDraftAsync();
+    }
+
+    /// <summary>A sign-in taken off the list (core signInHide): its login is kept, untouched; never the one a service is on. Dev: hub.request "signin hide app|id".</summary>
+    private async Task HideSignInAsync(string app, string id, string name)
+    {
+        JsonObject? r = null;
+        try { r = JsonNode.Parse(await ModelCallAsync("signInHide", app, id) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in hide: " + e.Message); }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not take " + name + " off the list")); return; }
+        LogLine("sign-in: " + app + " " + id + " off the list");
+        if (_draftSignIns.TryGetValue(app, out var drafted) && drafted == id) _draftSignIns.Remove(app);   // never saved onto a sign-in just taken off the list (review)
+        SetPill("Prism" + Dot + name + " is off the list. Its login is kept; right-click a sign-in to bring it back");
+        await ShowProfilesWindowKeepingDraftAsync();
+    }
+    /// <summary>A hidden sign-in back on the list (core signInShow). Dev: hub.request "signin show app|id".</summary>
+    private async Task ShowSignInAsync(string app, string id, string name)
+    {
+        JsonObject? r = null;
+        try { r = JsonNode.Parse(await ModelCallAsync("signInShow", app, id) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in show: " + e.Message); }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not bring back " + name)); return; }
+        LogLine("sign-in: " + app + " " + id + " back on the list");
+        await ShowProfilesWindowKeepingDraftAsync();
+    }
+
+    /// <summary>The service's adapter names an account page (its `account`): a sign-in there is named from what that page shows.</summary>
+    private bool AdapterShowsAccount(string appId)
+    {
+        try
+        {
+            if (_model.App(appId) is not { } app) return false;
+            var adapter = app.Json["adapter"]?.GetValue<string>() is { Length: > 0 } named ? named : appId;
+            if (Sources.AdapterPath(adapter) is not { } path) return false;
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            return doc.RootElement.TryGetProperty("account", out var a) && a.ValueKind == JsonValueKind.Object;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>The sign-in window closed: the window comes back, core is asked to name the sign-ins nobody named from their account pages,
+    /// and the window is drawn again once that has had time to land.</summary>
+    private async Task AfterSignInAsync()
+    {
+        await ShowProfilesWindowKeepingDraftAsync();
+        try { LogLine("sign-ins: label " + Shorten(await ModelCallAsync("signInsLabel") ?? "null", 160)); } catch { }
+        await Task.Delay(14_000);
+        if (_profilesWin is not null) await ShowProfilesWindowKeepingDraftAsync();
+    }
+
+    /// <summary>The window again with what was being chosen still chosen (after a sign-in was added).</summary>
+    private async Task ShowProfilesWindowKeepingDraftAsync()
+    {
+        var picks = new Dictionary<string, string>(_draftPicks); var off = new HashSet<string>(_draftOff); var signIns = new Dictionary<string, string>(_draftSignIns);
+        var (preset, name) = (_draftPreset, _draftName);
+        await ShowProfilesWindowAsync();
+        foreach (var kv in picks) _draftPicks[kv.Key] = kv.Value;
+        _draftOff.Clear(); foreach (var a in off) _draftOff.Add(a);
+        foreach (var kv in signIns) _draftSignIns[kv.Key] = kv.Value;
+        _draftPreset = preset; _draftName = name;
+        DrawProfilesWindow();
     }
     /// <summary>Exclude in the draft (2026-09-24): the service's cards leave Watch's Continue watching and My list for this person, on Save & exit.</summary>
     private CheckBox ExcludeBox(string app, string name)
@@ -281,7 +531,9 @@ public sealed partial class MainWindow
         var r = JsonNode.Parse(await ModelCallAsync("videoPresetApply", presetId) ?? "null") as JsonObject;
         if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + (r?["error"]?.GetValue<string>() ?? "could not switch to " + name)); return; }
         var switched = (r["switched"] as JsonArray)?.Count ?? 0;
-        LogLine("profiles: preset " + name + " applied, " + switched + " switching");
+        var moved = (r["moved"] as JsonArray)?.Count ?? 0;
+        LogLine("profiles: preset " + name + " applied, " + switched + " switching, " + moved + " moved to another sign-in");
+        if (moved > 0) { await ReadModelAsync(); _ = UpdateWatchGripAsync(); }
         if (_triangleWho is not null) _triangleWho.Text = name;
         KickLiveRows();
         _ = FollowProfileSwitchAsync(name, switched);
@@ -356,18 +608,19 @@ public sealed partial class MainWindow
         var items = new List<MenuFlyoutItemBase>();
         JsonObject? v = null;
         try { v = JsonNode.Parse(await ModelCallAsync("videoProfilesView") ?? "null") as JsonObject; } catch { }
-        if (v is null || (v["services"] as JsonArray)?.Count is null or 0) return items;
+        // the sets are the wall's, not the Video player's alone (2026-09-29): with no service that has profiles there are still sign-ins
+        if (v is null) return items;
         var active = v["active"]?.GetValue<string>();
         foreach (var p in (v["presets"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {
             var (pid, pname) = (p["id"]?.GetValue<string>() ?? "", p["name"]?.GetValue<string>() ?? "");
             var it = new ToggleMenuFlyoutItem { Text = pname, IsChecked = pid == active };
-            ToolTipService.SetToolTip(it, "Switch every service to " + pname + "'s profile.");
+            ToolTipService.SetToolTip(it, "Switch every service, music and video, to " + pname + "'s sign-ins and profiles.");
             it.Click += async (_, __) => await ApplyProfilePresetAsync(pid, pname);
             items.Add(it);
         }
         var win = new MenuFlyoutItem { Text = "Profiles" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE716" } };
-        ToolTipService.SetToolTip(win, "Every service's profile, and the presets that switch them all at once.");
+        ToolTipService.SetToolTip(win, "Who each service is signed in as, every service's profile, and the presets that switch them all at once.");
         win.Click += (_, __) => _ = ShowProfilesWindowAsync();
         if (items.Count > 0) items.Add(new MenuFlyoutSeparator());
         items.Add(win);

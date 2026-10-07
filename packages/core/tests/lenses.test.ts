@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntime } from "../src/runtime.js";
-import { LENSES, LensResolver, orderByLens, ratingLabel, factsFor, looseKey, lensById, outboundLinks, type TitleFacts } from "../src/lenses.js";
+import { LENSES, LensResolver, orderByLens, ratingLabel, factsFor, looseKey, lensById, outboundLinks, titleCase, type TitleFacts } from "../src/lenses.js";
 import type { MenuCard } from "../src/menu-order.js";
 import type { Drivers } from "../src/drivers.js";
 import type { DashboardDocument } from "../src/types.js";
@@ -94,6 +94,17 @@ describe("the resolver reads only the named sources, caches on the device, and n
     };
     return { calls, keyed, store, r: new LensResolver(hooks) };
   }
+  it("a title listed in capitals is asked in title case first (2026-10-05, BLUE EYE SAMURAI and DANG! answered 404 on every candidate)", async () => {
+    const { r, calls } = rig(false);
+    r.ensure(["BLUE EYE SAMURAI", "DANG!"], ["wiki"], false);
+    for (let i = 0; i < 100 && r.pending > 0; i++) await new Promise((res) => setTimeout(res, 20));   // real timers in this block; the mock answers at once
+    const asked = calls.map((u) => decodeURIComponent(u.replace(/^.*page\/summary\//, "")));
+    expect(asked[0]).toBe("Blue_Eye_Samurai");
+    expect(asked.indexOf("Blue_Eye_Samurai_(TV_series)")).toBeLessThan(asked.indexOf("BLUE_EYE_SAMURAI"));   // the capitals still follow, last
+    expect(asked).toContain("Dang!");
+    expect(titleCase("STAR TREK: THE ORIGINAL SERIES")).toBe("Star Trek: The Original Series");
+    expect(titleCase("LORD OF THE RINGS")).toBe("Lord of the Rings");
+  });
   it("Wikipedia, then the pageviews and Wikidata, each cached under the wall's own keys; the second ask is answered from the cache", async () => {
     const { r, calls, store } = rig(false);
     r.ensure(["Dark"], ["wiki", "views", "wikidata"], false);
@@ -245,7 +256,7 @@ describe("the menu under a lens (the runtime)", () => {
     let menu = JSON.parse(rt.videoMenu());
     expect(menu.lens).toMatchObject({ active: null, tmdbKey: false, attribution: null, dataDate: null });
     expect(menu.lens.lenses.map((l: { name: string }) => l.name.toLowerCase().includes("trending"))).toEqual([false, false, false, false, false, false]);
-    expect(menu.continue.map((c: { item: { title: string } }) => c.item.title)).toEqual(["The Rookie", "Dark"]);   // the person's own order, always
+    expect(menu.continue.map((c: { item: { title: string } }) => c.item.title)).toEqual(["Dark", "The Rookie"]);   // the person's chosen order (A to Z by default since 2026-09-26), never the lens's
     // one lens row on Watch since 2026-09-22 - Most read on Wikipedia; the other lenses re-sorted the household's own rows and Browse reads
     // the catalog by rating, date and votes. It carries its disclosure and formula; nothing counted yet offline
     expect(menu.lensRows.map((r: { id: string }) => r.id)).toEqual(["wiki-reads"]);
@@ -259,7 +270,7 @@ describe("the menu under a lens (the runtime)", () => {
     expect(JSON.parse(rt.lensChoose("trending"))).toEqual({ ok: true, active: null });
     expect(JSON.parse(rt.lensChoose("wiki-reads")).active).toMatchObject({ id: "wiki-reads", name: "Most read on Wikipedia" });
     menu = JSON.parse(rt.videoMenu());
-    expect(menu.continue.map((c: { item: { title: string } }) => c.item.title)).toEqual(["The Rookie", "Dark"]);
+    expect(menu.continue.map((c: { item: { title: string } }) => c.item.title)).toEqual(["Dark", "The Rookie"]);
     expect(JSON.parse(rt.lensChoose(null)).active).toBeNull();
   });
   it("the TMDB key is the person's, kept on the device; set, TMDB is asked for every card's rating; cleared, nothing TMDB remains", async () => {

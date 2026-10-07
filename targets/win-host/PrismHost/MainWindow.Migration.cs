@@ -34,6 +34,8 @@ public sealed partial class MainWindow
         {
             if (_store.Get("dashboard") is null) { LogLine("migration: skipped - the store has no `dashboard` (nothing pre-model to migrate)"); return; }
             if (_store.Get(MigrationMarkerKey) is not null) return;   // ran on an earlier boot: core's marker is the one-shot gate
+            // a model made on this device is never migrated over (2026-09-29: a new device lost both players on its second boot); core holds the same line
+            if (_store.Get(SceneModelPrefix + "scenes") is { Length: > 2 }) { LogLine("migration: skipped - this device already has a scene model of its own"); return; }
 
             // wait for the wall: state() is non-null once the dashboard is applied, so the
             // canvas size core reports is the real window (else the report says "assumed")

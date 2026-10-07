@@ -128,7 +128,8 @@ export interface SurfaceDriver {
    * §26 intermission overlay: full-bleed imagery crossfaded over the tile.
    * Optional — shells without it degrade to nothing (ads simply show).
    */
-  showIntermission?(id: string, source: string): MaybePromise<void>;
+  /** look (2026-10-07): veil draws the scenery; mute leaves the ad's picture up with an Unmute; show draws nothing. Absent: veil. */
+  showIntermission?(id: string, source: string, look?: string): MaybePromise<void>;
   hideIntermission?(id: string): MaybePromise<void>;
   /**
    * §26 pass-through skip: show/hide a real "Skip" chip on the intermission
@@ -209,6 +210,20 @@ export interface SurfaceDriver {
 export interface UiDriver {
   route(route: string, source: string, id?: string): MaybePromise<void>;
   /**
+   * A video pick made away from the shell's own screens (the phone, 2026-10-05): the shell does what its own card press does - its
+   * Watch screen out of the way, its curtain up with the title - because core has asked the service to play. Optional.
+   */
+  videoPick?(title: string, service: string, poster: string | null): MaybePromise<void>;
+  /** The phone's "mute Prism on the PC while this phone listens" (2026-10-05): the PLAYBACK DEVICE's mute, which the phone's stream ignores
+   *  (it taps the browser's audio before the device) - never the pages' own mutes, which silence the stream too. */
+  privateMute?(on: boolean): MaybePromise<void>;
+  /** Each listening phone's window (2026-10-06, "there could be 10 people private listening, in which case they should each hear whatever
+   *  they have selected in the companion app"): JSON {routes: {listener: tile}, hero}. The shell taps each routed window's own page for the
+   *  phones that chose it; the room's sound is untouched. */
+  listenRoutes?(json: string): MaybePromise<void>;
+  /** The phone's switch for the break watch (YouTube TV's channel breaks read off the picture, 2026-10-07): on or off, as Watch settings' box. */
+  breakWatch?(on: boolean): MaybePromise<void>;
+  /**
    * What a single tap on a scene item resolved to (docs/concept-scenes.md §5):
    * the shell asked core to interpret the tap and core answers here, so the
    * on-wall pill and the phone see the same verdict. Reported for every tap
@@ -266,6 +281,10 @@ export type SurfaceEvent =
   | { type: "app-foreground"; id: string; package: string }
   /** §26 a HUMAN tapped the intermission Skip chip — the only path that forwards a skip. */
   | { type: "intermission-skip"; id: string }
+  /** The graphics driver reset itself (the host saw Windows log it): protected video goes black and stays so until its page plays afresh (2026-09-28). */
+  | { type: "gpu-reset"; id: string }
+  /** the host's word on the move of legacy profile folders onto the shared ones (win-channel profile.migrate, 2026-10-03) */
+  | { type: "profile-migrated"; id: string; ok: boolean; moves: Array<{ from: string; to: string; cookies?: number; storage?: number; idb?: number; error?: string | null }>; note?: string | null }
   /**
    * §25 media position report (`frame.position`) — feeds the virtual
    * playhead. `duration` null/absent = live stream (the still is simply now).
@@ -287,7 +306,7 @@ export type SurfaceEvent =
    * the adapter's musicLookup script posts it through PrismTile.notifyMusicResult with the token core
    * handed it. op "lookup" carries the service's candidates; "add" / "station" carry ok or an error.
    */
-  | { type: "music-result"; id: string; token: string; op: "lookup" | "add" | "station" | "tracks" | "queue" | "progress" | "remove" | "episodes" | "episodes-part" | "hover" | "list"; ok: boolean; /** op "progress" (2026-09-18): how far a long answer has got - the wall's status feed says so */ count?: number; total?: number; candidates?: Array<{ id: string; title: string; artist: string; album?: string; url?: string; isrc?: string; durationMs?: number; artwork?: string }>; error?: string };
+  | { type: "music-result"; id: string; token: string; op: "lookup" | "add" | "station" | "tracks" | "queue" | "progress" | "remove" | "episodes" | "episodes-part" | "hover" | "list" | "live" | "live-part"; ok: boolean; /** op "progress" (2026-09-18): how far a long answer has got - the wall's status feed says so */ count?: number; total?: number; candidates?: Array<{ id: string; title: string; artist: string; album?: string; url?: string; isrc?: string; durationMs?: number; artwork?: string }>; error?: string };
 
 export interface DisplayDriver {
   setBrightness(value: number): MaybePromise<void>;
@@ -388,7 +407,7 @@ export interface NetDriver {
    * the headers exactly as core built them, on the device, routed through nobody (§22). The shell never logs the headers.
    * Absent on a shell without it: core then makes no keyed call at all.
    */
-  fetchKeyed?(url: string, headers: Record<string, string>): MaybePromise<string>;
+  fetchKeyed?(url: string, headers: Record<string, string>, method?: string, body?: string): MaybePromise<string>;
   /**
    * §5 install a synced host set for a named source at the network layer.
    * Empty = source disabled. The shell's blocked-request log names `name`.

@@ -3,7 +3,7 @@
     "tubitv.com",
     "www.tubitv.com"
   ],
-  "version": "0.3.13",
+  "version": "0.3.14",
   "selectors": {
     "my-list": "[data-test-id='my-list'], a[href*='/my-list'], [class*='MyList']"
   },
@@ -64,5 +64,8 @@
   "videoArtPortrait": [
     "continue",
     "list"
+  ],
+  "broadcasters": [
+    "Tubi"
   ]
 }

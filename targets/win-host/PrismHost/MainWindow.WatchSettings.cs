@@ -63,7 +63,7 @@ public sealed partial class MainWindow
 
         // the tabs
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22 };
-        foreach (var (id, label) in new[] { ("general", "General"), ("updates", "Content updates"), ("binge", "The Binge"), ("hidden", "Hidden titles") })
+        foreach (var (id, label) in new[] { ("general", "General"), ("updates", "Content updates"), ("binge", "The Binge"), ("hidden", "Hidden titles"), ("perf", "Performance") })
         {
             var on = _settingsTab == id;
             var t = new Button { Content = new TextBlock { Text = label, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubDim }, Background = HubClear, BorderThickness = new Thickness(0, 0, 0, on ? 2 : 0), BorderBrush = HubAmber, Padding = new Thickness(0, 0, 0, 4) };
@@ -78,6 +78,7 @@ public sealed partial class MainWindow
         if (_settingsTab == "updates") saveTab = BuildUpdatesTab(body, v, run);
         else if (_settingsTab == "binge") saveTab = BuildBingeTab(body);
         else if (_settingsTab == "hidden") saveTab = BuildHiddenTab(body);
+        else if (_settingsTab == "perf") saveTab = BuildPerformanceTab(body);   // the stats (2026-10-03)
         else saveTab = BuildGeneralTab(body, v);
 
         var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
@@ -116,13 +117,56 @@ public sealed partial class MainWindow
             keyRow.Children.Add(clear);
         }
         body.Children.Add(keyRow);
+        // Video ads (2026-10-07, "In watch settings, lets add 3 options for Video Ads: Show, Muted (Picture visible) and Veiled and Muted.
+        // Default to Veiled."): how the Video player's breaks look, from the next break on
+        var adsHead = new TextBlock { Text = "Video ads", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) };
+        ToolTipService.SetToolTip(adsHead, "What a window shows while an ad plays. Prism never blocks or skips an ad. Music services keep their own cover.");
+        body.Children.Add(adsHead);
+        var look = v["adsLook"]?.GetValue<string>() ?? "veil";
+        var adsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+        RadioButton Look(string label, string value, string tip)
+        {
+            var r = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "videoAds", IsChecked = look == value, Tag = value, MinWidth = 0 };
+            ToolTipService.SetToolTip(r, tip);
+            adsRow.Children.Add(r);
+            return r;
+        }
+        var looks = new[]
+        {
+            Look("Veiled and muted", "veil", "The ad is covered with a picture and its sound is off. Show ad 15s lets you see it."),
+            Look("Muted, picture visible", "mute", "You see the ad with its sound off. An Unmute button on the window brings the sound back for that ad."),
+            Look("Show", "show", "The ad plays as it comes, picture and sound."),
+        };
+        body.Children.Add(adsRow);
+        var acct = new StackPanel();   // the account under the key, filled as core answers (MainWindow.TmdbAccount.cs, 2026-10-03)
+        body.Children.Add(acct);
+        _ = BuildTmdbAccountAsync(acct, hasKey);
         return async () =>
         {
+            var said = new List<string>();
+            var chosen = looks.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? look;
+            if (chosen != look)
+            {
+                await ModelCallAsync("videoSetAdsLook", chosen);
+                LogLine("video ads: " + chosen);
+                said.Add(chosen == "veil" ? "ads are veiled and muted" : chosen == "mute" ? "ads are muted with the picture visible" : "ads are shown");
+            }
             var key = keyBox.Password?.Trim() ?? "";
-            if (key.Length == 0) return new List<string>();
+            if (key.Length == 0) return said;
             await ModelCallAsync("lensSetTmdbKey", key);
             if (VideoHubOpen) _ = ShowVideoHubAsync();
-            return new List<string> { "TMDB key saved" };
+            // the account's approval asked for right away (2026-10-03, "Can we ask for this approval right when they enter the account info? That
+            // way it's possibly still logged in on whatever device they're going through, like their phone"): the card with the QR comes up
+            // as the settings close, unless the account is linked already
+            RootGrid.DispatcherQueue.TryEnqueue(async () =>
+            {
+                await Task.Delay(300);
+                var st = await TmdbLinkStateAsync();
+                if (st?["linked"]?.GetValue<bool>() == true) return;
+                await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync();
+            });
+            said.Add("TMDB key saved");
+            return said;
         };
     }
 
@@ -150,6 +194,31 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(all, "Every service's lists, profiles page and Continue Watching read again now (not the owned libraries' long walks).");
         all.Click += async (_, __) => { await ModelCallAsync("videoRefreshLists", true); SetPill("Prism" + Dot + "reading every service's lists"); };
         body.Children.Add(all);
+        body.Children.Add(HideOfflineBox(14));   // the Followed channels rows' setting, here too: with every channel offline the row and its box are hidden
+        var watchBox = new CheckBox { Content = new TextBlock { Text = "Cover breaks on YouTube TV channels", FontSize = 14, Foreground = HubInk }, IsChecked = BreakWatchOn, MinWidth = 0 };
+        ToolTipService.SetToolTip(watchBox, "YouTube TV doesn't say when a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen. It covers a break it's sure of. Everything is read on this PC.");
+        watchBox.Checked += (_, __) => { HostPrefs.Set("video.breakWatch", true); LogLine("break watch: on"); };
+        watchBox.Unchecked += (_, __) => { HostPrefs.Set("video.breakWatch", false); LogLine("break watch: off"); };
+        body.Children.Add(watchBox);
+        // the channels the person turned off (the cover card's Never cover): each one here to cover again
+        var offRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(28, 0, 0, 0) };
+        void DrawOff()
+        {
+            offRow.Children.Clear();
+            var off = ChannelsOff();
+            if (off.Count == 0) { offRow.Visibility = Visibility.Collapsed; return; }
+            offRow.Visibility = Visibility.Visible;
+            offRow.Children.Add(new TextBlock { Text = "Never covered:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
+            foreach (var ch in off)
+            {
+                var chip = Chip(new TextBlock { Text = ch + "  \u00D7", FontSize = 12, Foreground = HubInk }, false);
+                ToolTipService.SetToolTip(chip, "Cover " + ch + "'s breaks again");
+                chip.Click += (_, __) => { SetChannelOff(ch, false); DrawOff(); };
+                offRow.Children.Add(chip);
+            }
+        }
+        DrawOff();
+        body.Children.Add(offRow);
 
         // the grid: one row per service
         body.Children.Add(new TextBlock { Text = "Your services", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 12, 0, 0) });

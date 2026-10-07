@@ -6,7 +6,7 @@
     "www.max.com",
     "play.max.com"
   ],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "selectors": {
     "my-list": "a[href*='/my-list'], a[href*='/mylist'], [data-testid*='my-list']"
   },
@@ -34,5 +34,10 @@
   "tmdbProviders": [
     1899,
     384
+  ],
+  "broadcasters": [
+    "Max",
+    "HBO",
+    "HBO Max"
   ]
 }

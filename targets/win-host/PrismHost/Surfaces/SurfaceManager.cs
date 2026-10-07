@@ -50,7 +50,7 @@ public enum SurfaceKind
 /// it instantly. DRM-black captures are discarded in favour of the last good
 /// snapshot (§4: never a black rectangle on the wall).
 /// </summary>
-public sealed class SurfaceManager
+public sealed partial class SurfaceManager
 {
     private sealed class Tile
     {
@@ -73,6 +73,9 @@ public sealed class SurfaceManager
         public string? PopupUrl;
         /// <summary>§32 hidden presence: laid out at its rect but parked off-canvas (Chromium keeps it visible → media keeps playing, measured 2026-09-01).</summary>
         public bool HiddenPresence;
+        /// <summary>Readers dark (2026-10-03): when a script, a navigation or a pointer last reached this hidden reader, and whether its page is frozen between reads.</summary>
+        public DateTime LastTouched = DateTime.UtcNow;
+        public bool Dozing;
         /// <summary>B-159: the inline app window (presence "window") stays where core put it - the title bar does not drag; the grip may still resize.</summary>
         public bool Pinned;
         /// <summary>§32 visualization surface: the renderer host and its feed.</summary>
@@ -85,6 +88,8 @@ public sealed class SurfaceManager
         public volatile uint BrowserPid;
         public string InjectedJs = "";
         public string InjectedCss = "";
+        public string? DocCssKey;
+        public string? DocCssScriptId;   // the adapter CSS kept as a document-created script (KeepCssAtDocumentStartAsync)
         public bool Muted;
         /// <summary>surface.setViewport: the CSS layout viewport the page is laid out at (null = the rect).</summary>
         public (double W, double H)? Viewport;
@@ -105,6 +110,8 @@ public sealed class SurfaceManager
         public TextBlock? Caption;
         public TextBlock? CountText;
         public bool Covered;
+        /// <summary>How core asked this break to look (Watch settings' Video ads): veil draws the scenery, mute and show leave the picture up.</summary>
+        public string Look = "veil";
         public bool Peeked;
         // spec 26 card corner (concept-scenes 3.2): the provenance of the image
         // on screen right now, read from the local pack manifest - never a lookup.
@@ -179,7 +186,8 @@ public sealed class SurfaceManager
         SessionMute.Ducked += pid => _canvas.DispatcherQueue.TryEnqueue(() =>
         {
             foreach (var t in _tiles.Values)
-                if (t.BrowserPid == pid && t.Muted && t.Kind == SurfaceKind.Hidden && t.View?.CoreWebView2 is { IsMuted: true } c) { c.IsMuted = false; _onStatus($"mute {t.Id}: session ducked late - WebView2 mute lifted, the loopback hears it"); }
+                // 2026-10-04: no duck, no lift (one browser for every service)
+                if (false && t.BrowserPid == pid && t.Muted && t.Kind == SurfaceKind.Hidden && t.View?.CoreWebView2 is { IsMuted: true } c) { c.IsMuted = false; _onStatus($"mute {t.Id}: session ducked late - WebView2 mute lifted, the loopback hears it"); }
         });
         LoadBootCache();
         // B-198 (2026-09-14): a page's own timers are not trusted to keep running - Pandora's first pause cleared the
@@ -190,13 +198,18 @@ public sealed class SurfaceManager
         _beat.Interval = TimeSpan.FromSeconds(1);
         _beat.Tick += (s, e) =>
         {
+            var a0 = GC.GetTotalAllocatedBytes(false);
+            var n = 0;
             foreach (var t in _tiles.Values)
-                if (t.View?.CoreWebView2 is { } c) { try { var op = c.ExecuteScriptAsync("window.__prismBeat&&window.__prismBeat()"); } catch { } }
+                if (t.View?.CoreWebView2 is { } c) { n++; try { var op = c.ExecuteScriptAsync("window.__prismBeat&&window.__prismBeat()"); } catch { } }
+            BeatAlloc += GC.GetTotalAllocatedBytes(false) - a0; BeatCalls += n;
         };
         _beat.Start();
     }
 
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _beat;
+    /// <summary>(2026-10-03, perf) what the beat's own script calls allocate, and how many, for perf.log.</summary>
+    public long BeatAlloc, BeatCalls;
 
     // ---------------------------------------------------------------- boot
     /// <summary>§8/§16 boot: last snapshots at last rects, before core wakes.</summary>
@@ -258,8 +271,19 @@ public sealed class SurfaceManager
         }
         tile.Overlay.Opacity = 1;                                     // starts hidden (§16)
         if (cmd.GetBool("placeholder")) { BuildPlaceholder(tile, cmd.GetString("label") ?? ""); return; }   // §33: no web view, no session
+        // pages nobody sees are made one at a time, a beat apart (2026-09-29, host.log 'ui stall': the boot made the music sources and the
+        // services' reading pages together with the screen, and the window stopped taking clicks for a second or more); a page a person
+        // sees is made at once. Each surface's later commands wait on its own chain, so nothing reaches a page before it exists.
+        if (tile.Kind == SurfaceKind.Hidden)
+        {
+            await HiddenAttach.WaitAsync();
+            try { if (_tiles.ContainsKey(tile.Id)) { await AttachEngineAsync(tile); await Task.Delay(300); } }
+            finally { HiddenAttach.Release(); }
+            return;
+        }
         await AttachEngineAsync(tile);
     }
+    private static readonly SemaphoreSlim HiddenAttach = new(1, 1);
 
     /// <summary>§32 visualization surface: no web view, no session - a host-rendered, audio-reactive
     /// panel fed by core's music state (surface.setVisualizationFeed) and the host's own loopback FFT.
@@ -406,6 +430,11 @@ public sealed class SurfaceManager
         tile.BrowserPid = core.BrowserProcessId;   // B-152
         SessionMute.Track(tile.BrowserPid);          // B-176: the wall's volume reaches this browser too
         core.Settings.IsStatusBarEnabled = false;
+        // the browser's own password manager (2026-10-03, "The password manager ... seems like it could work well"): Chromium remembers a sign-in
+        // after the first and offers it next time, encrypted to the Windows account the way Edge does; Prism never sees it. One profile now, so
+        // one saved Apple password serves Apple TV and Apple Music.
+        core.Settings.IsPasswordAutosaveEnabled = true;
+        core.Settings.IsGeneralAutofillEnabled = true;
         // Prism owns page zoom (surface.setViewport). WebView2's own zoom
         // (Ctrl+wheel / Ctrl+plus reaching the page) would silently rescale CSS
         // px against view px and break every layout/region calculation -
@@ -479,6 +508,7 @@ public sealed class SurfaceManager
             string? json = null;
             try { json = e.TryGetWebMessageAsString(); } catch { }
             if (json is null) return;
+            if (TryTap(tile.Id, json)) return;   // a window's tap for a listening phone (SurfaceManager.Tap): the host's, never core's
             if (json.Contains("\"eme\"")) { EmeResult?.Invoke(tile.Id, json); return; }   // diagnostics, not a SurfaceEvent
             if (json.Contains("\"prism-eme\""))                                            // the page's own key-system asks and grants: logged, never core's
             {
@@ -516,6 +546,7 @@ public sealed class SurfaceManager
             if (tile.Kind == SurfaceKind.Popup && json.Contains("\"first-paint\"")) Fade(tile.Overlay, from: tile.Overlay.Opacity, to: 0, 220);
             if (json.Contains("\"interaction\"")) PageInteraction?.Invoke(tile.Id);   // a tap or a key on the page itself (the stage bar rides it, 2026-09-20)
             if (json.Contains("\"pointer-move\"")) { PageInteraction?.Invoke(tile.Id); return; }   // a pointer moving over the page: the bar, and nothing for core (a move is not the person leaving)
+            if (json.Contains("\"ad-break\"") && PageAdBreak(tile.Id, json)) return;
             ForwardWithId(tile.Id, json);
         };
         // The page's own context menu is replaced by Prism's slot menu (tools +
@@ -561,6 +592,7 @@ public sealed class SurfaceManager
             // a fresh document: the in-page half of zoom-out first, so core's
             // framing (injected on load-finished) composes with it
             if (tile.LayoutOverride) { try { await core.ExecuteScriptAsync(BodyZoomJs(LayoutOf(tile.Id).Fit)); } catch { } }
+            if (tile.HiddenPresence) await DecorAsync(tile, true);   // a fresh document on a hidden surface: its decorative loops paused (2026-10-03)
             _forwardEvent(tile.Id, JsonSerializer.Serialize(new { type = SurfaceEvents.LoadFinished, id = tile.Id, ok = e.IsSuccess }));
         };
         core.SourceChanged += (_, __) =>
@@ -576,13 +608,64 @@ public sealed class SurfaceManager
     public void Navigate(string id, string url)
     {
         // §6 micro-facets: a tiles.prism directory URL loads its index.html (the folder mapping serves files only).
-        if (Get(id)?.View?.CoreWebView2 is { } core) core.Navigate(TilesBridge.DocumentUrl(url));
+        if (Get(id) is { } t && t.View?.CoreWebView2 is { } core) { _ = WakeAsync(t); core.Navigate(TilesBridge.DocumentUrl(url)); }
     }
+
+    // ---- readers dark (2026-10-03, "How can you avoid burning gpu with those background pages"): a hidden reader page - a service's lookup or
+    // work page, kind "hidden" - that nothing has touched for a while is frozen in place through Chromium's page lifecycle (scripts, timers,
+    // animation and media stop; the layout stands, so the page keeps the shape the adapters read), and woken before any script, navigation or
+    // pointer reaches it. The music player's hidden presence is a slot facet, not a reader: untouched. Behind a switch, off until measured.
+    public bool ReadersDark { get; set; }
+    public static readonly TimeSpan ReaderIdle = TimeSpan.FromSeconds(90);
+    // a reader is core's own page for a service ("app:<service>:lookup", "app:<service>:work", "app:prism-scores:work"); a music player's facet
+    // is kind "hidden" too and plays while hidden - never a reader
+    private bool IsReader(Tile t) => t.Kind == SurfaceKind.Hidden && t.Id.StartsWith("app:", StringComparison.Ordinal);
+    // a music player's hidden facet (2026-10-03, the one browser's split: Apple Music 430 MB, Spotify 216, Amazon 160, Pandora 147 idle): parked
+    // the same way once it has not played and nothing has touched it for ten minutes - a pick wakes it before the first script reaches it
+    private bool IsMusicFacet(Tile t) => t.Kind == SurfaceKind.Hidden && !t.Id.StartsWith("app:", StringComparison.Ordinal);
+    public static readonly TimeSpan MusicIdle = TimeSpan.FromMinutes(10);
+    /// <summary>A page that may be frozen while idle: a reader, or a music facet that is not playing.</summary>
+    private bool IsParkable(Tile t) => IsReader(t) || IsMusicFacet(t);
+    /// <summary>A reader about to be used: its page active again (a frozen page answers no script).</summary>
+    private async Task WakeAsync(Tile t)
+    {
+        t.LastTouched = DateTime.UtcNow;
+        if (!t.Dozing) return;
+        t.Dozing = false;
+        try
+        {
+            if (t.View?.CoreWebView2 is { } core) await core.CallDevToolsProtocolMethodAsync("Page.setWebLifecycleState", "{\"state\":\"active\"}");
+            _onStatus("reader woke: " + t.Id);
+            // a music page's player needs a moment after the thaw before a play lands (2026-10-04: the first play after a wake did nothing)
+            if (IsMusicFacet(t)) await Task.Delay(400);
+        }
+        catch (Exception ex) { _onStatus("reader wake " + t.Id + ": " + ex.Message); }
+    }
+    /// <summary>Every idle reader frozen (called on a timer while the switch is on); with the switch off, every dozing reader woken.</summary>
+    public async Task DozeIdleReadersAsync()
+    {
+        foreach (var t in _tiles.Values.ToArray())
+        {
+            if (!IsParkable(t) || t.View?.CoreWebView2 is not { } core) continue;
+            if (!ReadersDark) { if (t.Dozing) await WakeAsync(t); continue; }
+            if (t.Dozing) continue;
+            var music = IsMusicFacet(t);
+            if (music && (t.NpPlaying || DateTime.UtcNow - t.LastTouched < MusicIdle)) continue;
+            if (!music && DateTime.UtcNow - t.LastTouched < ReaderIdle) continue;
+            try { await core.CallDevToolsProtocolMethodAsync("Page.setWebLifecycleState", "{\"state\":\"frozen\"}"); t.Dozing = true; _onStatus((music ? "music parked: " : "reader dozing: ") + t.Id); }
+            catch (Exception ex) { _onStatus("reader doze " + t.Id + ": " + ex.Message); }
+        }
+    }
+    /// <summary>How many readers doze now (perf.log).</summary>
+    public int DozingCount => _tiles.Values.Count(t => t.Dozing);
+    /// <summary>A music page reporting playing right now (the Quick play choice "after this track" needs one).</summary>
+    public bool AnyMusicPlaying() => _tiles.Values.Any(t => IsMusicFacet(t) && t.NpPlaying);
 
     public async Task InjectAsync(string id, string? css, string? js)
     {
         var tile = Get(id);
         if (tile?.View?.CoreWebView2 is not { } core) return;
+        if (IsParkable(tile)) await WakeAsync(tile);
         if (css is not null)
         {
             tile.InjectedCss = css;
@@ -590,6 +673,7 @@ public sealed class SurfaceManager
                           "s.id='__prism-style';s.textContent=" + JsonSerializer.Serialize(css) + ";" +
                           "(document.head||document.documentElement).appendChild(s);})();";
             await core.ExecuteScriptAsync(styleJs);
+            await KeepCssAtDocumentStartAsync(tile, core, css);
         }
         if (js is not null)
         {
@@ -599,6 +683,28 @@ public sealed class SurfaceManager
             tile.InjectedJs = js;
             await core.ExecuteScriptAsync(js);
         }
+    }
+
+    /// <summary>
+    /// The adapter's CSS from a page's first line (2026-10-07, "Still saw youtube pages on windows 2, 4, 5 while loading"): core injects it
+    /// once a page has painted, and YouTube TV loads a whole new page for /live and again for /watch after the window was revealed - each
+    /// drew its guide for a few hundred milliseconds before the CSS came. The CSS core last sent is kept as a document-created script, so
+    /// every new page of the same site has it before it draws; a page on another site (a sign-in) never gets it. Core's own inject still
+    /// fills the same style element, so nothing is doubled.
+    /// </summary>
+    private async Task KeepCssAtDocumentStartAsync(Tile tile, CoreWebView2 core, string css)
+    {
+        string host;
+        try { host = new Uri(core.Source).Host; } catch { return; }
+        var key = host + "\n" + css;
+        if (tile.DocCssKey == key) return;
+        tile.DocCssKey = key;
+        if (tile.DocCssScriptId is { } old) { try { core.RemoveScriptToExecuteOnDocumentCreated(old); } catch { } tile.DocCssScriptId = null; }
+        var js = "(function(){try{if(location.hostname!==" + JsonSerializer.Serialize(host) + ")return;var css=" + JsonSerializer.Serialize(css) + ";" +
+                 "function put(){var r=document.head||document.documentElement;if(!r)return false;var s=document.getElementById('__prism-style')||document.createElement('style');" +
+                 "s.id='__prism-style';s.textContent=css;if(!s.parentNode)r.appendChild(s);return true;}" +
+                 "if(!put())document.addEventListener('readystatechange',function f(){if(put())document.removeEventListener('readystatechange',f);});}catch(e){}})();";
+        try { tile.DocCssScriptId = await core.AddScriptToExecuteOnDocumentCreatedAsync(js); } catch { }
     }
 
     /// <summary>
@@ -664,6 +770,7 @@ public sealed class SurfaceManager
     {
         var tile = Get(id);
         if (tile is null) return;
+        if (tile.Dozing) _ = WakeAsync(tile);   // a parked page about to be seen is live first
         _peek.NoteReveal(id);        // §25: fresh pixels reached readiness - this peek's capture is legitimate
         Fade(tile.Overlay, from: tile.Overlay.Opacity, to: 0, durationMs);
     }
@@ -694,11 +801,19 @@ public sealed class SurfaceManager
     /// <summary>Constructed in the constructor so its diagnostics reach host.log through _onStatus (they were dropped - a no-op logger - until 2026-09-13: no way to see what level the soundscape's session was set to).</summary>
     public Services.Audio.SessionMuter SessionMute { get; }
 
+    /// <summary>The shared browser's process (private listening captures its sound): the screen's when it has one, else any page's; 0 with none.</summary>
+    public uint AnyBrowserPid()
+    {
+        var screen = _tiles.Values.FirstOrDefault(t => t.Kind != SurfaceKind.Hidden && t.BrowserPid > 0);
+        return screen?.BrowserPid ?? _tiles.Values.FirstOrDefault(t => t.BrowserPid > 0)?.BrowserPid ?? 0;
+    }
+
     /// <summary>B-176: the wall's one volume - every page's Windows audio session sits at this level (the mute's duck stays below it).</summary>
     public double WallVolume => SessionMute.Volume;
     public void SetWallVolume(double v)
     {
         SessionMute.Volume = (float)v;
+        if (PrivateVolume(v)) return;   // a phone listens: the device's volume (the sessions stay at full level for the loopback)
         foreach (var t in _tiles.Values.ToArray()) if (t.BrowserPid > 0) SessionMute.Track(t.BrowserPid);
     }
 
@@ -706,6 +821,8 @@ public sealed class SurfaceManager
     {
         var tile = Get(id);
         if (tile is null) return;
+        if (!muted && !_private) _soundTile = id;   // the window given the sound (the one page a phone will hear)
+        if (PrivateMute(tile, muted)) return;   // a phone listens: the device's mute, the page left audible for it (SurfaceManager.PrivateListening)
         tile.Muted = muted;
         if (tile.View?.CoreWebView2 is { } core)
         {
@@ -717,18 +834,12 @@ public sealed class SurfaceManager
             // its service's profile - and so its browser process - with the screen playing that service (an App preview surface app:<id>:preview the same): ducking it had
             // silenced the episode ("no sound", the screen's session born at volume 0.001). Those surfaces play nothing the
             // stage must hear, so the WebView2 mute alone keeps them quiet, like a soundscape.
-            if (tile.Kind == SurfaceKind.Hidden && tile.BrowserPid > 0 && !id.StartsWith("ambient:", StringComparison.Ordinal) && !id.EndsWith(":lookup", StringComparison.Ordinal) && !id.EndsWith(":work", StringComparison.Ordinal) && !id.EndsWith(":preview", StringComparison.Ordinal))
+            // 2026-10-04: the session duck is gone. It was process-wide, and every service now shares ONE browser process (one browser, many
+            // sign-ins), so muting Spotify's parked page ducked Apple Music's session beside it - the room and the phone both went silent.
+            // A hidden music page is muted at its own WebView2 alone, like a soundscape; the visualizer hears what the room hears.
+            if (false && tile.Kind == SurfaceKind.Hidden && tile.BrowserPid > 0 && !id.StartsWith("ambient:", StringComparison.Ordinal) && !id.EndsWith(":lookup", StringComparison.Ordinal) && !id.EndsWith(":work", StringComparison.Ordinal))
             {
-                // the session duck is applied on the muter's own thread (the UI thread never waits on it - it froze the wall
-                // once); until a session has been ducked the WebView2 mute keeps the room silent, then it lifts so the
-                // stage's loopback hears the ducked music
                 core.IsMuted = muted;
-                var pid = tile.BrowserPid; var dq = tile.Container.DispatcherQueue;
-                SessionMute.SetMuted(pid, muted, n =>
-                {
-                    _onStatus($"mute {id}: {(muted ? "ducked" : "restored")} at {n} session(s)" + (muted && n == 0 ? " - WebView2 mute until one exists" : ""));
-                    if (muted && n > 0) dq.TryEnqueue(() => { if (Get(id) is { Muted: true, View.CoreWebView2: { } c }) c.IsMuted = false; });
-                });
             }
             else core.IsMuted = muted;
             _onStatus($"mute {id}: IsMuted now {core.IsMuted}");
@@ -746,8 +857,9 @@ public sealed class SurfaceManager
     // screen's surface itself, moved and shrunk into the corner (its page and its player untouched, audio on), raised above the
     // other tiles, and put back where it was when the menu closes. A rect or z core sets meanwhile is kept for the return.
     private readonly Dictionary<string, (ChannelRect rect, int z, (double W, double H)? viewport)> _pip = new();
-    /// <summary>The reading pages' first line: no DRM sessions, and no video playing (see where it is added). Prism's own browser views only.</summary>
-    private const string ReaderQuietJs = "(function(){try{var no=function(n){return Promise.reject(new DOMException(\"a reading page plays nothing\",n));};try{Object.defineProperty(Navigator.prototype,\"requestMediaKeySystemAccess\",{value:function(){return no(\"NotSupportedError\");},configurable:false,writable:false});}catch(e){}var P=HTMLMediaElement.prototype;try{Object.defineProperty(P,\"play\",{value:function(){try{this.muted=true;this.pause();}catch(e){}return no(\"NotAllowedError\");},configurable:false,writable:false});}catch(e){}document.addEventListener(\"play\",function(e){try{var m=e.target;m.muted=true;m.pause();}catch(x){}},true);}catch(e){}})();";
+    /// <summary>The reading pages' first line: no DRM sessions, and no video playing (see where it is added). Prism's own browser views only.
+    /// window.__prismReading marks the page as one no person sees (2026-10-06): an adapter may scroll it to load what it reads (YouTube TV's lazy shelf pictures).</summary>
+    private const string ReaderQuietJs = "(function(){try{window.__prismReading=true;var no=function(n){return Promise.reject(new DOMException(\"a reading page plays nothing\",n));};try{Object.defineProperty(Navigator.prototype,\"requestMediaKeySystemAccess\",{value:function(){return no(\"NotSupportedError\");},configurable:false,writable:false});}catch(e){}var P=HTMLMediaElement.prototype;try{Object.defineProperty(P,\"play\",{value:function(){try{this.muted=true;this.pause();}catch(e){}return no(\"NotAllowedError\");},configurable:false,writable:false});}catch(e){}document.addEventListener(\"play\",function(e){try{var m=e.target;m.muted=true;m.pause();}catch(x){}},true);}catch(e){}})();";
 
     public void BeginPip(string id, ChannelRect corner)
     {
@@ -788,6 +900,20 @@ public sealed class SurfaceManager
     public Func<string, bool>? BreakWatchFor;
     /// <summary>Watch / Return to video pressed on a break (or the break tapped in Watch's corner).</summary>
     public event Action<string>? BreakWatchPressed;
+    /// <summary>The person said the break watch's cover is wrong (the card's Not an ad).</summary>
+    public event Action<string>? NotAnAdPressed;
+    private readonly Dictionary<string, Button> _notAdButtons = new();
+    /// <summary>The card's Not an ad, shown while the break watch's own cover is up.</summary>
+    public void SetNotAnAd(string id, bool on)
+    {
+        if (on) _notAdWanted.Add(id); else _notAdWanted.Remove(id);   // the cover may be built after the call: applied when it is
+        var v = on ? Visibility.Visible : Visibility.Collapsed;
+        if (_notAdButtons.TryGetValue(id, out var b)) b.Visibility = v;
+        if (_notAdPills.TryGetValue(id, out var pill)) pill.Visibility = v;
+        if (_mutedStrips.TryGetValue(id, out var ms)) ms.NotAd.Visibility = v;
+    }
+    private readonly HashSet<string> _notAdWanted = new();
+    private readonly Dictionary<string, Button> _notAdPills = new();
     private static readonly SolidColorBrush ClearHit = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
     private void SyncBreakCard(Tile t)
     {
@@ -808,6 +934,7 @@ public sealed class SurfaceManager
     {
         var tile = Get(id);
         if (tile is null) return;
+        if (tile.Dozing && tile.Kind != SurfaceKind.Hidden) _ = WakeAsync(tile);
         if (_pip.TryGetValue(id, out var pip)) _pip[id] = (rect, pip.z, pip.viewport);   // in the corner: the wall's rect waits for the return
         else ApplyRect(tile, rect);
         if (!Persistable(tile)) return;
@@ -875,9 +1002,30 @@ public sealed class SurfaceManager
     /// "visible" and every variant keeps advancing at 1.0x.</summary>
     private void PlaceHidden(Tile t, bool hidden)
     {
+        var was = t.HiddenPresence;
         t.HiddenPresence = hidden;
         t.Container.Visibility = Visibility.Visible;
         ApplyRect(t, t.Rect);
+        if (was != hidden) _ = DecorAsync(t, hidden);
+    }
+
+    /// <summary>
+    /// Decorative video on a surface nobody sees (2026-10-03, "How can you avoid burning gpu with those background pages"): Apple Music's home
+    /// page loops two muted animated-artwork videos, one 1662 by 2216 pixels, while parked hidden under the Video player - its profile's GPU
+    /// process decoding at 13% for nobody. A page action: on a surface entering hidden presence every muted, looping video is paused, new
+    /// ones too as they appear (a mutation observer and the play event); on its way back to the screen the ones Prism paused play again.
+    /// Sound is never touched: a video with its sound on is the surface's own business (the music player's hidden presence plays).
+    /// </summary>
+    private const string DecorJs = "(function(on){var W=window;if(!W.__prismDecor){W.__prismDecor=function(on){W.__prismDecorOn=on;var vs=document.querySelectorAll('video');for(var i=0;i<vs.length;i++){var v=vs[i];try{if(on){if(v.muted&&v.loop&&!v.paused){v.pause();v.__prismDecorPaused=true;}}else if(v.__prismDecorPaused){v.__prismDecorPaused=false;var p=v.play();if(p&&p.catch)p.catch(function(){});}}catch(e){}}};document.addEventListener('play',function(e){var v=e.target;if(W.__prismDecorOn&&v&&v.tagName==='VIDEO'&&v.muted&&v.loop){try{v.pause();v.__prismDecorPaused=true;}catch(e2){}}},true);try{new MutationObserver(function(){if(W.__prismDecorOn)W.__prismDecor(true);}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}}W.__prismDecor(on);return document.querySelectorAll('video').length;})(";
+    private async Task DecorAsync(Tile t, bool hidden)
+    {
+        try
+        {
+            if (t.View?.CoreWebView2 is not { } core) return;
+            var n = await core.ExecuteScriptAsync(DecorJs + (hidden ? "true" : "false") + ")");
+            if (hidden && n != "0") _onStatus("decor paused on hidden " + t.Id + " (" + n + " video element(s))");
+        }
+        catch (Exception ex) { _onStatus("decor " + t.Id + ": " + ex.Message); }
     }
 
     // ------------------------------------------------------- intermission
@@ -885,10 +1033,11 @@ public sealed class SurfaceManager
     // dark substrate when no art is cached) ABOVE the tile, hit-testing
     // passing through everywhere except the Skip chip. Core decides WHEN
     // (cover-slow / uncover-fast / safety timeout live in core, not here).
-    public void ShowIntermission(string id, string source)
+    public void ShowIntermission(string id, string source, string? look = null)
     {
         var tile = Get(id);
         if (tile is null) return;
+        tile.Look = look is "mute" or "show" ? look : "veil";
         if (tile.Kind == SurfaceKind.Hidden)
         {
             // win-host-spec §5 hidden facets: no visual surface, so intermission is AUDIO intermission - core
@@ -1025,6 +1174,13 @@ public sealed class SurfaceManager
             actions.Children.Add(fillSlot);
             actions.Children.Add(minimal);
             actions.Children.Add(watch);
+            // the break watch's own cover (YouTube TV, read off the picture) can be wrong: "Not an ad" lifts it and tells the watch (2026-10-06,
+            // "Interrupting or blocking a live show makes me very nervous")
+            var notAd = Outline("Not an ad");
+            notAd.Visibility = _notAdWanted.Contains(tile.Id) ? Visibility.Visible : Visibility.Collapsed;
+            notAd.Click += (_, __) => NotAnAdPressed?.Invoke(tile.Id);
+            _notAdButtons[tile.Id] = notAd;
+            actions.Children.Add(notAd);
             // Concept-scenes 3.2, the card corner: what this picture is, who made
             // it, who holds it and under what licence - every word out of the
             // local pack manifest (spec 19/22: attribution never reaches the network).
@@ -1094,6 +1250,26 @@ public sealed class SurfaceManager
             };
             chipHost.Tapped += (_, e) => { e.Handled = true; ToggleCardMinimal(tile.Id); };
             g.Children.Add(chipHost);
+            // Not an ad on the cover itself, in its bottom-left corner (2026-10-07, "So where is this button? I have full screen and no sign of
+            // it" / "I should see it for each of the small windows too"): the card collapses to its icon on the Video player, so the card's own
+            // button was out of sight; this one shows whenever the break watch put the cover up, on every window
+            var notAdPill = new Button
+            {
+                Content = new TextBlock { Text = "Not an ad", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(ink) },
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(12, 0, 0, 12),
+                Padding = new Thickness(12, 6, 12, 6),
+                CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(amber),
+                BorderThickness = new Thickness(0),
+                Visibility = _notAdWanted.Contains(tile.Id) ? Visibility.Visible : Visibility.Collapsed,
+            };
+            MainWindow.OwnHover(notAdPill);
+            ToolTipService.SetToolTip(notAdPill, "This is the show, not an ad: uncover it, and tell Prism it got this wrong");
+            notAdPill.Click += (_, __) => NotAnAdPressed?.Invoke(tile.Id);
+            _notAdPills[tile.Id] = notAdPill;
+            g.Children.Add(notAdPill);
             tile.Container.Children.Add(g);                          // above snapshot overlay
             tile.Intermission = g;
             tile.IntermissionArt = art;
@@ -1129,7 +1305,10 @@ public sealed class SurfaceManager
         ApplyArtAttribution(tile);
         SyncBreakCard(tile);
         _onStatus($"intermission up: {id} ({source}){(tile.ArtInfo is { } ai ? " · " + ai.Line : pick is not null ? " · pool art (no per-image provenance)" : " · no art: dark substrate")}");
-        if (!tile.Peeked) Fade(tile.Intermission, tile.Intermission.Opacity, 1, 400);
+        if (!tile.Peeked && !_adDebug && tile.Look == "veil") Fade(tile.Intermission, tile.Intermission.Opacity, 1, 400);   // ad debug: the state is kept, the cover not drawn
+        if (_adDebug || tile.Look != "veil") { tile.Intermission.IsHitTestVisible = false; tile.Intermission.Opacity = 0; }
+        SyncMutedStrip(tile);
+        SyncAdDebug();
         SyncCornerX(tile);
         CoverageChanged?.Invoke();
     }
@@ -1188,6 +1367,27 @@ public sealed class SurfaceManager
 
     /// <summary>Spec 26 peek: show the ad under this tile's veil until tapped
     /// again or the break ends. The veil is a choice being continuously made.</summary>
+    private readonly Dictionary<string, Button> _peekBack = new();
+    /// <summary>The peek's own way back: a chip in the window's top-left corner, above the faded cover.</summary>
+    private Button PeekBackFor(Tile tile)
+    {
+        if (_peekBack.TryGetValue(tile.Id, out var b)) return b;
+        b = new Button
+        {
+            Content = new TextBlock { Text = "Cover again", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x14, 0x17, 0x1C)) },
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(12, 12, 0, 0), Padding = new Thickness(12, 6, 12, 6), CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(0),
+            Visibility = Visibility.Collapsed,
+        };
+        MainWindow.OwnHover(b);
+        var id = tile.Id;
+        b.Click += (_, __) => { if (Get(id) is { Peeked: true }) TogglePeek(id); };
+        tile.Container.Children.Add(b);
+        _peekBack[tile.Id] = b;
+        return b;
+    }
+
     public void TogglePeek(string id)
     {
         var tile = Get(id);
@@ -1212,6 +1412,7 @@ public sealed class SurfaceManager
                     captured.PeekRemaining--;
                     if (captured.PeekRemaining <= 0) { t.Stop(); TogglePeek(captured.Id); return; }
                     if (captured.PeekChip is { } cc) cc.Content = "Re-veil · " + captured.PeekRemaining + "s";
+                    if (_peekBack.TryGetValue(captured.Id, out var pb) && pb.Content is TextBlock pbt) pbt.Text = "Cover again \u00B7 " + captured.PeekRemaining + "s";
                 };
                 tile.PeekTimer = t;
             }
@@ -1221,9 +1422,17 @@ public sealed class SurfaceManager
         {
             chip.Content = "Show ad 15s";
         }
-        if (tile.Covered) Fade(g, g.Opacity, tile.Peeked ? 0 : 1, 150);
+        if (tile.Covered && !_adDebug) Fade(g, g.Opacity, tile.Peeked ? 0 : 1, 150);
         // while peeked the overlay must not intercept the page
         g.IsHitTestVisible = !tile.Peeked;
+        // the ad shown is heard too (2026-10-07, "I guess that was you muting the ad even though I said to show it for 15 s"): the window with
+        // the sound is unmuted at its page for the peek, and muted again as the cover comes back
+        if (tile.Id == _soundTile && tile.View?.CoreWebView2 is { } pcore) pcore.IsMuted = tile.Peeked ? false : tile.Muted;
+        // ... and a small Cover again stays on the window through the peek ("can it also minimize to the icon so I can have a chance to bring
+        // it back earlier?"): the cover itself is faded out and passes every press through, so the way back is its own chip
+        var back = PeekBackFor(tile);
+        back.Visibility = tile.Peeked && tile.Covered ? Visibility.Visible : Visibility.Collapsed;
+        if (back.Content is TextBlock bt) bt.Text = "Cover again \u00B7 " + tile.PeekRemaining + "s";
         CoverageChanged?.Invoke();
     }
 
@@ -1654,7 +1863,9 @@ public sealed class SurfaceManager
     /// </summary>
     private void SyncCornerX(Tile t)
     {
-        var want = _mvClose.Contains(t.Id) && !_pip.ContainsKey(t.Id) && (t.Covered || !_barsQuiet.Contains(t.Id));
+        // with the controls, also through a break (2026-10-06, "When an ad veil is up, the close X shows at the top right of the window, even if the
+        // controls have been hidden ... The other Xs hide"): above the veil while the controls are up, gone with them
+        var want = _mvClose.Contains(t.Id) && !_pip.ContainsKey(t.Id) && !_barsQuiet.Contains(t.Id);
         if (!want) { if (t.CornerX is { } old) old.Visibility = Visibility.Collapsed; return; }
         if (t.CornerX is null)
         {
@@ -2122,6 +2333,41 @@ public sealed class SurfaceManager
     /// <summary>Open popup surfaces (id, opener, url) - the Control Center / remote list them.</summary>
     public IEnumerable<(string Id, string Opener, string? Url)> Popups() => PopupTiles.Select(t => (t.Id, t.Opener ?? "", t.PopupUrl)).ToArray();
 
+    // ---- the wall's cost (MainWindow.PerfWatch, 2026-10-03): which process draws which surface
+    public sealed record PerfProc(uint Pid, string Kind, string[] Surfaces, uint BrowserPid, string Profile);
+    /// <summary>Every WebView2 process of every browser the surfaces use, with the surfaces a renderer draws (by frame id).</summary>
+    public async Task<List<PerfProc>> ProcessMapAsync()
+    {
+        var list = new List<PerfProc>();
+        var byFrame = new Dictionary<uint, string>();
+        foreach (var t in _tiles.Values.ToArray()) { try { if (t.View?.CoreWebView2 is { } c) byFrame[c.FrameId] = t.Id; } catch { } }
+        var seenBrowser = new HashSet<uint>();
+        foreach (var t in _tiles.Values.ToArray())
+        {
+            if (t.Env is null) continue;
+            uint bpid; try { bpid = t.View?.CoreWebView2?.BrowserProcessId ?? 0; } catch { continue; }
+            if (bpid == 0 || !seenBrowser.Add(bpid)) continue;
+            IReadOnlyList<CoreWebView2ProcessExtendedInfo> infos;
+            try { infos = await t.Env.GetProcessExtendedInfosAsync(); } catch { continue; }
+            foreach (var i in infos)
+            {
+                var ids = new List<string>();
+                try { foreach (var f in i.AssociatedFrameInfos ?? Array.Empty<CoreWebView2FrameInfo>()) if (byFrame.TryGetValue(f.FrameId, out var id) && !ids.Contains(id)) ids.Add(id); } catch { }
+                list.Add(new PerfProc((uint)i.ProcessInfo.ProcessId, i.ProcessInfo.Kind.ToString(), ids.ToArray(), bpid, t.Profile));
+            }
+        }
+        return list;
+    }
+    /// <summary>Every surface: its id, kind, whether it is parked hidden, and its page.</summary>
+    public IEnumerable<(string Id, string Kind, bool Hidden, string? Url)> Describe()
+    {
+        foreach (var t in _tiles.Values.ToArray())
+        {
+            string? url = null; try { url = t.View?.CoreWebView2?.Source; } catch { }
+            yield return (t.Id, t.Kind.ToString(), t.HiddenPresence, url);
+        }
+    }
+
     /// <summary>The kind of a surface (slot / floating / hidden / popup / visualization).</summary>
     public SurfaceKind? KindOf(string id) => Get(id)?.Kind;
 
@@ -2138,6 +2384,7 @@ public sealed class SurfaceManager
     /// it would (Hulu's Continue Watching X). Only the wall's hidden lookup surfaces take it ("app:&lt;id&gt;:lookup"), and it is only ever a move.</summary>
     public async Task HoverAsync(string id, double x, double y)
     {
+        if (Get(id) is { } ht && IsParkable(ht)) await WakeAsync(ht);
         if (!id.StartsWith("app:", StringComparison.Ordinal) || !(id.EndsWith(":lookup", StringComparison.Ordinal) || id.EndsWith(":work", StringComparison.Ordinal))) { _onStatus("hover refused: " + id + " is not a hidden lookup surface"); return; }
         var tile = Get(id);
         if (tile is null || tile.Kind != SurfaceKind.Hidden) { _onStatus("hover refused: " + id + " is not a hidden surface"); return; }
@@ -2151,6 +2398,7 @@ public sealed class SurfaceManager
     /// seek for a player that follows nothing else (Peacock). A video window on the wall only; logged every time.</summary>
     public async Task ScrubAsync(string id, double x, double y, bool press = true)
     {
+        if (Get(id) is { } st && IsParkable(st)) await WakeAsync(st);
         var tile = Get(id);
         if (tile is null || tile.Kind == SurfaceKind.Hidden || tile.View?.CoreWebView2 is not { } core) { _onStatus("scrub refused: " + id); return; }
         try
@@ -2182,15 +2430,20 @@ public sealed class SurfaceManager
     public void NudgeSoon(string? skip = null) => NudgeSoon(skip is null ? null : new[] { skip });
     public void NudgeSoon(IReadOnlyCollection<string>? skip)
     {
-        foreach (var ms in new[] { 400, 1500 })
+        // the timers are held until they fire (2026-10-06, "I went back to full screen video, and only had 1 + 2. Transparent with borders for 3-5":
+        // a timer nothing referenced could be collected before its tick - one close of Watch logged no re-link at all, the next only the first);
+        // and a third, later one for the windows the layout moves again after the second
+        foreach (var ms in new[] { 400, 1500, 3500 })
         {
             var timer = _canvas.DispatcherQueue.CreateTimer();
             timer.Interval = TimeSpan.FromMilliseconds(ms);
             timer.IsRepeating = false;
-            timer.Tick += (_, __) => Nudge(skip);
+            lock (_nudgeTimers) _nudgeTimers.Add(timer);
+            timer.Tick += (t, __) => { lock (_nudgeTimers) _nudgeTimers.Remove(t); Nudge(skip); };
             timer.Start();
         }
     }
+    private readonly List<Microsoft.UI.Dispatching.DispatcherQueueTimer> _nudgeTimers = new();
 
     /// <summary>Dev only (eval id "revive <how> <id>"): B-295 experiments - "vis" hides the view for a tick; "parent" takes it out of its host and back.</summary>
     public string DevRevive(string how, string id)
@@ -2227,6 +2480,7 @@ public sealed class SurfaceManager
         if (tile is null) return "__prism_eval_error: unknown tile";
         if (tile.View is null) return "__prism_eval_error: view suspended/closed (tile is warm)";
         if (tile.View?.CoreWebView2 is not { } core) return "__prism_eval_error: CoreWebView2 not initialized";
+        if (IsParkable(tile)) await WakeAsync(tile);
         try { return await core.ExecuteScriptAsync(js); }
         catch (Exception ex) { return "__prism_eval_error: " + ex.GetType().Name + ": " + ex.Message; }
     }
@@ -2295,6 +2549,8 @@ public sealed class SurfaceManager
         tile.Covered = false;
         tile.Peeked = false;                                         // a peek never outlives its break
         tile.PeekTimer?.Stop();
+        if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed;   // the peek's own way back goes with it
+        SyncMutedStrip(tile);
         StopSkipHole(tile);
         if (tile.PeekChip is { } pc) pc.Content = "Show ad 15s";
         if (tile.Caption is { } cap) cap.Visibility = Visibility.Collapsed;
@@ -2307,6 +2563,7 @@ public sealed class SurfaceManager
         g.IsHitTestVisible = true;
         Fade(g, g.Opacity, 0, 150);                                  // uncover FAST (spec 26)
         SyncCornerX(tile);
+        SyncAdDebug();
         _onStatus($"intermission down: {id}");
         CoverageChanged?.Invoke();
     }
@@ -2591,6 +2848,95 @@ public sealed class SurfaceManager
         catch { /* poster is decoration - the substrate stands alone */ }
     }
 
+    /// <summary>A window's picture, small and grey (2026-10-06, the logo watch's frames): null when there is no view or the capture fails.</summary>
+    public async Task<byte[]?> CaptureGrayAsync(string id, int w, int h)
+    {
+        if (Get(id) is not { } t || t.View?.CoreWebView2 is not { } core) return null;
+        try
+        {
+            using var mem = new InMemoryRandomAccessStream();
+            await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Jpeg, mem);
+            mem.Seek(0);
+            var dec = await BitmapDecoder.CreateAsync(mem);
+            var data = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, new BitmapTransform { ScaledWidth = (uint)w, ScaledHeight = (uint)h, InterpolationMode = BitmapInterpolationMode.Linear }, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+            var px = data.DetachPixelData();
+            var g = new byte[w * h];
+            for (int i = 0, j = 0; j < g.Length; i += 4, j++) g[j] = (byte)((px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8);
+            return g;
+        }
+        catch { return null; }
+    }
+    /// <summary>The break watch's look at a window (2026-10-06): the 320x180 grey frame the break model scores and, when asked, a
+    /// 960x540 picture for the text reader - one capture for both.</summary>
+    public async Task<(byte[] Gray, SoftwareBitmap? Big, byte[]? BigGray)?> CaptureForWatchAsync(string id, bool withBig)
+    {
+        if (Get(id) is not { } t || t.View?.CoreWebView2 is not { } core) return null;
+        try
+        {
+            using var mem = new InMemoryRandomAccessStream();
+            await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Jpeg, mem);
+            mem.Seek(0);
+            var dec = await BitmapDecoder.CreateAsync(mem);
+            var data = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, new BitmapTransform { ScaledWidth = BreakModel.W, ScaledHeight = BreakModel.H, InterpolationMode = BitmapInterpolationMode.Linear }, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+            var px = data.DetachPixelData();
+            var g = new byte[BreakModel.W * BreakModel.H];
+            for (int i = 0, j = 0; j < g.Length; i += 4, j++) g[j] = (byte)((px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8);
+            SoftwareBitmap? big = null; byte[]? bigGray = null;
+            if (withBig)
+            {
+                // one 960x540 read for both the text reader (its bitmap) and the QR finder (its grey)
+                var bd = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, new BitmapTransform { ScaledWidth = 960, ScaledHeight = 540, InterpolationMode = BitmapInterpolationMode.Linear }, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+                var bp = bd.DetachPixelData();
+                big = SoftwareBitmap.CreateCopyFromBuffer(bp.AsBuffer(), BitmapPixelFormat.Bgra8, 960, 540, BitmapAlphaMode.Premultiplied);
+                bigGray = new byte[960 * 540];
+                for (int i = 0, j = 0; j < bigGray.Length; i += 4, j++) bigGray[j] = (byte)((bp[i] * 29 + bp[i + 1] * 150 + bp[i + 2] * 77) >> 8);
+            }
+            return (g, big, bigGray);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>A signal the host read about a window, sent on as the page's own would be (the break watch's ad-break).</summary>
+    public void PostAsPage(string id, string json) => ForwardWithId(id, json);
+
+    // Two voices say a window is in a break: the page's own ad signal and the break watch (2026-10-07, an Ad debug report: YouTube TV
+    // played its own Sponsored ad inside HGTV's break, the page's "ad over" a minute later took the cover down while the network's
+    // commercials ran on and the break watch still read 99%). Core hears one: a break while either says so, over when both say over.
+    private readonly Dictionary<string, bool> _pageAd = new(), _watchAd = new();
+
+    /// <summary>The break watch's word on a window: posted on as the page's ad-break, joined with the page's own.</summary>
+    public void WatchAdBreak(string id, bool active) => JoinAdBreak(id, () => _watchAd[id] = active);
+
+    /// <summary>The page's own ad-break, joined with the break watch's (true when it was handled here).</summary>
+    private bool PageAdBreak(string id, string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("type", out var ty) || ty.GetString() != "ad-break"
+                || !doc.RootElement.TryGetProperty("active", out var a) || (a.ValueKind != JsonValueKind.True && a.ValueKind != JsonValueKind.False)) return false;
+            var on = a.ValueKind == JsonValueKind.True;
+            JoinAdBreak(id, () => _pageAd[id] = on);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    private void JoinAdBreak(string id, Action set)
+    {
+        var was = _pageAd.GetValueOrDefault(id) || _watchAd.GetValueOrDefault(id);
+        set();
+        var now = _pageAd.GetValueOrDefault(id) || _watchAd.GetValueOrDefault(id);
+        // each voice's own change still reaches core when the joined word is unchanged only if it says a break (a repeat true is harmless,
+        // a lone false would end the other voice's break)
+        if (now == was && !now) return;
+        if (now == was) { _onStatus("ad-break " + id + ": still a break (page " + _pageAd.GetValueOrDefault(id) + ", break watch " + _watchAd.GetValueOrDefault(id) + ")"); return; }
+        ForwardWithId(id, "{\"type\":\"ad-break\",\"active\":" + (now ? "true" : "false") + "}");
+    }
+
+    /// <summary>The wall's windows whose page is at an address containing this (the logo watch's choice of windows).</summary>
+    public List<string> TilesAt(string part) => _tiles.Values.Where(t => t.Kind != SurfaceKind.Hidden && !t.HiddenPresence && (t.View?.Source?.ToString() ?? "").Contains(part, StringComparison.OrdinalIgnoreCase)).Select(t => t.Id).ToList();
+
     private static double AvgChannel(byte[] px)
     {
         long sum = 0; var n = 0;
@@ -2799,7 +3145,9 @@ public sealed class SurfaceManager
     // add to playlist / station from song) with the token core handed it; core matches the answer to its wait
     notifyMusicResult: function (r) { try { post({ type: 'music-result', token: String(r && r.token || ''), op: String(r && r.op || 'lookup'), ok: !!(r && r.ok), candidates: (r && r.candidates) || undefined, error: (r && r.error) ? String(r.error) : undefined, count: (r && typeof r.count === 'number') ? r.count : undefined, total: (r && typeof r.total === 'number') ? r.total : undefined }); } catch (e) {} },
   };
-  addEventListener('pointerdown', function () { post({ type: 'interaction' }); }, true);
+  // a person's tap only (2026-09-28): a pointer event an adapter's own script dispatches is the wall's doing, not the person's - core reads
+  // 'interaction' as the person acting (the resume after a restart stands aside for it, a stopped autoplay is let go)
+  addEventListener('pointerdown', function (e) { if (e.isTrusted) post({ type: 'interaction' }); }, true);
   // the EME trace (2026-09-21, 'paramount reports 480p but is capable of 4k through Edge'): which key system and robustness the
   // page's player asks for and is granted - host.log 'page eme'. A read of the page's own calls, never a change to them.
   // which keys the player binds to its video, and their key statuses as the license answers (usable / output-restricted)
@@ -2878,7 +3226,10 @@ public sealed class SurfaceManager
         var vlib0 = vlibNow();
         var vprof0 = vprofNow();
         var vlive0 = vliveNow();
-        if (lib0 || vlib0 || vprof0 || vlive0) { var lk = 'lib:' + JSON.stringify(lib0) + '|' + JSON.stringify(vlib0) + '|' + JSON.stringify(vprof0) + '|' + JSON.stringify(vlive0); if (lk !== lastNP) { lastNP = lk; post({ type: 'now-playing', info: { playing: false, library: lib0, videoLibrary: vlib0, videoProfiles: vprof0, videoLive: vlive0 } }); } return; }
+        // a page's own error with no media element left (2026-10-05, Netflix's 'Too many people are using your account right now' modal: the
+        // video is gone, so nothing below ran and core never heard the error) is posted as the video context on its own
+        var verr0 = (function () { var c = vctxNow(); return c && c.kind === 'error' ? c : null; })();
+        if (lib0 || vlib0 || vprof0 || vlive0 || verr0) { var lk = 'lib:' + JSON.stringify(lib0) + '|' + JSON.stringify(vlib0) + '|' + JSON.stringify(vprof0) + '|' + JSON.stringify(vlive0) + '|' + JSON.stringify(verr0); if (lk !== lastNP) { lastNP = lk; post({ type: 'now-playing', info: { playing: false, library: lib0, videoLibrary: vlib0, videoProfiles: vprof0, videoLive: vlive0, video: verr0 } }); } return; }
         if (lastNP !== '') { lastNP = ''; post({ type: 'now-playing', info: null }); }
         return;
       }
@@ -2961,7 +3312,11 @@ public sealed class SurfaceManager
   // page still sees them (its own Esc handling keeps working).
   var lastKeyInteraction = 0;
   addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' || e.key === 'F8' || e.key === 'F10' || e.key === 'F11') post({ type: 'prism-hostkey', key: e.key });
+    // a person's key only (2026-10-06: turning captions off from Prism's menu also opened Watch and made the video small): an
+    // adapter closing the service's own menu with a scripted Escape (Apple TV's tracks, Apple Music's row menu) is not the person's Esc for Prism
+    if (e.isTrusted && (e.key === 'Escape' || e.key === 'F8' || e.key === 'F10' || e.key === 'F11')) post({ type: 'prism-hostkey', key: e.key });
+    // Ctrl+Shift+W opens Watch (2026-09-28) - and is kept from the page (a browser closes its window on it)
+    if (e.isTrusted && e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'W' || e.key === 'w')) { e.preventDefault(); e.stopImmediatePropagation(); post({ type: 'prism-hostkey', key: 'Ctrl+Shift+W' }); return; }
     // the universal player (2026-09-21): while the player's own fullscreen is up (the stage), the transport keys are Prism's -
     // Space, the arrows, Enter - taken from the page so it does not act on them too (its own controls are hidden then).
     // Only a person's key (isTrusted): an adapter's own key event is the wall's verb on its way to the player (Netflix and

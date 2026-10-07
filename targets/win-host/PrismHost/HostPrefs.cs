@@ -41,6 +41,14 @@ internal static class HostPrefs
 
     public static void Set(string key, double value) => Write(key, value);
 
+    public static string GetString(string key, string fallback)
+    {
+        try { return Doc()[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : fallback; }
+        catch { return fallback; }
+    }
+
+    public static void Set(string key, string value) => Write(key, value);
+
     private static void Write(string key, JsonNode value)
     {
         lock (Gate)

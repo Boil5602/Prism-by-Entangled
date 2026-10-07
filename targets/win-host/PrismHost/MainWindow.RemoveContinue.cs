@@ -52,7 +52,10 @@ public sealed partial class MainWindow
             var next = p.Children.Skip(i + 1).Concat(p.Children.Take(i).Reverse()).OfType<Button>().FirstOrDefault(b => b.Visibility == Visibility.Visible && !ReferenceEquals(b, card));
             if (next is not null) { _hubCur = next; try { next.Focus(FocusState.Keyboard); } catch { } }
         }
-        card.Visibility = Visibility.Collapsed;
+        // it turns to dust (2026-09-26, "the thanos dust effect for removing items from continue/my list, not working. I go to remove an item
+        // and it instantly moves"): a person's removal hid the card at once, and only a card leaving on a row's refresh got the dust
+        if (card.Parent is StackPanel line && card.ActualWidth > 0) { card.IsHitTestVisible = false; _ = DisintegrateAsync(line, card, remove: true, hidden: () => { }); }
+        else card.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>The removal in the background: core's job polled; done - the card goes for good and the feed says so; failed - the card comes back and the feed says why.</summary>
