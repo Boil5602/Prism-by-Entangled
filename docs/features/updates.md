@@ -57,6 +57,10 @@ release, and no later publish passes `--also stable` until there is one.
 - The zips sit in the same bucket (Tigris, served at prism.entangled.world, the one Veil's art uses), never in a git tree. The website's
   Download page reads the version, date, size and hash from its own `releases.json`, which the publish script writes, so the page and
   the manifest cannot disagree; `/prism/download/windows` on the site 302s to the current zip.
+- The page's Size opens into what the download is made of (2026-10-09, "a breakdown of the total number that is collapsed up to the
+  total"): `scripts/release/size_breakdown.py` puts every file in the zip in one named part (Prism itself, with its sounds and
+  pictures counted inside it and named in its note; .NET; the Windows App SDK ...) and counts the bytes it takes in the zip, so the parts add up to the download's size exactly; the publish script
+  writes them as `sizeParts` on the site's current release. A part the build stops carrying leaves the page by itself.
 
 ## Publishing a release
 

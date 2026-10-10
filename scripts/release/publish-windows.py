@@ -251,8 +251,11 @@ if a.site:
              "track": TRACK_LABEL[a.channel],
              "manifestUrl": BASE_URL + "manifest.json", "downloadsApi": "https://reports.entangled.world/v1/downloads"}
     if a.channel == HEADLINE:
-        cur["windows"] = entry
-    hist = [h for h in (cur.get("history") or []) if h.get("version") != version]
+        # what the download is made of, part by part, adding up to its size (size_breakdown.py; the download page shows it under Size)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from size_breakdown import breakdown
+        cur["windows"] = dict(entry, sizeParts=breakdown(zip_path))
+    hist =[h for h in (cur.get("history") or []) if h.get("version") != version]
     cur["history"] = [entry] + hist
     os.makedirs(os.path.dirname(rel), exist_ok=True)
     with open(rel, "w", encoding="utf-8", newline="\n") as f:

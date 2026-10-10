@@ -384,3 +384,33 @@ starts fall from 629 to 457 s. Comedy Central's afternoon gains six points, its 
 midday exam's goes from 80 to 95 s), and CNN's goes from 30 to 37 s while FX's falls from 45 to 29. The control shows part of the gain
 (1.4 points, with 25 s more wrong cover) comes from retraining on today's corrected marks alone. Parity with Python on the new stretch:
 99.93% of 26,900 looks within 0.001.
+
+### NBC Sports, the evening of 2026-10-08: a seventh exam, and a retrain that is not kept (2026-10-10)
+
+The whole evening on NBC Sports Network was marked (16:06-24:00: two talk shows, a college hockey game, a WNBA playoff game; 20:00-21:00
+blind, the rest with Prism's covers shown). Scored against the live model (v4) before anything was trained on it, the first pass read
+99.2% of ad time and 4.77% of show wrongly covered, 745 s of it in fifteen covers "on their own". The frames said otherwise: seven of
+those covers were whole breaks the marks had skipped (16:59, 17:41, 19:03, 19:29, 20:46 - inside the blind hour -, 22:47, 23:03; about
+620 s of ads). They were added to the marks from the frames, to the second, and two zero-length marks removed (the marks as they were are
+kept as labels.before-nbc-sports-evening-fixes-2026-10-10.json). A two-minute University of Notre Dame feature shown inside the hockey
+broadcast before the 20:46 break, with the network's bug on it, is left as show.
+
+With the marks corrected, v4 on the three stretches: 99.0% of 4,794 ad seconds covered, 2.28% of show wrongly covered (536 s of 23,461:
+358 s staying on after a break, 88 s ahead of one, 90 s in eight covers on their own). The blind hour alone: 100.0% / 17 s. It joins
+exams.json as "NBC Sports evening" (library copy 19:31:59), so there are seven exams from here on.
+
+The other 6.9 hours (16:06-20:00 and 21:00-24:00) were then added to v4's training list the light way (only that window replayed,
+15:55-24:00, with the library copy from 15:59): 161,251 marked seconds against 139,237.
+
+| Seven exams, replayed through Prism's code, cover 0.80 / lift 0.60 | Ads covered | Show wrongly covered | Late / mid-break / early |
+|---|---|---|---|
+| **shipped v4 (stays live)** | **93.7%** | **0.85% (302 s)** | 457 / 182 / 105 |
+| v4's own list, trained again (a control) | 93.6% | 0.84% (301 s) | 469 / 145 / 139 |
+| with the NBC Sports evening | 93.3% | 0.91% (325 s) | 475 / 195 / 113 |
+
+Not kept. The new model is a little better on the two NBC Sports exams (wrong cover 28 to 25 s and 17 to 9 s) and a little worse on the
+others (FX's wrong cover 29 to 46 s, Food Network's ad time 96.5% to 94.4%, Comedy Central midday 95 to 108 s). The channel was already
+the detector's best (98-100% of ad time); six more hours of it teach the model nothing it lacked and tilt it a little toward that
+channel. What the stretch does show is where v4 is weakest on live sport: staying on after a break (358 of the 536 wrong seconds), and
+that the marks themselves miss breaks - seven in eight hours, all of them short ones between a show's segments. Marking time is better
+spent on channels the detector has never been trained on (Big Ten Network, Animal Planet, both recorded all day on 2026-10-09).

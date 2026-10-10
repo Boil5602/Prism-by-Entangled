@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.27.1 - 2026-10-09 (alpha, 57da6535)
+
+Profiles and Full screen are back in the Prism menu. The PRISM splash plays its animation over Remote Desktop and on PCs where Windows animations are turned off.
+
+- download: https://prism.entangled.world/windows/Prism-0.27.1-57da6535.zip
+- sha256: f6bd7e73d29a45a076633ea4f44522e1fda20789b889d1fc0c71bb35e46bd86c
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.27.1
+
 ## 0.27.0 - 2026-10-09 (alpha, 21416c1a)
 
 YouTube TV ad covers are now decided by a detector trained on marked recordings of ten channels. In our tests on hours it had never seen, it covered 93% of ad time and wrongly covered under 1% of the show. Covers start sooner and follow YouTube TV's own ad markers. A paid programme that says so on the screen is covered for its half hour, a phone number standing on the screen keeps a cover up, and NFL Network's breaks in a smaller picture are covered. The Prism menu is shorter: the two players, Set up services, Pair a phone, Remote Desktop Support, Updates, About and Quit. The Live tab answers at once, keeps its place while it loads and has a Top button. A title you pick plays on a service you already have rather than one that sells it. Not an ad is on the intermission menu, and its buttons are easier to read. Linking a TMDB account finishes when you press I approved it, and the Playlists tab says what it needs.
