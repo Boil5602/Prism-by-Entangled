@@ -296,6 +296,7 @@ export const HOST_CALLS: string[] = [
   "bootTimings",           // () -> {now, rowsCache, menuReady, lists} (sync): startup milestones in ms since the runtime began (2026-09-24)
   "videoResync",           // () -> {ok, did: nudged|reopened} (sync): the big screen's sound and picture together again - pause/play, or again soon: reopened at its place
   "videoProgramEdges",     // (tile) -> {title, start, end}|null (sync): the guide's program on a channel window now - the break watch's program edges (2026-10-06)
+  "adBreakHold",           // (tile, remainingSec) -> {ok} (sync): the break watch knows when the window's break ends; its cover's backstop waits for it (B-364, 2026-10-10)
   "videoPictureFrozen",    // (tile, seconds) -> {ok, did} (sync): the shell saw the picture stand still while it plays; the doctor reopens it (2026-10-06)
   "videoStartOver",        // () -> {ok, did: start|previous, season?, episode?} (sync): the big screen back to its start, or in its first 5 s the episode before (2026-09-24)
   "videoNextEpisode",      // (tileId) -> {ready, next, series} (sync): the next episode of the series the tile plays, as TMDB knows it - the stage bar's card

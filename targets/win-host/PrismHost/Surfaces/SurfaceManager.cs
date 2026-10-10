@@ -3016,6 +3016,15 @@ public sealed partial class SurfaceManager
     /// <summary>The break watch's word on a window: posted on as the page's ad-break, joined with the page's own.</summary>
     public void WatchAdBreak(string id, bool active) => JoinAdBreak(id, () => _watchAd[id] = active);
 
+    /// <summary>The break watch's break said to core again: the cover came down at core's backstop while the watch still vouches for the
+    /// break (a paid programme whose next half hour's notice came a few seconds after the cover fell, B-364).</summary>
+    public void ReassertAdBreak(string id)
+    {
+        if (!_watchAd.GetValueOrDefault(id)) return;
+        _onStatus("ad-break " + id + ": said again (its cover had come down with the break still on)");
+        ForwardWithId(id, "{\"type\":\"ad-break\",\"active\":true}");
+    }
+
     /// <summary>The page's own ad-break, joined with the break watch's (true when it was handled here).</summary>
     private bool PageAdBreak(string id, string json)
     {

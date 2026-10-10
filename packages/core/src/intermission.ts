@@ -333,6 +333,23 @@ export class IntermissionController {
     this.armSafety(id, tile, want);
   }
 
+  /**
+   * A break whose end the shell knows (B-364, 2026-10-10: a paid programme said so on the screen and was covered "to the end of its
+   * half hour" - and the five-minute backstop took the cover off at 04:05 with the break watch still saying break, so FX's
+   * infomercials played uncovered until morning). The backstop is moved to that end and a margin, as extend() moves it for a page's
+   * clock, without the counting-down test: the shell says it afresh at every look that still finds the break. Never shortened, never
+   * past MAX_EXTENDED_MS from now - a shell that stops looking stops saying it, and the backstop falls as it always did.
+   */
+  hold(id: string, remainingSec: number): boolean {
+    const tile = this.tiles.get(id);
+    if (!tile?.covered || !tile.safetyTimer || !(remainingSec > 0) || !isFinite(remainingSec)) return false;
+    const want = Math.min(remainingSec * 1000 + EXTEND_MARGIN_MS, MAX_EXTENDED_MS);
+    if (Date.now() + want <= (tile.safetyDue ?? 0)) return true;
+    tile.safetyDue = Date.now() + want;
+    this.armSafety(id, tile, want);
+    return true;
+  }
+
   /** A muted-only break's Unmute (on) and Mute again (off): the person's word for this break; the break's end clears it. */
   unmute(id: string, on: boolean): boolean {
     const tile = this.tiles.get(id);

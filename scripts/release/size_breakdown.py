@@ -17,23 +17,23 @@ import zipfile
 
 # first match wins; (key, label, note, test on the file's path in the zip, lower case, forward slashes)
 DOTNET = re.compile(r"^(system\.|microsoft\.csharp|microsoft\.visualbasic|microsoft\.win32|mscor|netstandard|coreclr|clr|hostfxr|hostpolicy|createdump|msquic|microsoft\.diasymreader|windowsbase)")
-WITHIN_PRISM = ("sounds", "pictures")   # counted on their own, shown inside "Prism itself"
+WITHIN_PRISM = ("sounds", "pictures")   # counted on their own, shown inside "PRISM itself"
 PARTS = [
     ("sounds", "Sounds", "The soundscape's ambient loops. MP3s are already compressed, so they take their full size.",
      lambda p: p.startswith("assets/tiles/")),
-    ("pictures", "Pictures", "The gallery and cosmos picture sets Prism shows behind an ad break. JPEGs take their full size too.",
+    ("pictures", "Pictures", "The gallery and cosmos picture sets PRISM shows behind an ad break. JPEGs take their full size too.",
      lambda p: p.startswith("assets/packs/")),
-    ("prism", "Prism itself", "Prism's own code, the service adapters and the ad-break detector.",
+    ("prism", "PRISM itself", "PRISM's own code, the service adapters and the ad-break detector.",
      lambda p: p.startswith("assets/") or p.startswith("prismhost") or p == "readme.txt"),
-    ("ml", "Machine-learning libraries (Microsoft)", "ONNX Runtime and DirectML arrive with the Windows App SDK. Prism doesn't use them, and the next release leaves them out.",
+    ("ml", "Machine-learning libraries (Microsoft)", "ONNX Runtime and DirectML arrive with the Windows App SDK. PRISM doesn't use them, and the next release leaves them out.",
      lambda p: re.match(r"^(onnxruntime|directml|microsoft\.ml\.onnxruntime|microsoft\.windows\.ai\.machinelearning)", p) is not None),
-    ("winrt", "Windows bindings for .NET (Microsoft)", "Lets Prism's code call Windows.",
+    ("winrt", "Windows bindings for .NET (Microsoft)", "Lets PRISM's code call Windows.",
      lambda p: re.match(r"^(microsoft\.windows\.sdk\.net|winrt\.runtime)", p) is not None),
-    ("dotnet", ".NET runtime (Microsoft)", "Runs Prism's code. It is carried inside the download so there is nothing to install first.",
+    ("dotnet", ".NET runtime (Microsoft)", "Runs PRISM's code. It is carried inside the download so there is nothing to install first.",
      lambda p: "/" not in p and DOTNET.match(p) is not None),
     ("libraries", "Small libraries", "NAudio and LAME for sound, QRCoder for the pairing code, and the WebView2 loader.",
      lambda p: re.match(r"^(naudio|libmp3lame|qrcoder|microsoft\.web\.webview2|webview2loader)", p) is not None),
-    ("winui", "Windows App SDK and WinUI (Microsoft)", "Draws Prism's own screens and menus, in every language Windows has. Carried inside for the same reason.",
+    ("winui", "Windows App SDK and WinUI (Microsoft)", "Draws PRISM's own screens and menus, in every language Windows has. Carried inside for the same reason.",
      lambda p: True),
 ]
 
@@ -70,11 +70,11 @@ def breakdown(zip_path):
     if inside:
         mb = lambda k: "%.1f MB" % (tenths[k] / 10)
         says = []
-        if "prism" in tenths: says.append("Prism's own code, the service adapters and the ad-break detector are " + mb("prism") + ".")
+        if "prism" in tenths: says.append("PRISM's own code, the service adapters and the ad-break detector are " + mb("prism") + ".")
         if "sounds" in tenths: says.append("The soundscape's ambient loops are " + mb("sounds") + ".")
-        if "pictures" in tenths: says.append("The gallery and cosmos picture sets Prism shows behind an ad break are " + mb("pictures") + ".")
+        if "pictures" in tenths: says.append("The gallery and cosmos picture sets PRISM shows behind an ad break are " + mb("pictures") + ".")
         if "sounds" in tenths or "pictures" in tenths: says.append("MP3s and JPEGs are already compressed, so they take their full size.")
-        out.append({"key": "prism", "label": "Prism itself", "note": " ".join(says), "mb": sum(tenths[k] for k in inside) / 10, "files": sum(sums[k][1] for k in inside)})
+        out.append({"key": "prism", "label": "PRISM itself", "note": " ".join(says), "mb": sum(tenths[k] for k in inside) / 10, "files": sum(sums[k][1] for k in inside)})
     out.sort(key=lambda r: r["mb"], reverse=True)
     return out
 

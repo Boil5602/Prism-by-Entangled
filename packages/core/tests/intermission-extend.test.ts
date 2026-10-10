@@ -77,3 +77,42 @@ describe("a service's own backstop (adBackstopMs, YouTube TV's live breaks, 2026
     expect(calls).toContain("hide w3");
   });
 });
+
+// B-364 (2026-10-10, the hourly check): FX's 04:00 paid programme said so on the screen, the break watch covered it "until 04:30", and the
+// five-minute backstop took the cover off at 04:05 with the watch still saying break. The shell knows the half hour's end and says so
+// at each look; a shell that stops looking stops saying it.
+describe("a break whose end the shell knows (hold, a paid programme's half hour)", () => {
+  it("stays covered for the whole half hour while the shell keeps saying how long is left", async () => {
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true, 0, 300_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(calls).toContain("show w3");
+    for (let left = 1_770; left > 0; left -= 30) { expect(c.hold("w3", left)).toBe(true); await vi.advanceTimersByTimeAsync(30_000); }
+    expect(calls).not.toContain("hide w3");   // 29.5 minutes in, far past the five-minute backstop
+    c.onAdBreak("w3", false);
+    expect(calls).toContain("hide w3");
+  });
+  it("takes a length that grows again (the next half hour of the same cover), where a page's stuck clock would not", async () => {
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true, 0, 300_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    for (let left = 240; left > 0; left -= 30) { c.hold("w3", left); await vi.advanceTimersByTimeAsync(30_000); }
+    for (let left = 1_800; left > 900; left -= 30) { c.hold("w3", left); await vi.advanceTimersByTimeAsync(30_000); }
+    expect(calls).not.toContain("hide w3");
+  });
+  it("falls within ten minutes of the shell going quiet, however long it said was left", async () => {
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true, 0, 300_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    c.hold("w3", 1_700);
+    await vi.advanceTimersByTimeAsync(9 * 60_000);
+    expect(calls).not.toContain("hide w3");
+    await vi.advanceTimersByTimeAsync(62_000);
+    expect(calls).toContain("hide w3");
+  });
+  it("does nothing for a window that is not behind a cover", () => {
+    const { calls, c } = rig();
+    expect(c.hold("w3", 600)).toBe(false);
+    expect(calls).toEqual([]);
+  });
+});

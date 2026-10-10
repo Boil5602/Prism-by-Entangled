@@ -50,6 +50,9 @@ public sealed partial class MainWindow
         public double CoveredAt = -999;
         public double PaidCardSeen = -9999;   // the paid programme card this window's half hour was set from
         public long PaidUntil;                // ... and the end of that half hour (unix ms)
+        public double PaidHoldAt = -999;      // when core was last told how long the paid programme's cover has left (B-364)
+        public bool SureOnly;                 // the person set this channel to sure breaks only (ChannelCovers.Sure)
+        public bool Withheld;                 // ... and the watch has found a break it is not covering (said once in the log)
         public bool AdLine;
         public bool CueComing;
         /// <summary>The picture is inset over the channel's ticker (BreakModel.InsetBreakAt), as last logged.</summary>
@@ -95,6 +98,7 @@ public sealed partial class MainWindow
         {
             if (!DismissBreak(id, out var st, out var now)) return;
             Correction(id, st.ChannelName, "not an ad");
+            NotAdCounted(st.ChannelName);
             Bench(id, now, null, "notanad");
             ShowNotAdReport(id, st.ChannelName, st.Recent.ToList());
         };
@@ -322,6 +326,7 @@ public sealed partial class MainWindow
             st.Model.NearEdge = near;
             st.Model.EdgeKnown = st.EdgeStart > 0;
             st.Model.AdFreeChannel = AdFree.IsMatch(st.ChannelName) || ChannelOff(st.ChannelName);   // and the channels the person turned off
+            st.SureOnly = !st.Model.AdFreeChannel && ChannelsSure().Contains(st.ChannelName, StringComparer.OrdinalIgnoreCase);
             var hadLogo = st.Model.HasLogo;
             var changed = st.Model.Step(shot.Value.Gray, now, dt);
             st.Recent.Enqueue(DateTime.Now.ToString("HH:mm:ss") + " " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " covered" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : "") + (st.Model.NearEdge ? " near edge" : ""));
@@ -388,6 +393,21 @@ public sealed partial class MainWindow
                 st.PaidUntil = until.ToUnixTimeMilliseconds();
             }
             if (!covered && !st.Model.AdFreeChannel && !st.Model.DismissedAt(now) && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < st.PaidUntil) covered = true;
+            // a paid programme's cover outlasts core's five-minute backstop (B-364, 2026-10-10: FX's 04:00 infomercial lost its cover at 04:05
+            // with the watch still saying break, and the three after it played uncovered): the end of its half hour is known, so core is told
+            // how long is left at each look that still finds it, every half minute (IntermissionController.hold). A watch that stops looking
+            // stops saying so, and the backstop falls as before.
+            var paidLeft = (st.PaidUntil - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) / 1000.0;
+            if (paidLeft <= 0 && string.Equals(st.Model.ShowTitle.Trim(), "Paid Programming", StringComparison.OrdinalIgnoreCase))
+                paidLeft = (BreakModel.PaidSlotEnd(DateTimeOffset.Now, false) - DateTimeOffset.Now).TotalSeconds;
+            if (covered && paidLeft > 0 && now - st.PaidHoldAt >= 30)
+            {
+                st.PaidHoldAt = now;
+                // core answers ok:false when the window has no cover to hold: it came down at the backstop in the seconds between one
+                // half hour's end and the next one's notice (FX 06:30:15, the notice at 06:30:27) - the break is said again and the cover returns
+                var held = await ModelCallAsync(PrismHost.Channel.HostCalls.AdBreakHold, id, Math.Round(paidLeft));
+                if (st.Covered && held is not null && held.Contains("\"ok\":false", StringComparison.Ordinal)) _surfaces.ReassertAdBreak(id);
+            }
             // a ticker channel's inset picture is a break (2026-10-08, NFL Network: its logo stays up in the ticker through the ads, so neither
             // the rules nor the learned detector saw most breaks; BreakModel.InsetBreakAt has the reading and what it was checked against)
             var inset = st.Model.InsetBreakAt(now) || st.Model.InsetTailAt(now);
@@ -403,6 +423,18 @@ public sealed partial class MainWindow
                 Bench(id, now, null, inset ? "inset 1" : "inset 0");
             }
             if (!covered && inset && !st.Model.AdFreeChannel && !st.Model.DismissedAt(now)) covered = true;
+            // Sure breaks only (the person's choice for this channel, ChannelCovers.Sure): the cover is up only for what does not guess -
+            // YouTube TV's own marked slot as it plays, one known to be coming while a cover is up, and a paid programme the guide or the
+            // screen names. The watch goes on reading the picture and learning as it does on any channel; it just does not cover on it.
+            if (st.SureOnly)
+            {
+                var found = covered;
+                var paidNow = string.Equals(st.Model.ShowTitle.Trim(), "Paid Programming", StringComparison.OrdinalIgnoreCase) || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < st.PaidUntil;
+                covered = !st.Model.DismissedAt(now) && (st.Model.CueOnAt(now) || (st.Covered && st.Model.CueComingAt(now)) || paidNow);
+                var withheld = found && !covered;
+                if (withheld != st.Withheld) { st.Withheld = withheld; if (withheld) LogLine("break watch " + id + ": a break the watch found is not covered (sure breaks only on " + st.ChannelName + ")"); }
+            }
+            else st.Withheld = false;
             var shownChanged = covered != st.Covered;
             if (shownChanged)
             {
@@ -478,13 +510,47 @@ public sealed partial class MainWindow
     /// <summary>Channels the person asked Prism never to cover (2026-10-06, "we'll have to make this a feature they can shut down"): kept by name.</summary>
     private static List<string> ChannelsOff() => HostPrefs.GetString("video.breakWatchOff", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
     private static bool ChannelOff(string name) => name.Length > 0 && ChannelsOff().Contains(name, StringComparer.OrdinalIgnoreCase);
-    private void SetChannelOff(string name, bool off)
+    private void SetChannelOff(string name, bool off) => SetChannelMode(name, off ? ChannelCovers.Off : ChannelCovers.On);
+
+    /// <summary>How a channel's breaks are covered (2026-10-10, "a right click channel settings menu, for live stations, with the ability to
+    /// disable the ad veils" - "I like your on, sure breaks, off idea"). On: every break the watch finds. Sure: only what does not guess -
+    /// YouTube TV's own marked ad slot, and a paid programme the guide or the screen names. Off: never. Kept by channel name; the channels
+    /// turned off stay in the list they always were in (video.breakWatchOff), the sure ones beside it (video.breakWatchSure).</summary>
+    internal enum ChannelCovers { On, Sure, Off }
+    private static List<string> ChannelsSure() => HostPrefs.GetString("video.breakWatchSure", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
+    private static ChannelCovers ChannelMode(string name) =>
+        name.Length == 0 ? ChannelCovers.On : ChannelOff(name) ? ChannelCovers.Off : ChannelsSure().Contains(name, StringComparer.OrdinalIgnoreCase) ? ChannelCovers.Sure : ChannelCovers.On;
+    private void SetChannelMode(string name, ChannelCovers mode)
     {
         if (name.Length == 0) return;
-        var l = ChannelsOff(); l.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
-        if (off) l.Add(name);
-        HostPrefs.Set("video.breakWatchOff", string.Join("|", l));
-        LogLine("break watch: " + name + (off ? " won't be covered" : " is covered again"));
+        var off = ChannelsOff(); off.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+        var sure = ChannelsSure(); sure.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+        if (mode == ChannelCovers.Off) off.Add(name); else if (mode == ChannelCovers.Sure) sure.Add(name);
+        HostPrefs.Set("video.breakWatchOff", string.Join("|", off));
+        HostPrefs.Set("video.breakWatchSure", string.Join("|", sure));
+        LogLine("break watch: " + name + (mode == ChannelCovers.Off ? " won't be covered" : mode == ChannelCovers.Sure ? " is covered in sure breaks only" : " is covered again"));
+    }
+
+    /// <summary>A channel whose covers the person keeps calling wrong drops to sure breaks only (2026-10-10, "disabling ad veils for live
+    /// channels if false positives exceed a certain threshold"). Prism only knows a cover was wrong when it is told, so the count is of
+    /// Not an ad presses on the channel in the last seven days: video.breakWatchAutoSure of them (3 unless set, 0 for never). It says so
+    /// on the status line; the channel's menu in Live and Watch settings put it back.</summary>
+    private void NotAdCounted(string name)
+    {
+        if (name.Length == 0) return;
+        var limit = (int)HostPrefs.GetDouble("video.breakWatchAutoSure", 3);
+        var nowS = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        // "<channel>=<unix seconds>" a press, the last week's kept
+        var kept = HostPrefs.GetString("video.breakWatchNotAd", "").Split('|', StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => x.LastIndexOf('=') > 0 && long.TryParse(x.Substring(x.LastIndexOf('=') + 1), out var t) && nowS - t < 7 * 86400).ToList();
+        kept.Add(name + "=" + nowS);
+        HostPrefs.Set("video.breakWatchNotAd", string.Join("|", kept));
+        if (limit <= 0 || ChannelMode(name) != ChannelCovers.On) return;
+        var n = kept.Count(x => string.Equals(x.Substring(0, x.LastIndexOf('=')), name, StringComparison.OrdinalIgnoreCase));
+        if (n < limit) return;
+        SetChannelMode(name, ChannelCovers.Sure);
+        LogLine("break watch: " + name + " said Not an ad " + n + " times in a week - sure breaks only from here");
+        SetPill("Prism" + Mid + name + " is now covered only in breaks YouTube TV marks, after " + n + " Not an ad presses this week. Right-click the channel in Live to change it");
     }
 
     private static string ModelPath(string channel) => Path.Combine(BreakWatchDir, channel + ".logo");

@@ -46,8 +46,12 @@ for w in os.listdir(bench):
         m = re.match(r"(\d{2})(\d{2})(\d{2})\d{3} \S+ edge \d (.+)", l)
         if m:
             t = ago(int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3)))
-            if FROM - 600 <= t <= NOW and m.group(4).strip(): marks.append((t, m.group(4).strip()))
-    chan[w] = sorted(marks)
+            if m.group(4).strip(): marks.append((t, m.group(4).strip()))
+    # the file runs on for days and names a line by its time of day alone: only its last lines are this hour's (an edge line comes about
+    # once a minute). Without this, yesterday's lines from the same hour sat among today's - a window on TNT was reported under the channel
+    # it had been on a day before (NFL Network at 02:00, Disney Channel at 09:00, 2026-10-10).
+    marks = marks[-80:]
+    chan[w] = sorted(x for x in marks if FROM - 600 <= x[0] <= NOW)
 
 
 def channel_of(w, t):

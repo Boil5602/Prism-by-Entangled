@@ -414,3 +414,52 @@ the detector's best (98-100% of ad time); six more hours of it teach the model n
 channel. What the stretch does show is where v4 is weakest on live sport: staying on after a break (358 of the 536 wrong seconds), and
 that the marks themselves miss breaks - seven in eight hours, all of them short ones between a show's segments. Marking time is better
 spent on channels the detector has never been trained on (Big Ten Network, Animal Planet, both recorded all day on 2026-10-09).
+
+## Repeats without labels: an ad's sound, learned from its own repeats (2026-10-10, a study; nothing deployed)
+
+The plan's step 5. An ad sounds the same every time it airs and a show does not, and every window's sound is already in the recordings
+as the page's meter gives it (`afp` lines, one 32-bit word per 50 ms, AdSounds.cs). `repeats.py` takes three days of five windows
+(19.4 million words, 270 hours), finds every 64-word block (3.2 s) that matches a block heard at another time (a quarter of the bits
+may differ, AdSounds' own test) and asks the marks what those seconds were. No frames are read; it runs in 40 seconds.
+
+Two things have to be kept out. A programme shown again (FX runs a film twice, NBC Sports its talk shows): matches that run on at one
+time offset for more than 150 s are dropped (2% of the matching blocks). And a show's own repeats (its theme, its stings): only a
+repeat heard on another programme, or on another channel, counts.
+
+| Seconds heard before (scored where a frame was kept, as the exams are) | Of 88,996 marked ad s | Of 214,361 marked show s | Share of them that are marked ads |
+|---|---|---|---|
+| forward in time, anywhere | 53.1% | 3.65% | 85.8% |
+| forward, on another programme or channel | 34.0% | 0.73% | 95.1% |
+| both ways (what three days would know of themselves), another programme | 50.3% | 1.17% | 94.7% |
+
+The show seconds are not all mistakes of the method: the longest runs sit on NFL Network and AMC in hours already known to hold
+unmarked ads, and inside the exams they are the first or last two seconds of a marked break, or a channel's promo.
+
+**The design, played forward.** Prism keeps the sound it hears; when a stretch turns out to repeat something heard on another programme
+or channel, and the repeat ends within an ad's length (125 s), both hearings are learned as an ad's sound; from then on a block that
+matches a learned stretch, and whose last 0.8 s matches by itself (so recognition stops when the ad stops), is a known ad, 3.2 s in.
+With the day and a half of recordings that lie before the exams, it knows 28-46% of the ad seconds of six exams (CNN: 3%), and of the
+exams' 35,636 show seconds it hears 10 (0.03%).
+
+| Seven exams, model v4, cover 0.80 / lift 0.60 | Ads covered | Show wrongly covered | Late / mid-break / early |
+|---|---|---|---|
+| as it is | 93.7% | 0.85% (302 s) | 457 / 182 / 105 |
+| the learned sound given to the model as "sound heard" (`HEARD=`) | 94.5% | 0.95% (339 s) | 427 / 120 / 105 |
+| ... and the model trained again with it (control, same features without it: 94.3% / 1.15%, 411 s) | 94.8% | 1.25% (445 s) | 420 / 85 / 107 |
+| a rule beside the model: a cover that is up stays while a learned ad plays (`HEARDRULE=1`) | 94.0% | 0.85% (303 s) | 457 / 159 / 92 |
+| **... and a learned ad starts a cover at its second second (`HEARDRULE=2`)** | **94.3%** | **0.85% (303 s)** | 416 / 166 / 92 |
+| the same rule with a library that has learned from all three days (not forward: an estimate of later) | 95.2% | 1.09% (388 s) | 311 / 213 / 35 |
+
+As an input to the model it buys ad time and pays in covers that stay on: the model reads "sound heard lately" as "still in the
+break" and holds on, and training with it does not cure that (the control shows a retrain on features made today is itself worse than
+v4: Comedy Central midday's wrong cover goes from 95 to 196 s, so v4's recipe is not reproduced by a whole-day replay and nothing here
+replaces v4). As a rule beside the model it is free: 0.6 points more ad time, the late starts down by 41 s, one second more wrong
+cover. The estimate of later says where it goes as the library fills: late starts down by a third (457 to 311 s). Its 86 added wrong
+seconds are almost all on Comedy Central and are promos the marks count as show - the Daily Show promo that opens a break (11:48:54,
+13:20:33: the marked break begins 13 s after it) and the promo squeezed beside a programme's credits (11:30:54, 12:30:54, 13:00:14,
+13:30:18). Whether those are break or show is a question for the marks, not for the sound.
+
+Not built in the host. What it would take: a rolling store of each window's words (about 7 MB a window a day), a repeat finder run
+every few minutes over the last of it, AdSounds' cap raised from 600 clips, the last-0.8-s test in `Heard`, and the rule. The
+recordings already hold every word, so a library can be made from them the day it is built. Also a tool as it stands: `--out` lists
+the heard-before runs inside time marked show, which is a list of unmarked breaks to look at (53 runs of 12 s or more on the two days).

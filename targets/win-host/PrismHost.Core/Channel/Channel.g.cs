@@ -237,6 +237,7 @@ public static class HostCalls
     public const string BootTimings = "bootTimings";
     public const string VideoResync = "videoResync";
     public const string VideoProgramEdges = "videoProgramEdges";
+    public const string AdBreakHold = "adBreakHold";
     public const string VideoPictureFrozen = "videoPictureFrozen";
     public const string VideoStartOver = "videoStartOver";
     public const string VideoNextEpisode = "videoNextEpisode";

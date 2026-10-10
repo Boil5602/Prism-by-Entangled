@@ -474,6 +474,24 @@ public sealed partial class MainWindow
             it.Click += (_, __) => _ = TuneIntoAsync(n, facet, id, url, name, service, logo);
             fly.Items.Add(it);
         }
+        // the channel's ad covers (2026-10-10, "a right click channel settings menu, for live stations, with the ability to disable the ad
+        // veils"): on, sure breaks only, off - on the channels the break watch covers, which are YouTube TV's
+        if (facet.StartsWith("youtube-tv", StringComparison.OrdinalIgnoreCase))
+        {
+            fly.Items.Add(new MenuFlyoutSeparator());
+            var mode = ChannelMode(name);
+            var covers = new MenuFlyoutSubItem { Text = "Ad covers on " + name + Mid + (mode == ChannelCovers.Off ? "Off" : mode == ChannelCovers.Sure ? "Sure breaks only" : "On") };
+            void Choice(string text, ChannelCovers m, string tip, string said)
+            {
+                var c = Radio(text, "channel-covers", mode == m, () => { SetChannelMode(name, m); SetPill("Prism" + Mid + name + ": " + said); });
+                ToolTipService.SetToolTip(c, tip);
+                covers.Items.Add(c);
+            }
+            Choice("On", ChannelCovers.On, "Prism covers every ad break it finds on " + name + ".", "ad breaks are covered");
+            Choice("Sure breaks only", ChannelCovers.Sure, "Prism covers only the breaks YouTube TV marks itself, and paid programmes. It won't cover the show by mistake, and it will miss the breaks YouTube TV doesn't mark.", "only the breaks YouTube TV marks are covered");
+            Choice("Off", ChannelCovers.Off, "Prism never covers " + name + ".", "ad breaks are not covered");
+            fly.Items.Add(covers);
+        }
         fly.ShowAt(RootGrid, new FlyoutShowOptions { Position = at, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
         LogLine("live menu: " + name + " at " + (int)at.X + "," + (int)at.Y);
     }

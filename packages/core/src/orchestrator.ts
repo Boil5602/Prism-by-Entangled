@@ -4547,6 +4547,9 @@ export class Orchestrator {
   videoChannelOf(tileId: string): { id: string; name: string } | null { return this.video.channelOf(tileId); }
   /** The shell's picture watch: a video window's picture stood still for this long while its player plays - healed like a frozen clock
    *  (a live channel's clock can keep counting over a frozen picture: FOX 8 sat on one ad frame for seven minutes, 2026-10-06 19:47). */
+  /** The shell's break watch knows when this window's break ends (a paid programme's half hour): its cover's backstop waits for that
+   *  end (IntermissionController.hold, B-364). False when the window is not behind a cover. */
+  adBreakHold(tileId: string, remainingSec: number): { ok: boolean } { return { ok: this.intermission.hold(tileId, remainingSec) }; }
   videoPictureFrozen(tileId: string, seconds: number): { ok: boolean; did: string } {
     if (!this.tile(tileId) || !this.video.isVideoTile(tileId)) return { ok: false, did: "not a video window" };
     if ((this.lastInteract.get(tileId) ?? 0) > Date.now() - 60_000) return { ok: false, did: "a person acted there" };

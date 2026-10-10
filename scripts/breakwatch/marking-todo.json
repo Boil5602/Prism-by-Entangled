@@ -1,8 +1,9 @@
 [
- {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w2", "name": "Big Ten Network", "from": "16:00:00", "to": "17:00:00", "blind": true, "why": "exam hour: a channel the detector has never seen, a live football game"},
- {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL", "name": "Animal Planet", "from": "12:00:00", "to": "13:00:00", "blind": true, "why": "exam hour: a channel the detector has never seen"},
- {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w3", "name": "NFL Network", "from": "05:30:00", "to": "06:30:00", "blind": true, "why": "exam hour: a game repeat shown in a smaller picture"},
+ {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w2", "name": "Big Ten Network", "from": "16:00:00", "to": "17:00:00", "blind": true, "why": "exam hour: the weakest channel but one by the live score (76% of its ad time covered), never trained on, a live football game"},
+ {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w3", "name": "NFL Network", "from": "05:30:00", "to": "06:30:00", "blind": true, "why": "exam hour: the weakest by the live score (65% covered live), a game repeat shown in a smaller picture"},
  {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w2", "name": "Big Ten Network", "from": "18:30:00", "to": "20:30:00", "suggest": true, "why": "for training: never trained on this channel (a volleyball match)"},
+ {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL", "name": "Animal Planet", "from": "12:00:00", "to": "13:00:00", "blind": true, "why": "exam hour: a channel the detector has never seen"},
+ {"day": "2026-10-10", "window": "youtube-tv-home-16x9-XL-w4", "name": "Food Network", "from": "06:00:00", "to": "07:00:00", "suggest": true, "why": "for training: seven short covers over the show while a promo banner sat on the logo (06:04-06:07), then the cover let go 24 s into the break"},
  {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL", "name": "Animal Planet", "from": "15:30:00", "to": "17:30:00", "suggest": true, "why": "for training: never trained on this channel"},
  {"day": "2026-10-08", "window": "youtube-tv-home-16x9-XL-w4", "name": "Food Network", "from": "16:00:00", "to": "18:00:00", "suggest": true, "why": "for training: the detector has never been trained on this channel"}
 ]

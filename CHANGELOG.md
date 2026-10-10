@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.27.2 - 2026-10-10 (alpha, 82bb24fb)
+
+The download is 17 MB smaller. Two Microsoft machine-learning libraries that came along with the Windows App SDK, and that Prism never used, are no longer included.
+
+- download: https://prism.entangled.world/windows/Prism-0.27.2-82bb24fb.zip
+- sha256: b359bef268a3b49bade5b43233fbb03d6ea29d105bbc4bb7fcbb16436dd98228
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.27.2
+
 ## 0.27.1 - 2026-10-09 (alpha, 57da6535)
 
 Profiles and Full screen are back in the Prism menu. The PRISM splash plays its animation over Remote Desktop and on PCs where Windows animations are turned off.

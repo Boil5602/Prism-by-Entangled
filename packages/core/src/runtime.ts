@@ -325,6 +325,9 @@ export interface PrismRuntimeApi {
   /** Sync JSON {ok, did}: the shell saw a window's picture stand still while its player plays (2026-10-06, "FOX 8, freezes should be detected and
    *  video reloaded"): the playback doctor opens it again (a channel tuned again), within its usual tries. */
   videoPictureFrozen(tileId: string, seconds: number): string;
+  /** Sync JSON {ok}: the shell's break watch knows this window's break runs for this many more seconds (a paid programme's half hour,
+   *  B-364); its cover's safety backstop waits for that end. Said again at each look; a shell that stops saying it gets the backstop. */
+  adBreakHold(tileId: string, remainingSec: number): string;
   /** Sync JSON {title, start, end} | null: the program a channel window is on, as its guide lists it (the break watch's program edges, 2026-10-06). */
   videoProgramEdges(tileId: string): string;
   /** Sync JSON {now, rowsCache, menuReady, lists:{app: ms}}: startup milestones in ms since this runtime began, null until reached. */
@@ -3507,6 +3510,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoProgramEdges(tileId) { try { return json(orchestrator.videoProgramEdges(String(tileId))); } catch (e) { report(e); return "null"; } },
+    adBreakHold(tileId, remainingSec) { try { return json(orchestrator.adBreakHold(String(tileId), Number(remainingSec))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoPictureFrozen(tileId, seconds) {
       try { return json(orchestrator.videoPictureFrozen(String(tileId), Number(seconds))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },

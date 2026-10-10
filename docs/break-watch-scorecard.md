@@ -69,3 +69,22 @@ replay of the kept recording (the live column is pulled down by restarts and by 
 
 Per channel at the latter: FX 86% / 0.6%, TLC 79% / 2.6%, USA 87% / 1.9%, TBS (baseball) 46% / 6.9%, HGTV 75% / 3.2%. A change
 ships only when this score improves.
+
+## A channel's covers: On, Sure breaks only, Off (2026-10-10)
+
+"A right click channel settings menu, for live stations, with the ability to disable the ad veils. And maybe something under settings
+for disabling ad veils for live channels if false positives exceed a certain threshold." - "I like your on, sure breaks, off idea."
+
+- **Where.** Right-click a YouTube TV channel in Live: under the windows it can go to, "Ad covers on <channel>" with the three choices.
+  Watch settings lists the channels that are not On (a chip each, pressed to put the channel back) and holds the threshold.
+- **On.** Every break the watch finds, as before.
+- **Sure breaks only.** The cover is up only for what does not guess: YouTube TV's own marked ad slot as it plays (and one known to be
+  coming while a cover is up), and a paid programme the guide or the screen names. The watch still reads the picture and learns on
+  that channel; when it finds a break it does not cover, host.log says so once. It will not cover the show by mistake, and it misses
+  every break YouTube TV does not mark.
+- **Off.** Never covered (the list the cover card's "Never cover <channel>" has always written, `video.breakWatchOff`).
+- **The threshold.** Prism only knows a cover was wrong when it is told, so the count is of Not an ad presses: three on one channel in
+  seven days (two, five or never, in Watch settings; `video.breakWatchAutoSure`) move that channel from On to Sure breaks only. The
+  status line says so when it happens, and the channel's menu or Watch settings put it back. It never moves a channel to Off.
+- **Kept** in host-prefs.json by channel name: `video.breakWatchOff`, `video.breakWatchSure`, the week's presses in
+  `video.breakWatchNotAd`. Code: `ChannelCovers`, `SetChannelMode`, `NotAdCounted` (MainWindow.BreakWatch.cs), `LiveMenu` (MainWindow.Live.cs).

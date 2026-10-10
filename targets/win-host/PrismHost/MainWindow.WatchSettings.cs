@@ -219,6 +219,41 @@ public sealed partial class MainWindow
         }
         DrawOff();
         body.Children.Add(offRow);
+        // ... and the ones set to sure breaks only (the channel's menu in Live, or three Not an ad presses in a week): each one here to cover in full again
+        var sureRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(28, 0, 0, 0) };
+        void DrawSure()
+        {
+            sureRow.Children.Clear();
+            var sure = ChannelsSure();
+            if (sure.Count == 0) { sureRow.Visibility = Visibility.Collapsed; return; }
+            sureRow.Visibility = Visibility.Visible;
+            sureRow.Children.Add(new TextBlock { Text = "Sure breaks only:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
+            foreach (var ch in sure)
+            {
+                var chip = Chip(new TextBlock { Text = ch + "  \u00D7", FontSize = 12, Foreground = HubInk }, false);
+                ToolTipService.SetToolTip(chip, "Cover every break Prism finds on " + ch + " again");
+                chip.Click += (_, __) => { SetChannelMode(ch, ChannelCovers.On); DrawSure(); };
+                sureRow.Children.Add(chip);
+            }
+        }
+        DrawSure();
+        body.Children.Add(sureRow);
+        // how many Not an ad presses in a week put a channel on sure breaks only (BreakWatch.NotAdCounted)
+        var autoRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(28, 2, 0, 0) };
+        autoRow.Children.Add(new TextBlock { Text = "When you keep pressing Not an ad on a channel:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
+        var autoBox = new ComboBox { FontSize = 13, MinWidth = 300 };
+        var autoNow = (int)HostPrefs.GetDouble("video.breakWatchAutoSure", 3);
+        foreach (var (label, n) in new[] { ("Sure breaks only after 2 presses in a week", 2), ("Sure breaks only after 3 presses in a week", 3), ("Sure breaks only after 5 presses in a week", 5), ("Keep covering every break", 0) })
+        {
+            var item = new ComboBoxItem { Content = label, Tag = n };
+            autoBox.Items.Add(item);
+            if (n == autoNow) autoBox.SelectedItem = item;
+        }
+        if (autoBox.SelectedItem is null) autoBox.SelectedIndex = 1;
+        autoBox.SelectionChanged += (_, __) => { if (autoBox.SelectedItem is ComboBoxItem { Tag: int n }) { HostPrefs.Set("video.breakWatchAutoSure", (double)n); LogLine("break watch: sure breaks only after " + n + " Not an ad presses in a week (0 never)"); } };
+        ToolTipService.SetToolTip(autoBox, "Prism only knows a cover was wrong when you press Not an ad. After this many presses on one channel in a week, it covers that channel only where YouTube TV marks the break.");
+        autoRow.Children.Add(autoBox);
+        body.Children.Add(autoRow);
 
         // the grid: one row per service
         body.Children.Add(new TextBlock { Text = "Your services", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 12, 0, 0) });

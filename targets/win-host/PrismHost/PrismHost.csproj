@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.27.2</Version>
+    <Version>0.28.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

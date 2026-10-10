@@ -326,6 +326,15 @@ if (args.Length >= 4 && args[0] == "bench")
         items = items.OrderBy(x => x.at, StringComparer.Ordinal).ThenBy(x => x.frame is null ? 0 : 1).ToList();   // stable: equal times keep their order
         BreakModel? m = chan is null ? null : BreakModel.Load(Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), chan + ".logo"));
         double last = 0; var name = ""; var sound = new List<uint>();
+        // HEARD=<folder>: the seconds at which this window's sound was a learned ad's (repeats.py --heard: a Prism that learns an ad's
+        // sound from its repeats, played forward), one a line in <folder>/<window>.heard - counted as AdSounds hearing it
+        var heardAt = new HashSet<int>();
+        if (Environment.GetEnvironmentVariable("HEARD") is { Length: > 0 } hd && File.Exists(Path.Combine(hd, win + ".heard")))
+            foreach (var hl in File.ReadLines(Path.Combine(hd, win + ".heard"))) if (int.TryParse(hl, out var hs)) heardAt.Add(hs);
+        // HEARDRULE=1|2 (a trial, 2026-10-10): those seconds are not given to the model as sound heard; they act as a rule beside it -
+        // 1: a cover that is up, or was within twenty seconds, stays while a learned ad's sound plays; 2: that, and the sound starts a
+        // cover by itself at its second second running
+        var heardRule = int.TryParse(Environment.GetEnvironmentVariable("HEARDRULE"), out var hr_) ? hr_ : 0; var heardRun = 0;
         var lst = learned?.NewState();
         var lshown = false; var lshownAt = -999.0; var lshown0 = false;
         var plainRun = 0; var plainLift = int.TryParse(Environment.GetEnvironmentVariable("PLAINLIFT"), out var pl_) ? pl_ : 0;
@@ -351,7 +360,7 @@ if (args.Length >= 4 && args[0] == "bench")
                     var hex = evt[4..].Trim();
                     for (var k = 0; k + 8 <= hex.Length; k += 8) if (uint.TryParse(hex.AsSpan(k, 8), System.Globalization.NumberStyles.HexNumber, null, out var w)) sound.Add(w);
                     if (sound.Count > 400) sound.RemoveRange(0, sound.Count - 400);
-                    if (snd.Heard(sound)) m.SoundSeen(t);
+                    if (snd.Heard(sound) || (heardRule == 0 && heardAt.Contains((int)t))) m.SoundSeen(t);
                 }
                 continue;
             }
@@ -380,6 +389,9 @@ if (args.Length >= 4 && args[0] == "bench")
                 plainRun = up2 && m.PlainShow(t) ? plainRun + 1 : 0;
                 if (plainLift > 0 && up2 && plainRun >= plainLift) { up2 = false; lst.Up = false; plainRun = 0; }
                 var shown2 = up2 || m.CueOnAt(t) || (Environment.GetEnvironmentVariable("LINFO") == "1" && m.InfomercialAt(t)) || (Environment.GetEnvironmentVariable("ADLINE") != "0" && t - lshownAt <= 20 && m.AdLineAt(t)) || (Environment.GetEnvironmentVariable("CUECOMING") != "0" && t - lshownAt <= 20 && m.CueComingAt(t));
+                var heardNow = heardRule > 0 && (heardAt.Contains((int)t) || heardAt.Contains((int)t - 1));
+                heardRun = heardNow ? heardRun + 1 : 0;
+                if (heardNow && (t - lshownAt <= 20 || (heardRule == 2 && heardRun >= 2))) shown2 = true;
                 // a paid programme's own card covers to the end of its half hour (BreakModel.PaidCard; PAIDCARD=0 replays without it)
                 var tod = int.Parse(at[..2]) * 3600 + int.Parse(at[2..4]) * 60 + int.Parse(at[4..6]);
                 if (m.PaidCardAt > paidSeen) { paidSeen = m.PaidCardAt; var day0 = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero); paidUntil = (BreakModel.PaidSlotEnd(day0.AddSeconds(tod), m.PaidCardFollowing) - day0).TotalSeconds; }
