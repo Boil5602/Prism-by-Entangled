@@ -56,8 +56,11 @@ describe("animated wordmark (docs/features/animated-wordmark.md)", () => {
   });
 
   it("reduced motion: the CSS rule is there and the script refuses to play", () => {
-    expect(wordmarkCss()).toContain("@media (prefers-reduced-motion: reduce){.pw.pw-play{animation:none}}");
+    expect(wordmarkCss()).toContain("@media (prefers-reduced-motion: reduce){.pw.pw-play:not(.pw-full){animation:none}}");
     expect(wordmarkScript()).toContain("prefers-reduced-motion: reduce");
+    // a surface with its own full-motion rule (the PC's splash) marks the word pw-full, and only then does it play
+    expect(wordmarkScript()).toContain("el.classList.contains('pw-full')||!(window.matchMedia");
+    expect(wordmarkHtml({ autoplay: true })).not.toContain("pw-full");
     expect(wordmarkScript()).toContain("'registerProperty' in CSS");   // no @property: static white, no polyfill
   });
 

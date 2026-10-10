@@ -9,8 +9,10 @@
  * The copies spread with k = -1.5, -0.5, 0.5, 1.5 for four bands (the spec's six would be -2.5 .. 2.5): symmetric about the
  * white copy, one step apart. No hex value is written here but the bands'.
  *
- * Reduced motion: the CSS honours prefers-reduced-motion (the mark stays white and still). The PC's own full-motion rule
- * (MainWindow.Rail.cs) is about the visualizations and does not reach this page.
+ * Reduced motion: the CSS honours prefers-reduced-motion (the mark stays white and still), unless the surface has put the
+ * class pw-full on the mark. Only the PC's splash does, under its own Full motion rule (MainWindow.BootCover.cs, 2026-10-09,
+ * "why isn't my splash screen animating??": over Remote Desktop Windows turns animations off and the word stood still). The
+ * phone's page never sets it.
  */
 import { PRISM_BANDS } from "./visualization.js";
 
@@ -82,19 +84,19 @@ export function wordmarkCss(): string {
     `.pw-w{color:white}`,
     `.pw.pw-play{animation:pw-run ${r.ms}ms ${r.easing} 1}`,
     `@keyframes pw-run{${stops}}`,
-    `@media (prefers-reduced-motion: reduce){.pw.pw-play{animation:none}}`,
+    `@media (prefers-reduced-motion: reduce){.pw.pw-play:not(.pw-full){animation:none}}`,
   ].join("\n");
 }
 
 /**
  * The script: window.PrismWordmark.play(el) runs the mark once (false when within the guard, when the page prefers reduced
- * motion, or when the browser has no registered custom properties - then the mark is static white); wire(el) adds hover,
+ * motion and the mark is not pw-full, or when the browser has no registered custom properties - then the mark is static white); wire(el) adds hover,
  * tap and Enter/Space; marks with pw-auto play once after the first paint.
  */
 export function wordmarkScript(): string {
   return `(function(){var last=0;
-function can(){return typeof CSS!=='undefined'&&'registerProperty' in CSS&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);}
-function play(el){if(!el||!can())return false;var now=Date.now();if(now-last<${WORDMARK_GUARD_MS})return false;last=now;el.classList.remove('pw-play');void el.offsetWidth;el.classList.add('pw-play');setTimeout(function(){el.classList.remove('pw-play');},${WORDMARK_RUN.ms + 100});return true;}
+function can(el){return typeof CSS!=='undefined'&&'registerProperty' in CSS&&(el.classList.contains('pw-full')||!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches));}
+function play(el){if(!el||!can(el))return false;var now=Date.now();if(now-last<${WORDMARK_GUARD_MS})return false;last=now;el.classList.remove('pw-play');void el.offsetWidth;el.classList.add('pw-play');setTimeout(function(){el.classList.remove('pw-play');},${WORDMARK_RUN.ms + 100});return true;}
 function wire(el){if(!el||el.__pw)return;el.__pw=true;el.addEventListener('pointerenter',function(){play(el);});el.addEventListener('click',function(){play(el);});el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();play(el);}});}
 function mount(){var all=document.querySelectorAll('.pw');for(var i=0;i<all.length;i++){wire(all[i]);}var auto=document.querySelector('.pw-auto');if(auto){requestAnimationFrame(function(){requestAnimationFrame(function(){play(auto);});});}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();

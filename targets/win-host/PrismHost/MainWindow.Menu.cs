@@ -119,7 +119,7 @@ public sealed partial class MainWindow
         {
             var people = new MenuFlyoutSubItem { Text = "Profiles", Icon = new FontIcon { Glyph = "\uE716" } };
             foreach (var it in await BuildPresetItemsAsync()) people.Items.Add(it);
-            if (people.Items.Count > 0) menu.Items.Add(people);
+            if (people.Items.Count > 0) { menu.Items.Add(people); keep.Add(people); }   // in the short menu too: the sets are for both players, and only Watch has its own way in
         }
         catch (Exception e) { LogLine("profiles menu: " + e.Message); }
         // VP-3 (2026-09-19): the Video player as a universal player - Watch: the service on the screen with its verbs, "Watch on"
@@ -206,11 +206,12 @@ public sealed partial class MainWindow
 
         // --- window
         var fsOn = _wallFs || _screenFsTile is not null;
-        menu.Items.Add(Item(fsOn ? "Exit Full Screen" : "Full-Screen Wall", fsOn ? "" : "", "F11", () =>
+        var fsItem = Item(fsOn ? "Leave full screen" : "Full screen", fsOn ? "" : "", "F11", () =>
         {
             if (_screenFsTile is { } t) ToggleScreenFullscreen(t);
             else ToggleWallFullscreen();
-        }));
+        });
+        menu.Items.Add(fsItem); keep.Add(fsItem);   // in the short menu too: with a mouse or a remote and no keyboard there is no other way to it
         menu.Items.Add(Item("Wall shot", "", "Ctrl+Shift+S", () => _ = CaptureWallShotAsync()));
         menu.Items.Add(Item("Open wall shots folder", "", null, () =>
             OpenPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Prism"), ensureDir: true)));
@@ -240,8 +241,9 @@ public sealed partial class MainWindow
         { var it = Item("Quit Prism", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass
 
         // The short menu (2026-10-09, "We need to hide some menus we're not using right now in a hidden device mode ... KEEP 7-10, and
-        // 25-28. The rest in Hidden mode"): the two players, Set up services, Pair a phone, the support switch, Updates, About and Quit.
-        // Everything else - the builder's five nouns, Now playing, Profiles, Watch, page tools, adding and arranging, the wall's own
+        // 25-28. The rest in Hidden mode"): the two players, Set up services, Pair a phone, the support switch, Updates, About and Quit,
+        // and Profiles (the same evening: "are these profiles across players? Yeah probably should leave those visible") and Full screen.
+        // Everything else - the builder's five nouns, Now playing, Watch, page tools, adding and arranging, the wall's own
         // verbs, veils, shots and diagnostics - is in the full menu only (FullMenu: five presses on the first line of About Prism,
         // kept across restarts). The keys those items name still work.
         if (!FullMenu)

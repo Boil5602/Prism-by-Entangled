@@ -74,10 +74,15 @@ public sealed partial class MainWindow
             // the page is the one string; a link out of it goes nowhere (there is none)
             core.NavigationStarting += (_, e) => { if (!e.Uri.StartsWith("data:", StringComparison.Ordinal) && !e.Uri.StartsWith("about:", StringComparison.Ordinal)) e.Cancel = true; };
             core.NewWindowRequested += (_, e) => { e.Handled = true; };
-            core.NavigationCompleted += (_, e) =>
+            core.NavigationCompleted += (sender, e) =>
             {
                 if (!e.IsSuccess || !ReferenceEquals(_bootCover, cover)) { SplashDone(e.IsSuccess ? "cover gone before the page" : "page failed " + e.WebErrorStatus); return; }
                 view.Opacity = 1; mark.Visibility = Visibility.Collapsed;
+                // the word plays whatever Windows says about animations, under the PC's own Full motion rule (2026-10-09, "why isn't my
+                // splash screen animating??": Remote Desktop turns animations off, the page saw reduced motion and stood still). Where
+                // it has already played, the page's own two-second guard makes this nothing.
+                if (PrismHost.Surfaces.Visualization.VisualizationHost.ForceFullMotion)
+                    _ = PlaySplashWordAsync(core);
                 LogLine("boot cover: wordmark up at +" + (DateTime.Now - started).TotalSeconds.ToString("0.0") + " s");
                 // the run: two frames to start, 1.5 s to play (docs/features/animated-wordmark.md), then the cover may go
                 var run = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1800) };
@@ -87,6 +92,17 @@ public sealed partial class MainWindow
             core.NavigateToString(html);
         }
         catch (Exception e) { LogLine("boot cover: wordmark " + e.Message); try { cover.Children.Remove(view); view.Close(); } catch { } SplashDone("failed"); }
+    }
+
+    /// <summary>Full motion: the splash's word is marked pw-full and played; host.log says whether the page had been asked for reduced motion and what ran.</summary>
+    private async Task PlaySplashWordAsync(Microsoft.Web.WebView2.Core.CoreWebView2 core)
+    {
+        try
+        {
+            var r = await core.ExecuteScriptAsync("(function(){var e=document.querySelector('.pw');if(!e||!window.PrismWordmark)return 'no word';var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;e.classList.add('pw-full');var played=PrismWordmark.play(e);return (reduced?'reduced motion asked, ':'')+(played?'played':'already playing')+', animation '+getComputedStyle(e).animationName;})()");
+            LogLine("boot cover: full motion, " + r.Trim('"'));
+        }
+        catch (Exception e) { LogLine("boot cover: full motion " + e.Message); }
     }
 
     /// <summary>The splash's run is over, or never came: the cover goes if something already asked it to.</summary>

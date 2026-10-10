@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.27.0 - 2026-10-09 (alpha, 21416c1a)
+
+YouTube TV ad covers are now decided by a detector trained on marked recordings of ten channels. In our tests on hours it had never seen, it covered 93% of ad time and wrongly covered under 1% of the show. Covers start sooner and follow YouTube TV's own ad markers. A paid programme that says so on the screen is covered for its half hour, a phone number standing on the screen keeps a cover up, and NFL Network's breaks in a smaller picture are covered. The Prism menu is shorter: the two players, Set up services, Pair a phone, Remote Desktop Support, Updates, About and Quit. The Live tab answers at once, keeps its place while it loads and has a Top button. A title you pick plays on a service you already have rather than one that sells it. Not an ad is on the intermission menu, and its buttons are easier to read. Linking a TMDB account finishes when you press I approved it, and the Playlists tab says what it needs.
+
+- download: https://prism.entangled.world/windows/Prism-0.27.0-21416c1a.zip
+- sha256: 6a08befe6e1864fe805f66d3adf4abed1fd1f1571ffb0195190df8565e536736
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.27.0
+
 ## 0.26.28 - 2026-10-07 (alpha, 0ffe6c09)
 
 YouTube TV break covers are more accurate, including live sports. Prism reads a game's commentary in the captions as the show, ignores a stadium's sponsor signs, and covers ads on channels with no logo by their own words. Ads Prism has seen before are recognised by their pictures in order. The big window gets the PC's attention first. In the Live guide a click plays a channel, and you can drag it onto a window. Cancel while a video starts takes the window back to what it was playing. YouTube TV windows show Prism's triangle while they load. An update button appears beside the report flag when an update is waiting. Playlists show only once a TMDB account is linked. Video player windows come back after a trip to the Music player. Swap shows each window's number large in its middle.

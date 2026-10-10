@@ -80,7 +80,10 @@ The spec above is kept as written. What the build does where the project differs
   moment as launch on the phone and is not played a second time. Profile switch happens on the PC, in XAML, and has no web
   mark to play yet.
 - **Reduced motion.** The page honours prefers-reduced-motion; the script also refuses to play then. The PC's own
-  "Full motion" rule (MainWindow.Rail.cs) is about the visualizations and does not reach the phone.
+  "Full motion" rule (MainWindow.Rail.cs) does not reach the phone. It does reach the PC's splash (2026-10-09, "why isn't
+  my splash screen animating??"): over Remote Desktop Windows turns animations off, so the splash's page saw reduced motion
+  and the word stood still. With Full motion on (the default) the host marks the splash's word `pw-full` and plays it; with
+  Full motion off the splash follows Windows.
 - **Typeface.** None is defined for a wordmark. The mark uses the page's display face (system-ui on the phone).
 - **Build.** `npm run build` then `npm run wordmark:generate` in packages/core; the host's csproj links the file when it exists
   and the page keeps its plain name when it does not.
