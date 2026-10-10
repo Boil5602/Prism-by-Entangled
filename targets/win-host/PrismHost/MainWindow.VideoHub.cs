@@ -1001,6 +1001,10 @@ public sealed partial class MainWindow
 
     /// <summary>The services' rows shown or hidden in place on the Watch page now up (null where there are none).</summary>
     private Action? _suggToggle;
+    /// <summary>The Watch page scrolled down to the services' rows (the arrow beside the Service suggestions chip); null where there are none.</summary>
+    private Action? _suggJump;
+    /// <summary>Core has been told the switch this run (it reads each service's home page for its rows while the switch is on).</summary>
+    private bool _suggTold;
     /// <summary>The Watch page's now-playing line in its head: set in place when the screens are cleared (no page redraw).</summary>
     private StackPanel? _hubHeadLine;
     private bool SuggestionsOn
@@ -1014,7 +1018,7 @@ public sealed partial class MainWindow
     {
         // whether playlists are usable (a TMDB account linked) before the tabs are drawn; a page left on Playlists without one opens on Watch
         await PlaylistsActiveAsync();
-        if (_hubTab == "playlists" && !_playlistsActive) _hubTab = "watch";
+        if (_hubTab == "playlists" && !_playlistsTab) _hubTab = "watch";
         JsonObject? menu = null; JsonArray? vs = null;
         try
         {
@@ -1104,7 +1108,7 @@ public sealed partial class MainWindow
         {
             // playlists are the TMDB account's lists: no tab until one is linked (2026-10-07, "Why does the playlists tab show when TMDB isnt
             // configured? ... would prefer they dont show up if TMDB isnt configured")
-            if (tabId == "playlists" && !_playlistsActive) continue;
+            if (tabId == "playlists" && !_playlistsTab) continue;
             var on = _hubTab == tabId;
             var tab = new Button
             {
@@ -1163,15 +1167,27 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(suggestions, "Each service's own rows (\"Netflix suggests…\"). Off by default: Prism ranks nothing and recommends nothing beyond your own lists and what you watched. On, every row is labeled with the service it came from.");
         // in place (2026-09-25, "why does the whole page have to refresh? Should be able to keep the top 7-8 rows without needing any refresh"): the
         // services' rows are one panel at the bottom, shown or hidden; the page is drawn again only where there is no such panel
+        // straight to the services' rows (2026-10-08, "a button next to the Service suggestions chip that jumps to the suggestions list below
+        // Services"): they sit under every other row, a long way down. Shown only while the switch is on
+        var suggJump = Chip(new FontIcon { Glyph = "\uE74B", FontSize = 14 }, false);
+        ToolTipService.SetToolTip(suggJump, "Jump to the service suggestions, below Services.");
+        suggJump.Margin = new Thickness(8, 0, 0, 0);
+        suggJump.Visibility = SuggestionsOn && _hubTab == "watch" ? Visibility.Visible : Visibility.Collapsed;
+        suggJump.Click += (_, __) => _suggJump?.Invoke();
+        // core reads each service's home page for its rows while the switch is on (hidden pages, every few hours): told once a run, and at every change
+        if (!_suggTold) { _suggTold = true; _ = ModelCallAsync("videoSetSuggestions", SuggestionsOn); }
         suggestions.Click += (_, __) =>
         {
             SuggestionsOn = !SuggestionsOn;
+            _ = ModelCallAsync("videoSetSuggestions", SuggestionsOn);
             if (_suggToggle is not { } toggle) { _ = ShowVideoHubAsync(); return; }
             toggle();
+            suggJump.Visibility = SuggestionsOn && _hubTab == "watch" ? Visibility.Visible : Visibility.Collapsed;
             if (suggestions.Content is TextBlock st) { st.Text = SuggestionsOn ? "Service suggestions: on" : "Service suggestions: off"; st.Foreground = SuggestionsOn ? HubAmber : HubDim; }
             suggestions.Background = SuggestionsOn ? HubChipOn : HubChip;
         };
         headRight.Children.Add(suggestions);
+        headRight.Children.Add(suggJump);
         var gear = Chip(new FontIcon { Glyph = "\uE713", FontSize = 14 }, false);
         ToolTipService.SetToolTip(gear, "Watch settings: the TMDB key, background updates.");
         gear.Margin = new Thickness(8, 0, 0, 0);
@@ -1222,7 +1238,7 @@ public sealed partial class MainWindow
 
         // ---- the five rows (§2), then the labeled suggestions when on
         var rows = new StackPanel { Spacing = 18, Margin = new Thickness(0, 14, 0, 0) };
-        _suggToggle = null;
+        _suggToggle = null; _suggJump = null;
         Button? first = null;
         void Cards(string head, IEnumerable<JsonObject> cards, bool badge, SolidColorBrush ink, string? live = null)
         {
@@ -1289,6 +1305,11 @@ public sealed partial class MainWindow
         // a service's own rows (2026-10-05, "I would think we'd place followed content somewhere specific, subscribed content somewhere specific"):
         // what the account lists as the person's own - Twitch's Followed channels and their latest videos - a row each, named for the service,
         // always drawn (a suggestion row is the service's pick; these are the person's)
+        // ... under Services, with the services' own picks (2026-10-09, "not sure why service suggestions are now showing immediately under
+        // My List on Watch. Previously those all went to the bottom UNDER the services": YouTube TV's New in your library, Most watched and
+        // Scheduled recordings had joined Twitch's rows here and read as a service's suggestions, three rows deep above everything else)
+        void DrawOwnRows()
+        {
         if (menu["ownRows"] is JsonArray ownRows)
             foreach (var sv in ownRows.OfType<JsonObject>())
             {
@@ -1314,6 +1335,7 @@ public sealed partial class MainWindow
                     rows.Children.Add(CardRow(cards, false, now, ref first));
                 }
             }
+        }
         // what the person owns lives on the Library tab (2026-09-22): a line here says how much, and takes the person there
         if (menu["owned"] is JsonArray ownedCards && ownedCards.Count > 0)
         {
@@ -1483,6 +1505,7 @@ public sealed partial class MainWindow
             first ??= b;
         }
         rows.Children.Add(Carousel(posters));
+        DrawOwnRows();   // each service's rows of the person's own things: under Services, above its suggestions
         // the services' own rows, only when the household asked, each labeled by its source
         if (menu["suggestions"] is JsonArray sugg)
         {
@@ -1495,9 +1518,17 @@ public sealed partial class MainWindow
                 var at = rows.Children.Count;
                 SuggestionRows(sugg);
                 while (rows.Children.Count > at) { var el = rows.Children[at]; rows.Children.RemoveAt(at); suggPanel.Children.Add(el); }
+                // none kept yet (the switch just went on, or a first run): said in ink, so the jump lands on words and not on nothing
+                if (suggPanel.Children.Count == 0) suggPanel.Children.Add(new TextBlock { Text = "No service suggestions yet. Prism reads each service's home page in the background, so they'll be here in a few minutes.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
             }
             if (SuggestionsOn) FillSuggestions();
             _suggToggle = () => { if (SuggestionsOn) FillSuggestions(); suggPanel.Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed; };
+            // the page moved so the services' rows start at its top (the rows panel is the scroller's content, so the panel's place in it is the offset)
+            _suggJump = () =>
+            {
+                if (!SuggestionsOn || _hubScroller is not { } hs) return;
+                try { hs.UpdateLayout(); var y = suggPanel.TransformToVisual(rows).TransformPoint(new Windows.Foundation.Point(0, 0)).Y; hs.ChangeView(null, Math.Max(0, y - 8), null, false); } catch { }
+            };
         }
         void SuggestionRows(JsonArray sugg)
         {

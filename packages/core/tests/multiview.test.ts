@@ -559,6 +559,34 @@ describe("multiview", () => {
     expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix"]);
   });
 
+  it("a channel window that goes quiet is tuned once more before it is closed (2026-10-09, \"What happened to window 5?\")", async () => {
+    const { rt, ops } = await setup(undefined, { videoTune: "/*tune*/" });
+    rt.videoMultiview("on");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");   // Netflix big; Hulu's window small
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("target", "1");
+    expect(JSON.parse(rt.videoTune("hu", "cbs-news", "https://www.hulu.com/live/cbs-news", "CBS News"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    const hulu = state(rt).windows.find((w) => w.app === "hulu")!.tile;
+    rt.event(JSON.stringify({ type: "playback", id: hulu, playing: true }));
+    rt.event(JSON.stringify({ type: "now-playing", id: hulu, info: { playing: true, title: "CBS News", artist: "CBS News", video: { kind: "live", id: "cbs-news", title: "CBS News" } } }));
+    await vi.advanceTimersByTimeAsync(70_000);   // past the pick's clock, playing
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    // the channel goes quiet: nothing named, nothing playing
+    rt.event(JSON.stringify({ type: "playback", id: hulu, playing: false }));
+    rt.event(JSON.stringify({ type: "now-playing", id: hulu, info: null }));
+    ops.length = 0;
+    await vi.advanceTimersByTimeAsync(55_000);
+    // not closed: tuned again (the adapter's tune is called on the page)
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    expect(ops.some((o) => o.op === "inject" && o.id === hulu && String(o.js ?? "").includes("__prismVideoTune"))).toBe(true);
+    // the tune does not take either: the window is given up, once, and no second tune is tried
+    ops.length = 0;
+    await vi.advanceTimersByTimeAsync(130_000);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix"]);
+    expect(ops.filter((o) => o.op === "inject" && o.id === hulu && String(o.js ?? "").includes("__prismVideoTune")).length).toBe(0);
+  });
+
   it("a second window of a service leaves the first one alone: not closed, not opened again (2026-09-25, Apple TV)", async () => {
     const { rt, ops } = await setup();
     rt.videoMultiview("on");

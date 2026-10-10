@@ -15,6 +15,7 @@
  * the scripts above. The library and the resume point persist under video:* keys of the store (§10: read, never wiped).
  */
 import type { AdapterSpec } from "./adapters.js";
+import { normalizeTrackText } from "./music-lookup.js";
 import { isUpcomingLine } from "./live-guide.js";
 import type { NowPlaying, VideoChannel, VideoContext, VideoItem, VideoLibrary, VideoProfiles } from "./types.js";
 import { noteLog, noteSeen, orderMerged, orderByService, orderContinueByTitle, type RowOrders, type FirstSeen, type MenuCard, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, isAwardBadge, foldSameTitle } from "./menu-order.js";
@@ -457,6 +458,21 @@ export class VideoController {
     const merged = { continue: contNow, list: lib.list.length || (settled && !lib.continueOnly) ? this.screenList(app, lib.list) : have?.list ?? [], shelves: have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), owned: now?.owned ?? have?.owned ?? [], ownedMissed: now?.ownedMissed ?? have?.ownedMissed ?? {} };
     this.libraries.set(app, merged);
     this.persist(app, "library", merged);
+    return true;
+  }
+  /**
+   * The service's own rows (2026-10-08, "only Paramount+ shows suggestions"): a hidden surface on the service's home page reports its
+   * rows, and the shelves alone are kept from it. A home page shows only the first few of Continue Watching and My List, so those stay
+   * their own pages' word (keepListFrom). The rows had been kept only while a player happened to stand on a service's home page.
+   */
+  keepShelvesFrom(app: string, info: NowPlaying | null): boolean {
+    const lib = info?.videoLibrary && typeof info.videoLibrary === "object" ? cleanLibrary(info.videoLibrary) : null;
+    if (!lib || !lib.shelves.length) return false;
+    void this.loadApp(app);
+    const have = this.libraries.get(app);
+    const kept = { ...(have ?? { continue: [], list: [] }), shelves: lib.shelves };
+    this.libraries.set(app, kept);
+    this.persist(app, "library", kept);
     return true;
   }
   /**
@@ -1361,14 +1377,18 @@ export class VideoController {
    * program's edge - credits, a film's opening, its rating card): {title, start, end} in ms, and the previous program's end when it is the
    * same moment. Null when the window plays no guided channel.
    */
-  programEdges(tileId: string, at = Date.now()): { channel: string; title: string; start: number; end: number | null } | null {
-    // the channel the window was tuned to (a tune or a restart's), else its hint while it names no title
+  /** The channel a window is on: the one it was tuned to (a tune or a restart's), else its hint while it names no title, else the one
+   *  its page itself names (YouTube TV's player gives its channel as the now-playing artist: a window brought back as a watch address
+   *  after a restart keeps no tune). Null for a window on a title. */
+  channelOf(tileId: string): { id: string; name: string } | null {
     const hint = this.hints.get(tileId);
-    // ... or the channel the page itself names (YouTube TV's player gives its channel as the now-playing artist: a window brought back as a
-    // watch address after a restart keeps no tune)
     const seen = this.lastSeen.get(tileId)?.info;
     const named = seen?.artist && seen.artist === seen.title ? { id: seen.artist, name: seen.artist } : null;
-    const tuned = this.tunedChannel.get(tileId) ?? (hint && !hint.url ? { id: hint.id, name: hint.name } : null) ?? named;
+    return this.tunedChannel.get(tileId) ?? (hint && !hint.url ? { id: hint.id, name: hint.name } : null) ?? named;
+  }
+  programEdges(tileId: string, at = Date.now()): { channel: string; title: string; start: number; end: number | null } | null {
+    // the channel the window was tuned to (a tune or a restart's), else its hint while it names no title
+    const tuned = this.channelOf(tileId);
     if (!tuned) return null;
     const id = tuned.id.replace(/^live:/i, "");
     const ch = (this.live.get(this.appKey(tileId)) ?? []).find((c) => sameChannel(c.id, id) || sameChannel(c.name, tuned.name));
@@ -1680,3 +1700,30 @@ export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: Video
 
 /** One of a service's own subtitle or audio tracks as its player lists them (adapter videoTracks). */
 export interface VideoTrack { id: string; name: string; selected: boolean }
+
+/**
+ * The services' My List titles that are not on the TMDB watchlist yet: what the Watch page offers to copy (2026-10-09, "it still says 4
+ * titles weren't added to my lists but gives no indicator which titles or which service(s)"). A service that says what a title is (a
+ * film, a series) is matched by name and kind; one that does not (Netflix's list gives "title") is matched by name alone - counted as
+ * a series against the watchlist's films, four Netflix films stayed "not added" for good while the copy itself found all four there.
+ * Each title once, with the service that lists it, so the page can say which.
+ */
+export function watchlistMissing(
+  list: ReadonlyArray<{ service?: string; app?: string; item: { title: string; kind?: string } }>,
+  cards: ReadonlyArray<{ title: string; kind: string }>,
+): Array<{ title: string; service: string }> {
+  const kindOf = (k?: string): "movie" | "tv" | "" => (k === "movie" ? "movie" : k === "series" || k === "tv" || k === "show" ? "tv" : "");
+  const byKind = new Set(cards.map((c) => normalizeTrackText(c.title) + "|" + (c.kind === "movie" ? "movie" : "tv")));
+  const byName = new Set(cards.map((c) => normalizeTrackText(c.title)));
+  const seen = new Set<string>();
+  const out: Array<{ title: string; service: string }> = [];
+  for (const c of list) {
+    const name = normalizeTrackText(c.item.title); const kind = kindOf(c.item.kind);
+    const key = name + "|" + kind;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (kind ? byKind.has(key) : byName.has(name)) continue;
+    out.push({ title: c.item.title, service: c.service ?? c.app ?? "" });
+  }
+  return out;
+}

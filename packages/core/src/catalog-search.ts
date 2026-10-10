@@ -119,6 +119,16 @@ export function offerLabel(kinds: readonly OfferKind[]): string {
   return "";
 }
 
+/**
+ * What a household reaches for first among the services that carry a title: one it owns it on, then one whose subscription includes
+ * it, then free, then free with ads; a service that would sell or rent it comes last (2026-10-09, "Can we make it default to a service
+ * you have rather than a buy item?": Star Trek: Strange New Worlds dragged to a window opened Apple TV's page, where it is for sale,
+ * with Paramount+ - where the household watches it - listed after it. The services had stood in the household's own order.)
+ */
+export function offerRank(label: string): number {
+  return label === "Owned" ? 0 : label === "Subscription" ? 1 : label === "Free" ? 2 : label === "Free with ads" ? 3 : 4;
+}
+
 /** TMDB's watch/providers answer for one region, reduced to provider ids by offer (its keys: flatrate, free, ads, rent, buy). */
 export function offersFromProviders(region: unknown): CatalogTitle["offers"] {
   const r = region && typeof region === "object" ? (region as Record<string, unknown>) : {};

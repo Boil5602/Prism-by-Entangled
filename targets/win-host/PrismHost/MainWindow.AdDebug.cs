@@ -32,6 +32,12 @@ public sealed partial class MainWindow
         var debug = new ToggleMenuFlyoutItem { Text = "Ad debug", IsChecked = _surfaces.AdDebug };
         debug.Click += (_, __) => SetAdDebug(debug.IsChecked);
         fly.Items.Add(debug);
+        if (BenchOn)
+        {
+            var record = new ToggleMenuFlyoutItem { Text = "Keep recording for training", IsChecked = s_record };
+            record.Click += (_, __) => SetRecord(record.IsChecked);
+            fly.Items.Add(record);
+        }
         fly.ShowAt(at, new FlyoutShowOptions { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight });
     }
 
@@ -76,8 +82,18 @@ public sealed partial class MainWindow
         };
         t.Start();
     }
+    private void SetRecord(bool on)
+    {
+        s_record = on;
+        HostPrefs.Set("debug.record", on);
+        LogLine("keep recording: " + (on ? "on" : "off"));
+        SetPill("Prism" + Dot + (on ? "recording for training, with Ad debug on or off" : "recording only while Ad debug is on"));
+    }
+
     private void InitAdDebug()
     {
+        s_record = BenchOn && HostPrefs.GetBool("debug.record", false);
+        if (s_record) LogLine("keep recording: on");
         if (!HostPrefs.GetBool("debug.ads", false)) return;
         WireAdDebug();
         _surfaces.AdDebug = true;

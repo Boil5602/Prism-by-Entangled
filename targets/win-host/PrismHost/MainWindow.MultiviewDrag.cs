@@ -81,8 +81,12 @@ public sealed partial class MainWindow
         if ((card?.Art ?? _dragLive?.Logo) is { Length: > 0 } art) { try { ghostBody.Children.Add(new Border { CornerRadius = new CornerRadius(6), Height = 112, Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(art)), Stretch = Stretch.UniformToFill } }); } catch { } }
         ghostBody.Children.Add(new TextBlock { Text = Shorten(name, 30), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
         _dragGhost = new Border { Child = ghostBody, Padding = new Thickness(8), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0x1A, 0x1D, 0x24)), BorderBrush = HubAmber, BorderThickness = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = 0.92 };
-        Canvas.SetZIndex(_dragGhost, 50);
-        overlay.Children.Add(_dragGhost);
+        // on the window's own top layer, over the playing windows too (2026-10-09, "When I drag a live channel over to a screen, the dragged
+        // item appears to go behind the screen ... in front of the windows is more intuitive, as though it is being dropped on top"): as a
+        // child of the Watch page it passed under any window drawn above the page
+        Canvas.SetZIndex(_dragGhost, 990);
+        Grid.SetRowSpan(_dragGhost, 20); Grid.SetColumnSpan(_dragGhost, 20);
+        RootGrid.Children.Add(_dragGhost);
         ShowDropBar(overlay);
         DragMoved(overlay, e);
         LogLine("multiview drag: " + (card is not null ? "card " + card.Title + " (" + card.Service + ")" : _dragLive is not null ? "channel " + _dragLive.Name + " (" + _dragLive.Service + ")" : "window " + tile + " from " + from));
@@ -194,7 +198,8 @@ public sealed partial class MainWindow
         var cur = e.GetCurrentPoint(overlay);
         if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse && !cur.Properties.IsLeftButtonPressed) { LogLine("multiview drag: button up, dropped nothing"); EndDrag(overlay); return; }
         var p = cur.Position;
-        _dragGhost.Margin = new Thickness(p.X + 14, p.Y + 10, 0, 0);
+        var rp = e.GetCurrentPoint(RootGrid).Position;
+        _dragGhost.Margin = new Thickness(rp.X + 14, rp.Y + 10, 0, 0);
         var at = ZoneAt(overlay, p);
         foreach (var (zone, index) in _dropZones)
         {
@@ -230,7 +235,7 @@ public sealed partial class MainWindow
 
     private void EndDrag(Grid overlay)
     {
-        if (_dragGhost is not null) overlay.Children.Remove(_dragGhost);
+        if (_dragGhost is not null) RootGrid.Children.Remove(_dragGhost);
         if (_dropBar is not null) overlay.Children.Remove(_dropBar);
         _dragGhost = null; _dropBar = null; _dropZones.Clear();
         _dragCard = null; _dragTile = null; _dragFrom = -1; _dragLive = null;

@@ -285,4 +285,74 @@ describe("the combined My list", () => {
     await vi.advanceTimersByTimeAsync(50);
     expect(injects(ops, "screen", '__prismVideoPlay("title", "tile-7", null)').length).toBe(1);
   });
+
+  it("Service suggestions on: each service's home page is read on its hidden surface for the service's own rows, the shelves alone kept; off, no home page is opened (2026-10-08)", async () => {
+    const { rt, ops } = await setup();
+    const navs = (id: string) => ops.filter((o) => o.op === "navigate" && o.id === id).map((o) => o.url);
+    const sugg = () => JSON.parse(rt.videoMenu()).suggestions.map((s: { app: string; shelves: Array<{ title: string }> }) => s.app + ":" + s.shelves.map((sh) => sh.title).join(","));
+    // off (the default): a refresh opens the list page and never the home
+    rt.videoRefreshLists(true);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(navs("app:hulu:lookup")).toEqual(["https://www.hulu.com/my-stuff"]);
+    // the list page's other rows are not suggestions (as before)
+    rt.event(JSON.stringify({ type: "now-playing", id: "app:hulu:lookup", info: { playing: false, videoLibrary: { continue: [], list: [item("h1", "The Rookie", null)], shelves: [{ title: "You may also like", items: [item("x1", "Not this", null)] }] } } }));
+    expect(sugg()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    ops.length = 0;
+    // on: every signed-in service with a library reader has its home page read, hidden, one at a time
+    expect(JSON.parse(rt.videoSetSuggestions(true))).toEqual({ ok: true, on: true, asked: ["hulu", "peacock", "tubi", "fandango"] });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(navs("app:hulu:lookup")).toEqual(["https://www.hulu.com/hub/home"]);
+    expect(navs("app:peacock:lookup")).toEqual([]);   // a moment after the one before
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(navs("app:tubi:lookup")).toEqual(["https://tubitv.com/home"]);
+    expect(ops.filter((o) => o.op === "create").every((o) => o.kind === "hidden")).toBe(true);   // never on the screen
+    // the home page's report: its shelves are kept; its few Continue Watching and My List cards are not the lists
+    rt.event(JSON.stringify({ type: "now-playing", id: "app:hulu:lookup", info: { playing: false, videoLibrary: { continue: [item("c9", "Half a row", null)], list: [item("l9", "First few only", null)], shelves: [{ title: "Top picks for you", items: [item("s1", "Shogun", "https://www.hulu.com/series/shogun")] }] } } }));
+    expect(sugg()).toEqual(["hulu:Top picks for you"]);
+    expect(listTitles(rt)).toEqual(["Hulu:The Rookie"]);
+    expect(JSON.parse(rt.videoMenu()).continue.map((c: { item: { title: string } }) => c.item.title)).not.toContain("Half a row");
+    // read once: said again (Watch opened), Hulu's home is not opened again for hours
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(JSON.parse(rt.videoSetSuggestions(true)).asked).not.toContain("hulu");
+    // ... and the same surface, now on the list page, adds nothing to the rows
+    ops.length = 0;
+    rt.videoRefreshLists(true);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(navs("app:hulu:lookup")).toEqual(["https://www.hulu.com/my-stuff"]);
+    rt.event(JSON.stringify({ type: "now-playing", id: "app:hulu:lookup", info: { playing: false, videoLibrary: { continue: [], list: [item("h1", "The Rookie", null)], shelves: [{ title: "You may also like", items: [item("x1", "Not this", null)] }] } } }));
+    expect(sugg()).toEqual(["hulu:Top picks for you"]);
+    // off again: no home page is opened, and the kept rows stay for the next time it is on
+    expect(JSON.parse(rt.videoSetSuggestions(false))).toEqual({ ok: true, on: false, asked: [] });
+    await vi.advanceTimersByTimeAsync(Orchestrator.HOME_ROWS_MS + 60_000);
+    ops.length = 0;
+    rt.videoRefreshLists(true);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(ops.filter((o) => o.op === "navigate").map((o) => String(o.url))).not.toContain("https://www.hulu.com/hub/home");
+  });
+
+  it("Service suggestions said while a service's pages are being read: its home page is read a minute on, once they are done (2026-10-08)", async () => {
+    const { rt, ops } = await setup();
+    const navs = (id: string) => ops.filter((o) => o.op === "navigate" && o.id === id).map((o) => o.url);
+    rt.videoRefreshLists(true);   // Hulu's chain: its list page, then its profiles
+    await vi.advanceTimersByTimeAsync(50);
+    expect(JSON.parse(rt.videoSetSuggestions(true)).asked).toEqual(["tubi"]);   // the others are mid-chain
+    await vi.advanceTimersByTimeAsync(Orchestrator.HOME_ROWS_AGAIN_MS + 5_000);
+    expect(navs("app:hulu:lookup")).toContain("https://www.hulu.com/hub/home");
+    expect(navs("app:hulu:lookup").indexOf("https://www.hulu.com/hub/home")).toBeGreaterThan(navs("app:hulu:lookup").indexOf("https://www.hulu.com/my-stuff"));
+  });
+
+  it("a home page that gives no rows is opened less and less often: 8 hours on, not 4, and never with every pass (2026-10-08)", async () => {
+    const { rt } = await setup();
+    expect(JSON.parse(rt.videoSetSuggestions(true)).asked).toContain("hulu");
+    await vi.advanceTimersByTimeAsync(10_000);
+    // Tubi's page names its rows; Hulu's says nothing (a profile gate, a reader that names none)
+    rt.event(JSON.stringify({ type: "now-playing", id: "app:tubi:lookup", info: { playing: false, videoLibrary: { continue: [], list: [], shelves: [{ title: "Recommended", items: [item("t1", "Columbo", null)] }] } } }));
+    await vi.advanceTimersByTimeAsync(Orchestrator.HOME_ROWS_MS + 60_000);
+    const at4 = JSON.parse(rt.videoSetSuggestions(true)).asked;
+    expect(at4).toContain("tubi");
+    expect(at4).not.toContain("hulu");
+    await vi.advanceTimersByTimeAsync(Orchestrator.HOME_ROWS_MS);
+    expect(JSON.parse(rt.videoSetSuggestions(true)).asked).toContain("hulu");
+  });
 });

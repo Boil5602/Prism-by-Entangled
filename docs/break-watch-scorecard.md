@@ -6,6 +6,7 @@ me"). Two kinds of error, and the targets the household set:
 - **show time wrongly covered** (a false positive: the show, its credits, its rating card or its own banner under a cover), target under
   0.1%, and wrong covers outweigh missed ad seconds;
 - **ad time not covered** (a false negative: an ad, or a network's promo for its own shows, playing uncovered), target 99%+ covered.
+  *Decision (2026-10-08, asked again over Food Network's promos between its last ad and the show):* "It's hard for us to track promo vs ad so I say cover them all." A break is marked, and scored, to the last frame before the show is back, the channel's own promos included.
 
 ## Measured passes (the truth)
 
@@ -44,3 +45,27 @@ subfolder; SINCE=<hhmmss> of the last restart), the labels go in a pass file (sc
   (almost always wrong). A restart drops every cover and is not counted as a gap.
 
 Neither is the truth; a rising count between passes is the sign to measure again.
+
+## The answer key (2026-10-07)
+
+The hindsight labeller is not good enough to score by (on TBS's game it missed real breaks and counted them as wrong covers), so a
+person marks the truth. A recording is kept out of the bench's one-hour pruning in `diagnostics/golden/<day>` (each window's frames
+and events.log, and `calls.log`, Prism's own covers), and `python scripts/breakwatch/label-ui.py` serves a marking page on
+127.0.0.1:8472: a click on a break's first frame and one on its last mark it; the network's own promos inside a break are part of it,
+a banner over the show and a rating card are the show; "not sure" marks are left out of the score. The marks land in
+`labels.json` beside the recording, in the format `rates.py` reads (`LOGF=<golden>/calls.log python rates.py <golden>/labels.json`);
+every change to the break watch is replayed against the marked hours before it goes live.
+
+### The first answer key (marked 2026-10-07 evening)
+
+Five YouTube TV channels from 15:00 to 18:25 marked by hand, break by break: 58 breaks, 2.6 h of ads, 8 h of shows. Scored on a
+replay of the kept recording (the live column is pulled down by restarts and by the hours the live log does not reach):
+
+| Rules | Ads covered | Show wrongly covered |
+|---|---|---|
+| live, as it ran | 67% | 3.4% |
+| 0.26.28 (0ffe6c09) | 79.4% | 3.67% |
+| bc5effa+ (badge, banners, furniture) | 77.7% | 2.75% |
+
+Per channel at the latter: FX 86% / 0.6%, TLC 79% / 2.6%, USA 87% / 1.9%, TBS (baseball) 46% / 6.9%, HGTV 75% / 3.2%. A change
+ships only when this score improves.

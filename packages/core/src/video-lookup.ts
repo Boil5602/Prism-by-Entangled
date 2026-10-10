@@ -129,3 +129,20 @@ export function orderLookup(q: string, services: readonly LookupServiceState[]):
   }
   return rows;
 }
+
+/**
+ * Which of a service's search results is the title a card names (2026-10-09, "it is showing the paramount page in the big window
+ * instead of the stream I dropped on it": Paramount+ answered Star Trek: Strange New Worlds with two results of that name, its live
+ * Star Trek channel - airing the show just then - and the series; the first was taken, the channel's tune timed out, and the window
+ * sat on the service's page). Among the results named as the title: the card's own kind first (a series for a series, a film for a
+ * film), then any title that is not a live channel, a live channel last. `same` says two names are one (the caller's folding).
+ */
+export function pickTitleHit<C extends { title: string; kind: string; series?: string | undefined }>(candidates: ReadonlyArray<C>, title: string, kind: string | undefined, same: (a: string, b: string) => boolean): C | null {
+  const want = kind === "tv" || kind === "series" ? "series" : kind === "movie" ? "movie" : "";
+  const rank = (c: C): number => (c.kind === "live" ? 2 : want && c.kind !== want && c.kind !== "title" ? 1 : 0);
+  const named = candidates.filter((c) => same(c.title, title));
+  const pool = named.length ? named : candidates.filter((c) => same(c.series ?? "", title));
+  let best: C | null = null;
+  for (const c of pool) if (!best || rank(c) < rank(best)) best = c;   // the service's own order within a rank
+  return best;
+}

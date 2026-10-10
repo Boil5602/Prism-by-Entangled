@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window
             onStatus: SetStatus);
         _surfaces.EmeResult += OnEmeResult;
         _surfaces.MediaNote += OnMediaNote;
+        _surfaces.CueNote += OnCueNote;
         _surfaces.SetWallVolume(HostPrefs.GetDouble("wallVolume", 1.0));   // B-176: the wall's volume, remembered on this machine
         _fft = new WasapiLoopbackFft(LogLine);
         _surfaces.AudioSource = _fft;
@@ -452,7 +453,15 @@ public sealed partial class MainWindow : Window
             case Ops.UpdateApply: _ = UpdateApplyAsync(m); break;
             case Ops.SurfaceVeilImagery: AnswerVeilImagery(m); break;
             case Ops.SurfaceEvaluate: _ = AnswerEvaluateAsync(m); break;   // a small read of a page, answered (the playback doctor, 2026-09-23)
-            case Ops.RuntimeError: SetStatus("core error: " + (m.GetString("message") ?? "?")); break;
+            case Ops.RuntimeError:
+            {
+                var em = m.GetString("message") ?? "?";
+                SetStatus("core error: " + em);
+                // core's own word for the person rides the same line (runtime.ts mvSay, 2026-10-09: a window closed or tuned again says so)
+                var ni = em.IndexOf("notice: ", StringComparison.Ordinal);
+                if (ni >= 0) SetPill("Prism" + Dot + em.Substring(ni + 8).Trim());
+                break;
+            }
             default: SetStatus($"M1 op {m.Op} not wired"); break;
         }
     }

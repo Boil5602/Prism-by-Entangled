@@ -221,4 +221,25 @@ describe("profile presets", () => {
     await vi.advanceTimersByTimeAsync(10);
     expect(netflixRows(rt).cw).toEqual(["Bluey"]);
   });
+
+  it("Service suggestions' home page read: rows from a page loaded before a profile switch was pressed are not kept as the new person's (2026-10-08)", async () => {
+    const { rt, ops } = await setupWith({ videoProfilesUrl: null, videoListUrl: null });   // a service switched from its own pages' switcher, with no list page to send the hidden page on to
+    const shelves = () => (JSON.parse(rt.videoServices()).services.find((x: { app: string }) => x.app === "netflix").library.shelves ?? []).map((s: { title: string }) => s.title);
+    const home = (title: string) => rt.event(JSON.stringify({ type: "now-playing", id: "app:netflix:lookup", info: { playing: false, videoLibrary: { continue: [], list: [], shelves: [{ title, items: [item("s1", "Dark")] }] } } }));
+    await vi.advanceTimersByTimeAsync(120_000);
+    ops.length = 0;
+    expect(JSON.parse(rt.videoSetSuggestions(true)).asked).toEqual(["netflix"]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(ops.filter((o) => o.op === "navigate" && o.id === "app:netflix:lookup").map((o) => o.url)).toEqual(["https://www.netflix.com/browse"]);
+    home("Because Alex watched Dark");
+    expect(shelves()).toEqual(["Because Alex watched Dark"]);
+    // Sam is asked for; the hidden page, still on Alex's home page, shows the switcher and gets the press
+    rt.videoProfileSet("netflix", "p2");
+    rt.event(JSON.stringify({ type: "now-playing", id: "app:netflix:lookup", info: { playing: false, videoProfiles: { gate: false, current: "p1", profiles: [{ id: "p1", name: "Alex", avatar: null }, { id: "p2", name: "Sam", avatar: null }] } } }));
+    expect(ops.some((o) => o.op === "inject" && o.id === "app:netflix:lookup" && String(o.js).includes("__prismVideoProfile"))).toBe(true);
+    // the press has settled and the page has not loaded again yet: what it reports is still Alex's
+    await vi.advanceTimersByTimeAsync(7_000);
+    home("Because Alex watched Dark, again");
+    expect(shelves()).not.toContain("Because Alex watched Dark, again");
+  });
 });

@@ -57,7 +57,7 @@ import { createPlaylists, type PlSource } from "./playlists.js";
 import { liveGuide, programOnNow } from "./live-guide.js";
 import { leftOutWhy, pairFeeds, storiesOf, type NewsFeedSpec, type NewsGuideRow } from "./news-feeds.js";
 import { isKidsRating, isShowName, typeFromGenres } from "./live-titles.js";
-import { liveItemsOf } from "./video.js";
+import { liveItemsOf, watchlistMissing } from "./video.js";
 import { titleKey } from "./lenses.js";
 
 interface PrismBridgeHost {
@@ -294,6 +294,8 @@ export interface PrismRuntimeApi {
   videoSetPause(on: boolean, from: string, to: string): string;
   /** Sync JSON {ok, look}: Watch settings' Video ads - "veil" (scenery and mute, the default), "mute" (the ad's picture, its sound off) or "show". */
   videoSetAdsLook(look: string): string;
+  /** Sync JSON {ok, on, asked}: Watch's Service suggestions switch, named to core - while on, each service's home page is read on its hidden surface for the service's own rows (every few hours); `asked` = the Apps whose home page is being read now. */
+  videoSetSuggestions(on: boolean): string;
   /** Sync JSON {ok}: a muted-only break's Unmute (true) or Mute again (false), for this break. */
   intermissionUnmute(tileId: string, on: boolean): string;
   /** §4a lenses. Sync JSON {ok, active}: the lens over the menu's rows, or null for none (the default). Not persisted: every boot starts with none. */
@@ -1190,6 +1192,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const MV_EMPTY_MS = 45_000;
   const MV_PICK_MS = 60_000;
   const mvEmptySince = new Map<string, number>();
+  // A window on a channel that goes quiet is tuned once more before it is given up, and a window that is closed says so (2026-10-09,
+  // "What happened to window 5? I think it shut down and dont know why. Or at least one window did and they all collapsed to 4
+  // windows": Comedy Central's window stopped reporting anything at the top of an hour, and 45 s on it was closed without a word).
+  // What a person would do by hand, done once (ten minutes between tries a window); a tune that does not take closes the window as a
+  // failed pick does. The words go to the shell as a notice.
+  const MV_RETUNE_MS = 600_000;
+  const mvRetuneAt = new Map<string, number>();
+  const mvSay = (text: string): void => { try { report(new Error("notice: " + text)); } catch { /* no shell (tests) */ } };
   const mvPruneEmpty = (): string[] => {
     const st = orchestrator.videoMultiviewState();
     if (!st.on || st.collapsed) { mvEmptySince.clear(); return []; }
@@ -1212,9 +1222,20 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (t?.video || t?.playing || loading || restoring || orchestrator.inAdBreak(w.tile)) { mvEmptySince.delete(w.tile); continue; }
       const since = mvEmptySince.get(w.tile) ?? now;
       mvEmptySince.set(w.tile, since);
-      if (failed || now - since >= MV_EMPTY_MS) gone.push(w.tile);
+      if (!(failed || now - since >= MV_EMPTY_MS)) continue;
+      const ch = failed ? null : orchestrator.videoChannelOf(w.tile);
+      if (ch && now - (mvRetuneAt.get(w.tile) ?? -MV_RETUNE_MS) >= MV_RETUNE_MS) {
+        mvRetuneAt.set(w.tile, now); mvEmptySince.delete(w.tile);
+        mvNote("multiview: window " + w.tile + " went quiet on " + ch.name + ": tuning it again");
+        mvSay(ch.name + " stopped playing in window " + (wins.indexOf(w) + 1) + ", so Prism is tuning it again");
+        orchestrator.videoTune(w.tile, ch.id, ch.name, null).then((r) => { if (r !== "ok") report(new Error("multiview retune " + w.tile + ": " + r)); }, report);
+        continue;
+      }
+      gone.push(w.tile);
+      mvSay("Window " + (wins.indexOf(w) + 1) + " closed. " + (ch ? ch.name + " stopped playing and didn't come back" : "Nothing was playing in it"));
     }
     for (const t of new Set(mvEmptySince.keys())) if (!wins.some((w) => w.tile === t)) mvEmptySince.delete(t);
+    for (const t of new Set(mvRetuneAt.keys())) if (!wins.some((w) => w.tile === t)) mvRetuneAt.delete(t);
     for (const tile of gone) { const t = vs.find((x) => x.id === tile); mvNote("multiview: window " + tile + " closed as empty (" + JSON.stringify({ pending: t?.pending ?? null, video: !!t?.video, playing: !!t?.playing }) + ")"); mvEmptySince.delete(tile); videoMultiview("remove", tile); }
     return gone;
   };
@@ -1537,13 +1558,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   let episodeHealthResult: unknown = null;
   const bootAt = Date.now();
   let menuReadyAt: number | null = null;   // the boot's Phase 2 has asked for every service's kept rows
-  // the services' My List titles not on the watchlist yet (by name and kind against the watchlist's titles; the copy matches properly)
-  const watchOffer = (list: ReadonlyArray<{ item: { title: string; kind?: string } }>, w: { cards: ReadonlyArray<{ title: string; kind: string }> }): number => {
-    const on = new Set(w.cards.map((c) => normalizeTrackText(c.title) + "|" + (c.kind === "movie" ? "movie" : "tv")));
-    const seen = new Set<string>();
-    let n = 0;
-    for (const c of list) { const k = normalizeTrackText(c.item.title) + "|" + (c.item.kind === "movie" ? "movie" : "tv"); if (seen.has(k)) continue; seen.add(k); if (!on.has(k)) n++; }
-    return n;
+  // the services' My List titles not on the watchlist yet, counted and named (video.ts watchlistMissing; the copy matches properly)
+  const watchOfferOf = (list: ReadonlyArray<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w: { cards: ReadonlyArray<{ title: string; kind: string }> }): { offer: number; offerTitles: Array<{ title: string; service: string }> } => {
+    const missing = watchlistMissing(list, w.cards);
+    return { offer: missing.length, offerTitles: missing.slice(0, 40) };
   };
   const videoMenu = () => {
     try { videoRefreshLists(false); } catch (e) { report(e); }   // the lists as of now, for the next open (stale-guarded)
@@ -1594,7 +1612,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // results)"): at boot the page waits for this and opens once, full
       ready: ((r) => { if (r && menuReadyAt === null) menuReadyAt = Date.now(); return r; })(bootRowsAsked && !orchestrator.videoWarming()),
       // My list is the TMDB watchlist while an account is linked (2026-10-03); the offer counts the services' list titles not on it yet
-      watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); return w.active ? { ...w, offer: watchOffer(rows.list as Array<{ item: { title: string; kind?: string } }>, w), importing: orchestrator.watchlistImportState() } : null; } catch (e) { report(e); return null; } })(),
+      watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); return w.active ? { ...w, ...watchOfferOf(rows.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w), importing: orchestrator.watchlistImportState() } : null; } catch (e) { report(e); return null; } })(),
       continue: rows.continue, list: rows.list, orders: orchestrator.rowOrders(), orderChoices: { continue: CONTINUE_ORDERS, list: LIST_ORDERS }, lens, lensRows,
       // what the person owns, every service's purchases as ONE library ("it will be nice to see a consolidated library", 2026-09-22): the
       // titles alphabetical, each card badged with its service; the same title bought twice is two cards, one per service
@@ -1870,6 +1888,26 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   };
   loadAdsLook();
   setTimeout(loadAdsLook, 5_000);
+  // Service suggestions (2026-10-08): Watch's switch, named to core so the hidden reads fetch each service's own rows from its home page
+  // while it is on. The host keeps the switch (its pref) and says it again whenever Watch opens; kept here so a restart knows before then.
+  const SUGGESTIONS_KEY = "video:suggestions";
+  let suggestionsLoaded = false;
+  const loadSuggestions = () => {
+    if (suggestionsLoaded) return;
+    try {
+      const v = tilesRead(SUGGESTIONS_KEY);
+      if (v === "1" || v === "0") { orchestrator.videoSuggestions = v === "1"; suggestionsLoaded = true; }
+      const at = JSON.parse(tilesRead(Orchestrator.HOME_ROWS_KEY) ?? "null") as Record<string, unknown> | null;
+      if (at && typeof at === "object") for (const [app, t] of Object.entries(at)) {
+        if (orchestrator.homeRows.has(app)) continue;
+        const h = t as { at?: unknown; miss?: unknown } | number | null;
+        if (typeof h === "number") orchestrator.homeRows.set(app, { at: h, miss: 0 });   // (the first build kept the time alone)
+        else if (h && typeof h.at === "number") orchestrator.homeRows.set(app, { at: h.at, miss: typeof h.miss === "number" ? h.miss : 0 });
+      }
+    } catch { /* tried again below */ }
+  };
+  loadSuggestions();
+  setTimeout(loadSuggestions, 5_000);
   setInterval(() => { try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } orchestrator.backgroundTick(hiddenServices()); } catch (e) { report(e); } }, 4 * 60_000);
   // the row as the host draws it: a catalog search's rows come ordered from catalog-search.ts (TMDB's order, the title
   // that IS the words first, one card per household service that carries it); a services search orders through the pure
@@ -1968,7 +2006,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const appId = s.app;
     const gen = pickGen;
     {
-      orchestrator.videoCatalogResolve(appId, title, hiddenServices()).then((hit) => {
+      orchestrator.videoCatalogResolve(appId, title, hiddenServices(), kind).then((hit) => {
         if (gen !== pickGen) return;
         if (!hit && onMiss) { try { onMiss(); } catch (e) { report(e); } }
         const r = hit?.url ? videoPlayOn(s.facet, hit.play === false ? (hit.kind === "series" ? "series" : "open") : hit.kind === "live" ? "live" : "title", hit.id, hit.url, hit.title)
@@ -3061,7 +3099,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     videoRefreshApp(appId) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? "")) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
-      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook }); }
+      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, suggestions: orchestrator.videoSuggestions }); }
       catch (e) { report(e); return json({ pause: { on: false, from: "23:00", to: "07:00" }, tmdbKey: false }); }
     },
     videoSetPause(on, from, to) {
@@ -3079,6 +3117,17 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         orchestrator.videoAdsLook = look; adsLookLoaded = true;
         void drivers.store?.set(ADS_LOOK_KEY, look);
         return json({ ok: true, look });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoSetSuggestions(on) {
+      try {
+        loadSuggestions();
+        const was = orchestrator.videoSuggestions;
+        orchestrator.videoSuggestions = on === true; suggestionsLoaded = true;
+        if (was !== orchestrator.videoSuggestions) void drivers.store?.set(SUGGESTIONS_KEY, orchestrator.videoSuggestions ? "1" : "0");
+        // switched on (or said again with rows still due): the services' home pages are read now, hidden, one at a time
+        const asked = orchestrator.videoSuggestions ? orchestrator.videoRefreshSuggestions(hiddenServices()) : [];
+        return json({ ok: true, on: orchestrator.videoSuggestions, asked });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     intermissionUnmute(tileId, on) {
@@ -3110,7 +3159,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         if (!s) return json({ status: "failed", error: "unknown service" });
         const t = String(title ?? "");
         const item = { id: String(itemId ?? ""), title: t, kind: String(kind ?? "title"), ...(url ? { url: String(url) } : {}) };
-        const resolve = catalog === "1" || (catalog === "auto" && orchestrator.isCatalogCandidate(String(itemId ?? ""))) ? () => orchestrator.videoCatalogResolve(s.app, t, hiddenServices()) : undefined;
+        const resolve = catalog === "1" || (catalog === "auto" && orchestrator.isCatalogCandidate(String(itemId ?? ""))) ? () => orchestrator.videoCatalogResolve(s.app, t, hiddenServices(), String(kind ?? "")) : undefined;
         return json(orchestrator.videoListSet(s, String(want) === "add", item, resolve));
       } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
     },
@@ -3278,7 +3327,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       catch (e) { report(e); return json({ on: null, linked: false }); }
     },
     watchlistView(force) {
-      try { const w = orchestrator.videoWatchlist(hiddenServices(), force === true); const menu = w.active ? videoMenu() : null; return json({ ...w, offer: menu ? watchOffer(menu.list as Array<{ item: { title: string; kind?: string } }>, w) : 0, importing: orchestrator.watchlistImportState(), error: tmdbUi.error }); }
+      try { const w = orchestrator.videoWatchlist(hiddenServices(), force === true); const menu = w.active ? videoMenu() : null; return json({ ...w, ...(menu ? watchOfferOf(menu.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w) : { offer: 0, offerTitles: [] }), importing: orchestrator.watchlistImportState(), error: tmdbUi.error }); }
       catch (e) { report(e); return json({ active: false, reading: false, cards: [], count: 0, offer: 0 }); }
     },
     watchlistHasTitle(title, kind) {

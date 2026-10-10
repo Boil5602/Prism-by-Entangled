@@ -62,6 +62,9 @@ public sealed partial class MainWindow
     }
 
     // ------------------------------------------------------------ the menu
+    /// <summary>The whole Prism menu is shown, not its short form (host pref menu.full; switched from About Prism).</summary>
+    private static bool FullMenu => HostPrefs.GetBool("menu.full", false);
+
     private async Task OpenAppMenuAsync()
     {
         if (_menuOpen) return;
@@ -104,11 +107,12 @@ public sealed partial class MainWindow
         var deviceItem = Item("Device…", "", null, () => OpenRoute("prism://device"));
         ToolTipService.SetToolTip(deviceItem, "Canvas class, schedules, remotes, audio, kiosk, updates.");
         menu.Items.Add(deviceItem);
-        menu.Items.Add(await BuildNowPlayingMenuAsync());
+        var keep = new HashSet<MenuFlyoutItemBase>();   // what the short menu shows (see the end of this method)
+        if (FullMenu) menu.Items.Add(await BuildNowPlayingMenuAsync());
         // The two players (core players.ts, 2026-09-19): "I imagine it's just a prism menu item" - the wall becomes the
         // household's Music Lounge or its Movie Night in one press, and back again; the Video player carries the lounge's
         // sources hidden so the music stays warm, and the way back resumes what a video paused.
-        foreach (var item in await BuildPlayerItemsAsync()) menu.Items.Add(item);
+        foreach (var item in await BuildPlayerItemsAsync()) { menu.Items.Add(item); keep.Add(item); }
         // the people of this wall, for both players (2026-09-29, "we don't yet have the concept of profiles in the music player ... Ideally it
         // uses the same profiles set on the video side"): the sets, and the Profiles window
         try
@@ -120,7 +124,7 @@ public sealed partial class MainWindow
         catch (Exception e) { LogLine("profiles menu: " + e.Message); }
         // VP-3 (2026-09-19): the Video player as a universal player - Watch: the service on the screen with its verbs, "Watch on"
         // across the household's video services, Continue Watching / My List from every service, the profile gate when it is up
-        if (await BuildWatchMenuAsync() is { } watch) menu.Items.Add(watch);
+        if (FullMenu && await BuildWatchMenuAsync() is { } watch) menu.Items.Add(watch);
         menu.Items.Add(new MenuFlyoutSeparator());
         // --- the pre-scene-model page tools stay reachable until SM-2's editors land (F8: sign in / navigate on the popped-out page)
         var configure = Item("Page tools (sign in, region)…", "", "F8", BeginSlotRegion);
@@ -229,11 +233,23 @@ public sealed partial class MainWindow
         var rds = Item(Services.MediaHub.MenuLabel + ": " + (Services.MediaHub.On ? "On" : "Off"), "", null, () => _ = ToggleMediaHubAsync());
         ToolTipService.SetToolTip(rds, Services.MediaHub.Explain + " Press to turn it " + (Services.MediaHub.On ? "off." : "on."));
         menu.Items.Add(rds);
+        keep.Add(rds);
         _ = Services.MediaHub.RefreshAsync();
-        menu.Items.Add(Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()));   // section 28 (2026-10-05)
-        menu.Items.Add(Item("About Prism", "", null, () => _ = ShowAboutAsync()));
-        menu.Items.Add(Item("Quit Prism", "", "Alt+F4", Close));   // Closed handler runs the snapshot pass
+        { var it = Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()); menu.Items.Add(it); keep.Add(it); }   // section 28 (2026-10-05)
+        { var it = Item("About Prism", "", null, () => _ = ShowAboutAsync()); menu.Items.Add(it); keep.Add(it); }
+        { var it = Item("Quit Prism", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass
 
+        // The short menu (2026-10-09, "We need to hide some menus we're not using right now in a hidden device mode ... KEEP 7-10, and
+        // 25-28. The rest in Hidden mode"): the two players, Set up services, Pair a phone, the support switch, Updates, About and Quit.
+        // Everything else - the builder's five nouns, Now playing, Profiles, Watch, page tools, adding and arranging, the wall's own
+        // verbs, veils, shots and diagnostics - is in the full menu only (FullMenu: five presses on the first line of About Prism,
+        // kept across restarts). The keys those items name still work.
+        if (!FullMenu)
+        {
+            foreach (var it in menu.Items.ToList()) if (!keep.Contains(it)) menu.Items.Remove(it);
+            var at = menu.Items.IndexOf(rds);
+            if (at > 0) menu.Items.Insert(at, new MenuFlyoutSeparator());
+        }
         menu.ShowAt(MenuGrip);
     }
 
@@ -1479,7 +1495,18 @@ public sealed partial class MainWindow
         try { wv2 = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString(null); }
         catch { wv2 = "unavailable"; }
         var body = new StackPanel { Spacing = 8, MinWidth = 380 };
-        body.Children.Add(new TextBlock { Text = "Open-source dashboard frames. No ads, no subscriptions, no telemetry, no data sales.", TextWrapping = TextWrapping.Wrap });
+        var lead = new TextBlock { Text = "Open-source dashboard frames. No ads, no subscriptions, no telemetry, no data sales.", TextWrapping = TextWrapping.Wrap };
+        // five presses on this line switch the Prism menu between its short form and the full one (OpenAppMenuAsync)
+        var presses = 0;
+        lead.Tapped += (_, __) =>
+        {
+            if (++presses < 5) return;
+            presses = 0;
+            HostPrefs.Set("menu.full", !FullMenu);
+            lead.Text = FullMenu ? "The full menu is on. Press five times again for the short one." : "The short menu is on. Press five times again for the full one.";
+            LogLine("menu: " + (FullMenu ? "full" : "short"));
+        };
+        body.Children.Add(lead);
         var facts = new StackPanel { Spacing = 2, Margin = new Thickness(0, 6, 0, 0) };
         void Fact(string k, string val) => facts.Children.Add(new TextBlock
         {

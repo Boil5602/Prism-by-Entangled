@@ -68,9 +68,20 @@ public sealed partial class MainWindow
     /// "Playlists arent enabled without TMDB enabled, but I still see the send to playlist option on many videos"). Read fresh where a menu is
     /// built as it opens; the last answer is kept for the pages drawn at once (Details).</summary>
     private bool _playlistsActive;
+    /// <summary>The Playlists tab is drawn: playlists can be used, or a TMDB account is linked and they cannot yet - then the tab is where
+    /// the reason is said (2026-10-09, "TMDB is enabled but not all of the TMDB features. For example I'm missing all references to
+    /// Playlists. What happened": the account was linked on TMDB's short key, which cannot reach lists; the tab was hidden, and the only
+    /// words that say so are on the tab). Send to playlist and the dock still wait for playlists that work.</summary>
+    private bool _playlistsTab;
     private async Task<bool> PlaylistsActiveAsync()
     {
-        try { _playlistsActive = (JsonNode.Parse(await ModelCallAsync("playlistGate") ?? "null") as JsonObject)?["active"]?.GetValue<bool>() == true; } catch { }
+        try
+        {
+            var g = JsonNode.Parse(await ModelCallAsync("playlistGate") ?? "null") as JsonObject;
+            _playlistsActive = g?["active"]?.GetValue<bool>() == true;
+            _playlistsTab = _playlistsActive || g?["linked"]?.GetValue<bool>() == true;
+        }
+        catch { }
         return _playlistsActive;
     }
 

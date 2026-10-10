@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.26.28</Version>
+    <Version>0.27.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -56,6 +56,7 @@
     <!-- the splash page the boot cover shows (MainWindow.BootCover.cs, 2026-10-05): the same wordmark, playing once as the wall loads; absent, the cover keeps the mark alone -->
     <Content Include="..\..\..\packages\core\dist\prism-splash.html" Link="Assets\brain\prism-splash.html" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\packages\core\dist\prism-splash.html')" />
     <Content Include="Assets\demo-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\breakwatch\learned.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\first-run-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- docs/concept-scenes.md §6: the first-party micro-facets, served at
          https://tiles.prism/ from this folder (SurfaceManager maps it). Everything

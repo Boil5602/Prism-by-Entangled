@@ -31,6 +31,7 @@ public sealed partial class MainWindow
         var linked = state?["linked"]?.GetValue<bool>() == true;
         var user = S(state, "username");
         var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        string? noLists = null;
         if (linked)
         {
             line.Children.Add(new TextBlock { Text = "Linked as " + user + ". Your stars on a title's page go to TMDB.", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
@@ -38,6 +39,11 @@ public sealed partial class MainWindow
             ToolTipService.SetToolTip(unlink, "Ends the session on TMDB's side and forgets it here. The ratings you gave stay on your TMDB account.");
             unlink.Click += async (_, __) => { await ModelCallAsync("tmdbUnlink"); await Task.Delay(800); SetPill("Prism" + Dot + "TMDB account unlinked"); await ShowWatchSettingsAsync(); };
             line.Children.Add(unlink);
+            // linked, and playlists still out of reach: said here, under the key it is about (2026-10-09)
+            if (state?["lists"]?.GetValue<bool>() != true)
+                noLists = state?["listsPossible"]?.GetValue<bool>() == true
+                    ? "Playlists need this account linked once more. Press Unlink, then link it again."
+                    : "Playlists need TMDB's longer key. On the same TMDB page it is called the API Read Access Token. Put it in above in place of this one, then press Unlink and link the account again. Ratings and your watchlist work with either key.";
         }
         else if (!hasKey)
         {
@@ -54,6 +60,7 @@ public sealed partial class MainWindow
             line.Children.Add(link);
         }
         body.Children.Add(line);
+        if (noLists is not null) body.Children.Add(new TextBlock { Text = noLists, FontSize = 13, Foreground = HubAmber, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left });
         if (S(state, "error") is { Length: > 0 } err) body.Children.Add(new TextBlock { Text = err, FontSize = 12, Foreground = HubAmber });
     }
 
@@ -88,17 +95,29 @@ public sealed partial class MainWindow
         esc.Invoked += (_, e) => { e.Handled = true; Close(); };
         scrim.KeyboardAccelerators.Add(esc);
 
+        var note = new TextBlock { FontSize = 13, Foreground = HubAmber, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center, Visibility = Visibility.Collapsed };
         done.Click += async (_, __) =>
         {
             done.IsEnabled = false;
+            note.Visibility = Visibility.Collapsed;
             await ModelCallAsync("tmdbLinkFinish");
             JsonObject? st = null;
-            for (var i = 0; i < 20; i++) { await Task.Delay(400); st = await TmdbLinkStateAsync(); if (st?["busy"]?.GetValue<bool>() != true) break; }
+            // "busy" ends a moment before the new state is read: core answers "not linked, loading" in between, and that was taken for the
+            // answer (2026-10-09, "I performed an approval, then when I click I approved it nothing happens. The window just sits there": the
+            // account was linked two seconds after the press; the window read the in-between word, and said so on a line under its own scrim)
+            for (var i = 0; i < 30; i++) { await Task.Delay(400); st = await TmdbLinkStateAsync(); if (st?["busy"]?.GetValue<bool>() != true && st?["loading"]?.GetValue<bool>() != true) break; }
             if (st?["linked"]?.GetValue<bool>() == true) { Close(); CloseLinkModal(); SetPill("Prism" + Dot + "TMDB account linked as " + S(st, "username")); await ShowWatchSettingsAsync(); }
-            else { done.IsEnabled = true; SetPill("Prism" + Dot + (S(st, "error") is { Length: > 0 } e2 ? e2 : "not approved yet")); }
+            else
+            {
+                done.IsEnabled = true;
+                // said in the window itself: the status line is under the scrim
+                note.Text = S(st, "error") is { Length: > 0 } e2 ? "TMDB says: " + e2 + ". Approve on TMDB's page first, then press I approved it." : "TMDB hasn't seen the approval yet. Approve on its page, then press I approved it again.";
+                note.Visibility = Visibility.Visible;
+            }
         };
         row.Children.Add(open); row.Children.Add(done); row.Children.Add(cancel);
         card.Children.Add(row);
+        card.Children.Add(note);
         scrim.Children.Add(card);
         RootGrid.Children.Add(scrim);
     }

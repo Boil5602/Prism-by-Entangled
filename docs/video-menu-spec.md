@@ -18,6 +18,8 @@ Live TV: the menu shows a service's *live now* row and opens that service's own 
 
 Recommendation rows (each service's home rows) are **off by default**; if enabled, labeled by source ("Netflix suggests…") — provenance always visible.
 
+*Decision (2026-10-08, "only Paramount+ shows suggestions"):* while the switch is on, each service's **home page is read on its hidden surface** for those rows, every four hours, as one more page in the service's background chain (`Orchestrator.HOME_ROWS_MS`, `homeOne`); only the shelves are kept from it (`VideoController.keepShelvesFrom`) - a home page shows the first few of Continue Watching and My List, so those stay their own pages' word. Off (the default), no home page is opened. Before this the rows were kept only while a player happened to stand on a service's home page, because the hidden reads opened list pages, whose other rows are dropped by design. A home page that gives no rows (a profile gate up, an adapter whose reader names none) is opened less and less often: 8 hours, 16, then once a day. The host tells core the switch when Watch first opens and at every change (`videoSetSuggestions`); the arrow beside the chip moves the page to the rows, which sit below Services. Rows today come from the adapters whose library reader names a home page's shelves: Netflix, Paramount+, Tubi, Hulu, Disney+, Movies Anywhere.
+
 Cards carry: title, poster **as served by the service in the signed-in session** (never cached beyond the session's own cache, never redistributed), service glyph, progress, and the deep link. Tap → the existing player opens that title in that service (promote to hero / fullscreen per current behavior). Back → menu.
 
 ## 3. Adapter contract (additive to existing adapters)

@@ -1,0 +1,6 @@
+[
+ {"day": "2026-10-09", "window": "youtube-tv-home-16x9-XL-w3", "name": "NFL Network", "from": "05:30:00", "to": "06:30:00", "blind": true, "why": "exam hour: a game repeat shown in a smaller picture"},
+ {"day": "2026-10-08", "window": "youtube-tv-home-16x9-XL-w2", "name": "NBC Sports", "from": "20:00:00", "to": "21:00:00", "blind": true, "why": "exam hour"},
+ {"day": "2026-10-08", "window": "youtube-tv-home-16x9-XL-w4", "name": "Food Network", "from": "16:00:00", "to": "18:00:00", "suggest": true, "why": "for training: the detector has never been trained on this channel"},
+ {"day": "2026-10-08", "window": "youtube-tv-home-16x9-XL", "name": "Comedy Central", "from": "16:00:00", "to": "24:00:00", "suggest": true, "why": "for training (marked 2026-10-09)"}
+]

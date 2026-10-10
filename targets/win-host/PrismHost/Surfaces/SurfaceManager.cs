@@ -132,6 +132,9 @@ public sealed partial class SurfaceManager
         public Border? SkipRing;
         public string? SkipTarget;
         public Microsoft.UI.Dispatching.DispatcherQueueTimer? SkipHoleTimer;
+        /// <summary>The share of the 16:9 picture's height, from its bottom, the veil leaves open: a channel's ticker that stays up
+        /// through its breaks (0 = none; SetVeilBand).</summary>
+        public double VeilBand;
         // spec 33 an empty slot: a shape and a place, no web view
         public bool Placeholder;
         public Grid? PlaceholderGrid;
@@ -510,7 +513,8 @@ public sealed partial class SurfaceManager
             try { json = e.TryGetWebMessageAsString(); } catch { }
             if (json is null) return;
             if (TryTap(tile.Id, json)) return;   // a window's tap for a listening phone (SurfaceManager.Tap): the host's, never core's
-            if (json.Contains("\"prism-media\"")) { MediaNote?.Invoke(tile.Id, json); return; }   // the video's seeks, pauses and plays: the ad debug recording's, never core's
+            if (json.Contains("\"prism-media\"")) { MediaNote?.Invoke(tile.Id, json); return; }
+            if (json.Contains("\"prism-cue\"")) { CueNote?.Invoke(tile.Id, json); return; }   // the stream's own ad cue (YouTube TV's adapter): the break watch's, never core's   // the video's seeks, pauses and plays: the ad debug recording's, never core's
             if (json.Contains("\"eme\"")) { EmeResult?.Invoke(tile.Id, json); return; }   // diagnostics, not a SurfaceEvent
             if (json.Contains("\"prism-eme\""))                                            // the page's own key-system asks and grants: logged, never core's
             {
@@ -911,7 +915,7 @@ public sealed partial class SurfaceManager
         if (on) _notAdWanted.Add(id); else _notAdWanted.Remove(id);   // the cover may be built after the call: applied when it is
         var v = on ? Visibility.Visible : Visibility.Collapsed;
         if (_notAdButtons.TryGetValue(id, out var b)) b.Visibility = v;
-        if (_notAdPills.TryGetValue(id, out var pill)) pill.Visibility = v;
+        SyncPeekNotAd(id);
         if (_mutedStrips.TryGetValue(id, out var ms)) ms.NotAd.Visibility = v;
     }
     private readonly HashSet<string> _notAdWanted = new();
@@ -1125,19 +1129,23 @@ public sealed partial class SurfaceManager
             // player's own skip control - core forwards it (spec 26).
             skip.Click += (_, __) => _forwardEvent(tile.Id,
                 JsonSerializer.Serialize(new { type = SurfaceEvents.IntermissionSkip, id = tile.Id }));
+            // on a plate of their own (2026-10-09, "can the buttons be opaque? Right now they're transparent and text collides"): they were
+            // outlines with nothing behind the words, read against whatever the cover's picture put there
             Button Outline(string label)
             {
-                return new Button
+                var ob = new Button
                 {
                     Content = label,
                     Padding = new Thickness(16, 8, 16, 8),
                     CornerRadius = new CornerRadius(9),
-                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)),
+                    Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x1A, 0x1D, 0x24)),
                     Foreground = new SolidColorBrush(amber),
                     BorderBrush = new SolidColorBrush(amber),
                     BorderThickness = new Thickness(1.5),
                     FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 };
+                MainWindow.OwnHover(ob);   // a button with a colour of its own keeps it under the pointer (CLAUDE.md, host UI contrast)
+                return ob;
             }
             // Spec 26 peek-through, the agency guarantee: nothing is ever
             // unreachable. Timeboxed - counts down and re-veils itself.
@@ -1252,26 +1260,7 @@ public sealed partial class SurfaceManager
             };
             chipHost.Tapped += (_, e) => { e.Handled = true; ToggleCardMinimal(tile.Id); };
             g.Children.Add(chipHost);
-            // Not an ad on the cover itself, in its bottom-left corner (2026-10-07, "So where is this button? I have full screen and no sign of
-            // it" / "I should see it for each of the small windows too"): the card collapses to its icon on the Video player, so the card's own
-            // button was out of sight; this one shows whenever the break watch put the cover up, on every window
-            var notAdPill = new Button
-            {
-                Content = new TextBlock { Text = "Not an ad", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(ink) },
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(12, 0, 0, 12),
-                Padding = new Thickness(12, 6, 12, 6),
-                CornerRadius = new CornerRadius(8),
-                Background = new SolidColorBrush(amber),
-                BorderThickness = new Thickness(0),
-                Visibility = _notAdWanted.Contains(tile.Id) ? Visibility.Visible : Visibility.Collapsed,
-            };
-            MainWindow.OwnHover(notAdPill);
-            ToolTipService.SetToolTip(notAdPill, "This is the show, not an ad: uncover it, and tell Prism it got this wrong");
-            notAdPill.Click += (_, __) => NotAnAdPressed?.Invoke(tile.Id);
-            _notAdPills[tile.Id] = notAdPill;
-            g.Children.Add(notAdPill);
+            // Not an ad is in the cover's own menu; the pill in the corner belongs to a cover lifted by hand (PeekNotAdFor, 2026-10-09)
             tile.Container.Children.Add(g);                          // above snapshot overlay
             tile.Intermission = g;
             tile.IntermissionArt = art;
@@ -1302,6 +1291,7 @@ public sealed partial class SurfaceManager
         ApplyArtAttribution(tile);
         for (var si = 1; si < tile.ArtSlabs.Length; si++) tile.ArtSlabs[si].Source = tile.ArtSlabs[0].Source;
         tile.Covered = true;
+        if (tile.VeilBand > 0) ApplyVeilBand(tile);                  // a channel's ticker stays open (the veil may have been made just now)
         if (BreakWatchFor?.Invoke(tile.Id) == true && !tile.CardMinimal) tile.CardMinimal = true;   // a new break on the Video player: collapsed to the icon
         tile.AdTimeLeft = null;
         ApplyArtAttribution(tile);
@@ -1390,6 +1380,39 @@ public sealed partial class SurfaceManager
         return b;
     }
 
+    /// <summary>Not an ad in the window's bottom-left corner, only while its cover is lifted by hand (2026-10-09, "I want the option in the
+    /// intermission menu. The one in the bottom left corner should only appear when the veil is lifted manually to view the ad underneath.
+    /// Therefore if the user notices it is not an ad when they can actually see the screen, then they can report it"). Until then it sat
+    /// on every cover the break watch drew (2026-10-07). It is the window's own chip, as Cover again is: the cover is faded out and
+    /// passes every press through while lifted.</summary>
+    private Button PeekNotAdFor(Tile tile)
+    {
+        if (_notAdPills.TryGetValue(tile.Id, out var b)) return b;
+        b = new Button
+        {
+            Content = new TextBlock { Text = "Not an ad", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x14, 0x17, 0x1C)) },
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(12, 0, 0, 12), Padding = new Thickness(12, 6, 12, 6), CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(0),
+            Visibility = Visibility.Collapsed,
+        };
+        MainWindow.OwnHover(b);
+        ToolTipService.SetToolTip(b, "This is the show, not an ad: the cover stays off, and Prism is told it got this wrong");
+        var id = tile.Id;
+        b.Click += (_, __) => NotAnAdPressed?.Invoke(id);
+        tile.Container.Children.Add(b);
+        _notAdPills[tile.Id] = b;
+        return b;
+    }
+
+    private void SyncPeekNotAd(string id)
+    {
+        if (Get(id) is not { } t) return;
+        var want = t.Peeked && t.Covered && _notAdWanted.Contains(id);
+        if (!want && !_notAdPills.ContainsKey(id)) return;
+        PeekNotAdFor(t).Visibility = want ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void TogglePeek(string id)
     {
         var tile = Get(id);
@@ -1434,6 +1457,7 @@ public sealed partial class SurfaceManager
         // it back earlier?"): the cover itself is faded out and passes every press through, so the way back is its own chip
         var back = PeekBackFor(tile);
         back.Visibility = tile.Peeked && tile.Covered ? Visibility.Visible : Visibility.Collapsed;
+        SyncPeekNotAd(tile.Id);
         if (back.Content is TextBlock bt) bt.Text = "Cover again \u00B7 " + tile.PeekRemaining + "s";
         CoverageChanged?.Invoke();
     }
@@ -2551,7 +2575,7 @@ public sealed partial class SurfaceManager
         tile.Covered = false;
         tile.Peeked = false;                                         // a peek never outlives its break
         tile.PeekTimer?.Stop();
-        if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed;   // the peek's own way back goes with it
+        if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed; SyncPeekNotAd(tile.Id);   // the peek's own way back goes with it
         SyncMutedStrip(tile);
         StopSkipHole(tile);
         if (tile.PeekChip is { } pc) pc.Content = "Show ad 15s";
@@ -2634,7 +2658,7 @@ public sealed partial class SurfaceManager
         if (tile.SubSlabs.Length != 4) return;
         const double pad = 4;
         x -= pad; y -= pad; w += pad * 2; h += pad * 2;
-        double cw = tile.Rect.W, ch = tile.Rect.H;
+        double cw = tile.Rect.W, ch = VeilBottom(tile);   // the veil ends where an open band begins
         x = Math.Max(0, Math.Min(x, cw)); y = Math.Max(0, Math.Min(y, ch));
         w = Math.Max(0, Math.Min(w, cw - x)); h = Math.Max(0, Math.Min(h, ch - y));
         if (w < 8 || h < 8) { ClearHole(tile); return; }
@@ -2658,10 +2682,51 @@ public sealed partial class SurfaceManager
         }
     }
 
+    /// <summary>
+    /// A channel's ticker left open in the veil (2026-10-08, "for NFL we could actually veil the ad and not the margins with the details"):
+    /// NFL Network keeps its ticker - scores, headlines, its own logo - on screen through a break and plays the ads in the picture above
+    /// it, so a whole-window veil hid the one part that was not an ad. `band` is the share of the 16:9 picture's height, from its bottom,
+    /// to leave open (0 = the whole window, as before). The veil's ground is clipped above it; the cover's own button moves above it too.
+    /// </summary>
+    public void SetVeilBand(string id, double band)
+    {
+        var tile = Get(id);
+        if (tile is null) return;
+        band = Math.Max(0, Math.Min(0.3, band));
+        if (Math.Abs(tile.VeilBand - band) < 0.001) return;
+        tile.VeilBand = band;
+        _onStatus(band > 0 ? $"veil band: {id} leaves the bottom {band:P0} of the picture open (the veil ends at {VeilBottom(tile):0} of {tile.Rect.H:0})" : $"veil band: {id} none");
+        ApplyVeilBand(tile);
+    }
+
+    /// <summary>Where the veil's ground ends, in the window's own units: the window's height, or the top of the open band.</summary>
+    private static double VeilBottom(Tile tile)
+    {
+        double cw = tile.Rect.W, ch = tile.Rect.H;
+        if (tile.VeilBand <= 0 || cw <= 0 || ch <= 0) return ch;
+        // the 16:9 picture inside a window of any shape (VideoArea): as tall as the window, or centred with bars above and below
+        var ph = Math.Min(ch, cw * 9 / 16);
+        var top = (ch - ph) / 2;
+        return Math.Max(0, Math.Min(ch, top + ph * (1 - tile.VeilBand)));
+    }
+
+    /// <summary>The band applied to a veil that has no Skip opening (SetHole clips to it itself), and the cover's button kept above it.</summary>
+    private void ApplyVeilBand(Tile tile)
+    {
+        if (tile.SubSlabs.Length != 4) return;
+        if (tile.SkipHoleTimer is not { IsRunning: true }) ClearHole(tile);
+        if (_notAdPills.TryGetValue(tile.Id, out var pill)) pill.Margin = new Thickness(12, 0, 0, 12 + Math.Max(0, tile.Rect.H - VeilBottom(tile)));
+    }
+
     private void ClearHole(Tile tile)
     {
         if (tile.SubSlabs.Length != 4) return;
-        tile.SubSlabs[0].Clip = null; tile.ArtSlabs[0].Clip = null;
+        if (tile.VeilBand > 0)
+        {
+            var open = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, Math.Max(0, tile.Rect.W), VeilBottom(tile)) };
+            tile.SubSlabs[0].Clip = open; tile.ArtSlabs[0].Clip = new RectangleGeometry { Rect = open.Rect };
+        }
+        else { tile.SubSlabs[0].Clip = null; tile.ArtSlabs[0].Clip = null; }
         for (var i = 1; i < 4; i++)
         {
             tile.SubSlabs[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
@@ -2993,6 +3058,8 @@ public sealed partial class SurfaceManager
     public event Action<string, string>? EmeResult;
     /// <summary>A window's video seeked, paused, played or changed speed (the page's own element, whoever asked): tile id, the page's json.</summary>
     public event Action<string, string>? MediaNote;
+    /// <summary>The stream's own ad cue, read from the data the page hands its player (YouTube TV's "Cuepoint-Event"): tile id, the page's json.</summary>
+    public event Action<string, string>? CueNote;
     /// <summary>Each window's last capture for the break watch, while it has not answered (CaptureForWatchAsync).</summary>
     private readonly Dictionary<string, Task> _capturePending = new();
 
@@ -3064,6 +3131,7 @@ public sealed partial class SurfaceManager
         tile.Container.Width = Math.Max(0, r.W);
         tile.Container.Height = Math.Max(0, r.H);
         ApplyViewport(tile);                                          // the fit follows the rect
+        if (tile.VeilBand > 0) ApplyVeilBand(tile);                   // ... and so does a veil's open band
     }
 
     // 2026-09-23: the wall died at every boot (stowed 0xc000027b / E_UNEXPECTED in BitmapSource.SetSource) once the boot cache held

@@ -22,3 +22,7 @@ targets/win-host/PrismHost/Assets/tmdb.key
 prototypes/webview2-poc/obj/
 scripts/reports/inbox/
 scripts/reports/.last-list.json
+
+__pycache__/
+scripts/breakwatch/bwtest/bin/
+scripts/breakwatch/bwtest/obj/

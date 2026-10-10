@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atHomeFrom, catalogRows, isCatalogId, offerLabel, offersFromProviders, ownedIsThis, ownedYear, providersOf, titlesFromSearch, type CatalogService } from "../src/catalog-search.js";
+import { atHomeFrom, catalogRows, isCatalogId, offerLabel, offersFromProviders, ownedIsThis, ownedYear, providersOf, titlesFromSearch, type CatalogService, offerRank } from "../src/catalog-search.js";
 
 // "maybe we should just use TMDB's results then link those results up to the service if linked to us (discard if not
 // part of a service we've configured). So if I search for Stranger Things, TMDB returns the link on Netflix and nothing
@@ -116,5 +116,16 @@ describe("a film is sold to own once TMDB lists its home release (2026-09-22)", 
     expect(atHomeFrom(us([3, "1985-12-13"]), today)).toBe(true);
     expect(atHomeFrom({ results: [{ iso_3166_1: "GB", release_dates: [{ type: 3, release_date: "2026-09-18" }] }] }, today)).toBe(null);
     expect(atHomeFrom(null, today)).toBe(null);
+  });
+});
+
+describe("a title on several services: which comes first", () => {
+  it("owned, then a subscription, then free, then free with ads; a service that sells or rents it last, the given order kept within a kind (2026-10-09)", () => {
+    const services = [
+      { name: "Apple TV", offer: "Buy" }, { name: "Fandango at Home", offer: "Rent / Buy" }, { name: "Paramount+", offer: "Subscription" },
+      { name: "Tubi", offer: "Free with ads" }, { name: "Netflix", offer: "Subscription" }, { name: "YouTube TV", offer: "Owned" }, { name: "Prime Video", offer: "Free" },
+    ];
+    expect([...services].sort((a, b) => offerRank(a.offer) - offerRank(b.offer)).map((s) => s.name))
+      .toEqual(["YouTube TV", "Paramount+", "Netflix", "Prime Video", "Tubi", "Apple TV", "Fandango at Home"]);
   });
 });

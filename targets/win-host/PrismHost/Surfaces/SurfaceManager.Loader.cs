@@ -61,16 +61,45 @@ public sealed partial class SurfaceManager
         mark.Children.Add(glow);
         mark.Children.Add(line);
         t.Overlay.Children.Add(mark);   // above the substrate and the frozen picture, faded with them
-        var run = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+        // each animation repeats by itself: the light laps in a beat and a half, its colours take three laps to come round
+        var run = new Storyboard();
         foreach (var p in new[] { glow, line })
         {
-            var a = new DoubleAnimation { Duration = new Duration(TimeSpan.FromMilliseconds(1500)), EnableDependentAnimation = true };
+            var a = new DoubleAnimation { Duration = new Duration(TimeSpan.FromMilliseconds(1500)), EnableDependentAnimation = true, RepeatBehavior = RepeatBehavior.Forever };
             Storyboard.SetTarget(a, p);
             Storyboard.SetTargetProperty(a, "StrokeDashOffset");
             run.Children.Add(a);
         }
+        // the light goes through the spectrum as it travels (2026-10-08, "can we make the loading triangle glow create psychedelic colors
+        // as it travels the triangle?"): a prism's own trick. The line and its halo run the same colours a third of the way apart, so the
+        // halo is never the line's colour. These two are added after the laps: SizeLoader reads the laps as children 0 and 1.
+        run.Children.Add(Spectrum((SolidColorBrush)line.Stroke, 255, 0));
+        run.Children.Add(Spectrum((SolidColorBrush)glow.Stroke, 110, 3));
         var l = (mark, glow, line, run);
         return l;
+    }
+
+    // gold first (the mark's own colour, and what the light is before the animation's first frame), then round the spectrum
+    private static readonly (byte R, byte G, byte B)[] LoaderSpectrum =
+    {
+        (0xF2, 0xB1, 0x4C), (0xB8, 0xF2, 0x4C), (0x4C, 0xF2, 0xA0), (0x4C, 0xC9, 0xF2), (0x6B, 0x7C, 0xFF),
+        (0xC3, 0x6B, 0xFF), (0xFF, 0x5C, 0xD6), (0xFF, 0x3B, 0x6B), (0xFF, 0x8A, 0x3D),
+    };
+
+    /// <summary>A brush's colour taken round the spectrum for good, starting `phase` colours in: 4.5 s a round.</summary>
+    private static ColorAnimationUsingKeyFrames Spectrum(SolidColorBrush brush, byte alpha, int phase)
+    {
+        const double roundMs = 4500;
+        var n = LoaderSpectrum.Length;
+        var a = new ColorAnimationUsingKeyFrames { Duration = new Duration(TimeSpan.FromMilliseconds(roundMs)), RepeatBehavior = RepeatBehavior.Forever, EnableDependentAnimation = true };
+        for (var i = 0; i <= n; i++)
+        {
+            var c = LoaderSpectrum[(i + phase) % n];
+            a.KeyFrames.Add(new LinearColorKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(roundMs * i / n)), Value = Windows.UI.Color.FromArgb(alpha, c.R, c.G, c.B) });
+        }
+        Storyboard.SetTarget(a, brush);
+        Storyboard.SetTargetProperty(a, "Color");
+        return a;
     }
 
     /// <summary>The triangle drawn at the mark's size (a dash is counted in stroke widths, so the path is built in pixels, never stretched).

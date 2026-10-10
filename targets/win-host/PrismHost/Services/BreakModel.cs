@@ -55,6 +55,17 @@ internal sealed class BreakModel
     private double _showCardAt = -99;
     // a channel's promo for its own show ("Season finale, Friday 10/9c") carries its logo: seen inside a break, it holds the break (below)
     private double _promoAt = -99, _promoLogoAt = -1;
+    // a network's banner over its own show ("ALL NEW ... SUNDAYS", "SEASON PREMIERE Tonight 9/8c"), and whether the cover up now came by the
+    // quick re-cover (the rule a banner fools)
+    private double _snipeAt = -99;
+    private bool _quickCover;
+    // the captions' last line: a show runs captions under its network's banner; a full-screen promo inside a break often has none
+    private double _ccLineAt = -999;
+    // a rating badge read on the screen ("14", "TV 14", "TV-PG": a show coming back), and whether the cover up now is the promo rule's
+    private double _badgeAt = -99;
+    private bool _promoCover;
+    private static readonly Regex Badge = new(@"^\s*(tv[ -]?)?(14|pg|ma|y7|g)\s*$|tv[ -]?(14|pg|ma|y7)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SnipeWords = new(@"all[- ]new|\b(sun|mon|tues|wednes|thurs|fri|satur)days\b|season premiere|series premiere|season finale|series finale|marathon|new episodes?|premieres?\b|(january|february|march|april|may|june|july|august|september|october|november|december) \d{1,2}\b|\btonight\b|\b\d{1,2}/\d{1,2}c\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private readonly Dictionary<string, int> _showTokens = new();   // ad-looking text seen while the logo is up: the channel's own
 
     public bool Active { get; private set; }
@@ -98,6 +109,8 @@ internal sealed class BreakModel
     /// <summary>A Not an ad taken back (Ad debug's This is an ad right after it, 2026-10-07, "I had one I falsely reported not an ad then
     /// clicked this is an ad right after"): the window may be covered again at once. True when there was a hold to lift.</summary>
     public bool Undismiss(double t) { if (t >= _dismissedUntil) return false; _dismissedUntil = -1; return true; }
+    /// <summary>The person's Not an ad still holds (five minutes): no cover, whoever decides.</summary>
+    public bool DismissedAt(double t) => t < _dismissedUntil;
     /// <summary>The person said this is no ad (the card's Not an ad): uncovered now, nothing covers here for five minutes, and the pictures
     /// of the last minute are never learned.</summary>
     public bool Dismiss(double t)
@@ -113,6 +126,22 @@ internal sealed class BreakModel
     private readonly Queue<double> _scores = new();
     private double _level = 0.6;
     public string Why { get; private set; } = "";
+    /// <summary>Why a break the model is sure of is not covered yet (the test bench's reading; empty when covered or not sure).</summary>
+    public string Hold { get; private set; } = "";
+    private double _lastChange, _lastMean, _lastStd;
+    /// <summary>The model's readings at t, for training a learned break detector (2026-10-07, "I love the idea of the trained model"): levels, and
+    /// seconds since each kind of evidence was last seen (capped at 120). The names are <see cref="FeatureNames"/>.</summary>
+    public static readonly string[] FeatureNames = { "logo", "logo_seen", "logo_ratio", "since_logo_up", "absent_for", "change", "mean", "std", "since_black", "since_cut",
+        "since_ad_text", "since_show_text", "since_show_card", "since_promo", "since_snipe", "since_badge", "since_cc_ad", "since_cc_line", "since_game", "since_qr",
+        "since_sound", "since_credits", "known_ad", "chance", "active", "near_edge", "has_logo", "set_aside", "game_words", "cue_on", "since_cue_stop", "since_cue_predict" };
+    public double[] Features(double t)
+    {
+        double S(double at) => Math.Min(120, Math.Max(0, t - at));
+        return new double[] { LogoScore ?? 0, LogoScore is null ? 0 : 1, LogoScore is { } l ? l / _level : 0, S(_logoUpAt), _absentSince < 0 ? 0 : Math.Min(600, t - _absentSince),
+            _lastChange, _lastMean, _lastStd, S(_lastBlack), S(_cutAt), S(_adTextAt), S(_showTextAt), S(_showCardAt), S(_promoAt), S(_snipeAt), S(_badgeAt), S(_ccAdAt),
+            S(_ccLineAt), S(_gameSaidAt), S(_qrAt), S(_soundAt), S(_creditsAt), KnownAd(t) ? 1 : 0, _pb, Active ? 1 : 0, NearEdge ? 1 : 0, HasLogo ? 1 : 0, _suspended ? 1 : 0,
+            _gameWords.Where(x => t - x.At <= 300).Sum(x => x.N), t < _cueReadUntil ? 1 : 0, S(_cueStopAt), S(_cuePredictAt) };
+    }
 
     public BreakModel() { for (var k = 0; k < 4; k++) { _steady[k] = new float[CH * CW]; _pattern[k] = new float[CH * CW]; } }
 
@@ -121,16 +150,19 @@ internal sealed class BreakModel
     {
         if (g.Length != W * H) return false;
         var change = _prev is null ? 0 : MeanAbsDiff(g, _prev);
+        _lastChange = change;
         if (_prev is not null && change < 0.4) { if (_stillSince < 0) _stillSince = t; return false; }   // a still picture (paused, or a frozen page): no evidence
         _stillSince = -1;
         if (change >= CutDiff) _cutAt = t;   // a hard cut: the whole picture changed at once
         _prev = g;
+        ReadInset(g, t);
         if (_startT < 0) { _startT = t; if (_resumeSuspended) { _suspendedAt = t; _resumeSuspended = false; } }
         if (t - _startT < 12) return false;   // the page's first seconds (black, a spinner): nothing to read yet
         double mean = 0, sq = 0;
         foreach (var v in g) { mean += v; sq += v * v; }
         mean /= g.Length; var std = Math.Sqrt(Math.Max(0, sq / g.Length - mean * mean));
         var black = mean < 20 && std < 8;
+        _lastMean = mean; _lastStd = std;
         // credits (2026-10-06, "If we can avoid veiling credits, preferred"): a frame almost all black (rolling credits, a title card), or
         // the picture squeezed into the top or the left with the rest black (the end-credits squeeze with its "Next" promo). The logo goes
         // with them, so the logo alone never covers credits; an ad's own words, a QR code or a known ad picture still can
@@ -224,7 +256,9 @@ internal sealed class BreakModel
             }
         }
         // a cut to black
-        if (black) { _lastBlack = t; why.Add("black"); }
+        if (black) { _lastBlack = t; why.Add("black"); _blacks.Enqueue(t); }
+        ReadInsetTail(t);
+        while (_blacks.Count > 0 && t - _blacks.Peek() > 8) _blacks.Dequeue();
         // what the screen says (read every few seconds; the reading lasts a little)
         // an ad's words count while the channel's logo is not plainly there (an ad never carries it; a speaker's banner or a news
         // channel's caption can name an address while it does) - and .edu and .gov are no advertiser's (C-SPAN2's "harvard.edu" backdrop
@@ -235,8 +269,10 @@ internal sealed class BreakModel
         var showSaid = t - _showTextAt <= 10;
         // a game's commentary (GameSaid below) is the show: on a channel with no logo to read it holds off a cover, and under a cover that has
         // stood ten seconds it lifts it (the captions run a few seconds behind the picture, so a game's last words come after its break began)
-        var gameSaid = t - _gameSaidAt <= 6;
-        var gameShow = gameSaid && (!HasLogo || _suspended || (Active && t - _since > 10));
+        var gameSaid = t - _gameSaidAt <= 10;
+        // ... and with a logo too, a new cover waits while the commentary goes on (TBS 17:27:33: the logo dipped for a replay graphic and a scrap
+        // of the stadium's sign, "ig.com", covered the game two seconds after the commentary)
+        var gameShow = gameSaid && (!HasLogo || _suspended || !Active || t - _since > 10);
         if (gameShow) { showSaid = true; llr -= 3.0; why.Add("game commentary"); }
         // an ad's words on the screen count only with the channel's learned logo plainly away: a show can put a phone number or an address
         // on screen too (Unbreakable's news broadcast showed "800-656-1482" with FX's logo just back, 2026-10-07 07:10, covered 14 s)
@@ -287,6 +323,9 @@ internal sealed class BreakModel
         // the show's own card ("The following program is rated...") says the show is starting: a film opens without its channel's logo for
         // a while, so for a minute and a half only the screen's words for an ad can cover (FX, 2026-10-06 19:24 and 19:38: covered 14-16 s)
         if (t - _showCardAt < ShowCardQuiet) wait = double.PositiveInfinity;
+        // the network's banner over its own show while the show talks: the logo is under the banner, and alone it covers nothing (TLC 18:24:00,
+        // "ER: Caught On Camera TONIGHT" sat over the logo past the 30 s wait and covered the show 17 s)
+        if (t - _snipeAt <= 6 && t - _ccLineAt <= 8) wait = double.PositiveInfinity;
         // ... and at once when a break ended moments ago: a channel's own promo inside a break shows its logo for a few seconds, the
         // cover came down for it and the next ad played uncovered while the six seconds ran (BBC America, 2026-10-06 18:39:41)
         var justBroke = t - _endedAt < RecoverSeconds;
@@ -321,16 +360,40 @@ internal sealed class BreakModel
         // cover with none in its last 20 s lets go. A channel without commercials (C-SPAN, PBS) is never covered.
         if (NearEdge)
         {
-            said = worded;
+            // the screen's words or a QR code; words only heard are never a cover on their own, here least of all (HGTV 17:00:56: a program's
+            // credits under its "season premiere tonight" banner, covered 22 s on a caption's ad words)
+            said = adText || (t - _qrAt <= 5 && !logoUp && !showSaid);
             wait = double.PositiveInfinity;
             if (Active && t - _wordSeenAt > 20) _pb = Math.Min(_pb, 0.3);
         }
+        // a slot the stream itself marks as an ad covers at once and holds to its end (2026-10-07: FX's 60.5 s slot at 21:13:05, which the
+        // page's own signal reported 23 s later)
+        var cueOn = t < _cueUntil;
+        if (cueOn) { said = true; _adSeenAt = t; _pb = Math.Max(_pb, 0.95); why.Add("the stream's ad cue"); }
         if (AdFreeChannel || t < _dismissedUntil) { said = false; wait = double.PositiveInfinity; _pb = Math.Min(_pb, 0.05); }
-        var quick = justBroke && !credits && !_staleUntilLogo && !NearEdge && !AdFreeChannel;
+        // no quick re-cover in a game: the break's end is the game coming back, and its score bug comes and goes (TBS 17:37:47, a sponsored
+        // pitching change right after the break hid it, and the quick re-cover covered the game 30 s)
+        var inGame = _gameWords.Where(x => t - x.At <= 300).Sum(x => x.N) >= 6;
+        var quick = justBroke && !credits && !_staleUntilLogo && !NearEdge && !AdFreeChannel && !inGame;
         var settled = t - _changedAt >= 8;
-        if (!Active && _sureSince >= 0 && (said || ((quick || t - _sureSince >= wait) && settled))) { Active = true; _since = t; _changedAt = t; }
+        Hold = Active || _sureSince < 0 ? "" : $"wait {wait:0}s sure {t - _sureSince:0}s said {said} settled {settled} stale {_staleUntilLogo} credits {credits} card {t - _showCardAt < ShowCardQuiet} near {NearEdge}";
+        if (!Active && _sureSince >= 0 && (said || ((quick || t - _sureSince >= wait) && settled))) { Active = true; _since = t; _changedAt = t; _quickCover = !said && t - _sureSince < wait; _promoCover = false; }
+        // a quick re-cover that turns out to be the network's banner over its own show lets go at once: the banner's words ("ALL NEW Sister Wives
+        // SUNDAYS", TLC 17:43:40, covered 26 s) are read a moment after the logo went under it
+        else if (Active && _quickCover && t - _since <= 12 && t - _snipeAt <= 4 && t - _ccLineAt <= 8 && !said) { Active = false; _changedAt = t; _endedAt = -999; _pb = Math.Min(_pb, 0.3); _quickCover = false; }
         // the hold only inside a break an ad has spoken in lately: a doubtful cover lifts at once
-        else if (Active && _pb < 0.35 && (settled || _logoBack >= 2 || showSaid || t - _adSeenAt > 20)) { Active = false; _changedAt = t; _endedAt = t - _showCardAt < ShowCardQuiet || _staleUntilLogo || credits ? -999 : t; }   // ended by the show's own card: no quick re-cover (FX 2026-10-06 19:52:41, the order of the two had undone it)
+        // the show's rating badge comes up as it returns ("14" top-left: TLC 16:43:10 and 17:14:24, USA at every return; covers stayed 24 s
+        // longer): a cover up twenty seconds with no ad's word lately lifts at once, and is not quickly put back
+        else if (Active && t - _badgeAt <= 2 && t - _since > 20 && t - _adTextAt > 5 && t - _qrAt > 5) { Active = false; _changedAt = t; _endedAt = -999; _promoCover = false; _quickCover = false; }
+        else if (Active && _promoCover && t - _badgeAt <= 2) { Active = false; _changedAt = t; _endedAt = -999; _promoCover = false; }   // the show's rating badge: it is back
+        else if (Active && _pb < 0.35 && (settled || _logoBack >= 2 || showSaid || t - _adSeenAt > 20) && !(_promoCover && t - _since <= 30 && t - _ccLineAt > 8)) { Active = false; _changedAt = t; _endedAt = t - _showCardAt < ShowCardQuiet || _staleUntilLogo || credits ? -999 : t; }   // ended by the show's own card: no quick re-cover (FX 2026-10-06 19:52:41, the order of the two had undone it)
+        // ... and the other way round: the network's own promo words on a screen with no captions, moments after a cover lifted, are the break
+        // going on (USA 17:45:39: "WE'LL BE BACK", the logo back, then a full-screen promo for an SVU marathon ran 24 s uncovered). Only on a
+        // channel whose captions ran lately (one with none at all says nothing by its silence)
+        if (!Active && _endedAt > 0 && t - _endedAt <= 30 && t - _snipeAt <= 3 && t - _ccLineAt > 8 && t - _ccLineAt < 300 && _badgeAt < _endedAt && !NearEdge && !AdFreeChannel && t >= _dismissedUntil)
+        { Active = true; _since = t; _changedAt = t; _quickCover = false; _promoCover = true; _pb = Math.Max(_pb, 0.9); Why += (Why.Length > 0 ? ", " : "") + "promo, no captions"; }
+        // inside a slot the stream marks as an ad, nothing lifts the cover (a badge, a banner, a promo's end): it is up to the slot's end
+        if (cueOn && !Active && !AdFreeChannel && t >= _dismissedUntil) { Active = true; _since = t; _changedAt = t; _quickCover = false; _promoCover = false; }
         return Active != was;
     }
 
@@ -357,6 +420,174 @@ internal sealed class BreakModel
     private double _soundAt = -999;
     /// <summary>The window's sound matched an ad heard before (AdSounds).</summary>
     public void SoundSeen(double t) => _soundAt = t;
+    // the stream's own ad cue (YouTube TV's "Cuepoint-Event", read from the data its page hands the player): a marked slot is an ad, from its
+    // START to its STOP or its announced length; a PREDICT_START only says one is coming
+    // Two clocks (2026-10-08). The page reads a cue when the data is buffered, 14 to 31 s before it plays: that reading (CueRead) is
+    // the learned detector's input "cue_on", as every recording it was trained on has it. The sure rule (CueOnAt, and the rules
+    // below that stand down for a marked slot) goes by the cue as the playhead reaches it (CueSeen).
+    private double _cueUntil = -1, _cueReadUntil = -1, _cueAt = -999, _cueStopAt = -999, _cuePredictAt = -999;
+    /// <summary>Every rule says the show is on: the channel's logo plainly up, the rules' chance under 5%, no ad's words or QR code for ten
+    /// seconds, no known ad picture, no marked slot. The learned detector may not start a cover then (2026-10-08 23:42-23:58: five covers of
+    /// NBC Sports' WNBA game, a sport it had never seen, its logo plainly up).</summary>
+    public bool PlainShow(double t) => LogoUpNow && _pb < 0.05 && t - _adTextAt > 10 && t - _qrAt > 10 && !KnownAd(t) && t >= _cueUntil;
+    // ---- a ticker channel's inset picture (2026-10-08, NFL Network: twenty-odd "is an ad" reports in a morning) ----
+    // The channel keeps its ticker - and in it its logo - on screen through a break and plays the ads in a picture drawn inset above it:
+    // black margins of about 15 of 320 pixels down both sides, where its own programmes reach the edges. So the logo, the detector's word
+    // for "the show is on", never leaves, and the breaks were missed. Read on the recorded frames: across a morning (09:00-12:14) the inset
+    // came to 13 stretches of some two and a half minutes, 26% of the time, with 12 of the person's 17 presses inside them; overnight and
+    // the evening before the same (6 to 7 an hour); and every frame looked at where the picture was inset but the marks said "show" was an
+    // advertisement (15 of 15). A film shown 4:3 has margins of 40 pixels, not 15. The other five presses fell where the channel's local
+    // ads play full screen with no ticker, which the logo's leaving already tells.
+    /// <summary>The channel on now keeps its ticker up through its breaks (set by the window's watch): an inset picture is a break.</summary>
+    public bool TickerChannel { get; set; }
+    private double _insetSince = -1, _insetAt = -999, _insetFrameAt = -999;
+    private int _fullRun;
+    /// <summary>A break by the inset picture: inset for three seconds, until two frames running plainly reach an edge again (a dark shot
+    /// inside an ad is neither) or twelve seconds pass with no inset frame.</summary>
+    public bool InsetBreakAt(double t) => TickerChannel && !_insetProgramme && _insetSince >= 0 && _insetAt - _insetSince >= 3 && t - _insetAt <= 12;
+    // ... unless the programme itself is shown inset (2026-10-09, 00:17-00:31: a Thursday night game's repeat, the game in the same
+    // inset picture over the ticker as the ads around it, covered for thirteen minutes and counting). A break does not last six minutes:
+    // inset for 330 s or more of the last ten minutes, the inset picture is the programme's own and the rule stands down, until the
+    // picture has reached the edges for a minute running (the channel's usual programmes do). The channel's daytime breaks were inset
+    // 150 s at a time, 26% of the hour; two of them back to back fall short of it.
+    private bool _insetProgramme;
+    private double _fullSince = -1, _insetSum, _insetPrev = -999;
+    private readonly Queue<(double T, double Dt)> _insetSeen = new();
+    /// <summary>The inset picture is the programme's own for now: the inset rule is standing down.</summary>
+    public bool InsetProgramme => TickerChannel && _insetProgramme;
+    // ... and the full-screen ads beside an inset break (2026-10-08, a report at 13:52: the cover lifted while one played). The stations'
+    // own minute plays with no ticker at all, so there the ticker's logo is plainly AWAY - on a channel whose programmes always carry it.
+    // For two minutes after the picture was last inset, the logo plainly away is still the break; the logo plainly back at two looks ends
+    // it. On the marked hours this covers 36% to 53% of the ad time the inset misses, and the six stretches it covered that the marks
+    // called show were advertisements (USAA, a campaign ad, EGO, Carhartt, two schedule promos).
+    // It begins once the logo has been away four seconds running (the show's own way back in wipes over the ticker for three or four),
+    // and then stays until the logo is plainly up at two looks running: read look by look it came and went inside one ad.
+    private double _insetOnAt = -999, _tailAt = -999, _awaySince = -1;
+    private int _tailUps;
+    private bool _tailOn;
+    public bool InsetTailAt(double t) => TickerChannel && _tailOn && t - _tailAt <= 3;
+    private void ReadInsetTail(double t)
+    {
+        if (!TickerChannel) return;
+        if (InsetBreakAt(t)) { _insetOnAt = t; _tailUps = 0; _awaySince = -1; _tailOn = false; return; }
+        if (t - _insetOnAt > 120) { _tailOn = false; return; }
+        if (LogoUpNow) { _awaySince = -1; if (++_tailUps >= 2) _tailOn = false; }
+        else if (LogoAwayNow) { _tailUps = 0; if (_awaySince < 0) _awaySince = t; if (t - _awaySince >= 4) _tailOn = true; }
+        if (_tailOn) _tailAt = t;
+    }
+    private void ReadInset(byte[] g, double t)
+    {
+        if (!TickerChannel) { _insetSince = -1; _fullRun = 0; _insetProgramme = false; _insetSeen.Clear(); _insetSum = 0; _fullSince = -1; return; }
+        if (t - _insetFrameAt > 6) { _insetSince = -1; _fullRun = 0; }   // a gap in the frames: nothing is known across it
+        _insetFrameAt = t;
+        // the picture above the ticker and below a top band: rows 18 to 158 of 180
+        int r0 = H / 10, r1 = H * 158 / 180, rows = r1 - r0;
+        bool Dark(int x) { var s = 0; for (var y = r0; y < r1; y++) s += g[y * W + x]; return s < 14 * rows; }
+        int left = 0, right = 0;
+        while (left < W && Dark(left)) left++;
+        if (left < W) while (right < W && Dark(W - 1 - right)) right++; else right = W;
+        var inset = left >= 10 && left <= 24 && right >= 10 && right <= 24;
+        var full = left < 4 || right < 4;   // the picture reaches an edge (an all-dark frame reaches neither, and says nothing)
+        _fullRun = full ? _fullRun + 1 : 0;
+        if (inset) { if (_insetSince < 0) _insetSince = t; _insetAt = t; }
+        // how much of the last ten minutes was inset, by the seconds each inset frame stands for
+        var dt = Math.Clamp(t - _insetPrev, 0.5, 3); _insetPrev = t;
+        if (inset) { _insetSeen.Enqueue((t, dt)); _insetSum += dt; }
+        while (_insetSeen.Count > 0 && t - _insetSeen.Peek().T > 600) _insetSum -= _insetSeen.Dequeue().Dt;
+        if (full) { if (_fullSince < 0) _fullSince = t; } else if (inset) _fullSince = -1;
+        if (!_insetProgramme && _insetSum >= 330) _insetProgramme = true;
+        else if (_insetProgramme && _fullSince >= 0 && t - _fullSince >= 60) { _insetProgramme = false; _insetSeen.Clear(); _insetSum = 0; }
+        if (_insetSince >= 0 && (_fullRun >= 2 || t - _insetAt > 12)) _insetSince = -1;
+    }
+    // the black frames of the last eight seconds (a frame is read about once a second)
+    private readonly Queue<double> _blacks = new();
+    /// <summary>A dark scene, not a cut: four or more black frames in the last eight seconds, and nothing an ad shows (its words, a QR code,
+    /// a known ad picture, a marked slot). A cut to black at a break's edge is a frame or two; a night scene stays black for many seconds,
+    /// the channel's logo unreadable all the while - and the learned detector reads "black, no logo" as a break. It may not start a cover
+    /// then (2026-10-08 10:50-10:54, FX's Antlers on the big screen: six covers in four minutes, each with seven or eight of the last eight
+    /// frames black, lifted when a lit shot showed the logo; "not an ad").</summary>
+    public bool DarkScene(double t) => _blacks.Count >= 4 && t - _blacks.Peek() <= 8 && t - _adTextAt > 10 && t - _qrAt > 10 && !KnownAd(t) && t >= _cueUntil;
+    // an infomercial (2026-10-08, "1 cover it": FX's overnight paid programming, a Shark vacuum and a coin set, flickered covered and not all
+    // night): the same phone number on screen for minutes, where an ordinary ad shows one for less than one
+    private readonly Dictionary<string, (double First, double Last, int N)> _phones = new();
+    private double _infomercialAt = -999;
+    /// <summary>An infomercial is on: one phone number read five times or more over two minutes or longer, the last time within 90 s (the
+    /// reader catches the number only now and then: a 20 s hold flickered AMC's morning paid programming covered and not 26 times an hour).</summary>
+    public bool InfomercialAt(double t) => t - _infomercialAt <= 90;
+    // A paid programme that says so itself (2026-10-09, Food Network 05:30-06:00: "The following is a paid program for ..." stood on the
+    // screen at 05:30:35, and "This is a paid program ..." again at 05:43 and 05:53; the guide gave the window no programme at all from
+    // 04:30 to 07:50, so the Paid Programming rule had no title to read, no phone number stood, and the half hour was covered in pieces,
+    // 17 minutes of its 30). The card is the screen's own statement: it covers to the end of its half hour (PaidSlotEnd). The shell
+    // keeps the clock; the model only says when the card was last read and which wording.
+    // "A paid advertisement" is not the card: a law firm's two-minute spot inside ordinary breaks says "THIS IS A PAID ADVERTISEMENT
+    // FOR LEGAL SERVICES" (Food Network 2026-10-07 22:17 and 23:38, 2026-10-08 00:43 and 01:42), and would cover the show to the half hour.
+    private static readonly Regex PaidCard = new(@"\b(the following|this) (is|was) a paid (program|programme|presentation)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    /// <summary>When a paid programme's own card was last read on the screen (-9999: never).</summary>
+    public double PaidCardAt { get; private set; } = -9999;
+    /// <summary>The card read last was the opening one ("The following is ..."), not one shown during the programme.</summary>
+    public bool PaidCardFollowing { get; private set; }
+    /// <summary>The end of the half hour a paid programme's card was read in: paid programmes are sold by the half hour. The opening card
+    /// can come up to five minutes before its slot begins, and then the slot meant is the next one.</summary>
+    public static DateTimeOffset PaidSlotEnd(DateTimeOffset at, bool following)
+    {
+        var left = 1800 - (at.Minute % 30 * 60 + at.Second);
+        if (following && left < 300) left += 1800;
+        return at.AddSeconds(left).AddMilliseconds(-at.Millisecond);
+    }
+    // A phone number standing on the screen with the channel's logo away keeps a cover (2026-10-08). The long call-now ads (CNN 09:19,
+    // a Medicare supplement, 100 s; 09:39, a car warranty, 70 s; 10:42, windows, 95 s) are slow and talkative under one banner, and the
+    // learned detector let go of them 10 to 30 s in: 263 s of the CNN exam's ad time, its largest loss. It never starts a break's
+    // cover: a show can put a number up too, and then its logo is up with it.
+    // The reader loses the number for a quarter of a minute at a time while the web address beside it stays, so an address carries the
+    // hold on for 45 s after a number stood. An address alone holds nothing: a news banner's own ("CNN.COM/ABBY", 03:59, the overnight
+    // repeat's logo read as away) held a cover over the show for a minute when it did; the channel's own address is left out as well.
+    private readonly Dictionary<string, (double First, double Last, int N)> _stands = new();
+    private double _phoneStandAt = -999, _addressStandAt = -999;
+    private void Stand(string k, double t, bool phone)
+    {
+        var e = _stands.TryGetValue(k, out var v) && t - v.Last <= 20 ? (v.First, t, v.N + 1) : (t, t, 1);
+        _stands[k] = e;
+        if (e.Item3 >= 3 && e.Item2 - e.Item1 >= 6) { if (phone) _phoneStandAt = t; else _addressStandAt = t; }
+        if (_stands.Count > 60) foreach (var old in _stands.Where(x => t - x.Value.Last > 120).Select(x => x.Key).ToList()) _stands.Remove(old);
+    }
+    /// <summary>The address begins with the channel's own name ("cnn.com/abby" on CNN, "foodnetwork.com" on Food Network).</summary>
+    private bool OwnAddress(string address)
+    {
+        var a = address.ToLowerInvariant(); if (a.StartsWith("www.", StringComparison.Ordinal)) a = a[4..];
+        var name = new string((ChannelName ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        var first = new string((ChannelName ?? "").ToLowerInvariant().TakeWhile(char.IsLetterOrDigit).ToArray());
+        return (name.Length >= 2 && a.StartsWith(name, StringComparison.Ordinal)) || (first.Length >= 2 && a.StartsWith(first, StringComparison.Ordinal));
+    }
+    /// <summary>One phone number read three times or more over six seconds or longer, the last within twelve (or a web address so read
+    /// within 45 s of the number), and the logo plainly away: a cover that is up, or was within twenty seconds, stays.</summary>
+    public bool AdLineAt(double t) => LogoAwayNow && (t - _phoneStandAt <= 12 || (t - _addressStandAt <= 12 && t - _phoneStandAt <= 45));
+    /// <summary>Inside a slot the stream marks as an ad.</summary>
+    public bool CueOnAt(double t) => t < _cueUntil;
+    /// <summary>The cue as the page read it from its buffer, ahead of the picture: the learned detector's inputs.</summary>
+    public void CueRead(string ev, double dur, double pos, double t)
+    {
+        // read ahead of the picture, a slot's announcement or its start says one is COMING (until it arrives, CueSeen)
+        if (ev is "EVENT_PREDICT_START" or "EVENT_START") _cueComingAt = t;
+        if (ev == "EVENT_PREDICT_START") { _cuePredictAt = t; return; }
+        if (ev is "EVENT_START" or "EVENT_CONTINUE") { _cueAt = t; _cueReadUntil = t + Math.Max(4, dur - pos) + 2; return; }
+        if (ev == "EVENT_STOP") { _cueStopAt = t; _cueReadUntil = t; }
+    }
+    // One stream's own look-ahead (2026-10-09). The page reads a slot's marker 11 to 31 s before the slot plays, and its announcement
+    // up to 15 s before that: for those seconds Prism knows an ad slot is about to start. A slot does not follow the show's return
+    // within half a minute, so a cover that is up stays up until the slot arrives - the break is not over. On CNN, FX and Comedy
+    // Central the slot sits inside the break and the learned detector let go in the seconds before it (CNN 09:59, 26 s; Comedy Central
+    // 14:02, 31 s). It never starts a cover: where a slot opens the break (NBC Sports) the show is on until it does.
+    private double _cueComingAt = -999;
+    /// <summary>A marked slot has been read from the buffer and has not reached the screen yet (75 s at most).</summary>
+    public bool CueComingAt(double t) => t - _cueComingAt <= 75 && t >= _cueUntil;
+    /// <summary>The cue as the playhead reaches it: the slot is on the screen from now.</summary>
+    public void CueSeen(string ev, double dur, double pos, double t)
+    {
+        if (ev is "EVENT_START" or "EVENT_CONTINUE") { _cueUntil = t + Math.Max(4, dur - pos) + 2; _cueComingAt = -999; return; }
+        // a STOP marks the piece of the stream the slot ends IN, not the end: read in the page at 56.5 s of a 61 s slot, and the player's
+        // own ad mark went off 4.3 s later (2026-10-08). The slot runs out its announced length (a piece is some 5 s)
+        if (ev == "EVENT_STOP") _cueUntil = t + Math.Clamp(dur - pos, 0, 8);
+    }
     private bool KnownAd(double t) { while (_printHits.Count > 0 && t - _printHits.Peek() > 8) _printHits.Dequeue(); return _printHits.Count >= 2; }
     /// <summary>A frame the watch may learn from: well inside a break it is sure of, the logo plainly away.</summary>
     /// <summary>The channel's learned logo is plainly away on this frame (the back-fill of a break's opening reads it frame by frame).</summary>
@@ -373,6 +604,8 @@ internal sealed class BreakModel
 
     /// <summary>The program on now by the guide (set by the window's watch): its name on screen is the show's own banner.</summary>
     public string ShowTitle { get; set; } = "";
+    /// <summary>The channel's name by the guide ("CNN"): an address carrying it is the channel's own, never an ad's.</summary>
+    public string ChannelName { get; set; } = "";
     private static bool HasWord(string s, string w)
     {
         for (var i = s.IndexOf(w, StringComparison.OrdinalIgnoreCase); i >= 0; i = s.IndexOf(w, i + 1, StringComparison.OrdinalIgnoreCase))
@@ -387,7 +620,9 @@ internal sealed class BreakModel
     public string? Text(string text, double t, bool spoken = false)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
+        if (spoken) _ccLineAt = t;
         var flat = text.Replace('\n', ' ');
+        if (!spoken && PaidCard.Match(flat) is { Success: true } pc) { PaidCardAt = t; PaidCardFollowing = pc.Value.StartsWith("the following", StringComparison.OrdinalIgnoreCase); }
         // the show's own name on screen is the show's banner, never an ad's (2026-10-07, "Seems confused by friends, keeps muting and calling
         // it an ad": TBS slid "Friends Back to Back Next" over its logo mid-scene, the logo read as gone and the quick re-cover covered the show)
         if (!spoken && ShowTitle.Length >= 4 && HasWord(flat, ShowTitle)) { _showTextAt = t; return "show: its own name (" + ShowTitle + ")"; }
@@ -396,9 +631,24 @@ internal sealed class BreakModel
         if (spoken && GameSaid(flat, t) is { } game) return game;
         string? promo = null;
         if (!spoken && PromoWords.Match(flat) is { Success: true } pw) { _promoAt = t; promo = "promo: " + pw.Value.ToLowerInvariant(); }
+        if (!spoken && SnipeWords.IsMatch(flat)) _snipeAt = t;
+        if (!spoken && Badge.IsMatch(flat.Trim())) _badgeAt = t;
         var tokens = new List<string>();
-        foreach (Match m in Url.Matches(flat)) tokens.Add(m.Value.ToLowerInvariant());
-        foreach (Match m in Phone.Matches(flat)) tokens.Add(Regex.Replace(m.Value, @"\D", ""));
+        foreach (Match m in Url.Matches(flat)) { tokens.Add(m.Value.ToLowerInvariant()); if (!spoken && !OwnAddress(m.Value)) Stand(m.Value.ToLowerInvariant(), t, phone: false); }
+        foreach (Match m in Phone.Matches(flat))
+        {
+            var ph = Regex.Replace(m.Value, @"\D", "");
+            tokens.Add(ph);
+            if (!spoken && ph.Length >= 10)
+            {
+                var k = ph[^10..];   // the number without its leading 1
+                var e = _phones.TryGetValue(k, out var v) && t - v.Last <= 120 ? (v.First, t, v.N + 1) : (t, t, 1);
+                _phones[k] = e;
+                if (e.Item3 >= 5 && e.Item2 - e.Item1 >= 120) _infomercialAt = t;
+                Stand(k, t, phone: true);
+                if (_phones.Count > 50) foreach (var old in _phones.Where(x => t - x.Value.Last > 600).Select(x => x.Key).ToList()) _phones.Remove(old);
+            }
+        }
         foreach (Match m in AdWords.Matches(flat)) tokens.Add(m.Value.ToLowerInvariant());
         if (tokens.Count == 0) return promo;
         // ... unless the logo has been gone a while already: the same banner runs full screen as a promo inside the break (TBS 07:46:40 and
@@ -410,29 +660,33 @@ internal sealed class BreakModel
             foreach (var tk in tokens) _showTokens[tk] = _showTokens.TryGetValue(tk, out var c) ? c + 1 : 1;
             return null;
         }
+        tokens.RemoveAll(Fragment);   // a scrap of an address (ig.com, tg.com) is no ad's word, logo or not
+        // the channel's own address ("CNN.com/cnnweather" in CNN's banner over its show, covered 13 s at 22:00:52 before CNN's logo was learned)
+        var own = Regex.Replace(ChannelName.ToLowerInvariant(), "[^a-z]", "");
+        if (own.Length >= 3) tokens.RemoveAll(tk => Regex.Replace(tk.ToLowerInvariant(), "[^a-z]", "").Contains(own, StringComparison.Ordinal));
+        if (tokens.Count == 0) return promo;
         foreach (var tk in tokens)
-            if (!(_showTokens.TryGetValue(tk, out var c) && c >= 3))
-            {
-                if (spoken) _ccAdAt = t;
-                else
-                {
-                    _adTextPrevAt = _adTextAt; _adTextAt = t;
-                    // a word that keeps coming back over 40 s is the scenery's, gaps of up to a quarter of an hour and all (the text reader
-                    // catches a backdrop now and then: the ALDS game's booking.com came 42 s apart, read as new, and covered the game 24 s,
-                    // 2026-10-07 16:19:45), and stays the scenery's for a quarter of an hour. An ad aired twice in that time is the price
-                    // on a channel with no logo; its pictures still cover it (AdPrints)
-                    var span = _tokenSpan.TryGetValue(tk, out var sp) && t - sp.Last <= 900 ? (sp.First, t) : (t, t);
-                    _tokenSpan[tk] = span;
-                    if (t - span.Item1 >= 40) _scenery[tk] = t;
-                    if (_tokenSpan.Count > 200) foreach (var old in _tokenSpan.Where(x => t - x.Value.Last > 900).Select(x => x.Key).ToList()) _tokenSpan.Remove(old);
-                    // the reader garbles a backdrop's address a new way each time (Booking.co, Booking.cem, &ooking.com, 16:03-16:59): a word sharing
-                    // five letters in a row with the scenery's is the scenery's, and an address of under four letters is a fragment
-                    var scenery = _scenery.Any(x => t - x.Value < 900 && SameStem(x.Key, tk));
-                    if (scenery) _scenery[tk] = t;
-                    else if (!Fragment(tk)) { _bareAdPrevAt = _bareAdAt; _bareAdAt = t; }
-                }
-                return "ad: " + tk;
-            }
+        {
+            // the channel's furniture (an address seen three times with its logo plainly up), however the reader spells it (TBS 18:15:04 and
+            // 18:22:37: "Booking.co" as the logo dipped covered the game)
+            if (_showTokens.Any(x => x.Value >= 3 && SameStem(x.Key, tk))) continue;
+            if (spoken) { _ccAdAt = t; return "ad: " + tk; }
+            // a word that keeps coming back over 40 s is the scenery's, gaps of up to a quarter of an hour and all (the text reader
+            // catches a backdrop now and then: the ALDS game's booking.com came 42 s apart, read as new, and covered the game 24 s,
+            // 2026-10-07 16:19:45), and stays the scenery's for a quarter of an hour. An ad aired twice in that time is the price;
+            // its pictures still cover it (AdPrints)
+            var span = _tokenSpan.TryGetValue(tk, out var sp) && t - sp.Last <= 900 ? (sp.First, t) : (t, t);
+            _tokenSpan[tk] = span;
+            if (t - span.Item1 >= 40) _scenery[tk] = t;
+            if (_tokenSpan.Count > 200) foreach (var old in _tokenSpan.Where(x => t - x.Value.Last > 900).Select(x => x.Key).ToList()) _tokenSpan.Remove(old);
+            // the reader garbles a backdrop's address a new way each time (Booking.co, Booking.cem, &ooking.com, 16:03-16:59): a word sharing
+            // five letters in a row with the scenery's is the scenery's (the no-logo rule's: on a channel with a logo, an ad aired twice in a
+            // quarter of an hour would read as scenery and its cover lose its words, TLC 16:52 and 17:31 on the bench)
+            _adTextPrevAt = _adTextAt; _adTextAt = t;
+            if (_scenery.Any(x => t - x.Value < 900 && SameStem(x.Key, tk))) _scenery[tk] = t;
+            else { _bareAdPrevAt = _bareAdAt; _bareAdAt = t; }
+            return "ad: " + tk;
+        }
         return null;
     }
 
@@ -463,13 +717,18 @@ internal sealed class BreakModel
         "cutter", "grounder", "flyout", "infield", "outfield", "shortstop", "umpire", "baserunner", "doubleplay", "southpaw", "lefty", "righty",
         "quarterback", "touchdown", "interception", "linebacker", "sideline", "endzone", "scrimmage", "punt", "rebound", "rebounds", "layup",
         "dunk", "pointer", "puck", "goalie", "faceoff", "powerplay", "penalty", "crossbar", "offside",
+        // a replay review: the score bug (TBS's learned "logo" in a game) leaves the screen for the replay, and the commentary goes on in these
+        // (17:28:13 and 17:28:50, both covered as breaks)
+        "replay", "review", "overturned", "overturn", "foul", "umpires", "challenge",
     };
     /// <summary>A line of captions in a game's commentary: one of the game's words within eight seconds, on a channel whose captions have
     /// sounded like a game for a while (six game words in five minutes), so a drama that says "pitch" once is never a game.</summary>
     private string? GameSaid(string text, double t)
     {
         var n = 0;
-        foreach (Match m in Regex.Matches(text.ToLowerInvariant(), "[a-z]+")) if (GameWords.Contains(m.Value)) n++;
+        // ... and the teams the guide names ("Cleveland Guardians at Chicago White Sox"): the commentary says them all game long
+        var teams = Regex.Matches(ShowTitle.ToLowerInvariant(), "[a-z]{4,}").Select(x => x.Value).Where(x => x is not "game" and not "series" and not "live" and not "postseason" and not "playoff" and not "playoffs").ToHashSet();
+        foreach (Match m in Regex.Matches(text.ToLowerInvariant(), "[a-z]+")) if (GameWords.Contains(m.Value) || teams.Contains(m.Value)) n++;
         if (n > 0) _gameWords.Enqueue((t, n));
         while (_gameWords.Count > 0 && t - _gameWords.Peek().At > 300) _gameWords.Dequeue();
         if (n == 0) return null;

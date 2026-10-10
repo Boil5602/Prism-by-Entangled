@@ -1,0 +1,8 @@
+[
+ {"name": "FX", "day": "2026-10-08", "window": "screen", "from": "08:33:00", "to": "13:14:00", "frames": ["083000000", "131500000"], "library": "083300", "lead": 18},
+ {"name": "CNN", "day": "2026-10-08", "window": "youtube-tv-home-16x9-XL", "from": "06:37:00", "to": "11:11:00", "frames": ["063000000", "111200000"], "library": "063400", "lead": 18},
+ {"name": "Comedy Central am", "day": "2026-10-08", "window": "youtube-tv-home-16x9-XL", "from": "11:23:00", "to": "13:14:00", "frames": ["111000000", "131500000"], "library": "083300", "lead": 18},
+ {"name": "Comedy Central pm", "day": "2026-10-08", "window": "youtube-tv-home-16x9-XL", "from": "13:14:15", "to": "15:59:51", "frames": ["131000000", "160000000"], "library": "115000", "lead": 16},
+ {"name": "NBC Sports", "day": "2026-10-08", "window": "youtube-tv-home-16x9-XL-w2", "from": "15:00:00", "to": "15:59:54", "frames": ["145500000", "160000000"], "library": "145739", "lead": 22},
+ {"name": "Food Network", "day": "2026-10-08", "window": "youtube-tv-home-16x9-XL-w4", "from": "15:00:00", "to": "16:00:00", "frames": ["145500000", "160100000"], "library": "145739", "lead": 15}
+]

@@ -65,7 +65,9 @@ public sealed partial class MainWindow
         else if (offer > 0)
         {
             var add = Chip(new TextBlock { Text = "Add " + offer + " title" + (offer == 1 ? "" : "s") + " from your services' My Lists", FontSize = 13, Foreground = HubInk }, true);
-            ToolTipService.SetToolTip(add, "Copies the titles on your services' own My Lists onto your TMDB watchlist, each matched to its TMDB title. A title TMDB can't match is listed after, never guessed. Your services' lists are left as they are.");
+            // which ones, and on which service (2026-10-09, "gives no indicator which titles or which service(s)")
+            var which = (w["offerTitles"] as JsonArray)?.OfType<JsonObject>().Select(o => S(o, "title") + (S(o, "service").Length > 0 ? " (" + S(o, "service") + ")" : "")).Where(x => x.Length > 0).ToList() ?? new List<string>();
+            ToolTipService.SetToolTip(add, (which.Count > 0 ? "Not on your watchlist yet: " + string.Join(", ", which.Take(20)) + (offer > 20 ? ", and " + (offer - 20) + " more" : "") + ".\n" : "") + "Copies the titles on your services' own My Lists onto your TMDB watchlist, each matched to its TMDB title. A title TMDB can't match is listed after, never guessed. Your services' lists are left as they are.");
             add.Click += async (_, __) => { add.IsEnabled = false; await ModelCallAsync("watchlistImport"); SetPill("Prism" + Dot + "adding your services' My List titles to your TMDB watchlist"); };
             head.Children.Add(add);
         }

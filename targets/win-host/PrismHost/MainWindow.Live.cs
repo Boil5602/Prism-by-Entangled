@@ -22,6 +22,16 @@ public sealed partial class MainWindow
     private int _liveDrawRun;
     private int _liveLoop;            // one follow loop a tab open: a newer one ends the older
     private double _liveScrollX;      // where the schedule was scrolled to, kept across a redraw
+    // 2026-10-09, "The live tab is performing so poorly, I click something and wait several seconds to respond" / "I jump to a service and it
+    // does but then loads other services and pushes that one down". The grid was cleared and laid out again row by row, in view, at every
+    // draw - and a draw came every four seconds for as long as any guide was being read: 250 channels' rows on the interface's own
+    // thread (stalls of 0.4 to 2 s, one after another), the page collapsing to its top and growing back under whatever was in view.
+    // Now a draw that would show the same rows draws nothing (_liveSig), a new grid is built out of sight and put in at once, and the
+    // page stays where it was: at the service last jumped to (for twenty seconds), else at the same offset.
+    private string _liveSig = "";
+    private string? _liveJump;
+    private DateTime _liveJumpAt;
+    private Button? _liveTop;
     private const double LiveSlotW = 220, LiveChanW = 260, LiveRowH = 60;
     private const long LiveSlotMs = 30 * 60_000;
 
@@ -94,6 +104,26 @@ public sealed partial class MainWindow
             _liveQ = search.Text.Trim();
             await Draw();
         };
+        _liveSig = "";
+        // back to the top (2026-10-09, "We need a little return to top button in the center of the screen that always takes us back to the
+        // top on live"): at the foot of the screen, in the middle, once the guide is scrolled down
+        if (_liveTop is { } old) (old.Parent as Panel)?.Children.Remove(old);
+        var top = Chip(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = "\uE74A", FontSize = 12, Foreground = HubInk }, new TextBlock { Text = "Top", FontSize = 13, Foreground = HubInk } } }, false);
+        top.Padding = new Thickness(14, 6, 16, 6);
+        top.HorizontalAlignment = HorizontalAlignment.Center; top.VerticalAlignment = VerticalAlignment.Bottom; top.Margin = new Thickness(0, 0, 0, 28);
+        top.Visibility = Visibility.Collapsed;
+        Grid.SetRowSpan(top, 20); Grid.SetColumnSpan(top, 20); Canvas.SetZIndex(top, 40);
+        ToolTipService.SetToolTip(top, "Back to the top of the guide.");
+        top.Click += (_, __) => { _liveJump = null; _hubScroller?.ChangeView(null, 0, null, false); };
+        overlay.Children.Add(top);
+        _liveTop = top;
+        var watch = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+        watch.Tick += (_, __) =>
+        {
+            if (!ReferenceEquals(_liveTop, top) || !ReferenceEquals(_videoHub, overlay)) { watch.Stop(); (top.Parent as Panel)?.Children.Remove(top); return; }
+            top.Visibility = _hubTab == "live" && (_hubScroller?.VerticalOffset ?? 0) > 300 ? Visibility.Visible : Visibility.Collapsed;
+        };
+        watch.Start();
         await Draw();
         _ = FollowLiveAsync(grid, chips, status, events, overlay);
     }
@@ -124,8 +154,7 @@ public sealed partial class MainWindow
         JsonObject? g = null;
         try { g = JsonNode.Parse(await ModelCallAsync("videoLiveGuide", _liveType, _liveQ.Length > 0 ? _liveQ : null) ?? "null") as JsonObject; } catch (Exception e) { LogLine("live: " + e.Message); }
         if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay) || _hubTab != "live") return false;   // overtaken: _liveReading stands as it was
-        grid.Children.Clear(); chips.Children.Clear(); events.Children.Clear();
-        if (g is null) { grid.Children.Add(new TextBlock { Text = "The guide couldn't be read.", FontSize = 16, Foreground = HubInk }); return false; }
+        if (g is null) { grid.Children.Clear(); chips.Children.Clear(); events.Children.Clear(); _liveSig = ""; grid.Children.Add(new TextBlock { Text = "The guide couldn't be read.", FontSize = 16, Foreground = HubInk }); return false; }
 
         // the status line: each service's guide, how many channels, when it was read
         var reading = false;
@@ -153,6 +182,12 @@ public sealed partial class MainWindow
         status.Text = reading ? "Reading the guides" + (char)0x2026 : "";
         if (_liveRefresh is not null) ToolTipService.SetToolTip(_liveRefresh, "Reads each service's guide again now." + (parts.Count > 0 ? "\n" + string.Join("\n", parts) : ""));
         _liveReading = reading;
+        // the same rows as are on the screen: nothing is drawn. What the grid shows is the mode, the search, the types' counts and the
+        // rows (their programs, which is on now); the grid begins "now", so five minutes on it is drawn again whatever the rows say
+        var winStart = (g["window"] as JsonObject)?["start"]?.GetValue<double>() ?? 0;
+        var sig = (_liveType ?? "") + "|" + _liveQ + "|" + Math.Floor(winStart / 300_000) + "|" + (g["types"]?.ToJsonString() ?? "") + "|" + (g["rows"]?.ToJsonString() ?? "");
+        if (sig == _liveSig && grid.Children.Count > 0) return reading;
+        chips.Children.Clear(); events.Children.Clear();
 
         // the type chips: All, then each type with its count - the service's own category first, Prism's guess from the name otherwise
         var types = (g["types"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
@@ -165,7 +200,7 @@ public sealed partial class MainWindow
             var b = Chip(new TextBlock { Text = (sym.Length > 0 ? sym + "  " : "") + label + "  " + count, FontSize = 13, Foreground = HubInk }, _liveType == type);
             b.Padding = new Thickness(12, 4, 12, 4);
             ToolTipService.SetToolTip(b, type is null ? "Every channel, no mode." : type + " mode: only what is filed under " + type + " (the service's own category where it gives one, Prism's guess from the name otherwise), each program on now marked" + (type == "Sports" ? ", and the day's scores" : "") + ". Prism remembers the mode you leave on.");
-            b.Click += async (_, __) => { _liveType = type; HostPrefs.Set("live.mode", type ?? ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
+            b.Click += async (_, __) => { _liveType = type; _liveJump = null; HostPrefs.Set("live.mode", type ?? ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
             chips.Children.Add(b);
         }
         TypeChip("All", null, total);
@@ -174,6 +209,7 @@ public sealed partial class MainWindow
         var rows = (g["rows"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
         if (rows.Count == 0)
         {
+            grid.Children.Clear(); _liveSig = sig;
             grid.Children.Add(new TextBlock { Text = _liveQ.Length > 0 ? "Nothing in the guide matches \"" + _liveQ + "\"." : reading ? "Reading the guides" + (char)0x2026 : "No live channels yet. Open a service's live guide once, or press Refresh.", FontSize = 15, Foreground = HubInk, Margin = new Thickness(0, 12, 0, 0) });
             return reading;
         }
@@ -197,10 +233,10 @@ public sealed partial class MainWindow
             chip.Padding = new Thickness(6, 3, 10, 3);
             var allEvents = rows.Where(r => S(r, "service") == sn).All(r => r["event"]?.GetValue<bool>() == true);
             ToolTipService.SetToolTip(chip, sn + " has " + count + (allEvents ? (count == 1 ? " event" : " events") : (count == 1 ? " channel" : " channels")) + " in the guide. Press to go to them.");
-            chip.Click += (_, __) => { if (headers.TryGetValue(sn2, out var h)) h.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true }); };
+            chip.Click += (_, __) => { _liveJump = sn2; _liveJumpAt = DateTime.UtcNow; if (headers.TryGetValue(sn2, out var h)) h.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = true }); };
             jump.Children.Add(chip);
         }
-        if (serviceOrder.Count(sn => rows.Any(r => S(r, "service") == sn)) > 1) grid.Children.Add(jump);
+        var jumpShown = serviceOrder.Count(sn => rows.Any(r => S(r, "service") == sn)) > 1;
         var ws = (g["window"] as JsonObject)?["start"]?.GetValue<double>() ?? 0;
         var we = (g["window"] as JsonObject)?["end"]?.GetValue<double>() ?? ws + 6 * LiveSlotMs;
         // the grid begins now (core's window): every row's program on now starts at the left edge; the half hours are marked from there
@@ -240,7 +276,7 @@ public sealed partial class MainWindow
         Grid.SetColumn(scroller, 1);
         var nameSheet = new Grid { Children = { namesCol } };   // the rules run under the names too, so a row reads as one line
         body.Children.Add(nameSheet); body.Children.Add(scroller);
-        grid.Children.Add(body);
+        // the rows are laid into `body` out of sight (below); it goes onto the page whole, at the end
 
         DrawModeHead(events);   // the mode's title, and in Sports mode the day's scores (2026-09-30)
         // the "Upcoming live events" strip is gone (2026-10-01, "Upcoming live events are all repeated in the schedule below. Therefore there
@@ -266,6 +302,20 @@ public sealed partial class MainWindow
             nameSheet.Children.Insert(0, new Border { Height = 1, Background = HubRule, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, y + LiveRowH + 1, 0, 0) });
             y += LiveRowH + 4;
             if (i % 15 == 14) { await Task.Delay(1); if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay)) return reading; }   // a long guide is laid out a little at a time
+        }
+        // the new grid in place of the old in one step, the page where it was
+        var keepY = _hubScroller?.VerticalOffset ?? 0;
+        grid.Children.Clear();
+        if (jumpShown) grid.Children.Add(jump);
+        grid.Children.Add(body);
+        _liveSig = sig;
+        if (_hubScroller is { } hs)
+        {
+            var jumped = _liveJump is { } js && (DateTime.UtcNow - _liveJumpAt).TotalSeconds <= 20 && headers.TryGetValue(js, out var jh) ? jh : null;
+            await Task.Delay(30);   // a layout pass, so the new rows have their places
+            if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay)) return reading;
+            if (jumped is not null) jumped.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = false });
+            else if (keepY > 0 && Math.Abs(hs.VerticalOffset - keepY) > 2) hs.ChangeView(null, keepY, null, true);
         }
         return reading;
     }

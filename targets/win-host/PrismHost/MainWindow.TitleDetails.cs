@@ -98,6 +98,13 @@ public sealed partial class MainWindow
 
     /// <summary>The open Details page's dim and card, fitted again to where the corner is now.</summary>
     private Action? _detailsReshape;
+    // The actor who led here (2026-10-09, "Is it possible to have the actor that led us down this trail be the first one listed with a
+    // gold background behind them in this by-actor drill down? If they click a different actor in a show, by all means replace the
+    // active set actor with that one. And if no such selection has been made, just open the details and actor lists normally"): set by
+    // a press on a face in a cast row, or on a title of a person's page; a title's cast then begins with them, in gold. A title reached
+    // from their page lists them even when TMDB's first sixteen do not (the role is the one their page gave). The trail ends with the window.
+    private (double Id, string Name, string Photo)? _trailActor;
+    private readonly Dictionary<string, string> _trailRoles = new();
     /// <summary>Open the details window for a title (the card's own words; the service's App when the card has one, which tells a same-name pair apart).</summary>
     public void ShowTitleDetails(string title, string? kind, string? app) => ShowTitleDetails(title, kind, app, null);
     /// <summary>The details window on a title; <paramref name="backTo"/> names what its first Back returns to ("Search results"), null for none.</summary>
@@ -105,6 +112,7 @@ public sealed partial class MainWindow
     {
         CloseTitleDetails();
         _detailsHistory.Clear();
+        _trailActor = null; _trailRoles.Clear();   // a title opened afresh: no actor led here
         _detailsFirstBack = backTo;
         _detailsApp = app;   // the service a card opened it from: its episodes and where you left off (DetailsEpisodes)
         var run = ++_detailsRun;
@@ -312,7 +320,14 @@ public sealed partial class MainWindow
             var btn = new Button { Content = cell, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(4) };
             ToolTipService.SetToolTip(btn, title + (year.Length > 0 ? " (" + year + ")" : "") + ". Press for its details.");
             var (k2, id2, t2) = (kind == "tv" ? "tv" : "movie", cid, title);
-            btn.Click += (_, __) => { _detailsApp = null; NavigateDetails(t2, () => RenderDetailsPage(t2, () => ModelCallAsync("titleDetailsById", k2, id2))); };
+            var role2 = S(c, "role"); var photo2 = S(pd, "photo"); var name2 = S(pd, "name").Length > 0 ? S(pd, "name") : name;
+            btn.Click += (_, __) =>
+            {
+                if (_trailActor?.Id != id) _trailRoles.Clear();
+                _trailActor = (id, name2, photo2);
+                _trailRoles[k2 + ":" + id2.ToString("0", System.Globalization.CultureInfo.InvariantCulture)] = role2;
+                _detailsApp = null; NavigateDetails(t2, () => RenderDetailsPage(t2, () => ModelCallAsync("titleDetailsById", k2, id2)));
+            };
             grid.Children.Add(btn);
         }
         main.Children.Add(grid);
@@ -710,8 +725,23 @@ public sealed partial class MainWindow
         {
             main.Children.Add(SectionHead("Cast"));
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
-            foreach (var c in cast.OfType<JsonObject>())
+            var castList = cast.OfType<JsonObject>().ToList();
+            double leadId = -1;
+            if (_trailActor is { } lead)
             {
+                var at = castList.FindIndex(x => x["id"] is JsonValue xv && xv.TryGetValue<double>(out var xid) && xid == lead.Id);
+                var titleKey = S(d, "kind") + ":" + (d["id"] is JsonValue dv && dv.TryGetValue<double>(out var did) ? did.ToString("0", System.Globalization.CultureInfo.InvariantCulture) : "");
+                if (at >= 0) { var mine = castList[at]; castList.RemoveAt(at); castList.Insert(0, mine); leadId = lead.Id; }
+                else if (_trailRoles.TryGetValue(titleKey, out var role))
+                {
+                    // in this title by their own page's word, past TMDB's first sixteen
+                    castList.Insert(0, new JsonObject { ["id"] = lead.Id, ["name"] = lead.Name, ["character"] = role, ["photo"] = lead.Photo });
+                    leadId = lead.Id;
+                }
+            }
+            foreach (var c in castList)
+            {
+                var isLead = leadId >= 0 && c["id"] is JsonValue lv && lv.TryGetValue<double>(out var lid) && lid == leadId;
                 var face = new Border { Width = 110, Height = 110, CornerRadius = new CornerRadius(55), Background = DetChip };
                 if (S(c, "photo") is { Length: > 0 } ph) face.Child = MakeImage(ph);
                 else face.Child = new TextBlock { Text = S(c, "name").Length > 0 ? S(c, "name")[..1] : "?", FontSize = 36, Foreground = DetDim, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -725,16 +755,29 @@ public sealed partial class MainWindow
                         new TextBlock { Text = S(c, "character"), FontSize = 12, Foreground = DetDim, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center },
                     },
                 };
+                // the actor who led here stands on gold (the plate is the row's own, not the button's: a button's hover is its own affair)
+                FrameworkElement shown = who;
+                if (isLead)
+                {
+                    who.Margin = new Thickness(8, 10, 8, 10);
+                    shown = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x4D, 0xF2, 0xB1, 0x4C)), BorderBrush = DetAmber, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Child = who };
+                }
                 // the face opens their films and series, here (2026-09-23)
                 if (c["id"] is JsonValue pv && pv.TryGetValue<double>(out var pid) && pid > 0)
                 {
-                    var pb = new Button { Content = who, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(0) };
-                    var pname = S(c, "name"); var ptitle = S(d, "title");
-                    ToolTipService.SetToolTip(pb, pname + "'s films and series");
-                    pb.Click += (_, __) => NavigateDetails(pname, () => RenderPersonPage(pid, pname));
+                    var pb = new Button { Content = shown, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(0) };
+                    var pname = S(c, "name"); var ptitle = S(d, "title"); var pphoto = S(c, "photo");
+                    ToolTipService.SetToolTip(pb, pname + "'s films and series" + (isLead ? " (the actor you came here by)" : ""));
+                    pb.Click += (_, __) =>
+                    {
+                        // another face pressed: that actor leads from here on
+                        if (_trailActor?.Id != pid) _trailRoles.Clear();
+                        _trailActor = (pid, pname, pphoto);
+                        NavigateDetails(pname, () => RenderPersonPage(pid, pname));
+                    };
                     row.Children.Add(pb);
                 }
-                else row.Children.Add(who);
+                else row.Children.Add(shown);
             }
             main.Children.Add(new ScrollViewer { Content = row, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Enabled, VerticalScrollMode = ScrollMode.Disabled, Padding = new Thickness(0, 0, 0, 10) });
         }

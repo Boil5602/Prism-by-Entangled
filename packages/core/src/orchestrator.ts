@@ -22,7 +22,7 @@ import { clampZoom, hostSlug } from "./catalog.js";
 import type { Drivers, SurfaceEvent, InputEvent } from "./drivers.js";
 import type { Rect, SolvedRects } from "./solver.js";
 import { fillItemAddress, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, mediaFallbackJs, type AdapterSpec } from "./adapters.js";
-import { cleanCandidates, type LookupState, type LookupServiceState } from "./video-lookup.js";
+import { cleanCandidates, type LookupState, type LookupServiceState, pickTitleHit } from "./video-lookup.js";
 import { sortCards, releaseOf, type HubSort } from "./hub-sort.js";
 import { BROWSE_FULL_PAGES, BROWSE_FULL_SIZE, BROWSE_GENRES, BROWSE_LOOKAHEAD, BROWSE_MAX_PAGES, BROWSE_REGION, BROWSE_ROW_SIZE, browseGenre, browseValue, discoverQuery, discoverTitles, inGenre, mergeDiscover, offerCounts, type BrowseCard, type BrowseGenre, type BrowseOffer, type BrowseTitle, type DiscoverRowId } from "./browse.js";
 import { MOST_READ_NAMED_MAX, isScreenDescription, mostReadDays, orderMostRead, readsValue, topListCandidates, type MostReadEntry } from "./most-read.js";
@@ -33,7 +33,7 @@ import { type BingeCandidate, type BingeThresholds } from "./binge.js";
 export interface BingeEntry { at: number; done: boolean; cands: BingeCandidate[]; through: string | null }
 /** One fresh row as it stands (fresh-rows.ts). */
 export interface FreshEntry { at: number; done: boolean; cards: Array<import("./browse.js").BrowseCard & { date: string }>; through: string | null }
-import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
+import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
 import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
 import { SCORE_URL, SCORE_SOURCE, SCORE_DAY_LEAGUES, mergeKept, parseLeagueScoreboard, parseScoreboard, scoreDayUrl, type ScoreGame } from "./scores.js";
 import { parseFeed, type NewsItem } from "./news-feeds.js";
@@ -4543,6 +4543,8 @@ export class Orchestrator {
   videoResync(tileId: string): "nudged" | "reopened" | "unavailable" { return this.video.resync(tileId); }
   /** The guide's program on a channel window now (VideoController.programEdges), for the shell's break watch. */
   videoProgramEdges(tileId: string): { channel: string; title: string; start: number; end: number | null } | null { return this.video.programEdges(tileId); }
+  /** The live channel a window is on, null for a window on a title (VideoController.channelOf). */
+  videoChannelOf(tileId: string): { id: string; name: string } | null { return this.video.channelOf(tileId); }
   /** The shell's picture watch: a video window's picture stood still for this long while its player plays - healed like a frozen clock
    *  (a live channel's clock can keep counting over a frozen picture: FOX 8 sat on one ad frame for seven minutes, 2026-10-06 19:47). */
   videoPictureFrozen(tileId: string, seconds: number): { ok: boolean; did: string } {
@@ -5207,7 +5209,7 @@ export class Orchestrator {
   // shows and posts it back with the token core handed it (the music-result channel, op "lookup"); core cleans and keeps
   // the answers per service, the menu draws them as one labeled row. Surfaces stay for a few minutes of repeat searches,
   // then go. Nothing leaves the machine but the service's own page requests.
-  private readonly lookups = new Map<string, { app: string; adapter: string | null; up: boolean; upWaits: Array<() => void>; lastUsed: number; /** standing on the service's list page: its reports feed the My list row */ onList?: boolean; /** standing on the service's Who's watching page: its report is the household, read only */ onProfiles?: boolean; /** walk the app's own route to its list once the home is up (videoListRoute) */ routeOnUp?: boolean; listRead?: number; listNavAt?: number; lastListEmpty?: boolean; /** the profile page reported */ profilesAt?: number; /** an owned walk reached its end */ ownedDone?: number }>();
+  private readonly lookups = new Map<string, { app: string; adapter: string | null; up: boolean; upWaits: Array<() => void>; lastUsed: number; /** standing on the service's list page: its reports feed the My list row */ onList?: boolean; /** standing on the service's Who's watching page: its report is the household, read only */ onProfiles?: boolean; /** walk the app's own route to its list once the home is up (videoListRoute) */ routeOnUp?: boolean; listRead?: number; listNavAt?: number; lastListEmpty?: boolean; /** the profile page reported */ profilesAt?: number; /** an owned walk reached its end */ ownedDone?: number; /** standing on the service's home page for its own rows (Service suggestions): its shelves alone are kept */ onHome?: boolean; homeNavAt?: number; homeRead?: number }>();
   private lookupNow: LookupState | null = null;
   private lookupSeq = 0;
   private lookupIdleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -5432,7 +5434,7 @@ export class Orchestrator {
       .map(({ r, owned }) => ({ app: r.app, name: r.name, facet: r.facet, offer: owned ? "Owned" : r.offer }));
     for (const s of svc) if (!services.some((x) => x.app === s.app) && ownedOn(s.adapter)) services.push({ app: s.app, name: s.name, facet: s.facet, offer: "Owned" });
     if (!services.length) return null;
-    services.sort((a, b) => Number(b.offer === "Owned") - Number(a.offer === "Owned"));
+    services.sort((a, b) => offerRank(a.offer) - offerRank(b.offer));   // what the household has first; its own order within a kind (the sort keeps it)
     const rating = t.mean !== null && t.votes !== null ? ratingLabel({ mean: t.mean, votes: t.votes }) : null;
     const mine = this.lenses.ownRatingsMap().get(t.kind + ":" + t.id) ?? null;   // the person's own, by the TMDB title (2026-10-03)
     return { ...(rating ? { rating } : {}), ...(mine !== null ? { mine } : {}), id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), ...(t.genres?.length ? { genres: t.genres } : {}), value, services };
@@ -5869,7 +5871,7 @@ export class Orchestrator {
    * exact match the service itself answers with is what plays (the same guard as any result). When the service does not
    * name it, null - the runtime then opens the service's own search on the screen, so the person sees what it has.
    */
-  async videoCatalogResolve(app: string, title: string, services: ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; profile: string; home: string; status: string }>): Promise<{ id: string; title: string; kind: string; url?: string | undefined; play?: boolean | undefined } | null> {
+  async videoCatalogResolve(app: string, title: string, services: ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; profile: string; home: string; status: string }>, kind?: string): Promise<{ id: string; title: string; kind: string; url?: string | undefined; play?: boolean | undefined } | null> {
     const state = this.videoLookupStart(title, services, app);
     const row = state.services.find((s) => s.app === app);
     if (!row) return null;
@@ -5878,8 +5880,8 @@ export class Orchestrator {
       await new Promise((r) => setTimeout(r, 250));
       if (this.lookupNow !== state) return null;
     }
-    const want = normalizeTrackText(title);
-    const hit = row.candidates.find((c) => normalizeTrackText(c.title) === want) ?? row.candidates.find((c) => normalizeTrackText(c.series ?? "") === want);
+    // the title itself, not a live channel that carries its name (video-lookup.ts pickTitleHit)
+    const hit = pickTitleHit(row.candidates, title, kind, (a, b) => normalizeTrackText(a) === normalizeTrackText(b) && normalizeTrackText(a).length > 0);
     return hit ? { id: hit.id, title: hit.title, kind: hit.kind, url: hit.url, play: hit.play } : null;
   }
   isCatalogCandidate(id: string): boolean { return isCatalogId(id); }
@@ -5918,7 +5920,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(id, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(id, true);   // a search page that autoplays a trailer is heard by nobody
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.routeOnUp = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
       await this.drivers.surface.navigate(id, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
@@ -6110,7 +6112,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(surfaceId, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(surfaceId, true);
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.routeOnUp = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
       await this.drivers.surface.navigate(surfaceId, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
@@ -6155,7 +6157,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(surfaceId, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(surfaceId, true);
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.routeOnUp = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
       await this.drivers.surface.navigate(surfaceId, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
@@ -6826,6 +6828,86 @@ export class Orchestrator {
       const lib = info?.videoLibrary && typeof info.videoLibrary === "object" ? cleanLibrary(info.videoLibrary) : null;
       entry.lastListEmpty = !!lib && lib.list.length === 0 && lib.continue.length > 0;
     }
+    // the service's home page, read for its own rows while Service suggestions is on (2026-10-08): the shelves alone, and only in the
+    // moments after the wall sent the page there (the same surface is a search page or a details page a moment later)
+    // ... and, as for the list page above, only from a page loaded since the last profile press: one loaded before it still shows the
+    // last person's rows, and they would be kept as the new person's (the commit's review, 2026-10-08)
+    if (entry.onHome && (entry.homeNavAt ?? 0) >= this.video.pressedSince(adapterKey) && Date.now() - (entry.homeNavAt ?? 0) < Orchestrator.HOME_ROWS_WINDOW_MS && this.video.keepShelvesFrom(adapterKey, info)) {
+      entry.homeRead = Date.now();
+      this.homeRows.set(entry.app, { at: entry.homeRead, miss: 0 });
+      this.persistHomeRows();
+    }
+  }
+
+  // ---- Service suggestions (2026-10-08, "only Paramount+ shows suggestions"): a service's own rows are on its home page, and the hidden
+  // reads only ever opened its list pages - whose other rows are dropped by design (keepListFrom). So the rows were kept only while a player
+  // happened to stand on a service's home page. While the switch is on, each service's chain also opens its home page every HOME_ROWS_MS and
+  // keeps the shelves from it. Hidden pages only; off (the default), no home page is opened.
+  videoSuggestions = false;
+  static readonly HOME_ROWS_MS = 4 * 3_600_000;
+  /** a home page draws its rows over a few seconds: the surface stays this long, and a report counts for this long after the page was sent there */
+  static readonly HOME_ROWS_STAY_MS = 8_000;
+  static readonly HOME_ROWS_WINDOW_MS = 30_000;
+  static readonly HOME_ROWS_KEY = "video:home-rows-at";
+  /** When each service's home page was last opened for its rows (kept across a restart, so a restart is not nine more page loads). */
+  /** `miss` = opens in a row that gave no rows (a profile gate up, a service whose reader names none): each lengthens the wait, a day at most. */
+  readonly homeRows = new Map<string, { at: number; miss: number }>();
+  private persistHomeRows(): void { try { void this.drivers.store?.set(Orchestrator.HOME_ROWS_KEY, JSON.stringify(Object.fromEntries(this.homeRows))); } catch { /* opened again after a restart */ } }
+  static readonly HOME_ROWS_MAX_MS = 24 * 3_600_000;
+  private homeRowsDue(app: string, adapter: string): boolean {
+    if (!this.videoSuggestions) return false;
+    const h = this.homeRows.get(app);
+    if (!h) return true;
+    if (h.at < this.video.pressedSince(adapter)) return true;   // another person since: the rows kept are the last person's
+    // read live 2026-10-08: five of eleven services' readers name no rows on their home page, and Peacock's hidden page stood at its
+    // profile gate - a page that gives nothing is opened less and less often (8 h, 16 h, then once a day), not with every pass
+    const wait = h.miss ? Math.min(Orchestrator.HOME_ROWS_MAX_MS, Orchestrator.HOME_ROWS_MS * 2 ** h.miss) : Orchestrator.HOME_ROWS_MS;
+    return Date.now() - h.at > wait;
+  }
+  /** Service suggestions switched on: the services whose rows are due are read now, one at a time (the staggered background start). Returns the Apps asked. */
+  videoRefreshSuggestions(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, tries = 0): string[] {
+    this.knowServices(services);
+    if (!this.videoSuggestions || (this.lookupNow && !this.lookupNow.done)) return [];
+    const asked: string[] = [];
+    let busy = false;
+    for (const s of services) {
+      if (!this.homeRowsDue(s.app, s.adapter)) continue;
+      if (this.chainRunning.has(s.app)) { busy = true; continue; }
+      if (this.refreshChain(s, { homeOnly: true })) asked.push(s.app);
+    }
+    // a service whose pages are being read just now (the boot's chains, a walk of an owned library) is asked again once they are done:
+    // live 2026-10-08, the switch was said while the boot's chains ran and those services would have waited for the next timed read
+    if (busy && !this.homeRowsAgain && tries < Orchestrator.HOME_ROWS_AGAIN_TRIES) {
+      this.homeRowsAgain = setTimeout(() => { this.homeRowsAgain = null; try { this.videoRefreshSuggestions(this.knownServices, tries + 1); } catch { /* the timed read has it */ } }, Orchestrator.HOME_ROWS_AGAIN_MS);
+      (this.homeRowsAgain as { unref?: () => void }).unref?.();
+    }
+    if (asked.length) this.touchLookups();
+    return asked;
+  }
+  static readonly HOME_ROWS_AGAIN_MS = 60_000;
+  static readonly HOME_ROWS_AGAIN_TRIES = 10;
+  private homeRowsAgain: ReturnType<typeof setTimeout> | null = null;
+  /** The service's home page on the hidden surface: the library reader reports its rows, and the shelves are kept (videoObserveLookup). */
+  private async homeOne(app: string, profile: string, adapter: string, url: string): Promise<void> {
+    const id = `app:${app}:lookup`;
+    if (this.lookupNow && !this.lookupNow.done) return;   // never over a running search
+    try {
+      let entry = this.lookups.get(id);
+      if (!entry || !this.surfaces.has(id)) {
+        entry = { app, adapter, up: false, upWaits: [], lastUsed: Date.now() };
+        this.lookups.set(id, entry);
+        await this.drivers.surface.create({ id, profile, background: this.doc?.theme?.background ?? DEFAULT_BACKGROUND, kind: "hidden", blocking: true });
+        this.surfaces.add(id);
+        await this.drivers.surface.setRect(id, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
+        await this.drivers.surface.setMuted(id, true);
+      }
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onProfiles = false; entry.routeOnUp = false; entry.onHome = true; entry.homeNavAt = Date.now();
+      // counted a miss until its rows come in (videoObserveLookup)
+      this.homeRows.set(app, { at: entry.homeNavAt, miss: Math.min(8, (this.homeRows.get(app)?.miss ?? 0) + 1) });
+      this.persistHomeRows();
+      await this.drivers.surface.navigate(id, url);
+      this.touchLookups();
+    } catch { /* the rows keep what they had */ }
   }
 
   // ---------------------------------------------------------------- the combined My list (2026-09-20)
@@ -6993,7 +7075,7 @@ export class Orchestrator {
     return out;
   }
   /** One service's pages read in turn: its list, its household (profiles), its Continue Watching page, its owned library. False when there is nothing to read. */
-  private refreshChain(s: { app: string; adapter: string; profile: string; home: string; status: string }, o: { profiles?: boolean; owned?: boolean; list?: boolean; asked?: boolean; now?: boolean }): boolean {
+  private refreshChain(s: { app: string; adapter: string; profile: string; home: string; status: string }, o: { profiles?: boolean; owned?: boolean; list?: boolean; asked?: boolean; now?: boolean; homeOnly?: boolean }): boolean {
     const spec = this.adapters.get(s.adapter);
     if (s.status !== "signed-in" || !spec) return false;
     if (!o.asked && !this.politeMayRead(s.app)) return false;   // a read a person asked for always goes
@@ -7001,15 +7083,19 @@ export class Orchestrator {
     // read: a report kept since the step began - but an empty list beside a Continue row waits for the settle, when it is believed
     const read = (t0: number) => (entry()?.listRead ?? 0) > t0 && !entry()?.lastListEmpty && !this.video.switchPending(s.adapter);
     const steps: Array<{ go: () => Promise<void>; done: (since: number) => boolean; max: number }> = [];
+    // the service's own rows, from its home page, while Service suggestions is on (2026-10-08): first, so the chain ends where it always has;
+    // the page is left once its rows are in and it has had HOME_ROWS_STAY_MS to draw the later ones
+    if (spec.videoLibrary && isPageUrl(s.home) && this.homeRowsDue(s.app, s.adapter))
+      steps.push({ go: () => this.homeOne(s.app, s.profile, s.adapter, s.home), done: (t0) => (entry()?.homeRead ?? 0) > t0 && Date.now() - t0 > Orchestrator.HOME_ROWS_STAY_MS, max: Orchestrator.LIST_SETTLE_MS + 4000 });
     // the services' list pages are not read while My list is the TMDB watchlist (2026-10-03, "This would reduce prism's workload when TMDB is configured")
-    if (o.list !== false && !this.watchlistActive() && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
+    if (!o.homeOnly && o.list !== false && !this.watchlistActive() && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
       steps.push({ go: () => this.listOne(s.app, s.profile, s.adapter, spec.videoListUrl ?? s.home, !!spec.videoListRoute && !spec.videoListUrl), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 });
     // the household's profiles once a day (2026-09-28, "could something we've coded be causing issues with authentication and their security?"):
     // the Who's watching page had been opened with every background read, every 20 minutes around the clock - some 70 a day per service, nothing
     // a person does; a household's profiles change rarely. A person's refresh still reads it at once; every service.
-    if (o.profiles && spec.videoProfiles && isPageUrl(spec.videoProfilesUrl) && (o.asked || Date.now() - (this.profilesReadAt.get(s.app) ?? 0) > Orchestrator.PROFILES_STALE_MS))
+    if (!o.homeOnly && o.profiles && spec.videoProfiles && isPageUrl(spec.videoProfilesUrl) && (o.asked || Date.now() - (this.profilesReadAt.get(s.app) ?? 0) > Orchestrator.PROFILES_STALE_MS))
       steps.push({ go: () => this.profilesOne(s.app, s.profile, s.adapter, spec.videoProfilesUrl!), done: (t0) => (entry()?.profilesAt ?? 0) > t0, max: 12_000 });
-    if (spec.videoLibrary && spec.videoContinueUrl) { const cu = spec.videoContinueUrl; steps.push({ go: () => this.ownedOne(s.app, s.profile, s.adapter, cu), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 }); }
+    if (!o.homeOnly && spec.videoLibrary && spec.videoContinueUrl) { const cu = spec.videoContinueUrl; steps.push({ go: () => this.ownedOne(s.app, s.profile, s.adapter, cu), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 }); }
     if (o.owned && spec.videoLibrary) for (const u of spec.videoOwnedUrls ?? []) steps.push({ go: () => this.ownedOne(s.app, s.profile, s.adapter, u), done: (t0) => (entry()?.ownedDone ?? 0) > t0, max: Orchestrator.OWNED_STAY_MS });
     if (!steps.length) return false;
     const delay = this.chainStartDelay(!!o.asked || !!o.now);
@@ -7239,7 +7325,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(id, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(id, true);
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = true; entry.onProfiles = false; entry.routeOnUp = route; entry.listNavAt = Date.now(); entry.lastListEmpty = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = true; entry.onHome = false; entry.onProfiles = false; entry.routeOnUp = route; entry.listNavAt = Date.now(); entry.lastListEmpty = false;
       await this.drivers.surface.navigate(id, url);
       const nav = entry.listNavAt;
       setTimeout(() => { const e = this.lookups.get(id); if (e && e.onList && e.listNavAt === nav && e.lastListEmpty) this.video.clearList(adapter); }, Orchestrator.LIST_SETTLE_MS + 1000);
@@ -7260,7 +7346,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(id, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(id, true);
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onProfiles = true; entry.routeOnUp = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.onProfiles = true; entry.routeOnUp = false;
       await this.drivers.surface.navigate(id, url);
       this.touchLookups();
     } catch { /* the list keeps what it had */ }
@@ -7280,7 +7366,7 @@ export class Orchestrator {
         await this.drivers.surface.setRect(id, { x: 0, y: 0, w: this.viewport.w || 1920, h: this.viewport.h || 1080 });
         await this.drivers.surface.setMuted(id, true);
       }
-      entry.up = false; entry.lastUsed = Date.now(); entry.onList = true; entry.onProfiles = false; entry.routeOnUp = false; entry.listNavAt = Date.now(); entry.lastListEmpty = false;
+      entry.up = false; entry.lastUsed = Date.now(); entry.onList = true; entry.onHome = false; entry.onProfiles = false; entry.routeOnUp = false; entry.listNavAt = Date.now(); entry.lastListEmpty = false;
       await this.drivers.surface.navigate(id, url);
       this.touchLookups();
     } catch { /* the library keeps what it had */ }

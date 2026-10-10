@@ -152,6 +152,7 @@ public sealed partial class MainWindow
             if (text.StartsWith("press ", StringComparison.Ordinal)) { DevPress(text.Substring(6).Trim()); return; }   // "press <label>": the visible button with that label, pressed (2026-09-29)
             if (text.StartsWith("welcome", StringComparison.Ordinal)) { DevWelcome(text); return; }
             if (text == "updates") { _ = ShowUpdatesAsync(); return; }
+            if (text.StartsWith("tune ", StringComparison.Ordinal)) { _ = DevTuneAsync(text.Substring(5).Trim()); return; }   // "tune <window 1-5> <channel>": the Live guide's own tune (2026-10-07, "Please rotate the channels")
             if (text == "swap show") { if (_mvOn && _mvWindows.Count >= 2) { _swapPick = 0; DrawSwapBadges(); } return; }   // the numbers drawn, window 1 picked: no swap follows (2026-10-07)
             if (text == "swap hide") { EndSwapChoice(); return; }   // the Updates dialog, as the Prism menu opens it (2026-10-07)
             if (text == "updates close") { _updatesDlg?.Hide(); return; }
@@ -227,6 +228,26 @@ public sealed partial class MainWindow
             LogLine("dev mini: no stage chrome on the wall");
         }
         catch (Exception ex) { LogLine("dev mini failed: " + ex.GetType().Name + ": " + ex.Message); }
+    }
+
+    /// <summary>Dev only: a YouTube TV channel tuned into a window as the Live guide's own "into window N" does - "tune 3 CNN" (window 1 is the
+    /// big one, the swap numbers' order). The channel is looked up by its name in the guide.</summary>
+    private async Task DevTuneAsync(string arg)
+    {
+        var sp = arg.IndexOf(' ');
+        if (sp < 1 || !int.TryParse(arg[..sp], out var n) || n < 1) { LogLine("dev tune: say 'tune <window number> <channel>'"); return; }
+        var want = arg[(sp + 1)..].Trim();
+        try
+        {
+            var g = System.Text.Json.Nodes.JsonNode.Parse(await ModelCallAsync("videoLiveGuide", "", "") ?? "null") as System.Text.Json.Nodes.JsonObject;
+            var row = (g?["rows"] as System.Text.Json.Nodes.JsonArray)?.OfType<System.Text.Json.Nodes.JsonObject>()
+                .FirstOrDefault(r => r["service"]?.GetValue<string>() == "YouTube TV" && string.Equals(r["name"]?.GetValue<string>(), want, StringComparison.OrdinalIgnoreCase));
+            if (row is null) { LogLine("dev tune: no YouTube TV channel named " + want); return; }
+            string S(string k) => row[k]?.GetValue<string>() ?? "";
+            LogLine("dev tune: " + S("name") + " into window " + n + (n - 1 < _mvWindows.Count ? " (" + _mvWindows[n - 1] + ")" : ""));
+            await TuneIntoAsync(n - 1, S("facet"), S("id"), row["url"]?.GetValue<string>(), S("name"), S("service"), row["logo"]?.GetValue<string>());
+        }
+        catch (Exception e) { LogLine("dev tune: " + e.Message); }
     }
 
     private FileSystemWatcher? _devEvalWatcher;

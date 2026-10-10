@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The break watch's replay harness: Prism's own BreakModel / LearnedBreak run over kept recordings (diagnostics/golden/<day>).
+       Makes the trainer's readings (FEATCSV), checks an exported model against Python (LMODEL + LPARITY), and replays a detector's covers
+       for an exam (LMODEL + LCALLS; scripts/breakwatch/exam.py scores them). See scripts/breakwatch/exams.md. -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../targets/win-host/PrismHost/Services/BreakModel.cs" />
+    <Compile Include="../../../targets/win-host/PrismHost/Services/AdPrints.cs" />
+    <Compile Include="../../../targets/win-host/PrismHost/Services/AdSounds.cs" />
+    <Compile Include="../../../targets/win-host/PrismHost/Services/LearnedBreak.cs" />
+  </ItemGroup>
+</Project>

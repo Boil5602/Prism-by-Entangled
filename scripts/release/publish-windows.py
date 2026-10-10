@@ -209,6 +209,13 @@ else:
 # the record: the changelog at the repo root, and a GitHub Release on the public repo
 gh_url = f"https://github.com/{a.public_repo}/releases/tag/v{version}"
 NL = chr(10)
+target = None
+if not a.dry_run and not a.no_github:
+    # the source of this release on the public repo first, and the release's tag on it - before the changelog below is written, since the
+    # snapshot is of committed files only (0.26.28's snapshot failed on the script's own changelog, 2026-10-07)
+    snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True)
+    target = snap.stdout.strip().splitlines()[-1] if snap.returncode == 0 and snap.stdout.strip() else None
+    print("public snapshot:", target[:8] if target else "FAILED " + (snap.stdout + snap.stderr).strip())
 if not a.dry_run:
     cl = os.path.join(ROOT, "CHANGELOG.md")
     intro = "# Prism changelog" + NL + NL + "Every Windows release, newest first. The same notes travel in the update manifest and on the website." + NL
@@ -227,10 +234,6 @@ if not a.dry_run:
     if not a.no_github:
         body = (a.notes + NL + NL + f"- download: {BASE_URL + name}" + NL + f"- sha256: `{sha}`" + NL + f"- size: {size/1048576:.1f} MB" + NL
                 + f"- channel: {a.channel}" + NL + NL + f"Updates: Prism menu, Updates. The same release is named in {BASE_URL}manifest.json.")
-        # the source of this release on the public repo first, and the release's tag on it
-        snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True)
-        target = snap.stdout.strip().splitlines()[-1] if snap.returncode == 0 and snap.stdout.strip() else None
-        print("public snapshot:", target[:8] if target else "FAILED " + (snap.stdout + snap.stderr).strip())
         r = subprocess.run(["gh", "release", "create", f"v{version}", zip_path, "--repo", a.public_repo, "--title", f"Prism {version}", "--notes", body]
                            + (["--target", target] if target else []) + (["--prerelease"] if a.channel != "stable" else []), capture_output=True, text=True)
         print("github release:", r.stdout.strip() if r.returncode == 0 else "FAILED " + r.stderr.strip())
