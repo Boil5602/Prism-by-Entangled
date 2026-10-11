@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.28.1 - 2026-10-10 (alpha, 3a8be2aa)
+
+A privacy fix first: Prism's own log on your PC could hold what you typed on the phone keyboard, and it no longer records any of it. Nothing was sent anywhere unless you chose to send a report with a log excerpt. New: Get a free key in Watch settings walks you from no TMDB account to a working key with your phone. It shows a code for TMDB's sign-up page, a code for its key page, and a code that lets your phone send the key to Prism, then checks the key with TMDB before saying it works.
+
+- download: https://prism.entangled.world/windows/Prism-0.28.1-3a8be2aa.zip
+- sha256: 9e62176b533e615ed6c726d32a7123b90c9f45e4dbf6a37c560b278778180af0
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.28.1
+
 ## 0.28.0 - 2026-10-10 (alpha, ebc0028a)
 
 Right-click a YouTube TV channel in Live to choose how its ad breaks are covered: On, Sure breaks only (just the breaks YouTube TV marks itself, and paid programmes), or Off. A channel moves to Sure breaks only by itself after three Not an ad presses in a week, and Watch settings holds that number. A paid programme now stays covered for its whole half hour. Before, the cover came down after five minutes.

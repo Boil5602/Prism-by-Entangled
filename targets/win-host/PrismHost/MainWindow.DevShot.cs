@@ -77,6 +77,7 @@ public sealed partial class MainWindow
         try { if (!File.Exists(req)) return; text = File.ReadAllText(req).Trim(); File.Delete(req); } catch { return; }
         try
         {
+            if (text == "hide") { _appMenuFlyout?.Hide(); LogLine("dev menu: hidden"); return; }   // the Prism menu put away: Escape from a script does not reach a flyout (2026-10-10)
             if (text == "close") { EscapePressed(); LogLine("dev menu: escape"); return; }
             if (text.StartsWith("key ", StringComparison.Ordinal) && _videoHub is not null)   // "key Right": the Watch page's arrow walk, from a script
             {
@@ -97,6 +98,20 @@ public sealed partial class MainWindow
         catch (Exception ex) { LogLine("dev menu failed: " + ex.GetType().Name + ": " + ex.Message); }
     }
 
+    /// <summary>Dev: the topmost page that can scroll (the last overlay on the window with a scroller that has somewhere to go), moved to an offset.</summary>
+    private void DevTopScroll(double y)
+    {
+        static ScrollViewer? Find(DependencyObject d)
+        {
+            if (d is ScrollViewer sv && sv.ScrollableHeight > 0) return sv;
+            for (int i = 0, c = VisualTreeHelper.GetChildrenCount(d); i < c; i++) if (Find(VisualTreeHelper.GetChild(d, i)) is { } hit) return hit;
+            return null;
+        }
+        for (var i = RootGrid.Children.Count - 1; i >= 0; i--)
+            if (RootGrid.Children[i] is FrameworkElement { Visibility: Visibility.Visible } fe && Find(fe) is { } s) { s.ChangeView(null, y, null, true); LogLine("dev top scroll: " + y + " of " + (int)s.ScrollableHeight); return; }
+        LogLine("dev top scroll: nothing scrolls");
+    }
+
     /// <summary>Dev: the Live tab's first channel row's menu opened at a point of the wall, for a shot of where it lands.</summary>
     private async void DevLiveMenuAt(Windows.Foundation.Point at)
     {
@@ -104,6 +119,8 @@ public sealed partial class MainWindow
         {
             var raw = await ModelCallAsync("videoLiveGuide", null, null);
             var first = (JsonNode.Parse(raw ?? "null") as JsonObject)?["rows"] is JsonArray rows && rows.Count > 0 ? rows[0] as JsonObject : null;
+            // a YouTube TV channel when there is one: its menu carries the channel's ad covers (2026-10-10, the tutorial's picture)
+            if ((JsonNode.Parse(raw ?? "null") as JsonObject)?["rows"] is JsonArray all) foreach (var r in all) if (r is JsonObject ro && (ro["facet"]?.GetValue<string>() ?? "").StartsWith("youtube-tv", StringComparison.Ordinal)) { first = ro; break; }
             if (first is null) { LogLine("dev live menu: no channel"); return; }
             LiveMenu(at, first["facet"]?.GetValue<string>() ?? "", first["id"]?.GetValue<string>() ?? "", first["url"]?.GetValue<string>(), first["name"]?.GetValue<string>() ?? "", first["service"]?.GetValue<string>() ?? "", first["logo"]?.GetValue<string>());
         }
@@ -160,6 +177,14 @@ public sealed partial class MainWindow
             if (text == "show video") { _stayOnVideo = true; CloseVideoHub(); return; }   // Show video as pressed (2026-09-25)
             if (text == "readers on" || text == "readers off") { SetReadersDark(text == "readers on"); return; }   // readers dark (2026-10-03)
             if (text.StartsWith("signin add ", StringComparison.Ordinal)) { var sp = text.Substring(11).Split('|'); if (sp.Length == 2) _ = AddSignInAsync(sp[0].Trim(), sp[0].Trim(), sp[1].Trim()); return; }   // "signin add <app>|<name>" (2026-09-29)
+            if (text.StartsWith("standin ", StringComparison.Ordinal)) { DevStandIn(text.Substring(8).Trim()); return; }   // stand-ins for pictures (2026-10-10)
+            if (text.StartsWith("tutorial ", StringComparison.Ordinal) && text != "tutorial close") { var tp = text.Substring(9).Split(' '); if (tp.Length == 2 && int.TryParse(tp[0], out var tt) && int.TryParse(tp[1], out var tg)) { _tutorialTopic = tt; _tutorialPage = tg; ShowTutorial(); } return; }   // "tutorial <subject> <page>"
+            if (text.StartsWith("person ", StringComparison.Ordinal)) { var pp = text.Substring(7).Split('|'); if (pp.Length == 2 && double.TryParse(pp[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ppid)) { var ppn = pp[1].Trim(); NavigateDetails(ppn, () => RenderPersonPage(ppid, ppn)); } return; }   // "person <TMDB id>|<name>": a cast member's page, over an open Details (2026-10-10)
+            if (text.StartsWith("top scroll ", StringComparison.Ordinal) && double.TryParse(text.Substring(11), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tsy)) { DevTopScroll(tsy); return; }   // the topmost page that scrolls, moved to an offset
+            if (text == "tour intro") { _ = PlayTourIntroAsync(); return; }   // the introduction played: the Prism menu, How Prism works, the tour (2026-10-11)
+            if (text == "tour notice") { TourNoticeAgain(); return; }   // the notice about the tour put back in the status area
+            if (text == "tutorial close") { CloseTutorial(); return; }
+            if (text == "tutorial") { ShowTutorial(); return; }   // How Prism works (2026-10-10)
             if (text == "tmdb guide close") { CloseTmdbGuide(); return; }
             if (text.StartsWith("tmdb guide", StringComparison.Ordinal)) { _ = ShowTmdbGuideAsync(int.TryParse(text.Substring(10).Trim(), out var gs) ? gs : 0); return; }   // "tmdb guide [0-4]": the TMDB guide, opened at a step (2026-10-10)
             if (text.StartsWith("covers ", StringComparison.Ordinal)) { var cp = text.Substring(7).Split('='); if (cp.Length == 2) SetChannelMode(cp[0].Trim(), cp[1].Trim() == "off" ? ChannelCovers.Off : cp[1].Trim() == "sure" ? ChannelCovers.Sure : ChannelCovers.On); return; }   // "covers <channel>=on|sure|off": a channel's ad covers, as its menu in Live sets them (2026-10-10)
@@ -174,6 +199,8 @@ public sealed partial class MainWindow
             if (text == "profiles save") { _ = SaveProfilesDraftAsync(); return; }
             if (text == "profiles") { _ = ShowProfilesWindowAsync(); return; }   // the Profiles window (2026-09-24)
             if (text == "perf") { PerfDumpNow(); return; }   // every process on its own line in host.log (2026-10-03)
+            if (text == "pair demo") { _pairCardWanted = true; OnPairingMinted("https://entangled.world/prism"); return; }   // the pairing card for a picture: its code is the website's address, never a pairing
+            if (text == "pair close") { ClosePairCard(); return; }
             if (text == "pair") { PairPhone(); return; }   // the Pair a phone card (2026-10-04)
             if (text == "profiles close") { CloseProfilesWindow(); return; }
             if (text == "settings") { _ = ShowWatchSettingsAsync("general"); return; }   // Watch settings (2026-09-24)
@@ -294,6 +321,7 @@ public sealed partial class MainWindow
             // which shifts the origin and shrinks everything: clip the root to its own bounds first. Nothing visible changes.
             // RenderTargetBitmap ignores Clip for its bounds: hidden facets are parked a full wall-width to the LEFT of the
             // canvas (SurfaceManager presence), so the bitmap is ~3x the window. Crop to the window's own pixels instead.
+            StandInTexts();   // the words given by hand, replaced in what is on screen (MainWindow.StandIn.cs)
             double minX = 0, minY = 0;
             foreach (var c in TileCanvas.Children)
             {

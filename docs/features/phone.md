@@ -90,6 +90,13 @@ phones. The app should also enable the private listening feature through the pho
   That last part was not true until 2026-10-10: every request's body was in host.log, in the line for the http call that hands
   the request to core. The log's copy of a phone request now has no body at all, only its length
   (`ChannelParser.PhoneRequestJson(..., forLog: true)`, `BrainHost.CallLoggedAs`; ChannelParserTests).
+- A title on this phone (2026-10-10, "make it so the phone companion app opens the video in their native apps"): the Video tab's
+  switch, A title you tap opens On the PC / On this phone, kept in the phone's own storage. On this phone, a tap opens the title's
+  own address on its service as a plain link with no referrer: the phone hands it to the service's app when one is installed, to
+  its browser otherwise. Prism plays nothing and passes no sign-in. It covers what carries an address: Continue watching, My list,
+  the services' rows, search results and live channels. A catalog title (found through a service's own search on the PC) has
+  none, and the page says it can only play on the PC. Page-side only, no route. Not tried on a phone yet: which services open
+  their app, land on the title, or resume where the PC left off is each service's own doing and needs a walk on iOS and Android.
 - The TMDB key: `POST /tmdb/key {apiKey}` (core remote.ts) keeps the person's own TMDB key where a key typed on the PC is kept.
   The TMDB guide's last code opens this page with `#tmdb`, which shows a sheet with one box and Send to Prism: the key was copied
   on the phone a moment before, and a long key is nothing to type with a remote. The box is emptied when it is sent and the

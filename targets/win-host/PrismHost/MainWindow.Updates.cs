@@ -258,7 +258,7 @@ public sealed partial class MainWindow
         dlg.Resources["ContentDialogMaxWidth"] = 1160.0;   // room for the feed beside the three parts
         _updatesDlg = dlg;
         try { await dlg.ShowAsync(); } catch (Exception ex) { SetStatus("updates: " + ex.Message); }
-        finally { _updatesDlg = null; }
+        finally { _updatesDlg = null; if (TourOwed) TourReturn(); }   // closed after How Prism works opened it: back to the tour
     }
 
     /// <summary>Numeric version order (0.26.9 before 0.26.10); anything after a '+' or a space is not compared.</summary>

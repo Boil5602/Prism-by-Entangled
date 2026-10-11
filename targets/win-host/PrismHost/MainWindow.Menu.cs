@@ -37,6 +37,7 @@ public sealed partial class MainWindow
     private void WireMenuGrip()
     {
         MenuGrip.Opacity = GripRestOpacity;
+        TourNoticeWatch();   // the notice about How Prism works, until it is answered (MainWindow.TutorialIntro.cs)
         MenuGrip.PointerEntered += (_, __) => MenuGrip.Opacity = 1;
         MenuGrip.PointerExited += (_, __) => { if (!_menuOpen) MenuGrip.Opacity = GripRestOpacity; };
         MenuGrip.PointerPressed += async (_, e) => { e.Handled = true; await OpenAppMenuAsync(); };
@@ -79,6 +80,7 @@ public sealed partial class MainWindow
             Placement = FlyoutPlacementMode.Bottom,
             MenuFlyoutPresenterStyle = (Style)RootGrid.Resources["PrismMenuPresenter"],
         };
+        _appMenuFlyout = menu;   // so a script can put it away again (dev: menu.request "hide")
         // WebView2 dismisses a light-dismiss flyout the moment the pointer
         // crosses it (its input path counts as "outside") - the gap under the
         // grip and every gap between cascading submenus is WebView territory.
@@ -237,6 +239,7 @@ public sealed partial class MainWindow
         keep.Add(rds);
         _ = Services.MediaHub.RefreshAsync();
         { var it = Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()); menu.Items.Add(it); keep.Add(it); }   // section 28 (2026-10-05)
+        { var it = Item("How Prism works", "", null, () => ShowTutorial()); _tourMenuItem = it; menu.Items.Add(it); keep.Add(it); }   // the tutorial (MainWindow.Tutorial.cs, 2026-10-10)
         { var it = Item("About Prism", "", null, () => _ = ShowAboutAsync()); menu.Items.Add(it); keep.Add(it); }
         { var it = Item("Quit Prism", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass
 
@@ -251,6 +254,7 @@ public sealed partial class MainWindow
             foreach (var it in menu.Items.ToList()) if (!keep.Contains(it)) menu.Items.Remove(it);
             var at = menu.Items.IndexOf(rds);
             if (at > 0) menu.Items.Insert(at, new MenuFlyoutSeparator());
+            LargeMenu(menu, shield);   // at a size for the room, the scene dimmed behind it (MainWindow.MenuLarge.cs, 2026-10-10)
         }
         menu.ShowAt(MenuGrip);
     }
@@ -1242,7 +1246,9 @@ public sealed partial class MainWindow
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
     {
-        if (_welcome is { Visibility: Visibility.Visible }) { CloseWelcome(); return true; }   // the welcome page (Set up services)
+        if (_tmdbGuide is not null) { CloseTmdbGuide(); return true; }   // the TMDB guide, over whatever opened it
+        if (_tutorial is not null) { LeaveTutorial(); return true; }   // How Prism works
+        if (_welcome is { Visibility: Visibility.Visible }) { CloseWelcome(); if (TourOwed) TourReturn(); return true; }   // the welcome page (Set up services)
         if (_episodesPanel is not null) { CloseEpisodes(); return true; }   // the Episodes menu over the stage (2026-09-22)
         if (StageCurtain.Visibility == Visibility.Visible) { HideStageCurtain(); return true; }   // the curtain lifts first (the page is there beneath)
         if (_surfaces.CloseTopPopup()) return true;                           // §30 a popup sheet closes first

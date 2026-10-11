@@ -18,6 +18,8 @@ not listed here.
   inbound, home network only, the body never logged. The guide's check of a key is one more request to api.themoviedb.org under
   that key (`GET /3/authentication`), in the TMDB row below.
 
+- **The phone opens a title's own address when asked.** With the Video tab's switch on On this phone, a tapped title is a link to the
+  service's own page for it, opened by the phone (its app or its browser) with no referrer. The PC makes no request for it.
 - **The phone's page fetches artwork itself.** The Music and Video tabs show the services' own artwork addresses (the album art,
   a title's poster) and TMDB posters the PC already uses; the phone's browser fetches those from the services' and TMDB's image
   hosts directly, as the PC does. No identifier of the person goes with them beyond what any image fetch carries.

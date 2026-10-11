@@ -79,6 +79,7 @@ public sealed partial class MainWindow
         _welcome = null;
         SyncEmptyStage();
         SyncEmptyWallNote();
+        TourNoticeIfOwed();   // the notice about How Prism works, once the services page is out of the way (2026-10-11: a notice and a short introduction, not the tour opened unasked)
     }
 
     /// <summary>Dev (hub.request): "welcome" opens the page, "welcome 1|2" on a step, "welcome all", "welcome clear", "welcome pick a,b" choose,
@@ -89,6 +90,7 @@ public sealed partial class MainWindow
         if (arg == "") { _ = ShowWelcomeAsync(); return; }
         if (arg == "1" || arg == "2") { _ = ShowWelcomeAsync(int.Parse(arg)); return; }
         if (arg == "close") { CloseWelcome(); return; }
+        if (arg.StartsWith("part ", StringComparison.Ordinal)) { _welcomeOpen = arg.Substring(5).Trim(); _ = ShowWelcomeAsync(); return; }   // "welcome part video": the page with that part open (music, video, tmdb, pc, more)
         // "welcome add a,b,c": those services onto their players without a sign-in (the one page's Sign in does both; dev walks want the add alone)
         if (arg.StartsWith("add ", StringComparison.Ordinal)) { _ = WelcomeAddAsync(arg.Substring(4).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet()).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = ShowWelcomeAsync())); return; }
         if (arg.StartsWith("signin ", StringComparison.Ordinal)) { WelcomeSignIn(arg.Substring(7).Trim()); return; }
@@ -249,7 +251,9 @@ public sealed partial class MainWindow
         Part("more", "Add another service", moreSum, more);
         col.Children.Add(accordion);
         var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(0, 12, 0, 0) };
-        if (mine.Count > 0) foot.Children.Add(Pill("Done", true, "Close this page and go to the wall", () => { HostPrefs.Set("welcome.open", false); CloseWelcome(); if (WatchGrip.Visibility == Visibility.Visible) _ = ShowVideoHubAsync(); }));
+        // opened from How Prism works: the way back is on the page itself, beside Done (2026-10-11, "The initial open setup services doesnt have a return to tutorial button")
+        if (TourOwed) foot.Children.Add(Pill("Back to How Prism works", true, "Close this page and go back to the tour, at the page you left", TourReturn));
+        if (mine.Count > 0) foot.Children.Add(Pill("Done", !TourOwed, TourOwed ? "Close this page and go back to the tour" : "Close this page and go back to Prism", () => { HostPrefs.Set("welcome.open", false); if (TourOwed) { TourReturn(); return; } CloseWelcome(); if (WatchGrip.Visibility == Visibility.Visible) _ = ShowVideoHubAsync(); }));
         else foot.Children.Add(Pill("Not now", false, "Close this page. It is in the Prism menu under Set up services", () => { HostPrefs.Set("welcome.dismissed", true); HostPrefs.Set("welcome.open", false); CloseWelcome(); }));
         if (mine.Count > 0 && inNow < mine.Count) foot.Children.Add(new TextBlock { Text = "You can finish later. A service you have not signed in to fills in once you do.", FontSize = 15, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
         col.Children.Add(foot);

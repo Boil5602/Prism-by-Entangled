@@ -31,6 +31,7 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .install{display:none;position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:#1C2129;border-radius:16px;padding:14px 14px 12px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:45;flex-direction:column;gap:10px}.install.on{display:flex;animation:installIn .25s ease-out}@media (prefers-reduced-motion:reduce){.install.on{animation:none}}@keyframes installIn{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}.install p{margin:0;font-size:15px;color:#E8ECF2;line-height:1.4}.install ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}.install li{display:flex;align-items:center;gap:10px;font-size:14px;color:#E8ECF2}.install li .n{flex:none;width:22px;height:22px;border-radius:50%;background:#14171C;color:#F2B14C;font:600 13px system-ui;display:inline-flex;align-items:center;justify-content:center}.install li svg{flex:none;width:20px;height:20px;fill:none;stroke:#F2B14C;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.install .row{display:flex;gap:8px;align-items:center}.install .go{flex:1;background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 14px;font:600 15px system-ui}.install .later{flex:1;background:#14171C;color:#E8ECF2;border:0;border-radius:12px;padding:12px 14px;font:15px system-ui}.install .never{background:none;border:0;color:#8A93A2;font:13px system-ui;padding:6px 0 0;text-align:left}@media (display-mode:standalone){.install{display:none !important}}
 .sheet{display:none;position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:#1C2129;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:50;flex-direction:column;gap:8px}.sheet.on{display:flex}.sheet b{font-size:15px;color:#E8ECF2;margin-bottom:4px}.sheet button{background:#14171C;color:#E8ECF2;border:0;border-radius:12px;padding:14px;font:16px system-ui}.sheet button.go{background:#F2B14C;color:#14171C;font-weight:600}
 .sheet .keyNote{font-size:14px;line-height:1.4;color:#E8ECF2}.sheet .keyNote.bad{color:#F2B14C}.sheet input{background:#14171C;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:14px 12px;font:18px system-ui;min-width:0}
+.openOn{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;color:#E8ECF2}.openOn span{flex:1}.openOn button{background:#1C2129;color:#E8ECF2;border:0;border-radius:999px;padding:10px 14px;font:14px system-ui}.openOn button.on{background:#F2B14C;color:#14171C;font-weight:600}
 .trk{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}.trk .lbl{font-size:13px;color:#E8ECF2;margin-top:6px}.trk button.sel{color:#F2B14C;font-weight:600}
 .muteNote{flex-direction:column;gap:8px}.muteNote.on{display:flex}.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:#E8ECF2}.chk input{width:20px;height:20px;accent-color:#F2B14C}
 .work .drop{background:#14171C;color:#F2B14C;border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
@@ -46,11 +47,12 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 nav{display:flex;gap:6px;padding:0 14px 10px}nav button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:10px;font:inherit}nav button.on{background:#3A2E14;color:#F2B14C}
 main{padding:0 14px 20px}section{display:none}section.on{display:block}
 textarea{width:100%;min-height:96px;background:#1C2129;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:12px;font:18px system-ui;resize:vertical}
-.pw{display:none;gap:8px}.pw input{flex:1;background:#1C2129;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:14px 12px;font:18px system-ui;min-width:0}.pw button{background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:0 14px;font:inherit}
-body.pw textarea{display:none}body.pw .pw{display:flex}
+/* the password row is .pwr: .pw is the wordmark's own class, and its styles made this row show all the time (found 2026-10-10) */
+.pwr{display:none;gap:8px}.pwr input{flex:1;background:#1C2129;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:14px 12px;font:18px system-ui;min-width:0}.pwr button{background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:0 14px;font:inherit}
+body.pw textarea{display:none}body.pw .pwr{display:flex}
 .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.row button{flex:1;min-width:92px;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:14px 10px;font:inherit}
 .row button.go{background:#F2B14C;color:#14171C;font-weight:600}.row button:active{filter:brightness(1.3)}.row button:disabled{opacity:.45}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.pad button{background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:16px;font:20px system-ui}.pad .e{grid-column:2}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.pad button{background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:16px;font:20px system-ui}.pad .e{grid-column:2}.pad .e+button{grid-column:1}
 .big{width:100%;background:#F2B14C;color:#14171C;border:0;border-radius:14px;padding:18px;font:600 18px system-ui;margin-top:12px}.big.off{background:#1C2129;color:#E8ECF2}
 p.note{color:#E8ECF2;font-size:14px;line-height:1.4}
 .verr{display:none;margin-top:10px;padding:12px;border-radius:12px;background:#1C2129;color:#F2B14C;font-size:15px;line-height:1.4;flex-direction:column;gap:10px}.verr.on{display:flex}.verr button{align-self:flex-start;background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 18px;font:600 15px system-ui}
@@ -85,6 +87,9 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="svc" id="vEpisodes" style="display:none"><button class="head"><span class="chev">&#9654;</span><span id="vEpHead">Episodes</span><span class="st" id="vEpSt"></span></button><div class="body" id="vEpBody"></div></div>
 <div class="search"><div class="sbox"><input id="vq" type="search" placeholder="Search everywhere" autocomplete="off"><button id="vclear" class="clr" type="button" aria-label="Clear search">&#215;</button></div><button id="vgo" class="go">Search</button></div>
 <div id="vResults"></div>
+<!-- where a tapped title opens (2026-10-10): on the PC as before, or on this phone in the service's own app, by the title's own address -->
+<div class="openOn"><span>A title you tap opens</span><button id="openPc">On the PC</button><button id="openPhone">On this phone</button></div>
+<p class="note" id="openNote"></p>
 <h3 class="qh">Continue watching</h3><div id="vCont" class="cards"><p class="note">Reading the services' lists&hellip;</p></div>
 <h3 class="qh">My list</h3><div id="vList" class="cards"></div>
 <div id="vLenses"></div>
@@ -94,7 +99,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <section id="K">
 <div class="target" id="target"><span class="tl">Nothing is focused in Prism</span><span class="ts">Press into a field there, then type here.</span></div>
 <textarea id="t" placeholder="Type here" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-<div id="pwrow" class="pw"><input id="p" type="password" placeholder="Type the password here" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="peek" type="button">Show</button></div>
+<div id="pwrow" class="pwr"><input id="p" type="password" placeholder="Type the password here" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button id="peek" type="button">Show</button></div>
 <div class="row"><button id="send" class="go">Send</button><button id="sendEnter">Send + Enter</button><button id="clear">Clear box</button></div>
 <div class="pad"><button data-k="DPAD_UP" class="e">&#9650;</button><button data-k="DPAD_LEFT">&#9664;</button><button data-k="ENTER">Enter</button><button data-k="DPAD_RIGHT">&#9654;</button><button data-k="BACKSPACE">&#9003;</button><button data-k="DPAD_DOWN">&#9660;</button><button data-k="TAB">Tab</button></div>
 <p class="err" id="kerr"></p>
@@ -549,11 +554,32 @@ function hitCard(title, art, sub, plays) {
   t.appendChild(on); el.appendChild(t);
   return el;
 }
+// Where a tapped title opens. On this phone: the title's own address on its service, opened as a link, which the phone hands to the
+// service's app when it is installed (its browser otherwise). Prism plays nothing and passes no sign-in, and the link carries no
+// referrer, so the service is not told the address of this page. A title Prism holds no address for can only play on the PC.
+let openOn = 'pc';
+try { openOn = localStorage.getItem('prism.videoOpen') === 'phone' ? 'phone' : 'pc'; } catch {}
+function drawOpenOn() {
+  q('#openPc').classList.toggle('on', openOn === 'pc'); q('#openPhone').classList.toggle('on', openOn === 'phone');
+  q('#openNote').textContent = openOn === 'phone' ? "It opens in the service's own app on this phone, signed in as you are there. Nothing changes on the PC." : '';
+}
+q('#openPc').onclick = () => { openOn = 'pc'; try { localStorage.setItem('prism.videoOpen', 'pc'); } catch {} drawOpenOn(); };
+q('#openPhone').onclick = () => { openOn = 'phone'; try { localStorage.setItem('prism.videoOpen', 'phone'); } catch {} drawOpenOn(); };
+drawOpenOn();
+function onPhone(url, title, service) {
+  if (openOn !== 'phone') return false;
+  if (typeof url !== 'string' || url.indexOf('https://') !== 0) { say('#verr', 'Prism has no address for ' + (title || 'this one') + (service ? ' on ' + service : '') + ', so it can only play on the PC.'); return true; }
+  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noreferrer noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  return true;
+}
 async function playCard(facet, it, service) {
+  if (onPhone(it.url, it.title, service)) return;
   startVWork(it.title, service);
   try { const r = await api('/video/play', { facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); } catch (e) { endVWork(e.message, false); }
 }
 async function playResult(app, candidate, service) {
+  if (onPhone(candidate.url, candidate.title, service)) return;
   startVWork(candidate.title || 'the title', service);
   try { const r = await api('/video/play-result', { app, candidate }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); } catch (e) { endVWork(e.message, false); }
 }
@@ -620,6 +646,7 @@ async function pollLenses() {
   } catch (e) { say('#verr', e.message); }
 }
 async function browsePlay(app, cardId, title, service) {
+  if (onPhone(null, title, service)) return;   // a catalog title is found through the service's own search on the PC: no address to open
   startVWork(title, service);
   try { const r = await api('/video/browse-play', { app, card: cardId }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); } catch (e) { endVWork(e.message, false); }
 }
@@ -672,7 +699,7 @@ function drawLive(live, v) {
       const b = document.createElement('button'); b.className = 'item';
       const nm = document.createElement('span'); nm.textContent = (ch.event && ch.series ? ch.series + ' \u00b7 ' : '') + ch.name; b.appendChild(nm);
       if (ch.now) { const nw = document.createElement('span'); nw.className = 'now'; nw.textContent = ch.now; b.appendChild(nw); liveBar(b, ch); }
-      b.onclick = async () => { startVWork(ch.name, s.name); try { const r = await api('/video/tune', { facet: s.facet, channel: ch.id, url: ch.url, name: ch.name }); if (r && r.ok === false) endVWork(r.error || 'Could not tune it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
+      b.onclick = async () => { if (onPhone(ch.url, ch.name, s.name)) return; startVWork(ch.name, s.name); try { const r = await api('/video/tune', { facet: s.facet, channel: ch.id, url: ch.url, name: ch.name }); if (r && r.ok === false) endVWork(r.error || 'Could not tune it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
       body.appendChild(b);
     }
     d.appendChild(body); box.appendChild(d);

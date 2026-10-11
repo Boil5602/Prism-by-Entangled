@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.28.1</Version>
+    <Version>0.29.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -67,6 +67,8 @@
          reach no network at all, which scripts/verify-tile-assets.mjs enforces. -->
     <Content Include="Assets\tiles\**\*.*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\credits\*.*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- How Prism works (MainWindow.Tutorial.cs): one picture a step, each optional; a step with no picture shows its words alone -->
+    <Content Include="Assets\tutorial\*.*" CopyToOutputDirectory="PreserveNewest" />
     <!-- scene-model-spec §6a: the prism:// route registry (generated from core's routes.ts; the host router matches against it) -->
     <Content Include="..\..\..\packages\core\routes.registry.json" Link="Assets\routes.registry.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- dashboard-schema §32: visualization style packs (data, validated by core's tests) -->

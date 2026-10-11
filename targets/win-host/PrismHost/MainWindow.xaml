@@ -72,11 +72,11 @@
         </Border>
         <Border x:Name="MenuGrip" VerticalAlignment="Top" HorizontalAlignment="Center" Canvas.ZIndex="1000"
                 Background="#CC12131A" BorderBrush="#3AF0A83C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10"
-                Padding="16,3,14,6" ToolTipService.ToolTip="Prism menu  (F10)">
+                Padding="18,4,16,7" ToolTipService.ToolTip="Prism menu  (F10)">
             <StackPanel Orientation="Horizontal" Spacing="7">
-                <Image x:Name="GripIcon" Width="16" Height="16" VerticalAlignment="Center" />
-                <TextBlock Text="Prism" Foreground="#F0A83C" FontSize="12" VerticalAlignment="Center" />
-                <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#F0A83C" FontSize="9" VerticalAlignment="Center" />
+                <Image x:Name="GripIcon" Width="18" Height="18" VerticalAlignment="Center" />
+                <TextBlock Text="Prism" Foreground="#F0A83C" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#F0A83C" FontSize="10" VerticalAlignment="Center" />
             </StackPanel>
         </Border>
         <!-- the player toggle (2026-10-03, "a simple toggle to swap between music and video on a corner that is common to both"): the same

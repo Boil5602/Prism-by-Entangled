@@ -34,19 +34,23 @@ public sealed partial class MainWindow
         ClosePairCard();
         var scrim = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x05, 0x06, 0x09)) };
         Canvas.SetZIndex(scrim, 985);
-        var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 560 };
-        card.Children.Add(new TextBlock { Text = "Your phone as a keyboard and earbuds", FontSize = 20, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        card.Children.Add(new TextBlock { Text = "Scan this with the phone's camera. The page that opens types into whatever is focused on the wall, and plays the wall's sound on the phone while the wall stays quiet. The phone must be on the same network as the wall.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 660 };
+        // read from the sofa, phone in hand (2026-10-10, "make the text around the QR code larger so its more readable on the screen")
+        card.Children.Add(new TextBlock { Text = "Your phone as a keyboard and earbuds", FontSize = 28, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        card.Children.Add(new TextBlock { Text = "Scan this with the phone's camera. The page that opens types into whatever is focused in Prism, and plays Prism's sound on the phone while the PC stays quiet. The phone must be on the same network as this PC.", FontSize = 20, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         try
         {
             card.Children.Add(await QrWithMarkAsync(url, 300));   // the code with the Prism mark in its middle (MainWindow.Qr.cs)
         }
         catch (Exception ex) { LogLine("pair phone: qr " + ex.Message); }
-        card.Children.Add(new TextBlock { Text = "Waiting for the phone" + (char)0x2026, FontSize = 13, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center });
-        var close = Chip(new TextBlock { Text = "Close", FontSize = 14, Foreground = HubInk }, false);
-        close.HorizontalAlignment = HorizontalAlignment.Center;
+        card.Children.Add(new TextBlock { Text = "Waiting for the phone" + (char)0x2026, FontSize = 18, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center });
+        var close = Chip(new TextBlock { Text = "Close", FontSize = 18, Foreground = HubInk }, false);
         close.Click += (_, __) => ClosePairCard();
-        card.Children.Add(close);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
+        // opened from How Prism works: the card says the way back itself (2026-10-10, "I dont like the dead ends back to the home screen")
+        if (TourOwed) { var back = Chip(new TextBlock { Text = "Back to How Prism works", FontSize = 18, Foreground = HubInk }, true); back.Click += (_, __) => TourReturn(); buttons.Children.Add(back); }
+        buttons.Children.Add(close);
+        card.Children.Add(buttons);
         scrim.PointerPressed += (_, __) => ClosePairCard();
         card.PointerPressed += (_, e) => e.Handled = true;
         var esc = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
@@ -56,7 +60,7 @@ public sealed partial class MainWindow
         RootGrid.Children.Add(scrim);
         _pairCard = scrim;
     }
-    private void ClosePairCard() { if (_pairCard is { } c) { RootGrid.Children.Remove(c); _pairCard = null; } }
+    private void ClosePairCard() { if (_pairCard is { } c) { RootGrid.Children.Remove(c); _pairCard = null; if (TourOwed) TourReturn(); } }   // closed after the tour opened it: back to the tour
 
     // ---- private listening: the wall quiet while a phone listens, its volume back when the last one leaves
     private double? _listenSavedVolume;

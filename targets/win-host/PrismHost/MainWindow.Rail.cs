@@ -113,7 +113,7 @@ public sealed partial class MainWindow
         try
         {
             using var outer = JsonDocument.Parse(raw);
-            return outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString() : raw;
+            { var answer = outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString() : raw; return StandInFor(fn) ? StandInScrub(answer) : answer; }   // stand-ins for pictures (MainWindow.StandIn.cs), off unless a dev command turns them on
         }
         catch { return raw; }
     }
@@ -154,7 +154,7 @@ public sealed partial class MainWindow
             try
             {
                 using var outer = JsonDocument.Parse(raw);
-                return outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString() : raw;
+                { var answer = outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString() : raw; return StandInFor(fn) ? StandInScrub(answer) : answer; }   // stand-ins for pictures (MainWindow.StandIn.cs), off unless a dev command turns them on
             }
             catch { return raw; }
         }
