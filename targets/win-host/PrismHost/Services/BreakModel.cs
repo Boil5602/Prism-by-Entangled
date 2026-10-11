@@ -522,6 +522,19 @@ internal sealed class BreakModel
     // "A paid advertisement" is not the card: a law firm's two-minute spot inside ordinary breaks says "THIS IS A PAID ADVERTISEMENT
     // FOR LEGAL SERVICES" (Food Network 2026-10-07 22:17 and 23:38, 2026-10-08 00:43 and 01:42), and would cover the show to the half hour.
     private static readonly Regex PaidCard = new(@"\b(the following|this) (is|was) a paid (program|programme|presentation)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // The opening and the closing in every wording heard, shown or spoken (2026-10-11, Food Network 04:00-05:00: one infomercial opened
+    // only in its captions, "The following is a paid advertisement for ...", the next with "The following program is sponsored by ...",
+    // and the two half hours were covered in 25 pieces). Five nights of recordings hold 58 such openings, every one between 24 and
+    // 281 s into its half hour, and 24 closings, "The preceding was a paid ..." / "The preceding program was sponsored by ...". The
+    // law firm's spot is none of them: it says "THIS is a paid advertisement", never "the following". Captions run words together
+    // ("The followingis a paid advertisement"), so the spaces are optional. The shell keeps the clock and takes an opening only near
+    // the turn of a half hour.
+    private static readonly Regex PaidOpen = new(@"\bthe\s*following\s*(?:(?:is|was)\s*a\s*paid\s*(?:program|programme|presentation|advertisement)|program(?:me)?\s*is\s*(?:sponsored|paid\s*for)\s*by)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex PaidClose = new(@"\bthe\s*preceding\s*(?:program(?:me)?\s*)?(?:was|has\s*been)\s*(?:a\s*paid\s*(?:program|programme|presentation|advertisement)|sponsored\s*by|paid\s*for\s*by)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    /// <summary>When a paid programme last announced itself as about to begin, on the screen or in its captions (-9999: never).</summary>
+    public double PaidOpenAt { get; private set; } = -9999;
+    /// <summary>When a paid programme last said it had ended, on the screen or in its captions (-9999: never).</summary>
+    public double PaidCloseAt { get; private set; } = -9999;
     /// <summary>When a paid programme's own card was last read on the screen (-9999: never).</summary>
     public double PaidCardAt { get; private set; } = -9999;
     /// <summary>The card read last was the opening one ("The following is ..."), not one shown during the programme.</summary>
@@ -623,6 +636,8 @@ internal sealed class BreakModel
         if (spoken) _ccLineAt = t;
         var flat = text.Replace('\n', ' ');
         if (!spoken && PaidCard.Match(flat) is { Success: true } pc) { PaidCardAt = t; PaidCardFollowing = pc.Value.StartsWith("the following", StringComparison.OrdinalIgnoreCase); }
+        if (PaidOpen.IsMatch(flat)) PaidOpenAt = t;
+        if (PaidClose.IsMatch(flat)) PaidCloseAt = t;
         // the show's own name on screen is the show's banner, never an ad's (2026-10-07, "Seems confused by friends, keeps muting and calling
         // it an ad": TBS slid "Friends Back to Back Next" over its logo mid-scene, the logo read as gone and the quick re-cover covered the show)
         if (!spoken && ShowTitle.Length >= 4 && HasWord(flat, ShowTitle)) { _showTextAt = t; return "show: its own name (" + ShowTitle + ")"; }

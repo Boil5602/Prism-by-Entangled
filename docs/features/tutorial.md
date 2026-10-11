@@ -13,6 +13,23 @@ they want they can continue on when a topic is ended or stop right there."
   the person back to the page they left.
 - A subject's last page offers the next subject, All subjects, or Done. A subject gone through to its end is ticked in the list.
 
+## One source, for Prism and the website (2026-10-11)
+
+"I think it would make sense for us to make the tutorial available on the website for prism ... Is there any way to keep them in
+sync?"
+
+- **The source** is `targets/win-host/PrismHost/Assets/tutorial/`: `tutorial.json` (the subjects, their words, and what a page can
+  open) and one picture a page. Prism reads it where it lies (`MainWindow.TutorialText.cs`); the C# holds only the actions a page
+  can name. A page's `open` carries the button's label, the action, and `where`: the words the website shows in a button's place.
+- **The website** (`entangled.world/prism/tour`, its own repository) reads a copy: `src/data/tutorial.json` and
+  `public/prism/tour/*.png`. Nothing of the tour is written on the website's side. Its page's own heading says PRISM as the site
+  does, and the tour's words stay as the app says them, since they quote its labels.
+- **Kept in step by `scripts/release/sync-tutorial.py`**: `publish-windows.py --site` runs it at every release, so the website
+  shows the tour of the version people can download. `--check` (a step of `scripts/verify.mjs`, on a machine that holds both
+  repositories) fails when the website's copy differs. `--validate` fails on a page with no picture, a picture no page uses, an
+  action Prism does not have, or a semicolon (the website's prose check refuses one).
+- To change a word or a picture: change it in the source, run the script with `--site`, deploy the website.
+
 ## The notice and the introduction (2026-10-11)
 
 "Lets put up a new alert in the status area at the top center that we've added the new tutorial section, and give them the option

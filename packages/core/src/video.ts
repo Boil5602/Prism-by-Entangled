@@ -437,7 +437,7 @@ export class VideoController {
     const have = this.libraries.get(app);
     // the owned pages (2026-09-22): kept by keepOwned - a report of them alone is done here
     if (lib.owned.length) {
-      const kept = { continue: have?.continue ?? [], list: have?.list ?? [], shelves: have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(have, lib) };
+      const kept = { continue: have?.continue ?? [], list: have?.list ?? [], shelves: have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(app, have, lib) };
       this.libraries.set(app, kept); this.persist(app, "library", kept);
       if (!lib.list.length && !lib.continue.length) return true;
     }
@@ -481,9 +481,21 @@ export class VideoController {
    * ("Deletes should be uncommon but still would prefer not to leave orphaned items forever") - two, because a virtualized grid
    * can skip a row that rendered late (Fandango's first pass had 1,564 of some 1,950). A report with no owned list keeps it whole.
    */
-  private keepOwned(have: VideoLibrary | undefined, lib: { owned: VideoItem[]; ownedComplete: boolean }): { owned: VideoItem[]; ownedMissed: Record<string, number> } {
+  private keepOwned(app: string, have: VideoLibrary | undefined, lib: { owned: VideoItem[]; ownedComplete: boolean }): { owned: VideoItem[]; ownedMissed: Record<string, number> } {
     if (!lib.owned.length) return { owned: have?.owned ?? [], ownedMissed: have?.ownedMissed ?? {} };
     const ids = new Set((have?.owned ?? []).map((x) => x.id));
+    // a title that joins a library already known is new to it: a purchase made on the phone (2026-10-11, "How do we quickly surface
+    // that item to the user?"). The first read of a library is the library, not two thousand purchases.
+    if (ids.size > 0) {
+      const fresh = lib.owned.filter((x) => !ids.has(x.id));
+      if (fresh.length) {
+        const at = Date.now();
+        const seen = { ...(this.newOwned.get(app) ?? {}) };
+        for (const x of fresh) if (!(x.id in seen)) seen[x.id] = at;
+        for (const id of Object.keys(seen)) if (at - seen[id]! > VideoController.NEW_OWNED_MS) delete seen[id];
+        this.newOwned.set(app, seen); this.persist(app, "new-owned", seen);
+      }
+    }
     let owned = [...(have?.owned ?? []), ...lib.owned.filter((x) => !ids.has(x.id))].slice(0, 3000);   // a library of two thousand fits (some 400 KB in the store)
     let missed = { ...(have?.ownedMissed ?? {}) };
     if (lib.ownedComplete && lib.owned.length >= 50) {
@@ -493,6 +505,18 @@ export class VideoController {
       missed = Object.fromEntries(Object.entries(missed).filter(([id, n]) => n > 0 && owned.some((x) => x.id === id)));
     }
     return { owned, ownedMissed: missed };
+  }
+  /** How long a title just bought stays new (seven days: "New in your library" on Watch). */
+  static readonly NEW_OWNED_MS = 7 * 24 * 3_600_000;
+  /** When each owned title first joined a known library, per App (new-owned in the store). */
+  private readonly newOwned = new Map<string, Record<string, number>>();
+  /** The titles that joined this App's library within the window, newest first, with when each did. */
+  newlyOwned(appKey: string, windowMs = VideoController.NEW_OWNED_MS, now = Date.now()): Array<{ item: VideoItem; at: number }> {
+    const seen = this.newOwned.get(appKey);
+    if (!seen) return [];
+    const owned = this.libraries.get(appKey)?.owned ?? [];
+    // newest first: by when each joined, and among those that joined in one read by their place in the list (a read appends)
+    return owned.map((x, i) => ({ item: x, at: seen[x.id] ?? -1, i })).filter((n) => n.at >= 0 && now - n.at <= windowMs).sort((a, b) => b.at - a.at || b.i - a.i).map(({ item, at }) => ({ item, at }));
   }
   /** The App's list IS empty (its own list page said so and settled): the older read goes. */
   clearList(app: string): void {
@@ -593,7 +617,7 @@ export class VideoController {
       const have = this.libraries.get(app);
       // a page reports the rows it has: a report without a shelf the last one had keeps that shelf (My List lives on its own page);
       // the owned list rides through every report (a home page's report had rebuilt the library without it, 2026-09-22)
-      const merged = { continue: lib.continue.length ? lib.continue : have?.continue ?? [], list: lib.list.length ? this.screenList(app, lib.list) : have?.list ?? [], shelves: lib.shelves.length ? lib.shelves : have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(have, lib) };
+      const merged = { continue: lib.continue.length ? lib.continue : have?.continue ?? [], list: lib.list.length ? this.screenList(app, lib.list) : have?.list ?? [], shelves: lib.shelves.length ? lib.shelves : have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(app, have, lib) };
       this.libraries.set(app, merged);
       this.persist(app, "library", merged);
     }
@@ -1380,18 +1404,29 @@ export class VideoController {
   /** The channel a window is on: the one it was tuned to (a tune or a restart's), else its hint while it names no title, else the one
    *  its page itself names (YouTube TV's player gives its channel as the now-playing artist: a window brought back as a watch address
    *  after a restart keeps no tune). Null for a window on a title. */
-  channelOf(tileId: string): { id: string; name: string } | null {
+  /** Every word there is for the channel a window is on, the surest first: the tune (or a restart's), the live page's own word, a
+   *  hint that names no title, a page whose title is its channel's name. More than one can stand, and they can disagree: the big window
+   *  came back from a restart "tuned" to the film it had been started on (2026-10-11), while its page said FX. */
+  private channelWords(tileId: string): Array<{ id: string; name: string }> {
     const hint = this.hints.get(tileId);
     const seen = this.lastSeen.get(tileId)?.info;
     const named = seen?.artist && seen.artist === seen.title ? { id: seen.artist, name: seen.artist } : null;
-    return this.tunedChannel.get(tileId) ?? (hint && !hint.url ? { id: hint.id, name: hint.name } : null) ?? named;
+    const ctx = this.lastSeen.get(tileId)?.ctx;
+    const paged = ctx?.kind === "live" && typeof ctx.channel === "string" && ctx.channel.length > 0 ? { id: ctx.channel, name: ctx.channel } : null;
+    const words = [this.tunedChannel.get(tileId) ?? null, paged, hint && !hint.url ? { id: hint.id, name: hint.name } : null, named];
+    return words.filter((w): w is { id: string; name: string } => !!w);
   }
+  channelOf(tileId: string): { id: string; name: string } | null { return this.channelWords(tileId)[0] ?? null; }
   programEdges(tileId: string, at = Date.now()): { channel: string; title: string; start: number; end: number | null } | null {
-    // the channel the window was tuned to (a tune or a restart's), else its hint while it names no title
-    const tuned = this.channelOf(tileId);
-    if (!tuned) return null;
-    const id = tuned.id.replace(/^live:/i, "");
-    const ch = (this.live.get(this.appKey(tileId)) ?? []).find((c) => sameChannel(c.id, id) || sameChannel(c.name, tuned.name));
+    // the first of the window's words for its channel that the guide knows (2026-10-11: for a night the big window had no programme, no
+    // programme edges and no channel name for the break watch, its first word naming nothing in the guide and its page's word unread)
+    const channels = this.live.get(this.appKey(tileId)) ?? [];
+    let ch: VideoChannel | undefined;
+    for (const w of this.channelWords(tileId)) {
+      const id = w.id.replace(/^live:/i, "");
+      ch = channels.find((c) => sameChannel(c.id, id) || sameChannel(c.name, w.name));
+      if (ch) break;
+    }
     const sched = (ch?.schedule ?? []).filter((p) => typeof p.start === "number").sort((a, b) => a.start - b.start);
     for (let i = 0; i < sched.length; i++) {
       const p = sched[i]!;
@@ -1617,11 +1652,11 @@ export class VideoController {
     return spec?.videoCmd ? `(window.__prismVideoCmd&&window.__prismVideoCmd(${JSON.stringify(cmd)}))` : null;
   }
 
-  private key(kind: "library" | "resume" | "recent" | "live" | "session-profile" | "removed" | "hidden", appKey: string): string | null {
+  private key(kind: "library" | "resume" | "recent" | "live" | "session-profile" | "removed" | "hidden" | "new-owned", appKey: string): string | null {
     const dash = this.host.dashId();
     return dash ? `video:${kind}:${dash}:${appKey}` : null;
   }
-  private persist(appKey: string, kind: "library" | "resume" | "recent" | "live" | "removed" | "hidden", value: unknown): void {
+  private persist(appKey: string, kind: "library" | "resume" | "recent" | "live" | "removed" | "hidden" | "new-owned", value: unknown): void {
     const k = this.key(kind, appKey);
     const store = this.host.store();
     if (!k || !store) return;
@@ -1644,6 +1679,8 @@ export class VideoController {
       if (hd && !this.hiddenCont.has(appKey)) { const raw = await store.get(hd); if (raw) { const o = JSON.parse(raw) as Record<string, { at: number; progress: number | null }>; if (o && typeof o === "object") this.hiddenCont.set(appKey, new Map(Object.entries(o))); } }
       const rm = this.key("removed", appKey);
       if (rm && !this.removed.has(appKey)) { const raw = await store.get(rm); if (raw) { const o = JSON.parse(raw) as Record<string, { at: number; tries: number; item: VideoItem }>; if (o && typeof o === "object") this.removed.set(appKey, new Map(Object.entries(o).filter(([, r]) => r && typeof r.at === "number" && r.item && typeof r.item.id === "string").map(([id, r]) => [id, { at: r.at, tries: r.tries | 0, item: r.item, retrying: false }]))); } }
+      const no = this.key("new-owned", appKey);
+      if (no && !this.newOwned.has(appKey)) { const raw = await store.get(no); if (raw) { const o = JSON.parse(raw) as Record<string, number>; if (o && typeof o === "object") this.newOwned.set(appKey, o); } }
       const sp = this.key("session-profile", appKey);
       if (sp && !this.sessionProfile.has(appKey)) { const raw = await store.get(sp); if (raw) this.sessionProfile.set(appKey, raw); }
       const rc = this.key("recent", appKey);

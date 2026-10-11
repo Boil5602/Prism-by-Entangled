@@ -169,6 +169,10 @@ const steps = [
     fn: () => { const r = run("node", ["scripts/migration-roundtrip.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
   },
   {
+    id: "tutorial-sync", title: "the tour: its source is whole, and the website's copy matches it (when ../entangled.world is there)",
+    fn: () => { const r = run("python", ["scripts/release/sync-tutorial.py", "--site", "../entangled.world", "--check"], root); return { code: r.code, detail: tail(r.out, 6) }; },
+  },
+  {
     id: "host-tests", title: "host tests (dotnet test PrismHost.Tests)", host: true,
     fn: () => {
       const r = run("dotnet", ["test", "PrismHost.Tests/PrismHost.Tests.csproj"], host);

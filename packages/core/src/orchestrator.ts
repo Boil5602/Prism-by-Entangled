@@ -34,6 +34,7 @@ export interface BingeEntry { at: number; done: boolean; cands: BingeCandidate[]
 /** One fresh row as it stands (fresh-rows.ts). */
 export interface FreshEntry { at: number; done: boolean; cards: Array<import("./browse.js").BrowseCard & { date: string }>; through: string | null }
 import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
+import { purchaseOffer, storeProvidersOf, type PurchaseOffer } from "./purchase.js";
 import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
 import { SCORE_URL, SCORE_SOURCE, SCORE_DAY_LEAGUES, mergeKept, parseLeagueScoreboard, parseScoreboard, scoreDayUrl, type ScoreGame } from "./scores.js";
 import { parseFeed, type NewsItem } from "./news-feeds.js";
@@ -4752,6 +4753,12 @@ export class Orchestrator {
   /** The details card for a title: TMDB's facts, polled until ready (title-details.ts). */
   /** The TMDB providers an adapter claims (tmdbProviders): how a "Where to watch" offer finds the household's service. */
   providersOfAdapter(adapterKey: string): number[] { return providersOf(this.adapters.get(adapterKey)); }
+  /** The titles that joined a service's library in the last week (a purchase made on the phone): New in your library on Watch. */
+  videoNewlyOwned(adapterKey: string): Array<{ item: VideoItem; at: number }> { return this.video.newlyOwned(adapterKey); }
+  /** A title's Rent or Buy offer on the service that owns a TMDB provider id, as an address for the person's phone (purchase.ts). */
+  purchaseOffer(providerId: number, title: string): PurchaseOffer | null { return purchaseOffer(this.adapters.all(), providerId, title); }
+  /** The provider ids of an adapter's store (Amazon Video beside Prime Video): a Rent or Buy offer under one is that household service's. */
+  storeProvidersOfAdapter(adapterKey: string): number[] { return storeProvidersOf(this.adapters.get(adapterKey)); }
   /** The service's own landscape picture for an owned title (videoOwnedArtWide), or null. */
   ownedWideArt(adapterKey: string, id: string): string | null {
     const t = this.adapters.get(adapterKey)?.videoOwnedArtWide;
@@ -7289,11 +7296,13 @@ export class Orchestrator {
     };
   }
   /** One service's pages read again now (the Content updates tab's Refresh on its row). */
-  videoRefreshApp(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string): boolean {
+  videoRefreshApp(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string, owned = false): boolean {
     this.knowServices(services);
     const s = services.find((x) => x.app === app);
     if (!s || (this.lookupNow && !this.lookupNow.done)) return false;
-    const ok = this.refreshChain(s, { profiles: true, asked: true });
+    // the owned pages too when asked for them (I've bought it, 2026-10-11): a bought title that was never started is on no Continue row,
+    // and the timed read walks the owned pages only every OWNED_STALE_MS
+    const ok = this.refreshChain(s, { profiles: true, asked: true, owned });
     if (ok) this.touchLookups();
     return ok;
   }

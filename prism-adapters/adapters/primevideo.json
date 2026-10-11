@@ -35,6 +35,9 @@
     2100,
     613
   ],
+  "purchaseProviders": [
+    10
+  ],
   "broadcasters": [
     "Prime Video",
     "Amazon Prime Video",

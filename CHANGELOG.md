@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.29.0 - 2026-10-11 (alpha, 84ae95df)
+
+New: How Prism works, a tour of Prism in nine short subjects with a picture on every page. A notice at the top of the screen offers it once, and Show me plays a few seconds showing where it lives in the Prism menu. A page of the tour can open the real thing, and a Back to How Prism works button brings you back. The Prism menu is larger and the screen dims behind it. The words on the pairing card are bigger. On the phone, the Video tab can open a title in the service's own app on that phone, the Keyboard tab's arrows are a proper cross, and its password box shows only for a password.
+
+- download: https://prism.entangled.world/windows/Prism-0.29.0-84ae95df.zip
+- sha256: 496f8d9224d7545da15453f7313208e2282e063253d563c687f233b1b8c4a3b3
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.29.0
+
 ## 0.28.1 - 2026-10-10 (alpha, 3a8be2aa)
 
 A privacy fix first: Prism's own log on your PC could hold what you typed on the phone keyboard, and it no longer records any of it. Nothing was sent anywhere unless you chose to send a report with a log excerpt. New: Get a free key in Watch settings walks you from no TMDB account to a working key with your phone. It shows a code for TMDB's sign-up page, a code for its key page, and a code that lets your phone send the key to Prism, then checks the key with TMDB before saying it works.

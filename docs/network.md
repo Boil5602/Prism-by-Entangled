@@ -18,6 +18,8 @@ not listed here.
   inbound, home network only, the body never logged. The guide's check of a key is one more request to api.themoviedb.org under
   that key (`GET /3/authentication`), in the TMDB row below.
 
+- **A Rent or Buy code is opened by the phone.** The card's code (docs/features/purchases.md) is the service's own search page for the
+  title. The PC makes no request for it, and nothing about the PC or the person is in the address.
 - **The phone opens a title's own address when asked.** With the Video tab's switch on On this phone, a tapped title is a link to the
   service's own page for it, opened by the phone (its app or its browser) with no referrer. The PC makes no request for it.
 - **The phone's page fetches artwork itself.** The Music and Video tabs show the services' own artwork addresses (the album art,

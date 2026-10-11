@@ -1297,6 +1297,7 @@ public sealed partial class MainWindow
         }
         else
         {
+        Cards("New in your library", LiveCards(menu, "newOwned"), false, HubAmber);   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
         Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue");   // its cards offer Remove on the service (2026-09-22)
         // My list is the TMDB watchlist while an account is linked (MainWindow.Watchlist.cs, 2026-10-03); the services' own lists otherwise
         _watchActive = menu["watchlist"] is JsonObject wl0 && wl0["active"]?.GetValue<bool>() == true;

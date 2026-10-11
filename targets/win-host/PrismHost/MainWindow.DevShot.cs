@@ -183,6 +183,8 @@ public sealed partial class MainWindow
             if (text.StartsWith("top scroll ", StringComparison.Ordinal) && double.TryParse(text.Substring(11), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tsy)) { DevTopScroll(tsy); return; }   // the topmost page that scrolls, moved to an offset
             if (text == "tour intro") { _ = PlayTourIntroAsync(); return; }   // the introduction played: the Prism menu, How Prism works, the tour (2026-10-11)
             if (text == "tour notice") { TourNoticeAgain(); return; }   // the notice about the tour put back in the status area
+            if (text == "purchase demo") { ShowPurchaseCard("The Lantern Coast", "Fandango At Home", new System.Text.Json.Nodes.JsonObject { ["url"] = "https://athome.fandango.com/content/browse/search?searchString=The%20Lantern%20Coast" }, null, null); return; }   // the Rent or Buy card with a made-up title (2026-10-11)
+            if (text == "purchase close") { ClosePurchaseCard(); return; }
             if (text == "tutorial close") { CloseTutorial(); return; }
             if (text == "tutorial") { ShowTutorial(); return; }   // How Prism works (2026-10-10)
             if (text == "tmdb guide close") { CloseTmdbGuide(); return; }

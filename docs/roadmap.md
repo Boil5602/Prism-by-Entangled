@@ -46,6 +46,29 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   pack extends, a pack signer and checker beside the update scripts, the publish step that bundles the newest pack into each release, the
   host's fetch and merge, the opt-in upload and its inbox route, and the daily check.
 
+- **The break watch on other live TV services** (said 2026-10-11, "we're going to have to use the exact same ad cover technique
+  for sling tv when I subscribe"): the watch is built for YouTube TV's live channels today - its adapter, its channel logos, its
+  trained model. Sling TV, when the household subscribes, takes the same technique: the picture, the sound and the captions. Not
+  started: it needs the service's own adapter and its own marked hours. The tour already speaks of live channels in general and
+  names YouTube TV once as where it works today. The labels in Watch settings and on the phone still say YouTube TV, and change
+  with the second service.
+
+## Buying and renting
+
+- **A code for the phone in place of buying on the PC** (talked through 2026-10-11, "Maybe we should show a buy option but give them
+  a QR code to perform the transaction on their phones"): pressing Rent or Buy under a title's Where to watch shows a card with a
+  code for the service's own page, an Open here instead (today's behaviour: the service's page in the big window) and an I've
+  bought it that reads the service's library again. Prism never handles payment, takes no cut and adds no referral code, as it never
+  signs anyone up. **Built 2026-10-11** ("Proceed with recs"; docs/features/purchases.md): the card is the default press, a service
+  Prism has an adapter for gets a code whether or not the household has set it up, and it goes out with the next release.
+- **Where a service sells is the service's own fact, kept in its adapter** (same day, "Some are fine to point to their native apps.
+  Like Apple TV or music. But I know some only allow purchasing through a browser because they don't sell through the manufacturer OS
+  to save money. Fandango at home is an example"): each adapter says whether a purchase is made in the service's app or only in a
+  browser, with the source it was read from, and the card's words follow it. A code is a web address, and a phone with the service's
+  app installed may hand the address to the app, where a browser-only service shows no way to buy: the card has to say so, and each
+  service needs a try on an iPhone and an Android phone. To check before building: each service's own help page on where it sells,
+  whether the availability data carries prices (it is believed not to), and the title's own address per service.
+
 ## Performance
 
 - The per-page cost is measured each minute (perf.log, the Performance tab). Left on the list: the 10 MB/s three playing windows draw

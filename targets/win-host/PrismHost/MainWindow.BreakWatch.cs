@@ -51,6 +51,9 @@ public sealed partial class MainWindow
         public double PaidCardSeen = -9999;   // the paid programme card this window's half hour was set from
         public long PaidUntil;                // ... and the end of that half hour (unix ms)
         public double PaidHoldAt = -999;      // when core was last told how long the paid programme's cover has left (B-364)
+        public double PaidOpenSeen = -9999;   // the opening statement, shown or spoken, the half hour was last set from
+        public double PaidCloseSeen = -9999;  // the closing statement that last ended one
+        public double PaidLogoSince = -1;     // since when the channel's logo has stood through a paid programme's cover (-1: it is away)
         public bool SureOnly;                 // the person set this channel to sure breaks only (ChannelCovers.Sure)
         public bool Withheld;                 // ... and the watch has found a break it is not covering (said once in the log)
         public bool AdLine;
@@ -392,6 +395,34 @@ public sealed partial class MainWindow
                 if (until.ToUnixTimeMilliseconds() != st.PaidUntil) LogLine("break watch " + id + ": the screen says this is a paid program (an infomercial until " + until.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) + ")");
                 st.PaidUntil = until.ToUnixTimeMilliseconds();
             }
+            // ... or says so in other words, shown or spoken, as its half hour begins (BreakModel.PaidOpen, 2026-10-11: 58 openings in five
+            // nights, all within five minutes of the turn of a half hour, which is the only time one is taken)
+            if (st.Model.PaidOpenAt > st.PaidOpenSeen)
+            {
+                st.PaidOpenSeen = st.Model.PaidOpenAt;
+                var clock = DateTimeOffset.Now;
+                var into = clock.Minute % 30 * 60 + clock.Second;
+                if (into <= 300 || into >= 1500)
+                {
+                    var until = BreakModel.PaidSlotEnd(clock, true);
+                    if (until.ToUnixTimeMilliseconds() != st.PaidUntil) LogLine("break watch " + id + ": the program says it is a paid one (an infomercial until " + until.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) + ")");
+                    st.PaidUntil = until.ToUnixTimeMilliseconds();
+                }
+            }
+            // the paid programme says it has ended: its hold ends there, and what follows is judged as any picture is
+            if (st.Model.PaidCloseAt > st.PaidCloseSeen)
+            {
+                st.PaidCloseSeen = st.Model.PaidCloseAt;
+                if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < st.PaidUntil) { st.PaidUntil = 0; LogLine("break watch " + id + ": the paid program says it has ended"); }
+            }
+            // a hold that was wrong lifts within a minute: a paid programme runs without the channel's logo, and a show has it up. The
+            // logo standing for a minute through the hold ends it (the worst case is a minute of a show covered, not half an hour)
+            if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < st.PaidUntil && st.Model.LogoUpNow)
+            {
+                if (st.PaidLogoSince < 0) st.PaidLogoSince = now;
+                else if (now - st.PaidLogoSince >= 60) { st.PaidUntil = 0; st.PaidLogoSince = -1; LogLine("break watch " + id + ": the channel's logo has stood a minute, so this is no paid program"); }
+            }
+            else st.PaidLogoSince = -1;
             if (!covered && !st.Model.AdFreeChannel && !st.Model.DismissedAt(now) && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < st.PaidUntil) covered = true;
             // a paid programme's cover outlasts core's five-minute backstop (B-364, 2026-10-10: FX's 04:00 infomercial lost its cover at 04:05
             // with the watch still saying break, and the three after it played uncovered): the end of its half hour is known, so core is told

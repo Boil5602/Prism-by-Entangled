@@ -338,7 +338,7 @@ if (args.Length >= 4 && args[0] == "bench")
         var lst = learned?.NewState();
         var lshown = false; var lshownAt = -999.0; var lshown0 = false;
         var plainRun = 0; var plainLift = int.TryParse(Environment.GetEnvironmentVariable("PLAINLIFT"), out var pl_) ? pl_ : 0;
-        double paidSeen = -9999, paidUntil = -1;
+        double paidSeen = -9999, paidUntil = -1, paidOpenSeen = -9999, paidCloseSeen = -9999, paidLogoSince = -1;
         var ccBlind = int.TryParse(Environment.GetEnvironmentVariable("CCBLIND"), out var cb_) ? cb_ : 0; var ccLineAt = Array.IndexOf(BreakModel.FeatureNames, "since_cc_line");
         var half = Environment.GetEnvironmentVariable("HALF") == "1"; var skips = 0;
         foreach (var (at, frame, evt) in items)
@@ -395,6 +395,14 @@ if (args.Length >= 4 && args[0] == "bench")
                 // a paid programme's own card covers to the end of its half hour (BreakModel.PaidCard; PAIDCARD=0 replays without it)
                 var tod = int.Parse(at[..2]) * 3600 + int.Parse(at[2..4]) * 60 + int.Parse(at[4..6]);
                 if (m.PaidCardAt > paidSeen) { paidSeen = m.PaidCardAt; var day0 = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero); paidUntil = (BreakModel.PaidSlotEnd(day0.AddSeconds(tod), m.PaidCardFollowing) - day0).TotalSeconds; }
+                // ... and its opening and closing in other words, shown or spoken, as the shell takes them (PAIDOPEN=0 replays without)
+                if (Environment.GetEnvironmentVariable("PAIDOPEN") != "0")
+                {
+                    var day00 = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+                    if (m.PaidOpenAt > paidOpenSeen) { paidOpenSeen = m.PaidOpenAt; var into = tod % 1800; if (into <= 300 || into >= 1500) paidUntil = (BreakModel.PaidSlotEnd(day00.AddSeconds(tod), true) - day00).TotalSeconds; }
+                    if (m.PaidCloseAt > paidCloseSeen) { paidCloseSeen = m.PaidCloseAt; if (tod < paidUntil) paidUntil = 0; }
+                    if (tod < paidUntil && m.LogoUpNow) { if (paidLogoSince < 0) paidLogoSince = t; else if (t - paidLogoSince >= 60) { paidUntil = 0; paidLogoSince = -1; } } else paidLogoSince = -1;
+                }
                 if (Environment.GetEnvironmentVariable("PAIDCARD") != "0" && tod < paidUntil) shown2 = true;
                 if (shown2) lshownAt = t;
                 var shown0 = up2 || m.CueOnAt(t) || (Environment.GetEnvironmentVariable("LINFO") == "1" && m.InfomercialAt(t));

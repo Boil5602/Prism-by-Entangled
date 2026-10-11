@@ -266,3 +266,5 @@ if a.site:
     with open(red, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
     print("website updated:", rel, "and", red, "- run `npm run deploy` there")
+    # the tour goes with the release: the website shows the tutorial of the version people can download (sync-tutorial.py, 2026-10-11)
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync-tutorial.py"), "--site", a.site], check=True)

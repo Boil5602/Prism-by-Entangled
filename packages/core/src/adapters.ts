@@ -390,6 +390,17 @@ export interface AdapterSpec {
    *    live-capable service lists; tune = play the channel's address in the service's own player
    */
   videoSearchUrl?: string;
+  /**
+   * TMDB provider ids of the service's STORE, where it differs from its subscription (Amazon Video, 10, beside Prime Video's own):
+   * a Rent or Buy offer under one of these is this service's (purchase.ts, 2026-10-11), without making the subscription carry
+   * the title in a catalog row, which tmdbProviders would.
+   */
+  purchaseProviders?: number[];
+  /**
+   * Where the service sells and rents, as the service itself says (purchase.ts): in its app, or only in a browser. Recorded only
+   * with the source it was read from, and said on screen only when recorded.
+   */
+  purchase?: { where?: "app" | "browser"; note?: string; source?: string };
   videoLive?: string;
   /**
    *  - videoTune: window.__prismVideoTune(channelId) -> true once the page took the press on that channel's guide item
@@ -627,6 +638,8 @@ export class AdapterRegistry {
     return Object.fromEntries(this.rejectedAdapters);
   }
 
+  /** Every registered adapter (a provider's service is looked for among them all: purchase.ts). */
+  all(): AdapterSpec[] { return [...this.adapters.values()]; }
   get(name: string): AdapterSpec | undefined {
     return this.adapters.get(name);
   }

@@ -1246,6 +1246,7 @@ public sealed partial class MainWindow
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
     {
+        if (_purchaseCard is not null) { ClosePurchaseCard(); return true; }   // the Rent or Buy card
         if (_tmdbGuide is not null) { CloseTmdbGuide(); return true; }   // the TMDB guide, over whatever opened it
         if (_tutorial is not null) { LeaveTutorial(); return true; }   // How Prism works
         if (_welcome is { Visibility: Visibility.Visible }) { CloseWelcome(); if (TourOwed) TourReturn(); return true; }   // the welcome page (Set up services)

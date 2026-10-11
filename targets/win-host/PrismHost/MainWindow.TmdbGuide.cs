@@ -116,7 +116,7 @@ public sealed partial class MainWindow
                     "Details pages with the cast, and where each title can be watched",
                     "Every cast member's other films and shows, one press away",
                     "One search across all your services",
-                    "Your own ratings and playlists, once you link your account"));
+                    "Your own ratings and playlists, the same on every device you link, once you link your account"));
                 card.Children.Add(Body("It takes about three minutes, and you'll use your phone."));
                 card.Children.Add(Row(Verb("Start", true, () => _ = ShowAsync(1)), Verb("I already have a key", false, () => _ = ShowAsync(3)), Verb("Not now", false, CloseTmdbGuide)));
             }
@@ -217,7 +217,7 @@ public sealed partial class MainWindow
                     "Details pages with the cast and where to watch. Press any title",
                     "Cast members' other titles. Press a name on a Details page",
                     "Search across all your services, from the Watch page"));
-                card.Children.Add(Body("One more step turns on your own ratings and playlists: approving Prism on your TMDB account. It's another code to scan."));
+                card.Children.Add(Body("One more step turns on your own ratings and playlists: approving Prism on your TMDB account. It's another code to scan. They're kept on TMDB, so every PC you link shows the same ones."));
                 card.Children.Add(Row(
                     Verb("Link my account", true, async () => { CloseTmdbGuide(); GuideRedrawPages(); await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync(); }),
                     Verb("Finish", false, () => { CloseTmdbGuide(); SetPill("Prism" + Dot + "your TMDB key is in"); GuideRedrawPages(); })));

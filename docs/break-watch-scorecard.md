@@ -70,6 +70,16 @@ replay of the kept recording (the live column is pulled down by restarts and by 
 Per channel at the latter: FX 86% / 0.6%, TLC 79% / 2.6%, USA 87% / 1.9%, TBS (baseball) 46% / 6.9%, HGTV 75% / 3.2%. A change
 ships only when this score improves.
 
+## Paid programmes that announce themselves in other words (2026-10-11)
+
+Food Network's two infomercial half hours from 04:00 on 11 October were covered in 13 and 12 pieces. One opened only in its captions
+("The following is a paid advertisement for ..."), the next with "The following program is sponsored by ...". The watch now takes an
+opening in any of those wordings, shown or spoken, within five minutes of the turn of a half hour, and holds to the half hour's end.
+A closing statement ends the hold, and so does the channel's logo standing for a minute. Five nights of recordings: 58 openings, all
+real, and 24 closings. The seven exams read the same with and without it (93.7% of ad time covered, 302 s of show covered): none of
+them holds an infomercial, so this rule has no exam of its own yet. An infomercial that never says what it is, by any wording, is
+still covered in pieces. The guide was looked at for that and set aside: films and sport are described as barely as infomercials are.
+
 ## A channel's covers: On, Sure breaks only, Off (2026-10-10)
 
 "A right click channel settings menu, for live stations, with the ability to disable the ad veils. And maybe something under settings

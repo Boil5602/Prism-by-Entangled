@@ -75,10 +75,21 @@ if os.path.exists(_prev) and time.time() - os.path.getmtime(_prev) < 2 * 3600:
 _lines += open(os.path.join(P, "diagnostics", "host.log"), encoding="utf-8", errors="replace").readlines()
 _first = 0      # the log is in order and may hold more than a day: from its end back to the first line older than the hour
 for _i in range(len(_lines) - 1, -1, -1):
-    if re.match(r"\d\d:\d\d:\d\d", _lines[_i]) and tod(_lines[_i]) < FROM - 60: _first = _i + 1; break
+    if re.match(r"\d\d:\d\d:\d\d", _lines[_i]) and tod(_lines[_i]) < FROM - 7200: _first = _i + 1; break   # two hours further back: who was covered as the hour began
 for l in _lines[_first:]:
     if not re.match(r"\d\d:\d\d:\d\d", l): continue
     t = tod(l)
+    if t < FROM:
+        # before the hour: only who is covered as it begins. A cover that stood through the whole hour has no line of its own in it,
+        # and was left out altogether (2026-10-11: a paid programme's cover, up for 31 minutes and counting, showed as no row at all)
+        if "brain ready" in l: up = {}; continue
+        g0 = re.search(r"<- surface\.destroy (\S+)", l)
+        if g0: up.pop(g0.group(1), None); continue
+        m0 = re.search(r"break watch (\S+): (break|show) \(", l) or re.search(r"break watch (\S+): the person (said) Not an ad", l)
+        if m0:
+            if m0.group(2) == "break": up[m0.group(1)] = FROM
+            else: up.pop(m0.group(1), None)
+        continue
     if not (FROM <= t <= NOW): continue
     if "brain ready" in l:
         restarts.append(t)

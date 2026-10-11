@@ -690,14 +690,29 @@ public sealed partial class MainWindow
                         var cand = new JsonObject { ["id"] = "tmdb:" + tkind + ":" + ((long)tid).ToString(), ["title"] = ttitle, ["kind"] = tkind == "tv" ? "series" : "movie" };
                         if (d["year"] is JsonValue yv && yv.TryGetValue<double>(out var yd)) cand["year"] = (int)yd;
                         var tposter = d["poster"]?.GetValue<string>();
-                        pb.Click += (_, __) =>
+                        void PlayThere()
                         {
                             CloseTitleDetails();
                             if (PickLeavesWatch(ttitle)) { CloseVideoHub(); ShowStageCurtain(ttitle, pname, tposter); }
                             _ = PlayResultAsync(papp, cand.ToJsonString(), ttitle, pname);
-                        };
+                        }
+                        // a Rent or Buy logo shows a code for the phone first, with the page here as its other way (MainWindow.PurchaseCard.cs,
+                        // 2026-10-11): a card number is nothing to type with a remote
+                        var buyHere = (key == "rent" || key == "buy") ? o["buy"] as JsonObject : null;
+                        if (buyHere is not null) ToolTipService.SetToolTip(pb, label + " " + ttitle + " on " + pname + ". A code for your phone, or its page here");
+                        pb.Click += (_, __) => { if (buyHere is not null) ShowPurchaseCard(ttitle, pname, buyHere, papp, PlayThere); else PlayThere(); };
                         HoverReact(pb, ring);
                         chip = pb;
+                    }
+                    // a service Prism knows that is not one of the household's: its logo shows the code too, with nothing to open here
+                    else if ((key == "rent" || key == "buy") && o["buy"] is JsonObject buyThere)
+                    {
+                        var ob = new Button { Content = chip, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(0) };
+                        ToolTipService.SetToolTip(ob, label + " " + S(d, "title") + " on " + name + ". A code for your phone");
+                        var otitle = S(d, "title"); var oname = name;
+                        ob.Click += (_, __) => ShowPurchaseCard(otitle, oname, buyThere, null, null);
+                        HoverReact(ob);
+                        chip = ob;
                     }
                     row.Children.Add(chip);
                 }
@@ -712,7 +727,7 @@ public sealed partial class MainWindow
             {
                 main.Children.Add(SectionHead("Where to watch"));
                 main.Children.Add(where);
-                main.Children.Add(new TextBlock { Text = "Data by JustWatch, through TMDB (United States). A ringed logo is one of your services: press it to play the title in the big window.", FontSize = 12, Foreground = DetDim });
+                main.Children.Add(new TextBlock { Text = "Data by JustWatch, through TMDB (United States). A ringed logo is one of your services: press it to play the title in the big window. A Rent or Buy logo shows a code to buy it on your phone.", FontSize = 12, Foreground = DetDim });
             }
         }
 

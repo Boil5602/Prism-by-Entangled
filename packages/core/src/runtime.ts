@@ -289,7 +289,8 @@ export interface PrismRuntimeApi {
   /** Sync JSON (2026-09-24): {services:[{app,name,status,working,lists:{at}|null,owned:{at}|null,profiles:{at,page}|null}], feeds:[{id,name,source,every,at,done,count}], ratings:{key,pending}, schedule:{last,listsAt,everyMs,ownedAt,ownedEveryMs,pause,paused}}. */
   videoUpdatesStatus(): string;
   /** Sync JSON {ok}: one service's pages read again now. */
-  videoRefreshApp(appId: string): string;
+  /** `owned`: the service's owned-titles pages too (a purchase just made on the phone, 2026-10-11): the long walk, read for an ask. */
+  videoRefreshApp(appId: string, owned?: boolean): string;
   /** Sync JSON {ok, pause}: the timed refresh's quiet hours (off by default); HH:MM local. */
   videoSetPause(on: boolean, from: string, to: string): string;
   /** Sync JSON {ok, look}: Watch settings' Video ads - "veil" (scenery and mute, the default), "mute" (the ad's picture, its sound off) or "show". */
@@ -1613,7 +1614,13 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const lens = mr && !mr.done ? { ...rows.lens, pending: rows.lens.pending + 1 } : rows.lens;
     const off = excludedNow();
     if (off.size) { rows.continue = rows.continue.filter((c) => !off.has(c.app)); rows.list = rows.list.filter((c) => !off.has(c.app)); }
+    // New in your library (2026-10-11): the titles that joined a service's library in the last week, a purchase made on the phone among
+    // them, newest first, before Continue watching
+    const newOwned = videoServices().services.filter((s) => s.status === "signed-in" && !off.has(s.app))
+      .flatMap((s) => orchestrator.videoNewlyOwned(s.adapter).map((n) => ({ app: s.app, service: s.name, facet: s.facet, item: n.item, firstSeen: n.at })))
+      .sort((a, b) => b.firstSeen - a.firstSeen).slice(0, 24);
     return {
+      newOwned,
       // ready: the kept rows are in (2026-09-24, "Would like to not see this whole page refresh on relaunch (no results, replaced with
       // results)"): at boot the page waits for this and opens once, full
       ready: ((r) => { if (r && menuReadyAt === null) menuReadyAt = Date.now(); return r; })(bootRowsAsked && !orchestrator.videoWarming()),
@@ -1956,8 +1963,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const withPlay = (r: { status: string; details?: unknown; why?: string }): Record<string, unknown> => {
     const d = (r as { details?: { providers?: Record<string, Array<{ id?: number; play?: { app: string; name: string } }>> } }).details;
     if (!d?.providers) return r as Record<string, unknown>;
-    const svcs = videoServices().services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, providers: orchestrator.providersOfAdapter(s.adapter) }));
-    return { ...r, details: { ...d, providers: Object.fromEntries(Object.entries(d.providers).map(([k, list]) => [k, list.map((o) => { const s = typeof o.id === "number" ? svcs.find((x) => x.providers.includes(o.id!)) : undefined; return s ? { ...o, play: { app: s.app, name: s.name } } : o; })])) } };
+    const svcs = videoServices().services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, providers: orchestrator.providersOfAdapter(s.adapter), store: orchestrator.storeProvidersOfAdapter(s.adapter) }));
+    // a Rent or Buy offer carries the service's own page for the title, for the person's phone (purchase.ts, 2026-10-11); a store's
+    // own provider id (Amazon Video) finds the household's service for Open here as well
+    const title = typeof (d as { title?: unknown }).title === "string" ? (d as { title: string }).title : "";
+    return { ...r, details: { ...d, providers: Object.fromEntries(Object.entries(d.providers).map(([k, list]) => [k, list.map((o) => { const s = typeof o.id === "number" ? svcs.find((x) => x.providers.includes(o.id!) || ((k === "rent" || k === "buy") && x.store.includes(o.id!))) : undefined; const buy = (k === "rent" || k === "buy") && typeof o.id === "number" && title ? orchestrator.purchaseOffer(o.id, title) : null; return { ...o, ...(s ? { play: { app: s.app, name: s.name } } : {}), ...(buy ? { buy } : {}) }; })])) } };
   };
   const videoLookupPerson = (id: number, name: string): Record<string, unknown> => {
     if (!Number.isFinite(id) || !name.trim()) return { ok: false, error: "no person" };
@@ -3103,7 +3113,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return json(orchestrator.videoUpdatesStatus(hs.map((s) => ({ app: s.app, name: s.name, adapter: s.adapter, status: s.status }))));
       } catch (e) { report(e); return json({ services: [], feeds: [], ratings: null, schedule: null }); }
     },
-    videoRefreshApp(appId) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? "")) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    videoRefreshApp(appId, owned) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? ""), owned === true) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
       try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, suggestions: orchestrator.videoSuggestions }); }
       catch (e) { report(e); return json({ pause: { on: false, from: "23:00", to: "07:00" }, tmdbKey: false }); }
