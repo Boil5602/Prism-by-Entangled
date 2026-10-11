@@ -480,6 +480,16 @@ export class RemoteApi {
       if (typeof on !== "boolean") return json(400, { error: 'body must be {"on": true|false}' });
       return json(200, this.video.breakWatch(on));
     }
+    // POST /tmdb/key {apiKey} - the person's own TMDB key, sent from the phone it was copied on (2026-10-10, the TMDB guide: "A nice
+    // fluid helpful guide"): a long key is nothing to type with a remote. The field is named apiKey so the log's redactor masks it in
+    // the request line. It is kept where a key typed on the PC is kept (lensSetTmdbKey); the answer says only whether a key is set
+    if (req.method === "POST" && req.path === "/tmdb/key") {
+      const raw = this.parseBody(req.body)?.["apiKey"];
+      const key = typeof raw === "string" ? raw.trim() : "";
+      if (key.length < 20 || key.length > 600 || /[^A-Za-z0-9._-]/.test(key)) return json(400, { error: "That doesn't look like a TMDB key. Copy the API Read Access Token or the API Key from TMDB's page" });
+      this.orchestrator.lensSetTmdbKey(key);
+      return json(200, { ok: true, set: this.orchestrator.lensHasKey() });
+    }
     if (req.method === "POST" && req.path === "/audio/wall-mute") {
       const on = this.parseBody(req.body)?.["on"];
       if (typeof on !== "boolean") return json(400, { error: 'body must be {"on"}' });

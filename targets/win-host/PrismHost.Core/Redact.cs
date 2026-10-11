@@ -27,6 +27,7 @@ namespace PrismHost.Diagnostics;
 ///   - a `token=` / `ticket=` query parameter in a URL or path
 ///   - a bare 32+ hex-character run, which is what randomToken() mints — the
 ///     catch-all for a token that reaches a log by some shape not listed above
+///   - a JSON Web Token (eyJ... with dots), which is what TMDB's long key is
 ///
 /// It is deliberately blunt: over-redacting a diagnostics line costs a support
 /// session some context, while under-redacting costs a credential.
@@ -55,6 +56,12 @@ public static class Redact
     /// <summary>A bare token literal: what randomToken() mints is 32 hex characters.</summary>
     private static readonly Regex BareHex = new("\\b[0-9a-f]{32,}\\b", Opts);
 
+    /// <summary>A JSON Web Token: base64url parts joined by dots, the first beginning eyJ. TMDB's long key (its API Read Access Token)
+    /// is one, and it reached host.log whole in the line for the call that saves it (found 2026-10-10; the short key is 32 hex
+    /// characters and was already caught). Blunt on purpose: a line cut short can leave a token with fewer than three parts, and no
+    /// word boundary is asked for in front, since JSON inside JSON puts u0022 straight before the token.</summary>
+    private static readonly Regex Jwt = new("eyJ[A-Za-z0-9_-]{16,}(?:\\.[A-Za-z0-9_-]+){0,2}", Opts);
+
     /// <summary>
     /// Redact one line before it is written. Never throws: a diagnostics line
     /// is not worth an exception, and a redactor that can fail is a redactor
@@ -69,6 +76,7 @@ public static class Redact
             s = HeaderValue.Replace(s, "$1" + Mask);
             s = QueryParam.Replace(s, "$1" + Mask);
             s = BareHex.Replace(s, Mask);
+            s = Jwt.Replace(s, Mask);
             return s;
         }
         catch

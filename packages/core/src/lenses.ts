@@ -304,12 +304,30 @@ export class LensResolver {
     return this.tmdbKey;
   }
   setKey(key: string | null): void {
-    this.tmdbKey = key && key.trim() ? key.trim() : null; this.keyLoaded = true;
+    this.tmdbKey = key && key.trim() ? key.trim() : null; this.keyLoaded = true; this.keySets++;
     const dash = this.hooks.dashId(); const store = this.hooks.store();
     if (dash && store) { try { void store.set(`lens:tmdb:key:${dash}`, this.tmdbKey ?? ""); } catch { /* best effort */ } }
     if (!this.tmdbKey) for (const f of this.facts.values()) { f.rating = null; delete f.at.tmdb; }
   }
   hasKey(): boolean { return !!this.tmdbKey; }
+  /** How many times a key was set since the start: the TMDB guide waits for the phone to send one, and a new key is a new count. */
+  private keySets = 0;
+  keyState(): { hasKey: boolean; sets: number } { return { hasKey: !!this.tmdbKey, sets: this.keySets }; }
+  /**
+   * Whether TMDB takes the key as it stands (the TMDB guide, 2026-10-10): its own check of a key, GET /3/authentication. "refused" is
+   * TMDB's own no (HTTP 401, or success false) and nothing else, so a network that is down never reads as a bad key.
+   */
+  async keyCheck(): Promise<"ok" | "refused" | "unreachable" | "none"> {
+    const key = await this.key(); const fetchKeyed = this.hooks.fetchKeyed;
+    if (!key) return "none";
+    if (!fetchKeyed) return "unreachable";
+    const v3 = /^[0-9a-f]{32}$/i.test(key);
+    this.lastFetch = "/authentication";
+    try {
+      const a = JSON.parse(await withTimeout(fetchKeyed(`https://api.themoviedb.org/3/authentication${v3 ? "?api_key=" + encodeURIComponent(key) : ""}`, v3 ? {} : { Authorization: `Bearer ${key}` }), "/authentication")) as Record<string, unknown> | null;
+      return a?.success === false ? "refused" : "ok";
+    } catch (e) { return String(e).includes("HTTP 401") ? "refused" : "unreachable"; }
+  }
 
   /**
    * Make sure the facts these titles need are read (or being read): the lens's needs, plus TMDB's rating for every title

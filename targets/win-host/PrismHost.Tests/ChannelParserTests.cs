@@ -60,6 +60,26 @@ public sealed class ChannelParserTests
         Assert.Null(ChannelParser.Parse("{\"noOp\":true}"));
     }
 
+    // 2026-10-10: every phone request's body had been reaching host.log in the http call's line - text typed on the phone's keyboard,
+    // and a TMDB key sent from the phone would have followed. The log's copy of the request has no body, and is redacted like any line.
+    [Theory]
+    [InlineData("/keyboard/type", "text", "correct horse battery staple")]
+    [InlineData("/tmdb/key", "apiKey", "0123456789abcdef0123456789abcdef")]
+    [InlineData("/tmdb/key", "apiKey", "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJmYWtlZmFrZWZha2VmYWtlIiwic3ViIjoiMCJ9.c2lnbmF0dXJlLW5vdC1yZWFsLWp1c3QtYS10ZXN0")]
+    public void APhoneRequestIsLoggedWithoutItsBody(string path, string field, string secret)
+    {
+        var body = System.Text.Json.JsonSerializer.Serialize(new System.Collections.Generic.Dictionary<string, string> { [field] = secret });
+        var forCore = ChannelParser.PhoneRequestJson("POST", path, "token=abc", body, "abc", "Phone");
+        using (var doc = System.Text.Json.JsonDocument.Parse(forCore)) Assert.Equal(body, doc.RootElement.GetProperty("body").GetString());   // core gets it whole
+        var line = PrismHost.Diagnostics.Redact.Line("call " + ChannelParser.HostCallJson(HostCalls.Http, 7, ChannelParser.PhoneRequestJson("POST", path, "token=abc", body, "abc", "Phone", forLog: true)));
+        Assert.DoesNotContain(secret, line);
+        Assert.DoesNotContain(secret.Substring(0, 12), line);
+        Assert.Contains(path, line);                      // the line still says what was asked
+        Assert.Contains("characters, not logged", line);
+        using var none = System.Text.Json.JsonDocument.Parse(ChannelParser.PhoneRequestJson("GET", "/state", "", "", "abc", null, forLog: true));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, none.RootElement.GetProperty("body").ValueKind);
+    }
+
     [Fact]
     public void HostCallJsonShape()
     {

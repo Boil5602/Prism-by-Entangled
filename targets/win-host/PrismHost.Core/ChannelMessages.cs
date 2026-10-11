@@ -73,6 +73,14 @@ public static class ChannelParser
     public static string HostCallJson(string fn, params object?[] args) =>
         JsonSerializer.Serialize(new { fn, args });
 
+    /// <summary>
+    /// A phone's request as core's http call takes it, and the copy the log gets: the same without the body, which can be text typed
+    /// on the phone's keyboard or the person's TMDB key (2026-10-10: every request's body had been reaching host.log in the call's
+    /// line, where the redactor's shapes do not fit JSON nested three deep). The log's copy says how long the body was.
+    /// </summary>
+    public static string PhoneRequestJson(string method, string path, string? query, string? body, string? token, string? userAgent, bool forLog = false) =>
+        JsonSerializer.Serialize(new { method, path, query = string.IsNullOrEmpty(query) ? null : query, body = string.IsNullOrEmpty(body) ? null : forLog ? "[" + body.Length + " characters, not logged]" : body, token, userAgent });
+
     /// <summary>The resolve answer for a stubbed request op.</summary>
     public static string ResolveUnsupportedJson(double requestId) =>
         HostCallJson(HostCalls.Resolve, requestId, null, "unsupported: not implemented in M1");

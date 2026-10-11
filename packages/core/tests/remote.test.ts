@@ -214,3 +214,27 @@ describe("RemoteApi — routes (§6)", () => {
     expect((await remote.handle({ method: "GET", path: "/secrets", body: null, token })).status).toBe(404);
   });
 });
+
+// The TMDB guide (2026-10-10): the key is copied on the phone, so the phone sends it; a long key is nothing to type with a remote.
+describe("RemoteApi - the person's TMDB key from the phone", () => {
+  const LONG = "eyJhbGciOiJIUzI1NiJ9" + "." + "eyJhdWQiOiJmYWtlZmFrZWZha2VmYWtlIiwic3ViIjoiMCJ9" + "." + "c2lnbmF0dXJlLW5vdC1yZWFsLWp1c3QtYS10ZXN0";
+  it("a paired phone sets the key, long or short, and the answer does not repeat it", async () => {
+    const { remote, orchestrator, token } = await paired();
+    expect(orchestrator.lensHasKey()).toBe(false);
+    const res = await remote.handle({ method: "POST", path: "/tmdb/key", body: JSON.stringify({ apiKey: "  " + LONG + " " }), token });
+    expect(res.status).toBe(200);
+    expect(JSON.parse(res.body)).toEqual({ ok: true, set: true });
+    expect(res.body).not.toContain("eyJ");
+    expect(orchestrator.lensHasKey()).toBe(true);
+    const short = await remote.handle({ method: "POST", path: "/tmdb/key", body: JSON.stringify({ apiKey: "0123456789abcdef0123456789abcdef" }), token });
+    expect(short.status).toBe(200);
+  });
+  it("refuses what is not a key, and a phone that is not paired", async () => {
+    const { remote, orchestrator, token } = await paired();
+    for (const bad of ["", "short", "has spaces in the middle of it all", "x".repeat(700), 42])
+      expect((await remote.handle({ method: "POST", path: "/tmdb/key", body: JSON.stringify({ apiKey: bad }), token })).status).toBe(400);
+    expect(orchestrator.lensHasKey()).toBe(false);
+    expect((await remote.handle({ method: "POST", path: "/tmdb/key", body: JSON.stringify({ apiKey: LONG }), token: "not-a-token" })).status).toBe(401);
+    expect(orchestrator.lensHasKey()).toBe(false);
+  });
+});

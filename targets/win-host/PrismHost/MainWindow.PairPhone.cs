@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     /// <summary>core's remote.pairing: the address the QR encodes (the menu asked for it), or the boot's quiet mint (nothing shown).</summary>
     private async void OnPairingMinted(string url)
     {
+        if (_guidePairing is { } guide) { guide.TrySetResult(url); return; }   // the TMDB guide asked: its last code opens the phone's page on the key sheet
         if (!_pairCardWanted || url.Length == 0) return;
         _pairCardWanted = false;
         ClosePairCard();

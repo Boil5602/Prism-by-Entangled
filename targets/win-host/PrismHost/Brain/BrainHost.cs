@@ -124,6 +124,15 @@ public sealed class BrainHost
         core.PostWebMessageAsJson(json);
     }
 
+    /// <summary><see cref="Call"/>, with the log shown other arguments than core gets: a phone's request is logged without its body.</summary>
+    public void CallLoggedAs(string fn, object?[] loggedArgs, params object?[] args)
+    {
+        var json = ChannelParser.HostCallJson(fn, args);
+        try { OnCall?.Invoke(fn, Clip(ChannelParser.HostCallJson(fn, loggedArgs), 400)); } catch { }
+        if (!Ready || _view?.CoreWebView2 is not { } core) { _pending.Add(json); return; }
+        core.PostWebMessageAsJson(json);
+    }
+
     private void FlushPending()
     {
         if (_view?.CoreWebView2 is not { } core) return;

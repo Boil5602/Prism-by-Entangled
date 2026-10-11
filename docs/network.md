@@ -14,6 +14,9 @@ not listed here.
   home LAN, §6); reachable from the internet only if a router is told to forward it. Nothing else listens. Private listening is a
   WebSocket on the same port (`/audio/stream`, a ticket from core) or a live MP3 (`/audio/live.mp3`, the same ticket), the wall's
   sound to the phone, outbound from the wall's point of view once the phone has connected (docs/features/phone.md).
+  A paired phone can also send the person's TMDB key to the PC on this listener (`POST /tmdb/key`, the TMDB guide, 2026-10-10):
+  inbound, home network only, the body never logged. The guide's check of a key is one more request to api.themoviedb.org under
+  that key (`GET /3/authentication`), in the TMDB row below.
 
 - **The phone's page fetches artwork itself.** The Music and Video tabs show the services' own artwork addresses (the album art,
   a title's poster) and TMDB posters the PC already uses; the phone's browser fetches those from the services' and TMDB's image

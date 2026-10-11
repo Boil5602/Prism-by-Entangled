@@ -359,6 +359,9 @@ export interface PrismRuntimeApi {
   watchlistView(force: boolean): string;
   watchlistHasTitle(title: string, kind: string | null): string;
   watchlistSetTitle(title: string, kind: string | null, on: boolean | string): string;
+  /** The TMDB guide: whether a key is set and how many times one was set (a new count is a new key), and whether TMDB takes it. */
+  tmdbKeyState(): string;
+  tmdbKeyCheck(): Promise<string>;
   tmdbLinkState(): string;
   tmdbLinkStart(): string;
   tmdbLinkFinish(): string;
@@ -3272,6 +3275,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     // the person's TMDB account and their ratings (tmdb-account.ts, 2026-10-03): the host's calls are synchronous, so each starts the work
     // and answers the state it has; the host asks again a moment later (the pattern titleDetails uses)
+    tmdbKeyState() { try { return json(orchestrator.tmdbKeyState()); } catch (e) { report(e); return json({ hasKey: false, sets: 0 }); } },
+    // a key that changed is a link state to read again: the phone's key arrives through the remote, past this file's kept copy
+    async tmdbKeyCheck() { try { tmdbUi.state = null; return json({ result: await orchestrator.tmdbKeyCheck() }); } catch (e) { report(e); return json({ result: "unreachable", error: String(e) }); } },
     tmdbLinkState() {
       try {
         if (!tmdbUi.state && !tmdbUi.loading) { tmdbUi.loading = true; void orchestrator.tmdbLinkState().then((s) => { tmdbUi.state = s; }).catch(report).finally(() => { tmdbUi.loading = false; }); }

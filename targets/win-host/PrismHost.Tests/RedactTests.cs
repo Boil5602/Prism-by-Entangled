@@ -79,6 +79,20 @@ public sealed class RedactTests
         Assert.False(Redact.Leaks(Redact.Line(line), Token), "leaked: " + line);
     }
 
+    // TMDB's long key is a JSON Web Token: it reached host.log whole in the line for the call that saves it (2026-10-10)
+    [Theory]
+    [InlineData("call {\"fn\":\"lensSetTmdbKey\",\"args\":[\"" + Jwt + "\"]}")]
+    [InlineData("tmdb: key " + Jwt + " rejected")]
+    [InlineData("body\\u0022:\\u0022" + Jwt + "\\u0022")]   // JSON inside JSON: no word boundary before the token
+    public void ALongKey_AJsonWebToken_IsRedacted(string line)
+    {
+        var red = Redact.Line(line);
+        Assert.False(Redact.Leaks(red, Jwt), "leaked: " + red);
+        Assert.DoesNotContain(Jwt.Substring(0, 30), red);
+        Assert.Contains(Redact.Mask, red);
+    }
+    private const string Jwt = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJmYWtlZmFrZWZha2VmYWtlIiwic3ViIjoiMCJ9.c2lnbmF0dXJlLW5vdC1yZWFsLWp1c3QtYS10ZXN0";
+
     [Fact]
     public void RedactionKeepsTheLineUseful_AndNeverThrows()
     {

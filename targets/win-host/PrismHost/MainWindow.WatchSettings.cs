@@ -106,10 +106,18 @@ public sealed partial class MainWindow
         var tmdbHead = new TextBlock { Text = "TMDB key", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) };
         ToolTipService.SetToolTip(tmdbHead, "Optional: your own free TMDB account's API key (personal use), kept on this device and sent to TMDB alone. It turns on ratings on cards (TMDB members' mean vote with the vote count), the catalog rows, Browse, the catalog search and the Episodes list for services that cannot list their own.");
         body.Children.Add(tmdbHead);
-        body.Children.Add(new TextBlock { Text = hasKey ? "Set. Ratings, the catalog rows and search are on." : "Not set. Get a free personal key at themoviedb.org " + (char)0x2192 + " Settings " + (char)0x2192 + " API.", FontSize = 13, Foreground = hasKey ? HubAmber : HubDim });
+        body.Children.Add(new TextBlock { Text = hasKey ? "Set. Ratings, the catalog rows and search are on." : "Not set. Prism works without one. Press Get a free key and your phone does the rest.", FontSize = 13, Foreground = hasKey ? HubAmber : HubInk });
         var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var keyBox = new PasswordBox { PlaceholderText = hasKey ? "Replace the key (optional)" : "TMDB API key or read access token", Width = 380, FontSize = 13 };
         keyRow.Children.Add(keyBox);
+        if (!hasKey)
+        {
+            // from no account to a working key by phone, a code a step (MainWindow.TmdbGuide.cs, 2026-10-10)
+            var guide = Chip(new TextBlock { Text = "Get a free key", FontSize = 13, Foreground = HubInk }, true);
+            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to Prism. About three minutes.");
+            guide.Click += (_, __) => _ = ShowTmdbGuideAsync();
+            keyRow.Children.Add(guide);
+        }
         if (hasKey)
         {
             var clear = Chip(new TextBlock { Text = "Clear the key", FontSize = 13, Foreground = HubDim }, false);

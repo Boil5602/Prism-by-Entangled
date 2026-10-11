@@ -289,6 +289,9 @@ aside h3{margin:4px 0 8px;font-size:15px}
 .row{display:flex;gap:6px;align-items:center;margin:4px 0;padding:6px;border:1px solid var(--line);border-radius:6px}
 .row b{flex:1;font-weight:500}.row button{padding:2px 7px}
 #status{color:var(--amber)}
+#task{display:none;background:var(--panel);border-bottom:1px solid var(--line);padding:8px 16px;gap:12px;align-items:center;font-weight:600}
+#task.on{display:flex}#task.off{color:var(--amber)}#tasktext{flex:1}
+#gonext,#taskdone{background:var(--amber);color:#111;font-weight:700;border:0}
 #note{background:var(--amber);color:#111;padding:8px 8px 8px 14px;border-radius:20px;font-weight:600;display:none;pointer-events:none;margin:6px 16px 0;align-self:flex-start}
 #note button{pointer-events:auto;margin-left:10px;background:#111;color:var(--amber);border:0;border-radius:14px;padding:4px 10px}
 #helpbtn{display:none}
@@ -296,6 +299,7 @@ aside h3{margin:4px 0 8px;font-size:15px}
  header{padding:8px;gap:6px}button,select{padding:5px 8px;font-size:13px}#help{display:none}#help.open{display:block}#helpbtn{display:inline-block}}
 </style></head><body>
 <header>
+<button id="gonext">&#9654; Go to what to mark next</button>
 <select id="todo" title="What to mark, the most useful first. Choosing one opens its window at the first frames not yet looked through"></select>
 <select id="win"></select>
 <button data-step="10">every 10 s</button><button data-step="4">4 s</button><button data-step="1">1 s</button>
@@ -307,7 +311,7 @@ aside h3{margin:4px 0 8px;font-size:15px}
 <button id="pcov">&#9666; cover</button><button id="ncov">cover &#9656;</button><button id="psug">&#9666; suggestion</button><button id="nsug">suggestion &#9656;</button><span id="slidetime"></span>
 <div id="help">Click the <b>first frame of the break</b> (the first that is not the show), then the <b>last frame before the show is back</b>. The whole break is one mark: no need to mark each ad. The network's own promos inside a break are part of it. A banner over the show, and a "The following program is rated" card, are the show. Amber top edge = Prism covered it. Blue dashes = the model's suggested break: Accept it, or tap Not an ad; if its edges are off, mark it yourself. Use 1 s near an edge.</div>
 </header>
-<div id="stick"><div id="sugbar"><div id="sugtext"></div><div id="sugbtns"><button id="sugok">Yes, ads</button><button id="sugno">No, the show</button><button id="sugnext">Skip &#9656;</button></div></div>
+<div id="stick"><div id="task"><span id="tasktext"></span><button id="taskdone">Done with this one &#9656;</button><button id="taskskip">Skip it</button></div><div id="sugbar"><div id="sugtext"></div><div id="sugbtns"><button id="sugok">Yes, ads</button><button id="sugno">No, the show</button><button id="sugnext">Skip &#9656;</button></div></div>
 <div id="note"><span id="notetext"></span><button id="notecancel">Cancel</button></div></div>
 <main><div id="grid"></div><aside><h3>Breaks on this window</h3><div id="list"></div></aside></main>
 <script>
@@ -319,16 +323,32 @@ const toS=h=>{const p=h.split(':');return +p[0]*3600+ +p[1]*60+ +p[2]};
 function L(){const l=labels.windows[win.id]||(labels.windows[win.id]={name:win.name,ads:[],neutral:[],reviewed:[]});l.dismissed=l.dismissed||[];l.show=l.show||[];return l}
 // the model's suggested breaks not yet decided: not dismissed, and not already marked over most of their length
 function pendingSug(){const l=L();return (SUG[win.id]||[]).filter(([a,b])=>!l.dismissed.some(d=>d[0]===a&&d[1]===b)&&!l.ads.some(([x,y])=>toS(x)<=toS(b)&&toS(y)>=toS(a)))}
-async function save(){const r=await fetch('/api/labels',{method:'POST',body:JSON.stringify(labels)});$('#status').textContent=r.ok?'saved':'not saved: '+r.status;setTimeout(()=>$('#status').textContent='',1500);fillTodo()}
+async function save(){const r=await fetch('/api/labels',{method:'POST',body:JSON.stringify(labels)});$('#status').textContent=r.ok?'saved':'not saved: '+r.status;setTimeout(()=>$('#status').textContent='',1500);fillTodo();showTask()}
 // what to mark next, the most useful first: how much of each stretch has been looked through, and where its first unseen frames are
-let T=[];
+let T=[],task=null;
+// the stretch being marked (an entry of the list): the page opens on the first one not finished, the bar under the header names it and
+// how far it is looked through, and offers the next one when it is finished or the frames have run past its end
+const keyOf=x=>x.win+'|'+x.from+'|'+x.to;
+function isDone(x){return (labels.done||[]).includes(keyOf(x))}
+function firstTodo(after){const n=T.length;for(let k=1;k<=n;k++){const i=((after===null?-1:after)+k)%n;if(i!==after&&!isDone(T[i]))return i}return -1}
+function showTask(){const el=$('#task');if(!win){el.classList.remove('on');return}
+  const span=y=>y.name+' '+y.from.slice(0,5)+' to '+y.to.slice(0,5);el.classList.add('on');
+  if(task===null||!T[task]){el.classList.add('off');$('#tasktext').textContent='This is not on the list. Press "Go to what to mark next" to go back to it.';
+    $('#taskdone').style.display='none';$('#taskskip').style.display='none';stickTop();return}
+  const x=T[task],d=Math.round(100*doneOf(x)),all=times(),at=all.length?all[Math.min(Math.max(start,0),all.length-1)][1]:0;
+  const out=at<toS(x.from)-PAGE*step||at>=toS(x.to);el.classList.toggle('off',out);
+  $('#tasktext').textContent='Marking now: '+span(x)+(out?' · these frames are outside it':d>=97?' · all looked through. Press Done when every break in it is marked':' · '+d+'% looked through');
+  $('#taskdone').style.display='';$('#taskskip').style.display=firstTodo(task)>=0?'':'none';stickTop()}
+async function openTodo(i){const x=T[i];if(!x)return;task=i;$('#win').value=x.win;win=W.find(w=>w.id===x.win);
+  covers=await (await fetch('/api/covers?win='+x.win)).json();pend=null;jump(doneOf(x)>=0.97?toS(x.from):firstOpen(x));fillTodo();$('#todo').value=String(i);showTask()}
+async function goNext(after){const i=firstTodo(after);if(i>=0)await openTodo(i);else{task=null;showTask();$('#tasktext').textContent='Everything on the list is done.'}}
 function spansOf(x){const l=labels.windows[x.win];return ((l&&l.reviewed)||[]).map(r=>[toS(r[0]),toS(r[1])]).sort((p,q)=>p[0]-q[0])}
 function doneOf(x){const a=toS(x.from),b=toS(x.to);let s=0;for(const [u,v] of spansOf(x))s+=Math.max(0,Math.min(b,v)-Math.max(a,u));return Math.min(1,s/Math.max(1,b-a))}
 function firstOpen(x){let t=toS(x.from);for(const [u,v] of spansOf(x))if(u<=t+1&&v>t)t=v;return Math.min(t,toS(x.to))}
 function fillTodo(){const s=$('#todo');if(!s)return;const keep=s.value;s.innerHTML='';const h=document.createElement('option');h.value='';h.textContent=T.length?'Next to mark (most useful first)':'Nothing listed to mark';s.appendChild(h);
   const rows=T.map((x,i)=>[x,i,Math.round(100*doneOf(x))]);
-  for(const [x,i,d] of [...rows.filter(r=>r[2]<97),...rows.filter(r=>r[2]>=97)]){const o=document.createElement('option');o.value=i;
-    o.textContent=(d>=97?'done · ':(i+1)+'. ')+x.name+' '+x.from.slice(0,5)+' to '+x.to.slice(0,5)+(x.why?' · '+x.why:'')+(d>0&&d<97?' · '+d+'% looked through':'');s.appendChild(o)}
+  for(const [x,i,d] of [...rows.filter(r=>!isDone(r[0])),...rows.filter(r=>isDone(r[0]))]){const o=document.createElement('option');o.value=i;
+    o.textContent=(isDone(x)?'done · ':(i+1)+'. ')+x.name+' '+x.from.slice(0,5)+' to '+x.to.slice(0,5)+(x.why?' · '+x.why:'')+(!isDone(x)&&d>0?' · '+d+'% looked through':'');s.appendChild(o)}
   s.value=keep}
 function times(){const out=[];let last=-1e9;for(const n of win.frames){const t=sec(n);if(t-last>=step-0.25){out.push([n,t]);last=t}}return out}
 function inSpan(t,L){return L.some(([a,b])=>toS(a)<=t&&t<=toS(b)+0.99)}
@@ -402,9 +422,13 @@ addEventListener('keydown',e=>{if(e.key==='Escape'){pend=null;$('#note').style.d
 (async()=>{W=await (await fetch('/api/windows')).json();labels=await (await fetch('/api/labels')).json();labels.windows=labels.windows||{};
   try{SUG=(await (await fetch('/api/suggest')).json()).windows||{}}catch(e){SUG={}}
   try{T=await (await fetch('/api/todo')).json()}catch(e){T=[]}fillTodo();
-  $('#todo').onchange=async e=>{const x=T[+e.target.value];if(e.target.value===''||!x)return;$('#win').value=x.win;await choose(x.win);jump(firstOpen(x));fillTodo()};
+  $('#todo').onchange=async e=>{if(e.target.value===''||!T[+e.target.value])return;await openTodo(+e.target.value)};
+  $('#gonext').onclick=()=>goNext(null);
+  $('#taskdone').onclick=async()=>{if(task===null||!T[task])return;labels.done=labels.done||[];const k=keyOf(T[task]);if(!labels.done.includes(k))labels.done.push(k);await save();await goNext(task)};
+  $('#taskskip').onclick=()=>goNext(task);
   for(const w of W){const o=document.createElement('option');o.value=w.id;o.textContent=w.name+' ('+w.id.replace('youtube-tv-home-16x9-','')+')';$('#win').appendChild(o)}
-  $('#win').onchange=e=>choose(e.target.value);document.querySelector('[data-step="4"]').classList.add('on');choose(W[0].id)})();
+  $('#win').onchange=async e=>{task=null;await choose(e.target.value);showTask()};document.querySelector('[data-step="4"]').classList.add('on');
+  if(firstTodo(null)>=0)await goNext(null);else{await choose(W[0].id);showTask()}})();
 </script></body></html>"""
 
 

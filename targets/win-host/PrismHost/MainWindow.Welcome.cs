@@ -444,7 +444,7 @@ public sealed partial class MainWindow
         block.Children.Add(infoRow);
         block.Children.Add(benefitsText);
         block.Children.Add(practicesText);
-        block.Children.Add(new TextBlock { Text = hasKey ? (char)0x2713 + "  Key set. Ratings, the catalog rows and search are on." : "Not set. Get a free personal key at themoviedb.org " + (char)0x2192 + " Settings " + (char)0x2192 + " API, and paste it here.", FontSize = 15, Foreground = hasKey ? HubInk : HubAmber, TextWrapping = TextWrapping.Wrap });
+        block.Children.Add(new TextBlock { Text = hasKey ? (char)0x2713 + "  Key set. Ratings, the catalog rows and search are on." : "Not set. Press Get a free key and your phone does the rest, or paste a key you already have.", FontSize = 15, Foreground = hasKey ? HubInk : HubAmber, TextWrapping = TextWrapping.Wrap });
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var keyBox = new PasswordBox { PlaceholderText = hasKey ? "Replace the key (optional)" : "TMDB API key or read access token", Width = 420, FontSize = 14 };
         var save = Chip(new TextBlock { Text = "Save", FontSize = 14, Foreground = HubAmber }, true);
@@ -465,6 +465,14 @@ public sealed partial class MainWindow
             if (st?["linked"]?.GetValue<bool>() != true) { await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync(); }
             if (_welcome is not null) _ = ShowWelcomeAsync();   // the block redrawn with the key's state and the account
         };
+        if (!hasKey)
+        {
+            // from no account to a working key by phone, a code a step (MainWindow.TmdbGuide.cs, 2026-10-10)
+            var guide = Chip(new TextBlock { Text = "Get a free key", FontSize = 14, Foreground = HubInk }, true);
+            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to Prism. About three minutes.");
+            guide.Click += (_, __) => _ = ShowTmdbGuideAsync();
+            row.Children.Add(guide);
+        }
         row.Children.Add(keyBox); row.Children.Add(save); row.Children.Add(note);
         if (hasKey)
         {

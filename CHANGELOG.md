@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.28.0 - 2026-10-10 (alpha, ebc0028a)
+
+Right-click a YouTube TV channel in Live to choose how its ad breaks are covered: On, Sure breaks only (just the breaks YouTube TV marks itself, and paid programmes), or Off. A channel moves to Sure breaks only by itself after three Not an ad presses in a week, and Watch settings holds that number. A paid programme now stays covered for its whole half hour. Before, the cover came down after five minutes.
+
+- download: https://prism.entangled.world/windows/Prism-0.28.0-ebc0028a.zip
+- sha256: f15d9c23732852556dae7a94834349c265f86796cc981d9367ecafdb9df59026
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.28.0
+
 ## 0.27.2 - 2026-10-10 (alpha, 82bb24fb)
 
 The download is 17 MB smaller. Two Microsoft machine-learning libraries that came along with the Windows App SDK, and that Prism never used, are no longer included.

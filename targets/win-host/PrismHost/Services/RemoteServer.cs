@@ -20,7 +20,7 @@ namespace PrismHost.Services;
 public sealed class RemoteServer : IDisposable
 {
     private readonly TcpListener _listener;
-    private readonly Action<int, string> _dispatch;                 // (requestId, requestJson) → PrismRuntime.http
+    private readonly Action<int, string, string> _dispatch;                 // (requestId, requestJson) → PrismRuntime.http
     private readonly Action<string> _log;
     private readonly ConcurrentDictionary<int, TaskCompletionSource<(int status, string body, string contentType)>> _pending = new();
     private int _nextId;
@@ -36,7 +36,8 @@ public sealed class RemoteServer : IDisposable
     public Func<string, bool>? TokenOk { get; set; }
     private bool Paired(string? token) => token is { Length: > 0 } && TokenOk is { } ok && ok(token);
 
-    public RemoteServer(int port, Action<int, string> dispatch, Action<string> log)
+    /// <param name="dispatch">The request for core, and the copy of it the log gets (no body: ChannelParser.PhoneRequestJson).</param>
+    public RemoteServer(int port, Action<int, string, string> dispatch, Action<string> log)
     {
         _dispatch = dispatch;
         _log = log;
@@ -193,8 +194,10 @@ public sealed class RemoteServer : IDisposable
                 var id = Interlocked.Increment(ref _nextId);
                 var tcs = new TaskCompletionSource<(int, string, string)>(TaskCreationOptions.RunContinuationsAsynchronously);
                 _pending[id] = tcs;
-                var requestJson = JsonSerializer.Serialize(new { method, path, query = query.Length == 0 ? null : query, body = body.Length == 0 ? null : body, token, userAgent = headers.TryGetValue("User-Agent", out var uaS) ? uaS : null });   // B-218: an OAuth redirect's code and state ride the query
-                _dispatch(id, requestJson);
+                var ua = headers.TryGetValue("User-Agent", out var uaS) ? uaS : null;
+                var requestJson = PrismHost.Channel.ChannelParser.PhoneRequestJson(method, path, query, body, token, ua);   // B-218: an OAuth redirect's code and state ride the query
+                // the log's copy has no body: it can be text typed on the phone or the person's TMDB key (2026-10-10)
+                _dispatch(id, requestJson, PrismHost.Channel.ChannelParser.PhoneRequestJson(method, path, query, body, token, ua, forLog: true));
                 var done = await Task.WhenAny(tcs.Task, Task.Delay(15000));
                 if (done != tcs.Task) { _pending.TryRemove(id, out _); await WriteAsync(stream, 504, "{\"error\":\"core did not answer\"}", "application/json"); return; }
                 var (status, rbody, ctype) = tcs.Task.Result;

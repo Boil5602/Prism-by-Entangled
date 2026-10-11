@@ -6419,6 +6419,8 @@ export class Orchestrator {
   /** How many names wait for TMDB. */
   liveTitlesPending(): number { return this.liveTitleQueue.length + (this.liveTitleWorking ? 1 : 0); }
   // ---- the person's TMDB account (tmdb-account.ts, 2026-10-03)
+  tmdbKeyState() { return this.lenses.keyState(); }
+  tmdbKeyCheck() { return this.lenses.keyCheck(); }
   tmdbLinkState() { return this.lenses.linkState(); }
   tmdbLinkStart() { return this.lenses.linkStart(); }
   tmdbLinkFinish() { return this.lenses.linkFinish(); }

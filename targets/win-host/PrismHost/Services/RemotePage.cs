@@ -30,6 +30,7 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .lwin{display:none;margin-top:10px}.lwin.on{display:block}#lwinRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}#lwinRow>button{min-width:0}#lwinRow>button:first-child{grid-column:1/-1}.lwin .order button{white-space:normal;line-height:1.25}.lwin .order button small{display:block;color:#E8ECF2;font-weight:400;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.order button{font-size:13px;padding:10px 6px}.order button.on{color:#F2B14C;font-weight:600;box-shadow:inset 0 0 0 1px #F2B14C}.order button:disabled{opacity:.4}
 .install{display:none;position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:#1C2129;border-radius:16px;padding:14px 14px 12px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:45;flex-direction:column;gap:10px}.install.on{display:flex;animation:installIn .25s ease-out}@media (prefers-reduced-motion:reduce){.install.on{animation:none}}@keyframes installIn{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}.install p{margin:0;font-size:15px;color:#E8ECF2;line-height:1.4}.install ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}.install li{display:flex;align-items:center;gap:10px;font-size:14px;color:#E8ECF2}.install li .n{flex:none;width:22px;height:22px;border-radius:50%;background:#14171C;color:#F2B14C;font:600 13px system-ui;display:inline-flex;align-items:center;justify-content:center}.install li svg{flex:none;width:20px;height:20px;fill:none;stroke:#F2B14C;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.install .row{display:flex;gap:8px;align-items:center}.install .go{flex:1;background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 14px;font:600 15px system-ui}.install .later{flex:1;background:#14171C;color:#E8ECF2;border:0;border-radius:12px;padding:12px 14px;font:15px system-ui}.install .never{background:none;border:0;color:#8A93A2;font:13px system-ui;padding:6px 0 0;text-align:left}@media (display-mode:standalone){.install{display:none !important}}
 .sheet{display:none;position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));background:#1C2129;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:50;flex-direction:column;gap:8px}.sheet.on{display:flex}.sheet b{font-size:15px;color:#E8ECF2;margin-bottom:4px}.sheet button{background:#14171C;color:#E8ECF2;border:0;border-radius:12px;padding:14px;font:16px system-ui}.sheet button.go{background:#F2B14C;color:#14171C;font-weight:600}
+.sheet .keyNote{font-size:14px;line-height:1.4;color:#E8ECF2}.sheet .keyNote.bad{color:#F2B14C}.sheet input{background:#14171C;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:14px 12px;font:18px system-ui;min-width:0}
 .trk{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}.trk .lbl{font-size:13px;color:#E8ECF2;margin-top:6px}.trk button.sel{color:#F2B14C;font-weight:600}
 .muteNote{flex-direction:column;gap:8px}.muteNote.on{display:flex}.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:#E8ECF2}.chk input{width:20px;height:20px;accent-color:#F2B14C}
 .work .drop{background:#14171C;color:#F2B14C;border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
@@ -116,6 +117,12 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 </div>
 <!-- the Captions sheet sits outside the tab sections: inside the Music section it opened display:none while the Video tab was on (2026-10-05, "Captions on the companion app still doesn't work") -->
 <div id="trkSheet" class="sheet"><b>Subtitles and audio</b><div id="trkList" class="trk"></div><button id="trkClose">Close</button></div>
+<!-- the TMDB guide's last step (2026-10-10): the key is copied on this phone, so this phone sends it; the page opens with #tmdb from the guide's code -->
+<div id="keySheet" class="sheet"><b>Send your TMDB key to Prism</b>
+<span class="keyNote">On TMDB's API page, copy the long one called API Read Access Token (the shorter API Key works too). Paste it here.</span>
+<input id="tkey" type="password" placeholder="Paste the key here" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+<button id="tkeySend" class="go">Send to Prism</button><button id="tkeyClose">Close</button>
+<span class="keyNote" id="tkeySaid"></span></div>
 </main>
 <script>
 const token = new URLSearchParams(location.search).get('token') || '';
@@ -702,6 +709,19 @@ async function openTracks() {
 }
 q('#vRetry').onclick = async () => { if (!vTile) return; q('#vRetry').disabled = true; try { await api('/tiles/' + encodeURIComponent(vTile) + '/command', { cmd: 'retry' }); } catch (e) { say('#verr', e.message); } setTimeout(() => { q('#vRetry').disabled = false; pollVideo(); }, 1500); };
 q('#trkClose').onclick = () => { q('#trkSheet').classList.remove('on'); if (vTile) api('/video/tracks-done', { tile: vTile }).catch(() => {}); };
+// the TMDB key, sent from the phone it was copied on (the guide's code opens this page with #tmdb). The box is emptied as soon as it is
+// sent, and the key is kept nowhere on the phone
+if (location.hash === '#tmdb') q('#keySheet').classList.add('on');
+q('#tkeyClose').onclick = () => q('#keySheet').classList.remove('on');
+q('#tkeySend').onclick = async () => {
+  const said = q('#tkeySaid'), v = q('#tkey').value.trim();
+  said.classList.remove('bad');
+  if (!v) { said.classList.add('bad'); said.textContent = 'Paste the key first.'; return; }
+  q('#tkeySend').disabled = true; said.textContent = 'Sending...';
+  try { await api('/tmdb/key', { apiKey: v }); q('#tkey').value = ''; said.textContent = 'Sent. Look at Prism on the PC for the next step.'; }
+  catch (e) { said.classList.add('bad'); said.textContent = String((e && e.message) || e); }
+  q('#tkeySend').disabled = false;
+};
 for (const b of document.querySelectorAll('[data-v]')) b.onclick = async () => {
   if (!vTile) { say('#verr', 'Nothing is playing in Prism'); return; }
   let c = b.dataset.v;

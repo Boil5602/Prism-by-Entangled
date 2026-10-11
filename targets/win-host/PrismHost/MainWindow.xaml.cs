@@ -272,7 +272,7 @@ public sealed partial class MainWindow : Window
         if (_remote is not null) return;
         try
         {
-            _remote = new RemoteServer(8471, (id, json) => RootGrid.DispatcherQueue.TryEnqueue(() => _brain.Call(HostCalls.Http, id, json)), LogLine);
+            _remote = new RemoteServer(8471, (id, json, logged) => RootGrid.DispatcherQueue.TryEnqueue(() => _brain.CallLoggedAs(HostCalls.Http, new object?[] { id, logged }, id, json)), LogLine);
             // the routes the host answers itself take a paired phone's token only (2026-10-05 review): core's own record of the pairings, read at each ask
             _remote.TokenOk = t =>
             {

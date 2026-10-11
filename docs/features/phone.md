@@ -87,6 +87,14 @@ phones. The app should also enable the private listening feature through the pho
   types through the DevTools protocol's own input (`Input.insertText`, `Input.dispatchKeyEvent`): trusted input into whatever the
   page has focused, as a keyboard's (SurfaceManager.PhoneKeys.cs). Nothing typed is kept or logged; the request body never reaches
   a log.
+  That last part was not true until 2026-10-10: every request's body was in host.log, in the line for the http call that hands
+  the request to core. The log's copy of a phone request now has no body at all, only its length
+  (`ChannelParser.PhoneRequestJson(..., forLog: true)`, `BrainHost.CallLoggedAs`; ChannelParserTests).
+- The TMDB key: `POST /tmdb/key {apiKey}` (core remote.ts) keeps the person's own TMDB key where a key typed on the PC is kept.
+  The TMDB guide's last code opens this page with `#tmdb`, which shows a sheet with one box and Send to Prism: the key was copied
+  on the phone a moment before, and a long key is nothing to type with a remote. The box is emptied when it is sent and the
+  phone keeps nothing. The answer says only whether a key is set. The key crosses the home network as the rest of the phone's
+  requests do, in plain HTTP (section 6); a person who would rather not can type it on the PC, in the guide or in Watch settings.
 - Listen: `POST /audio/stream-ticket` (core, §14) gives a short-lived ticket; the phone opens a WebSocket at `/audio/stream?ticket=`
   which the host redeems with core and serves (Services/ListenStream.cs): the shared browser's own sound through the process loopback
   the visualizer uses, 16-bit PCM at 48 kHz stereo in 20 ms frames, about 1.5 Mbit/s. One capture serves every phone. The page plays

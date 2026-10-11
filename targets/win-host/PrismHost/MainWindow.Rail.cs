@@ -102,7 +102,9 @@ public sealed partial class MainWindow
             });
         }
         var argsJson = "[" + string.Join(",", parts) + "]";
-        LogLine("call " + ClipForLog("{\"fn\":\"" + fn + "\",\"args\":" + argsJson + "}", 400));
+        // a key is never written to the log, whatever its shape (2026-10-10: the redactor knew TMDB's short key and not its long one)
+        var logArgs = fn == "lensSetTmdbKey" && args.Length > 0 && args[0] is string ? "[\"" + PrismHost.Diagnostics.Redact.Mask + "\"]" : argsJson;
+        LogLine("call " + ClipForLog("{\"fn\":\"" + fn + "\",\"args\":" + logArgs + "}", 400));
         string? raw;
         try { raw = await _brain.EvalAsync("PrismRuntime." + fn + "(" + string.Join(",", parts) + ")"); }
         catch (Exception ex) { SetStatus(fn + ": " + ex.Message); return null; }

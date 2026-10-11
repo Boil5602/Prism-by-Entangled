@@ -138,3 +138,40 @@ Prism's**, which written out says:
 
 The chips are pressable as well as hoverable: a wall is read from across a room, where there is no hover. Rewrite the text when
 TMDB's policy changes; its date is in the note.
+
+
+## The guide: from no account to a working key (2026-10-10)
+
+"Are we helping them get to the sign up page using their phone & a QR code to take them there? And login page, and approval page, and
+api page, whatever applicable at whatever step. A nice fluid helpful guide to take advantage of all these excellent features we've
+included."
+
+Get a free key, beside the key box in Watch settings and on the Set up services page while no key is set, opens a short guide over
+the page (`MainWindow.TmdbGuide.cs`). Each step is a code for the phone:
+
+1. What a key turns on (details pages with the cast and where to watch, a cast member's other titles, one search across the
+   services, ratings and playlists once the account is linked), and that Prism works in full without one. Start, I already have a
+   key, Not now.
+2. Create your TMDB account: a code to themoviedb.org/signup. Prism never signs anyone up
+   (docs/third-party-services-policy.md); the page opens on the person's own phone, and TMDB's confirming email is theirs to open.
+3. Get your key: a code to themoviedb.org/settings/api, with what TMDB asks the first time (Developer, the terms, a short form)
+   and which value to copy: the API Read Access Token.
+4. Send the key to Prism: a code that pairs the phone and opens Prism's page on it at a sheet with one box and Send to Prism
+   (`POST /tmdb/key`, docs/features/phone.md). A box on the PC takes a typed or pasted key too, and is the only way when the phone
+   remote is not running.
+5. Your key works, and Link my account for the approval above.
+
+- **A key is checked before the guide says it works.** Core asks TMDB's own key check, `GET /3/authentication` (`lenses.keyCheck`,
+  `tmdbKeyCheck`): ok, refused, or unreachable. Refused is TMDB's own no (HTTP 401, or success false) and nothing else, so a network
+  that is down never reads as a bad key: the key is kept and tried again ten seconds on.
+- **A refused key the guide took in is cleared**, so Watch settings does not show a key that does nothing and the guide's button
+  stays. A key that was set before the guide's last step opened is never the guide's to clear.
+- **The guide sees the phone's key by a count**, not by reading it: core counts the times a key was set (`lenses.keyState`,
+  `tmdbKeyState`), and a new count while that step is up is the key to check.
+- **The key is never in the log**: the call that saves it logs a mask in place of its argument, the redactor masks a JSON Web Token
+  (the long key's shape) wherever one appears, and a phone request's body is not logged at all.
+- **Not walked yet**: the three codes on a real phone, TMDB's API page opening straight from its code for a signed-in phone, and
+  the whole guide on a PC with no key.
+
+Tests: `packages/core/tests/tmdb-key-check.test.ts` (the check's three answers, the count), `remote.test.ts` (the phone's route),
+`RedactTests`, `ChannelParserTests` (the log).
