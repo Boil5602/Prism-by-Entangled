@@ -4783,7 +4783,10 @@ export class Orchestrator {
     const s = services.find((x) => x.app === app);
     const spec = s ? this.adapters.get(s.adapter) : undefined;
     if (!s || !spec?.videoChannelUnfollow || !/^https:\/\//.test(url)) return { ok: false, error: "this service has no unfollow here" };
-    const a = await this.askHiddenPage(s, url.replace(/\/+$/, ""), spec.videoChannelUnfollow, "unfollow", (token) => `window.__prismVideoChannelUnfollow && window.__prismVideoChannelUnfollow(${JSON.stringify(token)})`, 45_000);
+    // the channel's lighter page when the adapter names one (Twitch's /videos, no player): the live page's button was pressed before it was bound (2026-10-13)
+    const bare = url.replace(/\/+$/, "");
+    const page = spec.videoChannelPage ? spec.videoChannelPage.replace("{url}", bare) : bare;
+    const a = await this.askHiddenPage(s, page, spec.videoChannelUnfollow, "unfollow", (token) => `window.__prismVideoChannelUnfollow && window.__prismVideoChannelUnfollow(${JSON.stringify(token)})`, 45_000);
     if (a.r?.ok) { this.video.dropChannel(s.adapter, url); return { ok: true }; }
     return { ok: false, error: typeof a.r?.error === "string" ? a.r.error : a.error ?? "the page did not unfollow" };
   }
@@ -6117,12 +6120,12 @@ export class Orchestrator {
         const addr = fillItemAddress(t, id, card?.url ?? null);
         if (!addr) continue;
         a = await this.askHiddenPage(s, addr, spec.videoRemoveContinue!, "rm",
-          (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS);
+          (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
         // a press the service took but its open page did not redraw (Disney+ kept Zootopia 2's card, 2026-09-23): once more on a fresh load - the
         // script answers 'already-gone' when the title has left the row, and presses again when it has not
         if (a.r && !a.r.ok && a.r.error === "unconfirmed") {
           a = await this.askHiddenPage(s, addr, spec.videoRemoveContinue!, "rm",
-            (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS);
+            (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
           if (a.r && !a.r.ok && a.r.error === "unconfirmed") a = { r: { ...a.r, error: "the service did not show it gone" } };
         }
         if (!(a.r && !a.r.ok && a.r.error === "not-found")) break;
@@ -6318,14 +6321,14 @@ export class Orchestrator {
     } catch { return null; }
     finally { release(); this.hiddenWork--; this.touchLookups(); }
   }
-  private async askHiddenPage(s: { app: string; adapter: string; profile: string }, url: string, script: string, tag: string, call: (token: string) => string, timeoutMs: number, partial?: (r: MusicResultEvent) => void): Promise<{ r: MusicResultEvent | null; error?: string }> {
+  private async askHiddenPage(s: { app: string; adapter: string; profile: string }, url: string, script: string, tag: string, call: (token: string) => string, timeoutMs: number, partial?: (r: MusicResultEvent) => void, opts?: { mayPlay?: boolean }): Promise<{ r: MusicResultEvent | null; error?: string }> {
     // background work has a hidden page of its own, apart from the one searches and a catalog pick's resolve use: a person's play is never
     // queued behind a removal, and never takes the page out from under one (2026-09-22, "kick off 2 removals but then play a title")
     const surfaceId = `app:${s.app}:work`;
     // never a title's own player in the background (adapter videoPlaysAt): it would play, and the service would count it as watched
     const plays = this.adapters.get(s.adapter)?.videoPlaysAt ?? [];
     let path = ""; try { path = new URL(url).pathname; } catch { path = url; }
-    if (plays.some((p) => path.includes(p))) return { r: null, error: "Prism won't open that page in the background because it would start the title playing" };
+    if (!opts?.mayPlay && plays.some((p) => path.includes(p))) return { r: null, error: "Prism won't open that page in the background because it would start the title playing" };
     this.hiddenWork++;
     this.touchLookups();
     // one job at a time on a service's page: The Bear's job had taken the page Breeders' was still working on (2026-09-22)

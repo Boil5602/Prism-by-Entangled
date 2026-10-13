@@ -229,6 +229,9 @@ export interface AdapterSpec {
    * hide the title (Hulu resets the progress). A service without the script offers no remove.
    */
   videoRemoveContinue?: string;
+  /** The remove's page is the title's own player and may play, muted, since that is how the service forgets the place (Twitch, 2026-10-13); the
+   *  background guard against a playing page stands down for this one job alone. */
+  videoRemoveContinuePlays?: boolean;
   /**
    * Every season and episode of the series on the screen, as the service lists them (2026-09-22, the stage bar's Episodes menu): the script
    * defines window.__prismVideoEpisodes(token) and answers through the result channel (op "episodes") with `candidates` = one entry per

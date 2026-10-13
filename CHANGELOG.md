@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.30.0 - 2026-10-13 (alpha, f69480ce)
+
+Watch's cards now carry everything on the picture. A title's name is drawn over a picture that has none, TMDB's score sits on a pill coloured from red to green, your own rating stands beside it once you have rated, and a Continue watching card is washed grey over the part you have watched. Rest the pointer on the score to see where the number comes from and to rate the title on TMDB from there. The channels you follow on Twitch and YouTube are one row with the latest videos from them under it, Unfollow is on a card's menu, and Twitch's Continue Watching joins the row with a Remove of its own. The Live page opens on what is on now as cards with pictures, content creators live now beside the channels, and the timetable one press away. Categories of your own take hashtags and one clear rule each, filled from your services and the open pool, with every row's formula behind an (i) beside its name. YouTube is a Video player service with Watch later, History and your subscriptions. Netflix's and YouTube's ad breaks are covered. The phone manages playlists, opens Details sheets and sets Prism up. The Binge answers a stricter setting at once.
+
+- download: https://prism.entangled.world/windows/Prism-0.30.0-f69480ce.zip
+- sha256: f6bc0ac7198fe27f624a90107155e8f185668891fe2b94517c1c6715631170e0
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.30.0
+
 ## 0.29.1 - 2026-10-11 (alpha, 59d7d358)
 
 Rent or buy by phone: a Rent or Buy logo on a title's Details page now shows a code that opens the service's own page for that title on your phone, where you see the price and pay with the account you already use there. Prism takes no part in the purchase. A new row on Watch, New in your library, leads with titles that joined your services' libraries this week. Ad covers on live channels: an infomercial that announces itself in its captions or as a sponsored program now holds one steady cover to the end of its half hour, and the big window keeps its channel after a restart. The tour says that a linked TMDB account keeps playlists and ratings the same on every device, speaks of live channels in general, and puts dragging a channel to a window first.

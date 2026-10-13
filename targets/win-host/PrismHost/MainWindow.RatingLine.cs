@@ -65,7 +65,9 @@ public sealed partial class MainWindow
     {
         var g = MakeRatingBadge(ui);
         g.IsHitTestVisible = true;
-        art.Children.Add(g);
+        // beside the name on the picture's foot row when the picture has one; the corner otherwise
+        if (NameRows.TryGetValue(art, out var nameRow)) { g.Margin = new Thickness(0); g.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(g, 1); nameRow.IsHitTestVisible = true; nameRow.Children.Add(g); }
+        else art.Children.Add(g);
         ApplyRatingFill(ui);
         // the hover window
         var content = new StackPanel { Spacing = 8, MinWidth = 280, MaxWidth = 360 };

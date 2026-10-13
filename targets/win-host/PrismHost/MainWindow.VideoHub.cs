@@ -2436,7 +2436,9 @@ public sealed partial class MainWindow
             }
             // TMDB's picture carries no name: the series' (or the title's) goes over it, and the line under keeps the episode alone (2026-10-13)
             var named = !logoCard && art is { Length: > 0 };
-            if (named && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")))) TitleOverlay(poster, series.Length > 0 ? series : title);
+            // a Continue watching card always: a service's continue picture is a still of the episode, not its box art with the name (2026-10-13, "All the items in the
+            // continue watching line are missing titles")
+            if (named && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")) || card["__continue"]?.GetValue<bool>() == true)) TitleOverlay(poster, series.Length > 0 ? series : title);
             var cell = new StackPanel { Spacing = 4, Width = CardCellW };
             cell.Children.Add(StackBehind(poster, card["also"] is JsonArray alsoN ? alsoN.Count + 1 : 1));
             // a channel card (On now, 2026-10-12, "Why are all the channel names present inside the block and below. Very redundant"): the box is
@@ -2708,6 +2710,8 @@ public sealed partial class MainWindow
     /// <summary>The name over a picture that carries none (TMDB's, 2026-10-13, "On netflix, all titles have a stylized name ... How do we get all of
     /// the other titles ... overlaid on the image for consistency? Then we need to get rid of the titles under the images"): bold, bottom left,
     /// on a dark fade from the picture's foot, as a service's own box art shows its name.</summary>
+    /// <summary>The foot row a name made on a picture, so the score pill can take its right end (2026-10-13).</summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Grid, Grid> NameRows = new();
     private static void TitleOverlay(Grid art, string name)
     {
         if (name.Length == 0) return;
@@ -2715,12 +2719,18 @@ public sealed partial class MainWindow
         fade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x08, 0x0A, 0x0D), Offset = 0.45 });
         fade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x08, 0x0A, 0x0D), Offset = 1 });
         art.Children.Add(new Border { Background = fade, CornerRadius = new CornerRadius(6), IsHitTestVisible = false });
-        art.Children.Add(new TextBlock
+        // one row at the foot: the name left, the score pill (AddRatingBadge) at its right end, both on one line
+        var row = new Grid { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(10, 0, 6, 6), IsHitTestVisible = false };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(new TextBlock
         {
             Text = name, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF4, 0xF6, 0xF9)),
-            TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(10, 0, 10, 30), IsHitTestVisible = false, CharacterSpacing = 20
+            TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0), CharacterSpacing = 20
         });
+        art.Children.Add(row);
+        NameRows.AddOrUpdate(art, row);
     }
     private static Button InfoMark(UIElement tip)
     {
@@ -3379,7 +3389,7 @@ public sealed partial class MainWindow
             // TMDB's rating on every title (2026-09-24), as on the Continue / My List cards; not twice under a row that is itself the rating
             var ratingLine = S(c, "rating");
             var mineB = c["mine"] is JsonValue mbv && mbv.TryGetValue<double>(out var mbd) ? mbd : (double?)null;
-            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) AddRatingBadge(art, rlb, S(c, "kind") == "series" ? "tv" : "movie", int.TryParse(cid, out var cidN) ? cidN : 0); else cell.Children.Add(rlb.Root); }
+            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) { var tp = cid.Split(':'); var tk = tp.Length == 3 && tp[0] == "tmdb" ? tp[1] : S(c, "kind") == "series" ? "tv" : "movie"; var ti = int.TryParse(tp.Length == 3 ? tp[2] : cid, out var cidN) ? cidN : 0; AddRatingBadge(art, rlb, tk, ti); } else cell.Children.Add(rlb.Root); }   // a catalog id reads tmdb:<kind>:<id> (2026-10-13, "the right click menu say nothing found in TMDB")
             var offer = svcs.Count > 0 ? S(svcs[0], "offer") : "Not on your services";
             var facts = string.Join("  ·  ", new[] { year, kindWord, svcs.Count == 1 ? offer : svcs.Count + " of your services" }.Where(x => x.Length > 0));
             if (!compact) cell.Children.Add(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
