@@ -46,7 +46,7 @@ describe("a channel counts in Movies for the film on it now (2026-10-02, 'Movies
   const services = [{ app: "paramountplus", name: "Paramount+", facet: "p", channels: [movies, drama, later] }];
   it("the Movies chip counts it and Movies mode lists it, saying why; Drama still has it as its own", () => {
     const all = liveGuide(services, NOW, { type: null });
-    expect(all.types).toEqual([{ type: "Drama", count: 3 }, { type: "Movies", count: 1 }]);
+    expect(all.types.map((t) => ({ type: t.type, count: t.count }))).toEqual([{ type: "Drama", count: 3 }, { type: "Movies", count: 1 }]);
     const mv = liveGuide(services, NOW, { type: "Movies" });
     expect(mv.rows.map((r) => r.id)).toEqual(["mv"]);   // "later" has no film on NOW
     expect(mv.rows[0]!.alsoBy).toEqual({ type: "Movies", title: "Top Gun" });

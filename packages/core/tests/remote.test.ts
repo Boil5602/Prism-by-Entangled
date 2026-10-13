@@ -238,3 +238,47 @@ describe("RemoteApi - the person's TMDB key from the phone", () => {
     expect(orchestrator.lensHasKey()).toBe(false);
   });
 });
+
+describe("playlists on the phone (2026-10-12, 'Make sure I can manage playlists through the companion app')", () => {
+  it("routes each call to the shell's playlist verbs, refuses a bad body, and says so on a shell without playlists", async () => {
+    const { remote, orchestrator } = rig();
+    await orchestrator.load(doc, VIEWPORT);
+    const { token } = await remote.mintPairing("http://x");
+    const none = await remote.handle({ method: "GET", path: "/playlists", body: null, token });
+    expect(none.status).toBe(501);
+    const calls: unknown[] = [];
+    remote.playlists = {
+      view: () => { calls.push(["view"]); return { lists: [], total: 0 }; },
+      create: (name) => { calls.push(["create", name]); return { ok: true, id: "p1" }; },
+      open: (id) => { calls.push(["open", id]); return { ok: true }; },
+      rename: (id, name) => { calls.push(["rename", id, name]); return { ok: true }; },
+      remove: (id) => { calls.push(["remove", id]); return { ok: true }; },
+      play: (id, key) => { calls.push(["play", id, key]); return { ok: true }; },
+      edit: (id, op) => { calls.push(["edit", id, op]); return { ok: true }; },
+      undo: () => { calls.push(["undo"]); return { ok: true }; },
+      move: (dir) => { calls.push(["move", dir]); return { ok: true }; },
+      stop: (mode) => { calls.push(["stop", mode]); return { ok: true }; },
+    };
+    const post = (path: string, body: unknown) => remote.handle({ method: "POST", path, body: JSON.stringify(body), token });
+    expect((await remote.handle({ method: "GET", path: "/playlists", body: null, token })).status).toBe(200);
+    expect((await post("/playlists", { name: "  Movie night " })).status).toBe(200);
+    expect((await post("/playlists", { name: "  " })).status).toBe(400);
+    expect((await post("/playlists/open", { id: "p1" })).status).toBe(200);
+    expect((await post("/playlists/rename", { id: "p1", name: "Friday" })).status).toBe(200);
+    expect((await post("/playlists/rename", { id: "p1" })).status).toBe(400);
+    expect((await post("/playlists/play", { id: "p1", key: "k2" })).status).toBe(200);
+    expect((await post("/playlists/play", { id: "p1" })).status).toBe(200);
+    expect((await post("/playlists/edit", { id: "p1", op: { op: "mark", keys: ["k2"], done: true } })).status).toBe(200);
+    expect((await post("/playlists/edit", { id: "p1", op: "mark" })).status).toBe(400);
+    expect((await post("/playlists/undo", {})).status).toBe(200);
+    expect((await post("/playlists/move", { dir: "previous" })).status).toBe(200);
+    expect((await post("/playlists/stop", { mode: "now" })).status).toBe(200);
+    expect((await post("/playlists/delete", { id: "p1" })).status).toBe(200);
+    expect((await post("/playlists/nothing", {})).status).toBe(404);
+    expect((await remote.handle({ method: "GET", path: "/playlists/open", body: null, token })).status).toBe(405);
+    expect(calls).toEqual([
+      ["view"], ["create", "Movie night"], ["open", "p1"], ["rename", "p1", "Friday"], ["play", "p1", "k2"], ["play", "p1", null],
+      ["edit", "p1", { op: "mark", keys: ["k2"], done: true }], ["undo"], ["move", "previous"], ["stop", "now"], ["remove", "p1"],
+    ]);
+  });
+});

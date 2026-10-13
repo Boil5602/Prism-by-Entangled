@@ -25,7 +25,9 @@ application? How do we quickly surface that item to the user?")
   there in the big window, where it plays, and reads the service's owned pages again behind it (`videoRefreshApp(app, true)`).
 - **New in your library**: a title that joins a library Prism already knows is new to it for a week (`video.ts` keepOwned,
   newlyOwned; `new-owned` in the store), and the Watch page leads with those, newest first, before Continue watching. The first
-  read of a library makes nothing new. Tests: `video-new-owned.test.ts`.
+  read of a library makes nothing new, and only the first eight of a read can be: a service lists what was added last first, and
+  a title an earlier partial read of a large library had missed turns up anywhere (The Guard, 2011, a YouTube TV purchase, read
+  as new by the first walk after this was built, 2026-10-11). Tests: `video-new-owned.test.ts`.
 - Prime Video reports no library to Prism, so a purchase there shows only once it is played there. Reading its purchases page is
   an adapter of its own, not written.
 

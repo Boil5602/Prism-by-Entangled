@@ -29,6 +29,9 @@ sync?"
   repositories) fails when the website's copy differs. `--validate` fails on a page with no picture, a picture no page uses, an
   action Prism does not have, or a semicolon (the website's prose check refuses one).
 - To change a word or a picture: change it in the source, run the script with `--site`, deploy the website.
+- The Add your services page's last point, "Built in today: ...", is written by `scripts/release/sync-adapters.py` from the adapter
+  catalog (2026-10-11, "Should we mention all built in adapters so far?"), and the same script writes the website's Adapters page
+  data, shown there once its legal review is done and `adaptersLive` is switched on. Both are checked by verify.
 
 ## The notice and the introduction (2026-10-11)
 

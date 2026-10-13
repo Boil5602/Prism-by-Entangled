@@ -109,6 +109,12 @@ export class RemoteApi {
     episodes: () => unknown;
     playEpisode: (id: string) => unknown;
     lenses: () => unknown;
+    /** A title's details as the PC's Details card has them (TMDB, under the person's own key), for the phone's sheet (2026-10-11). */
+    details: (title: string, kind: string | null, app: string | null) => unknown;
+    /** A person's page (their films and series on TMDB) for the phone's cast drill-through (2026-10-11). */
+    person: (id: number) => unknown;
+    /** A channel's own page (YouTube) for the phone's channel sheet (2026-10-11): {ok, channel}. */
+    channel: (app: string, url: string) => Promise<unknown>;
     browsePlay: (app: string, cardId: string) => unknown;
     /** The phone's Live section is a person looking at the live guides (docs/features/live.md: read only while a person has the Live tab
      *  open) - the phone asks for the read as the PC's tab does (2026-10-05, "Why does it say no live channels on any of my services?":
@@ -124,6 +130,13 @@ export class RemoteApi {
     tracks: (tile: string) => Promise<unknown>;
     track: (tile: string, kind: string, id: string) => Promise<string>;
     tracksDone: (tile: string) => Promise<void>;
+  } | null = null;
+  /** The PC's playlists for the phone (2026-10-12, "Make sure I can manage playlists through the companion app"): the verbs the PC's own
+   *  Playlists tab uses, so the phone changes the same lists the PC shows. */
+  playlists: {
+    view: () => unknown; create: (name: string) => unknown; open: (id: string) => unknown; rename: (id: string, name: string) => unknown;
+    remove: (id: string) => unknown; play: (id: string, key: string | null) => unknown; edit: (id: string, op: Record<string, unknown>) => unknown;
+    undo: () => unknown; move: (dir: "previous" | "next") => unknown; stop: (mode: "now" | "after") => unknown;
   } | null = null;
 
   constructor(
@@ -781,6 +794,30 @@ export class RemoteApi {
       if (typeof app !== "string" || !candidate || typeof candidate !== "object") return json(400, { error: 'body must be {"app","candidate"}' });
       return json(200, this.video.playResult(app, candidate));
     }
+    // POST /video/details {title, kind?, app?} - a title's TMDB details for the phone's sheet (2026-10-11): {status: working|ready|none, details};
+    // the phone asks again while working. The same read the PC's Details card makes, so nothing new leaves the PC for it.
+    if (req.method === "POST" && req.path === "/video/details") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const title = typeof b["title"] === "string" ? b["title"].slice(0, 200) : "";
+      if (!title) return json(400, { error: 'body must be {"title", "kind"?, "app"?}' });
+      return json(200, this.video.details(title, typeof b["kind"] === "string" && b["kind"] ? b["kind"] : null, typeof b["app"] === "string" && b["app"] ? b["app"] : null));
+    }
+    // POST /video/channel {app, url} - a channel's own page for the phone (2026-10-11): read on the service's hidden page, awaited
+    if (req.method === "POST" && req.path === "/video/channel") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const app = typeof b["app"] === "string" ? b["app"] : ""; const url = typeof b["url"] === "string" ? b["url"] : "";
+      if (!app || !/^https:\/\//.test(url)) return json(400, { error: 'body must be {"app", "url"}' });
+      return json(200, await this.video.channel(app, url));
+    }
+    // POST /video/person {id} - a person's page for the phone (2026-10-11): {status: working|ready|none, person}; asked again while working
+    if (req.method === "POST" && req.path === "/video/person") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const id = Number(this.parseBody(req.body)?.["id"]);
+      if (!Number.isFinite(id) || id <= 0) return json(400, { error: 'body must be {"id"}' });
+      return json(200, this.video.person(id));
+    }
     // GET /video/episodes - the series on screen, its seasons and episodes as the service lists them; POST /video/episodes/play {id}
     if (req.method === "GET" && req.path === "/video/episodes") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
@@ -791,6 +828,31 @@ export class RemoteApi {
       const id = this.parseBody(req.body)?.["id"];
       if (typeof id !== "string") return json(400, { error: 'body must be {"id"}' });
       return json(200, this.video.playEpisode(id));
+    }
+    // ---- playlists on the phone (2026-10-12, "Make sure I can manage playlists through the companion app") ----
+    // GET /playlists: the lists, the one open on the PC in full, the run and an undo on offer. POST /playlists {name} makes one;
+    // /playlists/open {id}; /playlists/rename {id, name}; /playlists/delete {id}; /playlists/play {id, key?}; /playlists/edit {id, op};
+    // /playlists/undo; /playlists/move {dir}; /playlists/stop {mode} - each the verb the PC's own Playlists tab calls
+    if (req.path === "/playlists" || req.path.startsWith("/playlists/")) {
+      const pl = this.playlists;
+      if (!pl) return json(501, { error: "this shell has no playlists" });
+      if (req.method === "GET" && req.path === "/playlists") return json(200, pl.view());
+      if (req.method !== "POST") return json(405, { error: "method not allowed" });
+      const b = this.parseBody(req.body) ?? {};
+      const str = (k: string) => (typeof b[k] === "string" ? (b[k] as string) : null);
+      const id = str("id");
+      switch (req.path) {
+        case "/playlists": { const name = str("name"); if (!name || !name.trim()) return json(400, { error: 'body must be {"name"}' }); return json(200, pl.create(name.trim())); }
+        case "/playlists/open": if (!id) return json(400, { error: 'body must be {"id"}' }); return json(200, pl.open(id));
+        case "/playlists/rename": { const name = str("name"); if (!id || !name || !name.trim()) return json(400, { error: 'body must be {"id", "name"}' }); return json(200, pl.rename(id, name.trim())); }
+        case "/playlists/delete": if (!id) return json(400, { error: 'body must be {"id"}' }); return json(200, pl.remove(id));
+        case "/playlists/play": if (!id) return json(400, { error: 'body must be {"id"}' }); return json(200, pl.play(id, str("key")));
+        case "/playlists/edit": { const op = b["op"]; if (!id || !op || typeof op !== "object" || Array.isArray(op)) return json(400, { error: 'body must be {"id", "op"}' }); return json(200, pl.edit(id, op as Record<string, unknown>)); }
+        case "/playlists/undo": return json(200, pl.undo());
+        case "/playlists/move": return json(200, pl.move(str("dir") === "previous" ? "previous" : "next"));
+        case "/playlists/stop": return json(200, pl.stop(str("mode") === "now" ? "now" : "after"));
+        default: return json(404, { error: "no such playlists call" });
+      }
     }
     // GET /video/lenses - the Watch screen's lens rows (New episodes this week, Released this month, Most read, The Binge ...) as poster rows
     if (req.method === "GET" && req.path === "/video/lenses") {

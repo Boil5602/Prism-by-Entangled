@@ -242,6 +242,9 @@ export interface NowPlaying {
   videoLibrary?: VideoLibrary | null;
   /** What the adapter's videoPlay script last did, so a pick that failed says so on the wall. */
   videoPlayState?: { kind?: string; id?: string; status?: string } | null;
+  /** the service's own gate over the player, in its words, with the verb on its button (2026-10-13, Twitch's content disclaimer): the person
+   *  reads it and presses, Prism never does on its own */
+  videoGate?: { text: string; verb?: string } | null;
   /** VP-3 (2026-09-19): the service's profile gate ("Who's watching?") as the adapter's videoProfiles script reads it. */
   videoProfiles?: VideoProfiles | null;
   /** Phase 2 (video-menu-spec §2 row 3): the service's live channels as its videoLive script gathered them. */
@@ -326,6 +329,9 @@ export interface VideoItem {
   kind: string;
   url?: string | null;
   artwork?: string | null;
+  /** Whose picture it is when not the service's own: "tmdb" - a backdrop or poster TMDB served, which carries no name, so the card draws
+   *  the name over it (2026-10-13, "all of the other titles ... overlaid on the image for consistency"). */
+  artFrom?: "tmdb";
   /** A second line: the episode, the year, the network. */
   subtitle?: string | null;
   /** 0..1 watched, when the page shows it. */
@@ -334,6 +340,11 @@ export interface VideoItem {
   badge?: string | null;
   /** Whose banner it is when not the service's own: "tmdb" - TMDB's new episode this week (2026-09-23), drawn as the card's red corner ribbon. */
   badgeFrom?: "tmdb";
+  /** The tags the creator wrote on the title (a Twitch stream's tags, a YouTube video's keywords), as read, never made up (categories, 2026-10-11). */
+  tags?: string[];
+  /** The channel a video is on, as the page names it, and its address when the page links it (YouTube, Twitch; 2026-10-11). */
+  channel?: string | null;
+  channelUrl?: string | null;
   /** The badge is already drawn in the card's own picture (Netflix bakes "New Season" / "Recently Added" into its box art, 2026-09-24):
    *  it still orders My List, and the host does not draw it a second time. */
   badgeInArt?: boolean;
@@ -355,6 +366,9 @@ export interface VideoLibrary {
   own?: Array<{ title: string; items: VideoItem[] }>;
   /** The titles the person OWNS on the service (Fandango at Home's My Movies / My TV Shows, 2026-09-22): a library, not a list - its own row, and 'Owned' on a search card. */
   owned?: VideoItem[];
+  /** The most titles the owned list has held (2026-10-12): a known list well under it is a library recovering from a short read, and a title
+   *  coming back then is not a purchase. */
+  ownedPeak?: number;
   /** The reader walked the whole owned library this pass (it reached the end): the pass is the library, and a title absent from two such passes is gone. */
   ownedComplete?: boolean;
   /** Per owned id: how many complete passes in a row have not listed it (kept by core, never reported by a page). */

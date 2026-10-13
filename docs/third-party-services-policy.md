@@ -33,7 +33,9 @@ terms go to Entangled Labs LLC.
    service that stops answering, and stay under a daily ceiling (the polite client in
    `packages/core/src/orchestrator.ts`). No bulk crawling.
 6. **Respect a block.** If a service's pages refuse Prism, Prism shows the service's own page and
-   says so. No workarounds, no disguises built to get past a block.
+   says so. No workarounds, no disguises built to get past a block. A gate a service puts in front of
+   a person (Twitch's content disclaimer and its Start Watching) is shown in the service's own words
+   with its own verb, and only the person's press goes through to it; Prism never presses it alone.
 7. **No disguises.** Prism does not mask what it is to avoid a service's detection.
 8. **Ads.** On streaming services Prism covers an ad's picture and mutes the tab while the ad
    plays underneath. The ad is still served. It does not block or skip ads on a service's player.

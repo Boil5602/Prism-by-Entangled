@@ -124,6 +124,7 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(panel, 30);
         overlay.Children.Add(panel);
         _stackBar = panel;
+        panel.SizeChanged += (_, __) => PlaceStack();   // the + keeps left of the bar as the bar's width settles
         BuildPlaylistDock(overlay);   // the playlist panel under the windows (2026-09-27)
         for (var i = 0; i < WatchPlaces; i++)
         {
@@ -260,8 +261,12 @@ public sealed partial class MainWindow
             var small = i > 0 && _stackEmpty[i];
             // the empty place offered next (the +) sits up in the control bar, at its left, not under the windows (2026-10-02, "Most of it is
             // empty": My list had stopped short of the screens for the sake of a 56 px box hanging below them); it is still the drop target
+            // left of the control bar whatever the width (2026-10-13, "the + new window icon is under the mute / Clear screens pills"): at a narrow
+            // window the bar is wider than the stack, so the stack's left edge is under it
+            var barW = _stackBar?.ActualWidth ?? 0;
+            var plusX = barW > 0 ? Math.Min(_stackBase[0].X, _stackBase[0].Right - barW - 8 - 46) : _stackBase[0].X;
             var r = _stackRects[i] = small
-                ? new Windows.Foundation.Rect(_stackBase[0].X, 24 + (StackBarH - 38) / 2, 46, 38)
+                ? new Windows.Foundation.Rect(plusX, 24 + (StackBarH - 38) / 2, 46, 38)
                 : new Windows.Foundation.Rect(b.X, b.Y + _stackDy, b.Width, b.Height);
             if (_stackCells[i] is { } c)
             {

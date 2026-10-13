@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using PrismHost.Channel;
 
 namespace PrismHost;
 
@@ -347,6 +348,7 @@ public sealed partial class MainWindow
             go.Click += (_, __) => _ = ShowWelcomeAsync(1);
             col.Children.Add(go);
             _emptyWallNote = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0B, 0x0E, 0x12)) };
+            _ = AddWelcomePairingAsync(col);   // the phone's way in, under the button (2026-10-11)
             _emptyWallNote.Children.Add(col);
             Canvas.SetZIndex(_emptyWallNote, 1);   // on the bare wall, under every page and menu
             RootGrid.Children.Add(_emptyWallNote);
@@ -355,6 +357,27 @@ public sealed partial class MainWindow
     }
 
     /// <summary>One service's sign-in: the page steps aside for the sign-in window and comes back, its list read again, when that closes.</summary>
+    private TaskCompletionSource<string>? _welcomePairing;
+    /// <summary>The pairing code on the Nothing is set up yet screen (2026-10-11, "if setting up on a tv, you'd likely setup the remote app first"):
+    /// the phone's page then sets up every service from its Services section and types the sign-ins. A fresh code, like the menu's.</summary>
+    private async Task AddWelcomePairingAsync(StackPanel col)
+    {
+        if (_remote is null) return;
+        var tcs = new TaskCompletionSource<string>();
+        _welcomePairing = tcs;
+        _brain.Call(HostCalls.MintPairing, _remote.BaseUrl(), false);
+        var done = await Task.WhenAny(tcs.Task, Task.Delay(4000));
+        _welcomePairing = null;
+        var url = done == tcs.Task ? tcs.Task.Result : "";
+        if (url.Length == 0 || _emptyWallNote is null) return;
+        try
+        {
+            col.Children.Add(new TextBlock { Text = "Or set up from your phone: scan this with its camera. The page that opens lists every service, opens each sign-in here and types into it.", FontSize = 16, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 560, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 18, 0, 0) });
+            var qr = await QrWithMarkAsync(url, 220); qr.HorizontalAlignment = HorizontalAlignment.Center; col.Children.Add(qr);
+        }
+        catch (Exception ex) { LogLine("welcome: pairing code " + ex.Message); }
+    }
+
     private void WelcomeSignIn(string appId)
     {
         if (_welcome is not null) _welcome.Visibility = Visibility.Collapsed;

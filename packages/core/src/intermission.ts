@@ -177,6 +177,13 @@ export class IntermissionController {
     }
   }
 
+  /** The break has this tile's sound (2026-10-12, YouTube: a pick's own audio-focus unmute lifted the fast mute a second before the cover rose,
+   *  and the first ad played aloud under the veil for twenty seconds): muted fast on the first sign, held by the backstop, or covered and muted. */
+  quietForBreak(id: string): boolean {
+    const t = this.tiles.get(id);
+    if (!t || t.config.audio !== "mute") return false;
+    return t.fastMuted || t.muteHeld || (t.covered && t.look !== "show" && !t.unmuted);
+  }
   isCovered(id: string): boolean {
     return this.tiles.get(id)?.covered ?? false;
   }
@@ -295,7 +302,7 @@ export class IntermissionController {
       if (tile.fastMuted && tile.config.audio === "mute") void this.hooks.setMuted(id, false);
       tile.fastMuted = false;
     } else {
-      if (tile.config.audio === "mute" && !tile.fastMuted) void this.hooks.setMuted(id, true);   // already silent since the first sign
+      if (tile.config.audio === "mute" && !tile.fastMuted) void this.hooks.setMuted(id, true);   // already silent since the first sign (quietForBreak keeps it so)
       tile.fastMuted = false;   // from here the cover owns the mute (uncover lifts it, the backstop holds it)
       // the soundscape is the scenery's: a muted-only break shows the ad's own picture in silence
       if (tile.look === "veil" && tile.config.audio === "mute" && tile.config.ambient) void this.hooks.ambient?.(id, tile.config.ambient, true);   // instead of silence
@@ -324,7 +331,9 @@ export class IntermissionController {
   extend(id: string, remainingSec: number): void {
     const tile = this.tiles.get(id);
     if (!tile?.covered || !tile.safetyTimer || !(remainingSec > 0) || !isFinite(remainingSec)) return;
-    if (tile.clockAt !== undefined && remainingSec >= tile.clockAt) return;   // not counting down: no extension
+    // not counting down: no extension - but a clock that jumped UP by seconds is the next ad's own (YouTube's "2 of 2" counted from 25 s,
+    // 2026-10-12, and the backstop armed for the first ad dropped the cover with 22 s of the second still to run)
+    if (tile.clockAt !== undefined && remainingSec >= tile.clockAt && remainingSec < tile.clockAt + 3) return;
     tile.clockAt = remainingSec;
     const want = Math.min(remainingSec * 1000 + EXTEND_MARGIN_MS, MAX_EXTENDED_MS);
     const due = tile.safetyDue ?? 0;

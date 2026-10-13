@@ -131,6 +131,9 @@ public sealed partial class SurfaceManager
         public Image[] ArtSlabs = Array.Empty<Image>();
         public Border? SkipRing;
         public string? SkipTarget;
+        /// <summary>The veil's opening over the player's own Skip, in the tile's own coordinates (2026-10-12): a press on the stage shield
+        /// inside it is the person pressing that control.</summary>
+        public Windows.Foundation.Rect? SkipHole;
         public Microsoft.UI.Dispatching.DispatcherQueueTimer? SkipHoleTimer;
         /// <summary>The share of the 16:9 picture's height, from its bottom, the veil leaves open: a channel's ticker that stays up
         /// through its breaks (0 = none; SetVeilBand).</summary>
@@ -411,7 +414,11 @@ public sealed partial class SurfaceManager
         // media.hardware_secure_decryption.disabled_times into the Disney+ profile's Local State and from then on refused PlayReady to every
         // Disney+ page (DRM_NO_SUPPORTED_KEY_SYSTEM). The fallback is off - a failure stays one failure - and a record already written is
         // cleared before the profile's browser starts.
-        envOptions.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --disable-features=HardwareSecureDecryptionFallback";
+        // the hidden pages are off the window, so Chromium counts them as background tabs and throttles their timers to one a minute after
+        // five minutes (2026-10-13: YouTube's Watch Later page rendered its rows a minute after it loaded, so a removal pressed four seconds in
+        // found no rows and called the item gone; Netflix's My List page stood empty). Prism paces its own hidden work (the readers doze), so
+        // the browser's backgrounding is turned off for its pages.
+        envOptions.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --disable-features=HardwareSecureDecryptionFallback --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows";
         if (tile.Env is null)
         {
             var dir = _store.ProfileDir(tile.Profile);
@@ -640,7 +647,7 @@ public sealed partial class SurfaceManager
         t.Dozing = false;
         try
         {
-            if (t.View?.CoreWebView2 is { } core) await core.CallDevToolsProtocolMethodAsync("Page.setWebLifecycleState", "{\"state\":\"active\"}");
+            if (t.View?.CoreWebView2 is { } core) await core.CallDevToolsProtocolMethodAsync("Emulation.setCPUThrottlingRate", "{\"rate\":1}");
             _onStatus("reader woke: " + t.Id);
             // a music page's player needs a moment after the thaw before a play lands (2026-10-04: the first play after a wake did nothing)
             if (IsMusicFacet(t)) await Task.Delay(400);
@@ -658,7 +665,9 @@ public sealed partial class SurfaceManager
             var music = IsMusicFacet(t);
             if (music && (t.NpPlaying || DateTime.UtcNow - t.LastTouched < MusicIdle)) continue;
             if (!music && DateTime.UtcNow - t.LastTouched < ReaderIdle) continue;
-            try { await core.CallDevToolsProtocolMethodAsync("Page.setWebLifecycleState", "{\"state\":\"frozen\"}"); t.Dozing = true; _onStatus((music ? "music parked: " : "reader dozing: ") + t.Id); }
+            // a doze is the page's CPU throttled eightfold, never the lifecycle's frozen state (2026-10-13, B-371): a page once frozen came back with
+            // its document hidden for good, whatever was done after, and YouTube's menus never opened on it again
+            try { await core.CallDevToolsProtocolMethodAsync("Emulation.setCPUThrottlingRate", "{\"rate\":8}"); t.Dozing = true; _onStatus((music ? "music parked: " : "reader dozing: ") + t.Id); }
             catch (Exception ex) { _onStatus("reader doze " + t.Id + ": " + ex.Message); }
         }
     }
@@ -1125,6 +1134,7 @@ public sealed partial class SurfaceManager
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 BorderThickness = new Thickness(0),
             };
+            MainWindow.OwnHover(skip);   // a button with a colour of its own lights under the pointer (2026-10-13, "it didn't show any mouseover affect")
             // A HUMAN tap on the chip is the only thing that ever reaches the
             // player's own skip control - core forwards it (spec 26).
             skip.Click += (_, __) => _forwardEvent(tile.Id,
@@ -1149,7 +1159,7 @@ public sealed partial class SurfaceManager
             }
             // Spec 26 peek-through, the agency guarantee: nothing is ever
             // unreachable. Timeboxed - counts down and re-veils itself.
-            var peek = Outline("Show ad 15s");
+            var peek = Outline("Show ad");
             peek.Click += (_, __) => TogglePeek(tile.Id);
             // Slot-to-window fullscreen reachable on the card itself.
             // Fill slot: the player's OWN fullscreen control - WebView2
@@ -1366,7 +1376,7 @@ public sealed partial class SurfaceManager
         if (_peekBack.TryGetValue(tile.Id, out var b)) return b;
         b = new Button
         {
-            Content = new TextBlock { Text = "Cover again", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x14, 0x17, 0x1C)) },
+            Content = new TextBlock { Text = "Hide ad", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x14, 0x17, 0x1C)) },
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(12, 12, 0, 0), Padding = new Thickness(12, 6, 12, 6), CornerRadius = new CornerRadius(8),
             Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(0),
@@ -1419,34 +1429,10 @@ public sealed partial class SurfaceManager
         if (tile?.Intermission is not { } g) return;
         tile.Peeked = !tile.Peeked;
         tile.PeekTimer?.Stop();
-        if (tile.Peeked)
-        {
-            // Timeboxed like the extension's Reveal 15s: counts down on the
-            // chip and re-veils itself; a manual Re-veil or break end cancels.
-            tile.PeekRemaining = 15;
-            if (tile.PeekChip is { } c) c.Content = "Re-veil · 15s";
-            if (tile.PeekTimer is null)
-            {
-                var t = _canvas.DispatcherQueue.CreateTimer();
-                t.Interval = TimeSpan.FromSeconds(1);
-                t.IsRepeating = true;
-                var captured = tile;                     // one closure, attached once
-                t.Tick += (_, __) =>
-                {
-                    if (!captured.Peeked || !captured.Covered) { t.Stop(); return; }
-                    captured.PeekRemaining--;
-                    if (captured.PeekRemaining <= 0) { t.Stop(); TogglePeek(captured.Id); return; }
-                    if (captured.PeekChip is { } cc) cc.Content = "Re-veil · " + captured.PeekRemaining + "s";
-                    if (_peekBack.TryGetValue(captured.Id, out var pb) && pb.Content is TextBlock pbt) pbt.Text = "Cover again \u00B7 " + captured.PeekRemaining + "s";
-                };
-                tile.PeekTimer = t;
-            }
-            tile.PeekTimer.Start();
-        }
-        else if (tile.PeekChip is { } chip)
-        {
-            chip.Content = "Show ad 15s";
-        }
+        // the ad shown stays shown for the rest of its break - no fifteen-second clock (2026-10-12, "it doesnt let me hide it again. I have to wait
+        // for the 15. Let's just let the user show the ad, and when the next one comes up -- veil again. And let them rehide it too"): Hide ad
+        // covers it again, the break's end takes the peek with it, and the next break is covered as every break is
+        if (tile.PeekChip is { } chip) chip.Content = tile.Peeked ? "Hide ad" : "Show ad";
         if (tile.Covered && !_adDebug) Fade(g, g.Opacity, tile.Peeked ? 0 : 1, 150);
         // while peeked the overlay must not intercept the page
         g.IsHitTestVisible = !tile.Peeked;
@@ -1458,7 +1444,7 @@ public sealed partial class SurfaceManager
         var back = PeekBackFor(tile);
         back.Visibility = tile.Peeked && tile.Covered ? Visibility.Visible : Visibility.Collapsed;
         SyncPeekNotAd(tile.Id);
-        if (back.Content is TextBlock bt) bt.Text = "Cover again \u00B7 " + tile.PeekRemaining + "s";
+        if (back.Content is TextBlock bt) bt.Text = "Hide ad";
         CoverageChanged?.Invoke();
     }
 
@@ -2477,6 +2463,18 @@ public sealed partial class SurfaceManager
         if (Get(id) is not { } t || t.View is not { } v) return "no view " + id;
         if (how == "vis") { v.Visibility = Visibility.Collapsed; _canvas.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => v.Visibility = Visibility.Visible); return "vis toggled " + id; }
         if (how == "parent" && v.Parent is Panel host) { var i = host.Children.IndexOf(v); host.Children.Remove(v); host.Children.Insert(Math.Max(0, i), v); return "reparented " + id; }
+        // dev experiments on a hidden page's document visibility (2026-10-13): "thaw" = the page lifecycle set active; "inside" = the container
+        // moved onto the canvas at 0,0 under everything, see-through, for ten seconds, then parked again
+        if (how == "thaw" && v.CoreWebView2 is { } core) { _ = core.CallDevToolsProtocolMethodAsync("Page.setWebLifecycleState", "{\"state\":\"active\"}"); return "thawed " + id; }
+        if (how == "inside")
+        {
+            var c = t.Container; var left = Canvas.GetLeft(c); var z = Canvas.GetZIndex(c);
+            Canvas.SetLeft(c, 0); Canvas.SetZIndex(c, -1000); c.Opacity = 0; c.IsHitTestVisible = false;
+            var back = _canvas.DispatcherQueue.CreateTimer(); back.Interval = TimeSpan.FromSeconds(10); back.IsRepeating = false;
+            back.Tick += (_, __) => { Canvas.SetLeft(c, left); Canvas.SetZIndex(c, z); c.Opacity = 1; c.IsHitTestVisible = true; };
+            back.Start();
+            return "inside for 10 s " + id;
+        }
         return "unknown " + how;
     }
 
@@ -2561,7 +2559,7 @@ public sealed partial class SurfaceManager
         }
         if (tile.CountText is { } ct)
         {
-            ct.Text = string.IsNullOrEmpty(count) ? "" : "Ad " + count;
+            ct.Text = string.IsNullOrEmpty(count) ? "" : count.Contains(" ad", StringComparison.OrdinalIgnoreCase) ? count : "Ad " + count;   // "2 ads" stands as said; "1 of 2" gets its Ad (2026-10-13, Netflix)
             ct.Visibility = string.IsNullOrEmpty(count) ? Visibility.Collapsed : Visibility.Visible;
         }
     }
@@ -2578,7 +2576,7 @@ public sealed partial class SurfaceManager
         if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed; SyncPeekNotAd(tile.Id);   // the peek's own way back goes with it
         SyncMutedStrip(tile);
         StopSkipHole(tile);
-        if (tile.PeekChip is { } pc) pc.Content = "Show ad 15s";
+        if (tile.PeekChip is { } pc) pc.Content = "Show ad";
         if (tile.Caption is { } cap) cap.Visibility = Visibility.Collapsed;
         if (tile.CountText is { } cnt) cnt.Visibility = Visibility.Collapsed;
         // The picture is gone, so its attribution goes with it - a stale caption
@@ -2588,6 +2586,16 @@ public sealed partial class SurfaceManager
         ApplyArtAttribution(tile);
         g.IsHitTestVisible = true;
         Fade(g, g.Opacity, 0, 150);                                  // uncover FAST (spec 26)
+        // the view under a cover that hid it whole can come back showing its last composed picture while its page plays on (2026-10-12,
+        // Twitch twice: "all I see is a bear. I can hear audio" - the streamer's break scene, frozen); the B-295 re-link, once the fade is over
+        if (tile.View is { } view && tile.Kind != SurfaceKind.Hidden)
+        {
+            var relink = _canvas.DispatcherQueue.CreateTimer();
+            relink.Interval = TimeSpan.FromMilliseconds(400); relink.IsRepeating = false;
+            lock (_nudgeTimers) _nudgeTimers.Add(relink);
+            relink.Tick += (t, __) => { lock (_nudgeTimers) _nudgeTimers.Remove(t); if (tile.Covered) return; view.Visibility = Visibility.Collapsed; _canvas.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => view.Visibility = Visibility.Visible); _onStatus($"re-linked after the cover: {id}"); };
+            relink.Start();
+        }
         SyncCornerX(tile);
         SyncAdDebug();
         _onStatus($"intermission down: {id}");
@@ -2662,6 +2670,7 @@ public sealed partial class SurfaceManager
         x = Math.Max(0, Math.Min(x, cw)); y = Math.Max(0, Math.Min(y, ch));
         w = Math.Max(0, Math.Min(w, cw - x)); h = Math.Max(0, Math.Min(h, ch - y));
         if (w < 8 || h < 8) { ClearHole(tile); return; }
+        tile.SkipHole = new Windows.Foundation.Rect(x, y, w, h);
         var rects = new[]
         {
             new Windows.Foundation.Rect(0, 0, cw, y),
@@ -2720,6 +2729,7 @@ public sealed partial class SurfaceManager
 
     private void ClearHole(Tile tile)
     {
+        tile.SkipHole = null;
         if (tile.SubSlabs.Length != 4) return;
         if (tile.VeilBand > 0)
         {
@@ -3112,7 +3122,31 @@ public sealed partial class SurfaceManager
         var shield = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), Visibility = Visibility.Collapsed };
         long lastShieldMove = 0;
         shield.PointerMoved += (_, __) => { var now = Environment.TickCount64; if (now - lastShieldMove > 1500) { lastShieldMove = now; PageInteraction?.Invoke(id); } };
-        shield.PointerPressed += (_, __) => ShieldPressed?.Invoke(id);
+        // a press inside the veil's Skip opening goes to the page's own control (2026-10-12, "the skip was cutout, but it wouldnt let me
+        // actually click it"): the shield stands over the page while the player is in fullscreen, so the opening in the veil alone let the
+        // button be seen and not pressed
+        shield.PointerPressed += (s, e) =>
+        {
+            var t = Get(id);
+            if (t?.SkipHole is { } hole && t.SkipTarget is { Length: > 0 } sel)
+            {
+                try
+                {
+                    var p = e.GetCurrentPoint(shield).Position;
+                    if (p.X >= hole.X && p.X <= hole.X + hole.Width && p.Y >= hole.Y && p.Y <= hole.Y + hole.Height)
+                    {
+                        e.Handled = true;
+                        _onStatus($"skip hole pressed: {id}");
+                        var js = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
+                            + "for(var i=0;i<els.length;i++){var b=els[i],r=b.getBoundingClientRect();if(r.width>0&&r.height>0){b.click();return true;}}return false;})()";
+                        _ = EvalOnTileAsync(id, js);
+                        return;
+                    }
+                }
+                catch { }
+            }
+            ShieldPressed?.Invoke(id);
+        };
         overlay.Children.Add(substrate);
         overlay.Children.Add(snap);
         var container = new Grid();
@@ -3268,7 +3302,7 @@ public sealed partial class SurfaceManager
     notifyPosition: function (p, d) { post({ type: 'media-position', position: +p || 0, duration: (d == null || d < 0) ? null : +d }); },
     // Quick play cross-service lookup (2026-09-16): an adapter's musicLookup script answers core's question (search /
     // add to playlist / station from song) with the token core handed it; core matches the answer to its wait
-    notifyMusicResult: function (r) { try { post({ type: 'music-result', token: String(r && r.token || ''), op: String(r && r.op || 'lookup'), ok: !!(r && r.ok), candidates: (r && r.candidates) || undefined, error: (r && r.error) ? String(r.error) : undefined, count: (r && typeof r.count === 'number') ? r.count : undefined, total: (r && typeof r.total === 'number') ? r.total : undefined }); } catch (e) {} },
+    notifyMusicResult: function (r) { try { post({ type: 'music-result', token: String(r && r.token || ''), op: String(r && r.op || 'lookup'), ok: !!(r && r.ok), candidates: (r && r.candidates) || undefined, error: (r && r.error) ? String(r.error) : undefined, count: (r && typeof r.count === 'number') ? r.count : undefined, total: (r && typeof r.total === 'number') ? r.total : undefined, data: (r && r.data !== undefined) ? r.data : undefined }); } catch (e) {} },
   };
   // a person's tap only (2026-09-28): a pointer event an adapter's own script dispatches is the wall's doing, not the person's - core reads
   // 'interaction' as the person acting (the resume after a restart stands aside for it, a stopped autoplay is let go)
@@ -3396,6 +3430,7 @@ public sealed partial class SurfaceManager
         video: vctx,
         videoLibrary: vlibNow(),
         videoPlayState: (function () { try { return window.__prismVideoPlayState || null; } catch (e) { return null; } })(),
+        videoGate: (function () { try { return window.__prismVideoGate || null; } catch (e) { return null; } })(),
         videoProfiles: vprofNow(),
         videoLive: vliveNow(),
         playState: (function () { try { return window.__prismMusicPlayState || null; } catch (e) { return null; } })(),

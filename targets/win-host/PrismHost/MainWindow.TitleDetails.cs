@@ -174,8 +174,10 @@ public sealed partial class MainWindow
         _detailsWin = scrim;
         scrim.Loaded += (_, __) => scrim.Focus(FocusState.Programmatic);
         _detailsBody = body;
-        _detailsCurrent = (title, () => RenderDetailsPage(title, () => ModelCallAsync("titleDetails", title, kind ?? "", app ?? "")));
-        _ = FillTitleDetailsAsync(run, body, title, () => ModelCallAsync("titleDetails", title, kind ?? "", app ?? ""));
+        // a plain video (YouTube's, Twitch's) is the service's own, never TMDB's: a film of the same name was standing in (2026-10-11)
+        Func<Task<string?>> fetch = kind == "video" ? () => Task.FromResult<string?>("{\"status\":\"none\",\"why\":\"a video on its service, not a film or a series\"}") : () => ModelCallAsync("titleDetails", title, kind ?? "", app ?? "");
+        _detailsCurrent = (title, () => RenderDetailsPage(title, fetch));
+        _ = FillTitleDetailsAsync(run, body, title, fetch);
         LogLine("details: " + title + (kind is null ? "" : " (" + kind + ")"));
     }
 
@@ -345,6 +347,37 @@ public sealed partial class MainWindow
         _detailsRun++;
     }
 
+    /// <summary>A plain video's channel on its Details card (2026-10-11): facts and latest videos from the channel's own page (core videoChannelInfo, kept six hours by the phone's route, read fresh here).</summary>
+    private async Task FillDetailsChannelAsync(int run, StackPanel box, TextBlock facts, string app, string service, string chName, string chUrl)
+    {
+        JsonObject? ch = null;
+        try { ch = (JsonNode.Parse(await ModelCallAwaitAsync("videoChannelInfo", 50000, app, chUrl) ?? "null") as JsonObject)?["channel"] as JsonObject; } catch { }
+        if (run != _detailsRun) return;
+        if (ch is null) { facts.Text = "The channel's page could not be read just now."; return; }
+        var bits = new List<string>();
+        foreach (var k in new[] { "handle", "subscribers", "videos" }) if (S(ch, k).Length > 0) bits.Add(S(ch, k));
+        facts.Text = string.Join("  " + (char)0x00B7 + "  ", bits); facts.Foreground = DetInk;
+        if (S(ch, "description").Length > 0) box.Children.Add(new TextBlock { Text = S(ch, "description"), FontSize = 15, Foreground = DetInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left, MaxLines = 4, TextTrimming = TextTrimming.CharacterEllipsis });
+        if (ch["latest"] is not JsonArray lat || lat.Count == 0) return;
+        box.Children.Add(new TextBlock { Text = "Latest from " + (S(ch, "name").Length > 0 ? S(ch, "name") : chName), FontSize = 17, Foreground = DetInk, Margin = new Thickness(0, 6, 0, 0) });
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        foreach (var v in lat.OfType<JsonObject>().Take(8))
+        {
+            var vt = S(v, "title"); var vu = S(v, "url"); var va = S(v, "artwork");
+            var cell = new StackPanel { Spacing = 4, Width = 170 };
+            var art = new Border { Width = 170, Height = 96, CornerRadius = new CornerRadius(6), Background = DetChip };
+            if (va.Length > 0) { try { art.Child = new Image { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(Services.ArtCache.UriFor(va)), Stretch = Microsoft.UI.Xaml.Media.Stretch.UniformToFill }; } catch { } }
+            cell.Children.Add(art);
+            cell.Children.Add(new TextBlock { Text = vt, FontSize = 13, Foreground = DetInk, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (S(v, "subtitle").Length > 0) cell.Children.Add(new TextBlock { Text = S(v, "subtitle"), FontSize = 12, Foreground = DetDim });
+            var btn = new Button { Content = cell, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(4) };
+            ToolTipService.SetToolTip(btn, "Plays " + vt + " on " + service + " in the big window.");
+            btn.Click += (_, __) => { CloseTitleDetails(); CloseVideoHub(); var cand = new JsonObject { ["id"] = vu, ["title"] = vt, ["kind"] = "video", ["url"] = vu }; _ = PlayResultAsync(app, cand.ToJsonString(), vt, service); };
+            row.Children.Add(btn);
+        }
+        box.Children.Add(new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = row });
+    }
+
     private async Task FillTitleDetailsAsync(int run, StackPanel body, string title, Func<Task<string?>> fetch)
     {
         JsonObject? r = null;
@@ -361,6 +394,56 @@ public sealed partial class MainWindow
         {
             var why = r?["why"]?.GetValue<string>() ?? "TMDB did not answer in time";
             body.Children.Add(new TextBlock { Text = title, FontSize = 30, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DetInk, Margin = new Thickness(36, 0, 36, 0) });
+            // a plain video's own description (2026-10-11, "maybe we can show the channel they're on"): the channel, the length, the date, the words and
+            // the creator's tags from its public page, with the channel's card a press away; TMDB has no page for a video
+            var app = _detailsApp;
+            JsonObject? ab = null;
+            if (app is { Length: > 0 }) { try { ab = (JsonNode.Parse(await ModelCallAsync("videoItemInfo", app, title) ?? "null") as JsonObject)?["about"] as JsonObject; } catch { } }
+            if (ab is not null)
+            {
+                var svcName = _model.Apps.FirstOrDefault(a => a.Id == app)?.Name ?? app;
+                var len = ab["length"] is JsonValue lv && lv.TryGetValue<double>(out var ls) && ls > 0 ? Math.Round(ls / 60) + " min" : "";
+                var facts = string.Join("  " + (char)0x00B7 + "  ", new[] { svcName, S(ab, "channel"), len, S(ab, "published") }.Where(x => x.Length > 0));
+                body.Children.Add(new TextBlock { Text = facts, FontSize = 17, Foreground = DetInk, Margin = new Thickness(36, 6, 36, 0) });
+                if (S(ab, "description").Length > 0) body.Children.Add(new TextBlock { Text = S(ab, "description"), FontSize = 17, Foreground = DetInk, Margin = new Thickness(36, 14, 36, 0), TextWrapping = TextWrapping.Wrap, MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left });
+                // the creator's tags as chips: each opens that tag's page on the service, the related videos by the creator's own word
+                if (ab["tags"] is JsonArray tg && tg.Count > 0)
+                {
+                    var urls = ab["tagUrls"] as JsonArray;
+                    var wrapRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; var wraps = new StackPanel { Spacing = 6, Margin = new Thickness(36, 12, 36, 0) }; var width = 0.0;
+                    for (var ti = 0; ti < Math.Min(tg.Count, 16); ti++)
+                    {
+                        var tag = tg[ti]?.GetValue<string>() ?? ""; if (tag.Length == 0) continue;
+                        var tu = urls is not null && ti < urls.Count ? urls[ti]?.GetValue<string>() ?? "" : "";
+                        var chipW = 30 + 8.5 * (tag.Length + 1);
+                        if (width + chipW > 880 && wrapRow.Children.Count > 0) { wraps.Children.Add(wrapRow); wrapRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; width = 0; }
+                        width += chipW + 6;
+                        var chip = Chip(new TextBlock { Text = "#" + tag, FontSize = 14, Foreground = DetInk }, false);
+                        if (tu.StartsWith("https://", StringComparison.Ordinal)) { var tu2 = tu; var tag2 = tag; var app3 = app; ToolTipService.SetToolTip(chip, "Everything tagged #" + tag + " on " + svcName + ", in the big window."); chip.Click += (_, __) => { CloseTitleDetails(); CloseVideoHub(); var cand = new JsonObject { ["id"] = tu2, ["title"] = "#" + tag2, ["kind"] = "video", ["url"] = tu2 }; _ = PlayResultAsync(app3, cand.ToJsonString(), "#" + tag2 + " on " + svcName, svcName); }; }
+                        else chip.IsEnabled = false;
+                        wrapRow.Children.Add(chip);
+                    }
+                    if (wrapRow.Children.Count > 0) wraps.Children.Add(wrapRow);
+                    body.Children.Add(wraps);
+                }
+                if (S(ab, "channel").Length > 0 && S(ab, "channelUrl").StartsWith("https://", StringComparison.Ordinal))
+                {
+                    var about = Chip(new TextBlock { Text = "About " + S(ab, "channel"), FontSize = 16, Foreground = DetInk }, true);
+                    about.Margin = new Thickness(36, 18, 36, 36); about.HorizontalAlignment = HorizontalAlignment.Left;
+                    var chUrl = S(ab, "channelUrl"); var chName = S(ab, "channel"); var app2 = app;
+                    about.Click += (_, __) => { CloseTitleDetails(); _ = ShowChannelCardAsync(app2, svcName, chUrl, chName, chUrl); };
+                    body.Children.Add(about);
+                    // the channel on the card itself (2026-10-11, "I expected more channel info and recently released vids by the same channels"):
+                    // its facts and its latest videos, read as the card opens, each a press to play
+                    var chBox = new StackPanel { Spacing = 10, Margin = new Thickness(36, 0, 36, 36) };
+                    var chFacts = new TextBlock { Text = "Reading " + chName + "'s page" + (char)0x2026, FontSize = 15, Foreground = DetDim };
+                    chBox.Children.Add(chFacts);
+                    body.Children.Add(chBox);
+                    _ = FillDetailsChannelAsync(run, chBox, chFacts, app2, svcName, chName, chUrl);
+                }
+                else body.Children.Add(new TextBlock { Text = " ", Margin = new Thickness(0, 0, 0, 24) });
+                return;
+            }
             body.Children.Add(new TextBlock { Text = "No details: " + why + ".", FontSize = 17, Foreground = DetDim, Margin = new Thickness(36, 0, 36, 36), TextWrapping = TextWrapping.Wrap });
             return;
         }

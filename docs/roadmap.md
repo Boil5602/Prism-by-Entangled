@@ -69,6 +69,31 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   service needs a try on an iPhone and an Android phone. To check before building: each service's own help page on where it sells,
   whether the availability data carries prices (it is believed not to), and the title's own address per service.
 
+## YouTube as a Video player service
+
+- **YouTube beside YouTube TV, its subscriptions as a Watch row** (said 2026-10-11, "If we add YouTube, I think we can add the
+  subscribed channels to the same line in Watch as the twitch subscribed channels"): today's YouTube adapter frames the page and
+  nothing more. As a service it needs what Twitch has: a context script (what plays), a library script that reads the Subscriptions
+  feed as the service's own row (the shape Twitch's Followed row has) and History as Continue watching, a search address, a play
+  script. The Google sign-in is YouTube TV's already (signInWith). YouTube's own ads: "They can be covered. We're doing it via the
+  extensions already. Look at those for clues" (same day). The adapter already carries the extension's ad signal (its js script
+  reads .html5-video-player's ad-showing and the skip buttons, from prototypes/prism-veil-extension/src); the host's cover on it is
+  what has not been tried, with the extension's known YouTube traps in memory (the hardware overlay flash, the tab mute). TMDB's
+  YouTube provider (192) would then also give its Rent or Buy offers a code. Not built.
+
+## Categories of your own
+
+- **Built 2026-10-11** ("Yes clear rules only. Proceed"): `docs/features/categories.md`. Watch settings > Categories: a name, hashtags
+  and one of four rules (newest first, watched most recently by this household, A to Z, the service's own order), each said in full on
+  the row's disclosure and in the tab. The hashtags offered are the words that recur across the household's own rows in Prism, counted
+  there, nobody's trend feed. Still open: a title's own hashtags are read only where the service writes them in its name or line under
+  (YouTube's description hashtags are not read), and Twitch's stream tags are not yet in its rows.
+- **The open pool by YouTube's API, with the person's own key** (asked 2026-10-11, "Would this be a good case for using the api"): `search.list`
+  with `order=date` is a published sort, gives exact dates, and answers to a key rather than the signed-in account, so nothing of the household's
+  shades it. Deferred: a YouTube key means a Google Cloud project per household, 100 searches a day (reads would cache two hours), Google's
+  limits on keeping results and its branding on the row. The page read with the Recently uploaded chip stands until it proves brittle.
+  Twitch's API cannot list streams by tag and needs an app token, so its directory page stays.
+
 ## Performance
 
 - The per-page cost is measured each minute (perf.log, the Performance tab). Left on the list: the 10 MB/s three playing windows draw

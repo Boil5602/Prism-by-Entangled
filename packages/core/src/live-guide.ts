@@ -13,6 +13,8 @@ export const LIVE_WINDOW_MAX_MS = 12 * 3_600_000;
 /** A program on now with less than this left is not drawn (a sliver nobody can read): the next one takes its place at the left edge. */
 export const LIVE_SLIVER_MS = 5 * 60_000;
 /** A channel's word about what is on now, given without an end, is believed this long after it was read. */
+/** A channel read longer ago than this is not judged inactive: its schedule is stale, not empty (2026-10-13). */
+export const LIVE_STALE_MS = 3 * 3_600_000;
 export const LIVE_NOW_BELIEVED_MS = 2 * 3_600_000;
 
 /** A channel's type and where it came from: the service's own category, or Prism's rule on the name (labelled, §5). */
@@ -59,6 +61,10 @@ export interface LiveRow {
   type: string; typeSource: "service" | "prism" | "tmdb"; programs: LiveProgram[]; match?: "channel" | "program" | null;
   /** the show TMDB matched when the type is TMDB's */
   typeTitle?: string;
+  /** a content creator's stream (2026-10-12): a card on the Live page, not a row of the timetable */
+  creator?: boolean;
+  /** nothing on and nothing scheduled in the next 24 hours (2026-10-12): listed under Inactive, found by a search, out of every other view */
+  inactive?: boolean;
   /** listed under this mode for what is on now, not the channel's own type (2026-10-02): the mode and the title TMDB matched */
   alsoBy?: { type: string; title: string };
   /** every mode the channel also counts in for what is on now */
@@ -67,11 +73,15 @@ export interface LiveRow {
   next?: number;
   /** A live event listed as a row (2026-09-30, Apple TV's Formula 1 and MLS): pressed, it plays as an event, not a channel. */
   event?: boolean;
+  /** TMDB's pictures of the programme on now (2026-10-13), when its exact title is known there: the card shows one, the channel's logo in a corner */
+  picture?: { poster: string | null; backdrop: string | null } | null;
   /** the event's series (Formula 1, MLS), the page's own word, for the row's label */
   series?: string;
 }
-export interface LiveGuide { window: { start: number; end: number }; types: Array<{ type: string; count: number }>; rows: LiveRow[] }
-export interface LiveService { app: string; name: string; facet: string; channels: VideoChannel[] }
+/** `types`: each mode with its count, and the count by kind (2026-10-12: the On now view's strips - channels, content creators, events); `kinds`: the totals by kind. */
+export interface LiveGuide { window: { start: number; end: number }; types: Array<{ type: string; count: number; channels: number; creators: number; events: number }>; kinds: { channels: number; creators: number; events: number; inactive: number }; rows: LiveRow[] }
+/** `creator`: a service of content creators (Twitch, YouTube), whose streams have no timetable: the Live page draws them as cards, not rows (2026-10-12). */
+export interface LiveService { app: string; name: string; facet: string; channels: VideoChannel[]; creator?: boolean }
 
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -146,10 +156,18 @@ export function liveGuide(services: LiveService[], now: number, opts: { type?: s
       if (has(`${ch.name} ${s.name}`)) match = "channel";
       else {
         for (const p of programs) if (has(p.title)) { p.match = true; match = "program"; }
+        // the whole schedule, past the window (2026-10-12, "we should still be able to search the full schedule")
+        if (!match) for (const p of ch.schedule ?? []) if (has(p.title)) { match = "program"; break; }
         if (!match) continue;
       }
     }
     const next = programs.length ? undefined : (ch.schedule ?? []).map((p) => p.start).filter((st) => st > now).sort((a, b) => a - b)[0];
+    // nothing on and nothing in the next 24 hours: inactive (2026-10-12, "only show channels with content in the next 24 hours, otherwise move
+    // them to an inactive category") - listed last, counted apart, out of the modes; a search still finds it
+    // a channel whose last read is hours old is unknown, not inactive (2026-10-13, "why does youtubetv only show 9 channels on live with On Now
+    // selected": a read that came back with ten rows left the other 116 on last night's schedules, and all of them went under Inactive)
+    const fresh = ch.readAt === undefined || now - ch.readAt < LIVE_STALE_MS;
+    const inactive = fresh && !programs.length && (next === undefined || next - now > 24 * 3_600_000);   // an event days away too ("why do all those Apple channels with content more than 24 hours out still take the first x slots")
     // a channel with nothing on and nothing in the window, whose only word is what is coming (an event channel before its match), is left out;
     // a search that names the channel still finds it (2026-10-06)
     if (!programs.length && next === undefined && isUpcomingLine(ch.now) && match !== "channel") continue;
@@ -158,11 +176,14 @@ export function liveGuide(services: LiveService[], now: number, opts: { type?: s
     const onNow = programs.find((p) => p.now)?.title ?? null;
     const also = (ch.nowTypes ?? []).filter((n) => n.type !== t.type && onNow !== null && (n.of === undefined || n.of === onNow));
     const alsoBy = opts.type && also.find((n) => n.type === opts.type);
-    all.push({ app: s.app, service: s.name, facet: s.facet, id: ch.id, name: ch.name, url: ch.url, logo: ch.logo ?? null, type: t.type, typeSource: t.source, ...(t.title ? { typeTitle: t.title } : {}), ...(alsoBy ? { alsoBy } : {}), programs, match, ...(next ? { next } : {}), ...(ch.event ? { event: true } : {}), ...(ch.series ? { series: ch.series } : {}), ...(also.length ? { alsoTypes: also.map((n) => n.type) } : {}) });
+    all.push({ app: s.app, service: s.name, facet: s.facet, id: ch.id, name: ch.name, url: ch.url, logo: ch.logo ?? null, type: t.type, typeSource: t.source, ...(s.creator ? { creator: true } : {}), ...(t.title ? { typeTitle: t.title } : {}), ...(alsoBy ? { alsoBy } : {}), programs, match, ...(next ? { next } : {}), ...(inactive ? { inactive: true } : {}), ...(ch.event ? { event: true } : {}), ...(ch.series ? { series: ch.series } : {}), ...(also.length ? { alsoTypes: also.map((n) => n.type) } : {}) });
   }
-  const counts = new Map<string, number>();
-  for (const r of all) { counts.set(r.type, (counts.get(r.type) ?? 0) + 1); for (const t2 of r.alsoTypes ?? []) counts.set(t2, (counts.get(t2) ?? 0) + 1); }
-  const types = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([type, count]) => ({ type, count }));
+  const counts = new Map<string, { count: number; channels: number; creators: number; events: number }>();
+  const kindOf = (r: LiveRow): "channels" | "creators" | "events" => (r.creator ? "creators" : r.event ? "events" : "channels");
+  const kinds = { channels: 0, creators: 0, events: 0, inactive: 0 };
+  const bump = (type: string, k: "channels" | "creators" | "events") => { const c = counts.get(type) ?? { count: 0, channels: 0, creators: 0, events: 0 }; c.count++; c[k]++; counts.set(type, c); };
+  for (const r of all) { if (r.inactive) { kinds.inactive++; continue; } const k = kindOf(r); kinds[k]++; bump(r.type, k); for (const t2 of r.alsoTypes ?? []) bump(t2, k); }
+  const types = [...counts.entries()].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0])).map(([type, c]) => ({ type, ...c }));
   // the order: a channel the search named first, then by type; within a type event rows (2026-09-30) before channels, events by time
   // (on now first, then by start), channels by name. Each row gets ONE key and the rows are ordered by it - a total order by
   // construction (a comparator that weighed an event against a channel by time on one side and by name on the other made a cycle,
@@ -171,6 +192,7 @@ export function liveGuide(services: LiveService[], now: number, opts: { type?: s
   const key = (r: LiveRow): [number, string, number, number, string] => [r.match === "channel" ? 0 : 1, r.type, r.event ? 0 : 1, r.event ? when(r) : 0, r.name];
   const byKey = (a: ReturnType<typeof key>, b: ReturnType<typeof key>): number => a[0] - b[0] || a[1].localeCompare(b[1]) || a[2] - b[2] || a[3] - b[3] || a[4].localeCompare(b[4]);
   // Sports mode takes every event row too (2026-10-01, "Why isn't Apple listed?"): an event's type is its series (Formula 1, MLS), a sport by nature
-  const rows = all.filter((r) => !opts.type || r.type === opts.type || (opts.type === "Sports" && r.event) || (r.alsoTypes ?? []).includes(opts.type)).map((r) => ({ r, k: key(r) })).sort((a, b) => byKey(a.k, b.k)).map((x) => x.r);
-  return { window: { start, end }, types, rows };
+  const sorted = all.filter((r) => !opts.type || r.type === opts.type || (opts.type === "Sports" && r.event) || (r.alsoTypes ?? []).includes(opts.type)).map((r) => ({ r, k: key(r) })).sort((a, b) => byKey(a.k, b.k)).map((x) => x.r);
+  const rows = [...sorted.filter((r) => !r.inactive), ...sorted.filter((r) => r.inactive)];   // the inactive last, in their own order
+  return { window: { start, end }, types, kinds, rows };
 }

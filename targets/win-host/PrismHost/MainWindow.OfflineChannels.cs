@@ -23,7 +23,7 @@ public sealed partial class MainWindow
     private CheckBox HideOfflineBox(double size)
     {
         var box = new CheckBox { Content = new TextBlock { Text = "Hide offline", FontSize = size, Foreground = HubInk }, IsChecked = HideOfflineChannels, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
-        ToolTipService.SetToolTip(box, "Leave channels that are offline out of your followed channels rows. With every channel offline the row is hidden. This setting is also in Watch settings.");
+        ToolTipService.SetToolTip(box, "Leave channels that are not live now out of Channels you follow. With none live the row is hidden. This setting is also in Watch settings.");
         void Set(bool on)
         {
             if (HideOfflineChannels == on) return;

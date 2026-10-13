@@ -53,6 +53,25 @@ export function topListCandidates(json: unknown): { tagged: string[]; untagged: 
   return { tagged, untagged };
 }
 
+/** Pages of the top list that are never a subject to offer a household (categories, 2026-10-11): a short list of adult sites by name. */
+const NOT_A_TOPIC = /^(XHamster|XNXX|Pornhub|XVideos|OnlyFans|Brazzers|Chaturbate|Stripchat)$/i;
+
+/** A day's top list as topics to offer when a category is made: readable names in the list's own order (the count's order), the pages
+ *  that are never a subject left out. The source is Wikimedia's public pageviews count, nobody's trend feed. */
+export function topArticles(json: unknown, max = 40): string[] {
+  const items = (json as { items?: Array<{ articles?: Array<{ article?: unknown }> }> } | null)?.items;
+  const arts = Array.isArray(items) && Array.isArray(items[0]?.articles) ? items[0]!.articles! : [];
+  const out: string[] = [];
+  for (const a of arts) {
+    if (typeof a?.article !== "string" || NOT_A_WORK.test(a.article)) continue;
+    const name = a.article.replace(/_\([^)]*\)$/, "").replace(/_/g, " ").trim();
+    if (!name || NOT_A_TOPIC.test(name) || out.includes(name)) continue;
+    out.push(name);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** The number a card shows: the article's reads, with its source and window, never bare. */
 export function readsValue(views: number): string { return `${compact(views)} reads · Wikipedia · 7 days`; }
 

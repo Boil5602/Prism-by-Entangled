@@ -39,7 +39,7 @@ describe("the picture keeping time with the sound", () => {
     expect(r.navigated).toEqual([]);
   });
 
-  it("falling behind: a pause and play; still behind after that, the title is opened again at its place", async () => {
+  it("falling behind: a pause and play, and never a reopen (2026-10-12: a PC at full load drops frames, a reopen cannot mend that)", async () => {
     const r = rig();
     await r.v.restoreTitle("screen", URL, "Animal Control", false);
     r.report();
@@ -51,7 +51,7 @@ describe("the picture keeping time with the sound", () => {
     expect(r.injected.some((js) => js.includes('__prismVideoCmd("play")'))).toBe(true);
     for (let i = 0; i < 3; i++) await r.step(AV_SAMPLE_MS / 1000);
     await vi.advanceTimersByTimeAsync(3000);
-    expect(r.navigated).toEqual([URL]);   // opened again - the wall's "close the app and open it again"
+    expect(r.navigated).toEqual([]);   // still behind: left alone - the doctor reopened a Big Door Prize episode three times and gave up on its page
   });
 
   it("one burst as the player catches up (a restart) does not make a plain 24 read as behind (2026-10-06, the Apple TV episode reloaded three times)", async () => {

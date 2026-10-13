@@ -63,7 +63,7 @@ public sealed partial class MainWindow
 
         // the tabs
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22 };
-        foreach (var (id, label) in new[] { ("general", "General"), ("updates", "Content updates"), ("binge", "The Binge"), ("hidden", "Hidden titles"), ("perf", "Performance") })
+        foreach (var (id, label) in new[] { ("general", "General"), ("updates", "Content updates"), ("binge", "The Binge"), ("categories", "Categories"), ("hidden", "Hidden titles"), ("perf", "Performance") })
         {
             var on = _settingsTab == id;
             var t = new Button { Content = new TextBlock { Text = label, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubDim }, Background = HubClear, BorderThickness = new Thickness(0, 0, 0, on ? 2 : 0), BorderBrush = HubAmber, Padding = new Thickness(0, 0, 0, 4) };
@@ -77,6 +77,7 @@ public sealed partial class MainWindow
         Func<Task<List<string>>> saveTab;
         if (_settingsTab == "updates") saveTab = BuildUpdatesTab(body, v, run);
         else if (_settingsTab == "binge") saveTab = BuildBingeTab(body);
+        else if (_settingsTab == "categories") saveTab = BuildCategoriesTab(body);   // categories by hashtags, with a clear rule (2026-10-11)
         else if (_settingsTab == "hidden") saveTab = BuildHiddenTab(body);
         else if (_settingsTab == "perf") saveTab = BuildPerformanceTab(body);   // the stats (2026-10-03)
         else saveTab = BuildGeneralTab(body, v);
@@ -141,7 +142,7 @@ public sealed partial class MainWindow
         }
         var looks = new[]
         {
-            Look("Veiled and muted", "veil", "The ad is covered with a picture and its sound is off. Show ad 15s lets you see it."),
+            Look("Veiled and muted", "veil", "The ad is covered with a picture and its sound is off. Show ad lets you see it for the rest of the break, and Hide ad covers it again."),
             Look("Muted, picture visible", "mute", "You see the ad with its sound off. An Unmute button on the window brings the sound back for that ad."),
             Look("Show", "show", "The ad plays as it comes, picture and sound."),
         };

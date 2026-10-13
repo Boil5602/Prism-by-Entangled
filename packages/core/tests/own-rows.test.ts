@@ -17,5 +17,9 @@ describe("a service's own rows (2026-10-05: Twitch's Followed channels and lates
     const merged = mergeOwnRows(kept, now);
     expect(merged.map((r) => r.title + ":" + r.items.map((i) => i.id).join(","))).toEqual(["Latest videos:v1", "Followed channels:b"]);
     expect(mergeOwnRows(kept, [])).toBe(kept);
+    // a row of recordings yet to be made is never a row of Watch (2026-10-12), stored or fresh
+    const sched = { title: "Scheduled recordings", items: [{ id: "s", title: "S", kind: "video", url: null, artwork: null, subtitle: null, progress: null }] };
+    expect(mergeOwnRows([...kept, sched], []).map((r) => r.title)).toEqual(["Followed channels", "Latest videos"]);
+    expect(mergeOwnRows(kept, [sched, ...now]).map((r) => r.title)).toEqual(["Latest videos", "Followed channels"]);
   });
 });

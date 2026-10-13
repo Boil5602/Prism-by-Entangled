@@ -96,10 +96,10 @@ describe("event rows among channel rows (2026-09-30)", () => {
     const apple = { app: "appletv", name: "Apple TV", facet: "a", channels: [ev("p1", "Bahrain: Practice 1", now + 26 * H), ev("m", "Zebras vs. Aardvarks", null, true), ev("w", "F1 Weekend Warm-Up", now + 7 * H), ev("s", "Atlanta vs. Dallas", now + 20 * H)] };
     const pp = { app: "paramountplus", name: "Paramount+", facet: "p", channels: [ch("c2", "Motor Trend"), ch("c1", "CBS Sports HQ"), ch("c3", "Golazo")] };
     const g = liveGuide([apple, pp], now, {});
-    expect(g.rows.filter((r) => r.type === "Sports").map((r) => r.name)).toEqual(["Zebras vs. Aardvarks", "F1 Weekend Warm-Up", "Atlanta vs. Dallas", "Bahrain: Practice 1", "CBS Sports HQ", "Golazo", "Motor Trend"]);
+    expect(g.rows.filter((r) => r.type === "Sports").map((r) => r.name)).toEqual(["Zebras vs. Aardvarks", "F1 Weekend Warm-Up", "Atlanta vs. Dallas", "CBS Sports HQ", "Golazo", "Motor Trend", "Bahrain: Practice 1"]);
     // the same with the services the other way round, and shuffled: the order is the order
     const g2 = liveGuide([pp, { ...apple, channels: [...apple.channels].reverse() }], now, {});
-    expect(g2.rows.filter((r) => r.type === "Sports").map((r) => r.name)).toEqual(["Zebras vs. Aardvarks", "F1 Weekend Warm-Up", "Atlanta vs. Dallas", "Bahrain: Practice 1", "CBS Sports HQ", "Golazo", "Motor Trend"]);
+    expect(g2.rows.filter((r) => r.type === "Sports").map((r) => r.name)).toEqual(["Zebras vs. Aardvarks", "F1 Weekend Warm-Up", "Atlanta vs. Dallas", "CBS Sports HQ", "Golazo", "Motor Trend", "Bahrain: Practice 1"]);
   });
 });
 
@@ -139,7 +139,7 @@ describe("Sports mode and the events (2026-10-01, 'Why isn't Apple listed?')", (
     const apple = { app: "appletv", name: "Apple TV", facet: "a", channels: [{ id: "r", name: "Bahrain: Race", url: "https://tv.apple.com/e/r", logo: null, favorite: false, category: "Sports", series: "Formula 1", event: true, schedule: [{ title: "Bahrain: Race", start: now + 26 * 3_600_000, end: now + 28 * 3_600_000, desc: null }] }] };
     const pp = { app: "paramountplus", name: "Paramount+", facet: "p", channels: [{ id: "c", name: "CBS Sports HQ", url: "https://www.paramountplus.com/live-tv/stream/c", logo: null, favorite: false, category: "Sports", now: "SportsCenter-ish", nowEnds: now + 3_600_000 }, { id: "k", name: "Nick Jr.", url: "https://www.paramountplus.com/live-tv/stream/k", logo: null, favorite: false, category: "Kids", now: "Paw Patrol", nowEnds: now + 3_600_000 }] };
     const g = liveGuide([apple, pp], now, { type: "Sports" });
-    expect(g.rows.map((r) => r.name)).toEqual(["Bahrain: Race", "CBS Sports HQ"]);
-    expect(g.rows[0]).toMatchObject({ type: "Sports", series: "Formula 1" });   // Sports is the type; the series is a label (2026-10-01)
+    expect(g.rows.map((r) => r.name)).toEqual(["CBS Sports HQ", "Bahrain: Race"]);   // the race is days away: listed, inactive, last (2026-10-12)
+    expect(g.rows.find((r) => r.name === "Bahrain: Race")).toMatchObject({ type: "Sports", series: "Formula 1" });   // Sports is the type; the series is a label (2026-10-01)
   });
 });

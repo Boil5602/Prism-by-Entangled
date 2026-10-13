@@ -54,9 +54,11 @@ public sealed partial class MainWindow
         {
             var below = 24.0;
             try { if (MenuGrip.ActualHeight > 0) below = MenuGrip.TransformToVisual(RootGrid).TransformPoint(new Windows.Foundation.Point(0, MenuGrip.ActualHeight)).Y + 14; } catch { }
+            // ... and to the left of the Prism grip, not under it (2026-10-12, "Skip recap appeared with the Big Door Prize but was immediately
+            // hidden under the prism controls": the menu drops from the grip over the very spot)
             _skipChip.HorizontalAlignment = HorizontalAlignment.Center;
             _skipChip.VerticalAlignment = VerticalAlignment.Top;
-            _skipChip.Margin = new Thickness(0, below, 0, 0);
+            _skipChip.Margin = new Thickness(0, below + 44, 0, 0);   // top and centre, clear of the grip and of the window's own title strip above it
         }
         else if (_surfaces.RectOf(slot!) is { } r && r.W > 0 && r.H > 0 && RootGrid.ActualWidth > 0)
         {

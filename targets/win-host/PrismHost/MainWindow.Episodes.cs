@@ -71,7 +71,9 @@ public sealed partial class MainWindow
         var at = anchor.TransformToVisual(RootGrid).TransformPoint(new Windows.Foundation.Point(0, 0));
         var x = Math.Max(8, Math.Min(RootGrid.ActualWidth - w - 8, at.X + anchor.ActualWidth / 2 - w / 2));
         var y = Math.Max(8, at.Y - h - 8);
-        var popup = new Popup { XamlRoot = RootGrid.XamlRoot, HorizontalOffset = x, VerticalOffset = y, IsLightDismissEnabled = false, Child = card };
+        // a windowed popup (its own top-level window): an in-window popup over the screen's own window could be seen and not pressed (2026-10-12,
+        // "Trying to click Play episode in the Episodes picker ... it seemed like it wasnt accepting my clicks"; no press of the panel reached XAML)
+        var popup = new Popup { XamlRoot = RootGrid.XamlRoot, HorizontalOffset = x, VerticalOffset = y, IsLightDismissEnabled = false, Child = card, ShouldConstrainToRootBounds = false };
         _episodesPanel = popup;
         popup.IsOpen = true;
         RestartStageBarTimer();
@@ -136,7 +138,9 @@ public sealed partial class MainWindow
             return;
         }
         var total = seasons.Sum(s => (s["episodes"] as JsonArray)?.Count ?? 0);
-        sourceTb.Text = seasons.Count + (seasons.Count == 1 ? " season" : " seasons") + "  \u00B7  " + total + " episodes  \u00B7  " + (S(v, "source") == "service" ? "as " + service + " lists them" : "as TMDB lists them") + (ready ? "" : "  \u00B7  reading more\u2026");
+        // a channel's videos (YouTube's Videos tab, Twitch's past broadcasts, 2026-10-12: "these aren't considered seasons"): one list, open, no season
+        var flat = seasons.Count == 1 && !System.Text.RegularExpressions.Regex.IsMatch(S(seasons[0], "label"), "^(Season \\d+|Specials)$");
+        sourceTb.Text = (flat ? total + (total == 1 ? " video" : " videos") + "  \u00B7  " : seasons.Count + (seasons.Count == 1 ? " season" : " seasons") + "  \u00B7  " + total + " episodes  \u00B7  ") + (S(v, "source") == "service" ? "as " + service + " lists them" : "as TMDB lists them") + (ready ? "" : "  \u00B7  reading more\u2026");
         if (!canPlay)
         {
             sourceTb.Foreground = HubAmber;
@@ -163,7 +167,7 @@ public sealed partial class MainWindow
                 {
                     var n = I(ep, "episode"); var isCurEp = isCur && n == curEpisode;
                     var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
-                    row.Children.Add(new TextBlock { Text = n > 0 ? n.ToString() : "\u00B7", FontSize = 20, Foreground = HubDim, Width = 40, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center });
+                    row.Children.Add(new TextBlock { Text = n > 0 && !flat ? n.ToString() : "\u00B7", FontSize = 20, Foreground = HubDim, Width = 40, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center });
                     row.Children.Add(new TextBlock { Text = S(ep, "title"), FontSize = 20, Foreground = isCurEp ? HubAmber : HubInk, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 470 });
                     if (isCurEp) row.Children.Add(new TextBlock { Text = Star + " playing", FontSize = 17, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center });
                     if (S(ep, "duration").Length > 0) row.Children.Add(new TextBlock { Text = S(ep, "duration"), FontSize = 16, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center });
@@ -172,6 +176,7 @@ public sealed partial class MainWindow
                     detail.Visibility = Visibility.Collapsed;
                     epBtn.Click += (_, __) =>
                     {
+                        LogLine("episodes: episode pressed");
                         var opening = detail.Visibility != Visibility.Visible;
                         st.Touched = true;
                         if (st.OpenEpisode is not null && !ReferenceEquals(st.OpenEpisode, detail)) st.OpenEpisode.Visibility = Visibility.Collapsed;   // one open at a time
@@ -195,6 +200,7 @@ public sealed partial class MainWindow
                 if (opening) seasonBtn.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.05, AnimationDesired = true });
             };
             body.Children.Add(seasonBtn);
+            if (flat) { Build(); list.Visibility = Visibility.Visible; st.OpenSeason = list; }
             body.Children.Add(list);
             // the playing season opens by itself - when it arrives, unless the person has already opened something
             if (!st.Touched && (isCur || (curSeason < 0 && st.OpenSeason is null && ReferenceEquals(sn, seasons[0]))))
@@ -246,6 +252,7 @@ public sealed partial class MainWindow
         var title = S("title");
         play.Click += async (_, __) =>
         {
+            LogLine("episodes: Play pressed");
             CloseEpisodes();
             ShowStageCurtain(title, service, still.Length > 0 ? still : null);
             string? raw = null;

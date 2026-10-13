@@ -82,6 +82,13 @@ describe("CosmeticRegistry", () => {
 });
 
 describe("veilJs", () => {
+  it("leaves a match that holds the player or spans most of the page alone (2026-10-13, Twitch's squeezeback wrapper painted over the stream)", () => {
+    const js = veilJs({ selectors: [".ad"], images: [] });
+    expect(js).toContain("if (el.querySelector('video')) return true;");
+    expect(js).toContain("r.width * r.height >= 0.5 * vw * vh) return true;");
+    expect(js).toContain("ix * iy >= 0.8 * q.width * q.height) return true;");   // a layer over the player, whatever the page around it
+    expect(js).toContain("function recheck()");   // matched small, grown to the player's size after: the cover comes off on the next pass
+  });
   it("embeds config, marks veiled slots, and carries the safety rules", () => {
     const js = veilJs({ selectors: [".ad"], images: ["https://appassets.androidplatform.net/veil/1.jpg"] });
     expect(js).toContain('"selectors":[".ad"]');

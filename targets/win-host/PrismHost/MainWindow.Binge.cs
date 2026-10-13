@@ -18,6 +18,9 @@ public sealed partial class MainWindow
 {
     /// <summary>The Watch tab shows The Binge in full instead of its rows (left by Back or another tab).</summary>
     private bool _bingeOpen;
+    /// <summary>The pointer is over The Binge's page, and what the page last drew (2026-10-13, "Watch refreshing sometimes in ways that refresh rows
+    /// and makes it so I can't click an item temporarily"): drawn again only when its rows changed, and never while the pointer is on it.</summary>
+    private bool _bingeOver; private string _bingeSig = "";
 
     /// <summary>The row head's tooltip: the carousel's label, then the eligibility table at the current thresholds (kids mode is not listed
     /// here, by the spec), the episodic note and the attribution.</summary>
@@ -163,6 +166,15 @@ public sealed partial class MainWindow
         }
 
         if (!ReferenceEquals(_videoHub, overlay) || _hubTab != "watch" || !_bingeOpen) return;
+        if (panel.Tag is not string) { panel.Tag = "binge"; panel.PointerEntered += (_, __) => _bingeOver = true; panel.PointerExited += (_, __) => _bingeOver = false; }
+        var sig = string.Join("|", genres.Select(g => S(g, "genre") + ":" + string.Join(",", (g["cards"] as JsonArray)?.OfType<JsonObject>().Select(c => S(c, "id")) ?? Array.Empty<string>()))) + (reading ? "|r" : "");
+        if (pass > 0 && panel.Children.Count > 0 && (sig == _bingeSig || _bingeOver || FocusWithin(panel)))
+        {
+            // nothing new, or the person is on it: the page stands; asked again in a moment while the read goes on
+            if (reading && pass < 60) { await Task.Delay(4000); if (ReferenceEquals(_videoHub, overlay) && _bingeOpen) await DrawBingeAsync(panel, overlay, pass + 1); }
+            return;
+        }
+        _bingeSig = sig;
         var wasEmpty = panel.Children.Count == 0;
         panel.Children.Clear();
         while (built.Children.Count > 0) { var child = built.Children[0]; built.Children.RemoveAt(0); panel.Children.Add(child); }
@@ -170,9 +182,8 @@ public sealed partial class MainWindow
         // still reading: drawn again as the details come in, never under the person's focus
         if (reading && pass < 60)
         {
-            await Task.Delay(2500);
-            if (ReferenceEquals(_videoHub, overlay) && _bingeOpen && !FocusWithin(panel)) await DrawBingeAsync(panel, overlay, pass + 1);
-            else if (ReferenceEquals(_videoHub, overlay) && _bingeOpen) { await Task.Delay(2500); await DrawBingeAsync(panel, overlay, pass + 1); }
+            await Task.Delay(4000);
+            if (ReferenceEquals(_videoHub, overlay) && _bingeOpen) await DrawBingeAsync(panel, overlay, pass + 1);
         }
     }
 

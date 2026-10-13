@@ -5,6 +5,13 @@ how often the break watch looked at each window (56-59 a minute is normal; fewer
 
 Reads %LOCALAPPDATA%/Prism/diagnostics/host.log (and host.log.prev across a rotation), breakwatch/corrections.log and the live
 recording's frames. A window taken off the screen ends its cover; times are counted back from now, so an hour across midnight is whole."""
+def short(w):
+    return w.replace("youtube-tv-home-16x9-", "ytv-").replace("youtube-home-16x9-", "yt-")
+
+
+import sys
+try: sys.stdout.reconfigure(errors="replace")   # a page title can carry a character the console's code page lacks (2026-10-11)
+except Exception: pass
 import os
 import re
 import time
@@ -127,7 +134,26 @@ for n in names:
     c = covers.get(n, [])
     r = rep.get(n.replace(" (still up)", ""), [0, 0, 0]) if "(still up)" not in n else [0, 0, 0]
     print(f"  {n:<28} covers {len(c):2d}, covered {int(sum(c)):5d} s (longest {int(max(c)) if c else 0} s) | not an ad {r[0]}, missed {r[1]}, late {r[2]}")
-print("channels now:", {w[-6:]: (chan[w][-1][1] if chan.get(w) else "?") for w in sorted(chan)})
+print("channels now:", {short(w): (chan[w][-1][1] if chan.get(w) else "?") for w in sorted(chan)})
+
+# a window's short name: a YouTube window and a YouTube TV window both end in 6x9-XL, so the last six letters charged one to the other (2026-10-11)
+# page chrome (2026-10-11): the host asks each video window every 15 s whether its video fills the window, and logs a change
+# ("page chrome <id>: video|page|overlay, ..."). The time each window spent on a page or under an overlay this hour, from those lines.
+_pc_state = {}; _pc_time = {}; _pc_n = {}; _pc_last = {}
+for l in _lines[_first:]:
+    m = re.match(r"(\d\d:\d\d:\d\d)\.\d+ page chrome (\S+): (video|page|overlay)(.*)", l)
+    if not m: continue
+    t = tod(l); w = m.group(2); st = m.group(3)
+    if w in _pc_state and _pc_state[w][0] != "video":
+        _pc_time[w] = _pc_time.get(w, 0) + (min(t, NOW) - max(_pc_state[w][1], FROM))
+    if st != "video" and FROM <= t <= NOW: _pc_n[w] = _pc_n.get(w, 0) + 1; _pc_last[w] = m.group(4).strip()[:70]
+    _pc_state[w] = (st, t)
+# a window that said nothing this hour and is gone (closed, replaced) is not charged to the hour's end: its last state was from before (2026-10-11)
+_pc_alive = {m.group(2) for l in _lines[_first:] for m in [re.match(r"(\d\d:\d\d:\d\d)\.\d+ page chrome (\S+):", l)] if m and FROM <= tod(l) <= NOW} | set(chan.keys())
+for w, (st, t0) in _pc_state.items():
+    if st != "video" and (w in _pc_alive or t0 >= FROM): _pc_time[w] = _pc_time.get(w, 0) + (NOW - max(t0, FROM))
+_pc = [f"{short(w)} {int(max(0, s))} s ({_pc_n.get(w, 0)} time(s), last: {_pc_last.get(w, '')})" for w, s in sorted(_pc_time.items()) if s > 0]
+print("page chrome (a window not showing video):", "; ".join(_pc) or "none")
 
 # the look rate (2026-10-08): how often the break watch looked at each window in the hour, by the frames it recorded. 56-59 a minute is
 # normal; CPU and memory read fine on the evening my study jobs halved it
@@ -143,5 +169,5 @@ for _w in sorted(os.listdir(_bench)) if os.path.isdir(_bench) else []:
                 if 60 <= _age < 3660: _per[int(_age // 60)] = _per.get(int(_age // 60), 0) + 1
     except OSError:
         continue
-    if _per: _line.append(f"{_w[-6:]} {min(_per.values())}-{max(_per.values())} (now {_per.get(1, 0)})")
+    if _per: _line.append(f"{short(_w)} {min(_per.values())}-{max(_per.values())} (now {_per.get(1, 0)})")
 print("looks a minute, lowest-highest in the hour:", "; ".join(_line) or "nothing recorded")

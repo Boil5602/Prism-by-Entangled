@@ -139,6 +139,7 @@ public sealed partial class MainWindow : Window
         StartGpuWatch();   // a graphics driver reset: playing video pages load again (2026-09-28)
         StartPerfWatch();  // the wall's cost once a minute to diagnostics/perf.log (2026-10-03)
         StartStallWatch();   // host.log names every moment the window stopped taking clicks (2026-09-28)
+        StartChromeWatch();   // each video window's page says whether its video fills it, logged when that changes (2026-10-11)
         // every press the window gets, and what it landed on - even one a control handled (2026-09-28, "its not frozen but it wont accept any clicks,
         // I see no reason for it": no press was logged at all, so where they went could not be told); a press on a web page never reaches here
         RootGrid.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
@@ -677,6 +678,27 @@ public sealed partial class MainWindow : Window
                 var badge = tier switch { "hardware" => "4K embedded", "software" => "1080p embedded", "none" => "no DRM", _ => "" };
                 _catalog.Add(new HostCatalogEntry(Str("id"), Str("name"), Str("adapter"), Str("url"), badge, json));
             }
+            // the phone's Services section (2026-10-11): the video and music services by name, the rest (a page adapter) left out
+            try
+            {
+                var arr = new JsonArray();
+                foreach (var e in _catalog)
+                {
+                    // video or music by the adapter's own keys (video*, music*), as the website's list is drawn (scripts/release/sync-adapters.py); a page adapter is neither
+                    string kind = "";
+                    try
+                    {
+                        var ap = Sources.AdapterPath(e.Adapter);
+                        if (ap is not null) { using var d2 = JsonDocument.Parse(File.ReadAllText(ap)); var keys = d2.RootElement.EnumerateObject().Select(x => x.Name).ToList(); kind = keys.Any(x => x.StartsWith("video", StringComparison.Ordinal)) ? "video" : keys.Any(x => x.StartsWith("music", StringComparison.Ordinal)) || e.Id is "amazon-music" or "apple-music" or "spotify" or "pandora" ? "music" : ""; }
+                    }
+                    catch { }
+                    if (kind != "video" && kind != "music") continue;
+                    arr.Add(new JsonObject { ["id"] = e.Id, ["name"] = e.Name, ["kind"] = kind });
+                }
+                Services.RemoteServer.ServicesJson = arr.ToJsonString();
+                LogLine("catalog: phone list " + arr.Count + " services");
+            }
+            catch (Exception ex) { LogLine("catalog: phone list " + ex.Message); }
         }
         catch (Exception ex) { SetStatus("catalog load failed: " + ex.Message); }
     }
@@ -1108,7 +1130,7 @@ public sealed partial class MainWindow : Window
             {
                 any = true;
                 var tid = id;
-                var btn = new Button { Content = peeked ? "Re-veil" : "Show ad 15s", Padding = new Thickness(10, 4, 10, 4) };
+                var btn = new Button { Content = peeked ? "Hide ad" : "Show ad", Padding = new Thickness(10, 4, 10, 4) };
                 btn.Click += (_, __) => _surfaces.TogglePeek(tid);
                 row.Children.Add(btn);
             }

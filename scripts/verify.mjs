@@ -169,6 +169,10 @@ const steps = [
     fn: () => { const r = run("node", ["scripts/migration-roundtrip.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
   },
   {
+    id: "adapters-sync", title: "the built-in services: the tour's line and the website's Adapters data say what the catalog says",
+    fn: () => { const r = run("python", ["scripts/release/sync-adapters.py", "--site", "../entangled.world", "--check"], root); return { code: r.code, detail: tail(r.out, 4) }; },
+  },
+  {
     id: "tutorial-sync", title: "the tour: its source is whole, and the website's copy matches it (when ../entangled.world is there)",
     fn: () => { const r = run("python", ["scripts/release/sync-tutorial.py", "--site", "../entangled.world", "--check"], root); return { code: r.code, detail: tail(r.out, 6) }; },
   },

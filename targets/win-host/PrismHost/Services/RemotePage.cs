@@ -37,13 +37,13 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .work .drop{background:#14171C;color:#F2B14C;border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
 .work{display:none;margin:10px 0 0;padding:10px 12px;background:#1C2129;border-radius:12px;color:#F2B14C;font-size:14px}.work.on{display:block}.work.done{color:#E8ECF2}.work i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#F2B14C;margin-right:8px;animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 .vnp img{width:72px;height:108px}.seek{margin-top:12px}.seek input{width:100%}.times{display:flex;justify-content:space-between;font-size:13px;color:#E8ECF2;margin-top:2px}
-.vtr button{padding:14px;font-size:24px}.vrow{margin-top:10px}.vrow button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:#F2B14C}
-.cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cards::-webkit-scrollbar{display:none}.card{flex:none;width:112px;background:none;border:0;padding:0;color:#E8ECF2;text-align:left;font:13px system-ui}.card .art{width:112px;height:168px;border-radius:10px;background:#1C2129;object-fit:cover;display:block}.card .art.wide{height:63px}.card .bar{height:3px;background:#2A3140;border-radius:2px;margin-top:4px;overflow:hidden}.card .bar i{display:block;height:100%;background:#F2B14C}.card b{display:block;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card span{display:block;color:#E8ECF2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .svc2{color:#F2B14C}
+.ic{width:26px;height:26px;fill:currentColor;display:block}.mtr{gap:8px;align-items:center}.mtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.mtr button.go{flex:1.35;height:68px}.mtr button.go .ic{width:32px;height:32px}.mtr button:disabled{opacity:.35}#orderRow button{min-width:0;flex:1}#orderRow button.on{color:#F2B14C}#orderRow button.on .ic{fill:#F2B14C}.vtr{gap:8px;align-items:center}.vtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.vtr button.go{flex:1.35;height:68px}.vtr button.go .ic{width:32px;height:32px}.vtr button:disabled{opacity:.35}.vrow button{display:flex;flex-direction:column;align-items:center;gap:5px;font:13px system-ui;padding:10px 6px}.vrow .ic{width:22px;height:22px}.sbox .glass{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:#8A93A2;pointer-events:none}.sbox input{padding-left:40px}#vLivePanel > .body{padding:8px}.lq{width:100%;box-sizing:border-box;background:#14171C;color:#E8ECF2;border:1px solid #2C3442;border-radius:10px;padding:10px 12px;font:15px system-ui;margin-bottom:8px}#vLive .item.hidden{display:none}#vLive .grp{margin:10px 6px 2px;font-size:11px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase}#vLive .grp.hidden{display:none}#vLive .item.ch{padding:9px 10px;margin-top:4px}#vLive .ch .l1{display:flex;gap:10px;align-items:baseline}#vLive .ch .l1 span:first-child{flex:none;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vLive .ch .l1 .now{flex:1;display:block;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#E8ECF2;font-size:13px}#vLive .ch .pb{margin-top:6px}#vLive .ch .pt{display:none}#vLive .jump{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:#1C2129}#vLive .jump::-webkit-scrollbar{display:none}#vLive .jump button{flex:none;background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:6px 11px;font:12px system-ui}#vLive .jump.hidden{display:none}.openOn{margin:4px 0 10px}.vrow{margin-top:10px}.vrow button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:#F2B14C}
+.cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cards::-webkit-scrollbar{display:none}.card{flex:none;width:112px;background:none;border:0;padding:0;color:#E8ECF2;text-align:left;font:13px system-ui}.card{position:relative}.card .art{width:112px;height:168px;border-radius:10px;background:#1C2129;object-fit:cover;display:block}.card .di{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:13px;border:0;background:rgba(5,6,9,.75);color:#E8ECF2;font:600 13px system-ui;padding:0}.sheet.full{top:0;left:0;right:0;bottom:0;border-radius:0;padding:0 14px calc(20px + env(safe-area-inset-bottom));max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:60}.sheet.full .top{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 0 10px;background:#1C2129;z-index:1}.sheet.full .top b{flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sheet.full .top button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:9px 14px;font:600 14px system-ui}body.locked{overflow:hidden;position:fixed;width:100%}#detSheet{flex-direction:column;gap:8px}#detSheet .dh{display:flex;gap:12px}#detSheet .dh img{width:84px;height:126px;border-radius:8px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dh b{font-size:17px}#detSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#detSheet .dv{color:#E8ECF2;font-size:14px;line-height:1.35}#detSheet .dcast{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}#detSheet .dcast button{flex:none;width:64px;font-size:11px;color:#E8ECF2;text-align:center;background:none;border:0;padding:0;font-family:system-ui}#detSheet .dcast button span{display:block}#chSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#chSheet .dh{display:flex;gap:12px}#chSheet .dh img{width:72px;height:72px;border-radius:36px;object-fit:cover;background:#0E1218;flex:none}#chSheet .dh b{font-size:17px}#chSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#chSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}#chSheet .cards{flex-wrap:wrap;overflow:visible}#detSheet .dtags{display:flex;flex-wrap:wrap;gap:6px}#detSheet .dtags:empty{display:none}#detSheet .dtags button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:7px 11px;font:13px system-ui}#detSheet .dchan{display:flex;flex-direction:column;gap:8px;background:#14171C;border-radius:12px;padding:10px}#detSheet .dchan:empty{display:none}#detSheet .dchan .ch1{display:flex;align-items:center;gap:10px}#detSheet .dchan .ch1 img{width:44px;height:44px;border-radius:22px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dchan .ch1 b{display:block;font-size:15px}#detSheet .dchan .ch1 span{display:block;color:#E8ECF2;font-size:12px}#detSheet .dchan .chd{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#detSheet .dchan .chl{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin-top:2px}#detSheet .dchan .cards{margin:0}#detSheet .dchan .chb{display:flex;gap:8px}#detSheet .dchan .chb button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#perSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#perSheet .dh{display:flex;gap:12px}#perSheet .dh img{width:84px;height:84px;border-radius:42px;object-fit:cover;background:#0E1218;flex:none}#perSheet .dh b{font-size:17px}#perSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#perSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}#perSheet .cards{flex-wrap:wrap;overflow:visible}#perSheet .psort{display:flex;align-items:center;gap:8px;font-size:13px;color:#E8ECF2}#perSheet .psort button{background:#2C3442;color:#E8ECF2;border:1px solid transparent;border-radius:999px;padding:7px 12px;font:13px system-ui}#perSheet .psort button.on{color:#F2B14C;border-color:#F2B14C}#perSheet .card.here .art,#detSheet .dcast button.here img{outline:2px solid #F2B14C;outline-offset:2px}#detSheet .dcast button.here span{color:#F2B14C}#vSvcBody .srow{display:flex;align-items:center;gap:10px;padding:6px 0}#vSvcBody .srow b{flex:1;font-weight:500}#vSvcBody .srow span{color:#E8ECF2;font-size:12px}#vSvcBody .srow span.amber{color:#F2B14C}#vSvcBody .srow button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#detSheet .dcast img{width:56px;height:56px;border-radius:28px;object-fit:cover;background:#0E1218}#detSheet .dwhere{font-size:13px;color:#E8ECF2}#detSheet .dwhere b{color:#F2B14C}.card .art.wide{height:63px}.card .bar{height:3px;background:#2A3140;border-radius:2px;margin-top:4px;overflow:hidden}.card .bar i{display:block;height:100%;background:#F2B14C}.card b{display:block;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card span{display:block;color:#E8ECF2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .svc2{color:#F2B14C}
 .cards .note{margin:0}.qh .info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid #8A93A2;color:#E8ECF2;background:none;font:italic 600 12px Georgia,serif;margin-left:8px;vertical-align:middle;padding:0;text-transform:none;letter-spacing:0}.qh .info.on{border-color:#F2B14C;color:#F2B14C}.about{display:none;margin:0 0 8px;font-size:13px;line-height:1.45;color:#E8ECF2;background:#1C2129;border-radius:10px;padding:10px 12px}.about.on{display:block}.search{display:flex;gap:8px;margin-top:14px}.search .sbox{flex:1;position:relative;display:flex;min-width:0}.search input{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 40px 12px 14px;font:16px system-ui;min-width:0}.search input::-webkit-search-cancel-button{display:none}.search .clr{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;color:#E8ECF2;border:0;padding:6px 10px;font:22px system-ui;display:none}.search .sbox.has .clr{display:block}.search button{background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 16px;font:600 15px system-ui}
 .hit{display:flex;gap:10px;background:#1C2129;border-radius:12px;padding:10px;margin-top:8px}.hit img{width:56px;height:84px;border-radius:6px;object-fit:cover;background:#14171C;flex:none}.hit img:not([src]){visibility:hidden}.hit .t{flex:1;min-width:0}.hit b{display:block;font-size:15px}.hit span{display:block;font-size:13px;color:#E8ECF2}.hit .on{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.hit .on button{background:#14171C;color:#F2B14C;border:0;border-radius:999px;padding:7px 12px;font:13px system-ui}
-#vEpisodes{margin-top:12px}#vEpBody .ssn{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}#vEpBody .item.now{color:#F2B14C}.lens .qh small{display:block;font-size:11px;letter-spacing:0;text-transform:none;color:#8A93A2;margin-top:2px}.svc .item .now{display:block;color:#E8ECF2;font-size:13px;margin-top:2px}
+#vPlaylists{margin-top:12px}#vPlBody .item.now{color:#F2B14C}#vPlBody .item.done{opacity:.55}.plbar{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.plbar button{background:#2A3140;color:#E8ECF2;border:0;border-radius:10px;padding:8px 12px;font:14px system-ui}.plbar button.go{background:#F2B14C;color:#14171C}.plhead{display:flex;align-items:center;gap:10px;margin-top:8px}.plhead b{font-size:16px;color:#E8ECF2}#vEpisodes{margin-top:12px}#vEpBody .ssn{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}#vEpBody .item.now{color:#F2B14C}.lens .qh small{display:block;font-size:11px;letter-spacing:0;text-transform:none;color:#8A93A2;margin-top:2px}.svc .item .now{display:block;color:#E8ECF2;font-size:13px;margin-top:2px}
 .quick{display:flex;flex-direction:column;gap:8px}.svc{background:#1C2129;border-radius:12px;overflow:hidden}.svc>button.head{width:100%;display:flex;align-items:center;gap:10px;background:none;color:#E8ECF2;border:0;padding:14px 12px;font:600 16px system-ui;text-align:left}.svc>button.head .st{margin-left:auto;font-size:13px;font-weight:400;color:#F2B14C}.svc>button.head .chev{font-size:13px;color:#8A93A2}.svc.open>button.head .chev{transform:rotate(90deg)}
-.svc .body{display:none;padding:0 8px 10px}.svc.open .body{display:block}.svc .grp{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}.svc .item{display:block;width:100%;background:#14171C;color:#E8ECF2;border:0;border-radius:10px;padding:12px;font:15px system-ui;text-align:left;margin-top:6px}.svc .item .pb{display:block;height:4px;background:#2A3140;border-radius:2px;margin-top:7px;overflow:hidden}.svc .item .pb i{display:block;height:100%;background:#F2B14C}.svc .item .pb i.unk{background:#8A93A2;width:100%;opacity:.35}.svc .item .pt{display:block;color:#E8ECF2;font-size:12px;margin-top:4px}.svc .item.go{color:#F2B14C}
+.svc > .body{display:none;padding:0 8px 10px}.svc.open > .body{display:block}.svc .grp{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}.svc .item{display:block;width:100%;background:#14171C;color:#E8ECF2;border:0;border-radius:10px;padding:12px;font:15px system-ui;text-align:left;margin-top:6px}.svc .item .pb{display:block;height:4px;background:#2A3140;border-radius:2px;margin-top:7px;overflow:hidden}.svc .item .pb i{display:block;height:100%;background:#F2B14C}.svc .item .pb i.unk{background:#8A93A2;width:100%;opacity:.35}.svc .item .pt{display:block;color:#E8ECF2;font-size:12px;margin-top:4px}.svc .item.go{color:#F2B14C}
 nav{display:flex;gap:6px;padding:0 14px 10px}nav button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:10px;font:inherit}nav button.on{background:#3A2E14;color:#F2B14C}
 main{padding:0 14px 20px}section{display:none}section.on{display:block}
 textarea{width:100%;min-height:96px;background:#1C2129;color:#E8ECF2;border:1px solid #2C3442;border-radius:12px;padding:12px;font:18px system-ui;resize:vertical}
@@ -63,15 +63,16 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <header>__WORDMARK__<span id="who">on this PC</span><button id="more" class="more" aria-label="Options">&#8943;</button></header>
 <div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music lounge</button><button id="plVideo">Video</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="modeBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><button id="forget">Forget this PC</button><button id="closeMenu">Close</button><p id="howHome" class="how"></p></div>
 <div id="banner" class="banner"><span id="bannerText">Prism on the PC was updated. This page refreshes in 5:00.</span><button id="refreshNow">Refresh now</button></div>
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs><symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol><symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></symbol><symbol id="i-start" viewBox="0 0 24 24"><path d="M5 6h2v12H5zm3 6l11-6v12z"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="M17 6h2v12h-2zM5 6l11 6-11 6z"/></symbol><symbol id="i-back10" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-fwd10" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-skip" viewBox="0 0 24 24"><path d="M4 6l8 6-8 6zm8 0l8 6-8 6z"/></symbol><symbol id="i-cc" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v14H3V5zm2 2v10h14V7H5zm3 2.5h3V11H9v2h2v1.5H8v-5zm6 0h3V11h-2v2h2v1.5h-3v-5z"/></symbol><symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></symbol><symbol id="i-unmute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm11 .3l1.4-1.4 2.4 2.4 2.4-2.4 1.4 1.4-2.4 2.4 2.4 2.4-1.4 1.4-2.4-2.4-2.4 2.4-1.4-1.4 2.4-2.4z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></symbol><symbol id="i-repeat" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></symbol><symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol><symbol id="i-order" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol><symbol id="i-reverse" viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></symbol></defs></svg>
 <nav><button id="tabM" class="on">Music</button><button id="tabV" style="display:none">Video</button><button id="tabK">Keyboard</button><button id="tabL">Private Listening</button></nav>
 <main>
 <section id="M" class="on">
 <div class="restore" id="restoreCard"><b>Restore the previous session?</b><span id="restoreWhat"></span><div class="row"><button id="restoreGo" class="go">Restore</button><button id="restoreNo">Not now</button></div></div>
 <div class="np" id="np"><img id="npArt" alt=""><div class="npt"><b id="npTitle">Nothing playing</b><span id="npArtist"></span><span id="npSvc"></span></div></div>
 <div class="seek mseek" id="npTimeRow" style="display:none"><div class="bar"><i id="npBar"></i></div><div class="times"><span id="npTime"></span><span id="npLeft"></span></div></div>
-<div class="tr"><button data-c="prev" id="trPrev">&#9198;</button><button data-c="play" id="trPlay" class="go">&#9654;</button><button data-c="next" id="trNext">&#9197;</button></div>
-<div class="row"><button data-c="thumbup" id="trUp">&#128077;</button><button data-c="thumbdown" id="trDown">&#128078;</button><button data-c="mute" id="trMute">Mute Prism on PC</button></div>
-<div class="row order" id="orderRow"><button data-o="normal">In order</button><button data-o="true-shuffle">True shuffle</button><button data-o="reverse">Reverse</button><button id="repeatBtn">Repeat</button></div>
+<div class="tr mtr"><button data-c="prev" id="trPrev" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button data-c="play" id="trPlay" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button data-c="next" id="trNext" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button></div>
+<div class="row vrow"><button data-c="thumbup" id="trUp"><svg class="ic"><use href="#i-up"/></svg><span>Like</span></button><button data-c="thumbdown" id="trDown"><svg class="ic"><use href="#i-down"/></svg><span>Dislike</span></button><button data-c="mute" id="trMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute Prism on PC</span></button></div>
+<div class="row vrow order" id="orderRow"><button data-o="normal"><svg class="ic"><use href="#i-order"/></svg><span>In order</span></button><button data-o="true-shuffle"><svg class="ic"><use href="#i-shuffle"/></svg><span>True shuffle</span></button><button data-o="reverse"><svg class="ic"><use href="#i-reverse"/></svg><span>Reverse</span></button><button id="repeatBtn"><svg class="ic"><use href="#i-repeat"/></svg><span>Repeat</span></button></div>
 <p class="work" id="mwork"></p><p class="work" id="nextLine"></p>
 <div id="pickSheet" class="sheet"><b id="pickWhat"></b><button id="pickNow" class="go">Play now</button><button id="pickNext">Play after this track</button><button id="pickCancel">Cancel</button></div>
 <h3 class="qh">Quick play</h3>
@@ -82,18 +83,18 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="np vnp" id="vnp"><img id="vArt" alt=""><div class="npt"><b id="vTitle">Nothing playing</b><span id="vSub"></span><span id="vSvc"></span></div></div>
 <div id="vErr" class="verr"><span id="vErrText"></span><button id="vRetry">Retry</button></div>
 <div class="seek" id="vSeekRow"><input id="vSeek" type="range" min="0" max="1000" value="0"><div class="times"><span id="vPos">0:00</span><span id="vDur"></span></div></div>
-<div class="tr vtr"><button data-v="restart" title="Start over (the previous episode in the first 5 seconds)">&#9198;</button><button data-v="seekbackward" title="Back 10 seconds">&#8630;</button><button data-v="play" id="vPlay" class="go">&#9654;</button><button data-v="seekforward" title="Forward 10 seconds">&#8631;</button><button data-v="nextepisode" title="Next episode">&#9197;</button></div>
-<div class="row vrow"><button data-v="skipintro" id="vSkip">Skip intro</button><button data-v="captions">Captions</button><button data-v="mute" id="vMute">Mute Prism on PC</button></div>
+<div class="tr vtr"><button data-v="restart" title="Start over (the previous episode in the first 5 seconds)" aria-label="Start over"><svg class="ic"><use href="#i-start"/></svg></button><button data-v="seekbackward" title="Back 10 seconds" aria-label="Back 10 seconds"><svg class="ic"><use href="#i-back10"/></svg></button><button data-v="play" id="vPlay" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button data-v="seekforward" title="Forward 10 seconds" aria-label="Forward 10 seconds"><svg class="ic"><use href="#i-fwd10"/></svg></button><button data-v="nextepisode" title="Next episode" aria-label="Next episode"><svg class="ic"><use href="#i-next"/></svg></button></div>
+<div class="row vrow"><button data-v="skipintro" id="vSkip"><svg class="ic"><use href="#i-skip"/></svg><span>Skip intro</span></button><button data-v="captions"><svg class="ic"><use href="#i-cc"/></svg><span>Captions</span></button><button data-v="mute" id="vMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute Prism on PC</span></button></div>
 <div class="svc" id="vEpisodes" style="display:none"><button class="head"><span class="chev">&#9654;</span><span id="vEpHead">Episodes</span><span class="st" id="vEpSt"></span></button><div class="body" id="vEpBody"></div></div>
-<div class="search"><div class="sbox"><input id="vq" type="search" placeholder="Search everywhere" autocomplete="off"><button id="vclear" class="clr" type="button" aria-label="Clear search">&#215;</button></div><button id="vgo" class="go">Search</button></div>
+<div class="search"><div class="sbox"><svg class="ic glass"><use href="#i-search"/></svg><input id="vq" type="search" placeholder="Search everywhere" autocomplete="off"><button id="vclear" class="clr" type="button" aria-label="Clear search">&#215;</button></div><button id="vgo" class="go">Search</button></div>
 <div id="vResults"></div>
 <!-- where a tapped title opens (2026-10-10): on the PC as before, or on this phone in the service's own app, by the title's own address -->
-<div class="openOn"><span>A title you tap opens</span><button id="openPc">On the PC</button><button id="openPhone">On this phone</button></div>
-<p class="note" id="openNote"></p>
 <h3 class="qh">Continue watching</h3><div id="vCont" class="cards"><p class="note">Reading the services' lists&hellip;</p></div>
 <h3 class="qh">My list</h3><div id="vList" class="cards"></div>
 <div id="vLenses"></div>
-<h3 class="qh">Live</h3><div id="vLive" class="quick"></div>
+<div class="svc" id="vPlaylists" style="display:none"><button class="head"><span class="chev">&#9654;</span><span>Playlists</span><span class="st" id="vPlSt"></span></button><div class="body" id="vPlBody"></div></div>
+<div class="svc" id="vLivePanel"><button class="head"><span class="chev">&#9654;</span><span>Live</span><span class="st" id="vLiveSt"></span></button><div class="body"><input id="vLiveQ" class="lq" type="search" placeholder="Find a channel or a program" autocomplete="off"><div id="vLive" class="quick"></div></div></div>
+<div class="svc" id="vServices"><button class="head"><span class="chev">&#9654;</span><span>Services</span><span class="st" id="vSvcSt"></span></button><div class="body"><div class="openOn"><span>A title you tap opens</span><button id="openPc">On the PC</button><button id="openPhone">On this phone</button></div><p class="note" id="openNote"></p><div id="vSvcBody"><p class="note">Every service Prism knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.</p></div></div></div>
 <p class="err" id="verr"></p>
 </section>
 <section id="K">
@@ -122,6 +123,9 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 </div>
 <!-- the Captions sheet sits outside the tab sections: inside the Music section it opened display:none while the Video tab was on (2026-10-05, "Captions on the companion app still doesn't work") -->
 <div id="trkSheet" class="sheet"><b>Subtitles and audio</b><div id="trkList" class="trk"></div><button id="trkClose">Close</button></div>
+<div id="chSheet" class="sheet full"><div class="top"><b>Channel</b><button id="chClose">Close</button></div><div class="dh"><img id="chArt" alt=""><div><b id="chName"></b><span id="chFacts"></span></div></div><p class="dv" id="chBio"></p><div class="cards" id="chLatest"></div><p class="note" id="chNote"></p><button id="chOpen" class="go">Open the channel on Prism</button></div>
+<div id="perSheet" class="sheet full"><div class="top"><b>Person</b><button id="perClose">Close</button></div><div class="dh"><img id="perArt" alt=""><div><b id="perName"></b><span id="perFacts"></span></div></div><p class="dv" id="perBio"></p><div class="psort"><span>Sort</span><button id="perByDate" class="on">Release date</button><button id="perByName">Name</button></div><div class="cards" id="perCredits"></div><p class="note" id="perNote"></p></div>
+<div id="detSheet" class="sheet full"><div class="top"><b>Details</b><button id="detClose">Close</button></div><div class="dh"><img id="detArt" alt=""><div><b id="detTitle"></b><span id="detFacts"></span><span id="detRating"></span></div></div><p class="dv" id="detOverview"></p><div class="dtags" id="detTags"></div><div class="dchan" id="detChan"></div><div class="dcast" id="detCast"></div><p class="dwhere" id="detWhere"></p><p class="note" id="detNote"></p><button id="detPlay" class="go">Play on Prism</button></div>
 <!-- the TMDB guide's last step (2026-10-10): the key is copied on this phone, so this phone sends it; the page opens with #tmdb from the guide's code -->
 <div id="keySheet" class="sheet"><b>Send your TMDB key to Prism</b>
 <span class="keyNote">On TMDB's API page, copy the long one called API Read Access Token (the shorter API Key works too). Paste it here.</span>
@@ -131,8 +135,12 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 </main>
 <script>
 const token = new URLSearchParams(location.search).get('token') || '';
+// every built-in service, from the PC's catalog at serve time (2026-10-11): the Services section says which are set up and signed in
+const SERVICES = __SERVICES__;
 const q = (s) => document.querySelector(s);
 if (!q('#mf').href.includes('token=') || q('#mf').href.includes('__TOKEN__')) q('#mf').href = '/remote/manifest.json?token=' + encodeURIComponent(token);
+// the mute buttons' word and icon (2026-10-11): the Video tab's carries an icon, the Music tab's is the word alone
+function muteLabel(el, on) { const t = on ? 'Unmute Prism on PC' : 'Mute Prism on PC'; const span = el.querySelector('span'); if (span) span.textContent = t; else el.textContent = t; const use = el.querySelector('use'); if (use) use.setAttribute('href', on ? '#i-unmute' : '#i-mute'); }
 const api = async (path, body, method) => {
   const r = await fetch(path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token), { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   let j = null; try { j = await r.json(); } catch {}
@@ -276,7 +284,7 @@ async function pollNow() {
     const n = await api('/now-playing');
     const now = n.now;
     npTile = now ? now.tile : null; npSession = now ? now.session : null; npService = now && now.service ? now.service : 'the service';
-    wallMuted = !!n.wallMuted; for (const b of document.querySelectorAll('#trMute, #vMute')) { b.textContent = wallMuted ? 'Unmute Prism on PC' : 'Mute Prism on PC'; b.classList.toggle('on', wallMuted); }
+    wallMuted = !!n.wallMuted; for (const b of document.querySelectorAll('#trMute, #vMute')) { muteLabel(b, wallMuted); b.classList.toggle('on', wallMuted); }
     lastNow = now; drawWork(n); drawNext(n.next); drawRestore(n.restore);
     const md = now && now.metadata ? now.metadata : {};
     if (work) {
@@ -296,7 +304,7 @@ async function pollNow() {
     const art = typeof aw === 'string' ? aw : Array.isArray(aw) && aw.length ? (aw[aw.length - 1].src || '') : '';
     if (art) q('#npArt').src = art; else q('#npArt').removeAttribute('src');
     }
-    q('#trPlay').innerHTML = now && now.playbackState === 'playing' ? '&#10074;&#10074;' : '&#9654;';
+    q('#trPlay').innerHTML = '<svg class="ic"><use href="#i-' + (now && now.playbackState === 'playing' ? 'pause' : 'play') + '"/></svg>';
     npPos = now && typeof now.position === 'number' ? now.position : null; npDur = now && typeof now.duration === 'number' && now.duration > 0 ? now.duration : null;
     npPlaying = !!(now && now.playbackState === 'playing'); npAt = Date.now(); drawTime();
     const pend0 = now && now.pending && !now.pending.failed ? now.pending : null;
@@ -333,7 +341,7 @@ for (const b of document.querySelectorAll('#orderRow [data-o]')) b.onclick = asy
   // so the press became a note about the next pick); then the card's collection
   const inFlight = work && work.id ? { tile: work.tile, service: work.service, col: { kind: work.kind, id: work.id, label: work.name } } : null;
   const tile = inFlight ? inFlight.tile : npTile, col = inFlight ? inFlight.col : npCol, service = inFlight ? inFlight.service : npService;
-  if (!tile || !col) { for (const x of document.querySelectorAll('#orderRow [data-o]')) x.classList.toggle('on', x.dataset.o === o); say('#merr', 'The next pick plays ' + b.textContent.toLowerCase() + '.'); return; }
+  if (!tile || !col) { for (const x of document.querySelectorAll('#orderRow [data-o]')) x.classList.toggle('on', x.dataset.o === o); say('#merr', 'The next pick plays ' + (b.querySelector('span') || b).textContent.toLowerCase() + '.'); return; }
   const label = col.label || 'this collection';
   startWork(label + ' ' + b.textContent.toLowerCase(), service, tile, label, col.kind, col.id);
   try { await api('/music/play', { tile, kind: col.kind, id: col.id, order: o }); setTimeout(pollNow, 1200); } catch (e) { endWork(e.message); }
@@ -434,8 +442,8 @@ for (const b of document.querySelectorAll('[data-c]')) b.onclick = async () => {
   let c = b.dataset.c;
   // a service that has signed the household out (or never let them in) will not take a press: say so, as the PC's own bar would
   if (npSession === 'signed-out' && c !== 'mute') { say('#merr', npService + ' asks for a sign-in before it plays. Sign in on the PC (Prism menu, Set up services), then press again.'); return; }
-  if (c === 'play') c = q('#trPlay').textContent.trim() === '\u25b6' ? 'play' : 'pause';
-  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { m.textContent = wallMuted ? 'Unmute Prism on PC' : 'Mute Prism on PC'; m.classList.toggle('on', wallMuted); } }
+  if (c === 'play') c = npPlaying ? 'pause' : 'play';
+  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }
   // in the background sound mode the phone holds seconds of the stream, so a pause on the PC alone would play on here until the buffer
   // ran dry (2026-10-04, "pressed pause, and the audible music never paused"): the phone's player pauses with it, and Play fetches
   // the stream fresh so the stale seconds are dropped
@@ -482,15 +490,19 @@ async function pollVideo() {
     q('#vSvc').textContent = svc ? svc.name : '';
     // the page's own error said plainly, with Retry (2026-10-05, Netflix's "Too many people are using your account right now": "make that play
     // through to the companion app. And add the retry option"): Retry presses the page's own Retry, or opens the title again where there is none
-    q('#vErrText').textContent = now && now.error ? now.error : ''; q('#vErr').classList.toggle('on', !!(now && now.error));
+    // the service's own gate over the player (2026-10-13, Twitch's content disclaimer): its words, its verb; else the page's error with Retry
+    const gate = now && now.gate && now.gate.text ? now.gate : null;
+    q('#vErrText').textContent = gate ? gate.text : now && now.error ? now.error : '';
+    q('#vRetry').textContent = gate ? (gate.verb || 'Start watching') : 'Retry'; q('#vRetry').dataset.cmd = gate ? 'gate' : 'retry';
+    q('#vErr').classList.toggle('on', !!(gate || (now && now.error)));
     const art = now && now.art; if (art) q('#vArt').src = art; else q('#vArt').removeAttribute('src');
     }
-    q('#vPlay').innerHTML = vPlaying ? '&#10074;&#10074;' : '&#9654;';
-    if (tabNow === 'V' && !window.__npPolled) { api('/now-playing').then((n) => { wallMuted = !!n.wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { m.textContent = wallMuted ? 'Unmute Prism on PC' : 'Mute Prism on PC'; m.classList.toggle('on', wallMuted); } }).catch(() => {}); }
+    q('#vPlay').innerHTML = '<svg class="ic"><use href="#i-' + (vPlaying ? 'pause' : 'play') + '"/></svg>';
+    if (tabNow === 'V' && !window.__npPolled) { api('/now-playing').then((n) => { wallMuted = !!n.wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }).catch(() => {}); }
     const can = now ? now.can : null;
     for (const b of document.querySelectorAll('[data-v]')) b.disabled = !now || (b.dataset.v !== 'mute' && b.dataset.v !== 'play' && b.dataset.v !== 'restart' && can && !can.cmd && !/seek/.test(b.dataset.v));
     // the skip button only while the service offers a skip (2026-10-05, "the skip button should only appear when skip is available")
-    q('#vSkip').textContent = now && now.skip ? now.skip : 'Skip intro'; q('#vSkip').style.display = now && now.skip ? '' : 'none';
+    q('#vSkip').querySelector('span').textContent = now && now.skip ? now.skip : 'Skip intro'; q('#vSkip').style.display = now && now.skip ? '' : 'none';
     vCanTracks = !!(can && can.tracks);
     const pos = vid && typeof vid.position === 'number' ? vid.position : null, dur = vid && typeof vid.duration === 'number' && vid.duration > 0 ? vid.duration : null;
     q('#vSeekRow').style.visibility = pos !== null ? 'visible' : 'hidden';
@@ -498,6 +510,7 @@ async function pollVideo() {
     // the rows only when they changed
     const sig = JSON.stringify([v.continue, v.list, v.live, !!v.liveReading, !!v.liveCanRead, Math.floor(Date.now() / 60000)]);
     if (sig !== vSig) { vSig = sig; drawCards('#vCont', v.continue, 'Nothing to carry on with yet.'); drawCards('#vList', v.list, 'Nothing on your lists yet.'); drawLive(v.live, v); }
+    lastVideoServices = v.services || []; drawServices(lastVideoServices);
     pollEpisodes(now); pollLenses();
   } catch (e) { say('#verr', e.message); }
 }
@@ -530,26 +543,29 @@ function drawResults(st, words) {
   const lib = st.library || [], rows = st.rows || [];
   // the household's own titles the words match come first (no page asked), then the catalog's titles, grouped by title
   for (const h of lib) {
-    const el = hitCard(h.title, h.artwork, h.kind || '', (h.services || []).map((sv) => ({ label: 'Play on ' + sv.name + (sv.from ? ' \u00b7 ' + ({ continue: 'Continue watching', list: 'My list', owned: 'Owned' }[sv.from] || sv.from) : ''), go: () => playCard(sv.facet, sv.item, sv.name) })));
+    const el = hitCard(h.title, h.artwork, h.kind || '', (h.services || []).map((sv) => ({ label: 'Play on ' + sv.name + (sv.from ? ' \u00b7 ' + ({ continue: 'Continue watching', list: 'My list', owned: 'Owned' }[sv.from] || sv.from) : ''), go: () => playCard(sv.facet, sv.item, sv.name) })),
+      () => { const sv0 = (h.services || [])[0]; openDetails(sv0 && sv0.item ? { item: sv0.item, service: sv0.name, facet: sv0.facet, app: sv0.app || '' } : { catalog: true, title: h.title, kind: h.kind || '', artwork: h.artwork }); });   // the title's details from the search too (2026-10-11)
     box.appendChild(el);
   }
   const byTitle = new Map();
   for (const r of rows) { const c = r.candidate || {}; const key = (c.title || '') + '|' + (c.year || ''); if (!byTitle.has(key)) byTitle.set(key, { c, services: [] }); byTitle.get(key).services.push(r); }
   for (const [, g] of byTitle) {
     const c = g.c;
-    const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), c.poster || c.backdrop || null, c.kind === 'series' ? 'Series' : c.kind === 'movie' ? 'Film' : '', g.services.map((r) => ({ label: 'Play on ' + r.name + (r.offer ? ' \u00b7 ' + r.offer : ''), go: () => playResult(r.app, r.candidate, r.name) })));
+    const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), c.poster || c.backdrop || null, c.kind === 'series' ? 'Series' : c.kind === 'movie' ? 'Film' : '', g.services.map((r) => ({ label: 'Play on ' + r.name + (r.offer ? ' \u00b7 ' + r.offer : ''), go: () => playResult(r.app, r.candidate, r.name) })),
+      () => openDetails({ catalog: true, title: c.title, kind: c.kind || '', artwork: c.poster || c.backdrop || null, id: c.id }));
     box.appendChild(el);
   }
   if (!lib.length && !rows.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = st.done ? 'Nothing for "' + words + '" on your services.' + (st.elsewhere && st.elsewhere.length ? ' TMDB lists it on ' + st.elsewhere.join(', ') + '.' : '') : 'Searching\u2026'; box.appendChild(n); }
   if (st.attribution) { const a = document.createElement('p'); a.className = 'note'; a.textContent = st.attribution; box.appendChild(a); }
 }
-function hitCard(title, art, sub, plays) {
+function hitCard(title, art, sub, plays, details) {
   const el = document.createElement('div'); el.className = 'hit';
   const img = document.createElement('img'); img.alt = ''; if (art) img.src = art; el.appendChild(img);
   const t = document.createElement('div'); t.className = 't';
   const b = document.createElement('b'); b.textContent = title; t.appendChild(b);
   if (sub) { const sp = document.createElement('span'); sp.textContent = sub; t.appendChild(sp); }
   const on = document.createElement('div'); on.className = 'on';
+  if (details) { const d = document.createElement('button'); d.textContent = 'Details'; d.onclick = details; on.appendChild(d); }
   for (const pl of plays) { const btn = document.createElement('button'); btn.textContent = pl.label; btn.onclick = pl.go; on.appendChild(btn); }
   t.appendChild(on); el.appendChild(t);
   return el;
@@ -610,6 +626,103 @@ async function pollEpisodes(now) {
   } catch (e) { say('#verr', e.message); }
 }
 q('#vEpisodes .head').onclick = () => q('#vEpisodes').classList.toggle('open');
+// ---- playlists (2026-10-12, "Make sure I can manage playlists through the companion app"): the PC's playlists, read and changed through
+// the verbs the PC's own Playlists tab uses. The list open here is the one open on the PC (one brain): a tap on a playlist opens it there too.
+let plSig = '', plAt = 0, plShow = false, plPick = null;
+async function pollPlaylists(gap) {
+  if (gap && Date.now() - plAt < gap) return; plAt = Date.now();
+  let v; try { v = await api('/playlists'); } catch (e) { say('#verr', e.message); return; }
+  if (!v || v.error) { q('#vPlSt').textContent = ''; return; }
+  // the section stands when the PC's Playlists tab does: a TMDB account with lists, or lists already here; the first ask after a start
+  // can come back before the account's session has loaded, so it is asked again in a few seconds
+  const g = v.gate || {};
+  const stands = !!(g.active || g.linked || v.total);
+  q('#vPlaylists').style.display = stands ? '' : 'none';
+  if (!stands) { plAt = Date.now() - 26000; return; }
+  q('#vPlSt').textContent = v.run ? 'Playing ' + v.run.name : v.total ? v.total + (v.total === 1 ? ' playlist' : ' playlists') : 'none yet';
+  const sig = JSON.stringify([v.lists, v.open, v.run, v.undo, plShow, plPick]);
+  if (sig === plSig) return; plSig = sig;
+  drawPlaylists(v);
+}
+async function plAct(path, body) {
+  let r = null; try { r = await api(path, body || {}); } catch (e) { say('#verr', e.message); }
+  if (r && r.ok === false && r.error) say('#verr', r.error);
+  plSig = ''; await pollPlaylists(0); return r;
+}
+function plBtn(label, go, cls) { const b = document.createElement('button'); b.textContent = label; b.onclick = go; if (cls) b.className = cls; return b; }
+function plName(x) { return x.show ? x.show + ' S' + x.season + ' E' + x.episode : x.title; }
+function drawPlaylists(v) {
+  const body = q('#vPlBody'); body.innerHTML = '';
+  const bar = document.createElement('div'); bar.className = 'plbar';
+  if (v.undo) bar.appendChild(plBtn((v.undo.label || 'Changed') + ' \u00b7 Undo', () => plAct('/playlists/undo')));
+  if (v.run) {
+    const r = v.run; const n = document.createElement('p'); n.className = 'note';
+    n.textContent = 'Playing ' + r.name + ': ' + (r.index || 0) + ' of ' + r.total + (r.current ? ' \u00b7 ' + plName(r.current) + (r.current.service ? ' on ' + r.current.service : '') : '');
+    body.appendChild(n);
+    if (r.hasPrevious) bar.appendChild(plBtn('Previous', () => plAct('/playlists/move', { dir: 'previous' })));
+    if (r.hasNext) bar.appendChild(plBtn('Next', () => plAct('/playlists/move', { dir: 'next' })));
+    bar.appendChild(plBtn('Stop after this', () => plAct('/playlists/stop', { mode: 'after' })));
+    bar.appendChild(plBtn('Stop now', () => plAct('/playlists/stop', { mode: 'now' })));
+  }
+  const open = plShow && v.open;
+  // linked, but the link cannot reach lists (the PC's tab says the same, 2026-10-09): the reason, and nothing to press here
+  if (!open && v.gate && v.gate.linked && !v.gate.active && !v.total) {
+    const n = document.createElement('p'); n.className = 'note';
+    n.textContent = 'Playlists live on your TMDB account. Your TMDB key is the older v3 kind, and lists need the API read access token from the same TMDB page. Put it in Watch settings on the PC and link your account again.';
+    body.appendChild(n); return;
+  }
+  if (!open) {
+    bar.appendChild(plBtn('New playlist', async () => { const name = prompt('Name the new playlist'); if (name && name.trim()) await plAct('/playlists', { name: name.trim() }); }));
+    body.appendChild(bar);
+    if (!v.lists || !v.lists.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'No playlists yet. Make one here, or on the PC from a title\u2019s Details card.'; body.appendChild(n); return; }
+    for (const l of v.lists) {
+      const b = document.createElement('button'); b.className = 'item' + (v.run && v.run.listId === l.id ? ' now' : '');
+      b.appendChild(document.createTextNode(l.name));
+      const p = l.progress || { done: 0, total: 0 };
+      const pt = document.createElement('span'); pt.className = 'pt';
+      pt.textContent = !l.count ? 'Empty' : p.done + ' of ' + p.total + ' completed' + (l.resume ? ' \u00b7 next: ' + plName(l.resume) : ''); b.appendChild(pt);
+      const pb = document.createElement('span'); pb.className = 'pb'; const i = document.createElement('i'); i.style.width = (p.total ? Math.round(100 * p.done / p.total) : 0) + '%'; pb.appendChild(i); b.appendChild(pb);
+      b.onclick = async () => { plShow = true; plPick = null; await plAct('/playlists/open', { id: l.id }); };
+      body.appendChild(b);
+    }
+    return;
+  }
+  // one playlist: its name, Play, Rename, Delete, then its items in the PC's order; a tap on an item offers what the PC's tab offers
+  const head = document.createElement('div'); head.className = 'plhead';
+  head.appendChild(plBtn('\u2039 Playlists', () => { plShow = false; plPick = null; plSig = ''; pollPlaylists(0); }));
+  const nm = document.createElement('b'); nm.textContent = open.name; head.appendChild(nm);
+  body.appendChild(head);
+  const playing = v.run && v.run.listId === open.id;
+  bar.appendChild(plBtn(playing ? 'Playing' : 'Play', () => plAct('/playlists/play', { id: open.id }), playing ? '' : 'go'));
+  bar.appendChild(plBtn('Rename', async () => { const name = prompt('Rename ' + open.name, open.name); if (name && name.trim() && name.trim() !== open.name) await plAct('/playlists/rename', { id: open.id, name: name.trim() }); }));
+  bar.appendChild(plBtn('Delete', async () => { if (confirm('Delete ' + open.name + '? Undo is offered for a minute.')) { plShow = false; plPick = null; await plAct('/playlists/delete', { id: open.id }); } }));
+  body.appendChild(bar);
+  const groups = open.groups || [];
+  if (!groups.some((g) => (g.items || []).length)) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'Nothing in it yet. Add titles from the PC\u2019s Details cards.'; body.appendChild(n); return; }
+  for (const g of groups) {
+    if (g.name && groups.length > 1) { const h = document.createElement('div'); h.className = 'grp'; h.textContent = g.name; body.appendChild(h); }
+    for (const it of g.items || []) {
+      const b = document.createElement('button'); b.className = 'item' + (v.run && v.run.key === it.key ? ' now' : '') + (it.completed ? ' done' : '');
+      b.appendChild(document.createTextNode(it.pos + '. ' + plName(it) + (it.show && it.title ? ' \u00b7 ' + it.title : '')));
+      const pt = document.createElement('span'); pt.className = 'pt';
+      pt.textContent = (it.completed ? 'Completed' : it.playsOn ? 'Plays on ' + it.playsOn.name : 'No signed-in service has it') + (it.excluded ? ' \u00b7 skipped' : ''); b.appendChild(pt);
+      b.onclick = () => { plPick = plPick === it.key ? null : it.key; plSig = ''; drawPlaylists(v); };
+      body.appendChild(b);
+      if (plPick === it.key) {
+        const acts = document.createElement('div'); acts.className = 'plbar';
+        const ed = (op) => plAct('/playlists/edit', { id: open.id, op: Object.assign({ keys: [it.key] }, op) });
+        acts.appendChild(plBtn('Play from here', () => plAct('/playlists/play', { id: open.id, key: it.key }), 'go'));
+        acts.appendChild(plBtn(it.completed ? 'Mark not watched' : 'Mark watched', () => ed({ op: 'mark', done: !it.completed, keep: true })));
+        if (open.manual) { acts.appendChild(plBtn('Up', () => ed({ op: 'moveBy', how: 'up' }))); acts.appendChild(plBtn('Down', () => ed({ op: 'moveBy', how: 'down' }))); acts.appendChild(plBtn('To top', () => ed({ op: 'moveBy', how: 'top' }))); }
+        acts.appendChild(plBtn('Remove', () => { plPick = null; return ed({ op: 'remove' }); }));
+        body.appendChild(acts);
+      }
+    }
+  }
+}
+q('#vPlaylists .head').onclick = () => { q('#vPlaylists').classList.toggle('open'); if (q('#vPlaylists').classList.contains('open')) { plSig = ''; pollPlaylists(0); } };
+setInterval(() => { if (tabNow === 'V') pollPlaylists(q('#vPlaylists').classList.contains('open') ? 4000 : 30000); }, 2000);
+q('#vLivePanel .head').onclick = () => { q('#vLivePanel').classList.toggle('open'); if (q('#vLivePanel').classList.contains('open') && liveLast) drawLive(liveLast, liveV); };
 // the lens rows (New episodes this week, Released this month, Most read on Wikipedia, The Binge ...): the Watch screen's own rows, as posters
 let vLensSig = '', vLensAt = 0;
 async function pollLenses() {
@@ -630,11 +743,12 @@ async function pollLenses() {
       const cards = document.createElement('div'); cards.className = 'cards';
       for (const c of row.cards) {
         const b = document.createElement('button'); b.className = 'card';
-        const img = document.createElement('img'); img.className = 'art'; img.alt = ''; const art = c.catalog ? c.artwork : (c.item && c.item.artwork);
+        const img = document.createElement('img'); img.className = 'art'; img.alt = ''; const art = c.catalog ? c.artwork : (c.item && (c.item.poster || c.item.artwork));
         if (art) img.src = art; img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); }; b.appendChild(img);
         const t = document.createElement('b'); t.textContent = c.catalog ? c.title : c.item.title; b.appendChild(t);
         const sub = document.createElement('span'); sub.textContent = c.catalog ? (c.value || c.rating || '') : (c.lens || c.item.subtitle || c.rating || ''); if (sub.textContent) b.appendChild(sub);
         const sv = document.createElement('span'); sv.className = 'svc2'; sv.textContent = c.catalog ? (c.services || []).map((x) => x.name).join(', ') : c.service; b.appendChild(sv);
+        const di = document.createElement('button'); di.className = 'di'; di.textContent = 'i'; di.setAttribute('aria-label', 'Details'); di.onclick = (e) => { e.stopPropagation(); openDetails(c); }; b.appendChild(di);
         if (c.catalog) {
           const svcs = c.services || [];
           b.onclick = () => { if (!svcs.length) { say('#verr', 'None of your services carries ' + c.title + '.'); return; } if (svcs.length === 1) browsePlay(svcs[0].app, c.id, c.title, svcs[0].name); else { const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), art, 'Which service?', svcs.map((x) => ({ label: 'Play on ' + x.name + (x.offer ? ' \u00b7 ' + x.offer : ''), go: () => { q('#vResults').innerHTML = ''; browsePlay(x.app, c.id, c.title, x.name); } }))); q('#vResults').innerHTML = ''; q('#vResults').appendChild(el); window.scrollTo({ top: q('#vResults').offsetTop - 80, behavior: 'smooth' }); } };
@@ -650,61 +764,311 @@ async function browsePlay(app, cardId, title, service) {
   startVWork(title, service);
   try { const r = await api('/video/browse-play', { app, card: cardId }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); } catch (e) { endVWork(e.message, false); }
 }
+// the Details sheet (2026-10-11): core's titleDetails, asked again every 1.5 s while it is working (the first read of a title fetches TMDB)
+let detRun = 0;
+async function openDetails(c) {
+  const it = c.item || { title: c.title, kind: c.kind, artwork: c.artwork, id: c.id, url: null }; const run = ++detRun; const sh = q('#detSheet'); q('#perSheet').classList.remove('on'); q('#chSheet').classList.remove('on'); sh.classList.add('on'); sh.scrollTop = 0; sheetLock();
+  q('#detPlay').style.display = c.catalog ? 'none' : '';
+  q('#detTitle').textContent = it.title; q('#detFacts').textContent = [c.service, it.subtitle].filter(Boolean).join(' \u00b7 '); q('#detRating').textContent = ''; q('#detOverview').textContent = ''; q('#detCast').innerHTML = ''; q('#detWhere').textContent = ''; q('#detChan').innerHTML = ''; q('#detTags').innerHTML = '';
+  // a YouTube video's own description (2026-10-11): the channel, the length, the date, the words and the creator's tags, from its public page
+  const ab = it.about;
+  if (ab) {
+    const mins = ab.length ? Math.round(ab.length / 60) + ' min' : ''; q('#detFacts').textContent = [c.service, ab.channel, mins, ab.published].filter(Boolean).join(' \u00b7 ');
+    q('#detOverview').textContent = ab.description || '';
+    // the creator's tags: each opens that tag's page on the service, the related videos by the creator's own word
+    const tb = q('#detTags');
+    (ab.tags || []).slice(0, 16).forEach((t, i) => { const u = ab.tagUrls && ab.tagUrls[i]; const bt = document.createElement('button'); bt.textContent = '#' + t; if (u) bt.onclick = () => { sh.classList.remove('on'); detRun++; sheetLock(); startVWork('#' + t, c.service); api('/video/play', { facet: c.facet || '', kind: 'video', id: u, url: u, name: '#' + t + ' on ' + c.service }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not open'); }).catch((e) => endVWork(e.message)); }; else bt.disabled = true; tb.appendChild(bt); });
+    if (ab.channel) fillChannelBlock(c, ab, run);
+  }
+  // a plain video is the service's own, never TMDB's: no read, a film of the same name was standing in (2026-10-11)
+  if (it.kind === 'video' && !c.catalog) { q('#detNote').textContent = ab ? '' : 'A video on ' + (c.service || 'its service') + '. Its channel and words arrive once its page is read.'; return; }
+  q('#detNote').textContent = 'Reading the details\u2026'; const art = q('#detArt'); art.removeAttribute('src'); if (it.poster || it.artwork) art.src = it.poster || it.artwork;
+  q('#detPlay').onclick = () => { sh.classList.remove('on'); sheetLock(); startVWork(it.title, c.service); api('/video/play', { facet: c.facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not play'); }).catch((e) => endVWork(e.message)); };
+  for (let i = 0; i < 20 && run === detRun; i++) {
+    let r; try { r = await api('/video/details', { title: it.title, kind: it.kind || '', app: c.app || '' }); } catch (e) { q('#detNote').textContent = e.message; return; }
+    if (run !== detRun) return;
+    if (r.status === 'working') { await new Promise((res) => setTimeout(res, 1500)); continue; }
+    if (r.status !== 'ready' || !r.details) { q('#detNote').textContent = ab ? '' : (it.kind === 'video' ? 'A video on ' + (c.service || 'its service') + ', not a film or a series: TMDB has no page for it.' + (it.subtitle ? '' : '') : (r.why || 'No details for this title. It may not be on TMDB, or Prism has no TMDB key yet.')); return; }
+    const d = r.details; q('#detNote').textContent = '';
+    q('#detTitle').textContent = d.title || it.title;
+    const facts = [d.year, d.certification, d.runtime ? d.runtime + ' min' : '', d.seasons ? d.seasons + ' season' + (d.seasons === 1 ? '' : 's') : '', (d.genres || []).slice(0, 3).join(', ')].filter(Boolean).join(' \u00b7 ');
+    q('#detFacts').textContent = facts; q('#detRating').textContent = d.rating ? 'TMDB ' + d.rating.mean.toFixed(1) + ' from ' + d.rating.votes.toLocaleString() + ' votes' : '';
+    if (d.poster) art.src = d.poster;
+    q('#detOverview').textContent = (d.tagline ? d.tagline + ' \u2014 ' : '') + (d.overview || '');
+    const cast = q('#detCast'); cast.innerHTML = '';
+    for (const p of (d.cast || []).slice(0, 12)) { const cell = document.createElement('button'); const im = document.createElement('img'); im.alt = ''; if (p.photo) im.src = p.photo; cell.appendChild(im); const nm = document.createElement('span'); nm.textContent = p.name; cell.appendChild(nm); if (p.id) { cell.onclick = () => openPerson(p.id, p.name, p.photo, d.title || it.title); if (p.id === lastPersonId) cell.classList.add('here'); } cast.appendChild(cell); }
+    const pv = d.providers || {}; const names = (k) => (pv[k] || []).map((o) => o.play ? o.play.name || o.name : o.name).filter(Boolean);
+    const where = [];
+    if (names('stream').length) where.push('Stream: ' + [...new Set(names('stream'))].join(', '));
+    if (names('free').length) where.push('Free: ' + [...new Set(names('free'))].join(', '));
+    if (names('rent').length || names('buy').length) where.push('Rent or buy: ' + [...new Set([...names('rent'), ...names('buy')])].join(', '));
+    q('#detWhere').textContent = where.join('  \u00b7  ') + (where.length ? '  (US, as TMDB lists them)' : '');
+    return;
+  }
+  if (run === detRun) q('#detNote').textContent = 'Still reading. Try again in a moment.';
+}
+function sheetLock() { document.body.classList.toggle('locked', !!document.querySelector('.sheet.full.on')); }
+q('#detClose').onclick = () => { detRun++; q('#detSheet').classList.remove('on'); sheetLock(); };
+// a person's page (2026-10-11): their films and series from TMDB, newest first, each opening its own details
+let perRun = 0, perSort = 'date', perLast = null, lastPersonId = null;
+function drawCredits(p, fromTitle) {
+  const box = q('#perCredits'); box.innerHTML = '';
+  const credits = (p.credits || []).slice().sort((a, b) => perSort === 'name' ? (a.title || '').localeCompare(b.title || '') : (b.date || '').localeCompare(a.date || ''));
+  q('#perByDate').classList.toggle('on', perSort === 'date'); q('#perByName').classList.toggle('on', perSort === 'name');
+  let here = null;
+  for (const c of credits.slice(0, 80)) {
+    const b = document.createElement('button'); b.className = 'card' + (fromTitle && c.title === fromTitle ? ' here' : '');
+    const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (c.poster) img.src = c.poster; b.appendChild(img);
+    const t = document.createElement('b'); t.textContent = c.title; b.appendChild(t);
+    const s = document.createElement('span'); s.textContent = [c.year, c.kind === 'tv' ? 'Series' : 'Film', c.role].filter(Boolean).join(' \u00b7 '); b.appendChild(s);
+    b.onclick = () => { q('#perSheet').classList.remove('on'); perRun++; sheetLock(); openDetails({ catalog: true, title: c.title, kind: c.kind === 'tv' ? 'series' : 'movie', artwork: c.poster, id: c.id }); };
+    box.appendChild(b); if (b.className.includes('here')) here = b;
+  }
+  if (here) setTimeout(() => here.scrollIntoView({ block: 'center' }), 50);
+  if (!credits.length) q('#perNote').textContent = 'TMDB lists no films or series for ' + p.name + '.';
+}
+q('#perByDate').onclick = () => { perSort = 'date'; try { localStorage.setItem('prism.personSort', 'date'); } catch {} if (perLast) drawCredits(perLast.p, perLast.from); };
+q('#perByName').onclick = () => { perSort = 'name'; try { localStorage.setItem('prism.personSort', 'name'); } catch {} if (perLast) drawCredits(perLast.p, perLast.from); };
+try { perSort = localStorage.getItem('prism.personSort') === 'name' ? 'name' : 'date'; } catch {}
+async function openPerson(id, name, photo, fromTitle) {
+  lastPersonId = id; const run = ++perRun; const sh = q('#perSheet'); sh.classList.add('on'); sh.scrollTop = 0; q('#detSheet').classList.remove('on'); detRun++; sheetLock();
+  q('#perName').textContent = name || ''; q('#perFacts').textContent = ''; q('#perBio').textContent = ''; q('#perCredits').innerHTML = ''; q('#perNote').textContent = 'Reading\u2026';
+  const art = q('#perArt'); art.removeAttribute('src'); if (photo) art.src = photo;
+  for (let i = 0; i < 20 && run === perRun; i++) {
+    let r; try { r = await api('/video/person', { id }); } catch (e) { q('#perNote').textContent = e.message; return; }
+    if (run !== perRun) return;
+    if (r.status === 'working') { await new Promise((res) => setTimeout(res, 1500)); continue; }
+    if (r.status !== 'ready' || !r.person) { q('#perNote').textContent = r.why || 'No page for this person.'; return; }
+    const p = r.person; q('#perNote').textContent = '';
+    q('#perName').textContent = p.name; q('#perFacts').textContent = [p.known, p.born ? 'born ' + p.born : ''].filter(Boolean).join(' \u00b7 '); if (p.photo) art.src = p.photo;
+    q('#perBio').textContent = p.bio || '';
+    perLast = { p, from: fromTitle || null }; drawCredits(p, fromTitle || null);
+    return;
+  }
+  if (run === perRun) q('#perNote').textContent = 'Still reading. Try again in a moment.';
+}
+q('#perClose').onclick = () => { perRun++; q('#perSheet').classList.remove('on'); sheetLock(); };
+// the channel on the Details page itself (2026-10-11): its picture, name, facts, description and latest videos, read as the sheet opens
+async function fillChannelBlock(c, ab, run) {
+  const row = q('#detChan'); row.innerHTML = '';
+  const h = document.createElement('div'); h.className = 'ch1'; const im = document.createElement('img'); im.alt = ''; h.appendChild(im);
+  const w = document.createElement('div'); const nm = document.createElement('b'); nm.textContent = ab.channel; w.appendChild(nm); const fx = document.createElement('span'); fx.textContent = ab.channelUrl ? 'Reading the channel\u2026' : c.service; w.appendChild(fx); h.appendChild(w); row.appendChild(h);
+  const bb = document.createElement('div'); bb.className = 'chb';
+  if (ab.channelUrl) { const op = document.createElement('button'); op.textContent = 'Open the channel on Prism'; op.onclick = () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); startVWork(ab.channel, c.service); api('/video/play', { facet: c.facet || '', kind: 'channel', id: ab.channelUrl, url: ab.channelUrl, name: ab.channel }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not open'); }).catch((e) => endVWork(e.message)); }; bb.appendChild(op); }
+  row.appendChild(bb);
+  if (!ab.channelUrl) return;
+  let r; try { r = await api('/video/channel', { app: c.app, url: ab.channelUrl }); } catch (e) { fx.textContent = c.service; return; }
+  if (run !== detRun) return;
+  const ch = r && r.channel; if (!ch) { fx.textContent = c.service + ' \u00b7 the channel\u2019s page could not be read just now'; return; }
+  if (ch.name) nm.textContent = ch.name; fx.textContent = [c.service, ch.handle, ch.subscribers, ch.videos].filter(Boolean).join(' \u00b7 '); if (ch.avatar) im.src = ch.avatar;
+  if (ch.description) { const dd = document.createElement('div'); dd.className = 'chd'; dd.textContent = ch.description; row.insertBefore(dd, bb); }
+  const latest = (ch.latest || []).filter((v) => v.url !== (c.item && c.item.url));
+  if (latest.length) {
+    const lbl = document.createElement('div'); lbl.className = 'chl'; lbl.textContent = 'Latest from ' + (ch.name || ab.channel); row.insertBefore(lbl, bb);
+    const cards = document.createElement('div'); cards.className = 'cards';
+    for (const v of latest.slice(0, 12)) {
+      const b = document.createElement('button'); b.className = 'card';
+      const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (v.artwork) img.src = v.artwork; img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); }; b.appendChild(img);
+      const t = document.createElement('b'); t.textContent = v.title; b.appendChild(t); if (v.subtitle) { const sp = document.createElement('span'); sp.textContent = v.subtitle; b.appendChild(sp); }
+      b.onclick = () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); startVWork(v.title, c.service); api('/video/play', { facet: c.facet || '', kind: 'video', id: v.id || v.url, url: v.url, name: v.title }).then((r2) => { if (r2 && r2.ok === false) endVWork(r2.error || 'Could not play'); }).catch((e) => endVWork(e.message)); };
+      cards.appendChild(b);
+    }
+    row.insertBefore(cards, bb);
+  }
+}
+// a channel's own page (2026-10-11): name, handle, counts, description, latest videos; Open the channel plays its page on Prism
+let chRun = 0;
+async function openChannel(app, service, name, url, facet) {
+  const run = ++chRun; const sh = q('#chSheet'); sh.classList.add('on'); sh.scrollTop = 0; q('#detSheet').classList.remove('on'); detRun++; sheetLock();
+  q('#chName').textContent = name || ''; q('#chFacts').textContent = service || ''; q('#chBio').textContent = ''; q('#chLatest').innerHTML = ''; q('#chNote').textContent = "Reading the channel's page\u2026"; q('#chArt').removeAttribute('src');
+  q('#chOpen').onclick = () => { sh.classList.remove('on'); sheetLock(); startVWork(name, service); api('/video/play', { facet: facet || '', kind: 'channel', id: url, url, name }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not open'); }).catch((e) => endVWork(e.message)); };
+  let r; try { r = await api('/video/channel', { app, url }); } catch (e) { q('#chNote').textContent = e.message; return; }
+  if (run !== chRun) return;
+  const ch = r && r.channel; if (!ch) { q('#chNote').textContent = "The channel's page could not be read just now."; return; }
+  q('#chNote').textContent = ''; q('#chName').textContent = ch.name || name; q('#chFacts').textContent = [service, ch.handle, ch.subscribers, ch.videos].filter(Boolean).join(' \u00b7 '); q('#chBio').textContent = ch.description || ''; if (ch.avatar) q('#chArt').src = ch.avatar;
+  const box = q('#chLatest');
+  for (const v of (ch.latest || []).slice(0, 12)) {
+    const b = document.createElement('button'); b.className = 'card';
+    const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (v.artwork) img.src = v.artwork; img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); }; b.appendChild(img);
+    const t = document.createElement('b'); t.textContent = v.title; b.appendChild(t); if (v.subtitle) { const s = document.createElement('span'); s.textContent = v.subtitle; b.appendChild(s); }
+    b.onclick = () => { sh.classList.remove('on'); sheetLock(); startVWork(v.title, service); api('/video/play', { facet: facet || '', kind: 'video', id: v.id || v.url, url: v.url, name: v.title }).then((r2) => { if (r2 && r2.ok === false) endVWork(r2.error || 'Could not play'); }).catch((e) => endVWork(e.message)); };
+    box.appendChild(b);
+  }
+}
+q('#chClose').onclick = () => { chRun++; q('#chSheet').classList.remove('on'); sheetLock(); };
+// the Services section (2026-10-11): the catalog's services with their state here; Sign in / Set up opens the sign-in on the PC
+let svcMusic = null, svcMusicAt = 0, svcSig = '';
+async function drawServices(videoServices) {
+  if (!q('#vServices').classList.contains('open')) return;
+  if (Date.now() - svcMusicAt > 60000) { svcMusicAt = Date.now(); try { const m = await api('/music/quick'); svcMusic = m.sources || []; } catch { svcMusic = svcMusic || []; } }
+  const rows = SERVICES.map((s) => {
+    const v = (videoServices || []).find((x) => x.app === s.id); const m = (svcMusic || []).find((x) => x.app === s.id);
+    const state = v ? (v.status === 'signed-in' ? 'signed in' : v.status === 'signed-out' ? 'signed out' : 'set up') : m ? (m.session === 'signed-out' ? 'signed out' : 'signed in') : 'not set up';
+    return { id: s.id, name: s.name, kind: s.kind, state };
+  });
+  const sig = JSON.stringify(rows); if (sig === svcSig) return; svcSig = sig;
+  const box = q('#vSvcBody'); box.innerHTML = '';
+  const n = document.createElement('p'); n.className = 'note'; n.textContent = 'Every service Prism knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.'; box.appendChild(n);
+  for (const r of rows) {
+    const row = document.createElement('div'); row.className = 'srow';
+    const b = document.createElement('b'); b.textContent = r.name; row.appendChild(b);
+    const st = document.createElement('span'); st.textContent = r.state + (r.kind ? ' \u00b7 ' + r.kind : ''); if (r.state === 'signed out') st.className = 'amber'; row.appendChild(st);
+    if (r.state !== 'signed in') {
+      const go = document.createElement('button'); go.textContent = r.state === 'not set up' ? 'Set up on the PC' : 'Sign in on the PC';
+      go.onclick = async () => { try { await api('/ui/route', { route: 'prism://app/' + encodeURIComponent(r.id) + '/setup?signin=1' }); say('#verr', r.name + "'s sign-in is opening on the PC. Type into its fields from the Keyboard tab."); showTab('K'); } catch (e) { say('#verr', e.message); } };
+      row.appendChild(go);
+    }
+    box.appendChild(row);
+  }
+}
+q('#vServices .head').onclick = () => { q('#vServices').classList.toggle('open'); svcSig = ''; drawServices(lastVideoServices); };
+let lastVideoServices = [];
 function drawCards(sel, cards, empty) {
   const box = q(sel); box.innerHTML = '';
   if (!cards || !cards.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = empty; box.appendChild(n); return; }
   for (const c of cards) {
     const it = c.item;
     const b = document.createElement('button'); b.className = 'card';
-    const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (it.artwork) img.src = it.artwork;
+    // TMDB's poster first, the service's own picture when there is none (2026-10-11, "a mix of formats")
+    const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (it.poster || it.artwork) img.src = it.poster || it.artwork;
     img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); };
     b.appendChild(img);
     if (typeof it.progress === 'number' && it.progress > 0) { const bar = document.createElement('div'); bar.className = 'bar'; const i = document.createElement('i'); i.style.width = Math.round(Math.min(1, it.progress) * 100) + '%'; bar.appendChild(i); b.appendChild(bar); }
     const t = document.createElement('b'); t.textContent = it.title; b.appendChild(t);
     if (it.subtitle) { const sub = document.createElement('span'); sub.textContent = it.subtitle; b.appendChild(sub); }
     const sv = document.createElement('span'); sv.className = 'svc2'; sv.textContent = c.service; b.appendChild(sv);
+    // the title's details (2026-10-11): TMDB's, as the PC's Details card has them, in a sheet; a press on the i does not play
+    const di = document.createElement('button'); di.className = 'di'; di.textContent = 'i'; di.setAttribute('aria-label', 'Details'); di.onclick = (e) => { e.stopPropagation(); openDetails(c); }; b.appendChild(di);
     b.onclick = async () => { startVWork(it.title, c.service); try { const r = await api('/video/play', { facet: c.facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
     box.appendChild(b);
   }
 }
 // the bar under a channel's program (2026-10-05, "a data bar in each live channel ... how much runtime and how close to complete each current show is"):
 // elapsed of the program's runtime from the guide; a service that says only when it ends gets the time left and a grey bar; redrawn each poll
-function liveBar(b, ch) {
-  if (!ch.end) return;
-  const now = Date.now(), mins = (ms) => Math.max(0, Math.round(ms / 60000));
-  const bar = document.createElement('span'); bar.className = 'pb'; const fill = document.createElement('i'); bar.appendChild(fill);
-  const line = document.createElement('span'); line.className = 'pt';
-  if (ch.start && ch.end > ch.start) {
-    const total = ch.end - ch.start, done = Math.min(total, Math.max(0, now - ch.start));
-    fill.style.width = Math.round(100 * done / total) + '%';
-    line.textContent = mins(done) + ' of ' + mins(total) + ' min \u00b7 ' + mins(ch.end - now) + ' left';
-  } else { fill.className = 'unk'; line.textContent = mins(ch.end - now) + ' min left'; }
-  b.appendChild(bar); b.appendChild(line);
+function liveBarSet(b, ch) {
+  // the bar under a channel's program, made once and moved in place (2026-10-05, "a data bar in each live channel ... how much runtime and
+  // how close to complete each current show is"): elapsed of the program's runtime from the guide; a service that says only when it ends
+  // gets the time left and a grey bar
+  let bar = b.querySelector('.pb'), line = b.querySelector('.pt');
+  if (!ch.end) { if (bar) { bar.remove(); line.remove(); } return; }
+  if (!bar) { bar = document.createElement('span'); bar.className = 'pb'; bar.appendChild(document.createElement('i')); line = document.createElement('span'); line.className = 'pt'; b.appendChild(bar); b.appendChild(line); }
+  const fill = bar.firstChild, now = Date.now(), mins = (ms) => Math.max(0, Math.round(ms / 60000));
+  let width = '', text = '', unk = false;
+  if (ch.start && ch.end > ch.start) { const total = ch.end - ch.start, done = Math.min(total, Math.max(0, now - ch.start)); width = Math.round(100 * done / total) + '%'; text = mins(done) + ' of ' + mins(total) + ' min \u00b7 ' + mins(ch.end - now) + ' left'; }
+  else { unk = true; text = mins(ch.end - now) + ' min left'; }
+  if (fill.style.width !== width) fill.style.width = width;
+  if (fill.className !== (unk ? 'unk' : '')) fill.className = unk ? 'unk' : '';
+  if (line.textContent !== text) line.textContent = text;
+}
+let liveLast = null, liveV = null, liveQuery = '';
+const liveNodes = new Map();   // "app|channel id" -> the channel's button, kept across redraws
+function liveMatches(ch, s) {
+  if (!liveQuery) return true;
+  const hay = ((ch.series ? ch.series + ' ' : '') + ch.name + ' ' + (ch.now || '') + ' ' + s.name).toLowerCase();
+  return hay.includes(liveQuery);
+}
+function liveGroupOf(ch) {
+  if (ch.favorite) return { key: 'fav', label: 'Favorites' };
+  if (ch.category) return { key: 'cat:' + ch.category, label: ch.category };
+  const c = (ch.name || '').replace(/^(the|a|an)\s+/i, '').charAt(0).toUpperCase();
+  return { key: 'az:' + (/[A-Z]/.test(c) ? c : '#'), label: /[A-Z]/.test(c) ? c : '#' };
+}
+function liveFill(d, s) {
+  // a service's channels, made the first time its panel opens and reconciled after: the words and the bar of each move in place; the
+  // groups are the service's own words (its favourites, its categories), else the first letter, and a heading is made once per group
+  const body = d.querySelector('.body'); const seen = new Set();
+  const groups = new Map();
+  for (const ch of s.channels) { const g = liveGroupOf(ch); if (!groups.has(g.key)) groups.set(g.key, { label: g.label, items: [] }); groups.get(g.key).items.push(ch); }
+  const order = [...groups.keys()].sort((a, b) => (a === 'fav' ? -1 : b === 'fav' ? 1 : a.startsWith('cat:') !== b.startsWith('cat:') ? (a.startsWith('cat:') ? -1 : 1) : a.localeCompare(b)));
+  const hasFav = groups.has('fav'), hasCat = order.some((k) => k.startsWith('cat:')), lettersOnly = !hasCat && order.filter((k) => k !== 'fav').length <= 3;
+  let prev = null;
+  const place = (node) => { const want = prev ? prev.nextSibling : body.firstChild; if (want !== node) body.insertBefore(node, want); prev = node; };
+  // the jump bar: one button per group, kept at the top of the list while it scrolls (2026-10-11, "available at any point")
+  const jkey = s.app + '|#jump'; seen.add(jkey);
+  let jump = liveNodes.get(jkey);
+  if (!jump) { jump = document.createElement('div'); jump.className = 'jump'; liveNodes.set(jkey, jump); }
+  const jsig = order.map((k) => k + ':' + (groups.get(k).items.filter((ch) => liveMatches(ch, s)).length > 0)).join(',');
+  if (jump.dataset.sig !== jsig) {
+    jump.dataset.sig = jsig; jump.innerHTML = '';
+    for (const key of order) {
+      if (!groups.get(key).items.some((ch) => liveMatches(ch, s))) continue;
+      const jb = document.createElement('button'); jb.textContent = key === 'fav' ? '\u2605' : groups.get(key).label;
+      jb.onclick = () => { const h = liveNodes.get(s.app + '|#' + key); if (!h) return; const y = h.getBoundingClientRect().top + window.scrollY - jump.getBoundingClientRect().height - 8; window.scrollTo({ top: y, behavior: 'smooth' }); };
+      jump.appendChild(jb);
+    }
+  }
+  jump.classList.toggle('hidden', order.filter((k) => groups.get(k).items.some((ch) => liveMatches(ch, s))).length < 2);
+  place(jump);
+  for (const key of order) {
+    const g = groups.get(key);
+    const hkey = s.app + '|#' + key; seen.add(hkey);
+    let h = liveNodes.get(hkey);
+    if (!h) { h = document.createElement('div'); h.className = 'grp'; liveNodes.set(hkey, h); }
+    const label = key === 'fav' ? 'Favorites, as marked on ' + s.name : key.startsWith('cat:') ? g.label + ', as ' + s.name + ' files it' : g.label;
+    if (h.textContent !== label) h.textContent = label;
+    const shown = g.items.filter((ch) => liveMatches(ch, s)).length;
+    h.classList.toggle('hidden', shown === 0 || (lettersOnly && !hasFav && key.startsWith('az:') && order.length < 2));
+    place(h);
+    for (const ch of g.items) {
+      const ckey = s.app + '|' + ch.id; seen.add(ckey);
+      let b = liveNodes.get(ckey);
+      if (!b) {
+        b = document.createElement('button'); b.className = 'item ch';
+        const l1 = document.createElement('div'); l1.className = 'l1';
+        const nm = document.createElement('span'); l1.appendChild(nm);
+        const nw = document.createElement('span'); nw.className = 'now'; l1.appendChild(nw);
+        b.appendChild(l1);
+        b.onclick = async () => { if (onPhone(ch.url, ch.name, s.name)) return; startVWork(ch.name, s.name); try { const r = await api('/video/tune', { facet: s.facet, channel: ch.id, url: ch.url, name: ch.name }); if (r && r.ok === false) endVWork(r.error || 'Could not tune it', false); setTimeout(pollVideo, 1500); setTimeout(pollVideo, 5000); } catch (e) { endVWork(e.message, false); } };
+        liveNodes.set(ckey, b);
+      }
+      const name = (ch.event && ch.series ? ch.series + ' \u00b7 ' : '') + ch.name;
+      const l1 = b.firstChild;
+      if (l1.children[0].textContent !== name) l1.children[0].textContent = name;
+      if (l1.children[1].textContent !== (ch.now || '')) l1.children[1].textContent = ch.now || '';
+      const tip = ch.now && ch.end ? ch.now + ' \u00b7 ' + Math.max(0, Math.round((ch.end - Date.now()) / 60000)) + ' min left' : (ch.now || '');
+      if (b.title !== tip) b.title = tip;
+      liveBarSet(b, ch.now ? ch : {});
+      b.classList.toggle('hidden', !liveMatches(ch, s));
+      place(b);
+    }
+  }
+  for (const [key, node] of [...liveNodes]) if (key.startsWith(s.app + '|') && !seen.has(key)) { node.remove(); liveNodes.delete(key); }
 }
 function drawLive(live, v) {
+  liveLast = live; liveV = v;
+  const panel = q('#vLivePanel'); if (!panel.classList.contains('open')) return;   // nothing drawn while the panel is closed
   const box = q('#vLive');
-  const wasOpen = new Set([...box.querySelectorAll('.svc.open .head span:nth-child(2)')].map((e) => e.textContent));   // a redraw (the bars move each minute) keeps what was open
-  box.innerHTML = '';
-  if (!live || !live.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = v && v.liveReading ? 'Reading your services\' live guides\u2026' : v && v.liveCanRead ? 'No live channels read yet. They are read while this section is open; give it a moment.' : 'No live channels on your services.'; box.appendChild(n); return; }
+  const note = box.querySelector('p.note'); if (note) note.remove();
+  if (!live || !live.length) { for (const d of [...box.querySelectorAll('.svc')]) d.remove(); liveNodes.clear(); const n = document.createElement('p'); n.className = 'note'; n.textContent = v && v.liveReading ? 'Reading your services\' live guides\u2026' : v && v.liveCanRead ? 'No live channels read yet. They are read while this section is open; give it a moment.' : 'No live channels on your services.'; box.appendChild(n); return; }
+  const keep = new Set();
+  let prev = null;
   for (const s of live) {
-    const d = document.createElement('div'); d.className = 'svc';
-    const head = document.createElement('button'); head.className = 'head';
-    head.innerHTML = '<span class="chev">&#9654;</span><span></span><span class="st"></span>';
-    head.children[1].textContent = s.name; head.children[2].textContent = s.channels.length + (s.channels.length === 1 ? ' channel' : ' channels');
-    head.onclick = () => d.classList.toggle('open');
-    if (wasOpen.has(s.name)) d.classList.add('open');
-    d.appendChild(head);
-    const body = document.createElement('div'); body.className = 'body';
-    for (const ch of s.channels) {
-      const b = document.createElement('button'); b.className = 'item';
-      const nm = document.createElement('span'); nm.textContent = (ch.event && ch.series ? ch.series + ' \u00b7 ' : '') + ch.name; b.appendChild(nm);
-      if (ch.now) { const nw = document.createElement('span'); nw.className = 'now'; nw.textContent = ch.now; b.appendChild(nw); liveBar(b, ch); }
-      b.onclick = async () => { if (onPhone(ch.url, ch.name, s.name)) return; startVWork(ch.name, s.name); try { const r = await api('/video/tune', { facet: s.facet, channel: ch.id, url: ch.url, name: ch.name }); if (r && r.ok === false) endVWork(r.error || 'Could not tune it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
-      body.appendChild(b);
+    keep.add(s.app);
+    let d = box.querySelector('.svc[data-app="' + s.app + '"]');
+    if (!d) {
+      d = document.createElement('div'); d.className = 'svc'; d.dataset.app = s.app;
+      const head = document.createElement('button'); head.className = 'head';
+      head.innerHTML = '<span class="chev">&#9654;</span><span></span><span class="st"></span>';
+      head.onclick = () => { d.classList.toggle('open'); if (d.classList.contains('open') && liveLast) { const s2 = liveLast.find((x) => x.app === s.app); if (s2) liveFill(d, s2); } };
+      d.appendChild(head);
+      const body = document.createElement('div'); body.className = 'body'; d.appendChild(body);
     }
-    d.appendChild(body); box.appendChild(d);
+    const head = d.firstChild;
+    if (head.children[1].textContent !== s.name) head.children[1].textContent = s.name;
+    const shown = liveQuery ? s.channels.filter((ch) => liveMatches(ch, s)).length : s.channels.length;
+    const st = liveQuery ? shown + ' of ' + s.channels.length : s.channels.length + (s.channels.length === 1 ? ' channel' : ' channels');
+    if (head.children[2].textContent !== st) head.children[2].textContent = st;
+    if (liveQuery && shown > 0 && !d.classList.contains('open')) { d.classList.add('open'); d.dataset.autoOpen = '1'; }
+    if (!liveQuery && d.dataset.autoOpen) { delete d.dataset.autoOpen; d.classList.remove('open'); }
+    if (d.classList.contains('open')) liveFill(d, s);
+    d.style.display = liveQuery && shown === 0 ? 'none' : '';
+    const want = prev ? prev.nextSibling : box.firstChild;
+    if (want !== d) box.insertBefore(d, want);
+    prev = d;
   }
+  for (const d of [...box.querySelectorAll('.svc')]) if (!keep.has(d.dataset.app)) { for (const key of [...liveNodes.keys()]) if (key.startsWith(d.dataset.app + '|')) liveNodes.delete(key); d.remove(); }
 }
+q('#vLiveQ').oninput = () => { liveQuery = q('#vLiveQ').value.trim().toLowerCase(); if (liveLast) drawLive(liveLast, liveV); };
 // the Captions sheet (2026-10-05, "The caption button should open the menu of options and allow selection"): the service's own subtitle and
 // audio tracks as the PC's menu lists them, the one in use marked; a tap picks it on the PC; Close lets a service's own panel close. A
 // service without a tracks script gets its own captions button pressed on the PC instead, as before.
@@ -734,7 +1098,7 @@ async function openTracks() {
   section('Subtitles', 'subtitles'); section('Audio', 'audio');
   if (!list.children.length) none('');
 }
-q('#vRetry').onclick = async () => { if (!vTile) return; q('#vRetry').disabled = true; try { await api('/tiles/' + encodeURIComponent(vTile) + '/command', { cmd: 'retry' }); } catch (e) { say('#verr', e.message); } setTimeout(() => { q('#vRetry').disabled = false; pollVideo(); }, 1500); };
+q('#vRetry').onclick = async () => { if (!vTile) return; q('#vRetry').disabled = true; try { await api('/tiles/' + encodeURIComponent(vTile) + '/command', { cmd: q('#vRetry').dataset.cmd || 'retry' }); } catch (e) { say('#verr', e.message); } setTimeout(() => { q('#vRetry').disabled = false; pollVideo(); }, 1500); };
 q('#trkClose').onclick = () => { q('#trkSheet').classList.remove('on'); if (vTile) api('/video/tracks-done', { tile: vTile }).catch(() => {}); };
 // the TMDB key, sent from the phone it was copied on (the guide's code opens this page with #tmdb). The box is emptied as soon as it is
 // sent, and the key is kept nowhere on the phone
@@ -754,7 +1118,7 @@ for (const b of document.querySelectorAll('[data-v]')) b.onclick = async () => {
   let c = b.dataset.v;
   if (c === 'captions' && vCanTracks) { openTracks(); return; }
   if (c === 'play') c = vPlaying ? 'pause' : 'play';
-  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { m.textContent = wallMuted ? 'Unmute Prism on PC' : 'Mute Prism on PC'; m.classList.toggle('on', wallMuted); } }
+  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }
   if (c === 'pause') streamHold(true); else if (c === 'play') streamHold(false);
   try {
     if (c === 'restart') { const r = await api('/video/start-over', {}); if (r && r.ok === false) say('#verr', r.error || 'Could not start over'); }

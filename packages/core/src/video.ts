@@ -40,6 +40,8 @@ export interface VideoTileState {
   profileChoice: VideoProfileChoice | null;
   /** the page's own playback error as last seen, or null */
   error: string | null;
+  /** the service's own gate over the player (2026-10-13, Twitch's content disclaimer): its words and the verb on its button, or null */
+  gate?: { text: string; verb: string } | null;
   /** the player fills the screen (element fullscreen): the stage is up (2026-09-21) */
   stage: boolean;
   /** the playback doctor reopened the title (2026-09-23): why, which try, when; or gave up after its tries */
@@ -168,6 +170,10 @@ export const SKIP_AD_PRESS_JS = SKIP_JS.replace("__PRESS__", "true").replace("__
 /** How often a playing title's page is asked for its skip offer. */
 export const SKIP_OFFER_MS = 2_000;
 /** Page-side, read-only: the largest video's MediaError, else a small visible box whose text is a playback error. Returns the words or "". */
+/** Is a video in motion on the page - not paused, not ended, with data, past its first second, of a watchable size? 'moving' or ''. The
+ *  doctor's last look before it says a title did not start (2026-10-13, Twitch: "it says it failed but I can hear it playing behind the
+ *  error" - the page's own playing reports went quiet for 45 s after a pre-roll while the stream ran on). */
+export const PLAYBACK_MOTION_PROBE_JS = "(function(){try{var vs=[].slice.call(document.querySelectorAll('video'));for(var i=0;i<vs.length;i++){var v=vs[i];if(!v.paused&&!v.ended&&v.readyState>=3&&v.currentTime>1){var r=v.getBoundingClientRect();if(r.width>=160&&r.height>=90)return 'moving';}}return '';}catch(e){return '';}})()";
 export const PLAYBACK_ERROR_PROBE_JS = `(function(){try{var vs=[].slice.call(document.querySelectorAll('video')),big=null,a=0;vs.forEach(function(v){var r=v.getBoundingClientRect();if(r.width*r.height>a){a=r.width*r.height;big=v;}});if(big&&big.error){var c=big.error.code;return 'the player reported a media error ('+(c===2?'network':c===3?'decode':c===4?'unsupported source':'aborted')+')';}var re=/error playing|playback error|something went wrong|we encountered an error|(cannot|can.t|unable to) play|video (is )?(unavailable|not available)|error code|try again later/i;var els=document.querySelectorAll('[role=dialog],[role=alert],[class*=rror],[class*=modal],[data-testid*=rror]');for(var i=0;i<els.length;i++){var e=els[i];if(!(e.offsetWidth>0&&e.offsetHeight>0)||e.offsetHeight>900)continue;var t=(e.textContent||'').replace(/\\s+/g,' ').trim();if(t.length>400)continue;if(re.test(t))return t.slice(0,200);}return '';}catch(x){return '';}})()`;
 /**
  * The picture falling behind the sound (2026-09-25, "The netflix audio and video are a little bit out of sync, are we able to detect and fix that if it
@@ -285,6 +291,8 @@ export class VideoController {
   }
   /** Phase 2 (video-menu-spec §4.1): the household's watch log - every play the wall saw, on this device only, never sent. */
   private log: MenuLogEntry[] = [];
+  /** The log of what this PC saw play, newest last (a category's 'watched most recently' rule reads it, 2026-10-11). */
+  menuLog(): readonly MenuLogEntry[] { return this.log; }
   private logLoaded = false;
   /** §4.2: when each title was first listed by each service, and its rank then. */
   private seen: FirstSeen = {};
@@ -320,6 +328,9 @@ export class VideoController {
   private readonly stageAskFirst = new Map<string, { first: number; wrote: number }>();
   /** the page's own playback error, as last seen (2026-09-21); healing it is the doctor's (2026-09-23) */
   private readonly errors = new Map<string, { text: string; at: number; refreshed: boolean }>();
+  /** the service's own gate over the player (2026-10-13, Twitch's content disclaimer, "I want them to see the disclaimer attached"): its words
+   *  and its verb, shown to the person; while it stands a pick is not timed out and the doctor does not call the title failed */
+  private readonly gates = new Map<string, { text: string; verb: string }>();
   /** the playback doctor's watch per tile, what it last did, and every automatic start per title address (the hourly cap) */
   private readonly doctor = new Map<string, DoctorWatch>();
   private readonly healNote = new Map<string, { why: string; attempt: number; at: number; gaveUp?: boolean }>();
@@ -378,6 +389,9 @@ export class VideoController {
   private readonly lastSeen = new Map<string, { info: NowPlaying | null; ctx: VideoContext | null }>();
 
   /** A tile is a video tile when its adapter declares any video script. */
+  /** How long a pick on this tile may take to its first frame before it is called a timeout: the usual 20 s, or the service's own time (adapter
+   *  videoStartMs: Apple TV's 43 s, 2026-10-12). */
+  private pickMs(tileId: string): number { return Math.max(PICK_TIMEOUT_MS, this.host.adapterOf(tileId)?.videoStartMs ?? 0); }
   isVideoTile(tileId: string): boolean { return this.host.tileExists(tileId) && isVideoAdapter(this.host.adapterOf(tileId)); }
   /** The page's playback edge (the prelude's poll, at once): the toggle on the wall had read a state up to a report late and
    *  sent pause to a paused player three times (2026-09-21 14:19). */
@@ -438,14 +452,16 @@ export class VideoController {
     // the owned pages (2026-09-22): kept by keepOwned - a report of them alone is done here
     if (lib.owned.length) {
       const kept = { continue: have?.continue ?? [], list: have?.list ?? [], shelves: have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(app, have, lib) };
-      this.libraries.set(app, kept); this.persist(app, "library", kept);
+      this.libraryAt.set(app, Date.now()); this.libraries.set(app, kept); this.persist(app, "library", kept);
       if (!lib.list.length && !lib.continue.length) return true;
     }
     // the person's own rows alone (2026-10-05, Twitch's Followed videos page): kept, and the list left as it was
     if (!lib.list.length && !lib.continue.length && lib.own.length) {
       const have2 = this.libraries.get(app);
-      const kept = { ...(have2 ?? { continue: [], list: [], shelves: [] }), own: mergeOwnRows(have2?.own, lib.own) };
-      this.libraries.set(app, kept); this.persist(app, "library", kept);
+      // a Continue Watching-only page that lists nothing part-watched empties the row (YouTube's history with every video finished, 2026-10-11):
+      // the page IS the row, and the sidebar's own row beside it is no reason to keep yesterday's cards
+      const kept = { ...(have2 ?? { continue: [], list: [], shelves: [] }), ...(lib.continueOnly ? { continue: [] } : {}), own: mergeOwnRows(have2?.own, lib.own) };
+      this.libraryAt.set(app, Date.now()); this.libraries.set(app, kept); this.persist(app, "library", kept);
       return true;
     }
     if (!lib.list.length && !lib.continue.length) return false;
@@ -456,7 +472,7 @@ export class VideoController {
     // a Continue Watching-only page IS the row (Fandango's /continuewatching, 2026-09-23); it never speaks for the list
     const contNow = lib.continue.length || lib.continueOnly ? lib.continue : have?.continue ?? [];
     const merged = { continue: contNow, list: lib.list.length || (settled && !lib.continueOnly) ? this.screenList(app, lib.list) : have?.list ?? [], shelves: have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), owned: now?.owned ?? have?.owned ?? [], ownedMissed: now?.ownedMissed ?? have?.ownedMissed ?? {} };
-    this.libraries.set(app, merged);
+    this.libraryAt.set(app, Date.now()); this.libraries.set(app, merged);
     this.persist(app, "library", merged);
     return true;
   }
@@ -471,7 +487,7 @@ export class VideoController {
     void this.loadApp(app);
     const have = this.libraries.get(app);
     const kept = { ...(have ?? { continue: [], list: [] }), shelves: lib.shelves };
-    this.libraries.set(app, kept);
+    this.libraryAt.set(app, Date.now()); this.libraries.set(app, kept);
     this.persist(app, "library", kept);
     return true;
   }
@@ -481,13 +497,20 @@ export class VideoController {
    * ("Deletes should be uncommon but still would prefer not to leave orphaned items forever") - two, because a virtualized grid
    * can skip a row that rendered late (Fandango's first pass had 1,564 of some 1,950). A report with no owned list keeps it whole.
    */
-  private keepOwned(app: string, have: VideoLibrary | undefined, lib: { owned: VideoItem[]; ownedComplete: boolean }): { owned: VideoItem[]; ownedMissed: Record<string, number> } {
-    if (!lib.owned.length) return { owned: have?.owned ?? [], ownedMissed: have?.ownedMissed ?? {} };
+  private keepOwned(app: string, have: VideoLibrary | undefined, lib: { owned: VideoItem[]; ownedComplete: boolean; ownedTotal?: number }): { owned: VideoItem[]; ownedMissed: Record<string, number>; ownedPeak: number } {
+    if (!lib.owned.length) return { owned: have?.owned ?? [], ownedMissed: have?.ownedMissed ?? {}, ownedPeak: Math.max(have?.ownedPeak ?? 0, have?.owned?.length ?? 0) };
     const ids = new Set((have?.owned ?? []).map((x) => x.id));
     // a title that joins a library already known is new to it: a purchase made on the phone (2026-10-11, "How do we quickly surface
     // that item to the user?"). The first read of a library is the library, not two thousand purchases.
-    if (ids.size > 0) {
-      const fresh = lib.owned.filter((x) => !ids.has(x.id));
+    // ... and only near the front of the read: a service lists what was added last first, and a title an earlier partial read of a
+    // large library had missed turns up anywhere (The Guard, 2011, read as new on 2026-10-11 by the first walk after this was built)
+    // ... and not a read that brings dozens back at once: that is a library recovering from a short read (Fandango, 2026-10-12: seventy titles
+    // dropped by a walk that stopped at its first screen came back the next walk, ten of them 'new'), not ten purchases
+    const peak = Math.max(have?.ownedPeak ?? 0, have?.owned?.length ?? 0, lib.ownedTotal ?? 0);
+    const recovering = lib.owned.filter((x) => !ids.has(x.id)).length > VideoController.NEW_OWNED_FRONT * 3 || (peak > 50 && ids.size < peak * 0.95);
+    // ... and only from a whole read (2026-10-12, Jack Frost and Beethoven: a walk's part-way reports put old titles at the front)
+    if (ids.size > 0 && !recovering && lib.ownedComplete) {
+      const fresh = lib.owned.slice(0, VideoController.NEW_OWNED_FRONT).filter((x) => !ids.has(x.id));
       if (fresh.length) {
         const at = Date.now();
         const seen = { ...(this.newOwned.get(app) ?? {}) };
@@ -498,16 +521,20 @@ export class VideoController {
     }
     let owned = [...(have?.owned ?? []), ...lib.owned.filter((x) => !ids.has(x.id))].slice(0, 3000);   // a library of two thousand fits (some 400 KB in the store)
     let missed = { ...(have?.ownedMissed ?? {}) };
-    if (lib.ownedComplete && lib.owned.length >= 50) {
+    // a title goes only when a whole read near the library's size has missed it twice: reads of 1537 and 1720 of 1911 (Fandango, 2026-10-12)
+    // each missed different titles, and 225 went between them
+    if (lib.ownedComplete && lib.owned.length >= 50 && lib.owned.length >= peak * 0.95) {
       const seen = new Set(lib.owned.map((x) => x.id));
       for (const x of owned) missed[x.id] = seen.has(x.id) ? 0 : (missed[x.id] ?? 0) + 1;
       owned = owned.filter((x) => (missed[x.id] ?? 0) < 2);
       missed = Object.fromEntries(Object.entries(missed).filter(([id, n]) => n > 0 && owned.some((x) => x.id === id)));
     }
-    return { owned, ownedMissed: missed };
+    return { owned, ownedMissed: missed, ownedPeak: Math.max(peak, owned.length) };
   }
   /** How long a title just bought stays new (seven days: "New in your library" on Watch). */
   static readonly NEW_OWNED_MS = 7 * 24 * 3_600_000;
+  /** How far into a read a title can stand and still count as new: the first few, where a service puts what was added last. */
+  static readonly NEW_OWNED_FRONT = 8;
   /** When each owned title first joined a known library, per App (new-owned in the store). */
   private readonly newOwned = new Map<string, Record<string, number>>();
   /** The titles that joined this App's library within the window, newest first, with when each did. */
@@ -518,12 +545,14 @@ export class VideoController {
     // newest first: by when each joined, and among those that joined in one read by their place in the list (a read appends)
     return owned.map((x, i) => ({ item: x, at: seen[x.id] ?? -1, i })).filter((n) => n.at >= 0 && now - n.at <= windowMs).sort((a, b) => b.at - a.at || b.i - a.i).map(({ item, at }) => ({ item, at }));
   }
+  /** The App's record of what joined its library forgotten (a reader that had read wrong titles as owned, Fandango 2026-10-12): New in your library empties. */
+  clearNewOwned(appKey: string): void { this.newOwned.set(appKey, {}); this.persist(appKey, "new-owned", {}); }
   /** The App's list IS empty (its own list page said so and settled): the older read goes. */
   clearList(app: string): void {
     const have = this.libraries.get(app);
     if (!have?.list?.length) return;
     const merged = { continue: have.continue ?? [], list: [], shelves: have.shelves ?? [] };
-    this.libraries.set(app, merged);
+    this.libraryAt.set(app, Date.now()); this.libraries.set(app, merged);
     this.persist(app, "library", merged);
   }
   /** The App's profiles as the wall has seen them (the menu's choice list); empty until the service has shown its gate once. */
@@ -618,7 +647,7 @@ export class VideoController {
       // a page reports the rows it has: a report without a shelf the last one had keeps that shelf (My List lives on its own page);
       // the owned list rides through every report (a home page's report had rebuilt the library without it, 2026-09-22)
       const merged = { continue: lib.continue.length ? lib.continue : have?.continue ?? [], list: lib.list.length ? this.screenList(app, lib.list) : have?.list ?? [], shelves: lib.shelves.length ? lib.shelves : have?.shelves ?? [], own: mergeOwnRows(have?.own, lib.own), ...this.keepOwned(app, have, lib) };
-      this.libraries.set(app, merged);
+      this.libraryAt.set(app, Date.now()); this.libraries.set(app, merged);
       this.persist(app, "library", merged);
     }
   }
@@ -628,6 +657,8 @@ export class VideoController {
     void this.load(tileId);
     let ctx = info?.video && typeof info.video === "object" ? info.video : null;
     this.lastSeen.set(tileId, { info, ctx });
+    const gate = info?.videoGate && typeof info.videoGate === "object" && typeof info.videoGate.text === "string" && info.videoGate.text.trim() ? { text: info.videoGate.text.trim(), verb: info.videoGate.verb || "Start watching" } : null;
+    if (gate) this.gates.set(tileId, gate); else this.gates.delete(tileId);
     this.checkPlayback(tileId, info, ctx);
     // the pick's name stands in for a face the page leaves unnamed: the same id or address, or a play that started within a
     // minute of the ask (Netflix resumes a show at its episode's own id)
@@ -678,9 +709,15 @@ export class VideoController {
     const app = this.appKey(tileId);
     if (!this.rowsHeld.has(tileId) && !this.rowsFrozen(app)) this.keepRows(app, info);   // a window still on the last person's page reports that person's rows
     // the profile gate (VP-3): kept for the wall's menu; a standing "always" choice is applied once per appearance
-    const prof = info?.videoProfiles && typeof info.videoProfiles === "object" && Array.isArray(info.videoProfiles.profiles) ? info.videoProfiles : null;
+    const prof0 = info?.videoProfiles && typeof info.videoProfiles === "object" && Array.isArray(info.videoProfiles.profiles) ? info.videoProfiles : null;
+    // a gate from another service's page is not this service's (2026-10-13, YouTube's "Watch as" list had Paramount+'s names and pictures: the
+    // screen's last report from the page it was leaving arrived after its adapter had changed)
+    const pageUrl = ctx?.url || this.host.urlOf(tileId) || "";
+    const own = this.host.adapterOf(tileId)?.match;
+    const onOwnSite = !own?.length || !pageUrl || own.some((h) => pageUrl.includes(h));
+    const prof = onOwnSite ? prof0 : null;
     this.profiles.set(tileId, prof);
-    this.keepProfiles(app, info);
+    if (onOwnSite) this.keepProfiles(app, info);
     // a gate asks; a SWITCHER (Movies Anywhere's nav) only says who is current - the standing choice is pressed on either
     // when the page is not on it (the guard keeps it to once per appearance)
     const choice0 = this.choices.get(this.appKey(tileId));
@@ -715,7 +752,7 @@ export class VideoController {
       else if (this.playing.get(tileId) && (ctx?.id === pend.id || (!!ctx?.url && ctx.url.includes(pend.id)) || (!!ctx?.title && (ctx.title === pend.name || ctx.series === pend.name)) || (pend.kind !== "live" && !!ctx && !ctx.ad && (!!ctx.title || !!ctx.series) && Date.now() - pend.at < 60_000) || (pend.kind === "live" && !!ctx && (ctx.kind === "live" || !!ctx.url) && !ctx.ad && this.liveLanded(tileId, pend, ctx)))) this.pending.delete(tileId);   // ... and a channel asked for has landed when a live channel plays, named or not (Peacock's live page names none, 2026-09-29)   // a series pick lands on an episode's own name: a real play within a minute of the ask is the ask landing (Paramount+, 2026-09-20)
       // a channel on a service tuned by its own walk whose page plays ANOTHER channel is the doctor's to tune again (2026-09-30 review): a
       // failed pick would have a small multiview window closed at once, before the doctor's 35 s; the pick stands until the doctor gives up
-      else if (Date.now() - pend.at > PICK_TIMEOUT_MS && !pend.failed && !(pend.kind === "live" && this.playing.get(tileId) && ctx?.kind === "live" && !!ctx.channel && !!this.host.adapterOf(tileId)?.videoTune)) pend.failed = "timeout";
+      else if (Date.now() - pend.at > this.pickMs(tileId) && !pend.failed && !this.gates.get(tileId) && !(pend.kind === "live" && this.playing.get(tileId) && ctx?.kind === "live" && !!ctx.channel && !!this.host.adapterOf(tileId)?.videoTune)) pend.failed = "timeout";
     }
     // the stage: the play a person asked for has begun (a real title, not an ad) - the player's fullscreen, once
     // the ask stands for its window of playing: the player's control may appear late (Hulu's a beat after the play, and its
@@ -765,6 +802,7 @@ export class VideoController {
         id, adapter: this.host.adapterIdOf(id), playing: this.playing.get(id) ?? false, video: this.contexts.get(id) ?? null,
         library: this.libraries.get(app) ?? { continue: [], list: [] }, resume: this.resumes.get(app) ?? null, pending: this.pending.get(id) ?? null,
         error: this.errors.get(id)?.text ?? null,
+        gate: this.gates.get(id) ?? null,
         recovering: this.healNote.get(id) ?? null,
         skip: this.skipOffer.get(id) ?? null,
         stage: this.host.onStage(id),
@@ -868,6 +906,14 @@ export class VideoController {
     const hit = (id ? all.find((x) => x.id === id) : undefined) ?? all.find((x) => key(x.title) === key(name));
     return hit?.url ?? null;
   }
+  /** A channel gone from the service's own rows (unfollowed on its page, 2026-10-13): out of every row that held it, kept. */
+  dropChannel(appKey: string, url: string): void {
+    const lib = this.libraries.get(appKey);
+    if (!lib || !lib.own) return;
+    const key = url.toLowerCase().replace(/\/+$/, "");
+    const next = { ...lib, own: lib.own.map((r) => ({ ...r, items: r.items.filter((x) => (x.url ?? "").toLowerCase().replace(/\/+$/, "") !== key && x.id !== url) })) };
+    this.libraries.set(appKey, next); this.persist(appKey, "library", next);
+  }
   dropFromList(appKey: string, id: string): void {
     const lib = this.libraries.get(appKey);
     if (!lib) return;
@@ -880,16 +926,28 @@ export class VideoController {
     const next = { ...lib, list: [item, ...(lib.list ?? [])] };
     this.libraries.set(appKey, next); this.persist(appKey, "library", next);
   }
+  /** A title the person removed from the service's library (2026-10-12): out of the stored library, its own rows and New in your library. */
+  dropFromLibrary(appKey: string, id: string): void {
+    const lib = this.libraries.get(appKey);
+    if (lib) {
+      const next = { ...lib, owned: (lib.owned ?? []).filter((x) => x.id !== id), own: (lib.own ?? []).map((r) => ({ ...r, items: r.items.filter((x) => x.id !== id) })).filter((r) => r.items.length > 0) };
+      this.libraries.set(appKey, next); this.persist(appKey, "library", next);
+    }
+    const seen = this.newOwned.get(appKey);
+    if (seen && id in seen) { const n = { ...seen }; delete n[id]; this.newOwned.set(appKey, n); this.persist(appKey, "new-owned", n); }
+  }
   dropFromContinue(appKey: string, id: string): void {
     const lib = this.libraries.get(appKey);
     if (!lib) return;
     const next = { ...lib, continue: (lib.continue ?? []).filter((x) => x.id !== id) };
     this.libraries.set(appKey, next); this.persist(appKey, "library", next);
   }
-  libraryOf(appKey: string): { library: VideoLibrary; resume: VideoResumePoint | null; recent: VideoResumePoint[]; live: VideoChannel[] } {
+  /** When each service's rows were last set here (a read, a merge), for the categories tab's "as read at" (2026-10-11). */
+  private libraryAt = new Map<string, number>();
+  libraryOf(appKey: string): { library: VideoLibrary; resume: VideoResumePoint | null; recent: VideoResumePoint[]; live: VideoChannel[]; at: number | null } {
     void this.loadApp(appKey);
     void this.loadMenu();   // the log and the first-seen record warm with the rows, so the menu's first open orders by them
-    return { library: this.libraries.get(appKey) ?? { continue: [], list: [], shelves: [] }, resume: this.resumes.get(appKey) ?? null, recent: this.recents.get(appKey) ?? [], live: this.live.get(appKey) ?? [] };
+    return { library: this.libraries.get(appKey) ?? { continue: [], list: [], shelves: [] }, resume: this.resumes.get(appKey) ?? null, recent: this.recents.get(appKey) ?? [], live: this.live.get(appKey) ?? [], at: this.libraryAt.get(appKey) ?? null };
   }
   /**
    * Phase 2: the merged rows of the universal menu (video-menu-spec §2 rows 1-2), ordered by §4 through the pure function
@@ -949,7 +1007,7 @@ export class VideoController {
     // had its pick marked failed, so it stayed "loading", the wall counted it as a title, and the empty stage stepped aside for the service's page
     if (kind !== "open") {
       const at = this.pending.get(tileId)!.at;
-      setTimeout(() => { const p = this.pending.get(tileId); if (p && p.at === at && !p.failed && !p.restored && !this.playing.get(tileId)) p.failed = "timeout"; }, PICK_TIMEOUT_MS + 2000);
+      setTimeout(() => { const p = this.pending.get(tileId); if (p && p.at === at && !p.failed && !p.restored && !this.playing.get(tileId)) p.failed = "timeout"; }, this.pickMs(tileId) + 2000);
     }
     this.stageAsk.set(tileId, Date.now());
     if (name) this.hints.set(tileId, { id, url, name, at: Date.now() });
@@ -1157,6 +1215,7 @@ export class VideoController {
     if (!d || d.url !== watch) { d = { url: watch, attempts: [], lastPos: null, lastPosAt: Date.now(), playingSince: 0, lastPlayAt: 0, lostAt: 0, healing: false, probing: false, wasStage: false, gaveUp: false }; this.doctor.set(tileId, d); this.healNote.delete(tileId); }
     if (!onTitle || d.healing) { d.lostAt = 0; return; }   // the page left the title (the person browsed on), or a heal is under way
     const now = Date.now();
+    if (this.gates.get(tileId)) { d.lastPlayAt = now; d.lostAt = 0; return; }   // the service's gate stands: the person's to answer, not the doctor's
     const ad = v?.ad === true;
     const playing = !movedChannel && !wrongChannel && (v?.kind === "live" && typeof v.playing === "boolean" ? v.playing : (!!info?.playing || v?.playing === true));   // another channel playing is not the one asked for
     const pos = typeof v?.position === "number" && isFinite(v.position) ? v.position : null;
@@ -1182,7 +1241,8 @@ export class VideoController {
     // the clock stopped while the page says it plays
     if (playing && !ad && pos !== null) {
       if (d.lastPos === null || Math.abs(pos - d.lastPos) > 0.25) { d.lastPos = pos; d.lastPosAt = now; }
-      else if (now - d.lastPosAt > DOCTOR_FROZEN_MS) { this.heal(tileId, d, "the picture froze"); return; }
+      // ... once the title has had its service's own time to start (a reopened Apple TV episode sits at its resume point for 43 s, 2026-10-12)
+      else if (now - d.lastPosAt > DOCTOR_FROZEN_MS && now - since > Math.max(DOCTOR_START_MS, this.host.adapterOf(tileId)?.videoStartMs ?? 0)) { this.heal(tileId, d, "the picture froze"); return; }
     } else { d.lastPos = pos; d.lastPosAt = now; }
     // stopped and loading with nothing to play on from (2026-10-06, "An item I was playing in multi window 2 is sitting there spinning like it's
     // frozen. Its a twitch video"): the player paused itself on a stall - no press, no command - and a stop had read as a person's pause, so the
@@ -1196,7 +1256,9 @@ export class VideoController {
     if (playing && !ad && pos !== null && !this.host.personActedSince?.(tileId, now - DOCTOR_PERSON_MS)) this.sampleAv(tileId, now);
     if (playing || ad || person) { d.lostAt = 0; return; }
     // never started since the ask (or the last heal)
-    if (d.lastPlayAt < since && now - since > DOCTOR_START_MS) { this.probeThenHeal(tileId, d, "it did not start"); return; }
+    // a service whose player is slow to its first frame says so (adapter videoStartMs): Apple TV's 43 s start was reopened at 35 s (2026-10-12)
+    const startMs = Math.max(DOCTOR_START_MS, this.host.adapterOf(tileId)?.videoStartMs ?? 0);
+    if (d.lastPlayAt < since && now - since > startMs) { this.probeThenHeal(tileId, d, "it did not start"); return; }
     // it had played, and the player is gone - no clock at all, not a pause (a paused player keeps its place and length)
     const gone = dur === null && (pos === null || pos === 0);
     if (d.lastPlayAt >= since && gone) {
@@ -1234,7 +1296,8 @@ export class VideoController {
       if (w!.bad < 2) return;
       w!.bad = 0;
       if (at - w!.nudgedAt > AV_NUDGE_GAP_MS) { w!.nudgedAt = at; this.nudgeAv(tileId, "the picture fell behind the sound"); return; }
-      this.healStall(tileId, "the picture stayed behind the sound");
+      // never reopened for it (2026-10-12, "Are you causing my big door prize stream to fail? Has done so twice": a PC at full load drops
+      // frames, and a reopen cannot mend that - the doctor reopened an episode three times and gave up on its page); the one nudge is all
     }, () => { w!.probing = false; });
   }
   /** The pause and play a person would press (the service's own player control), which brings sound and picture back together. */
@@ -1265,12 +1328,16 @@ export class VideoController {
     if (d.probing) return;
     if (!this.host.evaluate) { this.heal(tileId, d, why); return; }
     d.probing = true;
-    void this.host.evaluate(tileId, PLAYBACK_ERROR_PROBE_JS).then((said) => {
-      d.probing = false;
-      let words = "";
-      if (typeof said === "string") { try { const j: unknown = JSON.parse(said); words = typeof j === "string" ? j.trim() : ""; } catch { words = said.trim(); } }   // WebView2 answers JSON
-      if (words) this.errors.set(tileId, { text: words, at: Date.now(), refreshed: false });
-      this.heal(tileId, d, words || why);
+    const unwrap = (raw: unknown): string => { if (typeof raw !== "string") return ""; try { const j: unknown = JSON.parse(raw); return typeof j === "string" ? j.trim() : ""; } catch { return raw.trim(); } };   // WebView2 answers JSON
+    // a video in motion on the page is a title playing, whatever the page's reports said (2026-10-13): the doctor leaves it, noting the play
+    void this.host.evaluate(tileId, PLAYBACK_MOTION_PROBE_JS).then((moving) => {
+      if (unwrap(moving) === "moving") { d.probing = false; d.lastPlayAt = Date.now(); d.lostAt = 0; return; }
+      return this.host.evaluate!(tileId, PLAYBACK_ERROR_PROBE_JS).then((said) => {
+        d.probing = false;
+        const words = unwrap(said);
+        if (words) this.errors.set(tileId, { text: words, at: Date.now(), refreshed: false });
+        this.heal(tileId, d, words || why);
+      }, () => { d.probing = false; this.heal(tileId, d, why); });
     }, () => { d.probing = false; this.heal(tileId, d, why); });
   }
   /** A stall the orchestrator saw and could not nudge loose (an ad clock standing still): healed as the doctor heals, the title opened again. */
@@ -1356,6 +1423,14 @@ export class VideoController {
   }
 
   /** Retry (2026-09-21): the person's second try after the page's error - the title's own address opened again, the pick and the stage asked afresh. */
+  /** The person's press on the service's own gate (2026-10-13): the adapter's videoCmd presses the gate's button, nothing else. */
+  async gate(tileId: string): Promise<"ok" | "unavailable" | "unknown-tile"> {
+    if (!this.host.tileExists(tileId)) return "unknown-tile";
+    const own = this.cmdJs(this.host.adapterOf(tileId), "gate");
+    if (!own || !this.host.evaluate) return "unavailable";
+    try { const raw = await this.host.evaluate(tileId, own); if (raw === "true") { this.gates.delete(tileId); this.host.arm(tileId); return "ok"; } } catch { /* the page's answer is the verdict */ }
+    return "unavailable";
+  }
   async retry(tileId: string): Promise<"ok" | "unavailable" | "unknown-tile"> {
     if (!this.host.tileExists(tileId)) return "unknown-tile";
     // the page's own Retry first (2026-10-05, Netflix's "Too many people are using your account right now" with its Retry button: "add the retry
@@ -1642,7 +1717,7 @@ export class VideoController {
       const ask = this.liveAsk.get(tileId);
       if (p && from && ask?.at === at && ask.left && (this.host.urlOf(tileId) ?? "").split("?")[0] === from) p.failed = "the service went back to its page instead of playing the channel";
     }, TUNE_BOUNCE_MS);
-    setTimeout(() => { const p = stillOn(); if (p) p.failed = "timeout"; }, PICK_TIMEOUT_MS + 2000);
+    setTimeout(() => { const p = stillOn(); if (p) p.failed = "timeout"; }, this.pickMs(tileId) + 2000);
     await this.host.inject(tileId, `window.__prismVideoTune && window.__prismVideoTune(${JSON.stringify(channelId)})`);
     return "ok";
   }
@@ -1712,16 +1787,22 @@ export function splitEpisodeName<T extends { kind?: unknown; title: string; subt
 }
 /** The person's own rows merged (2026-10-05): a report's rows replace the kept rows of the same title; the rest stay (they come from other pages). */
 export function mergeOwnRows(have: Array<{ title: string; items: VideoItem[] }> | undefined, now: Array<{ title: string; items: VideoItem[] }>): Array<{ title: string; items: VideoItem[] }> {
-  if (!now.length) return have ?? [];
+  // a row of recordings yet to be made is never a row of Watch (YouTube TV's Scheduled recordings, 2026-10-12: "You cant really do anything
+  // with it"); a stored one goes too, since a row the service stops listing would otherwise stay
+  const upcoming = (r: { title: string }) => /scheduled recordings/i.test(r.title);
+  if (!now.length) { const h = have ?? []; return h.some(upcoming) ? h.filter((r) => !upcoming(r)) : h; }
   const titles = new Set(now.map((r) => r.title));
-  return [...(have ?? []).filter((r) => !titles.has(r.title)), ...now].slice(0, 12);
+  return [...(have ?? []).filter((r) => !titles.has(r.title) && !upcoming(r)), ...now.filter((r) => !upcoming(r))].slice(0, 12);
 }
-export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: VideoItem[]; shelves: Array<{ title: string; items: VideoItem[] }>; own: Array<{ title: string; items: VideoItem[] }>; owned: VideoItem[]; ownedComplete: boolean; continueOnly: boolean } {
+export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: VideoItem[]; shelves: Array<{ title: string; items: VideoItem[] }>; own: Array<{ title: string; items: VideoItem[] }>; owned: VideoItem[]; ownedComplete: boolean; ownedTotal?: number; continueOnly: boolean } {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const clean = (l: unknown): VideoItem[] => Array.isArray(l)
     ? l.filter((x): x is VideoItem => !!x && typeof x === "object" && typeof (x as VideoItem).id === "string" && typeof (x as VideoItem).title === "string")
       .map(splitEpisodeName)
-      .map((x) => ({ id: x.id, title: x.title, kind: typeof x.kind === "string" ? x.kind : "video", url: typeof x.url === "string" ? x.url : null, artwork: typeof x.artwork === "string" ? jpegArt(x.artwork) : null, subtitle: typeof x.subtitle === "string" ? x.subtitle : null, progress: typeof x.progress === "number" ? x.progress : null, ...(typeof x.badge === "string" && x.badge.trim() && !isAwardBadge(x.badge) ? { badge: x.badge.replace(/\s+/g, " ").trim().slice(0, 48), ...(x.badgeInArt === true ? { badgeInArt: true } : {}) } : {}) }))
+      .map((x) => ({ id: x.id, title: x.title, kind: typeof x.kind === "string" ? x.kind : "video", url: typeof x.url === "string" ? x.url : null, artwork: typeof x.artwork === "string" ? jpegArt(x.artwork) : null, subtitle: typeof x.subtitle === "string" ? x.subtitle : null, progress: typeof x.progress === "number" ? x.progress : null, ...(typeof x.badge === "string" && x.badge.trim() && !isAwardBadge(x.badge) ? { badge: x.badge.replace(/\s+/g, " ").trim().slice(0, 48), ...(x.badgeInArt === true ? { badgeInArt: true } : {}) } : {}),
+        // the channel a video is on and its address, as the page named them (YouTube, Twitch; 2026-10-11), and the tags the creator wrote
+        ...(typeof x.channel === "string" && x.channel.trim() ? { channel: x.channel.trim().slice(0, 80) } : {}), ...(typeof x.channelUrl === "string" && /^https:\/\//.test(x.channelUrl) ? { channelUrl: x.channelUrl.slice(0, 200) } : {}),
+        ...(Array.isArray(x.tags) ? { tags: x.tags.filter((t): t is string => typeof t === "string").slice(0, 30) } : {}) }))
     : [];
   const shelves = Array.isArray(r.shelves)
     ? r.shelves.filter((s): s is { title: string; items: unknown } => !!s && typeof s === "object" && typeof (s as { title?: unknown }).title === "string")
@@ -1732,7 +1813,12 @@ export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: Video
       .map((s) => ({ title: s.title, items: clean(s.items).slice(0, 200) })).filter((s) => s.items.length > 0).slice(0, 12)
     : [];
   // continueOnly (2026-09-23): a page that carries Continue Watching alone (Fandango's /content/browse/continuewatching) says nothing about the list
-  return { continue: clean(r.continue), list: clean(r.list), shelves, own, owned: clean(r.owned).slice(0, 3000), ownedComplete: r.ownedComplete === true, continueOnly: r.continueOnly === true };
+  return { continue: clean(r.continue), list: clean(r.list), shelves, own, owned: clean(r.owned).slice(0, 3000), ownedComplete: r.ownedComplete === true, continueOnly: r.continueOnly === true,
+    // the count the service's own page states (Fandango's "My Movies (1911)", 2026-10-12): what a read is judged by
+    ...(typeof r.ownedTotal === "number" && r.ownedTotal > 0 ? { ownedTotal: r.ownedTotal } : {}),
+    // the owned bookkeeping survives a boot (2026-10-12): how many reads each title has been missing, and the most the list has held
+    ...(r.ownedMissed && typeof r.ownedMissed === "object" ? { ownedMissed: Object.fromEntries(Object.entries(r.ownedMissed as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === "number")) } : {}),
+    ...(typeof r.ownedPeak === "number" && r.ownedPeak > 0 ? { ownedPeak: r.ownedPeak } : {}) };
 }
 
 /** One of a service's own subtitle or audio tracks as its player lists them (adapter videoTracks). */

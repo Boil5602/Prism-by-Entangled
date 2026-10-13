@@ -177,7 +177,7 @@ public sealed partial class MainWindow
             if (wall.LayoutMode == "hero" && !isHero)
                 sub.Items.Add(Item("Make hero", null, null, () => _brain.Call(HostCalls.PromoteHero, id)));
             if (hasCover)
-                sub.Items.Add(Item(vs.Peeked ? "Re-veil" : "Show ad 15s", null, null, () => _surfaces.TogglePeek(id)));
+                sub.Items.Add(Item(vs.Peeked ? "Hide ad" : "Show ad", null, null, () => _surfaces.TogglePeek(id)));
             sub.Items.Add(new MenuFlyoutSeparator());
             var rm = Item("Remove from wall", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
             rm.Foreground = Danger;
@@ -1246,6 +1246,7 @@ public sealed partial class MainWindow
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
     {
+        if (_channelCard is not null) { CloseChannelCard(); return true; }   // a channel's card
         if (_purchaseCard is not null) { ClosePurchaseCard(); return true; }   // the Rent or Buy card
         if (_tmdbGuide is not null) { CloseTmdbGuide(); return true; }   // the TMDB guide, over whatever opened it
         if (_tutorial is not null) { LeaveTutorial(); return true; }   // How Prism works
@@ -1381,7 +1382,7 @@ public sealed partial class MainWindow
             menu.Items.Add(Item("Make hero", null, null, () => _brain.Call(HostCalls.PromoteHero, id)));
         }
         var veil = _surfaces.VeilStates().FirstOrDefault(v => v.Id == id);
-        if (veil.Covered) menu.Items.Add(Item(veil.Peeked ? "Re-veil" : "Show ad 15s", null, null, () => _surfaces.TogglePeek(id)));
+        if (veil.Covered) menu.Items.Add(Item(veil.Peeked ? "Hide ad" : "Show ad", null, null, () => _surfaces.TogglePeek(id)));
         menu.Items.Add(new MenuFlyoutSeparator());
         var rm = Item("Remove from wall", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
         rm.Foreground = Danger;

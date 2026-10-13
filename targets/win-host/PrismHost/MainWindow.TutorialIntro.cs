@@ -127,7 +127,10 @@ public sealed partial class MainWindow
             var arrow = new Polygon { Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xFF, 0xFF, 0xFF)), Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x14, 0x17, 0x1C)), StrokeThickness = 1.5, IsHitTestVisible = false };
             foreach (var (x, y) in new[] { (0.0, 0.0), (0.0, 29.0), (7.5, 22.0), (12.5, 34.0), (17.0, 32.0), (12.0, 21.0), (21.0, 21.0) }) arrow.Points.Add(new Point(x, y));
             layer.Children.Add(ring); layer.Children.Add(itemRing); layer.Children.Add(caption); layer.Children.Add(ripple); layer.Children.Add(arrow);
-            top = new Popup { XamlRoot = RootGrid.XamlRoot, Child = layer, IsHitTestVisible = false };
+            // a windowed popup (its own top-level window), like the menu's own: an in-window popup can never stand over a menu flyout,
+            // so the cursor went behind the menu (2026-10-12, "the animated mouse cursor goes BEHIND the menu"); opened again after the
+            // menu, it is the newer window and stands over it
+            top = new Popup { XamlRoot = RootGrid.XamlRoot, Child = layer, IsHitTestVisible = false, ShouldConstrainToRootBounds = false };
 
             double px = w / 2, py = h * 0.58;
             void At(double x, double y) { px = x; py = y; Canvas.SetLeft(arrow, x); Canvas.SetTop(arrow, y); }

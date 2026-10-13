@@ -38,6 +38,16 @@ describe("the titles that joined a service's library (newlyOwned)", () => {
     expect(v.newlyOwned("fandango").length).toBe(1);   // still the one, from its first joining
   });
 
+  it("a title deep in a read is one an earlier read missed, not a purchase: only the front of a read can be new", () => {
+    const { v, item, read } = make();
+    const many = Array.from({ length: 30 }, (_, i) => item("m" + i, "Title " + i));
+    read(many);
+    read([...many.slice(0, 20), item("deep", "The Guard"), ...many.slice(20)]);   // turns up at position 20
+    expect(v.newlyOwned("fandango")).toEqual([]);
+    read([item("front", "Juniper and Rye"), ...many.slice(0, 20), item("deep", "The Guard"), ...many.slice(20)]);   // added last, listed first
+    expect(v.newlyOwned("fandango").map((n) => n.item.title)).toEqual(["Juniper and Rye"]);
+  });
+
   it("a partial read that misses titles makes none of them new when they return", () => {
     const { v, item, read } = make();
     read([item("a", "The Lantern Coast"), item("b", "Northbound")]);

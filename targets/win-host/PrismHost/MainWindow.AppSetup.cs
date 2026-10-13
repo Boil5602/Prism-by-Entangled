@@ -43,7 +43,13 @@ public sealed partial class MainWindow
         CloseFacetEditor();
         if (_viewfinder is not null) CancelViewfinder();
         var app = await FindAppAsync(appId);
-        if (app is null) { SetPill("Prism · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("app-setup", appId, saved: false); return; }
+        if (app is null)
+        {
+            // a catalog service not set up yet (the phone's Services section, 2026-10-11): it joins its player first, then its sign-in opens
+            var cat = _catalog.FirstOrDefault(e => e.Id == appId);
+            if (cat is not null && signIn) { _ = WelcomeAddAndSignInAsync(new WelcomeService(cat.Id, cat.Name, "", false, "unknown")); return; }
+            SetPill("Prism · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("app-setup", appId, saved: false); return;
+        }
         // the sign-in window opens AT the sign-in page (2026-09-29: opened at the service's home and sent to the sign-in page a moment later, the
         // two loads crossed and the home page won - Tubi's Sign in "did nothing")
         var adapter = AdapterNameFor(app);

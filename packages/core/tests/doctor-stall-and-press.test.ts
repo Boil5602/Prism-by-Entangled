@@ -7,14 +7,14 @@ import type { NowPlaying } from "../src/types.js";
 // reopen loaded the episode's page, which waits for a Play press).
 
 const URL = "https://www.twitch.tv/videos/2892751942";
-function rig(opts: { videoPlay?: boolean; person?: () => boolean } = {}) {
+function rig(opts: { videoPlay?: boolean; person?: () => boolean; moving?: boolean } = {}) {
   const navigated: string[] = [];
   const injected: string[] = [];
   const v = new VideoController({
     adapterOf: () => ({ match: ["www.twitch.tv"], videoContext: "/*c*/", ...(opts.videoPlay ? { videoPlay: "/*p*/" } : {}) }), adapterIdOf: () => "twitch", tileExists: () => true,
     inject: async (_id, js) => { injected.push(js); }, navigate: async (_id, url) => { navigated.push(url); }, dashId: () => "d", store: () => undefined,
     arm: () => {}, claimAudio: async () => {}, urlOf: () => URL, onStage: () => false, enterStage: () => {},
-    evaluate: async () => JSON.stringify(""), personActedSince: () => (opts.person ? opts.person() : false),
+    evaluate: async (_id, js) => JSON.stringify(opts.moving && js.includes("'moving'") ? "moving" : ""), personActedSince: () => (opts.person ? opts.person() : false),
   });
   const report = (video: Record<string, unknown>, playing: boolean) => v.onObservation("w2", { playing, title: "", artist: "", album: "", artwork: null, video: { kind: "video", title: "Newsday", url: URL, ...video } } as unknown as NowPlaying);
   return { v, navigated, injected, report };
@@ -82,5 +82,23 @@ describe("a channel whose match is only upcoming (B-335, found again after a res
     for (let t = 0; t < 120; t++) { live(false); await vi.advanceTimersByTimeAsync(1000); }
     expect(navigated).toEqual([]);
     expect(v.state(["w4"])[0]!.recovering).toMatchObject({ gaveUp: true, why: "not live yet. Upcoming: Arsenal vs. Birmingham City" });
+  });
+});
+
+describe("a video in motion is a title playing (2026-10-13, Twitch: 'it says it failed but I can hear it playing behind the error')", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+  it("the doctor's did-not-start verdict asks the page first: a running video keeps the title, a still page is reopened", async () => {
+    const running = rig({ moving: true });
+    await running.v.restoreTitle("w2", URL, "Newsday", false);
+    for (let t = 0; t < 45; t++) { running.report({ playing: false }, false); await vi.advanceTimersByTimeAsync(1000); }
+    expect(running.navigated).toEqual([]);
+    expect(running.v.state(["w2"])[0]!.recovering).toBeFalsy();
+
+    const still = rig();
+    await still.v.restoreTitle("w2", URL, "Newsday", false);
+    for (let t = 0; t < 45; t++) { still.report({ playing: false }, false); await vi.advanceTimersByTimeAsync(1000); }
+    expect(still.navigated).toEqual([URL]);
+    expect(still.v.state(["w2"])[0]!.recovering).toMatchObject({ why: "it did not start" });
   });
 });

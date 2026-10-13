@@ -109,7 +109,7 @@ public sealed class RemoteServer : IDisposable
                 if (method == "OPTIONS") { await WriteAsync(stream, 204, "", "text/plain"); return; }
                 if (method == "GET" && path == "/remote")
                 {
-                    var html = PageHtml.Replace("__TOKEN__", WebUtility.UrlEncode(token ?? ""));
+                    var html = PageHtml.Replace("__TOKEN__", WebUtility.UrlEncode(token ?? "")).Replace("__SERVICES__", ServicesJson);
                     // head=classic (2026-10-05, a bisect for iOS: "I still don't have the button to add to my Home Screen"): the page as it was before the
                     // install nudge's head additions - no status-bar style, the 128 px touch icon, the one-icon manifest - so the two can be compared on the phone
                     if (query.Contains("head=classic"))
@@ -261,6 +261,8 @@ public sealed class RemoteServer : IDisposable
         try { var p = Path.Combine(AppContext.BaseDirectory, "Assets", "brain", "prism-wordmark.html"); if (File.Exists(p)) { var s = File.ReadAllText(p).Trim(); if (s.Length > 0) return s; } } catch { }
         return "<b>Prism</b>";
     }
+    /// <summary>The catalog's services as the page lists them (2026-10-11): [{id, name, kind}], set by the host once the catalog is read.</summary>
+    public static volatile string ServicesJson = "[]";
     private static readonly string PageHtml = Services.RemotePage.Html.Replace("__WORDMARK__", Wordmark);
     private static readonly string PageVersion = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(PageHtml + AppVersion.Text))).ToLowerInvariant()[..12];
 

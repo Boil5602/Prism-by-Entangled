@@ -48,7 +48,8 @@ describe("the Live tab's guide (docs/features/live.md)", () => {
     // the grid begins now: every channel's program on now starts at the same left edge (2026-09-28, "cut it all off evenly")
     expect(all.rows.every((r) => r.programs.filter((p) => p.now).every((p) => p.start === all.window.start))).toBe(true);
     expect(all.window.start).toBe(Math.floor(NOW / 60_000) * 60_000);
-    expect(all.types).toEqual([{ type: "News", count: 2 }, { type: "Sports", count: 1 }]);
+    expect(all.types.map((t) => ({ type: t.type, count: t.count }))).toEqual([{ type: "News", count: 2 }, { type: "Sports", count: 1 }]);
+    expect(all.kinds).toEqual({ channels: 3, creators: 0, events: 0, inactive: 0 });   // each type counted by kind too (2026-10-12)
     expect(all.rows.map((r) => r.id)).toEqual(["cbsn", "nbcnow", "hq"]);
     expect(liveGuide(services, NOW, { type: "Sports" }).rows.map((r) => r.id)).toEqual(["hq"]);
     const buzz = liveGuide(services, NOW, { q: "morning buzz" });
@@ -119,5 +120,17 @@ describe("Local is only a station that is the household's own (2026-10-02)", () 
     const ch2 = (name: string) => ({ name, url: "https://www.peacocktv.com/watch/playback/live" });
     for (const n of ["NBC Boston News", "NBC Los Angeles News", "News 12 New York"]) expect(liveTypeOf(ch2(n)).type, n).toBe("News");
     expect(liveTypeOf({ name: "CBS Pittsburgh", url: "https://www.paramountplus.com/live-tv/stream/local/kdka/" }).type).toBe("Local");
+  });
+});
+
+describe("a stale read is unknown, not inactive (2026-10-13, 'why does youtubetv only show 9 channels on live with On Now selected')", () => {
+  it("leaves a channel read hours ago out of Inactive, with its old schedule drawn as nothing, while a fresh read with nothing coming is inactive", () => {
+    const now = Date.UTC(2026, 9, 13, 14);
+    const H = 3_600_000;
+    const old = { id: "a", name: "Old read", url: "https://x/a", logo: null, favorite: false, category: "Comedy", now: "The Office", nowEnds: now - 12 * H, readAt: now - 12 * H, schedule: [{ title: "The Office", start: now - 13 * H, end: now - 12 * H }] };
+    const freshQuiet = { id: "b", name: "Quiet", url: "https://x/b", logo: null, favorite: false, category: "Comedy", readAt: now - 5 * 60_000, schedule: [{ title: "Later", start: now + 30 * H, end: now + 31 * H }] };
+    const g = liveGuide([{ app: "ytv", name: "YouTube TV", facet: "f", channels: [old, freshQuiet] }], now, {});
+    expect(g.rows.map((r) => [r.name, !!r.inactive])).toEqual([["Old read", false], ["Quiet", true]]);
+    expect(g.kinds.inactive).toBe(1);
   });
 });

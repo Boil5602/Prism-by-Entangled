@@ -14,9 +14,14 @@
           "points": [
             "Press a service's card to add it and sign in.",
             "Add as many as you like, then press Done.",
-            "Come back any time from the Prism menu, Set up services."
+            "Come back any time from the Prism menu, Set up services.",
+            "Built in today: video from Apple TV, Disney+, Fandango at Home, HBO Max, Hulu, Movies Anywhere, Netflix, Paramount+, Peacock, Prime Video, Tubi, Twitch, YouTube TV, YouTube. Music from Amazon Music, Apple Music, Pandora, Spotify."
           ],
-          "open": { "label": "Open Set up services", "action": "setup-services", "where": "Prism menu, then Set up services" }
+          "open": {
+            "label": "Open Set up services",
+            "action": "setup-services",
+            "where": "Prism menu, then Set up services"
+          }
         },
         {
           "picture": "start-signin",
@@ -89,7 +94,11 @@
             "Your own ratings and playlists, once you link your account. They are the same on every device you link.",
             "Getting a key takes about three minutes with your phone. Prism shows a code for each step."
           ],
-          "open": { "label": "Get a free key", "action": "tmdb-guide", "where": "Watch settings, General, then Get a free key" }
+          "open": {
+            "label": "Get a free key",
+            "action": "tmdb-guide",
+            "where": "Watch settings, General, then Get a free key"
+          }
         },
         {
           "picture": "tmdb-cast",
@@ -173,7 +182,11 @@
           "points": [
             "Under Content updates, one switch turns the covers on live channels on or off for every channel."
           ],
-          "open": { "label": "Open Watch settings", "action": "watch-settings", "where": "The gear on the Watch page" }
+          "open": {
+            "label": "Open Watch settings",
+            "action": "watch-settings",
+            "where": "The gear on the Watch page"
+          }
         }
       ]
     },
@@ -203,7 +216,11 @@
           "title": "Pair a phone",
           "body": "Prism menu, Pair a phone shows a code. Scan it with your phone's camera. There is nothing to install: it opens a page in the phone's browser. The phone has to be on the same network as this PC.",
           "points": [],
-          "open": { "label": "Pair a phone", "action": "pair-phone", "where": "Prism menu, then Pair a phone" }
+          "open": {
+            "label": "Pair a phone",
+            "action": "pair-phone",
+            "where": "Prism menu, then Pair a phone"
+          }
         },
         {
           "picture": "phone-uses",
@@ -230,7 +247,11 @@
             "Sign in as someone else adds another person's sign-in to a service.",
             "Save the choices as a preset, then switch presets from the Prism menu."
           ],
-          "open": { "label": "Open Profiles", "action": "profiles", "where": "Prism menu, then Profiles" }
+          "open": {
+            "label": "Open Profiles",
+            "action": "profiles",
+            "where": "Prism menu, then Profiles"
+          }
         }
       ]
     },
@@ -247,7 +268,11 @@
             "Prism menu, Updates has Check now and Show what's changed.",
             "Track chooses Alpha, Beta or Full. Check chooses Every day, Once a week or Never."
           ],
-          "open": { "label": "Open Updates", "action": "updates", "where": "Prism menu, then Updates" }
+          "open": {
+            "label": "Open Updates",
+            "action": "updates",
+            "where": "Prism menu, then Updates"
+          }
         },
         {
           "picture": "help",

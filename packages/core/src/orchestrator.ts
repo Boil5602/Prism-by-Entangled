@@ -25,7 +25,7 @@ import { fillItemAddress, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, med
 import { cleanCandidates, type LookupState, type LookupServiceState, pickTitleHit } from "./video-lookup.js";
 import { sortCards, releaseOf, type HubSort } from "./hub-sort.js";
 import { BROWSE_FULL_PAGES, BROWSE_FULL_SIZE, BROWSE_GENRES, BROWSE_LOOKAHEAD, BROWSE_MAX_PAGES, BROWSE_REGION, BROWSE_ROW_SIZE, browseGenre, browseValue, discoverQuery, discoverTitles, inGenre, mergeDiscover, offerCounts, type BrowseCard, type BrowseGenre, type BrowseOffer, type BrowseTitle, type DiscoverRowId } from "./browse.js";
-import { MOST_READ_NAMED_MAX, isScreenDescription, mostReadDays, orderMostRead, readsValue, topListCandidates, type MostReadEntry } from "./most-read.js";
+import { MOST_READ_NAMED_MAX, isScreenDescription, mostReadDays, orderMostRead, readsValue, topArticles, topListCandidates, type MostReadEntry } from "./most-read.js";
 import { creditsAsResults, normSearch, peopleFromSearch } from "./search-view.js";
 import { FRESH_EPISODE_DAYS, FRESH_MOVIE_DAYS, dayBefore, freshValue, orderFresh } from "./fresh-rows.js";
 import { type BingeCandidate, type BingeThresholds } from "./binge.js";
@@ -35,6 +35,7 @@ export interface BingeEntry { at: number; done: boolean; cands: BingeCandidate[]
 export interface FreshEntry { at: number; done: boolean; cards: Array<import("./browse.js").BrowseCard & { date: string }>; through: string | null }
 import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
 import { purchaseOffer, storeProvidersOf, type PurchaseOffer } from "./purchase.js";
+import { pageInfoOf, type PageInfo } from "./categories.js";
 import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
 import { SCORE_URL, SCORE_SOURCE, SCORE_DAY_LEAGUES, mergeKept, parseLeagueScoreboard, parseScoreboard, scoreDayUrl, type ScoreGame } from "./scores.js";
 import { parseFeed, type NewsItem } from "./news-feeds.js";
@@ -980,6 +981,7 @@ export class Orchestrator {
     this.refresh.beforeReveal = async (id) => {
       const ok = await this.applyFocus(id);
       if (ok) await this.seekToVirtualPlayhead(id);
+      if (ok) await this.awaitStage(id);
       return ok;
     };
     // §19 incident sources (facts about software, never about people).
@@ -1329,7 +1331,7 @@ export class Orchestrator {
       // the boot is silent (rule 5 of the audio section); a document applied again is not a boot - the tile that has the sound keeps it (2026-09-28,
       // "I added a video to window 2 and it muted the big window, why is that still happening": adding window 2 applied the document again, this
       // muted every tile, the big screen with it, and nothing gave the sound back)
-      if (previous && cmd.tile === this.audio.focusedMedia && this.surfaces.has(cmd.tile)) { await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.heldQuiet(cmd.tile)); continue; }
+      if (previous && cmd.tile === this.audio.focusedMedia && this.surfaces.has(cmd.tile)) { await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.heldQuiet(cmd.tile) || this.intermission.quietForBreak(cmd.tile)); continue; }
       await this.drivers.surface.setMuted(cmd.tile, true);
     }
 
@@ -3000,7 +3002,7 @@ export class Orchestrator {
     // 2026-09-14: an unmute mid-break lifted the OWNER - the ad under the intermission - along with the soundscape ("it
     // sounds like the ad and the sound are playing at the same time"). The cover holds the source silent for the
     // length of the break, whatever the wall's switch says; the soundscape (below) is what the unmute brings in.
-    else if (owner) await this.drivers.surface.setMuted(owner, this.intermission.isCovered(owner) || this.heldQuiet(owner));
+    else if (owner) await this.drivers.surface.setMuted(owner, this.intermission.isCovered(owner) || this.intermission.quietForBreak(owner) || this.heldQuiet(owner));
     for (const [tile, amb] of this.ambient) if (amb.active && this.surfaces.has(amb.surface)) await this.drivers.surface.setMuted(amb.surface, on || this.audio.focusedMedia !== tile);
   }
 
@@ -4451,6 +4453,11 @@ export class Orchestrator {
         if (!this.video.isVideoTile(tileId)) return "unavailable";
         return this.video.retry(tileId);
       }
+      case "gate": {
+        // the person's press on the service's own gate (2026-10-13, Twitch's content disclaimer)
+        if (!this.video.isVideoTile(tileId)) return "unavailable";
+        return this.video.gate(tileId);
+      }
       case "nextepisode":
       case "skipintro":
       case "captions":
@@ -4596,6 +4603,8 @@ export class Orchestrator {
   videoLibrary(tileId: string) { return this.video.library(tileId); }
   /** VP-3: a service's kept library and resume point by its adapter's name, on the wall or not (sync; the first ask starts the read). */
   videoLibraryOf(appKey: string) { return this.video.libraryOf(appKey); }
+  /** What this PC saw play, for a category's own rule (categories.ts). */
+  videoMenuLog() { return this.video.menuLog(); }
   /** Phase 2: a report from an App's popped-out surface feeds that App's rows (keyed by its adapter's name). */
   videoObservePreview(adapterKey: string, info: NowPlaying | null): void { this.video.onPreviewObservation(adapterKey, info); }
   /** Phase 2: the universal menu's merged rows (video-menu-spec §2 / §4) over the named services. */
@@ -4665,6 +4674,16 @@ export class Orchestrator {
     return r;
   }
   posterFor(title: string, kind?: string | null): string | null { return factsFor(this.lenses.factsOf(), title, kind)?.poster ?? null; }
+  /** The pictures TMDB holds for a title the lens cache knows - the poster and the wide backdrop - or null while it is unknown (2026-10-13, the
+   *  Live page's On now cards: "tie out the live tv items ... with their posters from TMDB"). */
+  picturesFor(title: string, kind?: string | null): { poster: string | null; backdrop: string | null } | null {
+    const f = factsFor(this.lenses.factsOf(), title, kind);
+    return f ? { poster: f.poster ?? null, backdrop: f.backdrop ?? null } : null;
+  }
+  /** TMDB asked, in the background and under the person's own key, for titles the cache does not know yet; no key, nothing asked. */
+  ensurePictures(titles: ReadonlyArray<{ title: string; kind?: string | null }>): void {
+    if (this.lenses.hasKey() && titles.length) this.lenses.ensure(titles.slice(0, 400), ["tmdb", "poster"], false);
+  }
   /** TMDB's landscape backdrop for a title (2026-09-23, "Library is showing the movie posters, instead of the landscape oriented images ... use the same image style we're using elsewhere"). */
   backdropFor(title: string, kind?: string | null): string | null { return factsFor(this.lenses.factsOf(), title, kind)?.backdrop ?? null; }
   /** The person's order for Continue watching and My list, kept on the device by the runtime (2026-09-26). */
@@ -4684,7 +4703,8 @@ export class Orchestrator {
     // rows - "First released, on Wikidata" showed four titles, "TMDB community rating" mostly things already seen - and Browse already
     // reads the catalog on the household's services by rating, date and votes. The lenses stay defined (lensChoose, the remote).
     const shown = LENSES.filter((l) => l.id === WATCH_LENS && (!l.needsKey || hasKey));
-    const titles = [...rows.continue, ...rows.list].map((c) => ({ title: c.item.title, kind: c.item.kind, providers: providersOf(this.adapters.get(services.find((s) => s.app === c.app)?.adapter ?? c.app)) }));   // the card's own service tells a same-name pair apart (B-269)
+    // a plain video (YouTube's history, a Twitch VOD) is never a film or a series: no Wikipedia or TMDB read for it (the 429s of 2026-10-11)
+    const titles = [...rows.continue, ...rows.list].filter((c) => c.item.kind !== "video").map((c) => ({ title: c.item.title, kind: c.item.kind, providers: providersOf(this.adapters.get(services.find((s) => s.app === c.app)?.adapter ?? c.app)) }));   // the card's own service tells a same-name pair apart (B-269)
     const needs = [...new Set(shown.flatMap((l) => l.needs))];
     if (titles.length) this.lenses.ensure(titles, needs, hasKey);
     // a card the service gave no poster (Movies Anywhere's lazy images): TMDB's, under the key - asked for those cards alone (2026-09-22)
@@ -4700,9 +4720,13 @@ export class Orchestrator {
     const removing = (c: { app: string; item: { id: string } }) => this.removeJobs.get(c.app + "|" + c.item.id)?.status === "working";
     // a card with no picture takes TMDB's poster; a service whose row art is tall takes TMDB's landscape backdrop instead (2026-09-23)
     const withArt = (row: "continue" | "list") => <T extends { app: string; item: VideoItem }>(c: T): T => {
-      const wide = tall(c, row) ? this.backdropFor(c.item.title, c.item.kind) : null;
-      if (wide) return { ...c, item: { ...c.item, artwork: wide } };
-      return c.item.artwork ? c : { ...c, item: { ...c.item, artwork: this.backdropFor(c.item.title, c.item.kind) ?? this.posterFor(c.item.title, c.item.kind) } };
+      // Continue watching is drawn wide, so TMDB's landscape art stands in for the service's own whenever TMDB knows the title, not only
+      // where the adapter declares its art portrait (Fandango's and Apple TV's posters stayed tall, 2026-10-12); My list keeps the rule
+      const wide = row === "continue" || tall(c, row) ? this.backdropFor(c.item.title, c.item.kind) : null;
+      if (wide) return { ...c, item: { ...c.item, artwork: wide, artFrom: "tmdb" as const } };
+      if (c.item.artwork) return c;
+      const tmdb = this.backdropFor(c.item.title, c.item.kind) ?? this.posterFor(c.item.title, c.item.kind);
+      return tmdb ? { ...c, item: { ...c.item, artwork: tmdb, artFrom: "tmdb" as const } } : { ...c, item: { ...c.item, artwork: this.artById(c.app, c.item.id) } };
     };
     const own = this.lenses.ownRatingsMap();   // the person's own TMDB ratings on the cards (2026-10-03)
     const cont = orderByLens(rows.continue.filter((c) => !removing(c)), null, facts, own).map(withArt("continue")); const list = this.listRowWithJobs(orderByLens(rows.list, null, facts, own), services).map(withArt("list"));
@@ -4753,8 +4777,94 @@ export class Orchestrator {
   /** The details card for a title: TMDB's facts, polled until ready (title-details.ts). */
   /** The TMDB providers an adapter claims (tmdbProviders): how a "Where to watch" offer finds the household's service. */
   providersOfAdapter(adapterKey: string): number[] { return providersOf(this.adapters.get(adapterKey)); }
+  /** A followed channel unfollowed on its own page (adapter videoChannelUnfollow, 2026-10-13): the person's press only; on the page's word the channel
+   *  leaves the service's stored rows at once. */
+  async videoChannelUnfollow(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string, url: string): Promise<{ ok: boolean; error?: string }> {
+    const s = services.find((x) => x.app === app);
+    const spec = s ? this.adapters.get(s.adapter) : undefined;
+    if (!s || !spec?.videoChannelUnfollow || !/^https:\/\//.test(url)) return { ok: false, error: "this service has no unfollow here" };
+    const a = await this.askHiddenPage(s, url.replace(/\/+$/, ""), spec.videoChannelUnfollow, "unfollow", (token) => `window.__prismVideoChannelUnfollow && window.__prismVideoChannelUnfollow(${JSON.stringify(token)})`, 45_000);
+    if (a.r?.ok) { this.video.dropChannel(s.adapter, url); return { ok: true }; }
+    return { ok: false, error: typeof a.r?.error === "string" ? a.r.error : a.error ?? "the page did not unfollow" };
+  }
+  /** A channel's own page, read for its card (adapter videoChannelInfo): its facts and latest videos, or null when the service has no such read. */
+  async videoChannelInfo(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string, url: string): Promise<unknown> {
+    const s = services.find((x) => x.app === app);
+    const spec = s ? this.adapters.get(s.adapter) : undefined;
+    if (!s || !spec?.videoChannelInfo || !/^https:\/\//.test(url)) return null;
+    const page = spec.videoChannelPage ? spec.videoChannelPage.split("{url}").join(url.replace(/\/+$/, "")) : url;
+    const a = await this.askHiddenPage(s, page, spec.videoChannelInfo, "chan", (token) => `window.__prismVideoChannelInfo && window.__prismVideoChannelInfo(${JSON.stringify(token)})`, 45_000);
+    return a.r?.ok ? a.r.data ?? null : null;
+  }
+  /** A category's open pool on one service (adapter videoPool, 2026-10-11): everything the service's own page lists for a hashtag, read on its
+   *  hidden page, or null when the service has no such page or the read failed. */
+  async videoPool(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string, tag: string, which: "live" | "videos" = "live"): Promise<{ items: VideoItem[]; filter: string } | null> {
+    const s = services.find((x) => x.app === app);
+    const spec = s ? this.adapters.get(s.adapter) : undefined;
+    // the pool's second page (2026-10-13): the service's past videos for the word, read with its own script
+    const pageUrl = which === "videos" ? spec?.videoPoolVideosUrl : spec?.videoPoolUrl;
+    const script = which === "videos" ? spec?.videoPoolVideos : spec?.videoPool;
+    const fn = which === "videos" ? "__prismVideoPoolVideos" : "__prismVideoPool";
+    if (!s || !script || !pageUrl || !tag) return null;
+    const url = pageUrl.split("{q}").join(encodeURIComponent(tag.replace(/^#/, "")));   // the page's own address takes the word bare (a #tag keeps its # in the category since 2026-10-12; Twitch's tag directory answered nothing for %23comedy)
+    const a = await this.askHiddenPage(s, url, script, "pool", (token) => `window.${fn} && window.${fn}(${JSON.stringify(token)})`, 45_000);
+    const d = a.r?.ok ? (a.r.data as { items?: unknown; filter?: unknown } | null) : null;
+    if (!d || !Array.isArray(d.items)) return null;
+    return { items: (d.items as VideoItem[]).filter((it) => it && typeof it.title === "string" && typeof it.url === "string").slice(0, 40), filter: typeof d.filter === "string" ? d.filter : "" };
+  }
+  /** Tags creators wrote (2026-10-11): which reads an adapter offers. */
+  videoTagsSpec(adapterKey: string): { page: boolean; fetch: boolean } { const a = this.adapters.get(adapterKey); return { page: !!(a?.videoTags && a.videoTagsUrl), fetch: !!a?.videoTagsFetch }; }
+  /** Many titles' own tags from one page of the service (Twitch's followed live streams), read on its hidden page: {id: [tag]}, or null. */
+  async videoTagsPage(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>, app: string): Promise<Record<string, string[]> | null> {
+    const s = services.find((x) => x.app === app);
+    const spec = s ? this.adapters.get(s.adapter) : undefined;
+    if (!s || !spec?.videoTags || !spec.videoTagsUrl) return null;
+    const a = await this.askHiddenPage(s, spec.videoTagsUrl, spec.videoTags, "tags", (token) => `window.__prismVideoTags && window.__prismVideoTags(${JSON.stringify(token)})`, 45_000);
+    const d = a.r?.ok ? (a.r.data as { byId?: unknown } | null) : null;
+    if (!d || !d.byId || typeof d.byId !== "object") return null;
+    const out: Record<string, string[]> = {};
+    for (const [id, tags] of Object.entries(d.byId as Record<string, unknown>)) if (Array.isArray(tags)) out[id] = tags.filter((t): t is string => typeof t === "string").slice(0, 30);
+    return out;
+  }
+  private publicChain: Promise<unknown> = Promise.resolve();
+  private publicAt = 0;
+  /** A title's own tags from its public page (adapter videoTagsFetch): an anonymous read, no account, no cookie, no query string (§19/§22), one
+   *  at a time with a breath between. The creator's keywords meta, or null when the page could not be read. */
+  async videoTagsFetch(adapterKey: string, id: string): Promise<PageInfo | null> {
+    const a = this.adapters.get(adapterKey);
+    if (!a?.videoTagsFetch || !/^[A-Za-z0-9_-]{4,64}$/.test(id) || !this.drivers.net?.fetchStatic) return null;
+    const url = a.videoTagsFetch.split("{id}").join(id);
+    if (!/^https:\/\/[^?#]+$/.test(url)) return null;
+    const run = async (): Promise<PageInfo | null> => {
+      const wait = this.publicAt + 1500 - Date.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      this.publicAt = Date.now();
+      const html = await Promise.race([Promise.resolve(this.drivers.net!.fetchStatic!(url)), new Promise<never>((_, rej) => setTimeout(() => rej(new Error("tags fetch: no answer")), 25_000))]);
+      return pageInfoOf(String(html ?? ""));
+    };
+    const p = this.publicChain.then(run, run);
+    this.publicChain = p.then(() => undefined, () => undefined);
+    return p.catch(() => null);
+  }
+  /** A title's picture by its id from the service's own address pattern (adapter videoArtUrl), for a card the page gave none: a kept item read before
+   *  the adapter learned the pattern stays blank otherwise (YouTube's Continue watching, 2026-10-11). */
+  artById(app: string, id: string | null | undefined): string | null {
+    const t = this.adapters.get(this.adapterKeyForApp(app) ?? app)?.videoArtUrl;
+    return t && id && /^[A-Za-z0-9_-]{4,64}$/.test(id) ? t.split("{id}").join(id) : null;
+  }
+  /** A tile's page address as last navigated, for the multiview prune's test of a big window with nothing playing (2026-10-12). */
+  videoPageUrl(tileId: string): string | null { return this.currentUrl.get(tileId) ?? this.tile(tileId)?.url ?? null; }
+  /** The pool row's lines for an adapter, or null when it has no open pool. */
+  videoPoolWords(adapterKey: string): { name: string; counted: string; who: string; decides: string; source: string } | null { return this.adapters.get(adapterKey)?.videoPoolWords ?? null; }
+  /** The topics the world read yesterday (categories' chips, 2026-10-11): Wikipedia's top list of the last full day, Wikimedia's public count, cached for good. */
+  async mostReadTopics(now: number): Promise<{ day: string; topics: string[] }> {
+    const d = mostReadDays(now)[0]!;
+    const t = await this.lenses.openJson("mrtopics", d, `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${d}`, 3650 * 24 * 3_600_000, topArticles);
+    return { day: d.replace(/\//g, "-"), topics: t ?? [] };
+  }
   /** The titles that joined a service's library in the last week (a purchase made on the phone): New in your library on Watch. */
   videoNewlyOwned(adapterKey: string): Array<{ item: VideoItem; at: number }> { return this.video.newlyOwned(adapterKey); }
+  videoClearNewOwned(adapterKey: string): void { this.video.clearNewOwned(adapterKey); }
   /** A title's Rent or Buy offer on the service that owns a TMDB provider id, as an address for the person's phone (purchase.ts). */
   purchaseOffer(providerId: number, title: string): PurchaseOffer | null { return purchaseOffer(this.adapters.all(), providerId, title); }
   /** The provider ids of an adapter's store (Amazon Video beside Prime Video): a Rent or Buy offer under one is that household service's. */
@@ -4776,6 +4886,13 @@ export class Orchestrator {
   /** Boot: the key is read from the store so ratings can show before any press. */
   private lensBoot(): void { void this.lenses.key(); }
   /** The adapter's search address for a service, with the words in place (video-menu-spec §3 searchUrl). */
+  /** The page on a service that lists everything carrying a tag (the open pool's page, else the service's search for #tag): a creator's tag
+   *  pressed on a video's Details opens it (2026-10-11). */
+  videoTagUrlFor(adapterKey: string, tag: string): string | null {
+    const a = this.adapters.get(adapterKey);
+    if (a?.videoPoolUrl) return a.videoPoolUrl.split("{q}").join(encodeURIComponent(tag.replace(/^#/, "")));
+    return this.videoSearchUrlFor(adapterKey, "#" + tag);
+  }
   videoSearchUrlFor(adapterKey: string, q: string): string | null {
     const t = this.adapters.get(adapterKey)?.videoSearchUrl;
     return t ? t.replace("{q}", encodeURIComponent(q)) : null;
@@ -4991,10 +5108,17 @@ export class Orchestrator {
    */
   private readonly atEndSince = new Map<string, number>();
   static readonly AT_END_MS = 15_000;
+  /** When a tile's title was last playing near its end (within three minutes), and at what address: a player that then closes onto the title's page
+   *  (Apple TV after a series' last episode, 2026-10-12: no up-next, the page with no player, the clock at nought) has ended too. */
+  private readonly nearEndAt = new Map<string, { at: number; url: string }>();
   titleAtEnd(tileId: string): boolean {
     const st = this.video.state([tileId])[0];
     const v = st?.video;
-    const still = !!v && v.kind !== "live" && !st!.playing && !v.ad && typeof v.position === "number" && typeof v.duration === "number" && v.duration > 60 && v.position >= v.duration - 2;
+    const url = this.currentUrl.get(tileId) ?? "";
+    if (st?.playing && v && v.kind !== "live" && !v.ad && typeof v.position === "number" && typeof v.duration === "number" && v.duration > 60 && v.position >= v.duration - 180) this.nearEndAt.set(tileId, { at: Date.now(), url });
+    const near = this.nearEndAt.get(tileId);
+    const closed = !!near && Date.now() - near.at < 10 * 60_000 && near.url === url && !st?.playing && (!v || v.ad !== true) && (!v || typeof v.position !== "number" || v.position <= 1);
+    const still = closed || (!!v && v.kind !== "live" && !st!.playing && !v.ad && typeof v.position === "number" && typeof v.duration === "number" && v.duration > 60 && v.position >= v.duration - 2);
     if (!still) { this.atEndSince.delete(tileId); return false; }
     const since = this.atEndSince.get(tileId) ?? Date.now();
     this.atEndSince.set(tileId, since);
@@ -5033,7 +5157,7 @@ export class Orchestrator {
   private releaseStop(tileId: string): void {
     const had = this.previewMuted.delete(tileId);
     this.autoplayStopped.delete(tileId);
-    if (had && this.surfaces.has(tileId)) void this.drivers.surface.setMuted(tileId, this.wallMuted || this.audio.focusedMedia !== tileId || this.intermission.isCovered(tileId));
+    if (had && this.surfaces.has(tileId)) void this.drivers.surface.setMuted(tileId, this.wallMuted || this.audio.focusedMedia !== tileId || this.intermission.isCovered(tileId) || this.intermission.quietForBreak(tileId));
   }
   /** The person pressed Play on the wall for this tile: a stopped autoplay is theirs to watch after all. */
   videoPersonPlay(tileId: string): void { this.pickedAt.set(tileId, Date.now()); this.personAt.set(tileId, Date.now()); this.releaseStop(tileId); }
@@ -5565,7 +5689,19 @@ export class Orchestrator {
     const key = [Orchestrator.BINGE_READ, offer, providers.join(","), svc.map((s) => s.app).join(","), t.maxRuntime, t.minRating, t.minVotes].join("|");
     const have = this.bingeCache.get(key);
     if (have && (!have.done || Date.now() - have.at <= Orchestrator.BROWSE_TTL_MS)) return have;
-    const entry: BingeEntry = { at: Date.now(), done: false, cands: have?.cands ?? [], through: have?.through ?? null };
+    // a stricter set of thresholds is answered from a looser read already in hand, since the selection filters by the thresholds itself; only
+    // a looser set needs TMDB asked again, and that read starts from the candidates in hand rather than an empty page (2026-10-13, "the binge
+    // by genre is taking a while to load" after a settings change)
+    const base = [Orchestrator.BINGE_READ, offer, providers.join(","), svc.map((s) => s.app).join(",")].join("|") + "|";
+    let seed: BingeEntry | undefined;
+    for (const [k, e] of this.bingeCache) {
+      if (!k.startsWith(base) || !e.cands.length) continue;
+      const [mr = 0, rt = 99, vt = Number.MAX_SAFE_INTEGER] = k.slice(base.length).split("|").map(Number);
+      const looser = mr >= t.maxRuntime && rt <= t.minRating && vt <= t.minVotes;
+      if (looser && e.done && Date.now() - e.at <= Orchestrator.BROWSE_TTL_MS) { this.bingeCache.set(key, e); return e; }
+      if (!seed || e.cands.length > seed.cands.length) seed = e;
+    }
+    const entry: BingeEntry = { at: Date.now(), done: false, cands: have?.cands ?? seed?.cands ?? [], through: have?.through ?? seed?.through ?? null };
     this.bingeCache.set(key, entry);
     void this.bingeRead(entry, svc, providers, offer, t).then(
       (ok) => { entry.done = true; entry.at = ok ? Date.now() : Date.now() - Orchestrator.BROWSE_TTL_MS + Orchestrator.BROWSE_RETRY_MS; this.saveRowsSoon(); },
@@ -5853,7 +5989,7 @@ export class Orchestrator {
     for (const c of cards) {
       const f = factsFor(facts, c.item.title, c.item.kind);
       if (!f?.at.tmdb) unread++;
-      if (inGenre(f?.genres, genre)) out.push({ card: { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, this.lenses.ownRatingsMap()) }, key: titleKey(c.item.title) });
+      if (inGenre(f?.genres, genre)) out.push({ card: { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, this.lenses.ownRatingsMap()), tmdb: f?.tmdb ?? null }, key: titleKey(c.item.title) });
     }
     out.sort((a, b) => a.key.localeCompare(b.key));
     return { cards: out.map((x) => x.card), unread };
@@ -6000,6 +6136,47 @@ export class Orchestrator {
     return job;
   }
   static readonly REMOVE_ANSWER_TIMEOUT_MS = 40_000;
+
+  // ---- Remove from the service's own library (2026-10-12, YouTube TV: "I should be able to remove them from my library AND remove them from
+  // DVR"): the adapter's videoLibraryRemove on the title's own page, the same job shape and polling as a Continue Watching removal; done, the
+  // title leaves the stored library, its rows and New in your library
+  private readonly libraryJobs = new Map<string, { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean }>();
+  videoLibraryRemoveInfo(adapterKey: string, id: string): { can: boolean; warning: string | null } {
+    const spec = this.adapters.get(adapterKey);
+    const lib = this.video.libraryOf(adapterKey).library;
+    const inLibrary = (lib.owned ?? []).some((x) => x.id === id) || (lib.own ?? []).some((r) => r.items.some((x) => x.id === id));
+    return { can: !!spec?.videoLibraryRemove && inLibrary, warning: spec?.videoLibraryRemoveWarning ?? null };
+  }
+  videoLibraryRemove(s: { app: string; adapter: string; profile: string; home: string; status: string }, id: string, title: string): { status: "working" | "done" | "failed"; error?: string } {
+    const key = s.app + "|" + id;
+    const have = this.libraryJobs.get(key);
+    if (have && (have.status === "working" || (!have.reported && Date.now() - have.at < 60_000))) { if (have.status !== "working") have.reported = true; return have; }
+    const spec = this.adapters.get(s.adapter);
+    if (!spec?.videoLibraryRemove) return { status: "failed", error: "this service's adapter cannot remove titles from its library yet" };
+    if (s.status !== "signed-in") return { status: "failed", error: "sign in to the service first" };
+    const job: { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean } = { status: "working", at: Date.now() };
+    this.libraryJobs.set(key, job);
+    this.touchLookups();
+    void (async () => {
+      const lib = this.video.libraryOf(s.adapter).library;
+      const card = (lib.owned ?? []).find((x) => x.id === id) ?? (lib.own ?? []).flatMap((r) => r.items).find((x) => x.id === id) ?? null;
+      const templates = Array.isArray(spec.videoLibraryRemoveUrl) ? spec.videoLibraryRemoveUrl : [spec.videoLibraryRemoveUrl ?? s.home];
+      let a: { r: MusicResultEvent | null; error?: string } = { r: null, error: "the service's page for it could not be named" };
+      for (const t of templates) {
+        const addr = fillItemAddress(t, id, card?.url ?? null);
+        if (!addr) continue;
+        a = await this.askHiddenPage(s, addr, spec.videoLibraryRemove!, "rm",
+          (token) => `window.__prismVideoLibraryRemove && window.__prismVideoLibraryRemove(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS);
+        if (!(a.r && !a.r.ok && a.r.error === "not-found")) break;
+      }
+      if (!a.r) { Object.assign(job, { status: "failed", error: a.error, at: Date.now() }); return; }
+      const r = a.r;
+      if (!r.ok && r.error !== "already-gone") { Object.assign(job, { status: "failed", error: r.error === "needs-profile" ? "the service is asking who's watching, so choose a profile for it first" : r.error === "unconfirmed" ? "the service did not show it gone" : r.error || "the service did not remove it", at: Date.now() }); return; }
+      this.video.dropFromLibrary(s.adapter, id);
+      Object.assign(job, { status: "done", at: Date.now() });
+    })();
+    return job;
+  }
 
   // ---- My List on the service itself (2026-09-23, "lets do My List exactly the same way for adding/removing items including queuing and
   // multi-hidden sessions"): the adapter's videoListSet on the App's hidden work page - the same chain, the same idle rule, the same job
@@ -6604,7 +6781,9 @@ export class Orchestrator {
     const spec = this.adapters.get(s.adapter);
     const key = s.app + "|" + titleKey(series);
     let e = this.episodeLists.get(key);
-    const stale = !e || (e.status !== "working" && Date.now() - e.at > (e.status === "failed" ? 60_000 : Orchestrator.EPISODES_TTL_MS));
+    // a TMDB list kept for a service that can list its own (its adapter learned to since, or the read had failed): read again, not every open
+    const ownNow = !!e && e.status === "done" && e.source === "tmdb" && !!spec?.videoEpisodes && Date.now() - e.at > 60_000;
+    const stale = !e || ownNow || (e.status !== "working" && Date.now() - e.at > (e.status === "failed" ? 60_000 : Orchestrator.EPISODES_TTL_MS));
     if (stale) {
       // a stale list stays up (and playable, when it is the service's own) while the new one is read, whole
       const keep = e?.status === "done" && e.seasons.length ? e : null;
@@ -6622,7 +6801,9 @@ export class Orchestrator {
     try {
       const via = spec?.videoEpisodesVia ?? "id";
       let url: string | null = null;
-      if (spec?.videoEpisodes && via === "id" && v.id) url = (spec.videoEpisodesUrl ?? s.home).replace("{id}", encodeURIComponent(v.id));
+      // {channel}: the channel the playing page names (Twitch, 2026-10-12: a stream's Episodes are its channel's past broadcasts, and on a
+      // broadcast's own page the id is the broadcast's, not the channel's)
+      if (spec?.videoEpisodes && via === "id" && v.id) url = (spec.videoEpisodesUrl ?? s.home).replace("{id}", encodeURIComponent(v.id)).replace("{channel}", v.channel ?? encodeURIComponent(v.id));   // the channel as the page names it (a YouTube @handle, a Twitch login): a path, not encoded
       // the series' own page as the service's own rows gave it (2026-09-28, the connections sweep: Paramount+ lists "Star Trek: The Original
       // Series (Remastered)" at /shows/star_trek/ while its search knows that show only as "Star Trek" - the name never found it): used as it is
       // by a reader that takes the show's address; every service
@@ -7437,6 +7618,22 @@ export class Orchestrator {
    * alone (presentation-wiring.test): it holds what this establishes. Already in element fullscreen: nothing. No
    * videoCmd: nothing (never a hunt).
    */
+  /** When a pick's page last had its stage asked for: the reveal waits a moment for the player to fill the window (2026-10-12). */
+  private readonly stageAskedAt = new Map<string, number>();
+  private static readonly STAGE_REVEAL_WAIT_MS = 4500;
+  /** A pick whose service has a fullscreen control: the reveal holds up to a moment for the page to report its fullscreen element, so the
+   *  player is already filling the window when the picture comes (Twitch's page and chat pane showed first, 2026-10-12). Bounded: a
+   *  player slow to its stage is revealed as it is. */
+  private async awaitStage(tileId: string): Promise<void> {
+    const asked = this.stageAskedAt.get(tileId) ?? 0;
+    if (Date.now() - asked > 20_000) return;
+    this.stageAskedAt.delete(tileId);
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    if (!this.video.cmdJs(spec, "fullscreen")) return;
+    const until = Date.now() + Orchestrator.STAGE_REVEAL_WAIT_MS;
+    while (!this.elementFullscreen.has(tileId) && Date.now() < until && this.surfaces.has(tileId)) await new Promise((r) => setTimeout(r, 100));
+  }
   videoEnterStage(tileId: string): void {
     if (!this.surfaces.has(tileId) || this.elementFullscreen.has(tileId)) return;
     const tile = this.tile(tileId);
@@ -7446,7 +7643,11 @@ export class Orchestrator {
     this.arm(tileId);
     // the player's control may not be drawn at the very moment the play begins (Hulu's appear a beat later and hide again
     // soon after): the ask is repeated every 700 ms for twelve seconds, until the page reports a fullscreen element
-    void this.drivers.surface.inject(tileId, null, `(function(){if(document.fullscreenElement)return;if(window.__prismStageTry&&Date.now()-window.__prismStageTry<12000)return;window.__prismStageTry=Date.now();var t0=Date.now();(function tryIt(){if(document.fullscreenElement)return;try{${js};}catch(e){}if(!document.fullscreenElement&&Date.now()-t0<12000)setTimeout(tryIt,700);})();})()`);
+    void this.drivers.surface.inject(tileId, null, `(function(){if(document.fullscreenElement)return;if(window.__prismStageTry&&Date.now()-window.__prismStageTry<12000)return;window.__prismStageTry=Date.now();var t0=Date.now();(function tryIt(){if(document.fullscreenElement)return;var vs=document.querySelectorAll('video'),has=false;for(var i=0;i<vs.length;i++){if(vs[i].readyState>=2&&vs[i].offsetWidth>0&&!vs[i].paused&&vs[i].currentTime>0.5){has=true;break;}}if(has&&performance.now()>3000&&document.readyState==='complete'){try{${js};}catch(e){}}if(!document.fullscreenElement&&Date.now()-t0<12000)setTimeout(tryIt,700);})();})()`);
+    // (the press waits for a video in motion (frames, playing, past its first half second) on a page at least three seconds old and fully loaded (readyState complete): YouTube's
+    // reused player was in motion a tenth of a second after its page loaded, and a press then went to a button its app had not wired yet, so
+    // the document went fullscreen with the page's own layout still drawn (comments beside the picture, 2026-10-12);: YouTube's player pressed before it had any went fullscreen as a document and stayed at its
+    // page size inside it, 2026-10-12, "The video started playing but should've been fully applied to the extents of the window")
   }
   /** The profiles a service has shown (by adapter key), the household's standing choice, and the plain choose / ask verbs (2026-09-19). */
   videoKnownProfiles(appKey: string) { return this.video.knownProfiles(appKey); }
@@ -7604,7 +7805,7 @@ export class Orchestrator {
         // behind the person's back. Everything else keeps the mute-only rule (a muted live stream keeps moving).
         if (this.music.source(cmd.tile) && this.audio.isPlaying(cmd.tile)) await this.pauseSource(cmd.tile);
       }
-      else if (cmd.op === "unmute") await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.intermission.isCovered(cmd.tile) || this.heldQuiet(cmd.tile));   // the owner, heard only while the wall is not muted - and never under its own break (2026-09-14)
+      else if (cmd.op === "unmute") await this.drivers.surface.setMuted(cmd.tile, this.wallMuted || this.intermission.isCovered(cmd.tile) || this.intermission.quietForBreak(cmd.tile) || this.heldQuiet(cmd.tile));   // the owner, heard only while the wall is not muted - and never under its own break (2026-09-14)
       else if (cmd.op === "pause") {
         // Adapter-mediated pause (§3.4); harmless no-op where no adapter.
         await this.drivers.surface.inject(
@@ -7845,7 +8046,9 @@ export class Orchestrator {
       }
       // the stage asked page-side from the moment the pick's page is up: the loop no-ops until the feature has frames, so the
       // player fills the screen as soon as it plays rather than a report or two later (2026-09-21)
-      if (queued && Date.now() - queued.at < 60_000) setTimeout(() => this.videoEnterStage(event.id), 1500);
+      // ... at once, and the reveal waits a moment for it (2026-10-12, Twitch: "at first it showed the page and chat pane before maximizing":
+      // the page was revealed at readiness and the stage asked a second and a half later, so the page stood bare for a beat)
+      if (queued && Date.now() - queued.at < 60_000) { this.stageAskedAt.set(event.id, Date.now()); this.videoEnterStage(event.id); }
       const tune = this.videoTuneQueued.get(event.id);
       if (tune) { this.videoTuneQueued.delete(event.id); if (Date.now() - tune.at < 60_000) void this.videoTune(event.id, tune.channelId, tune.name, tune.page); }
       const search = this.videoSearchQueued.get(event.id);
@@ -7977,7 +8180,19 @@ export class Orchestrator {
       }
       await this.drivers.surface.setNowPlaying?.(event.id, face);
       await this.onMusicObservation(event.id, event.info);
-      this.video.onObservation(event.id, event.info);   // VP-2: a video tile's face (video.ts) - nothing here touches the music model
+      // the season the page leaves unnamed (2026-10-13, Netflix's "E1" for S2 E1: its overlay names the episode, never the season): the series'
+      // own list, once read, names the playing episode's season by its id
+      let obs = event.info;
+      const fv = obs?.video && typeof obs.video === "object" ? obs.video : null;
+      if (obs && fv && fv.kind === "episode" && fv.series && (fv.season === null || fv.season === undefined) && fv.id) {
+        this.loadEpisodeLists();
+        const adKey = this.tile(event.id)?.adapter ?? null;
+        const app = adKey ? (this.modelApps?.().find((x) => x.adapter === adKey || x.catalogRef === adKey || x.id === adKey)?.id ?? adKey) : null;
+        const list = app ? this.episodeLists.get(app + "|" + titleKey(fv.series)) : undefined;
+        const cur = list ? currentEpisode(list.seasons, { id: fv.id }) : null;
+        if (cur) obs = { ...obs, video: { ...fv, season: cur.season, episode: typeof fv.episode === "number" ? fv.episode : cur.episode } };
+      }
+      this.video.onObservation(event.id, obs);   // VP-2: a video tile's face (video.ts) - nothing here touches the music model
       this.noteVideoUp(event.id);
       this.noteSeriesUp(event.id);
       return;

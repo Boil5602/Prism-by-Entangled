@@ -15,7 +15,9 @@
  * The Kotlin side executes commands and decides nothing (§23).
  */
 
+import { followedRow, isChannelRow, isLiveCard, latestRow } from "./followed.js";
 import { asUpdateChannel } from "./updates.js";
+import { BOILER_TAGS, CATEGORY_RULES, cleanCategory, creatorTags, matches, orderCategory, poolWords, popularTags, withinDays, type Category, type CategoryCard, POOL_LIVE_MS } from "./categories.js";
 import { FRESH_EPISODES, FRESH_MOVIES } from "./fresh-rows.js";
 import { KIDS_AGES, THE_BINGE, bingeDay, bingeGenreRows, bingeSettingsOf, bingeWords, selectBinge, type BingeThresholds, type KidsMode } from "./binge.js";
 import { libraryForWorks, libraryHits, searchWorks, type LibraryEntry, type LibraryHit, type SearchRowIn } from "./search-view.js";
@@ -291,6 +293,10 @@ export interface PrismRuntimeApi {
   /** Sync JSON {ok}: one service's pages read again now. */
   /** `owned`: the service's owned-titles pages too (a purchase just made on the phone, 2026-10-11): the long walk, read for an ask. */
   videoRefreshApp(appId: string, owned?: boolean): string;
+  /** A channel's card: the channel's own page read on the service's hidden page (adapter videoChannelInfo). JSON {ok, channel}. Awaited. */
+  videoChannelInfo(appId: string, url: string): Promise<string>;
+  /** Async JSON {ok, error?}: the person's press on a followed channel's own Unfollow or Unsubscribe, on its page, through the adapter's script (2026-10-13). */
+  videoChannelUnfollow(appId: string, url: string): Promise<string>;
   /** Sync JSON {ok, pause}: the timed refresh's quiet hours (off by default); HH:MM local. */
   videoSetPause(on: boolean, from: string, to: string): string;
   /** Sync JSON {ok, look}: Watch settings' Video ads - "veil" (scenery and mute, the default), "mute" (the ad's picture, its sound off) or "show". */
@@ -388,10 +394,29 @@ export interface PrismRuntimeApi {
   videoRemoveInfo(appId: string): string;
   /** Sync JSON {status: working|done|failed, error?}: remove a title from the service's own Continue Watching - starts the job, or reports it (2026-09-22). */
   videoRemoveContinue(appId: string, itemId: string, title: string): string;
+  /** Remove from the service's own library (2026-10-12): JSON {can, warning} for a card, and the job {status, error?} polled as videoRemoveContinue is. */
+  videoLibraryRemoveInfo(appId: string, itemId: string): string;
+  videoLibraryRemove(appId: string, itemId: string, title: string): string;
   /** Hide a title from the wall's Continue Watching when its service's site cannot remove it (2026-09-23): the service still lists it. */
   videoHideContinue(appId: string, itemId: string): string;
   /** Sync JSON {can}: whether the App's service can add to and take off its own My List from the wall (2026-09-23). */
   videoListInfo(appId: string): string;
+  /** New in your library forgotten for a service (its reader had read wrong titles as owned, 2026-10-12): JSON {ok}. Sync. */
+  videoNewOwnedClear(appId: string): string;
+  /** Categories of the person's own (categories.ts, 2026-10-11): JSON {categories, rules, suggestions, creator, readAt, days, poolServices}. days ("30")
+   *  counts only titles their service dates within that window. Sync. */
+  videoCategories(days?: string): string;
+  /** A category kept (new by its id, or changed): JSON {ok, categories}. The JSON given is {id, name, tags, rule}. Sync. */
+  videoCategorySet(categoryJson: string): string;
+  /** A category removed by its id: JSON {ok, categories}. Sync. */
+  videoCategoryDelete(id: string): string;
+  /** A plain video's own description by its title on a service (the PC's Details card, 2026-10-11): JSON {about: {channel, channelUrl, description,
+   *  length, published, tags, id, url, subtitle} | null}. Sync. */
+  videoItemInfo(appId: string, title: string): string;
+  /** The topics the world read yesterday, for a category's chips: JSON {day, topics, source}. Awaited (Wikimedia's public count, cached). */
+  videoCategoryTopics(): Promise<string>;
+  /** Every pool category's open pool read again now: JSON {ok, read}. Awaited. */
+  videoCategoryPoolRefresh(): Promise<string>;
   /** Sync JSON {status, error?}: start (or poll) one My List change on the service itself - want "add" | "remove"; catalog "1" finds the
    *  service's own copy of a catalog title first (the catalog play's resolve). Poll with the same arguments until done or failed. */
   videoListSet(appId: string, want: string, itemId: string, title: string, url: string | null, kind: string | null, catalog: string | null): string;
@@ -1060,7 +1085,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const app = snap.apps.find((a) => a.id === f.app);
       const key = app?.adapter ?? app?.catalogRef ?? orchestrator.adapterNameForUrl(f.url) ?? f.app;   // the adapter's name, as video.ts keys it
       const kept = orchestrator.videoLibraryOf(key);
-      return { app: f.app, name: app?.name ?? f.app, facet: f.id, status: app?.setup?.status ?? "unknown", onScreen: screen?.facet === f.id, adapter: key, library: kept.library, resume: kept.resume, recent: kept.recent, live: kept.live, hasSearch: orchestrator.videoSearchUrlFor(key, "x") !== null || !!orchestrator.adapterSpec(key)?.videoSearch, profiles: orchestrator.videoKnownProfiles(key), profile: ((c) => c?.always ? c : null)(orchestrator.videoStandingProfile(key)) };   // only a STANDING choice is the service's profile; a one-time pick on the gate is not
+      return { app: f.app, name: app?.name ?? f.app, facet: f.id, status: app?.setup?.status ?? "unknown", onScreen: screen?.facet === f.id, adapter: key, library: kept.library, resume: kept.resume, recent: kept.recent, live: kept.live, hasSearch: orchestrator.videoSearchUrlFor(key, "x") !== null || !!orchestrator.adapterSpec(key)?.videoSearch, profiles: orchestrator.adapterSpec(key)?.videoProfiles ? orchestrator.videoKnownProfiles(key) : [], profile: ((c) => c?.always ? c : null)(orchestrator.videoStandingProfile(key)) };   // a service with no gate read offers no profiles (2026-10-13)   // only a STANDING choice is the service's profile; a one-time pick on the gate is not
     }).sort((a, b) => Number(b.onScreen) - Number(a.onScreen) || a.name.localeCompare(b.name));
     return { scene: scene?.id ?? null, active, screen, services };
   };
@@ -1197,6 +1222,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // them if not assigned a video"): a pick that failed closes its window at once; a window with nothing playing a title - a home page, a
   // service's own preview, a window a restart brought back on no title - closes after MV_EMPTY_MS, the windows after it moving up one
   const MV_EMPTY_MS = 45_000;
+  const MV_EMPTY_BIG_MS = 120_000;   // the big window: two minutes with nothing playing, no pick loading and no video on its page
   const MV_PICK_MS = 60_000;
   const mvEmptySince = new Map<string, number>();
   // A window on a channel that goes quiet is tuned once more before it is given up, and a window that is closed says so (2026-10-09,
@@ -1214,8 +1240,23 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const now = Date.now();
     const gone: string[] = [];
     const wins = mvWindows();
-    for (const w of wins.slice(1)) {
+    // the big window too (2026-10-12, "I'm looking at a web page on the big window right now": a YouTube window came back from a restart on
+    // youtube.com's front page, nothing playing, and stood there, since the rule skipped the first window); it gets a longer grace, and
+    // its closing hands the big slot to the next window, or leaves the empty stage when it was the last
+    for (const w of wins) {
+      if (w.slot && w === wins[0]) continue;   // the scene's own screen slot in the big place is left as it was; a slot dragged small closes like any small window, and a floating window closes wherever it stands
       const t = vs.find((x) => x.id === w.tile);
+      const emptyMs = w === wins[0] ? MV_EMPTY_BIG_MS : MV_EMPTY_MS;
+      // the big window keeps a pick of its own, started or not: a failed start there shows its own notice and waits for the person; only a big
+      // window with nothing asked of it (a home page after a restart) is empty
+      if (w === wins[0] && t?.pending) { mvEmptySince.delete(w.tile); continue; }
+      // ... and a big window on one of the service's own playing pages (adapter videoPlaysAt) is a title that is quiet, the doctor's to mend,
+      // not an empty window: only a home or feed page with nothing playing is
+      if (w === wins[0]) {
+        const plays = orchestrator.adapterSpec(videoServices().services.find((s) => s.app === w.app)?.adapter ?? w.app)?.videoPlaysAt ?? [];
+        const page = (orchestrator.videoPageUrl(w.tile) ?? "").split("?")[0]!;
+        if (!plays.length || plays.some((pat) => page.includes(pat))) { mvEmptySince.delete(w.tile); continue; }
+      }
       // a pick that never started counts as failed after MV_PICK_MS (Gilmore Girls on Hulu stopped on the show's page, "loading" for good)
       // a window a restart is bringing back has 3 minutes, not 45 s (2026-09-24: Georgie & Mandy's window was closed 45 s after a restart) - and
       // its pick is not failed by age inside them (2026-10-06: five YouTube TV channels walked the guide at once after a restart; C-SPAN2's took
@@ -1229,7 +1270,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (t?.video || t?.playing || loading || restoring || orchestrator.inAdBreak(w.tile)) { mvEmptySince.delete(w.tile); continue; }
       const since = mvEmptySince.get(w.tile) ?? now;
       mvEmptySince.set(w.tile, since);
-      if (!(failed || now - since >= MV_EMPTY_MS)) continue;
+      if (!(failed || now - since >= emptyMs)) continue;
       const ch = failed ? null : orchestrator.videoChannelOf(w.tile);
       if (ch && now - (mvRetuneAt.get(w.tile) ?? -MV_RETUNE_MS) >= MV_RETUNE_MS) {
         mvRetuneAt.set(w.tile, now); mvEmptySince.delete(w.tile);
@@ -1359,6 +1400,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     void drivers.ui?.videoPick?.(title, s?.name ?? sv.screen.app, orchestrator.videoArtOf(tile)?.art ?? null);
   };
   orchestrator.episodeMoveHook = coverScreen;
+  /** A guide line that names no programme TMDB could picture (2026-10-13): never asked. */
+  const LIVE_NO_PICTURE = /^(local programming|paid programming|programming|to be announced|tba|news|local news|off air|no programming|sign[- ]off|infomercial|movie|film|sports|music)$/i;
   const videoMultiview = (action: string, arg?: string | null): Record<string, unknown> => {
     if (action === "state") { try { mvReconcile(); mvPruneEmpty(); } catch (e) { report(e); } }
     const sv = videoServices();
@@ -1516,7 +1559,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // dimmed ... We shouldn't intentionally degrade any functionality"): without a key nearly every Fandango card showed the darkened still.
     const adapterOf = new Map(sv.services.map((s) => [s.app, s.adapter]));
     const ownWide = (c: { app: string; item: VideoItem; also: Array<{ app: string; item: VideoItem }> }) => [c, ...c.also].map((x) => orchestrator.ownedWideArt(adapterOf.get(x.app) ?? x.app, x.item.id)).find((u) => !!u) ?? null;
-    return [...byTitle.values()].map((c) => { const backdrop = orchestrator.backdropFor(c.item.title, c.item.kind); if (backdrop) return { ...c, item: { ...c.item, artwork: backdrop } }; const own = c.item.artwork ?? c.also.find((x) => x.item.artwork)?.item.artwork ?? null; const art = own ?? ownWide(c) ?? orchestrator.posterFor(c.item.title, c.item.kind); return art && art !== c.item.artwork ? { ...c, item: { ...c.item, artwork: art } } : c; }).sort((a, b) => a.item.title.localeCompare(b.item.title, undefined, { sensitivity: "base" }));
+    return [...byTitle.values()].map((c) => { const backdrop = orchestrator.backdropFor(c.item.title, c.item.kind); if (backdrop) return { ...c, item: { ...c.item, artwork: backdrop, artFrom: "tmdb" as const } }; const own = c.item.artwork ?? c.also.find((x) => x.item.artwork)?.item.artwork ?? null; const art = own ?? ownWide(c) ?? orchestrator.posterFor(c.item.title, c.item.kind); return art && art !== c.item.artwork ? { ...c, item: { ...c.item, artwork: art } } : c; }).sort((a, b) => a.item.title.localeCompare(b.item.title, undefined, { sensitivity: "base" }));
   };
   // the Library tab: the owned titles by genre, rated (orchestrator.videoLibraryRows)
   // the Library tab's sort (2026-09-22; the Watch tab's rows keep their own order - a global sort there made every lens row look the same): the person's choice kept on the device; the host passes it with each ask and reads it back in the answer
@@ -1611,13 +1654,31 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // The Binge (2026-09-24): after the fresh rows; off without a key
     const bgRow = bingeRow();
     if (bgRow) lensRows.push(bgRow as never);
+    // the person's own categories (categories.ts, 2026-10-11), after the lens rows: hashtags and one clear rule each
+    // a category's live streams stand on the Live tab, not in its Watch row (2026-10-13, "Seeing other live stuff on Watch ... Live stuff should
+    // just be on the Live tab"): the row keeps its videos and titles
+    try { lensRows.push(...(categoryRows().map((r) => { const { live: _live, ...row } = r; return row; }) as never[])); } catch (e) { report(e); }
     const lens = mr && !mr.done ? { ...rows.lens, pending: rows.lens.pending + 1 } : rows.lens;
     const off = excludedNow();
     if (off.size) { rows.continue = rows.continue.filter((c) => !off.has(c.app)); rows.list = rows.list.filter((c) => !off.has(c.app)); }
     // New in your library (2026-10-11): the titles that joined a service's library in the last week, a purchase made on the phone among
     // them, newest first, before Continue watching
+    // where else a new title streams among the household's services (2026-10-12, "Isnt disclosure day also on peacock?"): TMDB's offers for the
+    // title, as the Details card reads them (cached; a title not read yet fills on a later open), matched to the services' provider ids
+    const streamsOn = (app: string, title: string, kind: string) => {
+      try {
+        const r = orchestrator.titleDetails(title, kind, app) as { status: string; details?: { id: number; kind: string; title: string; year: number | null; providers?: { stream?: Array<{ id?: number }>; free?: Array<{ id?: number }> } } };
+        const d = r.status === "ready" ? r.details : undefined;
+        if (!d?.providers) return { streams: [] as Array<{ app: string; service: string; facet: string }>, tmdb: null };
+        const ids = new Set([...(d.providers.stream ?? []), ...(d.providers.free ?? [])].map((o) => o.id).filter((x): x is number => typeof x === "number"));
+        const seen = new Set<string>();
+        const streams = videoServices().services.filter((s) => s.app !== app && s.status === "signed-in" && !seen.has(s.app) && orchestrator.providersOfAdapter(s.adapter).some((p) => ids.has(p)) && seen.add(s.app)).map((s) => ({ app: s.app, service: s.name, facet: s.facet }));
+        return { streams, tmdb: { id: d.id, kind: d.kind, title: d.title, year: d.year } };
+      } catch { return { streams: [] as Array<{ app: string; service: string; facet: string }>, tmdb: null }; }
+    };
     const newOwned = videoServices().services.filter((s) => s.status === "signed-in" && !off.has(s.app))
-      .flatMap((s) => orchestrator.videoNewlyOwned(s.adapter).map((n) => ({ app: s.app, service: s.name, facet: s.facet, item: n.item, firstSeen: n.at })))
+      // drawn wide like Continue watching: TMDB's landscape art first, the service's own, then its poster or the picture by id (2026-10-12)
+      .flatMap((s) => orchestrator.videoNewlyOwned(s.adapter).map((n) => ({ app: s.app, service: s.name, facet: s.facet, item: { ...n.item, artwork: orchestrator.backdropFor(n.item.title, n.item.kind) ?? orchestrator.ownedWideArt(s.adapter, n.item.id) ?? n.item.artwork ?? orchestrator.posterFor(n.item.title, n.item.kind) ?? orchestrator.artById(s.app, n.item.id), artFrom: orchestrator.backdropFor(n.item.title, n.item.kind) ? "tmdb" as const : undefined }, firstSeen: n.at, ...streamsOn(s.app, n.item.title, n.item.kind) })))   // a bundle TMDB does not know (Blumhouse's 15) gets the store's own wide still
       .sort((a, b) => b.firstSeen - a.firstSeen).slice(0, 24);
     return {
       newOwned,
@@ -1636,7 +1697,15 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       search: sv.services.filter((s) => s.hasSearch).map((s) => ({ app: s.app, name: s.name, facet: s.facet })),
       suggestions: sv.services.filter((s) => (s.library.shelves ?? []).length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, shelves: s.library.shelves })),
       // the person's own rows on a service (2026-10-05: Twitch's Followed channels and latest videos): drawn on Watch always, never a suggestion
-      ownRows: sv.services.filter((s) => (s.library.own ?? []).length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, rows: s.library.own })),
+      // Channels you follow, one row across services, live first (followed.ts, 2026-10-12); the services' own rows keep the rest
+      // a service's own rows are its own site's: a row of another site's addresses filed under it is left out (Twitch's followed channels stood
+      // in Apple TV's stored rows, 2026-10-12; how they got there is not known)
+      followed: followedRow(sv.services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, facet: s.facet, own: ownSiteRows(s.app, s.library.own ?? []) }))),
+      // the latest videos from those channels, one row across services (followed.ts, 2026-10-13); a service with followed channels keeps no own rows of its own on Watch after that
+      // the services whose pictures carry no name, so the host draws the name over them (adapter videoArtPlain, 2026-10-13)
+      artPlain: sv.services.filter((s) => !!orchestrator.adapterSpec(s.adapter)?.videoArtPlain).map((s) => s.app),
+      latest: latestRow(sv.services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, facet: s.facet, own: ownSiteRows(s.app, s.library.own ?? []) })), Date.now()),
+      ownRows: sv.services.map((s) => ({ app: s.app, name: s.name, facet: s.facet, rows: ownSiteRows(s.app, s.library.own ?? []) })).filter((s) => s.rows.length > 0 && !s.rows.some(isChannelRow)),
       screen: sv.screen, active: sv.active, log: rows.log, now: Date.now(),
     };
   };
@@ -1860,6 +1929,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const others = sv.services.filter((s) => !hasProfiles(s)).map((s) => ({ app: s.app, name: s.name, status: s.status, excluded: st.off.includes(s.app) }));
     return { services, others, presets: st.presets, active: st.active, off: st.off };
   };
+  /** A service's own rows kept to its own site: a row whose items' addresses are all on another host is not its (2026-10-12). */
+  const ownSiteRows = (app: string, rows: Array<{ title: string; items: VideoItem[] }>): Array<{ title: string; items: VideoItem[] }> => {
+    const home = hiddenServices().find((s) => s.app === app)?.home ?? "";
+    const host = (u: string): string => { try { return new URL(u).hostname.replace(/^www\./, "").split(".").slice(-2).join("."); } catch { return ""; } };
+    const mine = host(home);
+    if (!mine) return rows;
+    return rows.filter((r) => { const hosts = r.items.map((i) => (i.url ? host(i.url) : "")).filter(Boolean); return hosts.length === 0 || hosts.some((h) => h === mine); });
+  };
   const hiddenServices = () => {
     const sv = videoServices();
     const snap = model.snapshot();
@@ -1929,6 +2006,166 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     st ? { ...st, rows: st.source === "catalog" && st.catalog?.length ? st.catalog : orderLookup(st.q, st.services), library: st.person ? [] : lookupLibrary(st.q) } : null;
   // the household's own titles the words match (2026-09-23 search upgrade): every service's Continue Watching, My List and owned titles as the
   // wall already holds them - no page asked, no network - so the first answers are there as the person types
+  // Categories of the person's own (categories.ts, 2026-10-11): kept in the store, filled from what the services already list
+  const CATEGORIES_KEY = "video:categories";
+  let categoriesKept: Category[] | null = null;
+  const categoriesNow = (): Category[] => {
+    if (categoriesKept) return categoriesKept;
+    try { const raw = JSON.parse(tilesRead(CATEGORIES_KEY) ?? "[]"); categoriesKept = Array.isArray(raw) ? raw.map(cleanCategory).filter((c): c is Category => !!c) : []; }
+    catch { categoriesKept = []; }
+    return categoriesKept;
+  };
+  const categoriesWrite = (list: Category[]): void => { categoriesKept = list; try { void drivers.store?.set(CATEGORIES_KEY, JSON.stringify(list)); } catch (e) { report(e); } };
+  // tags creators wrote (2026-10-11, "Follow recommendations"): a title's own tags as the creator set them, kept a month, read a pass at a time:
+  // one hidden-page read where a service shows many titles' tags at once, and an anonymous read of a title's public page where it does not
+  const TAGS_KEY = "video:tags"; const TAGS_MS = 30 * 86_400_000; const TAGS_PASS_MS = 4 * 60_000; const TAGS_PER_PASS = 30; const TAGS_MAX = 3000;   // thirty a pass every four minutes: a fresh row's descriptions in minutes, not an hour (2026-10-11)
+  type Kept = { tags: string[]; at: number; channel?: string | null; channelUrl?: string | null; description?: string | null; length?: number | null; published?: string | null };
+  let tagsKept: Record<string, Kept> | null = null;
+  const tagsNow = (): Record<string, Kept> => {
+    if (tagsKept) return tagsKept;
+    try { const raw = JSON.parse(tilesRead(TAGS_KEY) ?? "{}"); tagsKept = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}; } catch { tagsKept = {}; }
+    for (const k of Object.keys(tagsKept!)) { const t = tagsKept![k]?.tags; if (Array.isArray(t) && t.length && t.every((x) => BOILER_TAGS.has(x))) delete tagsKept![k]; }   // a kept entry holding only YouTube's no-tag words is forgotten
+    return tagsKept!;
+  };
+  const tagsWrite = (): void => {
+    const kept = tagsNow(); const now = Date.now();
+    const keys = Object.keys(kept).filter((k) => now - (kept[k]?.at ?? 0) > 2 * TAGS_MS); for (const k of keys) delete kept[k];
+    const left = Object.keys(kept); if (left.length > TAGS_MAX) for (const k of left.sort((a, b) => (kept[a]?.at ?? 0) - (kept[b]?.at ?? 0)).slice(0, left.length - TAGS_MAX)) delete kept[k];
+    try { void drivers.store?.set(TAGS_KEY, JSON.stringify(kept)); } catch (e) { report(e); }
+  };
+  const lastSeg = (url: string | null | undefined): string => { const m = /\/([A-Za-z0-9_-]+)\/?(?:[?#].*)?$/.exec(url ?? ""); return m ? m[1]! : ""; };
+  /** A plain video's own description, as kept from its public page (the channel, its address, the words, the length, the date), or null. */
+  const infoOf = (app: string, it: Pick<VideoItem, "id" | "url">): Kept | null => { const kept = tagsNow(); for (const k of [it.id, lastSeg(it.url)]) if (k && kept[app + "|" + k]) return kept[app + "|" + k]!; return null; };
+  // the page's own channel stands until the public page is read (the Twitch items and YouTube's rows name it; Twitch links it too)
+  const aboutOf = (app: string, it: Pick<VideoItem, "id" | "url" | "channel" | "channelUrl" | "tags">) => {
+    const e = infoOf(app, it);
+    const adapter = videoServices().services.find((s) => s.app === app)?.adapter ?? app;
+    const tags = [...new Set([...(e?.tags ?? []), ...(it.tags ?? [])])].slice(0, 20);
+    const tagUrls = tags.map((t) => orchestrator.videoTagUrlFor(adapter, t));   // each tag's own page on the service: the related videos
+    if (e && (e.channel || e.description)) return { channel: e.channel ?? it.channel ?? null, channelUrl: e.channelUrl ?? it.channelUrl ?? null, description: e.description ?? null, length: e.length ?? null, published: e.published ?? null, tags, tagUrls };
+    return it.channel || tags.length ? { channel: it.channel ?? null, channelUrl: it.channelUrl ?? null, description: null, length: null, published: null, tags, tagUrls } : null;
+  };
+  const tagsOf = (app: string, it: VideoItem): string[] | null => { const kept = tagsNow(); for (const k of [it.id, lastSeg(it.url)]) if (k && kept[app + "|" + k]) return kept[app + "|" + k]!.tags; return null; };
+  let tagsPassAt = 0; let tagsRun: Promise<void> | null = null;
+  const tagsPass = (): void => {
+    if (tagsRun || Date.now() - tagsPassAt < TAGS_PASS_MS) return;
+    tagsPassAt = Date.now();
+    tagsRun = (async () => {
+      try {
+        const now = Date.now(); const kept = tagsNow(); let changed = false;
+        for (const s of videoServices().services) {
+          if (s.status !== "signed-in") continue;
+          const spec = orchestrator.videoTagsSpec(s.adapter);
+          if (spec.page) { const r = await orchestrator.videoTagsPage(hiddenServices(), s.app); if (r) for (const [id, tags] of Object.entries(r)) { kept[s.app + "|" + id] = { tags, at: now }; changed = true; } }
+          if (spec.fetch) {
+            let n = 0;
+            for (const c of categoryItems(false)) {
+              if (c.app !== s.app || !c.item.id) continue;
+              const k = s.app + "|" + c.item.id; const e = kept[k];
+              if (e && now - e.at < TAGS_MS && "channel" in e) continue;   // an entry kept before the page's channel and words were read is read again
+              if (n++ >= TAGS_PER_PASS) break;
+              const info = await orchestrator.videoTagsFetch(s.adapter, c.item.id);
+              kept[k] = info ? { tags: info.tags, at: now, channel: info.channel, channelUrl: info.channelUrl, description: info.description, length: info.length, published: info.published } : { tags: [], at: now }; changed = true;
+            }
+          }
+        }
+        if (changed) tagsWrite();
+      } catch (e) { report(e); } finally { tagsRun = null; }
+    })();
+  };
+  /** Every title the household's services list in Prism, as cards: Continue watching, the lists, the services' own rows and shelves, each with the
+   *  tags its creator wrote where those have been read. Asking for them starts the next pass of reads when one is due. */
+  const categoryItems = (pass = true): CategoryCard[] => {
+    const out: CategoryCard[] = []; const seen = new Set<string>();
+    for (const s of videoServices().services) {
+      if (s.status !== "signed-in") continue;
+      const lib = orchestrator.videoLibraryOf(s.adapter).library;
+      const rows: VideoItem[][] = [lib.continue ?? [], lib.list ?? [], ...(lib.own ?? []).map((r) => r.items ?? []), ...(lib.shelves ?? []).map((r) => r.items ?? [])];
+      for (const items of rows) for (const it of items) {
+        const k = s.app + "|" + (it.id || it.url || it.title); if (seen.has(k)) continue; seen.add(k);
+        const read = tagsOf(s.app, it);
+        out.push({ app: s.app, service: s.name, facet: s.facet, item: read && read.length ? { ...it, tags: [...(it.tags ?? []), ...read] } : it });
+      }
+    }
+    if (pass) tagsPass();
+    return out;
+  };
+  // the open pool (2026-10-11, "I don't want to promote the online echo chambers"): a pool category also draws from every service's own page for
+  // each hashtag (YouTube's search with its named filter, Twitch's tag directory in its stated order), read on the hidden page, cached half an hour
+  const POOL_MS = 30 * 60_000; const POOL_TAGS = 5;
+  const poolCache = new Map<string, { at: number; items: VideoItem[]; filter: string; busy: boolean; failedAt?: number }>();
+  const POOL_READ_MS = 90_000; const POOL_RETRY_MS = 5 * 60_000; const POOL_ROUND_MS = 10 * 60_000;
+  const poolServices = () => videoServices().services.filter((s) => s.status === "signed-in" && orchestrator.videoPoolWords(s.adapter));
+  const poolRefreshOne = async (s: { app: string; adapter: string }, tag: string): Promise<boolean> => {
+    const key = s.app + "|" + tag; const e = poolCache.get(key);
+    if (e?.busy) return false;
+    poolCache.set(key, { at: e?.at ?? 0, items: e?.items ?? [], filter: e?.filter ?? "", busy: true });
+    // a read that gives nothing keeps the old list and the old time: tried again after POOL_RETRY_MS, never passed off as fresh (2026-10-13);
+    // a read that never answers is given up after POOL_READ_MS so the round goes on
+    const failed = () => { poolCache.set(key, { at: e?.at ?? 0, items: e?.items ?? [], filter: e?.filter ?? "", busy: false, failedAt: Date.now() }); return false; };
+    try {
+      const r = await Promise.race([orchestrator.videoPool(hiddenServices(), s.app, tag), new Promise<null>((res) => setTimeout(() => res(null), POOL_READ_MS))]);
+      // the service's past videos for the word too, where it has a page for them (2026-10-13, Twitch's search: "add the Twitch search videos")
+      const v = orchestrator.adapterSpec(s.adapter)?.videoPoolVideos ? await Promise.race([orchestrator.videoPool(hiddenServices(), s.app, tag, "videos"), new Promise<null>((res) => setTimeout(() => res(null), POOL_READ_MS))]) : null;
+      if (!r && !v) { report(new Error("pool read gave nothing: " + key)); return failed(); }
+      poolCache.set(key, { at: Date.now(), items: [...(r?.items ?? []), ...(v?.items ?? [])], filter: r?.filter ?? "", busy: false });
+      return true;
+    } catch (err) { report(err); return failed(); }
+  };
+  let poolRun: Promise<number> | null = null; let poolRunAt = 0;
+  const poolRefreshAll = (force: boolean): Promise<number> => {
+    if (poolRun && Date.now() - poolRunAt < POOL_ROUND_MS) return poolRun;   // a round that never ended gives way (2026-10-13)
+    poolRunAt = Date.now();
+    poolRun = (async () => {
+      let n = 0;
+      try {
+        for (const c of categoriesNow()) if (c.pool) for (const t of c.tags.slice(0, POOL_TAGS)) for (const s of poolServices()) {
+          const e = poolCache.get(s.app + "|" + t);
+          const due = !e || Date.now() - e.at > POOL_MS; const retry = !e?.failedAt || Date.now() - e.failedAt > POOL_RETRY_MS;
+          if (force || (due && retry)) { if (await poolRefreshOne(s, t)) n++; }
+        }
+      } finally { poolRun = null; }
+      return n;
+    })();
+    return poolRun;
+  };
+  const categoryRows = (): Array<Record<string, unknown>> => {
+    const cats = categoriesNow(); if (!cats.length) return [];
+    const all = categoryItems(); const log = orchestrator.videoMenuLog(); const now = Date.now();
+    const rows: Array<Record<string, unknown>> = [];
+    for (const c of cats) {
+      const rule = CATEGORY_RULES.find((r) => r.id === c.rule) ?? CATEGORY_RULES[0]!;
+      const tagsSaid = c.tags.join(" ");   // a #tag carries its own #, a plain word none (2026-10-12)
+      // one row (2026-10-12, "Can the comedy row sort by release date even though multiple services are involved?"): the household's own titles and,
+      // for a pool category, every service's own page for each hashtag, together under the rule - newest first across services, a live stream
+      // as now; the disclosure names every source
+      const seen = new Set<string>(); const items: CategoryCard[] = [];
+      for (const x of all) if (matches(c, x.item)) { const k = x.app + "|" + (x.item.id || x.item.url || x.item.title); if (!seen.has(k)) { seen.add(k); items.push(x); } }
+      let busy = false; let at = 0; const pools: string[] = []; const counted: string[] = []; const sources: string[] = []; const deciders: string[] = [];
+      if (c.pool) for (const s of poolServices()) {
+        const w = poolWords(orchestrator.videoPoolWords(s.adapter)!, c.tags.slice(0, POOL_TAGS));
+        let unfiltered = false; let any = false;
+        for (const t of c.tags.slice(0, POOL_TAGS)) {
+          const e = poolCache.get(s.app + "|" + t);
+          if (!e || e.busy) busy = true;
+          if (!e) continue;
+          any = true; at = Math.max(at, e.at); if (e.at && e.filter === "" && s.adapter === "youtube") unfiltered = true;
+          for (const it of e.items) { const k = s.app + "|" + (it.id || it.url || it.title); if (seen.has(k)) continue; seen.add(k); items.push({ app: s.app, service: s.name, facet: s.facet, item: it, readAt: e.at }); }
+        }
+        if (any) { pools.push(w.name); counted.push(w.counted + (unfiltered ? " On the last read the service's filter could not be pressed, so this is its unfiltered list." : "")); sources.push(w.source); deciders.push(w.decides); }
+      }
+      // the live streams apart (2026-10-13, "Live stuff should just be on the Live tab"): the Watch row keeps its sixty videos and titles, the Live
+      // page takes the streams - Comedy's sixty slots had all been live streams, and the Watch row came out empty once they were filtered after
+      const ordered = orderCategory(c.rule, items, log, now);
+      const live = ordered.filter((x) => isLiveCard(x.item));
+      const cards = ordered.filter((x) => !isLiveCard(x.item));
+      rows.push({ id: "cat:" + c.id, name: c.name, counted: [rule.counted, ...counted].join(" "), who: rule.who, decides: [rule.decides, ...deciders].join(" "), source: [rule.source, ...sources].join(" "), sourceUrl: "",
+        formula: rule.formula.replace("one of the hashtags", tagsSaid) + (pools.length ? ", with " + pools.join(" and ") : ""), attribution: null, dataDate: at ? new Date(at).toISOString().slice(0, 16).replace("T", " ") : null,
+        cards: cards.slice(0, 60), total: cards.length, live, reading: busy ? 1 : 0, category: c, ...(pools.length ? { pool: pools.join(", ") } : {}) });
+    }
+    if (cats.some((c) => c.pool)) void poolRefreshAll(false);
+    return rows;
+  };
   const lookupLibrary = (q: string): LibraryHit[] => libraryHits(q, libraryEntries());
   const libraryEntries = (): LibraryEntry[] => {
     const entries: LibraryEntry[] = [];
@@ -1937,7 +2174,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       for (const [from, items] of [["continue", lib.continue], ["list", lib.list], ["owned", lib.owned]] as const)
         for (const it of (items ?? []) as VideoItem[]) {
           // a title the service gave no picture (Movies Anywhere's Serenity, 2026-09-23): TMDB's landscape one, else its poster
-          const art = it.artwork || orchestrator.backdropFor(it.title, it.kind) || orchestrator.posterFor(it.title, it.kind);
+          const art = it.artwork || orchestrator.backdropFor(it.title, it.kind) || orchestrator.posterFor(it.title, it.kind) || orchestrator.artById(s.app, it.id);
           entries.push({ app: s.app, name: s.name, facet: s.facet, from, item: { ...it, artwork: art } as LibraryEntry["item"] });
         }
     }
@@ -3003,7 +3240,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     videoMenuRows(withLenses) {
       try {
         const m = videoMenu() as Record<string, unknown>;
-        const keep = ["ready", "watchlist", "continue", "list", "orders", "lens", "screen", "active", "log", "now", ...(withLenses === true || withLenses === "true" || withLenses === "1" ? ["lensRows"] : [])];
+        const keep = ["ready", "watchlist", "continue", "list", "newOwned", "orders", "lens", "screen", "active", "log", "now", ...(withLenses === true || withLenses === "true" || withLenses === "1" ? ["lensRows"] : [])];
         return json(Object.fromEntries(keep.map((k) => [k, m[k]])));
       } catch (e) { report(e); return json({ error: String(e) }); }
     },
@@ -3113,6 +3350,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return json(orchestrator.videoUpdatesStatus(hs.map((s) => ({ app: s.app, name: s.name, adapter: s.adapter, status: s.status }))));
       } catch (e) { report(e); return json({ services: [], feeds: [], ratings: null, schedule: null }); }
     },
+    async videoChannelUnfollow(appId, url) { try { return json(await orchestrator.videoChannelUnfollow(hiddenServices(), String(appId ?? ""), String(url ?? ""))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    async videoChannelInfo(appId, url) { try { const c = await orchestrator.videoChannelInfo(hiddenServices(), String(appId ?? ""), String(url ?? "")); return json({ ok: !!c, channel: c }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRefreshApp(appId, owned) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? ""), owned === true) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
       try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, suggestions: orchestrator.videoSuggestions }); }
@@ -3168,6 +3407,43 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (!s) return "unknown app " + appId; void orchestrator.devHoldPage(s, url, typeof height === "number" ? height : undefined).catch(report); return "asked"; },
     videoHideContinue(appId, itemId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); if (!s) return json({ ok: false, error: "unknown service" }); orchestrator.videoHideContinue(s.adapter, String(itemId ?? "")); return json({ ok: true }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRemoveInfo(appId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoRemoveInfo(s.adapter) : { can: false, warning: null }); } catch (e) { report(e); return json({ can: false, warning: null }); } },
+    videoNewOwnedClear(appId) {
+      try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); if (!s) return json({ ok: false, error: "no such service" }); orchestrator.videoClearNewOwned(s.adapter); return json({ ok: true }); }
+      catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoItemInfo(appId, title) {
+      try {
+        const t = String(title ?? "").trim().toLowerCase(); const app = String(appId ?? "");
+        // the rows, then the open pool's cards (a Twitch stream from a category's pool is not in any row)
+        const c = categoryItems(false).find((x) => x.app === app && x.item.title.trim().toLowerCase() === t)
+          ?? [...poolCache.entries()].filter(([k]) => k.startsWith(app + "|")).flatMap(([, e]) => e.items).map((it) => ({ app, item: it })).find((x) => x.item.title.trim().toLowerCase() === t);
+        const ab = c ? aboutOf(app, c.item) : null;
+        return json({ about: c && ab ? { ...ab, id: c.item.id, url: c.item.url ?? null, subtitle: c.item.subtitle ?? null } : null });
+      } catch (e) { report(e); return json({ about: null }); }
+    },
+    async videoCategoryTopics() {
+      try { const t = await orchestrator.mostReadTopics(Date.now()); return json({ ...t, source: "Wikipedia's most-read articles on " + t.day + ", Wikimedia's public count of reads" }); }
+      catch (e) { report(e); return json({ day: "", topics: [], source: "" }); }
+    },
+    async videoCategoryPoolRefresh() { try { const n = await poolRefreshAll(true); return json({ ok: true, read: n }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    videoCategories(days) {
+      try {
+        const now = Date.now(); const d = Math.max(0, parseInt(String(days ?? ""), 10) || 0);
+        const all = categoryItems().map((c) => c.item);
+        const items = d > 0 ? all.filter((it) => withinDays(it, d, now)) : all;
+        let readAt = 0; for (const s of videoServices().services) { const at = orchestrator.videoLibraryOf(s.adapter).at; if (at && at > readAt) readAt = at; }
+        return json({ categories: categoriesNow(), rules: CATEGORY_RULES, suggestions: popularTags(items), creator: creatorTags(items), readAt: readAt || null, days: d, counted: items.length, poolServices: poolServices().map((s) => ({ app: s.app, name: s.name, row: orchestrator.videoPoolWords(s.adapter)?.name ?? "" })) }); } catch (e) { report(e); return json({ categories: [], rules: CATEGORY_RULES, suggestions: [] }); } },
+    videoCategorySet(categoryJson) {
+      try {
+        const c = cleanCategory(JSON.parse(String(categoryJson ?? "null")));
+        if (!c) return json({ ok: false, error: "a category needs an id and at least one hashtag" });
+        const next = [...categoriesNow().filter((x) => x.id !== c.id), c].slice(-24);
+        categoriesWrite(next);
+        if (c.pool) void poolRefreshAll(false);
+        return json({ ok: true, categories: next });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoCategoryDelete(id) { try { const next = categoriesNow().filter((x) => x.id !== String(id ?? "")); categoriesWrite(next); return json({ ok: true, categories: next }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoListInfo(appId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoListInfo(s.adapter) : { can: false, name: "My List" }); } catch (e) { report(e); return json({ can: false, name: "My List" }); } },
     videoListSet(appId, want, itemId, title, url, kind, catalog) {
       try {
@@ -3179,6 +3455,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return json(orchestrator.videoListSet(s, String(want) === "add", item, resolve));
       } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
     },
+    videoLibraryRemoveInfo(appId, itemId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoLibraryRemoveInfo(s.adapter, String(itemId ?? "")) : { can: false, warning: null }); } catch (e) { report(e); return json({ can: false, warning: null }); } },
+    videoLibraryRemove(appId, itemId, title) { try { const s = hiddenServices().find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoLibraryRemove(s, String(itemId ?? ""), String(title ?? "")) : { status: "failed", error: "unknown service" }); } catch (e) { report(e); return json({ status: "failed", error: String(e) }); } },
     videoRemoveContinue(appId, itemId, title) { try { const s = hiddenServices().find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoRemoveContinue(s, String(itemId ?? ""), String(title ?? "")) : { status: "failed", error: "unknown service" }); } catch (e) { report(e); return json({ status: "failed", error: String(e) }); } },
     videoArtOf(tileId) { try { return json(orchestrator.videoArtOf(String(tileId ?? ""))); } catch (e) { report(e); return json({ title: null, art: null }); } },
     videoEpisodes() {
@@ -3219,7 +3497,28 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         // a service's live events stand in the grid as rows too (2026-09-30, "Why does your screenshot not show apple in the jump to items"): the
         // series as the channel's type, one on now as what is on, one to come as its schedule - so Apple TV groups and jumps like the others
         const eventRows = (app: string): VideoChannel[] => eventRowsOf(orchestrator, app);
-        const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: [...s.live.map(withTmdbWord), ...eventRows(s.app)] })).filter((s) => s.channels.length > 0);
+        // the person's categories on the Live page too (2026-10-12, "For the live content creator shows, we should probably have a category on the
+        // live page too"): a category's streams live now - a creator from the household's rows or the open pool - stand in the grid under the
+        // category's name as a mode of their own; a channel already in the grid counts in that mode as well
+        const catLive = new Map<string, Array<{ name: string; card: CategoryCard }>>();
+        for (const row of categoryRows()) {
+          const cat = row.category as { name: string } | undefined;
+          if (!cat) continue;
+          for (const card of ((row.live as CategoryCard[] | undefined) ?? [])) if (isLiveCard(card.item)) { const arr = catLive.get(card.app) ?? []; if (!arr.some((x) => x.name === cat.name && x.card.item.id === card.item.id)) arr.push({ name: cat.name, card }); catLive.set(card.app, arr); }
+        }
+        const nowMs = Date.now();
+        const withCategories = (app: string, channels: VideoChannel[]): VideoChannel[] => {
+          const out = channels.map((c) => ({ ...c }));
+          for (const { name, card } of catLive.get(app) ?? []) {
+            // a stream the pool read long ago is not listed as live (2026-10-13, "if they're not actually live, they shouldn't show up in that list")
+            if (card.readAt !== undefined && nowMs - card.readAt >= POOL_LIVE_MS) continue;
+            const have = out.find((c) => c.id === card.item.id || (!!card.item.url && c.url === card.item.url));
+            if (have) { have.nowTypes = [...(have.nowTypes ?? []), { type: name, title: have.now ?? card.item.title }]; continue; }
+            out.push({ id: card.item.id, name: card.item.title, url: card.item.url ?? "", logo: card.item.artwork ?? null, favorite: false, category: name, now: card.item.subtitle ?? "Live now", nowEnds: (card.readAt ?? nowMs) + POOL_LIVE_MS, readAt: card.readAt ?? nowMs });
+          }
+          return out;
+        };
+        const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: withCategories(s.app, [...s.live.map(withTmdbWord), ...eventRows(s.app)]), creator: !!orchestrator.adapterSpec(s.adapter)?.videoChannelInfo })).filter((s) => s.channels.length > 0);
         const g = liveGuide(services, Date.now(), { type: type ? String(type) : null, q: q ? String(q) : null });
         const reads = orchestrator.liveReadState();
         const guides = sv.services.filter((s) => !!orchestrator.adapterSpec(s.adapter)?.videoLiveUrl || s.live.length > 0 || orchestrator.liveEvents(s.app).length > 0)
@@ -3232,6 +3531,19 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
           ...orchestrator.liveEvents(s.app, now).map((it) => ({ app: s.app, service: s.name, facet: s.facet, id: it.id, title: it.title, url: it.url ?? null, artwork: it.artwork ?? null, badge: it.badge ?? null, start: it.start ?? null, end: it.end ?? null, live: !!it.live, group: it.group ?? null, sport: sportOf(it.title, it.group) })),
         ]).sort((a, b) => Number(b.live) - Number(a.live) || (a.start ?? 0) - (b.start ?? 0));
         const eventReads = orchestrator.eventsReadState();
+        // the programme on now, pictured by TMDB (2026-10-13, "tie out the live tv items for paramount, peacock, and youtube tv with their posters
+        // from TMDB"): each title asked once under the person's own key and kept; TMDB is matched on the exact title only, so a channel keeps its
+        // logo for anything else, and a title that is no programme is never asked
+        const asks: Array<{ title: string }> = [];
+        for (const r of g.rows) {
+          if (r.creator || r.event) continue;
+          const on = r.programs.find((p) => p.now);
+          if (!on || LIVE_NO_PICTURE.test(on.title)) continue;
+          const pic = orchestrator.picturesFor(on.title, null);
+          if (pic === null) { if (asks.length < 400) asks.push({ title: on.title }); }
+          else if (pic.backdrop || pic.poster) r.picture = pic;
+        }
+        orchestrator.ensurePictures(asks);
         return json({ ...g, guides, events, eventReads });
       } catch (e) { report(e); return json({ window: null, types: [], rows: [], guides: [], events: [], error: String(e) }); }
     },
@@ -3927,6 +4239,23 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // the phone's Video tab (2026-10-04, "a full watch (with no video) page for video"): the Watch screen's two rows and the live channels,
   // the big window's state with its art, and the plays the PC's own bar makes - never a picture (the services' video is DRM, and
   // Prism does not touch it: docs/third-party-services-policy.md)
+  const channelCache = new Map<string, { at: number; r: unknown }>();
+  // the phone's playlists (2026-10-12): the runtime verbs the PC's Playlists tab calls, their JSON answers parsed for the route
+  const plParse = (s: string): unknown => { try { return JSON.parse(s) as unknown; } catch { return { ok: false, error: "bad answer" }; } };
+  remote.playlists = {
+    // with the gate (active: a TMDB account with lists; linked), so the phone shows the section when the PC shows its tab; the account's
+    // session loads on the first ask, so the first answer after a start can say inactive and the next says the lists
+    view: () => ({ ...(plParse(api.playlistsView(null, null, null)) as Record<string, unknown>), gate: plParse(api.playlistGate()) }),
+    create: (name) => plParse(api.playlistCreate(name, false)),
+    open: (id) => plParse(api.playlistOpen(id)),
+    rename: (id, name) => plParse(api.playlistRename(id, name)),
+    remove: (id) => plParse(api.playlistDelete(id)),
+    play: (id, key) => plParse(api.playlistPlay(id, key)),
+    edit: (id, op) => plParse(api.playlistEdit(id, JSON.stringify(op))),
+    undo: () => plParse(api.playlistUndo()),
+    move: (dir) => plParse(api.playlistMove(dir)),
+    stop: (mode) => plParse(api.playlistStop(mode)),
+  };
   remote.video = {
     view: () => {
       const sv = videoServices();
@@ -3936,7 +4265,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const off = excludedNow();
       const card = (c: { app: string; service: string; facet: string; item: VideoItem }) => ({
         app: c.app, service: c.service, facet: c.facet,
-        item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, progress: c.item.progress ?? null },
+        // TMDB's poster beside the service's own picture (2026-10-11): the phone draws every card tall, so the poster comes first where there is one
+        item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item) },
       });
       const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem }>) => cs.filter((c) => !off.has(c.app)).slice(0, 40).map(card);
       const tile = sv.screen?.slot ?? null;
@@ -3952,7 +4282,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         // from Apple?": the phone's list came from the channel guides alone, and Apple TV has events and no channels, so it was never listed)
         live: sv.services.filter((s) => (s.live.length > 0 || orchestrator.liveEvents(s.app).length > 0) && !off.has(s.app)).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: [...s.live, ...eventRowsOf(orchestrator, s.app)].slice(0, 160).map((c) => {
           const on = programOnNow(c, Date.now());
-          return { id: c.id, name: c.name, url: c.url, now: on?.title ?? c.now ?? null, logo: c.logo ?? null, event: !!c.event, series: c.series ?? null, start: on?.start ?? null, end: on?.end ?? null };
+          return { id: c.id, name: c.name, url: c.url, now: on?.title ?? c.now ?? null, logo: c.logo ?? null, event: !!c.event, series: c.series ?? null, start: on?.start ?? null, end: on?.end ?? null, favorite: !!c.favorite, category: c.category ?? null };
         }) })),
         // the guides being read right now, so the phone can say so instead of "none" (2026-10-05)
         liveReading: Object.values(orchestrator.liveReadState()).some((r) => r.reading),
@@ -4001,6 +4331,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return r;
       } catch (e) { report(e); return { ok: false, error: String(e) }; }
     },
+    channel: async (app, url) => {
+      // a channel's page is read once in six hours: the second open is instant (2026-10-11, "struggle to pull up channel information")
+      const k = app + "|" + url; const have = channelCache.get(k);
+      if (have && Date.now() - have.at < 6 * 3_600_000) return have.r;
+      try { const r = JSON.parse(await api.videoChannelInfo(app, url)) as { ok?: boolean }; if (r && r.ok) channelCache.set(k, { at: Date.now(), r }); return r; } catch (e) { report(e); return { ok: false, error: String(e) }; }
+    },
+    person: (id) => { try { return JSON.parse(api.personPage(id)) as unknown; } catch (e) { report(e); return { status: "none", why: String(e) }; } },
+    details: (title, kind, app) => { try { return JSON.parse(api.titleDetails(title, kind, app)) as unknown; } catch (e) { report(e); return { status: "none", why: String(e) }; } },
     lenses: () => {
       const m = videoMenu() as { lensRows?: Array<Record<string, unknown>> };
       const rows = (m.lensRows ?? []).map((lr) => {
@@ -4011,7 +4349,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
             return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) };
           }
           const it = c.item as VideoItem;
-          return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, progress: it.progress ?? null } };
+          return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, poster: orchestrator.posterFor(it.title, it.kind), progress: it.progress ?? null, about: aboutOf(String(c.app ?? ""), it) } };
         });
         return { id: lr.id, name: lr.name, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards };
       }).filter((r) => r.cards.length || r.reading);

@@ -249,6 +249,15 @@ export interface AdapterSpec {
   videoRemoveContinueUrl?: string | string[];
   videoRemoveContinueWarning?: string;
   /**
+   * Remove a title from the service's own library (2026-10-12, YouTube TV: the show's 'Added to library' button, which ends its recordings):
+   * window.__prismVideoLibraryRemove(token, id, title) on a hidden page at videoLibraryRemoveUrl ({id}, {url} as fillItemAddress fills them),
+   * answering through the result channel (op "rm"): ok when the service shows the title gone; 'already-gone', 'not-found' or 'unconfirmed'
+   * otherwise. videoLibraryRemoveWarning is said in the confirmation. A service without the script offers no remove.
+   */
+  videoLibraryRemove?: string;
+  videoLibraryRemoveUrl?: string | string[];
+  videoLibraryRemoveWarning?: string;
+  /**
    * Add a title to the service's own My List / My Stuff / Watchlist, or take it off (2026-09-23, "Ideally we could add any items to My List
    * through Prism, and it does it in the source application as well. Just like Continue Watching"): the script defines
    * window.__prismVideoListSet(token, want, id, title) - want true adds, false removes - which finds the TITLE'S OWN list toggle on its
@@ -260,6 +269,47 @@ export interface AdapterSpec {
    */
   videoListSet?: string;
   videoListSetUrl?: string | string[];
+  /**
+   * A channel's own page read for its card (2026-10-11, YouTube: "Maybe details could show the channel profile desc ... That way you can
+   * search for content by the user"): the script defines window.__prismVideoChannelInfo(token), run on the App's hidden work page at the
+   * channel's own address, which answers through the result channel (op "chan") with data {name, handle, description, subscribers,
+   * videos, avatar, banner, searchUrl, latest: [VideoItem]}. Read-only: nothing on the page is pressed but a 'more' that unfolds the
+   * description.
+   */
+  videoChannelInfo?: string;
+  /** The page videoChannelInfo reads for a channel address, {url} the address without its trailing slash (Twitch's {url}/about, 2026-10-11); the address itself otherwise. */
+  videoChannelPage?: string;
+  /** A followed channel unfollowed on its own page (2026-10-13, "I want to be able to remove a channel from those I follow whether it is youtube or
+   *  twitch"): window.__prismVideoChannelUnfollow(token) presses the page's own Unfollow or Unsubscribe and its confirm, posts op "unfollow" {ok,
+   *  error}; only ever on the person's press. */
+  videoChannelUnfollow?: string;
+  /** The service's pictures are plain thumbnails that carry no name (YouTube's, Twitch's), so a card draws the name over them, as it does over
+   *  TMDB's; a service's own box art (Netflix's, Apple TV's) carries its name already (2026-10-13). */
+  videoArtPlain?: boolean;
+  /** The open pool for a category (categories.ts, 2026-10-11): the page that lists everything on the service carrying a hashtag,
+   *  {q} the hashtag without its #. Read on the service's hidden page, nothing pressed but the service's own named filter. */
+  videoPoolUrl?: string;
+  /** Its page script: window.__prismVideoPool(token) posts op "pool" with {items, filter}. */
+  videoPool?: string;
+  /** The pool's second page (2026-10-13, "add the Twitch search videos"): the service's past videos for the word, {q} the hashtag without its #
+   *  (Twitch's search page and its Past videos). Read after the live page on the same hidden surface; its items join the pool's. */
+  videoPoolVideosUrl?: string;
+  /** Its page script: window.__prismVideoPoolVideos(token) posts op "pool" with {items, filter}. */
+  videoPoolVideos?: string;
+  /** The pool row's lines, {tags} the hashtags: its name after the category's, what is counted, who is counted, who decides, the source. */
+  videoPoolWords?: { name: string; counted: string; who: string; decides: string; source: string };
+  /** Tags creators wrote (2026-10-11): a page on the service that shows many titles' own tags at once (Twitch's followed live streams), read on
+   *  the hidden page by videoTags, whose window.__prismVideoTags(token) posts op "tags" with {byId: {id: [tag]}}. */
+  videoTagsUrl?: string;
+  videoTags?: string;
+  /** A title's own public page, {id} the title's id, with no query string: core reads it with no account or cookie and keeps the creator's
+   *  keywords meta (YouTube's watch/<id>). A dozen titles a pass, each kept a month. */
+  videoTagsFetch?: string;
+  /** A title's picture by its id when the page gave none ({id}): YouTube's thumbnail address (2026-10-11, blank Continue watching cards). */
+  videoArtUrl?: string;
+  /** How long the service's player takes from a press to its first frame, in ms, when longer than the usual 35 s (Apple TV's takes 43 s, 2026-10-12):
+   *  the playback doctor and a pick's own clock wait this long before calling a start missed. */
+  videoStartMs?: number;
   /**
    * Address paths at which the service starts playback on load (2026-09-23: Tubi's /movies/<id> is its player - a hidden list job opened one and
    * played the film for six minutes, which put it back in Continue Watching each time it was removed; Apple TV's /episode/). Core never opens

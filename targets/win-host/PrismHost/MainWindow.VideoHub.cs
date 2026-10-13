@@ -38,7 +38,12 @@ public sealed partial class MainWindow
     /// <summary>The lines under each card that the sources fill in as they answer (the lens's number, the rating), by card - updated in
     /// place while reads are pending; the page is never rebuilt under a person ("it refreshes and takes me back to the start of the
     /// my list line", 2026-09-21).</summary>
-    private readonly Dictionary<string, List<(TextBlock lens, RatingLineUi rating)>> _hubLines = new();
+    private readonly Dictionary<string, List<(TextBlock lens, RatingLineUi rating, Grid poster)>> _hubLines = new();
+    /// <summary>Each card's picture as drawn, by its frame: the settle loop swaps a picture that core has since changed (TMDB's wide art arriving after a
+    /// boot's first draw, 2026-10-12, "Still not seeing wide posters on New in your library").</summary>
+    private readonly Dictionary<Grid, string> _hubArt = new();
+    /// <summary>The services whose pictures carry no name (core's artPlain, 2026-10-13): the name is drawn over them.</summary>
+    private HashSet<string> _plainArtApps = new();
     private TextBlock? _hubLensHead;
     /// <summary>Lens rows drawn while their sources were still reading: the head and the panel the cards go into once they arrive (filled in place, never rebuilt under a person).</summary>
     private readonly Dictionary<string, (TextBlock head, StackPanel host, string name, TextBlock disclosure)> _hubLensPending = new();
@@ -134,6 +139,16 @@ public sealed partial class MainWindow
     private static readonly SolidColorBrush HubInk = new(Windows.UI.Color.FromArgb(255, 0xE8, 0xEC, 0xF2));
     private static readonly SolidColorBrush HubDim = new(Windows.UI.Color.FromArgb(255, 0x8A, 0x93, 0xA2));
     private static readonly SolidColorBrush HubAmber = new(Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C));
+    /// <summary>A channel card's own colour (2026-10-13): a hue from its name, muted and dark enough for light ink and a logo over it, the same
+    /// every time the channel is drawn.</summary>
+    private static SolidColorBrush ChannelTint(string name)
+    {
+        uint h = 2166136261; foreach (var c in name) { h ^= c; h *= 16777619; }
+        double hue = h % 360, s = 0.42, l = 0.30;
+        double C = (1 - Math.Abs(2 * l - 1)) * s, X = C * (1 - Math.Abs(hue / 60 % 2 - 1)), m = l - C / 2;
+        var (r, g, b) = hue < 60 ? (C, X, 0d) : hue < 120 ? (X, C, 0d) : hue < 180 ? (0d, C, X) : hue < 240 ? (0d, X, C) : hue < 300 ? (X, 0d, C) : (C, 0d, X);
+        return new SolidColorBrush(Windows.UI.Color.FromArgb(255, (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255)));
+    }
     private static readonly SolidColorBrush HubCard = new(Windows.UI.Color.FromArgb(255, 0x22, 0x27, 0x30));
     private static readonly SolidColorBrush HubChip = new(Windows.UI.Color.FromArgb(255, 0x1C, 0x21, 0x29));
     private static readonly SolidColorBrush HubChipOn = new(Windows.UI.Color.FromArgb(255, 0x3A, 0x2E, 0x14));
@@ -194,15 +209,16 @@ public sealed partial class MainWindow
     private async Task FollowCurtainAsync(int run, TextBlock status, StackPanel line, StackPanel verbs, string title, string service)
     {
         var t0 = DateTime.UtcNow;
+        string? startId = null;   // what the screen played when the curtain rose: a move to the next episode is not over until it has changed
         while (run == _curtainRun && StageCurtain.Visibility == Visibility.Visible)
         {
             await Task.Delay(400);
             if (run != _curtainRun) return;
-            JsonObject? tile = null;
+            JsonObject? tile = null; string? slot = null;
             try
             {
                 var sv = JsonNode.Parse(await ModelCallAsync("videoServices") ?? "null") as JsonObject;
-                var slot = (sv?["screen"] as JsonObject)?["slot"]?.GetValue<string>();
+                slot = (sv?["screen"] as JsonObject)?["slot"]?.GetValue<string>();
                 var vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray;
                 tile = vs?.OfType<JsonObject>().FirstOrDefault(t => t["id"]?.GetValue<string>() == slot);
             }
@@ -210,6 +226,29 @@ public sealed partial class MainWindow
             if (run != _curtainRun) return;
             var err = tile?["error"]?.GetValue<string>();
             var failed = (tile?["pending"] as JsonObject)?["failed"]?.GetValue<string>();
+            // the service's own gate (2026-10-13, Twitch's content disclaimer: "I want them to see the disclaimer attached"): its words on the
+            // curtain, its own verb for the person to press, never pressed by Prism; Close lifts the curtain onto the page as it is
+            var gateText = (tile?["gate"] as JsonObject)?["text"]?.GetValue<string>();
+            if (gateText is { Length: > 0 })
+            {
+                line.Children.OfType<ProgressRing>().ToList().ForEach(r => r.IsActive = false);
+                // the words wrap within the curtain (2026-10-13, "I see a disclaimer but it gets cut off"): the line is a horizontal stack that measures without limit
+                status.Text = gateText; status.Foreground = HubAmber; status.TextWrapping = TextWrapping.Wrap; status.TextAlignment = TextAlignment.Center;
+                status.MaxWidth = Math.Max(480, TileCanvas.ActualWidth * 0.6);
+                if (verbs.Children.Count == 0)
+                {
+                    var verbText = (tile?["gate"] as JsonObject)?["verb"]?.GetValue<string>() is { Length: > 0 } vt ? vt : "Start watching";
+                    var go = Chip(new TextBlock { Text = verbText, FontSize = 14, Foreground = HubAmber }, true);
+                    ToolTipService.SetToolTip(go, "Presses the service's own " + verbText + " button.");
+                    go.Click += (_, __) => { if (slot is not null) _brain.Call(HostCalls.TileCommand, slot, "gate"); status.Text = "Starting on " + service + "\u2026"; status.Foreground = HubDim; verbs.Visibility = Visibility.Collapsed; };
+                    verbs.Children.Add(go);
+                    var closeGate = Chip(new TextBlock { Text = "Close", FontSize = 14, Foreground = HubInk }, false);
+                    closeGate.Click += (_, __) => HideStageCurtain();
+                    verbs.Children.Add(closeGate);
+                }
+                verbs.Visibility = Visibility.Visible;
+                return;
+            }
             if (err is { Length: > 0 } || failed is { Length: > 0 })
             {
                 // the page's own error, said here; Retry opens the title again, Close lifts the curtain onto the page as it is
@@ -232,7 +271,13 @@ public sealed partial class MainWindow
             // Apple TV's stream still went play, stop, play - the player's own chrome showed through that half second), or after 30 s regardless
             var stageUp = tile?["stage"]?.GetValue<bool>() == true;
             var playingNow = tile?["playing"]?.GetValue<bool>() == true;
-            if (stageUp && playingNow) { if (_curtainSteadyAt == DateTime.MinValue) _curtainSteadyAt = DateTime.UtcNow; }
+            // ... and not on the title that was already playing when the curtain rose (2026-10-12, Next episode on Apple TV: the old episode's
+            // own playing dropped the curtain two seconds after the press, and the next episode's page then showed for a second and a half
+            // before Apple's player took it): the picture has changed title, or the page has navigated since, or eight seconds have passed
+            var vid = (tile?["video"] as JsonObject)?["id"]?.GetValue<string>();
+            if (startId is null && vid is { Length: > 0 }) startId = vid;
+            var moved = vid != startId || (slot is not null && _navAt.TryGetValue(slot, out var navAt) && navAt > _curtainUpAt) || (DateTime.UtcNow - t0).TotalSeconds > 8;
+            if (stageUp && playingNow && moved) { if (_curtainSteadyAt == DateTime.MinValue) _curtainSteadyAt = DateTime.UtcNow; }
             else _curtainSteadyAt = DateTime.MinValue;
             if ((stageUp && playingNow && (DateTime.UtcNow - _curtainSteadyAt).TotalMilliseconds >= 900) || (DateTime.UtcNow - t0).TotalSeconds > 30) { HideStageCurtain(); return; }
             if (playingNow) status.Text = "Playing on " + service + "\u2026";
@@ -679,6 +724,15 @@ public sealed partial class MainWindow
             mute.PointerEntered += (_, __) => { ShowVolumeSlider(mute, screenSlot); _stageBarTimer?.Stop(); };
             mute.PointerExited += (_, __) => { _volumeClose?.Start(); RestartStageBarTimer(); };
             StageBarBody.Children.Add(mute);
+            if ((tile?["gate"] as JsonObject)?["text"]?.GetValue<string>() is { Length: > 0 } gateWords)
+            {
+                // the service's own gate (2026-10-13): its verb on the bar, the words in its tooltip
+                var gateVerb = (tile?["gate"] as JsonObject)?["verb"]?.GetValue<string>() is { Length: > 0 } gv ? gv : "Start watching";
+                var go = Chip(new TextBlock { Text = gateVerb, FontSize = 13, Foreground = HubAmber }, true);
+                ToolTipService.SetToolTip(go, gateWords);
+                go.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, screenSlot, "gate"); RestartStageBarTimer(); };
+                StageBarBody.Children.Add(go);
+            }
             if (pageError is { Length: > 0 })
             {
                 var retry = Chip(new TextBlock { Text = "Retry", FontSize = 13, Foreground = HubAmber }, true);
@@ -795,9 +849,11 @@ public sealed partial class MainWindow
         StageNext.Visibility = Visibility.Collapsed; StageNext.Children.Clear();
         if (video is null || (video["kind"]?.GetValue<string>() ?? "") != "episode" || (video["series"]?.GetValue<string>() ?? "").Length == 0) return;
         JsonObject? r = null;
-        for (var attempt = 0; attempt < 8 && run == _stageNextRun; attempt++)
+        // the service's own list can take a minute to read (Netflix walks its seasons, 2026-10-13: "the next episode should have some kind of
+        // image for it" - the card had given up after six seconds): asked on while the bar is up
+        for (var attempt = 0; attempt < 40 && run == _stageNextRun && StageBar.Visibility == Visibility.Visible; attempt++)
         {
-            if (attempt > 0) await Task.Delay(700);
+            if (attempt > 0) await Task.Delay(attempt < 8 ? 700 : 3000);
             try { r = JsonNode.Parse(await ModelCallAsync("videoNextEpisode", slot) ?? "null") as JsonObject; } catch { r = null; }
             if (r?["ready"]?.GetValue<bool>() == true && (r["series"]?.GetValue<string>() ?? "").Length > 0) break;   // the face may name the season a moment after the bar opens (Netflix, on its paused overlay): asked again
         }
@@ -1037,7 +1093,7 @@ public sealed partial class MainWindow
         await MvCallAsync("state");
         CloseVideoHub();
         HideStageBar();
-        _hubLines.Clear(); _hubLensHead = null; _hubLensPending.Clear(); _liveRows.Clear(); _svcDots.Clear();
+        _hubLines.Clear(); _hubArt.Clear(); _hubLensHead = null; _hubLensPending.Clear(); _liveRows.Clear(); _svcDots.Clear();
         if (_asSession) { await FinishAppSetupAsync(save: false); }   // a setup page under the menu is a trap (the Watch tab pressed mid-sign-in ends the setup instead)
         CloseRail();   // the rail is a full-screen overlay one layer down (z 900): left open it shows through and eats the press beneath (seen 2026-09-19)
         string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
@@ -1297,7 +1353,7 @@ public sealed partial class MainWindow
         }
         else
         {
-        Cards("New in your library", LiveCards(menu, "newOwned"), false, HubAmber);   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
+        Cards("New in your library", LiveCards(menu, "newOwned"), true, HubAmber);   // with the service's mark on each card, as every row has (2026-10-12)   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
         Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue");   // its cards offer Remove on the service (2026-09-22)
         // My list is the TMDB watchlist while an account is linked (MainWindow.Watchlist.cs, 2026-10-03); the services' own lists otherwise
         _watchActive = menu["watchlist"] is JsonObject wl0 && wl0["active"]?.GetValue<bool>() == true;
@@ -1309,6 +1365,36 @@ public sealed partial class MainWindow
         // ... under Services, with the services' own picks (2026-10-09, "not sure why service suggestions are now showing immediately under
         // My List on Watch. Previously those all went to the bottom UNDER the services": YouTube TV's New in your library, Most watched and
         // Scheduled recordings had joined Twitch's rows here and read as a service's suggestions, three rows deep above everything else)
+        // Channels you follow and the latest videos from them (2026-10-13, "I want there to just be 1 category for Latest videos from channels
+        // you follow ... Channels you follow should show the service icon in the corner. Same with items in the latest videos ... Move the
+        // content creator rows down below the channels I follow"): two rows across services, each card with its service's mark, drawn above
+        // the categories
+        _plainArtApps = new HashSet<string>((menu["artPlain"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "").Where(x => x.Length > 0) ?? Enumerable.Empty<string>());
+        var followedDrawn = false;
+        void DrawFollowedRows()
+        {
+            if (followedDrawn) return; followedDrawn = true;
+            if (menu["followed"] is JsonArray followed && followed.Count > 0)
+            {
+                var all = followed.OfType<JsonObject>().ToList();
+                bool LiveNow(JsonObject c) => c["item"] is JsonObject it && (S(it, "kind") == "live" || S(it, "badge") == "LIVE");
+                var shown = HideOfflineChannels ? all.Where(LiveNow).ToList() : all;
+                if (shown.Count > 0)
+                {
+                    var cards = shown.Take(60).Select(c => { var o = (JsonObject)c.DeepClone(); o["recency"] = new JsonObject { ["kind"] = "rank" }; o["__followed"] = true; return o; }).ToList();   // a followed channel, live or not: its card carries Unfollow (2026-10-13)
+                    var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                    headRow.Children.Add(RowHead("Channels you follow  \u00B7  " + shown.Count(LiveNow) + " live now", HubInk));
+                    headRow.Children.Add(HideOfflineBox(13));
+                    rows.Children.Add(headRow);
+                    rows.Children.Add(CardRow(cards, true, now, ref first));
+                }
+            }
+            if (menu["latest"] is JsonArray latest && latest.Count > 0)
+            {
+                var cards = latest.OfType<JsonObject>().Take(60).Select(c => { var o = (JsonObject)c.DeepClone(); o["recency"] = new JsonObject { ["kind"] = "rank" }; o["__library"] = true; return o; }).ToList();
+                Cards("Latest videos from channels you follow", cards, true, HubInk);
+            }
+        }
         void DrawOwnRows()
         {
         if (menu["ownRows"] is JsonArray ownRows)
@@ -1324,11 +1410,15 @@ public sealed partial class MainWindow
                     // in Watch settings, for when the whole row is hidden
                     var all = items.OfType<JsonObject>().ToList();
                     var channels = all.Any(i => S(i, "kind") == "channel");
-                    var shown = channels && HideOfflineChannels ? all.Where(i => !ChannelOffline(i)).ToList() : all;
+                    // ... and only a row whose channels can be on or off the air (Twitch's Followed channels say Offline, or a game and viewers): YouTube's
+                    // Subscriptions carry no such word, and a box that hides nothing there read as a promise about who is live (2026-10-12, "Hide Offline
+                    // for youtube subscriptions, doesnt that mean hide the ones that arent currently live? Because it's not currently happening")
+                    var onAir = channels && all.Any(i => ChannelOffline(i) || System.Text.RegularExpressions.Regex.IsMatch(S(i, "subtitle"), @"\bviewers?\b|\blive\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+                    var shown = onAir && HideOfflineChannels ? all.Where(i => !ChannelOffline(i)).ToList() : all;
                     if (shown.Count == 0) continue;
-                    var cards = shown.Take(48).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
+                    var cards = shown.Take(48).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" }, ["__library"] = true }).ToList();   // a service's own row: its library's remove when it has one (core says)
                     var headText = name + "  " + Mid.Trim() + "  " + S(r, "title");
-                    if (!channels) { Cards(headText, cards, false, HubInk); continue; }
+                    if (!onAir) { Cards(headText, cards, false, HubInk); continue; }
                     var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
                     headRow.Children.Add(RowHead(headText, HubInk));
                     headRow.Children.Add(HideOfflineBox(13));
@@ -1353,6 +1443,7 @@ public sealed partial class MainWindow
         if (menu["lensRows"] is JsonArray lensRows)
             foreach (var lr in lensRows.OfType<JsonObject>())
             {
+                if (S(lr, "id").StartsWith("cat:", StringComparison.Ordinal)) DrawFollowedRows();   // the followed rows stand above the categories (2026-10-13)
                 var cards = (lr["cards"] as JsonArray)?.OfType<JsonObject>().Take(24).ToList() ?? new List<JsonObject>();
                 // a lens that reads the catalog on the household's services (Most read on Wikipedia, 2026-09-22): Browse's cards, the row filled
                 // in its own panel while its lists are read - the panel alone, never the page
@@ -1369,6 +1460,7 @@ public sealed partial class MainWindow
                     var catDisc = new TextBlock { Text = CatalogLensTip(lr), Visibility = Visibility.Collapsed };
                     catHead.Background = HubClear;
                     ToolTipService.SetToolTip(catHead, catDisc.Text);
+                    catHead.Children.Add(InfoMark(InfoTip(lr, LensDisclosureLine(lr, S(lr, "dataDate") is { Length: > 0 } cdd ? cdd : "not read yet"), CatalogLensHead(lr))));   // the (i) (2026-10-13)
                     catDisc.Tag = catHead;
                     catHead.Children.Add(catDisc);
                     rows.Children.Add(catHead);
@@ -1384,18 +1476,37 @@ public sealed partial class MainWindow
                     if (catReading) _hubLensPending[S(lr, "id")] = (catTb, catHost, S(lr, "name"), catDisc);
                     continue;
                 }
-                if (cards.Count == 0 && lensPending == 0) continue;   // nothing the lens can count among these titles
+                var rowReading = lr["reading"] is JsonValue rrv && rrv.TryGetValue<int>(out var rrn) && rrn > 0;   // a category's open pool still being read (2026-10-11)
+                var isCat = S(lr, "id").StartsWith("cat:", StringComparison.Ordinal);
+                if (cards.Count == 0 && (lensPending == 0 || isCat) && !rowReading) continue;   // nothing the lens can count among these titles
                 var date = S(lr, "dataDate") is { Length: > 0 } dd ? dd : "not read yet";
                 var lensHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-                var headTb = RowHead(S(lr, "name") + (cards.Count == 0 ? "  ·  reading " + lensPending + " title" + (lensPending == 1 ? "" : "s") + "…" : ""), HubInk);
+                var headTb = RowHead(S(lr, "name") + (cards.Count == 0 ? (isCat ? "  ·  reading the open pool…" : "  ·  reading " + lensPending + " title" + (lensPending == 1 ? "" : "s") + "…") : ""), HubInk);
                 lensHead.Children.Add(headTb);
-                var disclosure = new TextBlock { Text = LensDisclosureLine(lr, date), FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Bottom, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 1400 };
-                ToolTipService.SetToolTip(disclosure, "What is counted: " + S(lr, "counted") + "\nWho is counted: " + S(lr, "who") + "\nWho decides: " + S(lr, "decides") + "\nSource: " + S(lr, "source") + "  ·  " + S(lr, "sourceUrl") + (S(lr, "attribution").Length > 0 ? "\n" + S(lr, "attribution") : ""));
+                // the row's words behind an (i) beside its name, not on the page (2026-10-13, "there is a lot of text next to those rows, can you put it
+                // into a tooltip under an (i)"): the disclosure line and the rule said in full, in its tooltip; the line itself stays for the follow
+                var disclosure = new TextBlock { Text = LensDisclosureLine(lr, date), Visibility = Visibility.Collapsed };
+                var info = InfoMark(InfoTip(lr, disclosure.Text));
+                disclosure.Tag = info;
+                lensHead.Children.Add(info);
                 lensHead.Children.Add(disclosure);
                 rows.Children.Add(lensHead);
-                if (cards.Count > 0) rows.Children.Add(CardRow(cards, true, now, ref first));
-                else { var hostPanel = new StackPanel(); rows.Children.Add(hostPanel); _hubLensPending[S(lr, "id")] = (headTb, hostPanel, S(lr, "name"), disclosure); }
+                var hostPanel = new StackPanel(); rows.Children.Add(hostPanel);
+                if (cards.Count > 0) hostPanel.Children.Add(CardRow(cards, true, now, ref first));
+                // a category row follows its pool reads while Watch is open (2026-10-13, "it still hasn't loaded now and it has been 10+ minutes": a row
+                // drawn with its first cards was never looked at again, so YouTube's videos landing after Twitch's never showed); a lens row is
+                // filled once when it was drawn empty
+                if (cards.Count == 0 || isCat) _hubLensPending[S(lr, "id")] = (headTb, hostPanel, S(lr, "name"), disclosure);
+                if (isCat)
+                {
+                    hostPanel.Tag = string.Join("|", cards.Select(LiveKey));
+                    // never updated under the pointer (2026-10-13, "refresh rows and makes it so I can't click an item temporarily")
+                    hostPanel.Background = HubClear;
+                    hostPanel.PointerEntered += (_, __) => { if (hostPanel.Tag is string t && !t.StartsWith("over|", StringComparison.Ordinal)) hostPanel.Tag = "over|" + t; };
+                    hostPanel.PointerExited += (_, __) => { if (hostPanel.Tag is string t && t.StartsWith("over|", StringComparison.Ordinal)) hostPanel.Tag = t.Substring(5); };
+                }
             }
+        DrawFollowedRows();   // no category: the followed rows after the lens rows
         if (lensBlock is not null && false)   // (2026-09-24: the TMDB key is in Watch settings now - the gear on the header)
         {
             var keyLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -1971,17 +2082,18 @@ public sealed partial class MainWindow
     /// </summary>
     private const int CardDecodeWidth = 512;
     private const double ArtLoadAheadPx = 1400;
-    private static Border FitArt(string src)
+    /// <param name="logo">a channel's logo (the Live page's On now cards, 2026-10-12): drawn at its own proportions with room around it, never stretched to fill</param>
+    private static Border FitArt(string src, bool logo = false, Action? opened = null)
     {
-        var img = new Image { Stretch = Stretch.UniformToFill };
-        var box = new Border { CornerRadius = new CornerRadius(6), Child = img };
+        var img = new Image { Stretch = logo ? Stretch.Uniform : Stretch.UniformToFill, Margin = logo ? new Thickness(22) : new Thickness(0) };
+        var box = new Border { CornerRadius = new CornerRadius(6), Child = img, Background = logo ? HubCard : null };   // a logo sits on the card's own dark, never bare on the page
         var loaded = false;
         void Load()
         {
             if (loaded) return;
             loaded = true;
             var bmp = new BitmapImage { DecodePixelWidth = CardDecodeWidth, DecodePixelType = DecodePixelType.Logical };
-            bmp.ImageOpened += (_, _) => { if (bmp.PixelHeight > bmp.PixelWidth) img.Stretch = Stretch.Uniform; };
+            bmp.ImageOpened += (_, _) => { if (!logo && bmp.PixelHeight > bmp.PixelWidth) img.Stretch = Stretch.Uniform; opened?.Invoke(); };
             try { bmp.UriSource = Services.ArtCache.UriFor(src); } catch { }
             img.Source = bmp;
         }
@@ -2258,14 +2370,24 @@ public sealed partial class MainWindow
             var id = S(item, "id"); var title = S(item, "title"); var kind = S(item, "kind"); var url = item["url"]?.GetValue<string>(); var art = item["artwork"]?.GetValue<string>(); var series = S(item, "series"); var subt = S(item, "subtitle");
             var text = series.Length > 0 && series != title ? series + "  ·  " + title : title;
             var poster = new Grid { Width = CardArtW, Height = CardArtH };
-            poster.Children.Add(new Border { Background = HubCard, CornerRadius = new CornerRadius(6), Child = new TextBlock { Text = Shorten(title, 28), FontSize = 14, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(8) } });
-            if (art is { Length: > 0 }) { try { poster.Children.Add(FitArt(art)); } catch { } }
+            // a channel card (On now) stands on a colour of the channel's own (2026-10-13, "make sure it has a colored background"), so the wash
+            // over its time gone reads against it; the name is drawn last, over the wash, and goes once a logo has drawn
+            var logoCard = card["__tune"]?.GetValue<bool>() == true;
+            var tint = logoCard ? ChannelTint(title) : HubCard;
+            var placeholder = new Border { Background = tint, CornerRadius = new CornerRadius(6) };
+            var nameText = new TextBlock { Text = Shorten(title, 28), FontSize = 14, Foreground = logoCard ? HubInk : HubDim, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(8) };
+            poster.Children.Add(placeholder);
+            // TMDB's picture of the programme on now fills the box, the channel's logo in its corner (2026-10-13, "tie out the live tv items ... with
+            // their posters from TMDB"); a channel with no picture keeps its logo, or its name
+            var pictured = logoCard && item["__picture"]?.GetValue<bool>() == true;
+            if (art is { Length: > 0 }) { try { var fa = FitArt(art, logoCard && !pictured, logoCard ? () => nameText.Visibility = Visibility.Collapsed : null); if (logoCard) fa.Background = tint; poster.Children.Add(fa); } catch { } }
             // the service as its symbol, not its name (2026-09-23, "Instead of showing 'netflix' and 'hulu' on every title, can we show a symbol for that
             // streaming service"); a title owned on several services shows each
             if (badge)
             {
                 var marks = new List<(string, string)> { (S(card, "app"), service) };
                 if (card["also"] is JsonArray alsoMarks) marks.AddRange(alsoMarks.OfType<JsonObject>().Select(x => (S(x, "app"), S(x, "service"))));
+                if (card["streams"] is JsonArray stMarks) marks.AddRange(stMarks.OfType<JsonObject>().Select(x => (S(x, "app"), S(x, "service"))));   // where else it streams, as TMDB lists it (2026-10-12)
                 poster.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = MarkStack(marks) });
             }
             // the service's own banner on its card ("New Season", "Leaving Soon", 2026-09-23), in its words - it is also why
@@ -2284,15 +2406,49 @@ public sealed partial class MainWindow
                 poster.Children.Add(new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x0F, 0x12, 0x16)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(6, 6, 6, 10), Child = new TextBlock { Text = Shorten(banner, 26), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubAmber } });
             if (item["progress"] is JsonValue pv && pv.TryGetValue<double>(out var pd) && pd > 0)
             {
-                var bar = new Grid { Height = 4, VerticalAlignment = VerticalAlignment.Bottom, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0x0F, 0x12, 0x16)) };
-                bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.01, Math.Min(1, pd)), GridUnitType.Star) });
-                bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.01, 1 - Math.Min(1, pd)), GridUnitType.Star) });
-                bar.Children.Add(new Border { Background = HubAmber });
-                poster.Children.Add(bar);
+                // a Continue watching card too (2026-10-13, "lets do the same grayscale elapsed to color for the remaining time on the poster")
+                if (logoCard || card["__continue"]?.GetValue<bool>() == true)
+                {
+                    // a programme with an end (2026-10-13, "as the time elapses the elapsed time space of the image should be grayscale, and time
+                    // remaining should be in color"): the part gone is washed grey from the left, the part left keeps its colour - more colour, more left
+                    var wash = new Grid();
+                    wash.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.001, Math.Min(1, pd)), GridUnitType.Star) });
+                    wash.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.001, 1 - Math.Min(1, pd)), GridUnitType.Star) });
+                    wash.Children.Add(new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x5C, 0x60, 0x68)), CornerRadius = new CornerRadius(6, 0, 0, 6) });
+                    poster.Children.Add(wash);
+                }
+                else
+                {
+                    var bar = new Grid { Height = 4, VerticalAlignment = VerticalAlignment.Bottom, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0x0F, 0x12, 0x16)) };
+                    bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.01, Math.Min(1, pd)), GridUnitType.Star) });
+                    bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.01, 1 - Math.Min(1, pd)), GridUnitType.Star) });
+                    bar.Children.Add(new Border { Background = HubAmber });
+                    poster.Children.Add(bar);
+                }
             }
+            if (logoCard)
+            {
+                if (pictured && S(item, "__logo") is { Length: > 0 } chLogo)
+                {
+                    try { poster.Children.Add(new Border { Width = 46, Height = 28, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC8, 0x14, 0x17, 0x1C)), Padding = new Thickness(3), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(chLogo)), Stretch = Stretch.Uniform } }); } catch { }
+                }
+                poster.Children.Add(nameText);
+            }
+            // TMDB's picture carries no name: the series' (or the title's) goes over it, and the line under keeps the episode alone (2026-10-13)
+            var named = !logoCard && art is { Length: > 0 };
+            if (named && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")))) TitleOverlay(poster, series.Length > 0 ? series : title);
             var cell = new StackPanel { Spacing = 4, Width = CardCellW };
             cell.Children.Add(StackBehind(poster, card["also"] is JsonArray alsoN ? alsoN.Count + 1 : 1));
-            cell.Children.Add(MarqueeTitle(Shorten(text, 36) + (subt.Length > 0 ? "  ·  " + Shorten(subt, 16) : ""), text + (subt.Length > 0 ? "  ·  " + subt : ""), CardTitleSize, HubInk));
+            // a channel card (On now, 2026-10-12, "Why are all the channel names present inside the block and below. Very redundant"): the box is
+            // the channel - its logo, or its name - and the line under says what is on
+            if (card["__tune"]?.GetValue<bool>() == true && subt.Length > 0) cell.Children.Add(MarqueeTitle(Shorten(subt, 52), subt, CardTitleSize, HubInk));
+            else if (named)
+            {
+                var under = series.Length > 0 && series != title ? title + (subt.Length > 0 ? "  ·  " + subt : "") : subt;
+                // a Continue watching card has no line under at all (2026-10-13, "I don't think you need the title text under all the continue watching items anymore")
+                if (under.Length > 0 && card["__continue"]?.GetValue<bool>() != true) cell.Children.Add(MarqueeTitle(Shorten(under, 40), under, CardTitleSize, HubInk));
+            }
+            else cell.Children.Add(MarqueeTitle(Shorten(text, 36) + (subt.Length > 0 ? "  ·  " + Shorten(subt, 16) : ""), text + (subt.Length > 0 ? "  ·  " + subt : ""), CardTitleSize, HubInk));
             // the one time a card ever shows: the log's own; an inferred or ranked recency shows nothing (§4)
             if (card["lastWatched"] is JsonValue lw && lw.TryGetValue<double>(out var at))
                 cell.Children.Add(new TextBlock { Text = Ago(at, now) + "  ·  " + service, FontSize = 11, Foreground = HubDim });
@@ -2304,18 +2460,48 @@ public sealed partial class MainWindow
             // the rating line with the person's own rating as the star's amber share (MainWindow.RatingLine.cs, 2026-10-03)
             var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
             var ratingTb = MakeRatingLine(ratingText != lensLabel ? ratingText : "", mine, 11, HubDim);   // under the rating lens the lens line already says it
-            cell.Children.Add(lensTb); cell.Children.Add(ratingTb.Root);
-            (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb));
+            cell.Children.Add(lensTb);
+            if (named) { var tm = card["tmdb"] as JsonObject; AddRatingBadge(poster, ratingTb, tm is null ? null : S(tm, "kind"), tm?["id"] is JsonValue tiv && tiv.TryGetValue<int>(out var tii) ? tii : 0); }   // the star on the picture (2026-10-13)
+            else cell.Children.Add(ratingTb.Root);
+            (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb, poster));
+            _hubArt[poster] = art ?? "";
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
-            ToolTipService.SetToolTip(btn, "Plays " + title + " on " + service + ". " + RatingWords(ratingText, mine) + (ratingText is { Length: > 0 } ? " Right-click for the rating's disclosure and links." : ""));
+            // no tooltip on a card (2026-10-13, "Lets generally drop the mouse over tooltip for the videos on the Watch tab. They're very long and the
+            // information can be found in Details"): the rating's disclosure stays a right-click away
             var fromContinue = card["__continue"]?.GetValue<bool>() == true;
             var (rmApp, rmId, rmTitle, rmService) = (S(card, "app"), id, series.Length > 0 ? series : title, service);
             // the card's service's own lists (2026-09-22 / 2026-09-23): Continue Watching's Remove, My List's Remove, else Add to My List
             var fromList = card["__mylist"]?.GetValue<bool>() == true;
             var (lsUrl, lsKind) = (url, series.Length > 0 ? "series" : kind.Length > 0 ? kind : "title");
-            btn.ContextFlyout = RatingFlyout(series.Length > 0 ? series : title, series.Length > 0 ? "series" : kind, app: S(card, "app").Length > 0 ? S(card, "app") : null, extra: rmApp.Length > 0 && rmId.Length > 0 ? async fly =>
+            // a channel (a service's own row, YouTube's subscriptions or Twitch's followed channels): its own card, not a title's Details (MainWindow.ChannelCard.cs, 2026-10-11)
+            // a channel card, or a followed channel live now (its kind is live, 2026-10-13: "I have a twitch channel for HasanABi and cant remove it")
+            if (kind == "channel" || card["__followed"]?.GetValue<bool>() == true)
+            {
+                var cf = new MenuFlyout(); var about = new MenuFlyoutItem { Text = "About this channel" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE946" } }; var (cApp, cId, cTitle, cUrl) = (S(card, "app"), id, title, url); about.Click += (_, __) => _ = ShowChannelCardAsync(cApp, service, cId, cTitle, cUrl); cf.Items.Add(about);
+                // Unfollow (2026-10-13, "when right-clicking i want to be able to remove a channel from those I follow whether it is youtube or twitch"): the
+                // service's own Unfollow or Unsubscribe pressed on the channel's page, on this press alone; the card goes on the page's word
+                if (cUrl.Length > 0)
+                {
+                    var unf = new MenuFlyoutItem { Text = "Unfollow on " + service, Icon = new FontIcon { Glyph = "\uE8E6" } };
+                    unf.Click += async (_, __) =>
+                    {
+                        // the card turns to dust at the press, as a My list or Continue watching removal does (2026-10-13, "the same thanos snap
+                        // animation"); gone for good on the page's word, back in the row if the page refuses
+                        HideCardForRemoval(btn);
+                        SetPill("Prism \u00B7 unfollowing " + cTitle + " on " + service + "\u2026");
+                        JsonObject? r = null;
+                        try { r = JsonNode.Parse(await ModelCallAwaitAsync("videoChannelUnfollow", 50000, cApp, cUrl) ?? "null") as JsonObject; } catch { }
+                        if (r?["ok"]?.GetValue<bool>() == true) { if (btn.Parent is Panel bp) bp.Children.Remove(btn); ReleasePill("Prism \u00B7 unfollowed " + cTitle + " on " + service); }
+                        else { btn.Visibility = Visibility.Visible; btn.IsHitTestVisible = true; ReleasePill("Prism \u00B7 could not unfollow " + cTitle + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e2 ? ": " + e2 : "")); }
+                    };
+                    cf.Items.Add(unf);
+                }
+                btn.ContextFlyout = cf;
+            }
+            else btn.ContextFlyout = RatingFlyout(series.Length > 0 ? series : title, series.Length > 0 ? "series" : kind, app: S(card, "app").Length > 0 ? S(card, "app") : null, extra: rmApp.Length > 0 && rmId.Length > 0 ? async fly =>
             {
                 if (fromContinue) await AddRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);
+                if (card["__library"]?.GetValue<bool>() == true) await AddLibraryRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);   // a library card: out of the service's library (2026-10-12)
                 if (fromList) await AddListRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, btn);
                 else if (!_watchActive) await AddListAddItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, null);   // the watchlist is My list while linked
             } : null);
@@ -2325,8 +2511,10 @@ public sealed partial class MainWindow
             var offAir = k2 == "channel" && card["item"] is JsonObject chItem && ChannelOffline(chItem);
             if (offAir) ToolTipService.SetToolTip(btn, title + " is offline on " + service + ". Press to open the channel's page.");
             else btn.Tag = new CardPick(f2, k2, i2, u2, t2, a2, s2);   // what a drag onto a multiview window plays (MultiviewDrag)
-            if (card["also"] is JsonArray also && also.Count > 0)
+            var alsoArr = card["also"] as JsonArray ?? new JsonArray(); var streamsArr = card["streams"] as JsonArray ?? new JsonArray();
+            if (alsoArr.Count > 0 || streamsArr.Count > 0)
             {
+                var also = alsoArr;
                 // owned on several services (2026-09-22): the press offers the choice, the card's own service first
                 var pick = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom };
                 pick.Items.Add(new MenuFlyoutItem { Text = "Play on " + service, Icon = new FontIcon { Glyph = "\uE768" } });
@@ -2339,11 +2527,25 @@ public sealed partial class MainWindow
                     it.Click += (_, __) => { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, an, a2); } _ = PlayOnAsync(af, ak, aid, au, t2); };
                     pick.Items.Add(it);
                 }
-                ToolTipService.SetToolTip(btn, "Owned on " + service + " and " + string.Join(", ", also.OfType<JsonObject>().Select(x => S(x, "service"))) + ". Press to choose.");
+                // a service that streams it (TMDB's offers matched to the household's services): Play on it goes through the service's own search
+                foreach (var st in streamsArr.OfType<JsonObject>())
+                {
+                    var (stApp, stSvc) = (S(st, "app"), S(st, "service"));
+                    if (stApp.Length == 0 || card["tmdb"] is not JsonObject tm) continue;
+                    var cand = new JsonObject { ["title"] = S(tm, "title").Length > 0 ? S(tm, "title") : title, ["kind"] = S(tm, "kind") == "tv" ? "series" : "movie", ["year"] = tm["year"]?.DeepClone(), ["id"] = tm["id"]?.DeepClone() };
+                    var it2 = new MenuFlyoutItem { Text = "Play on " + stSvc, Icon = new FontIcon { Glyph = "\uE768" } };
+                    var candJson = cand.ToJsonString();
+                    it2.Click += (_, __) => { CloseVideoHub(); _ = PlayResultAsync(stApp, candJson, t2, stSvc); };
+                    pick.Items.Add(it2);
+                }
+                var ownedWords = also.Count > 0 ? "Owned on " + service + " and " + string.Join(", ", also.OfType<JsonObject>().Select(x => S(x, "service"))) + "." : "Owned on " + service + ".";
+                var streamWords = streamsArr.Count > 0 ? " Also streams on " + string.Join(", ", streamsArr.OfType<JsonObject>().Select(x => S(x, "service"))) + ", as TMDB lists it." : "";
                 btn.Click += (_, __) => pick.ShowAt(btn);
             }
             // a channel that is off the air (Twitch's Followed row, kind "channel", 2026-10-05) opens its page, where nothing plays: no curtain to
             // wait on a play that will not come - the hub closes and the page shows
+            // a channel of the Live page's On now view (2026-10-12): the card tunes it, as its row in the timetable would
+            else if (card["__tune"]?.GetValue<bool>() == true) btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); SetPill("Prism \u00B7 tuning " + Shorten(t2, 40) + " on " + s2 + "\u2026"); _ = TuneAsync(f2, i2, u2, t2); };
             else if (k2 == "channel") btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); _ = PlayOnAsync(f2, k2, i2, u2, t2); };
             else btn.Click += (_, __) => { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); };
         return btn;
@@ -2502,14 +2704,64 @@ public sealed partial class MainWindow
 
     /// <summary>While the lens sources are still answering: read the menu again every few seconds and fill the cards' lines in place -
     /// no rebuild, no lost scroll or focus. A lens's ORDER settles on the next open; the numbers arrive now.</summary>
+    /// <summary>The (i) beside a row's name (2026-10-13, "put it into a tooltip under an (i)"): a small chip, the row's words in its tooltip.</summary>
+    /// <summary>The name over a picture that carries none (TMDB's, 2026-10-13, "On netflix, all titles have a stylized name ... How do we get all of
+    /// the other titles ... overlaid on the image for consistency? Then we need to get rid of the titles under the images"): bold, bottom left,
+    /// on a dark fade from the picture's foot, as a service's own box art shows its name.</summary>
+    private static void TitleOverlay(Grid art, string name)
+    {
+        if (name.Length == 0) return;
+        var fade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(0, 1) };
+        fade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0x08, 0x0A, 0x0D), Offset = 0.45 });
+        fade.GradientStops.Add(new GradientStop { Color = Windows.UI.Color.FromArgb(0xD8, 0x08, 0x0A, 0x0D), Offset = 1 });
+        art.Children.Add(new Border { Background = fade, CornerRadius = new CornerRadius(6), IsHitTestVisible = false });
+        art.Children.Add(new TextBlock
+        {
+            Text = name, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF4, 0xF6, 0xF9)),
+            TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(10, 0, 10, 30), IsHitTestVisible = false, CharacterSpacing = 20
+        });
+    }
+    private static Button InfoMark(UIElement tip)
+    {
+        var b = Chip(new TextBlock { Text = "i", FontSize = 13, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }, false);   // upright (2026-10-13, "can that be removed?")
+        b.Padding = new Thickness(10, 2, 10, 3); b.MinHeight = 0; b.MinWidth = 0; b.VerticalAlignment = VerticalAlignment.Center;
+        ToolTipService.SetToolTip(b, tip);
+        return b;
+    }
+    /// <summary>The (i)'s window (2026-10-13, "The (i) need to be much more informative and organized. They cannot look like big long sentences in a
+    /// window"): the row's name, how the row is made in one line, then each part of its rule under its own label - what is counted, who is
+    /// counted, who decides, the source and its attribution.</summary>
+    private static StackPanel InfoTip(JsonObject lr, string line, string? headline = null)
+    {
+        string S(string k) => lr[k]?.GetValue<string>() ?? "";
+        var box = new StackPanel { Spacing = 10, MaxWidth = 560, Padding = new Thickness(4, 4, 4, 4) };
+        box.Children.Add(new TextBlock { Text = headline is { Length: > 0 } ? headline : S("name"), FontSize = 16, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        void Part(string label, string text)
+        {
+            if (text.Trim().Length == 0) return;
+            var col = new StackPanel { Spacing = 2 };
+            col.Children.Add(new TextBlock { Text = label, FontSize = 12, Foreground = HubAmber });
+            col.Children.Add(new TextBlock { Text = text.Trim(), FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+            box.Children.Add(col);
+        }
+        Part("How this row is made", line);
+        Part("What is counted", S("counted"));
+        Part("Who is counted", S("who"));
+        Part("Who decides", S("decides"));
+        Part("Source", S("source") + (S("sourceUrl").Length > 0 ? "\n" + S("sourceUrl") : ""));
+        Part("Attribution", S("attribution"));
+        return box;
+    }
     private async Task FollowHubAsync(Grid overlay)
     {
         // the page is handed to _videoHub only after its draw (B-267): the first check comes after the first wait, never before it
-        for (var i = 0; i < 60; i++)
+        for (var i = 0; ; i++)
         {
             // the first look comes soon (a page opened right after a restart draws its lens rows as heads alone while the cache is read - the
-            // cards were there a second later, but a shot at four seconds showed text rows, 2026-09-22); the later ones at the sources' pace
-            await Task.Delay(i == 0 ? 1200 : 4000);
+            // cards were there a second later, but a shot at four seconds showed text rows, 2026-09-22); the later ones at the sources' pace;
+            // after four minutes only the category rows are followed, every fifteen seconds, as long as Watch is open (2026-10-13)
+            await Task.Delay(i == 0 ? 1200 : i < 60 ? 4000 : 15000);
             if (!ReferenceEquals(_videoHub, overlay)) return;
             JsonObject? menu = null;
             try { menu = JsonNode.Parse(await ModelCallAsync("videoMenuRows", true) ?? "null") as JsonObject; } catch { }   // the rows and lens rows, not the Library (2026-10-03, perf)
@@ -2518,11 +2770,19 @@ public sealed partial class MainWindow
             var pending = (menu["lens"] as JsonObject)?["pending"] is JsonValue pv && pv.TryGetValue<int>(out var pn) ? pn : 0;
             // the ratings under every card follow the sources (each title's lines, in whichever rows it sits); a lens's number and
             // a lens row's ORDER settle on the next open - a row is never rebuilt under a person
-            foreach (var rowName in new[] { "continue", "list" })
+            foreach (var rowName in new[] { "continue", "list", "newOwned" })
                 if (menu[rowName] is JsonArray cards)
                     foreach (var card in cards.OfType<JsonObject>())
                     {
                         if (!_hubLines.TryGetValue(CardKey(card), out var lineList)) continue;
+                        // the picture, when core has a better one than the card was drawn with (TMDB's wide art after a boot's first draw)
+                        var artNow = (card["item"] as JsonObject)?["artwork"]?.GetValue<string>() ?? "";
+                        if (artNow.Length > 0) foreach (var lines in lineList)
+                            if (_hubArt.TryGetValue(lines.poster, out var drawn) && drawn != artNow)
+                            {
+                                // the picture alone is swapped, under the service's mark (the first swap took the mark with it, 2026-10-12)
+                                try { foreach (var old in lines.poster.Children.OfType<Border>().Where(x => x.Child is Image).ToList()) lines.poster.Children.Remove(old); lines.poster.Children.Insert(Math.Min(1, lines.poster.Children.Count), FitArt(artNow)); _hubArt[lines.poster] = artNow; } catch { }
+                            }
                         var ratingText = card["rating"]?.GetValue<string>() ?? "";
                         var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
                         foreach (var lines in lineList)
@@ -2571,17 +2831,41 @@ public sealed partial class MainWindow
                         if (!catReading) { _hubLensPending.Remove(S(lr, "id")); LogLine("hub follow: " + slot.name + " read, " + catCards.Count + " titles"); }
                         continue;
                     }
+                    if (S(lr, "id").StartsWith("cat:", StringComparison.Ordinal))
+                    {
+                        // a category row: its cards updated in place as its pool reads land, never rebuilt under the person, followed as long as
+                        // Watch is open (2026-10-13)
+                        var catCards2 = (lr["cards"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+                        var reading2 = lr["reading"] is JsonValue rv2 && rv2.TryGetValue<int>(out var rn2) && rn2 > 0;
+                        slot.head.Text = slot.name + (catCards2.Count == 0 && reading2 ? "  \u00B7  reading the open pool\u2026" : "");
+                        var sig2 = string.Join("|", catCards2.Select(LiveKey));
+                        var tag2 = slot.host.Tag as string ?? "";
+                        var over2 = tag2.StartsWith("over|", StringComparison.Ordinal);
+                        var had2 = over2 ? tag2.Substring(5) : tag2;
+                        if (sig2 != had2 && !over2 && !FocusWithin(slot.host))
+                        {
+                            var line2 = FindChild<ScrollViewer>(slot.host)?.Content as StackPanel;
+                            if (line2 is null) { if (catCards2.Count > 0) { Button? none2 = null; slot.host.Children.Clear(); slot.host.Children.Add(CardRow(catCards2, true, now, ref none2)); } }
+                            else UpdateCardRowInPlace(line2, catCards2, true, now);
+                            slot.host.Tag = sig2;
+                            LogLine("hub follow: " + slot.name + " now " + catCards2.Count + " titles");
+                        }
+                        continue;
+                    }
                     var cards = (lr["cards"] as JsonArray)?.OfType<JsonObject>().Take(24).ToList() ?? new List<JsonObject>();
                     if (cards.Count == 0) { slot.head.Text = slot.name + (pending > 0 ? "  ·  reading " + pending + " title" + (pending == 1 ? "" : "s") + "…" : "  ·  nothing counted among these titles"); continue; }
                     slot.head.Text = slot.name;
                     slot.disclosure.Text = LensDisclosureLine(lr, S(lr, "dataDate") is { Length: > 0 } dd2 ? dd2 : "not read yet");
+                    if (slot.disclosure.Tag is FrameworkElement infoHost) ToolTipService.SetToolTip(infoHost, InfoTip(lr, slot.disclosure.Text));
                     slot.host.Children.Add(CardRow(cards, true, now, ref first));
                     _hubLensPending.Remove(S(lr, "id"));
                     LogLine("hub follow: " + slot.name + " filled with " + cards.Count);
                 }
             }
             catch (Exception ex) { LogLine("hub follow failed: " + ex.GetType().Name + ": " + ex.Message); }
-            if (pending == 0) return;
+            var catFollowed = _hubLensPending.Keys.Any(k => k.StartsWith("cat:", StringComparison.Ordinal));
+            if (pending == 0 && !catFollowed) return;
+            if (i >= 60 && pending == 0 && !catFollowed) return;
         }
     }
 
@@ -2904,9 +3188,7 @@ public sealed partial class MainWindow
         head.Children.Add(back);
         head.Children.Add(RowHead(S(r, "name") + "  ·  " + S(r, "genreName") + (total > 0 ? "  ·  " + total.ToString("N0") : "") + (done ? "" : "  ·  reading…"), HubInk));
         built.Children.Add(head);
-        var disc = new TextBlock { Text = LensDisclosureLine(r ?? new JsonObject(), S(r, "dataDate")), FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap };
-        ToolTipService.SetToolTip(disc, "What is counted: " + S(r, "counted") + "\nWho is counted: " + S(r, "who") + "\nWho decides: " + S(r, "decides") + "\nSource: " + S(r, "source") + "  ·  " + S(r, "sourceUrl"));
-        built.Children.Add(disc);
+        head.Children.Add(InfoMark(InfoTip(r ?? new JsonObject(), LensDisclosureLine(r ?? new JsonObject(), S(r, "dataDate")))));   // the words behind an (i) (2026-10-13)
         if (cards.Count == 0) built.Children.Add(new TextBlock { Text = done ? "Nothing here." : "Reading…", FontSize = 13, Foreground = HubDim });
         else
         {
@@ -3042,9 +3324,7 @@ public sealed partial class MainWindow
                 var rid2 = rid;
                 openRow.Click += (_, __) => { _browseRow = rid2; _browseWant = BrowseWantStep; _ = DrawBrowseAsync(panel, overlay, now); };
                 browseHead.Children.Add(openRow);
-                var disc = new TextBlock { Text = LensDisclosureLine(r, S(r, "dataDate")), FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Bottom, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 1400 };
-                ToolTipService.SetToolTip(disc, "What is counted: " + S(r, "counted") + "\nWho is counted: " + S(r, "who") + "\nWho decides: " + S(r, "decides") + "\nSource: " + S(r, "source") + "  ·  " + S(r, "sourceUrl"));
-                browseHead.Children.Add(disc);
+                browseHead.Children.Add(InfoMark(InfoTip(r, LensDisclosureLine(r, S(r, "dataDate")))));   // the words behind an (i) (2026-10-13)
                 built.Children.Add(browseHead);
                 if (rid == "yours")
                 {
@@ -3077,6 +3357,8 @@ public sealed partial class MainWindow
             var art = new Grid { Width = CardArtW, Height = CardArtH };
             art.Children.Add(new Border { Background = HubCard, CornerRadius = new CornerRadius(6), Child = new TextBlock { Text = Shorten(title, 28), FontSize = 14, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(8) } });
             CardArt(art, backdrop, poster);
+            var namedOnArt = backdrop is { Length: > 0 } || poster is { Length: > 0 };
+            if (namedOnArt) TitleOverlay(art, title);   // TMDB's picture: the name over it, none under (2026-10-13)
             // TMDB's new episode, as on My List (2026-09-24, "including the banner on the New episodes, Last 10 Days lens"): the red corner ribbon
             if (S(c, "badge") is { Length: > 0 } newEp && S(c, "badgeFrom") == "tmdb")
             {
@@ -3089,7 +3371,7 @@ public sealed partial class MainWindow
             art.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = MarkStack(svcs.Select(x => (S(x, "app"), S(x, "name")))) });
             var cell = new StackPanel { Spacing = 4, Width = CardCellW };
             cell.Children.Add(StackBehind(art, svcs.Count));
-            cell.Children.Add(MarqueeTitle(Shorten(title, 36), title, CardTitleSize, HubInk));
+            if (!namedOnArt) cell.Children.Add(MarqueeTitle(Shorten(title, 36), title, CardTitleSize, HubInk));
             var value = S(c, "value");
             // compact (Watch's rows, 2026-09-24, "move lines #2 and #4 under the tooltip for each item, so they can match the continue & my
             // list rows better"): the title and the rating; the row's own number and the facts line go to the tooltip
@@ -3097,14 +3379,13 @@ public sealed partial class MainWindow
             // TMDB's rating on every title (2026-09-24), as on the Continue / My List cards; not twice under a row that is itself the rating
             var ratingLine = S(c, "rating");
             var mineB = c["mine"] is JsonValue mbv && mbv.TryGetValue<double>(out var mbd) ? mbd : (double?)null;
-            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) cell.Children.Add(MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim).Root);
+            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) AddRatingBadge(art, rlb, S(c, "kind") == "series" ? "tv" : "movie", int.TryParse(cid, out var cidN) ? cidN : 0); else cell.Children.Add(rlb.Root); }
             var offer = svcs.Count > 0 ? S(svcs[0], "offer") : "Not on your services";
             var facts = string.Join("  ·  ", new[] { year, kindWord, svcs.Count == 1 ? offer : svcs.Count + " of your services" }.Where(x => x.Length > 0));
             if (!compact) cell.Children.Add(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
             var overview = S(c, "overview");
             var where = string.Join(", ", svcs.Select(x => S(x, "name") + (S(x, "offer").Length > 0 ? " (" + S(x, "offer") + ")" : "")));
-            ToolTipService.SetToolTip(btn, title + (compact ? "\n" + (value.Length > 0 ? value + "\n" : "") + facts : "") + "\n\nOn " + where + "." + (overview.Length > 0 ? "\n\n" + Shorten(overview, 320) + "\n· TMDB" : ""));
             var playVerb = S(c, "play") == "binge" ? "videoBingePlay" : "videoBrowsePlay";   // The Binge's own guard + mismatch note (2026-09-24)
             // draggable onto Watch's windows like the rows above (2026-09-26): its first service, played the way its own press plays
             if (svcs.Count > 0) btn.Tag = new CardPick("", S(c, "kind"), cid, null, title, poster, S(svcs[0], "name"), S(svcs[0], "app"), playVerb);

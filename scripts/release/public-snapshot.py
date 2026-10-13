@@ -23,6 +23,29 @@ LIST = os.path.expanduser("~/.prism/public-scrub.txt")
 REMOTE = "public"
 
 
+# The public repo and the GitHub Release carry the time they are made (2026-10-12, "I dont want my co-workers at my day job to see the timestamps
+# and me pushing in the daytime"): a release or a public snapshot runs only after 6 PM Eastern or before 6 AM, unless told otherwise
+# (--daytime / PRISM_DAYTIME=1). The private archive takes pushes at any hour.
+def eastern_now():
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        return datetime.now()   # no zone data on this Windows (no tzdata package): the publishing PC keeps Eastern time
+
+
+def after_hours(now=None):
+    t = now or eastern_now()
+    return t.hour >= 18 or t.hour < 6
+
+
+def daytime_guard(allowed, what):
+    if allowed or os.environ.get("PRISM_DAYTIME") == "1" or after_hours():
+        return
+    sys.exit(what + " runs after 6 PM Eastern (it is " + eastern_now().strftime("%H:%M") + " now); pass --daytime or PRISM_DAYTIME=1 to run it anyway")
+
+
 def git(*args, check=True):
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if check and r.returncode != 0:
@@ -90,6 +113,7 @@ if __name__ == "__main__":
         print("\n".join(h) if h else "clean: no line of the tree matches the scrub list")
         sys.exit(1 if h else 0)
     if len(sys.argv) >= 3 and sys.argv[1] == "push":
+        daytime_guard(False, "the public snapshot")
         print(push(sys.argv[2]))
         sys.exit(0)
     sys.exit(__doc__)

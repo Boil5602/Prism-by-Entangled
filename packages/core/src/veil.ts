@@ -233,6 +233,13 @@ const VEIL_RUNTIME_JS = `
   function veilOne(el) {
     if (el.getAttribute(ATTR)) return;
     var r = el.getBoundingClientRect();
+    // never the player, never the page (2026-10-13, Twitch: EasyList hides the squeezeback ad's wrapper, a layer the size of the whole
+    // player, and the veil painted a bear over the stream for as long as it played - "several streams that turned into the same static
+    // brown bear image"): a display-ad slot holds no video and is never most of the viewport; such a match is left alone (spec 26: degrade
+    // to nothing)
+    // the wrapper is matched while it is still small and grows to the player's size after, so the covered are looked at again on every
+    // pass (recheck) and a cover over the player comes off
+    if (overPlayer(el, r)) { el.setAttribute(ATTR, 'skip'); return; }
     if (r.width < state.cfg.minSlotPx || r.height < state.cfg.minSlotPx) return; // collapsed — leave it
     var cs = getComputedStyle(el);
     if (cs.position === 'static') el.style.position = 'relative';
@@ -271,6 +278,31 @@ const VEIL_RUNTIME_JS = `
   // §27 partial veil — element-scoped patches over in-player overlays.
   // Read-only observation (rects, resize, fullscreen). No element here is
   // ever clicked, dismissed, or removed: §26's prohibition reaches veils.
+  function overPlayer(el, r) {
+    if (el.querySelector('video')) return true;
+    var vw = window.innerWidth || 0, vh = window.innerHeight || 0;
+    if (vw > 0 && vh > 0 && r.width * r.height >= 0.5 * vw * vh) return true;
+    var vids = document.querySelectorAll('video');
+    for (var i = 0; i < vids.length; i++) {
+      var q = vids[i].getBoundingClientRect();
+      if (q.width < 160 || q.height < 90) continue;
+      var ix = Math.max(0, Math.min(r.right, q.right) - Math.max(r.left, q.left));
+      var iy = Math.max(0, Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top));
+      if (ix * iy >= 0.8 * q.width * q.height) return true;
+    }
+    return false;
+  }
+  function recheck() {
+    var done = document.querySelectorAll('[' + ATTR + ']');
+    for (var i = 0; i < done.length; i++) {
+      var el = done[i];
+      if (el.getAttribute(ATTR) === 'skip') continue;
+      if (!overPlayer(el, el.getBoundingClientRect())) continue;
+      var covers = el.querySelectorAll(':scope > [' + ATTR + '-cover]');
+      for (var j = 0; j < covers.length; j++) { try { covers[j].parentNode.removeChild(covers[j]); } catch (e) {} }
+      el.setAttribute(ATTR, 'skip');
+    }
+  }
   var patches = []; // [{el, node}]
   function place(p) {
     var r = p.el.getBoundingClientRect();
@@ -323,6 +355,7 @@ const VEIL_RUNTIME_JS = `
       for (var m = 0; m < found.length; m++) { try { (ovs[k].mode === 'hide' ? hideOne : patchOne)(found[m]); } catch (e) {} }
     }
     placeAll();
+    recheck();
   }
   function schedule() {
     if (state.pending) return;

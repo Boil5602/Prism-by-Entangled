@@ -194,7 +194,7 @@ export function compact(n: number): string {
 }
 function isoDay(ms: number): string { return new Date(ms).toISOString().slice(0, 10); }
 
-export interface LensedCard extends MenuCard { lens?: LensValue | null; rating?: string | null; /** the person's own rating of the title on TMDB, under their linked account (2026-10-03); the same title on any service */ mine?: number | null }
+export interface LensedCard extends MenuCard { lens?: LensValue | null; rating?: string | null; /** the TMDB title the facts matched, for the person's rating from the card's star (2026-10-13) */ tmdb?: { kind: "movie" | "tv"; id: number } | null; /** the person's own rating of the title on TMDB, under their linked account (2026-10-03); the same title on any service */ mine?: number | null }
 
 /** The person's own rating of a title, by the TMDB title the facts matched: the same film on Netflix and on Paramount+ is one rating. */
 export function mineOf(f: TitleFacts | undefined, own: ReadonlyMap<string, number>): number | null {
@@ -209,7 +209,7 @@ const NO_OWN: ReadonlyMap<string, number> = new Map();
  * order they had. Pure over (cards, lens, facts): same inputs, same order (fixture). No lens: the cards as they came.
  */
 export function orderByLens(cards: readonly MenuCard[], lens: LensDef | null, facts: ReadonlyMap<string, TitleFacts>, own: ReadonlyMap<string, number> = NO_OWN): LensedCard[] {
-  const rated = (c: MenuCard): LensedCard => { const f = factsFor(facts, c.item.title, c.item.kind); return { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, own) }; };
+  const rated = (c: MenuCard): LensedCard => { const f = factsFor(facts, c.item.title, c.item.kind); return { ...c, rating: ratingLabel(f?.rating), mine: mineOf(f, own), tmdb: f?.tmdb ?? null }; };
   if (!lens) return cards.map(rated);
   const scored = cards.map((c, i) => ({ c: { ...rated(c), lens: lensValue(lens, factsFor(facts, c.item.title, c.item.kind)) }, i }));
   return scored.sort((a, b) => {

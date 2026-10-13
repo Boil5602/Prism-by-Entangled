@@ -306,7 +306,7 @@ export type SurfaceEvent =
    * the adapter's musicLookup script posts it through PrismTile.notifyMusicResult with the token core
    * handed it. op "lookup" carries the service's candidates; "add" / "station" carry ok or an error.
    */
-  | { type: "music-result"; id: string; token: string; op: "lookup" | "add" | "station" | "tracks" | "queue" | "progress" | "remove" | "episodes" | "episodes-part" | "hover" | "list" | "live" | "live-part"; ok: boolean; /** op "progress" (2026-09-18): how far a long answer has got - the wall's status feed says so */ count?: number; total?: number; candidates?: Array<{ id: string; title: string; artist: string; album?: string; url?: string; isrc?: string; durationMs?: number; artwork?: string }>; error?: string };
+  | { type: "music-result"; id: string; token: string; op: "tags" | "pool" | "chan" | "lookup" | "add" | "station" | "tracks" | "queue" | "progress" | "remove" | "episodes" | "episodes-part" | "hover" | "list" | "live" | "live-part"; ok: boolean; /** op "progress" (2026-09-18): how far a long answer has got - the wall's status feed says so */ count?: number; total?: number; candidates?: Array<{ id: string; title: string; artist: string; album?: string; url?: string; isrc?: string; durationMs?: number; artwork?: string }>; error?: string; /** a page's own answer, whole (a channel's facts, 2026-10-11) */ data?: unknown };
 
 export interface DisplayDriver {
   setBrightness(value: number): MaybePromise<void>;

@@ -31,6 +31,29 @@ BASE_URL = "https://prism.entangled.world/windows/"
 PREFIX = "windows/"
 ENV = os.path.expanduser("~/.prism/tigris.env")
 
+# The public repo and the GitHub Release carry the time they are made (2026-10-12, "I dont want my co-workers at my day job to see the timestamps
+# and me pushing in the daytime"): a release or a public snapshot runs only after 6 PM Eastern or before 6 AM, unless told otherwise
+# (--daytime / PRISM_DAYTIME=1). The private archive takes pushes at any hour.
+def eastern_now():
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        return datetime.now()   # no zone data on this Windows (no tzdata package): the publishing PC keeps Eastern time
+
+
+def after_hours(now=None):
+    t = now or eastern_now()
+    return t.hour >= 18 or t.hour < 6
+
+
+def daytime_guard(allowed, what):
+    if allowed or os.environ.get("PRISM_DAYTIME") == "1" or after_hours():
+        return
+    sys.exit(what + " runs after 6 PM Eastern (it is " + eastern_now().strftime("%H:%M") + " now); pass --daytime or PRISM_DAYTIME=1 to run it anyway")
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument("--notes", required=True, help="release notes, a sentence or two (shown on the PC and the website)")
 # the tracks (2026-10-05, "I would call this current track Alpha. And we'll work toward beta and full"): alpha while Prism is built,
@@ -48,7 +71,10 @@ ap.add_argument("--allow-dirty", action="store_true")
 ap.add_argument("--site", help="the website repo's folder: its releases.json and _redirects are updated")
 ap.add_argument("--no-github", action="store_true", help="no GitHub Release")
 ap.add_argument("--public-repo", default="Boil5602/Prism-by-Entangled")
+ap.add_argument("--daytime", action="store_true", help="publish in the daytime (Eastern) all the same")
 a = ap.parse_args()
+if not a.dry_run:
+    daytime_guard(a.daytime, "a release")
 # the website's prose check refuses a semicolon (its changelog page failed to build on 0.26.2's notes, 2026-10-06): caught here, before anything is built
 if ";" in a.notes:
     sys.exit("the notes hold a semicolon, which the website's prose check refuses; use a full stop")
@@ -267,4 +293,6 @@ if a.site:
         f.write("\n".join(lines) + "\n")
     print("website updated:", rel, "and", red, "- run `npm run deploy` there")
     # the tour goes with the release: the website shows the tutorial of the version people can download (sync-tutorial.py, 2026-10-11)
+    # the built-in services first (sync-adapters.py writes the tour's own line about them), then the tour
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync-adapters.py"), "--site", a.site], check=True)
     subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "sync-tutorial.py"), "--site", a.site], check=True)

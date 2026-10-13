@@ -29,6 +29,7 @@ public sealed partial class MainWindow
     private async void OnPairingMinted(string url)
     {
         if (_guidePairing is { } guide) { guide.TrySetResult(url); return; }   // the TMDB guide asked: its last code opens the phone's page on the key sheet
+        if (_welcomePairing is { } welcome) { welcome.TrySetResult(url); return; }   // the Nothing is set up yet screen asked (2026-10-11)
         if (!_pairCardWanted || url.Length == 0) return;
         _pairCardWanted = false;
         ClosePairCard();

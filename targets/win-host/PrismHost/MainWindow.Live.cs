@@ -18,6 +18,10 @@ public sealed partial class MainWindow
 {
     private string? _liveType;
     private string _liveQ = "";
+    /// <summary>The Live page's view (2026-10-12, "Open on now"): "now" - each service's channels as cards with what is on; "timetable" - the schedule grid.</summary>
+    private string _liveView = HostPrefs.GetString("live.view", "now");
+    /// <summary>On now's first strip (2026-10-12, "do those make sense anymore"): "all", "channels", "creators" or "events".</summary>
+    private string _liveKind = HostPrefs.GetString("live.kind", "all");
     private int _liveSearchRun;
     private int _liveDrawRun;
     private int _liveLoop;            // one follow loop a tab open: a newer one ends the older
@@ -29,6 +33,21 @@ public sealed partial class MainWindow
     // Now a draw that would show the same rows draws nothing (_liveSig), a new grid is built out of sight and put in at once, and the
     // page stays where it was: at the service last jumped to (for twenty seconds), else at the same offset.
     private string _liveSig = "";
+    /// <summary>Where each On now row was scrolled to, by row, so a row rebuilt under the person (the guide changes every minute) comes back
+    /// where they were (2026-10-13, "I scrolled all the way to the end of the content creators line, and then the line refreshed and sent me
+    /// back to the beginning before I could click the video I wanted").</summary>
+    private readonly Dictionary<string, double> _liveRowX = new();
+    private string LiveRowKey(string row) => _liveKind + "|" + (_liveType ?? "") + "|" + _liveQ + "|" + row;
+    private void LiveRowKeep(Panel grid)
+    {
+        foreach (var ch in grid.Children)
+            if (ch is StackPanel sp && sp.Tag is string k && sp.Children.OfType<ScrollViewer>().FirstOrDefault() is { } sv) _liveRowX[k] = sv.HorizontalOffset;
+    }
+    private void LiveRowRestore(StackPanel panel)
+    {
+        if (panel.Tag is not string k || !_liveRowX.TryGetValue(k, out var x) || x <= 0 || panel.Children.OfType<ScrollViewer>().FirstOrDefault() is not { } sv) return;
+        sv.Loaded += (_, __) => sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => sv.ChangeView(x, null, null, true));
+    }
     private string? _liveJump;
     private DateTime _liveJumpAt;
     private Button? _liveTop;
@@ -84,7 +103,13 @@ public sealed partial class MainWindow
         _liveRefresh = refresh;
         // the status line says only "Reading the guides..." while one is read; each service's count and read time sit in Refresh's tooltip
         // (2026-10-01, "a lot of unnecessary label text to the right of refresh")
-        head.Children.Add(search); head.Children.Add(refresh); head.Children.Add(status);
+        head.Children.Add(search); head.Children.Add(refresh);
+        // On now, or the full timetable (2026-10-12, "Open on now ... with the full timetable one press away")
+        var viewNow = Chip(new TextBlock { Text = "On now", FontSize = 13, Foreground = HubInk }, _liveView != "timetable");
+        var viewGrid = Chip(new TextBlock { Text = "Timetable", FontSize = 13, Foreground = HubInk }, _liveView == "timetable");
+        ToolTipService.SetToolTip(viewNow, "Each service's channels as cards, with what is on now. A press tunes the channel.");
+        ToolTipService.SetToolTip(viewGrid, "The schedule: every channel with its programmes on a time line.");
+        head.Children.Add(viewNow); head.Children.Add(viewGrid); head.Children.Add(status);
         panel.Children.Add(head);
         var chips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         panel.Children.Add(chips);
@@ -95,6 +120,8 @@ public sealed partial class MainWindow
         var grid = new StackPanel { Spacing = 4 };
         panel.Children.Add(grid);
         Task Draw() => DrawLiveGridAsync(grid, chips, status, events, overlay);
+        viewNow.Click += async (_, __) => { if (_liveView == "now") return; _liveView = "now"; HostPrefs.Set("live.view", "now"); await ShowVideoHubAsync(); };
+        viewGrid.Click += async (_, __) => { if (_liveView == "timetable") return; _liveView = "timetable"; HostPrefs.Set("live.view", "timetable"); await ShowVideoHubAsync(); };
         refresh.Click += async (_, __) => { await ModelCallAsync("videoLiveRead", true); SetPill("Prism" + Mid + "reading the guides"); _liveReading = true; await Draw(); };
         search.TextChanged += async (_, __) =>
         {
@@ -152,7 +179,7 @@ public sealed partial class MainWindow
     {
         var run = ++_liveDrawRun;
         JsonObject? g = null;
-        try { g = JsonNode.Parse(await ModelCallAsync("videoLiveGuide", _liveType, _liveQ.Length > 0 ? _liveQ : null) ?? "null") as JsonObject; } catch (Exception e) { LogLine("live: " + e.Message); }
+        try { g = JsonNode.Parse(await ModelCallAsync("videoLiveGuide", _liveType == "__inactive" ? null : _liveType, _liveQ.Length > 0 ? _liveQ : null) ?? "null") as JsonObject; } catch (Exception e) { LogLine("live: " + e.Message); }
         if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay) || _hubTab != "live") return false;   // overtaken: _liveReading stands as it was
         if (g is null) { grid.Children.Clear(); chips.Children.Clear(); events.Children.Clear(); _liveSig = ""; grid.Children.Add(new TextBlock { Text = "The guide couldn't be read.", FontSize = 16, Foreground = HubInk }); return false; }
 
@@ -185,7 +212,7 @@ public sealed partial class MainWindow
         // the same rows as are on the screen: nothing is drawn. What the grid shows is the mode, the search, the types' counts and the
         // rows (their programs, which is on now); the grid begins "now", so five minutes on it is drawn again whatever the rows say
         var winStart = (g["window"] as JsonObject)?["start"]?.GetValue<double>() ?? 0;
-        var sig = (_liveType ?? "") + "|" + _liveQ + "|" + Math.Floor(winStart / 300_000) + "|" + (g["types"]?.ToJsonString() ?? "") + "|" + (g["rows"]?.ToJsonString() ?? "");
+        var sig = _liveView + "|" + _liveKind + "|" + (_liveType ?? "") + "|" + _liveQ + "|" + Math.Floor(winStart / 300_000) + "|" + (g["types"]?.ToJsonString() ?? "") + "|" + (g["rows"]?.ToJsonString() ?? "");
         if (sig == _liveSig && grid.Children.Count > 0) return reading;
         chips.Children.Clear(); events.Children.Clear();
 
@@ -193,7 +220,7 @@ public sealed partial class MainWindow
         var types = (g["types"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
         var total = types.Sum(t => t["count"]?.GetValue<int>() ?? 0);
         // a kept mode that is no longer a type (Local, taken out 2026-10-02) falls back to All, once the guide has anything to say
-        if (_liveType is { Length: > 0 } kept && total > 0 && !types.Any(t => S(t, "type") == kept)) { _liveType = null; HostPrefs.Set("live.mode", ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); return _liveReading; }
+        if (_liveType is { Length: > 0 } kept && kept != "__inactive" && total > 0 && !types.Any(t => S(t, "type") == kept)) { _liveType = null; HostPrefs.Set("live.mode", ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); return _liveReading; }
         void TypeChip(string label, string? type, int count)
         {
             var sym = ModeSymbol(type);
@@ -203,10 +230,63 @@ public sealed partial class MainWindow
             b.Click += async (_, __) => { _liveType = type; _liveJump = null; HostPrefs.Set("live.mode", type ?? ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
             chips.Children.Add(b);
         }
-        TypeChip("All", null, total);
-        foreach (var t in types) TypeChip(S(t, "type"), S(t, "type"), t["count"]?.GetValue<int>() ?? 0);
+        if (_liveView == "timetable")
+        {
+            TypeChip("All", null, total);
+            foreach (var t in types) TypeChip(S(t, "type"), S(t, "type"), t["count"]?.GetValue<int>() ?? 0);
+            // the inactive channels (2026-10-12): nothing on, nothing in the next 24 hours - their own chip, out of All and the modes
+            var inactiveN = (g["kinds"] as JsonObject)?["inactive"] is JsonValue iv && iv.TryGetValue<int>(out var ii) ? ii : 0;
+            if (inactiveN > 0) TypeChip("Inactive", "__inactive", inactiveN);
+        }
+        else
+        {
+            // On now (2026-10-12, "The filters/modes at the top of live, do those make sense anymore"): two short strips. The first says what kind -
+            // channels, content creators, events; the second the modes for that kind, each only when it cuts something; "Entertainment", the
+            // bucket for channels filed nowhere, is not a mode anyone chooses
+            int K(JsonObject? o, string k) => o?[k] is JsonValue v && v.TryGetValue<int>(out var i) ? i : 0;
+            var kindsObj = g["kinds"] as JsonObject;
+            var kindTotals = new Dictionary<string, int> { ["channels"] = K(kindsObj, "channels"), ["creators"] = K(kindsObj, "creators"), ["events"] = K(kindsObj, "events"), ["inactive"] = K(kindsObj, "inactive") };
+            kindTotals["all"] = kindTotals["channels"] + kindTotals["creators"] + kindTotals["events"];
+            if (_liveKind != "all" && kindTotals[_liveKind] == 0 && kindTotals["all"] > 0) { _liveKind = "all"; HostPrefs.Set("live.kind", "all"); }
+            var kindsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var modesRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            void KindChip(string label, string kind)
+            {
+                var n = kindTotals[kind]; if (n == 0 && kind != "all") return;
+                var b = Chip(new TextBlock { Text = label + "  " + n, FontSize = 13, Foreground = HubInk }, _liveKind == kind);
+                b.Padding = new Thickness(12, 4, 12, 4);
+                ToolTipService.SetToolTip(b, kind == "all" ? "Everything live: the channels, the content creators and the events." : kind == "channels" ? "The services' channels, with what each has on." : kind == "creators" ? "Content creators live now: Twitch, YouTube, and your categories' streams." : kind == "inactive" ? "Channels with nothing on and nothing scheduled in the next 24 hours. The search still looks through their schedules." : "Live events: a match or a race, on now or to come.");
+                b.Click += async (_, __) => { _liveKind = kind; _liveType = null; HostPrefs.Set("live.kind", kind); HostPrefs.Set("live.mode", ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
+                kindsRow.Children.Add(b);
+            }
+            KindChip("Everything", "all"); KindChip("Channels", "channels"); KindChip("Content creators", "creators"); KindChip("Events", "events"); KindChip("Inactive", "inactive");
+            var kindKey = _liveKind == "all" ? "count" : _liveKind;
+            var kindTotal = kindTotals[_liveKind];
+            void ModeChip(string label, string? type, int count)
+            {
+                var sym = ModeSymbol(type);
+                var b = Chip(new TextBlock { Text = (sym.Length > 0 ? sym + "  " : "") + label + "  " + count, FontSize = 13, Foreground = HubInk }, _liveType == type);
+                b.Padding = new Thickness(12, 4, 12, 4);
+                ToolTipService.SetToolTip(b, type is null ? "No mode: everything of this kind." : type + " mode: only what is filed under " + type + ".");
+                b.Click += async (_, __) => { _liveType = type; _liveJump = null; HostPrefs.Set("live.mode", type ?? ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
+                modesRow.Children.Add(b);
+            }
+            ModeChip("All", null, kindTotal);
+            foreach (var t in types)
+            {
+                var tn = S(t, "type"); var n = K(t, kindKey);
+                if (tn == "Entertainment" || n == 0 || (n >= kindTotal && _liveType != tn)) continue;
+                ModeChip(tn, tn, n);
+            }
+            var col = new StackPanel { Spacing = 6 };
+            col.Children.Add(kindsRow); if (modesRow.Children.Count > 1) col.Children.Add(modesRow);
+            chips.Children.Add(col);
+        }
 
         var rows = (g["rows"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+        // the inactive channels stand under their own chip, and in a search (2026-10-12); the timetable leaves them out otherwise
+        bool Inactive(JsonObject r) => r["inactive"]?.GetValue<bool>() == true;
+        if (_liveView == "timetable") rows = _liveType == "__inactive" ? rows.Where(Inactive).ToList() : _liveQ.Length > 0 ? rows : rows.Where(r => !Inactive(r)).ToList();
         if (rows.Count == 0)
         {
             grid.Children.Clear(); _liveSig = sig;
@@ -216,7 +296,85 @@ public sealed partial class MainWindow
         // the channels grouped by service, the services by name, a header a service and a "Jump to" strip above the grid in the same
         // order (2026-09-30, "Can we group the live channels by service but give us quick jump to buttons for each service" / "Sort the
         // groups by service name. Same with the buttons"): core's order (type, then name) stands within a service
+        // content creators live now as a row of cards, out of the timetable (2026-10-12, "I think we need to reconsider how we present and organize
+        // it"): a stream has no timetable to sit in; the card carries the stream's picture, its title and the service's mark, and plays as a card does
+        var creators = rows.Where(r => r["creator"]?.GetValue<bool>() == true).ToList();
+        rows = rows.Where(r => r["creator"]?.GetValue<bool>() != true).ToList();
+        UIElement? creatorRow = null;
+        if (creators.Count > 0)
+        {
+            var now0 = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            // each source's streams in turn - the followed channels, then every category's - so none is left behind the others' (2026-10-13,
+            // "There are a number of live items in the star trek category on watch, those should just appear on the Live screen": Comedy's
+            // sixty had filled the row's sixty and Star Trek's six stood behind them, never drawn)
+            var groups = creators.GroupBy(r => S(r, "category") is { Length: > 0 } cg ? cg : S(r, "type")).Select(grp => grp.ToList()).ToList();
+            var mixed = new List<JsonObject>();
+            for (var gi = 0; mixed.Count < creators.Count; gi++) foreach (var grp in groups) if (gi < grp.Count) mixed.Add(grp[gi]);
+            var cards = mixed.Take(80).Select(r => new JsonObject
+            {
+                ["app"] = S(r, "app"), ["service"] = S(r, "service"), ["facet"] = S(r, "facet"), ["recency"] = new JsonObject { ["kind"] = "rank" },
+                ["item"] = new JsonObject { ["id"] = S(r, "id"), ["title"] = S(r, "name"), ["kind"] = "live", ["url"] = r["url"]?.GetValue<string>(), ["artwork"] = r["logo"]?.GetValue<string>(), ["subtitle"] = ((r["programs"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(p => p["now"]?.GetValue<bool>() == true) is { } pn ? S(pn, "title") : S(r, "type")), ["badge"] = "LIVE", ["progress"] = null },
+            }).ToList();
+            var panel = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 10), Tag = LiveRowKey("creators") };
+            panel.Children.Add(RowHead("Content creators live now  \u00B7  " + creators.Count, HubInk));
+            Button? first0 = null;
+            panel.Children.Add(CardRow(cards, true, now0, ref first0));   // the service's mark on each stream (2026-10-13, "you should show their service icon, youtube or twitch")
+            LiveRowRestore(panel);
+            creatorRow = panel;
+        }
         var serviceOrder = rows.Select(r => S(r, "service")).Where(n => n.Length > 0).Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
+        if (_liveView != "timetable")
+        {
+            // On now (2026-10-12): a row of cards a service, each channel with what it has on; a channel with nothing listed says so; a press tunes it
+            LiveRowKeep(grid);
+            grid.Children.Clear();
+            if (creatorRow is not null && (_liveKind == "all" || _liveKind == "creators")) grid.Children.Add(creatorRow);
+            var nowMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (_liveKind != "creators") foreach (var sn in serviceOrder)
+            {
+                bool KindOk(JsonObject r)
+                {
+                    var isEvent = r["event"]?.GetValue<bool>() == true;
+                    if (_liveKind == "inactive") return Inactive(r);
+                    if (Inactive(r) && _liveQ.Length == 0) return false;
+                    return _liveKind == "all" || (_liveKind == "events") == isEvent;
+                }
+                var mine = rows.Where(r => S(r, "service") == sn && KindOk(r)).ToList();
+                if (mine.Count == 0) continue;
+                var cards = mine.Take(80).Select(r =>
+                {
+                    var on = (r["programs"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(p => p["now"]?.GetValue<bool>() == true);
+                    var nextAt = r["next"] is JsonValue nv && nv.TryGetValue<long>(out var nms) ? DateTimeOffset.FromUnixTimeMilliseconds(nms).ToLocalTime() : (DateTimeOffset?)null;
+                    // what is on, until when, and what comes next (2026-10-12, "Why wouldn't the broadcast stuff in yt tv show a schedule"): the next programme by the schedule
+                    var after = (r["programs"] as JsonArray)?.OfType<JsonObject>().Where(p => p["now"]?.GetValue<bool>() != true && (p["start"]?.GetValue<double>() ?? 0) > nowMs).OrderBy(p => p["start"]?.GetValue<double>() ?? 0).FirstOrDefault();
+                    // nothing flagged as on now but a programme in the window (a schedule whose first entry begins this minute, Black Voices 2026-10-12):
+                    // the first programme and when it starts, never "No schedule listed" over a schedule
+                    var firstUp = on is null ? (r["programs"] as JsonArray)?.OfType<JsonObject>().OrderBy(p => p["start"]?.GetValue<double>() ?? 0).FirstOrDefault() : null;
+                    var sub = on is not null ? S(on, "title") + (on["end"] is JsonValue ? "  \u00B7  until " + LiveClock(on["end"]!.GetValue<double>()) : "") + (after is not null ? "  \u00B7  then " + S(after, "title") : "")
+                        : firstUp is not null ? S(firstUp, "title") + "  \u00B7  " + LiveClock(firstUp["start"]?.GetValue<double>() ?? nowMs) + (after is not null && !ReferenceEquals(after, firstUp) ? "  \u00B7  then " + S(after, "title") : "")
+                        : nextAt is { } na ? "Starts " + StartWords(na) : "No schedule listed";
+                    return new JsonObject
+                    {
+                        ["app"] = S(r, "app"), ["service"] = sn, ["facet"] = S(r, "facet"), ["recency"] = new JsonObject { ["kind"] = "rank" }, ["__tune"] = true,
+                        ["item"] = new JsonObject { ["id"] = S(r, "id"), ["title"] = S(r, "name"), ["kind"] = "live", ["url"] = r["url"]?.GetValue<string>(), ["artwork"] = (r["picture"]?["backdrop"] ?? r["picture"]?["poster"])?.GetValue<string>() ?? r["logo"]?.GetValue<string>(), ["__picture"] = r["picture"]?["backdrop"] is not null || r["picture"]?["poster"] is not null, ["__logo"] = r["logo"]?.GetValue<string>(), ["subtitle"] = sub, ["badge"] = (JsonNode?)null,
+                            // the bar under the picture: how much of what is on has gone (2026-10-12)
+                            ["progress"] = on is not null && on["end"] is JsonValue && (on["end"]!.GetValue<double>() - (on["began"]?.GetValue<double>() ?? on["startsAt"]?.GetValue<double>() ?? on["start"]?.GetValue<double>() ?? nowMs)) > 0 ? Math.Max(0.02, Math.Min(1, (nowMs - (on["began"]?.GetValue<double>() ?? on["startsAt"]?.GetValue<double>() ?? on["start"]?.GetValue<double>() ?? nowMs)) / (on["end"]!.GetValue<double>() - (on["began"]?.GetValue<double>() ?? on["startsAt"]?.GetValue<double>() ?? on["start"]?.GetValue<double>() ?? nowMs)))) : (double?)null },
+                    };
+                }).ToList();
+                var panel = new StackPanel { Spacing = 6, Margin = new Thickness(0, 0, 0, 10), Tag = LiveRowKey("svc:" + sn) };
+                var app0 = S(mine[0], "app");
+                var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+                headRow.Children.Add(ServiceMark(app0, sn, 22));
+                headRow.Children.Add(RowHead(sn + "  \u00B7  " + mine.Count + (mine.Count == 1 ? " channel" : " channels"), HubInk));
+                panel.Children.Add(headRow);
+                Button? first1 = null;
+                panel.Children.Add(CardRow(cards, false, nowMs, ref first1));
+                LiveRowRestore(panel);
+                grid.Children.Add(panel);
+            }
+            _liveSig = sig;
+            return reading;
+        }
         rows = rows.OrderBy(r => { var i = serviceOrder.IndexOf(S(r, "service")); return i < 0 ? int.MaxValue : i; }).ToList();   // a stable sort: core's order within a service
         var headers = new Dictionary<string, FrameworkElement>();
         var jump = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 2, 0, 4) };
@@ -285,30 +443,63 @@ public sealed partial class MainWindow
         var y = 26.0 + 4;   // the time line and the column's spacing: where the first row begins on the sheet
         // a rule under the time line too (2026-10-01, "1 more row grid line between the times and the first channel")
         foreach (var sh in new[] { sheet, nameSheet }) sh.Children.Insert(0, new Border { Height = 1, Background = HubRule, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 26 + 1, 0, 0) });
+        // the rows are light slots of a fixed height, and a row's logo, name and programme blocks are made only as it comes into view (2026-10-12,
+        // "Live is pretty slow": 274 rows and 671 blocks had been built up front, every open and every redraw); the slots give the sheet its
+        // height and the rules their places from the start, and the Jump to chips their targets
+        var slots = new List<(JsonObject row, Border who, Border line, double y)>();
         for (var i = 0; i < rows.Count; i++)
         {
             var sn = S(rows[i], "service");
-            var (who, line) = LiveRow(rows[i], ws, we, width);
+            var whoSlot = new Border { Height = LiveRowH, Width = LiveChanW - 8 };
+            var lineSlot = new Border { Height = LiveRowH, Width = width, HorizontalAlignment = HorizontalAlignment.Left };
             if (sn != lastService)
             {
                 // a group begins with a gap, no header: the service is named by the chip above and on every row (2026-10-01, "Let's get rid
                 // of the plain text 'Apple TV' above that column of Apple TV logos"); the Jump to chip brings the group's first row into view
                 lastService = sn;
-                headers[sn] = (FrameworkElement)who;
+                headers[sn] = whoSlot;
                 if (i > 0) { namesCol.Children.Add(new Border { Height = 14 }); linesCol.Children.Add(new Border { Height = 14 }); y += 14 + 4; }
             }
-            namesCol.Children.Add(who); linesCol.Children.Add(line);
+            namesCol.Children.Add(whoSlot); linesCol.Children.Add(lineSlot);
+            slots.Add((rows[i], whoSlot, lineSlot, y));
             sheet.Children.Insert(0, new Border { Height = 1, Background = HubRule, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, y + LiveRowH + 1, 0, 0) });
             nameSheet.Children.Insert(0, new Border { Height = 1, Background = HubRule, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, y + LiveRowH + 1, 0, 0) });
             y += LiveRowH + 4;
-            if (i % 15 == 14) { await Task.Delay(1); if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay)) return reading; }   // a long guide is laid out a little at a time
         }
+        // what is in view, and a screen either side, is made now; the rest as the page scrolls to it
+        var realized = new HashSet<int>();
+        void Realize()
+        {
+            if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay)) return;
+            double top = 0, vh = 1400, bodyTop = 0;
+            if (_hubScroller is { } hs0)
+            {
+                top = hs0.VerticalOffset; vh = Math.Max(600, hs0.ViewportHeight);
+                try { if (hs0.Content is UIElement content && body.IsLoaded) bodyTop = body.TransformToVisual(content).TransformPoint(new Windows.Foundation.Point(0, 0)).Y; } catch { }
+            }
+            var lo = top - bodyTop - 900; var hi = top - bodyTop + vh + 900;
+            for (var i = 0; i < slots.Count; i++)
+            {
+                if (realized.Contains(i)) continue;
+                var (row, whoSlot, lineSlot, ry) = slots[i];
+                if (ry < lo || ry > hi) continue;
+                realized.Add(i);
+                var (who, line) = LiveRow(row, ws, we, width);
+                whoSlot.Child = who; lineSlot.Child = line;
+            }
+        }
+        if (_liveRealizeOn is { } oldHs && _liveRealize is { } oldH) { try { oldHs.ViewChanged -= oldH; } catch { } }
+        _liveRealize = (_, __) => Realize();
+        _liveRealizeOn = _hubScroller;
+        if (_hubScroller is { } hsNow) hsNow.ViewChanged += _liveRealize;
         // the new grid in place of the old in one step, the page where it was
         var keepY = _hubScroller?.VerticalOffset ?? 0;
         grid.Children.Clear();
+        if (creatorRow is not null) grid.Children.Add(creatorRow);
         if (jumpShown) grid.Children.Add(jump);
-        grid.Children.Add(body);
+        if (rows.Count > 0) grid.Children.Add(body);
         _liveSig = sig;
+        Realize();
         if (_hubScroller is { } hs)
         {
             var jumped = _liveJump is { } js && (DateTime.UtcNow - _liveJumpAt).TotalSeconds <= 20 && headers.TryGetValue(js, out var jh) ? jh : null;
@@ -316,12 +507,18 @@ public sealed partial class MainWindow
             if (run != _liveDrawRun || !ReferenceEquals(_videoHub, overlay)) return reading;
             if (jumped is not null) jumped.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0, AnimationDesired = false });
             else if (keepY > 0 && Math.Abs(hs.VerticalOffset - keepY) > 2) hs.ChangeView(null, keepY, null, true);
+            await Task.Delay(60);
+            Realize();   // the rows where the page landed
         }
         return reading;
     }
 
     /// <summary>A channel's row in two parts: its logo and name (the fixed column), and its programs on the time line (the scrolling one). A press on
     /// either offers the channel's menu.</summary>
+    /// <summary>The handler that makes the Live rows as they scroll into view, and the scroller it is on (one draw at a time).</summary>
+    private EventHandler<ScrollViewerViewChangedEventArgs>? _liveRealize;
+    private ScrollViewer? _liveRealizeOn;
+
     private (UIElement who, UIElement line) LiveRow(JsonObject r, double ws, double we, double width)
     {
         var name = S(r, "name"); var service = S(r, "service"); var logo = r["logo"]?.GetValue<string>();
@@ -352,7 +549,28 @@ public sealed partial class MainWindow
             var mark = _liveType is { Length: > 0 } && on ? (S(p, "sport") is { Length: > 0 } sp ? SportSymbol(sp) : ModeSymbol(_liveType)) + "  " : "";
             text.Children.Add(new TextBlock { Text = mark + S(p, "title"), FontSize = 13, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
             text.Children.Add(new TextBlock { Text = on ? "on now" + (p["end"] is JsonValue ? ", until " + LiveClock(pe) : "") : LiveClock(shown), FontSize = 11, Foreground = on ? HubAmber : HubInk });
-            var block = new Border { Width = x2 - x - 4, Height = LiveRowH - 8, CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 4, 8, 4), Background = on ? HubChipOn : HubCard, BorderBrush = hit ? HubAmber : null, BorderThickness = new Thickness(hit ? 2 : 0), Child = text };
+            // an on-now block shows its time gone and its time left (2026-10-12, "the color / grayscale shading method for time elapsed vs time
+            // remaining"): the part gone in grey on the left, the part to come in amber on the right, the words over both
+            UIElement blockChild = text;
+            // the real start of what is on: the guide's `began` when it started before the window (the drawn start is the window's edge)
+            var began = p["began"] is JsonValue bgv && bgv.TryGetValue<double>(out var bgd) ? bgd : shown;
+            if (on && pe > began)
+            {
+                var gone = Math.Max(0, Math.Min(1, (ws - began) / (pe - began)));
+                var tone = new Grid();
+                tone.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.001, gone), GridUnitType.Star) });
+                tone.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0.001, 1 - gone), GridUnitType.Star) });
+                var past = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x3D, 0x43, 0x4E)) };   // lighter than a block to come, so a programme nearly over still reads as on now
+                var left = new Border { Background = HubChipOn };
+                Grid.SetColumn(left, 1);
+                tone.Children.Add(past); tone.Children.Add(left);
+                var over = new Grid();
+                over.Children.Add(tone);
+                var pad = new Border { Padding = new Thickness(8, 4, 8, 4), Child = text };
+                over.Children.Add(pad);
+                blockChild = over;
+            }
+            var block = new Border { Width = x2 - x - 4, Height = LiveRowH - 8, CornerRadius = new CornerRadius(6), Padding = on && pe > began ? new Thickness(0) : new Thickness(8, 4, 8, 4), Background = on ? HubChipOn : HubCard, BorderBrush = hit ? HubAmber : null, BorderThickness = new Thickness(hit ? 2 : 0), Child = blockChild };
             if (S(p, "desc") is { Length: > 0 } desc) ToolTipService.SetToolTip(block, S(p, "title") + ": " + desc);
             // a program still to come plays nothing yet (2026-10-07, "they should be able to do it to the channel or the current episode, not one
             // in the future"): a press on it says when it starts

@@ -64,19 +64,52 @@ phones. The app should also enable the private listening feature through the pho
    button pressed on the PC instead, 2026-10-05), mute Prism on PC. The page's own error under the card in amber with a Retry
    button (2026-10-05, Netflix's "Too many people are using your account right now" and its screens: Retry is the `retry` tile
    command, which presses the page's own Retry through the adapter's videoCmd, or opens the title again where the page has none;
-   the Upgrade button is never pressed). Below: Continue watching and My list as
+   the Upgrade button is never pressed). A service's own gate over its player (2026-10-13, Twitch's content disclaimer, "I want them to
+   see the disclaimer attached") shows in the same place in the service's words, its button's verb on the phone's button (`gate` tile
+   command: the adapter's videoCmd presses the page's own button, on the person's press only). Below: Continue watching and My list as
    poster rows (the same cards and order as the PC's rows, 40 each), and Live as an accordion by service with what is on - a
    service's live events (Apple TV's Formula 1 and MLS) among its rows as on the PC's tab, the series before the event's name
    (2026-10-05, "Isn't Live supposed to show the Formula 1 stuff from Apple?": the list had come from the channel guides alone). A press
    plays on the PC through the same calls the PC's own cards make (`GET /video`, `POST /video/play`, `/video/tune`, `/video/seek`,
    `/video/start-over`, and `/tiles/{id}/command` for the verbs). Never a picture: the services' video is DRM and Prism does not
    touch it (docs/third-party-services-policy.md); the sound comes by Remote Listening.
+4c. **Playlists** (2026-10-12, "Make sure I can manage playlists through the companion app"). An accordion under the Video tab's rows,
+   shown when the PC shows its Playlists tab (a TMDB account with lists linked, or lists already on the PC), its line saying how many playlists there are or which one plays. The lists with their completion ("3 of 12 completed · next: …") and a
+   bar; New playlist asks a name. A tap opens one (on the PC too: the open list is the PC's open list) with Play (the resume point),
+   Rename, Delete (Undo offered for a minute, as on the PC) and its items in the PC's order, completed ones faded, the one playing in
+   amber; a tap on an item offers Play from here, Mark watched / not watched, Up / Down / To top (a Manual list only), Remove. While a
+   playlist plays: Previous, Next, Stop after this, Stop now. Every change goes through the verbs the PC's own Playlists tab calls (`GET
+   /playlists`, `POST /playlists`, `/playlists/open`, `/rename`, `/delete`, `/play`, `/edit`, `/undo`, `/move`, `/stop`); adding titles
+   is still done from the PC's Details cards. Not yet walked on a phone.
 5. **Options (⋯).** *Prism on PC: Music lounge | Video* switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
    dispatched through the PC's own player switch; `GET /players` says which exist and which is on). The Music tab is only shown while
    the Music lounge is on. Add to home screen (the phone's own instructions; the icon opens the wall already paired through the manifest's
    start address), the sound mode, the page's volume, Forget this wall. When the wall's software changes the page (its version at
    `/remote/version`, a hash of the page and the host's version), a banner says so and the page refreshes itself in five minutes, or
    at once on *Refresh now*.
+
+- **Details from the phone** (2026-10-11, "Can I open the TMDB details using the companion app too?"): every card on the Video tab
+  (Continue watching, My list, the lens rows and the categories) carries an i in its corner. It opens a sheet with the title's TMDB
+  details as the PC's Details card has them: poster, year, certification, runtime or seasons, genres, TMDB's rating with its vote
+  count, the overview, the cast, and where it streams, is free, or rents and buys in the US as TMDB lists them. Play on Prism plays
+  the card. `POST /video/details {title, kind?, app?}` answers working until core's read lands (the phone asks again every 1.5 s),
+  then ready with the details, or none with the reason (no TMDB key, not on TMDB). The same read the PC makes, nothing new leaves. Search everywhere's results carry a Details button too, the household's own titles and the catalog's.
+
+- **Setting up from the phone** (2026-10-11, "if setting up on a tv, you'd likely setup the remote app first, and then configure all the
+  services from the phone"): the Nothing is set up yet screen shows a pairing code under its button, so a TV with no mouse starts
+  from the phone. The Video tab's Services section lists every built-in video and music service (the PC's catalog, put into the
+  page when it is served) with its state here: signed in, signed out, set up, or not set up. Sign in on the PC / Set up on the PC
+  opens the service's sign-in on the PC (`prism://app/<id>/setup?signin=1`; a service not set up yet joins its player first, as the
+  welcome page's row does) and brings the Keyboard tab up, which types into the sign-in's fields. The phone never holds a password.
+- **The cast, drilled through** (2026-10-11): a face on the Details sheet opens the person's page (`POST /video/person {id}`, TMDB's
+  person with their films and series, newest first); each opens its own details.
+- **A video's own description** (2026-10-11, "maybe we can show the channel they're on"): a YouTube video has no TMDB page, so its Details
+  sheet shows the service's own: the channel, the length, the date, the description and the creator's tags, from the same public page
+  the tags come from, with About this channel opening the channel's page (`POST /video/channel {app, url}`: name, handle, counts,
+  description, latest videos, each playable) and Open the channel playing its page on Prism. The PC's Details card shows the same.
+  A Twitch video says its channel in its own line.
+- **Posters** (2026-10-11, "a mix of formats"): every card carries TMDB's poster beside the service's own picture, and the phone draws
+  the poster first, since it draws every card tall; the service's picture is the fallback.
 
 ## How it works
 

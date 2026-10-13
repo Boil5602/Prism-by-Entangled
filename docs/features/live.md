@@ -78,9 +78,51 @@ as a schedule. Asked for on 2026-09-28:
   title and its rating / episode line), about three and a half hours a read; 126 channels on this account, the broadcast
   stations among them. A tune presses the channel's thumbnail and then "Join live" in the page's own question. No category
   from the service; Prism's name rule and TMDB's genre type the channels. Its Library page gives the Watch rows (New in your
-  library, Most watched, Scheduled recordings) and the owned library (Recordings & purchases, 1,373 here, read by scrolling
+  library, Most watched; Scheduled recordings is read no more since 2026-10-12, a recording yet to be made cannot be played) and the owned library (Recordings & purchases, 1,373 here, read by scrolling
   the grid on the owned page until the header's count is reached).
 - Twitch (2026-10-05): Following > Live, the followed channels live now, typed by Twitch's own category.
+
+## The page's shape (2026-10-12, "Live is pretty slow. I think we need to reconsider how we present and organize it")
+
+Three changes, in the order they were asked for. The timetable's rows are light slots of a fixed height, and a row's logo, name and
+programme blocks are made only as it scrolls into view (274 rows and 671 blocks had been built up front at every open and redraw).
+Content creators live now (Twitch, YouTube, and the categories' streams) are a row of cards above the timetable, not rows in it: a
+stream has no timetable to sit in. And the page opens on **On now**, a row of cards a service with what each channel has on (a press
+tunes it); **Timetable** is one press away and the choice is kept (`live.view`). The mode chips and the search work in both views.
+
+## Inactive channels (2026-10-12)
+
+"Let's only show channels with content in the next 24 hours, otherwise move them to an inactive category. But we should still be
+able to search the full schedule": a channel with nothing on and nothing scheduled in the next 24 hours is `inactive` in the guide:
+listed last, counted apart (`kinds.inactive`), out of the modes' counts, and shown only under its own chip (Inactive, in On now's
+kinds and among the Timetable's modes). An event more than 24 hours away is inactive too (2026-10-12: Apple TV's Wednesday matches had
+taken the top of the timetable). A channel whose last read is more than three hours old is unknown, never inactive (2026-10-13: a
+YouTube TV read that came back with ten rows had left the other 116 on the night's schedules, all under Inactive; the read now walks
+the guide's scroller to its end). The search looks through the whole schedule a channel lists, past the grid's window, and an
+inactive channel it finds is shown.
+
+## Pictures from TMDB (2026-10-13)
+
+"Tie out the live tv items for paramount, peacock, and youtube tv with their posters from TMDB": an On now card shows TMDB's picture
+of the programme on now (the wide backdrop, else the poster), the channel's logo small in a corner, with the grey wash over the time
+gone. Each title is asked once under the person's own key through the lens cache and kept; TMDB is matched on the exact title only,
+so a channel keeps its logo (or its name on its own colour) for anything TMDB does not know, and lines that name no programme (Local
+Programming, Paid Programming, News) are never asked. No key: logos as before, nothing worse (core `picturesFor`/`ensurePictures`, the
+guide row's `picture`).
+
+## A category's live streams (2026-10-12)
+
+"For the live content creator shows, we should probably have a category on the live page too": each of the person's categories stands
+in the Live grid as a mode of its own, holding its streams live now (a creator from the household's rows or the open pool, by the
+category's #tags and words); a channel already in the grid counts in that mode as well. Pressing one tunes it as any channel.
+
+## Channels you follow (Watch, 2026-10-12)
+
+One row across services ("I want youtube subs and twitch followed merged into 1 line"): Twitch's Followed channels and YouTube's
+Subscriptions, the live ones first, each card its service's (core `followed.ts`). Twitch says on each card whether the channel is live;
+YouTube's Subscriptions page names no on-air state, so a subscribed channel is live when YouTube's own feed (Latest from your
+subscriptions) carries a video of that channel marked LIVE. The row's Hide offline leaves out the channels not live now; with none
+live the row is hidden. The services' other own rows (latest videos) stay as they were.
 
 ## What an adapter declares for the Live tab
 

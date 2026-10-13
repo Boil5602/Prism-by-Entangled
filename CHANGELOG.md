@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.29.1 - 2026-10-11 (alpha, 59d7d358)
+
+Rent or buy by phone: a Rent or Buy logo on a title's Details page now shows a code that opens the service's own page for that title on your phone, where you see the price and pay with the account you already use there. Prism takes no part in the purchase. A new row on Watch, New in your library, leads with titles that joined your services' libraries this week. Ad covers on live channels: an infomercial that announces itself in its captions or as a sponsored program now holds one steady cover to the end of its half hour, and the big window keeps its channel after a restart. The tour says that a linked TMDB account keeps playlists and ratings the same on every device, speaks of live channels in general, and puts dragging a channel to a window first.
+
+- download: https://prism.entangled.world/windows/Prism-0.29.1-59d7d358.zip
+- sha256: a89a3771317b7b2d0c083b48c5a05d852db961e5d051ff843f3fea0a62d936d9
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.29.1
+
 ## 0.29.0 - 2026-10-11 (alpha, 84ae95df)
 
 New: How Prism works, a tour of Prism in nine short subjects with a picture on every page. A notice at the top of the screen offers it once, and Show me plays a few seconds showing where it lives in the Prism menu. A page of the tour can open the real thing, and a Back to How Prism works button brings you back. The Prism menu is larger and the screen dims behind it. The words on the pairing card are bigger. On the phone, the Video tab can open a title in the service's own app on that phone, the Keyboard tab's arrows are a proper cross, and its password box shows only for a password.

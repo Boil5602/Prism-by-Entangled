@@ -185,6 +185,8 @@ public sealed partial class MainWindow
             if (text == "tour notice") { TourNoticeAgain(); return; }   // the notice about the tour put back in the status area
             if (text == "purchase demo") { ShowPurchaseCard("The Lantern Coast", "Fandango At Home", new System.Text.Json.Nodes.JsonObject { ["url"] = "https://athome.fandango.com/content/browse/search?searchString=The%20Lantern%20Coast" }, null, null); return; }   // the Rent or Buy card with a made-up title (2026-10-11)
             if (text == "purchase close") { ClosePurchaseCard(); return; }
+            if (text.StartsWith("channel ", StringComparison.Ordinal)) { var cp = text.Substring(8).Split('|'); if (cp.Length >= 3) _ = ShowChannelCardAsync(cp[0].Trim(), cp[1].Trim(), cp[2].Trim(), cp.Length > 3 ? cp[3].Trim() : cp[2].Trim(), cp.Length > 4 ? cp[4].Trim() : null); return; }   // "channel <app>|<service>|<id>|<title>|<url>" (2026-10-11)
+            if (text == "channel close") { CloseChannelCard(); return; }
             if (text == "tutorial close") { CloseTutorial(); return; }
             if (text == "tutorial") { ShowTutorial(); return; }   // How Prism works (2026-10-10)
             if (text == "tmdb guide close") { CloseTmdbGuide(); return; }
@@ -206,6 +208,8 @@ public sealed partial class MainWindow
             if (text == "pair") { PairPhone(); return; }   // the Pair a phone card (2026-10-04)
             if (text == "profiles close") { CloseProfilesWindow(); return; }
             if (text == "settings") { _ = ShowWatchSettingsAsync("general"); return; }   // Watch settings (2026-09-24)
+            if (text == "settings:close") { CloseWatchSettings(); return; }
+            if (text.StartsWith("settings:")) { _ = ShowWatchSettingsAsync(text.Substring(9)); return; }   // a settings tab, for a shot (2026-10-13)
             if (text == "settings updates") { _ = ShowWatchSettingsAsync("updates"); return; }
             if (text == "settings close") { CloseWatchSettings(); return; }
             if (text == "settings binge") { _ = ShowWatchSettingsAsync("binge"); return; }
@@ -231,6 +235,11 @@ public sealed partial class MainWindow
             // the Live tab's own tune, as its channel menu runs it: "tune|<window index>|<facet>|<channel id>|<url>|<name>" (2026-09-28)
             if (text.StartsWith("tune|", StringComparison.Ordinal)) { var tp = text.Split('|'); if (tp.Length >= 6 && int.TryParse(tp[1], out var ti)) _ = TuneIntoAsync(ti, tp[2], tp[3], tp[4].Length > 0 ? tp[4] : null, tp[5], "", null); return; }
             if (text == "library" || text == "watch" || text == "browse" || text == "playlists" || text == "live") { _hubTab = text; _ = ShowVideoHubAsync(); return; }   // the page on that tab (2026-09-22)
+            // the Live tab in a view, for a shot (2026-10-12): "live:timetable" / "live:now"
+            if (text == "live:timetable" || text == "live:now") { _liveView = text.Substring(5); HostPrefs.Set("live.view", _liveView); _hubTab = "live"; _ = ShowVideoHubAsync(); return; }
+            if (text.StartsWith("live:kind:")) { _liveKind = text.Substring(10); _liveType = null; HostPrefs.Set("live.kind", _liveKind); HostPrefs.Set("live.mode", ""); _liveView = "now"; HostPrefs.Set("live.view", "now"); _hubTab = "live"; _ = ShowVideoHubAsync(); return; }   // On now in a kind, for a shot
+            // the timetable jumped to a service, for a shot (2026-10-12): "live:jump:YouTube TV"
+            if (text.StartsWith("live:jump:")) { _liveView = "timetable"; HostPrefs.Set("live.view", "timetable"); _liveJump = text.Substring(10); _liveJumpAt = DateTime.UtcNow; _hubTab = "live"; _ = ShowVideoHubAsync(); return; }
             if (text.StartsWith("browse "))
             {
                 // "browse <genre>" and "browse <genre> <row>" (yours | top | newest | voted), the row opened in full (2026-09-22)

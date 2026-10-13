@@ -36,8 +36,9 @@ public sealed partial class MainWindow
     private static IEnumerable<JsonObject> LiveCards(JsonObject menu, string key)
     {
         if (menu[key] is not JsonArray arr) return Enumerable.Empty<JsonObject>();
-        var flag = key == "continue" ? "__continue" : "__mylist";
-        return arr.OfType<JsonObject>().Take(48).Select(c => { c[flag] = true; return c; }).ToList();
+        // the mark says which Remove the card's menu offers: Continue watching's, My list's, and none for New in your library (2026-10-12)
+        var flag = key == "continue" ? "__continue" : key == "list" ? "__mylist" : key == "newOwned" ? "__library" : null;   // New in your library: Remove from the library (2026-10-12)
+        return arr.OfType<JsonObject>().Take(48).Select(c => { if (flag is not null) c[flag] = true; return c; }).ToList();
     }
 
     private async Task FollowLiveRowsAsync(Grid overlay)
