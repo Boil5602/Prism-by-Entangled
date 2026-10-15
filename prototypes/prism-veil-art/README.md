@@ -10,7 +10,7 @@ entry never ships. Source page, author and license for every photo are in
 
 | Path | What |
 |---|---|
-| `pool/*.jpg` | full-res photos (77) — **upload this folder verbatim** |
+| `pool/*.jpg` | full-res photos (134, chosen by hand on 2026-10-15 from 3,787: `score-art.py` ranks, a person picks; the rest were deleted) — **upload this folder verbatim** |
 | `pool/manifest.json` | provenance: Commons page, author, license per file |
 | `hosted/` | GENERATED, git-ignored: re-encoded pool + `list.json` (sha256 per file) + `list.sig` + `manifest.json` - what gets uploaded |
 | `bundle.txt` | the pinned 24 photos that ship inside the extension (edit by hand) |

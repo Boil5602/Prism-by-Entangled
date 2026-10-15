@@ -207,6 +207,8 @@ public sealed partial class MainWindow
             if (text == "pair close") { ClosePairCard(); return; }
             if (text == "pair") { PairPhone(); return; }   // the Pair a phone card (2026-10-04)
             if (text == "profiles close") { CloseProfilesWindow(); return; }
+            if (text.StartsWith("veil up ", StringComparison.Ordinal)) { _surfaces.ShowIntermission(text.Substring(8).Trim(), "pool", "veil"); return; }   // a cover on a window for a picture of its drift (2026-10-15)
+            if (text.StartsWith("veil down ", StringComparison.Ordinal)) { _surfaces.HideIntermission(text.Substring(10).Trim()); return; }
             if (text == "settings") { _ = ShowWatchSettingsAsync("general"); return; }   // Watch settings (2026-09-24)
             if (text == "settings:close") { CloseWatchSettings(); return; }
             if (text.StartsWith("settings:")) { _ = ShowWatchSettingsAsync(text.Substring(9)); return; }   // a settings tab, for a shot (2026-10-13)

@@ -129,6 +129,9 @@ public sealed partial class SurfaceManager
         public int PeekRemaining;
         public Border[] SubSlabs = Array.Empty<Border>();
         public Image[] ArtSlabs = Array.Empty<Image>();
+        /// <summary>Each slab's frame: it holds the clip, so the picture inside can drift while the cover's shape (and the skip hole) stays put.</summary>
+        public Grid[] ArtFrames = Array.Empty<Grid>();
+        public Microsoft.UI.Xaml.Media.Animation.Storyboard? ArtDrift;
         public Border? SkipRing;
         public string? SkipTarget;
         /// <summary>The veil's opening over the player's own Skip, in the tile's own coordinates (2026-10-12): a press on the stage shield
@@ -1073,14 +1076,16 @@ public sealed partial class SurfaceManager
             // extension parity, video.js cuts the same hole with clip-path).
             var subSlabs = new Border[4];
             var artSlabs = new Image[4];
+            var artFrames = new Grid[4];
             for (var si = 0; si < 4; si++)
             {
                 subSlabs[si] = new Border { Background = new SolidColorBrush(Dark), IsHitTestVisible = false };
-                artSlabs[si] = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
+                artSlabs[si] = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false, RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5), RenderTransform = new CompositeTransform() };
+                artFrames[si] = new Grid { IsHitTestVisible = false }; artFrames[si].Children.Add(artSlabs[si]);
                 if (si > 0)
                 {
                     subSlabs[si].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
-                    artSlabs[si].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
+                    artFrames[si].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
                 }
             }
             var art = artSlabs[0];
@@ -1235,7 +1240,12 @@ public sealed partial class SurfaceManager
                 MaxWidth = 460,
             };
             foreach (var sb in subSlabs) g.Children.Add(sb);
-            foreach (var im in artSlabs) g.Children.Add(im);
+            // the picture's frames in one host clipped to its own size: a drifting picture is 8% larger than its window, and nothing else
+            // clipped the cover, so it would have spilled onto the windows beside it
+            var artHost = new Grid { IsHitTestVisible = false };
+            artHost.SizeChanged += (_, e) => artHost.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, e.NewSize.Width, e.NewSize.Height) };
+            foreach (var fr in artFrames) artHost.Children.Add(fr);
+            g.Children.Add(artHost);
             var ring = new Border
             {
                 BorderBrush = new SolidColorBrush(amber),
@@ -1282,6 +1292,7 @@ public sealed partial class SurfaceManager
             tile.CountText = count;
             tile.SubSlabs = subSlabs;
             tile.ArtSlabs = artSlabs;
+            tile.ArtFrames = artFrames;
             tile.SkipRing = ring;
             tile.ArtLine = artLine;
             tile.ArtChip = artChip;
@@ -1302,6 +1313,7 @@ public sealed partial class SurfaceManager
         if (pick is not null) TrySetImage(tile.IntermissionArt!, pick.Path);
         ApplyArtAttribution(tile);
         for (var si = 1; si < tile.ArtSlabs.Length; si++) tile.ArtSlabs[si].Source = tile.ArtSlabs[0].Source;
+        StartArtDrift(tile);
         tile.Covered = true;
         if (tile.VeilBand > 0) ApplyVeilBand(tile);                  // a channel's ticker stays open (the veil may have been made just now)
         if (BreakWatchFor?.Invoke(tile.Id) == true && !tile.CardMinimal) tile.CardMinimal = true;   // a new break on the Video player: collapsed to the icon
@@ -1315,6 +1327,43 @@ public sealed partial class SurfaceManager
         SyncAdDebug();
         SyncCornerX(tile);
         CoverageChanged?.Invoke();
+    }
+
+    private static readonly Random DriftRng = new();
+    /// <summary>
+    /// The cover's picture drifts, as the extension's start page does (2026-10-15, "In the extension, you do some things where you slowly pan
+    /// the images and keep it looking alive but calm, can we do similar effects in the prism app?"): a slow push of 8% over a minute, eased
+    /// out, with a slight pan - its direction picked fresh for each picture, and one in five drifting back out instead, so no two breaks move
+    /// alike. The four slabs move as one (their frames keep the clips, so the skip hole never moves). Off when Windows' own animations are off.
+    /// </summary>
+    private static void StartArtDrift(Tile tile)
+    {
+        tile.ArtDrift?.Stop(); tile.ArtDrift = null;
+        if (tile.ArtSlabs.Length == 0) return;
+        foreach (var im in tile.ArtSlabs) if (im.RenderTransform is CompositeTransform ct0) { ct0.ScaleX = ct0.ScaleY = 1; ct0.TranslateX = ct0.TranslateY = 0; }
+        bool motion; try { motion = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled; } catch { motion = true; }
+        if (!motion) return;
+        var w = tile.Intermission?.ActualWidth ?? 0; var h = tile.Intermission?.ActualHeight ?? 0;
+        var zoomOut = DriftRng.Next(5) == 0;
+        double from = zoomOut ? 1.08 : 1.0, to = zoomOut ? 1.0 : 1.08;
+        double dx = (DriftRng.Next(2) == 0 ? -1 : 1) * 0.012 * w, dy = (DriftRng.Next(2) == 0 ? -1 : 1) * 0.008 * h;
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var dur = new Duration(TimeSpan.FromSeconds(60));
+        var ease = new Microsoft.UI.Xaml.Media.Animation.QuadraticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+        void Add(DependencyObject target, string prop, double a, double b)
+        {
+            var an = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { From = a, To = b, Duration = dur, EasingFunction = ease };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(an, target); Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(an, prop);
+            sb.Children.Add(an);
+        }
+        foreach (var im in tile.ArtSlabs)
+        {
+            if (im.RenderTransform is not CompositeTransform ct) continue;
+            Add(ct, "ScaleX", from, to); Add(ct, "ScaleY", from, to);
+            if (w > 0) { Add(ct, "TranslateX", zoomOut ? dx : 0, zoomOut ? 0 : dx); Add(ct, "TranslateY", zoomOut ? dy : 0, zoomOut ? 0 : dy); }
+        }
+        tile.ArtDrift = sb;
+        sb.Begin();
     }
 
     /// <summary>
@@ -2575,6 +2624,7 @@ public sealed partial class SurfaceManager
         if (tile?.Intermission is not { } g) return;
         if (tile.SkipChip is { } chip) chip.Visibility = Visibility.Collapsed;
         tile.Covered = false;
+        tile.ArtDrift?.Stop(); tile.ArtDrift = null;                 // the picture rests when the cover goes
         tile.Peeked = false;                                         // a peek never outlives its break
         tile.PeekTimer?.Stop();
         if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed; SyncPeekNotAd(tile.Id);   // the peek's own way back goes with it
@@ -2685,7 +2735,7 @@ public sealed partial class SurfaceManager
         for (var i = 0; i < 4; i++)
         {
             tile.SubSlabs[i].Clip = new RectangleGeometry { Rect = rects[i] };
-            tile.ArtSlabs[i].Clip = new RectangleGeometry { Rect = rects[i] };
+            tile.ArtFrames[i].Clip = new RectangleGeometry { Rect = rects[i] };
         }
         if (tile.SkipRing is { } ring)
         {
@@ -2738,13 +2788,13 @@ public sealed partial class SurfaceManager
         if (tile.VeilBand > 0)
         {
             var open = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, Math.Max(0, tile.Rect.W), VeilBottom(tile)) };
-            tile.SubSlabs[0].Clip = open; tile.ArtSlabs[0].Clip = new RectangleGeometry { Rect = open.Rect };
+            tile.SubSlabs[0].Clip = open; tile.ArtFrames[0].Clip = new RectangleGeometry { Rect = open.Rect };
         }
-        else { tile.SubSlabs[0].Clip = null; tile.ArtSlabs[0].Clip = null; }
+        else { tile.SubSlabs[0].Clip = null; tile.ArtFrames[0].Clip = null; }
         for (var i = 1; i < 4; i++)
         {
             tile.SubSlabs[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
-            tile.ArtSlabs[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
+            tile.ArtFrames[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
         }
         if (tile.SkipRing is { } ring) ring.Visibility = Visibility.Collapsed;
     }

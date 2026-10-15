@@ -191,6 +191,15 @@ public sealed class ArtService
                 var sha = e.TryGetProperty("sha256", out var s) ? s.GetString() : null;
                 if (f is not null && sha is not null && f.EndsWith(".jpg")) entries.Add((f, sha));
             }
+            // a picture the pool no longer lists leaves the cache (2026-10-15, the pool cut to the hand-picked: "The ones we have selected
+            // ... are very dull"): the cache had kept every file it ever fetched, so retired photos stayed in the rotation. Only with a
+            // list that names files, so an empty or odd answer never empties the cache
+            if (entries.Count > 0)
+            {
+                var listed = new HashSet<string>(entries.Select(e => Path.GetFileName(e.f)), StringComparer.OrdinalIgnoreCase);
+                foreach (var cached in Directory.GetFiles(Dir, "*.jpg"))
+                    if (!listed.Contains(Path.GetFileName(cached))) { try { File.Delete(cached); } catch { /* in use: next start */ } }
+            }
             // random subset, verified, cached; already-cached files are kept
             foreach (var (f, sha) in entries.OrderBy(_ => _rng.Next()).Take(CacheCount))
             {
