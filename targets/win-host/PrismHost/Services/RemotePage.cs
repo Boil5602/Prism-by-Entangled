@@ -37,11 +37,13 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .work .drop{background:#14171C;color:#F2B14C;border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
 .work{display:none;margin:10px 0 0;padding:10px 12px;background:#1C2129;border-radius:12px;color:#F2B14C;font-size:14px}.work.on{display:block}.work.done{color:#E8ECF2}.work i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#F2B14C;margin-right:8px;animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 .vnp img{width:72px;height:108px}.seek{margin-top:12px}.seek input{width:100%}.times{display:flex;justify-content:space-between;font-size:13px;color:#E8ECF2;margin-top:2px}
-.ic{width:26px;height:26px;fill:currentColor;display:block}.mtr{gap:8px;align-items:center}.mtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.mtr button.go{flex:1.35;height:68px}.mtr button.go .ic{width:32px;height:32px}.mtr button:disabled{opacity:.35}#orderRow button{min-width:0;flex:1}#orderRow button.on{color:#F2B14C}#orderRow button.on .ic{fill:#F2B14C}.vtr{gap:8px;align-items:center}.vtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.vtr button.go{flex:1.35;height:68px}.vtr button.go .ic{width:32px;height:32px}.vtr button:disabled{opacity:.35}.vrow button{display:flex;flex-direction:column;align-items:center;gap:5px;font:13px system-ui;padding:10px 6px}.vrow .ic{width:22px;height:22px}.sbox .glass{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:#8A93A2;pointer-events:none}.sbox input{padding-left:40px}#vLivePanel > .body{padding:8px}.lq{width:100%;box-sizing:border-box;background:#14171C;color:#E8ECF2;border:1px solid #2C3442;border-radius:10px;padding:10px 12px;font:15px system-ui;margin-bottom:8px}#vLive .item.hidden{display:none}#vLive .grp{margin:10px 6px 2px;font-size:11px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase}#vLive .grp.hidden{display:none}#vLive .item.ch{padding:9px 10px;margin-top:4px}#vLive .ch .l1{display:flex;gap:10px;align-items:baseline}#vLive .ch .l1 span:first-child{flex:none;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vLive .ch .l1 .now{flex:1;display:block;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#E8ECF2;font-size:13px}#vLive .ch .pb{margin-top:6px}#vLive .ch .pt{display:none}#vLive .jump{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:#1C2129}#vLive .jump::-webkit-scrollbar{display:none}#vLive .jump button{flex:none;background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:6px 11px;font:12px system-ui}#vLive .jump.hidden{display:none}.openOn{margin:4px 0 10px}.vrow{margin-top:10px}.vrow button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:#F2B14C}
-.cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cards::-webkit-scrollbar{display:none}.card{flex:none;width:112px;background:none;border:0;padding:0;color:#E8ECF2;text-align:left;font:13px system-ui}.card{position:relative}.card .art{width:112px;height:168px;border-radius:10px;background:#1C2129;object-fit:cover;display:block}.card .di{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:13px;border:0;background:rgba(5,6,9,.75);color:#E8ECF2;font:600 13px system-ui;padding:0}.sheet.full{top:0;left:0;right:0;bottom:0;border-radius:0;padding:0 14px calc(20px + env(safe-area-inset-bottom));max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:60}.sheet.full .top{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 0 10px;background:#1C2129;z-index:1}.sheet.full .top b{flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sheet.full .top button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:9px 14px;font:600 14px system-ui}body.locked{overflow:hidden;position:fixed;width:100%}#detSheet{flex-direction:column;gap:8px}#detSheet .dh{display:flex;gap:12px}#detSheet .dh img{width:84px;height:126px;border-radius:8px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dh b{font-size:17px}#detSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#detSheet .dv{color:#E8ECF2;font-size:14px;line-height:1.35}#detSheet .dcast{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}#detSheet .dcast button{flex:none;width:64px;font-size:11px;color:#E8ECF2;text-align:center;background:none;border:0;padding:0;font-family:system-ui}#detSheet .dcast button span{display:block}#chSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#chSheet .dh{display:flex;gap:12px}#chSheet .dh img{width:72px;height:72px;border-radius:36px;object-fit:cover;background:#0E1218;flex:none}#chSheet .dh b{font-size:17px}#chSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#chSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}#chSheet .cards{flex-wrap:wrap;overflow:visible}#detSheet .dtags{display:flex;flex-wrap:wrap;gap:6px}#detSheet .dtags:empty{display:none}#detSheet .dtags button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:7px 11px;font:13px system-ui}#detSheet .dchan{display:flex;flex-direction:column;gap:8px;background:#14171C;border-radius:12px;padding:10px}#detSheet .dchan:empty{display:none}#detSheet .dchan .ch1{display:flex;align-items:center;gap:10px}#detSheet .dchan .ch1 img{width:44px;height:44px;border-radius:22px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dchan .ch1 b{display:block;font-size:15px}#detSheet .dchan .ch1 span{display:block;color:#E8ECF2;font-size:12px}#detSheet .dchan .chd{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#detSheet .dchan .chl{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin-top:2px}#detSheet .dchan .cards{margin:0}#detSheet .dchan .chb{display:flex;gap:8px}#detSheet .dchan .chb button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#perSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#perSheet .dh{display:flex;gap:12px}#perSheet .dh img{width:84px;height:84px;border-radius:42px;object-fit:cover;background:#0E1218;flex:none}#perSheet .dh b{font-size:17px}#perSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#perSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}#perSheet .cards{flex-wrap:wrap;overflow:visible}#perSheet .psort{display:flex;align-items:center;gap:8px;font-size:13px;color:#E8ECF2}#perSheet .psort button{background:#2C3442;color:#E8ECF2;border:1px solid transparent;border-radius:999px;padding:7px 12px;font:13px system-ui}#perSheet .psort button.on{color:#F2B14C;border-color:#F2B14C}#perSheet .card.here .art,#detSheet .dcast button.here img{outline:2px solid #F2B14C;outline-offset:2px}#detSheet .dcast button.here span{color:#F2B14C}#vSvcBody .srow{display:flex;align-items:center;gap:10px;padding:6px 0}#vSvcBody .srow b{flex:1;font-weight:500}#vSvcBody .srow span{color:#E8ECF2;font-size:12px}#vSvcBody .srow span.amber{color:#F2B14C}#vSvcBody .srow button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#detSheet .dcast img{width:56px;height:56px;border-radius:28px;object-fit:cover;background:#0E1218}#detSheet .dwhere{font-size:13px;color:#E8ECF2}#detSheet .dwhere b{color:#F2B14C}.card .art.wide{height:63px}.card .bar{height:3px;background:#2A3140;border-radius:2px;margin-top:4px;overflow:hidden}.card .bar i{display:block;height:100%;background:#F2B14C}.card b{display:block;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card span{display:block;color:#E8ECF2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .svc2{color:#F2B14C}
-.cards .note{margin:0}.qh .info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid #8A93A2;color:#E8ECF2;background:none;font:italic 600 12px Georgia,serif;margin-left:8px;vertical-align:middle;padding:0;text-transform:none;letter-spacing:0}.qh .info.on{border-color:#F2B14C;color:#F2B14C}.about{display:none;margin:0 0 8px;font-size:13px;line-height:1.45;color:#E8ECF2;background:#1C2129;border-radius:10px;padding:10px 12px}.about.on{display:block}.search{display:flex;gap:8px;margin-top:14px}.search .sbox{flex:1;position:relative;display:flex;min-width:0}.search input{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 40px 12px 14px;font:16px system-ui;min-width:0}.search input::-webkit-search-cancel-button{display:none}.search .clr{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;color:#E8ECF2;border:0;padding:6px 10px;font:22px system-ui;display:none}.search .sbox.has .clr{display:block}.search button{background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 16px;font:600 15px system-ui}
-.hit{display:flex;gap:10px;background:#1C2129;border-radius:12px;padding:10px;margin-top:8px}.hit img{width:56px;height:84px;border-radius:6px;object-fit:cover;background:#14171C;flex:none}.hit img:not([src]){visibility:hidden}.hit .t{flex:1;min-width:0}.hit b{display:block;font-size:15px}.hit span{display:block;font-size:13px;color:#E8ECF2}.hit .on{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.hit .on button{background:#14171C;color:#F2B14C;border:0;border-radius:999px;padding:7px 12px;font:13px system-ui}
-#vPlaylists{margin-top:12px}#vPlBody .item.now{color:#F2B14C}#vPlBody .item.done{opacity:.55}.plbar{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.plbar button{background:#2A3140;color:#E8ECF2;border:0;border-radius:10px;padding:8px 12px;font:14px system-ui}.plbar button.go{background:#F2B14C;color:#14171C}.plhead{display:flex;align-items:center;gap:10px;margin-top:8px}.plhead b{font-size:16px;color:#E8ECF2}#vEpisodes{margin-top:12px}#vEpBody .ssn{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}#vEpBody .item.now{color:#F2B14C}.lens .qh small{display:block;font-size:11px;letter-spacing:0;text-transform:none;color:#8A93A2;margin-top:2px}.svc .item .now{display:block;color:#E8ECF2;font-size:13px;margin-top:2px}
+.ic{width:26px;height:26px;fill:currentColor;display:block}.mtr{gap:8px;align-items:center}.mtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.mtr button.go{flex:1.35;height:68px}.mtr button.go .ic{width:32px;height:32px}.mtr button:disabled{opacity:.35}#orderRow button{min-width:0;flex:1}#orderRow button.on{color:#F2B14C}#orderRow button.on .ic{fill:#F2B14C}.vtr{gap:8px;align-items:center}.vtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.vtr button.go{flex:1.35;height:68px}.vtr button.go .ic{width:32px;height:32px}.vtr button:disabled{opacity:.35}.vrow button{display:flex;flex-direction:column;align-items:center;gap:5px;font:13px system-ui;padding:10px 6px}.vrow .ic{width:22px;height:22px}.sbox .glass{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:#8A93A2;pointer-events:none}.search .sbox input{padding-left:40px;-webkit-appearance:none;appearance:none}.sbox input::-webkit-search-decoration,.sbox input::-webkit-search-cancel-button,.sbox input::-webkit-search-results-button{-webkit-appearance:none;display:none}#vLivePanel > .body{padding:8px}.lq{width:100%;box-sizing:border-box;background:#14171C;color:#E8ECF2;border:1px solid #2C3442;border-radius:10px;padding:10px 12px;font:15px system-ui;margin-bottom:8px}#vLive .item.hidden{display:none}#vLive .grp{margin:10px 6px 2px;font-size:11px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase}#vLive .grp.hidden{display:none}#vLive .item.ch{padding:9px 10px;margin-top:4px}#vLive .ch .l1{display:flex;gap:10px;align-items:baseline}#vLive .ch .l1 span:first-child{flex:none;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vLive .ch .l1 .now{flex:1;display:block;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#E8ECF2;font-size:13px}#vLive .ch .pb{margin-top:6px}#vLive .ch .pt{display:none}#vLive .jump{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:#1C2129}#vLive .jump::-webkit-scrollbar{display:none}#vLive .jump button{flex:none;background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:6px 11px;font:12px system-ui}#vLive .jump.hidden{display:none}.openOn{margin:4px 0 10px}.vrow{margin-top:10px}.vrow button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:#F2B14C}
+.cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cards::-webkit-scrollbar{display:none}.card{flex:none;width:112px;background:none;border:0;padding:0;color:#E8ECF2;text-align:left;font:13px system-ui}.card{position:relative;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}.card .art{width:112px;height:168px;border-radius:10px;background:#1C2129;object-fit:cover;display:block}.card .di{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:13px;border:0;background:rgba(5,6,9,.75);color:#E8ECF2;font:600 13px system-ui;padding:0}.card .mk{position:absolute;top:6px;left:6px;min-width:26px;height:26px;padding:0 4px;border-radius:7px;background:rgba(5,6,9,.78);color:#E8ECF2;font:700 11px system-ui;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}.card .mk img{width:26px;height:26px;object-fit:cover;display:block;margin:0 -4px}.sheet.full>*{flex-shrink:0}.sheet.full{top:0;left:0;right:0;bottom:0;border-radius:0;padding:0 14px calc(20px + env(safe-area-inset-bottom));max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:60}.sheet.full .top{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 0 10px;background:#1C2129;z-index:1}.sheet.full .top b{flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sheet.full .top button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:9px 14px;font:600 14px system-ui}body.locked{overflow:hidden;position:fixed;left:0;right:0;width:100%}#srSheet{flex-direction:column;gap:0}#wsSheet{flex-direction:column;gap:4px}#wsNote:empty{display:none}#wsBody p.ver{margin:2px 0;padding:0;background:none;font:600 16px system-ui;color:#E8ECF2}#wsBody .chlog{margin-top:8px;max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-left:3px solid #F2B14C;padding-left:12px}#wsBody .chlog .rel{padding:8px 0;border-bottom:1px solid #2A3140}#wsBody .chlog .rel b{display:block;font-size:14px;color:#E8ECF2}#wsBody .chlog .rel b.new{color:#F2B14C}#wsBody .chlog .rel p{margin:4px 0 0;font-size:13px;line-height:1.4;color:#E8ECF2;white-space:pre-wrap}#wsBody .wsLink{display:block;margin-top:8px;padding:12px;border-radius:12px;background:#F2B14C;color:#14171C;font:600 15px system-ui;text-align:center;text-decoration:none}#wsBody h4{margin:16px 0 6px;font-size:12px;letter-spacing:.08em;color:#F2B14C;text-transform:uppercase}#wsBody .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}#wsBody .chips button{background:#2C3442;color:#E8ECF2;border:1px solid transparent;border-radius:999px;padding:8px 12px;font:13px system-ui;text-align:left}#wsBody .chips button.on{color:#F2B14C;border-color:#F2B14C}#wsBody .fld{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:#E8ECF2}#wsBody .fld span{flex:1}#wsBody .fld input{width:110px;padding:8px 10px;font:16px system-ui}#wsBody .act{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}#wsBody .act button{flex:1;padding:12px;font:15px system-ui;border-radius:12px;border:0;background:#2C3442;color:#E8ECF2}#wsBody .act button.go{background:#F2B14C;color:#14171C;font-weight:600}#wsBody .cat{background:#14171C;border-radius:12px;padding:10px;margin-top:8px}#wsBody .cat input{width:100%;margin-top:6px;padding:10px 12px;font:15px system-ui;background:#1C2129}#wsBody .hid{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2A3140;font-size:14px;color:#E8ECF2}#wsBody .hid span{flex:1;line-height:1.35}#wsBody .hid b{color:#E8ECF2}#wsBody .hid button{padding:8px 10px;font:13px system-ui;border-radius:10px;background:#2C3442;color:#E8ECF2;border:0}#wsBody p.sub{margin:2px 0 0;font-size:12px;color:#8A93A2}#wsBody .jump{position:sticky;top:calc(50px + env(safe-area-inset-top));z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:#1C2129}#wsBody .jump::-webkit-scrollbar{display:none}#wsBody .jump button{flex:none;background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:7px 12px;font:13px system-ui}#wsBody .wsSec{margin-top:8px;background:#14171C}#wsBody .wsSec>button.head{padding:14px 12px}#wsBody .wsSec>.body{padding:0 12px 12px}#wsBody .wsSec h4:first-child{margin-top:4px}#wsBody .wsSec .cat{background:#1C2129}#wsBody .wsSec .cat input{background:#14171C}#srq{flex:1;padding:10px 12px;font:16px system-ui;-webkit-appearance:none;appearance:none}#srq::-webkit-search-decoration,#srq::-webkit-search-cancel-button,#srq::-webkit-search-results-button{-webkit-appearance:none;display:none}#detSheet{flex-direction:column;gap:8px}#detSheet .dh{display:flex;gap:12px}#detSheet .dh img{width:84px;height:126px;border-radius:8px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dh b{font-size:17px}#detSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#detSheet .dv{color:#E8ECF2;font-size:14px;line-height:1.35}#detSheet .dcast{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}#detSheet .dcast button{flex:none;width:64px;font-size:11px;color:#E8ECF2;text-align:center;background:none;border:0;padding:0;font-family:system-ui}#detSheet .dcast button span{display:block}#chSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#chSheet .dh{display:flex;gap:12px}#chSheet .dh img{width:72px;height:72px;border-radius:36px;object-fit:cover;background:#0E1218;flex:none}#chSheet .dh b{font-size:17px}#chSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#chSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}#chSheet .cards{flex-wrap:wrap;overflow:visible}#detSheet .dtags{display:flex;flex-wrap:wrap;gap:6px}#detSheet .dtags:empty{display:none}#detSheet .dtags button{background:#2C3442;color:#E8ECF2;border:0;border-radius:999px;padding:7px 11px;font:13px system-ui}#detSheet .dchan{display:flex;flex-direction:column;gap:8px;background:#14171C;border-radius:12px;padding:10px}#detSheet .dchan:empty{display:none}#detSheet .dchan .ch1{display:flex;align-items:center;gap:10px}#detSheet .dchan .ch1 img{width:44px;height:44px;border-radius:22px;object-fit:cover;background:#0E1218;flex:none}#detSheet .dchan .ch1 b{display:block;font-size:15px}#detSheet .dchan .ch1 span{display:block;color:#E8ECF2;font-size:12px}#detSheet .dchan .chd{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#detSheet .dchan .chl{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin-top:2px}#detSheet .dchan .cards{margin:0}#detSheet .dchan .chb{display:flex;gap:8px}#detSheet .dchan .chb button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#perSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#perSheet .dh{display:flex;gap:12px}#perSheet .dh img{width:84px;height:84px;border-radius:42px;object-fit:cover;background:#0E1218;flex:none}#perSheet .dh b{font-size:17px}#perSheet .dh span{display:block;color:#E8ECF2;font-size:13px;margin-top:3px}#perSheet .dv{color:#E8ECF2;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}#perSheet .cards{flex-wrap:wrap;overflow:visible}#perSheet .psort{display:flex;align-items:center;gap:8px;font-size:13px;color:#E8ECF2}#perSheet .psort button{background:#2C3442;color:#E8ECF2;border:1px solid transparent;border-radius:999px;padding:7px 12px;font:13px system-ui}#perSheet .psort button.on{color:#F2B14C;border-color:#F2B14C}#perSheet .card.here .art,#detSheet .dcast button.here img{outline:2px solid #F2B14C;outline-offset:2px}#detSheet .dcast button.here span{color:#F2B14C}#vSvcBody .srow{display:flex;align-items:center;gap:10px;padding:6px 0}#vSvcBody .srow b{flex:1;font-weight:500}#vSvcBody .srow span{color:#E8ECF2;font-size:12px}#vSvcBody .srow span.amber{color:#F2B14C}#vSvcBody .srow button{background:#2C3442;color:#E8ECF2;border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#detSheet .dcast img{width:56px;height:56px;border-radius:28px;object-fit:cover;background:#0E1218}#detSheet .dwhere{font-size:13px;color:#E8ECF2}#detSheet .dwhere b{color:#F2B14C}.card .art.wide{height:63px}.card .ago{position:absolute;left:6px;top:142px;padding:3px 7px;border-radius:7px;background:rgba(5,6,9,.78);color:#E8ECF2;font:600 11px system-ui;white-space:nowrap}.card .art.wide ~ .ago{top:37px}.card .sc{position:absolute;right:6px;top:142px;padding:3px 7px;border-radius:7px;background:rgba(5,6,9,.78);color:#E8ECF2;font:600 11px system-ui;white-space:nowrap}.card .sc.mine{color:#F2B14C}.card .art.wide ~ .sc{top:37px}.card .bar{height:3px;background:#2A3140;border-radius:2px;margin-top:4px;overflow:hidden}.card .bar i{display:block;height:100%;background:#F2B14C}.card b{display:block;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card span{display:block;color:#E8ECF2;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .svc2{color:#F2B14C}
+.cards .note{margin:0}.qh .info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid #8A93A2;color:#E8ECF2;background:none;font:italic 600 12px Georgia,serif;margin-left:8px;vertical-align:middle;padding:0;text-transform:none;letter-spacing:0}.qh .info.on{border-color:#F2B14C;color:#F2B14C}.about{display:none;margin:0 0 8px;font-size:13px;line-height:1.45;color:#E8ECF2;background:#1C2129;border-radius:10px;padding:10px 12px}.about b{display:block;color:#F2B14C;font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin:8px 0 2px}.about b:first-child{margin-top:0}.about.on{display:block}.search{display:flex;gap:8px;margin-top:14px}.search .sbox{flex:1;position:relative;display:flex;min-width:0}.search input{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 40px 12px 14px;font:16px system-ui;min-width:0}.search input::-webkit-search-cancel-button{display:none}.search .clr{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:transparent;color:#E8ECF2;border:0;padding:6px 10px;font:22px system-ui;display:none}.search .sbox.has .clr{display:block}.search button{background:#F2B14C;color:#14171C;border:0;border-radius:12px;padding:12px 16px;font:600 15px system-ui}
+.hit{display:flex;gap:10px;background:#1C2129;border-radius:12px;padding:10px;margin-top:8px}.hit img{width:56px;height:84px;border-radius:6px;object-fit:cover;background:#14171C;flex:none}.hit img:not([src]){visibility:hidden}.hit .t{flex:1;min-width:0}.hit b{display:block;font-size:15px}.hit span{display:block;font-size:13px;color:#E8ECF2}.hit .on{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.hit .on button{background:#14171C;color:#F2B14C;border:0;border-radius:999px;padding:7px 12px;font:13px system-ui}.hit span.amber{color:#F2B14C}
+.shead{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:12px 6px 2px}.topr{background:#1C2129;border-radius:12px;overflow:hidden;margin-top:8px}.topr img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;display:block;background:#14171C}.topr img.poster{object-fit:contain;max-height:240px}.topr .tb{padding:10px 12px 12px}.topr small{color:#F2B14C;font-size:11px;letter-spacing:.08em;text-transform:uppercase}.topr b{display:block;font-size:18px;margin-top:2px}.topr .f{color:#E8ECF2;font-size:13px;margin-top:3px}.topr .o{color:#E8ECF2;font-size:13px;line-height:1.35;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.topr .on{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.topr .on button{background:#14171C;color:#F2B14C;border:0;border-radius:999px;padding:8px 12px;font:13px system-ui}.topr .on button.d{color:#E8ECF2}
+.people{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:4px 0}.people::-webkit-scrollbar{display:none}.people button{flex:none;width:84px;background:none;border:0;color:#E8ECF2;font:12px system-ui;text-align:center;padding:0}.people img,.people .mono{width:64px;height:64px;border-radius:32px;object-fit:cover;background:#1C2129;display:block;margin:0 auto 4px}.people .mono{line-height:64px;font-size:20px;color:#8A93A2}.people span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px}.fchips::-webkit-scrollbar{display:none}.fchips button{flex:none;background:#2C3442;color:#E8ECF2;border:1px solid transparent;border-radius:999px;padding:6px 11px;font:12px system-ui}.fchips button.on{color:#F2B14C;border-color:#F2B14C}
+#detActs,#ctxTop,#ctxActs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}#detActs.fold{display:none;margin-top:0}#detActs.fold.on{display:grid}#detActs [data-rm]{grid-column:1/-1}#detSheet .dbar{display:flex;gap:8px}#detSheet .dbar button{flex:1;min-height:46px;padding:10px 12px;border-radius:10px;border:0;font:600 15px system-ui;background:#2A303A;color:#E8ECF2}#detSheet .dbar button.go{background:#F2B14C;color:#14171C}#detNote:empty{display:none}#ctxActs:empty{display:none}#ctxTop button{min-height:48px;padding:10px 12px;border-radius:10px;background:#2A303A;color:#E8ECF2;border:0;font-size:15px;text-align:center}#ctxTop button.go{background:#F2B14C;color:#14171C;font-weight:600}#ctxTop [data-rm]{grid-column:1/-1}#ctxTop button:disabled{opacity:.6}#ctxRate{margin-top:12px}#ctxRate .rh{font-size:13px;color:#E8ECF2;margin-bottom:6px}#ctxRate .stars{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}#ctxRate .stars button{background:none;border:0;padding:6px 0;font-size:24px;line-height:1;color:#4A5262}#ctxRate .stars button.on{color:#F2B14C}#ctxRate .stars button:disabled{opacity:.45}#ctxNote:empty{display:none}#ctxActs button.go,#ctxActs .plpick,#ctxActs [data-rm]{grid-column:1/-1}#ctxActs button.go{background:#F2B14C;color:#14171C;font-weight:600}#detActs button,#ctxActs button{min-height:48px;padding:10px 12px;border-radius:10px;background:#2A303A;color:#E8ECF2;border:0;font-size:15px;text-align:center}#detActs button:disabled,#ctxActs button:disabled{opacity:.6}#detActs .plpick{display:flex;flex-wrap:wrap;gap:6px;width:100%}#detActs .plpick button{background:#3A4150}#vPlaylists{margin-top:12px}#vPlBody .item.now{color:#F2B14C}#vPlBody .item.done{opacity:.55}.plbar{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.plbar button{background:#2A3140;color:#E8ECF2;border:0;border-radius:10px;padding:8px 12px;font:14px system-ui}.plbar button.go{background:#F2B14C;color:#14171C}.plhead{display:flex;align-items:center;gap:10px;margin-top:8px}.plhead b{font-size:16px;color:#E8ECF2}#vEpisodes{margin-top:12px}#vEpBody .ssn{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}#vEpBody .item.now{color:#F2B14C}.lens .qh small{display:block;font-size:11px;letter-spacing:0;text-transform:none;color:#8A93A2;margin-top:2px}.svc .item .now{display:block;color:#E8ECF2;font-size:13px;margin-top:2px}
 .quick{display:flex;flex-direction:column;gap:8px}.svc{background:#1C2129;border-radius:12px;overflow:hidden}.svc>button.head{width:100%;display:flex;align-items:center;gap:10px;background:none;color:#E8ECF2;border:0;padding:14px 12px;font:600 16px system-ui;text-align:left}.svc>button.head .st{margin-left:auto;font-size:13px;font-weight:400;color:#F2B14C}.svc>button.head .chev{font-size:13px;color:#8A93A2}.svc.open>button.head .chev{transform:rotate(90deg)}
 .svc > .body{display:none;padding:0 8px 10px}.svc.open > .body{display:block}.svc .grp{font-size:12px;letter-spacing:.08em;color:#E8ECF2;text-transform:uppercase;margin:8px 6px 4px}.svc .item{display:block;width:100%;background:#14171C;color:#E8ECF2;border:0;border-radius:10px;padding:12px;font:15px system-ui;text-align:left;margin-top:6px}.svc .item .pb{display:block;height:4px;background:#2A3140;border-radius:2px;margin-top:7px;overflow:hidden}.svc .item .pb i{display:block;height:100%;background:#F2B14C}.svc .item .pb i.unk{background:#8A93A2;width:100%;opacity:.35}.svc .item .pt{display:block;color:#E8ECF2;font-size:12px;margin-top:4px}.svc .item.go{color:#F2B14C}
 nav{display:flex;gap:6px;padding:0 14px 10px}nav button{flex:1;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:10px;font:inherit}nav button.on{background:#3A2E14;color:#F2B14C}
@@ -61,7 +63,7 @@ p.note{color:#E8ECF2;font-size:14px;line-height:1.4}
 label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:100%;margin-top:6px}
 </style></head><body>
 <header>__WORDMARK__<span id="who">on this PC</span><button id="more" class="more" aria-label="Options">&#8943;</button></header>
-<div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music lounge</button><button id="plVideo">Video</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="modeBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><button id="forget">Forget this PC</button><button id="closeMenu">Close</button><p id="howHome" class="how"></p></div>
+<div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music lounge</button><button id="plVideo">Video</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="modeBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><button id="refreshPage">Refresh this page</button><button id="forget">Forget this PC</button><button id="closeMenu">Close</button><p id="howHome" class="how"></p></div>
 <div id="banner" class="banner"><span id="bannerText">Prism on the PC was updated. This page refreshes in 5:00.</span><button id="refreshNow">Refresh now</button></div>
 <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs><symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol><symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></symbol><symbol id="i-start" viewBox="0 0 24 24"><path d="M5 6h2v12H5zm3 6l11-6v12z"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="M17 6h2v12h-2zM5 6l11 6-11 6z"/></symbol><symbol id="i-back10" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-fwd10" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-skip" viewBox="0 0 24 24"><path d="M4 6l8 6-8 6zm8 0l8 6-8 6z"/></symbol><symbol id="i-cc" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v14H3V5zm2 2v10h14V7H5zm3 2.5h3V11H9v2h2v1.5H8v-5zm6 0h3V11h-2v2h2v1.5h-3v-5z"/></symbol><symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></symbol><symbol id="i-unmute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm11 .3l1.4-1.4 2.4 2.4 2.4-2.4 1.4 1.4-2.4 2.4 2.4 2.4-1.4 1.4-2.4-2.4-2.4 2.4-1.4-1.4 2.4-2.4z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></symbol><symbol id="i-repeat" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></symbol><symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol><symbol id="i-order" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol><symbol id="i-reverse" viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></symbol></defs></svg>
 <nav><button id="tabM" class="on">Music</button><button id="tabV" style="display:none">Video</button><button id="tabK">Keyboard</button><button id="tabL">Private Listening</button></nav>
@@ -87,10 +89,9 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="row vrow"><button data-v="skipintro" id="vSkip"><svg class="ic"><use href="#i-skip"/></svg><span>Skip intro</span></button><button data-v="captions"><svg class="ic"><use href="#i-cc"/></svg><span>Captions</span></button><button data-v="mute" id="vMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute Prism on PC</span></button></div>
 <div class="svc" id="vEpisodes" style="display:none"><button class="head"><span class="chev">&#9654;</span><span id="vEpHead">Episodes</span><span class="st" id="vEpSt"></span></button><div class="body" id="vEpBody"></div></div>
 <div class="search"><div class="sbox"><svg class="ic glass"><use href="#i-search"/></svg><input id="vq" type="search" placeholder="Search everywhere" autocomplete="off"><button id="vclear" class="clr" type="button" aria-label="Clear search">&#215;</button></div><button id="vgo" class="go">Search</button></div>
-<div id="vResults"></div>
 <!-- where a tapped title opens (2026-10-10): on the PC as before, or on this phone in the service's own app, by the title's own address -->
 <h3 class="qh">Continue watching</h3><div id="vCont" class="cards"><p class="note">Reading the services' lists&hellip;</p></div>
-<h3 class="qh">My list</h3><div id="vList" class="cards"></div>
+<h3 class="qh" id="vListHead">My list</h3><div id="vList" class="cards"></div>
 <div id="vLenses"></div>
 <div class="svc" id="vPlaylists" style="display:none"><button class="head"><span class="chev">&#9654;</span><span>Playlists</span><span class="st" id="vPlSt"></span></button><div class="body" id="vPlBody"></div></div>
 <div class="svc" id="vLivePanel"><button class="head"><span class="chev">&#9654;</span><span>Live</span><span class="st" id="vLiveSt"></span></button><div class="body"><input id="vLiveQ" class="lq" type="search" placeholder="Find a channel or a program" autocomplete="off"><div id="vLive" class="quick"></div></div></div>
@@ -123,9 +124,15 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 </div>
 <!-- the Captions sheet sits outside the tab sections: inside the Music section it opened display:none while the Video tab was on (2026-10-05, "Captions on the companion app still doesn't work") -->
 <div id="trkSheet" class="sheet"><b>Subtitles and audio</b><div id="trkList" class="trk"></div><button id="trkClose">Close</button></div>
+<!-- the search results (2026-10-14, "Search, just like details, should not allow full feed scrolling while it's up"): a full sheet over
+     the tab, the page beneath held still; Details, a person or a channel opens over it and closes back to it -->
+<div id="srSheet" class="sheet full"><div class="top"><input id="srq" type="search" placeholder="Search everywhere" autocomplete="off" aria-label="Search everywhere"><button id="srClose">Close</button></div><div id="vResults"></div></div>
 <div id="chSheet" class="sheet full"><div class="top"><b>Channel</b><button id="chClose">Close</button></div><div class="dh"><img id="chArt" alt=""><div><b id="chName"></b><span id="chFacts"></span></div></div><p class="dv" id="chBio"></p><div class="cards" id="chLatest"></div><p class="note" id="chNote"></p><button id="chOpen" class="go">Open the channel on Prism</button></div>
 <div id="perSheet" class="sheet full"><div class="top"><b>Person</b><button id="perClose">Close</button></div><div class="dh"><img id="perArt" alt=""><div><b id="perName"></b><span id="perFacts"></span></div></div><p class="dv" id="perBio"></p><div class="psort"><span>Sort</span><button id="perByDate" class="on">Release date</button><button id="perByName">Name</button></div><div class="cards" id="perCredits"></div><p class="note" id="perNote"></p></div>
-<div id="detSheet" class="sheet full"><div class="top"><b>Details</b><button id="detClose">Close</button></div><div class="dh"><img id="detArt" alt=""><div><b id="detTitle"></b><span id="detFacts"></span><span id="detRating"></span></div></div><p class="dv" id="detOverview"></p><div class="dtags" id="detTags"></div><div class="dchan" id="detChan"></div><div class="dcast" id="detCast"></div><p class="dwhere" id="detWhere"></p><p class="note" id="detNote"></p><button id="detPlay" class="go">Play on Prism</button></div>
+<div id="detSheet" class="sheet full"><div class="top"><b>Details</b><button id="detClose">Close</button></div><div class="dh"><img id="detArt" alt=""><div><b id="detTitle"></b><span id="detFacts"></span><span id="detRating"></span></div></div><div class="dbar"><button id="detPlay" class="go">Play on Prism</button><button id="detMore">Actions</button></div><div id="detActs" class="fold"></div><p class="note" id="detNote"></p><p class="dv" id="detOverview"></p><div class="dtags" id="detTags"></div><div class="dchan" id="detChan"></div><div class="dcast" id="detCast"></div><p class="dwhere" id="detWhere"></p></div>
+<!-- Watch settings on the phone (2026-10-14): a full sheet, read from the PC and saved a piece at a time -->
+<div id="wsSheet" class="sheet full"><div class="top"><b>Watch settings</b><button id="wsClose">Close</button></div><p class="note" id="wsNote"></p><div id="wsBody"></div></div>
+<div id="ctxSheet" class="sheet"><div class="top"><b id="ctxTitle"></b><button id="ctxClose">Close</button></div><div id="ctxTop"></div><div id="ctxRate"></div><div id="ctxActs"></div><p id="ctxNote" class="note"></p></div>
 <!-- the TMDB guide's last step (2026-10-10): the key is copied on this phone, so this phone sends it; the page opens with #tmdb from the guide's code -->
 <div id="keySheet" class="sheet"><b>Send your TMDB key to Prism</b>
 <span class="keyNote">On TMDB's API page, copy the long one called API Read Access Token (the shorter API Key works too). Paste it here.</span>
@@ -198,11 +205,174 @@ window.addEventListener('appinstalled', () => { installSave({ ...installState(),
 window.addEventListener('beforeinstallprompt', () => { if (q('#install').classList.contains('on') && !uaIos()) { q('#installSteps').innerHTML = ''; q('#installGo').style.display = ''; } });
 setTimeout(showInstall, 10000);   // never on first paint: 10 s on the page, paired
 q('#closeMenu').onclick = () => q('#menu').classList.remove('on');
+
+// Watch settings on the phone (2026-10-14, "Let me edit as many of the watch settings as possible from the companion app"): what core keeps,
+// read in one and set a piece at a time through the same calls the PC's Watch settings make; the PC's own (break covering's lists,
+// performance) stay on the PC. Every change saves at once and the sheet is read again.
+let wsShowLog = false; let wsState = null; const wsOpen = new Set(['TMDB']);   // the panels open on the sheet (the first one at the start)
+async function openWs() { const sh = q('#wsSheet'); sh.classList.add('on'); sh.scrollTop = 0; sheetLock(); q('#menu').classList.remove('on'); q('#wsNote').textContent = 'Reading\u2026'; await loadWs(); }
+async function loadWs() {
+  try {
+    wsState = await api('/video/settings'); if (!wsState || wsState.ok === false) throw new Error((wsState && wsState.error) || 'Could not read the settings'); q('#wsNote').textContent = ''; drawWs(wsState);
+    // the account's state loads on the PC's first ask after a start (core answers 'loading' meanwhile): asked again until it is in (2026-10-14)
+    if (wsState.tmdb && wsState.tmdb.loading) for (let i = 0; i < 12; i++) { await new Promise((r) => setTimeout(r, 400)); const t = await api('/video/settings/tmdb-state', {}); if (t && !t.loading) { wsState.tmdb = t; drawWs(wsState); break; } }
+  } catch (e) { q('#wsNote').textContent = e.message; }
+}
+async function setWs(what, body, said) {
+  q('#wsNote').textContent = 'Saving\u2026';
+  try { const r = await api('/video/settings/' + what, body || {}); if (r && r.ok === false) throw new Error(r.error || 'Could not save'); await loadWs(); q('#wsNote').textContent = said || 'Saved.'; vSig = ''; setTimeout(pollVideo, 800); vLensAt = 0; setTimeout(pollLenses, 1200); }
+  catch (e) { q('#wsNote').textContent = e.message; }
+}
+q('#wsClose').onclick = () => { q('#wsSheet').classList.remove('on'); sheetLock(); };
+q('#wsBtn').onclick = openWs;
+function drawWs(s) {
+  const sh = q('#wsSheet'), box = q('#wsBody'); const keepTop = sh.scrollTop; box.innerHTML = '';
+  // one folded panel a subject and a jump bar above them (2026-10-14, "organized and content better segregated so it's quick to navigate"):
+  // a chip opens its panel and brings it up; the panels left open stay open through a save
+  const jump = document.createElement('div'); jump.className = 'jump'; box.appendChild(jump);
+  let cur = box;
+  const h = (t) => { const e = document.createElement('h4'); e.textContent = t; cur.appendChild(e); };
+  const sub = (t) => { const e = document.createElement('p'); e.className = 'sub'; e.textContent = t; cur.appendChild(e); };
+  const chips = (items, onId, go) => { const row = document.createElement('div'); row.className = 'chips'; for (const it of items) { const b = document.createElement('button'); b.textContent = it.label; if (it.id === onId) b.className = 'on'; if (it.hint) b.title = it.hint; b.onclick = () => go(it.id); row.appendChild(b); } cur.appendChild(row); return row; };
+  const toggle = (label, on, go) => chips([{ id: true, label: label + ': on' }, { id: false, label: label + ': off' }], on, go);
+  const act = (items) => { const row = document.createElement('div'); row.className = 'act'; for (const it of items) { const b = document.createElement('button'); b.textContent = it.label; if (it.go_) b.className = 'go'; b.onclick = () => it.go(b); row.appendChild(b); } cur.appendChild(row); return row; };
+  const field = (label, input) => { const f = document.createElement('div'); f.className = 'fld'; const sp = document.createElement('span'); sp.textContent = label; f.appendChild(sp); f.appendChild(input); cur.appendChild(f); return f; };
+  const section = (title, fill) => {
+    const d = document.createElement('div'); d.className = 'svc wsSec'; if (wsOpen.has(title)) d.classList.add('open');
+    const head = document.createElement('button'); head.className = 'head'; const chev = document.createElement('span'); chev.className = 'chev'; chev.textContent = '\u25b6'; head.appendChild(chev); const t = document.createElement('span'); t.textContent = title; head.appendChild(t); d.appendChild(head);
+    const body = document.createElement('div'); body.className = 'body'; d.appendChild(body);
+    // one panel open at a time (2026-10-14, "make other menus collapse when 1 expands"): opening one folds the rest
+    const only = () => { for (const x of box.querySelectorAll('.wsSec.open')) if (x !== d) x.classList.remove('open'); wsOpen.clear(); wsOpen.add(title); d.classList.add('open'); };
+    head.onclick = () => { if (d.classList.contains('open')) { d.classList.remove('open'); wsOpen.delete(title); } else only(); };
+    const jb = document.createElement('button'); jb.textContent = title; jb.onclick = () => { only(); d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; jump.appendChild(jb);
+    cur = body; fill(); cur = box; box.appendChild(d);
+  };
+  const rowSec = (title, what, r, body) => { if (!r) return; h(title); chips(r.orders || [], r.order, (id) => setWs(what, Object.assign({ order: id }, body))); chips([{ id: false, label: 'Normal order' }, { id: true, label: 'Reversed' }], !!r.reverse, (v) => setWs(what, Object.assign({ reverse: v }, body))); };
+  // TMDB first (2026-10-14, "We'll make it so I can do it from the phone companion app even more easily"): the key pasted here goes to the PC
+  // as the guide's sheet sends it; the account link opens TMDB's approval page on this phone, then I approved it finishes it on the PC
+  section('TMDB', () => {
+    const t = Object.assign({}, s.tmdb || {}); if (s.tmdbKey === true) t.hasKey = true;   // the key's own flag is read at once; the account's state may still be loading
+    h('Your TMDB key'); sub(t.hasKey ? 'Set. Ratings, the catalog rows and search are on. Paste a new one to replace it.' : 'Not set. Prism works without one. A free TMDB account gives a key: paste it here.');
+    const key = document.createElement('input'); key.type = 'password'; key.placeholder = t.hasKey ? 'Replace the key (optional)' : 'Paste the API Read Access Token or API Key'; key.autocomplete = 'off'; key.autocapitalize = 'off'; key.spellcheck = false; key.style.width = '100%'; key.style.marginTop = '6px'; cur.appendChild(key);
+    const acts = [{ label: 'Send the key to Prism', go_: true, go: async () => { const v = key.value.trim(); if (!v) { q('#wsNote').textContent = 'Paste the key first.'; return; } q('#wsNote').textContent = 'Sending\u2026'; try { const r = await api('/tmdb/key', { apiKey: v }); if (r && r.error) throw new Error(r.error); key.value = ''; await loadWs(); q('#wsNote').textContent = 'The key is on the PC. Ratings, the catalog rows and search are on.'; } catch (e) { q('#wsNote').textContent = e.message; } } }];
+    if (t.hasKey) acts.push({ label: 'Clear the key', go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Clear it for sure?'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Clear the key'; }, 4000); return; } setWs('tmdb-key-clear', {}, 'The key is cleared.'); } });
+    act(acts);
+    h('Your TMDB account'); 
+    if (t.linked) { sub('Linked as ' + (t.username || 'you') + '. Your stars on a title go to TMDB, and My Watchlist is your TMDB watchlist.'); act([{ label: 'Unlink', go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Unlink for sure?'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Unlink'; }, 4000); return; } setWs('tmdb-unlink', {}, 'Unlinked. The ratings stay on your TMDB account.'); } }]); }
+    else if (!t.hasKey) sub('Linking needs the key first.');
+    else {
+      sub(t.url ? 'Approve Prism on TMDB, then press I approved it.' : 'Link it to rate from Prism and to use your TMDB watchlist. TMDB\u2019s approval page opens on this phone.');
+      if (!t.url) act([{ label: 'Link my TMDB account', go_: true, go: async (b) => { b.disabled = true; q('#wsNote').textContent = 'Asking TMDB\u2026'; try { await api('/video/settings/tmdb-link-start', {}); let st = null; for (let i = 0; i < 25; i++) { await new Promise((r) => setTimeout(r, 400)); st = await api('/video/settings/tmdb-state', {}); if (st && (st.url || st.error) && !st.busy) break; } if (!st || !st.url) throw new Error((st && st.error) || 'TMDB did not answer'); await loadWs(); q('#wsNote').textContent = ''; } catch (e) { q('#wsNote').textContent = e.message; b.disabled = false; } } }]);
+      else {
+        const open = document.createElement('a'); open.href = t.url; open.target = '_blank'; open.rel = 'noopener noreferrer'; open.className = 'wsLink'; open.textContent = 'Open TMDB to approve'; cur.appendChild(open);
+        act([{ label: 'I approved it', go_: true, go: async (b) => { b.disabled = true; q('#wsNote').textContent = 'Finishing\u2026'; try { await api('/video/settings/tmdb-link-finish', {}); let st = null; for (let i = 0; i < 30; i++) { await new Promise((r) => setTimeout(r, 400)); st = await api('/video/settings/tmdb-state', {}); if (st && !st.busy && !st.loading) break; } await loadWs(); q('#wsNote').textContent = st && st.linked ? 'Linked as ' + (st.username || 'you') + '.' : (st && st.error) || 'Not linked yet. Approve on TMDB first, then press again.'; } catch (e) { q('#wsNote').textContent = e.message; b.disabled = false; } } }, { label: 'Start over', go: () => setWs('tmdb-unlink', {}, 'Start the link again when you like.') }]);
+      }
+    }
+  });
+  const rows = s.rows || {};
+  section('Rows', () => {
+    sub('The order of each row on the Video tab, as the PC draws it.');
+    rowSec('Continue watching', 'rows', rows.continue, { row: 'continue' });
+    if (rows.watchlist && rows.watchlist.active) rowSec('My Watchlist', 'watchlist-order', rows.watchlist, {});
+    rowSec(rows.watchlist && rows.watchlist.active ? "My list (the services' own lists)" : 'My list', 'rows', rows.list, { row: 'list' });
+  });
+  section('Ads', () => {
+    h('Video ads'); sub('What a window shows while an ad plays. Prism never blocks or skips an ad.');
+    chips([{ id: 'veil', label: 'Veiled and muted', hint: 'The ad is covered with a picture and its sound is off.' }, { id: 'mute', label: 'Muted, picture visible', hint: 'You see the ad with its sound off.' }, { id: 'show', label: 'Show', hint: 'The ad plays as it comes, picture and sound.' }], s.adsLook || 'veil', (id) => setWs('ads', { look: id }));
+    h('YouTube TV breaks'); sub('YouTube TV doesn\u2019t say when a channel\u2019s commercials play, so Prism watches the picture and covers them. The never-covered and sure-breaks lists are on the PC.');
+    toggle('Cover breaks', bwOn, (v) => setBw(v));
+  });
+  section('Updates', () => {
+    // this Prism (2026-10-15, "The update menu should let me initialize updates and see the change log"): the version, what the server offers, Check
+    // now, Install now, Restart into the new version, and the changelog from the signed manifest (nothing fetched to show it)
+    const sw = s.software || {}; const av = sw.available || null, stg = sw.staged || null;
+    const trackLabel = sw.channel === 'alpha' ? 'Alpha' : sw.channel === 'beta' ? 'Beta' : 'Full';
+    const whenOf = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'never'; };
+    h('This Prism'); const run = document.createElement('p'); run.className = 'ver'; run.textContent = 'Prism ' + (sw.currentVersion || '?') + ' on the ' + trackLabel + ' track'; cur.appendChild(run);
+    sub(stg ? 'Prism ' + stg.version + ' is installed and runs at the next start.' : av ? 'Prism ' + av.version + ' is ready to install. Last check ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'unreachable' ? 'The update server could not be reached. Last tried ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'invalid' ? 'The update server\u2019s answer did not verify, so nothing was taken from it.' : sw.lastCheck ? 'This is the newest version on the ' + trackLabel + ' track. Last check ' + whenOf(sw.lastCheck) + '.' : 'Not checked yet.');
+    const verbs = [{ label: 'Check now', go: (b) => { b.disabled = true; setWs('update-check', {}, 'Checked.'); } }];
+    if (av && !stg) verbs.push({ label: 'Install ' + av.version, go_: true, go: async (b) => { b.disabled = true; q('#wsNote').textContent = 'Downloading and checking on the PC\u2026 its status line says how far.'; try { await api('/video/settings/update-install', {}); for (let i = 0; i < 300; i++) { await new Promise((r) => setTimeout(r, 3000)); const st = await api('/video/settings'); if (st && st.software && (st.software.staged || (!st.software.available && st.software.lastResult))) { wsState = st; drawWs(st); q('#wsNote').textContent = st.software.staged ? 'Installed. Restart into it when you like.' : 'The install did not finish. The PC\u2019s status line says why.'; return; } } } catch (e) { q('#wsNote').textContent = e.message; b.disabled = false; } } });
+    if (stg) verbs.push({ label: 'Restart into ' + stg.version, go_: true, go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Restart Prism now?'; q('#wsNote').textContent = 'Prism closes on the PC and opens again in the new version. Whatever is playing stops.'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Restart into ' + stg.version; }, 6000); return; } setWs('update-restart', {}, 'Prism is restarting on the PC. This page refreshes itself when it is back.'); } });
+    act(verbs);
+    if (sw.nextCheck) sub('Next check ' + whenOf(sw.nextCheck) + '. The track and the schedule are set on the PC.'); else if (sw.enabled === false) sub('Prism checks only when you press Check now. The schedule is set on the PC.');
+    // the changelog: newest first, the ones newer than this Prism marked New, this one Running now
+    const src = av || sw.latest || null; let list = (src && src.history) || []; if (!list.length && src && src.notes) list = [{ version: src.version, date: src.date, notes: src.notes }];
+    const cmp = (a, b) => { const pa = String(a).split('-')[0].split('.'), pb = String(b).split('-')[0].split('.'); for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const x = parseInt(pa[i] || '0', 10) || 0, y = parseInt(pb[i] || '0', 10) || 0; if (x !== y) return x > y ? 1 : -1; } return 0; };
+    const log = document.createElement('div'); log.className = 'chlog'; log.style.display = wsShowLog ? '' : 'none';
+    for (const r of list) { const d = document.createElement('div'); d.className = 'rel'; const hd = document.createElement('b'); const c = cmp(r.version, sw.currentVersion || '0'); hd.textContent = 'Prism ' + r.version + (r.date ? ' \u00b7 ' + new Date(r.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '') + (c > 0 ? ' \u00b7 New' : c === 0 ? ' \u00b7 Running now' : ''); if (c > 0) hd.className = 'new'; d.appendChild(hd); const n = document.createElement('p'); n.textContent = r.notes; d.appendChild(n); log.appendChild(d); }
+    if (!list.length) { const n = document.createElement('p'); n.className = 'sub'; n.textContent = 'The update server hasn\u2019t sent a changelog yet. Check now asks it.'; log.appendChild(n); }
+    act([{ label: wsShowLog ? 'Hide what\u2019s changed' : 'What\u2019s changed', go: (b) => { wsShowLog = !wsShowLog; log.style.display = wsShowLog ? '' : 'none'; b.textContent = wsShowLog ? 'Hide what\u2019s changed' : 'What\u2019s changed'; } }]);
+    cur.appendChild(log);
+    h('Scheduled content updates'); sub("Every 20 minutes while the PC is quiet, each service's lists are read again. A pause holds only these."); const p = s.pause || {};
+    const from = document.createElement('input'); from.type = 'time'; from.value = p.from || '23:00'; const to = document.createElement('input'); to.type = 'time'; to.value = p.to || '07:00';
+    field('Pause from', from); field('until', to);
+    chips([{ id: true, label: 'Pause: on' }, { id: false, label: 'Pause: off' }], p.on === true, (v) => setWs('pause', { on: v, from: from.value, to: to.value }));
+    act([{ label: 'Save the hours', go: () => setWs('pause', { on: p.on === true, from: from.value, to: to.value }) }, { label: 'Refresh everything now', go: () => setWs('refresh', {}, "The PC is reading the services' lists again.") }]);
+  });
+  // the services' reads, as the PC's Services tab shows them (2026-10-14, "Ensure everything is present in both")
+  section('Services', () => {
+    const u = s.updates || {}; const agoAt = (x) => x && typeof x.at === 'number' && x.at > 0 ? agoOf(x.at) : 'not read yet';
+    h('Your services'); sub('When each service was last read, and a read again now.');
+    for (const sv of u.services || []) {
+      const d = document.createElement('div'); d.className = 'hid'; const sp = document.createElement('span');
+      const parts = []; if (sv.status !== 'signed-in') parts.push('not signed in'); else { if (sv.lists) parts.push('lists ' + (sv.working ? 'reading now' : agoAt(sv.lists))); if (sv.owned) parts.push('owned ' + agoAt(sv.owned)); if (sv.profiles) parts.push('profiles ' + (sv.profiles.page ? agoAt(sv.profiles) : 'with its lists')); }
+      const nm = document.createElement('b'); nm.textContent = sv.name; sp.appendChild(nm); sp.appendChild(document.createElement('br')); sp.appendChild(document.createTextNode(parts.join(' \u00b7 ') || 'nothing to read')); d.appendChild(sp);
+      if (sv.status === 'signed-in' && (sv.lists || sv.owned)) { const bt = document.createElement('button'); bt.textContent = 'Refresh'; bt.onclick = () => setWs('refresh-app', { app: sv.app }, 'The PC is reading ' + sv.name + ' again.'); d.appendChild(bt); }
+      cur.appendChild(d);
+    }
+    h('Catalog rows and ratings');
+    for (const f of u.feeds || []) { const d = document.createElement('div'); d.className = 'hid'; const sp = document.createElement('span'); sp.textContent = f.name + ' \u00b7 ' + (f.done === false ? 'reading now' : agoAt(f)) + (typeof f.count === 'number' ? ' \u00b7 ' + f.count + ' titles' : ''); d.appendChild(sp); cur.appendChild(d); }
+    if (u.ratings) { const d = document.createElement('div'); d.className = 'hid'; const sp = document.createElement('span'); sp.textContent = 'Ratings on cards \u00b7 TMDB, a day per title'; d.appendChild(sp); cur.appendChild(d); }
+  });
+  section('The Binge', () => {
+    const b = s.binge || {}; const t = b.thresholds || b.defaults || {};
+    h('Limits'); sub('A series is in The Binge when all of these hold.');
+    const num = (label, key, step) => { const inp = document.createElement('input'); inp.type = 'number'; inp.step = step || '1'; inp.inputMode = 'decimal'; inp.value = t[key]; field(label, inp); return inp; };
+    const mr = num('Episode length, minutes at most', 'maxRuntime'), me = num('Episodes, at least', 'minEpisodes'), rt = num('TMDB rating, at least', 'minRating', '0.1'), vt = num('TMDB votes, at least', 'minVotes');
+    act([{ label: 'Save the limits', go_: true, go: () => setWs('binge', { thresholds: { maxRuntime: +mr.value, minEpisodes: +me.value, minRating: +rt.value, minVotes: +vt.value } }) }, { label: 'Back to the defaults', go: () => setWs('binge', { thresholds: b.defaults || {} }) }]);
+    h('Animation'); toggle('Animated series', b.animation !== false, (v) => setWs('binge', { animation: v }));
+    const k = b.kids || {}; h('Kids mode'); sub('Only shows rated for the age.');
+    chips([{ id: 'off', label: 'Off' }].concat((b.ages || []).map((a) => ({ id: a.id, label: a.label, hint: (a.ratings || []).join(', ') }))), k.on ? k.age : 'off', (id) => setWs('binge', { kids: id === 'off' ? { on: false } : { on: true, age: id } }));
+    h('Hidden titles'); const hid = s.hidden || [];
+    if (!hid.length) sub('Nothing is hidden. Hide a title from its card\u2019s menu on the PC.');
+    for (const it of hid) {
+      const d = document.createElement('div'); d.className = 'hid'; const sp = document.createElement('span'); sp.textContent = (it.title || it.id) + (it.service ? ' \u00b7 ' + it.service : '') + (it.why === 'missing' ? ' \u00b7 missing from TMDB\u2019s answer for now' : ''); d.appendChild(sp);
+      if (it.why !== 'missing') { const bt = document.createElement('button'); bt.textContent = 'Show again'; bt.onclick = () => setWs('hidden', { id: it.id, on: false, title: it.title }, 'Back on The Binge.'); d.appendChild(bt); }
+      cur.appendChild(d);
+    }
+  });
+  section('Categories', () => {
+    sub('Rows of titles from your services, tagged with hashtags or words. Each row has an (i) on the Video tab.');
+    const rules = s.rules || [], pools = s.poolServices || [];
+    const catBox = (c) => {
+      const d = document.createElement('div'); d.className = 'cat';
+      const name = document.createElement('input'); name.type = 'text'; name.placeholder = c ? 'Name' : 'New category: its name'; name.value = c ? (c.name || '') : ''; name.autocomplete = 'off'; d.appendChild(name);
+      const tags = document.createElement('input'); tags.type = 'text'; tags.placeholder = '#hashtags or words, with spaces between'; tags.value = c ? (c.tags || []).join(' ') : ''; tags.autocomplete = 'off'; tags.autocapitalize = 'off'; d.appendChild(tags);
+      let rule = c ? c.rule : (rules[0] ? rules[0].id : 'newest'); const rrow = document.createElement('div'); rrow.className = 'chips'; const rb = [];
+      for (const r of rules) { const bt = document.createElement('button'); bt.textContent = r.name; bt.title = r.simple || ''; if (r.id === rule) bt.className = 'on'; bt.onclick = () => { rule = r.id; for (const x of rb) x.className = x === bt ? 'on' : ''; }; rb.push(bt); rrow.appendChild(bt); }
+      d.appendChild(rrow);
+      let pool = c ? c.pool === true : false; const prow = document.createElement('div'); prow.className = 'chips'; const pb = document.createElement('button');
+      const drawPool = () => { pb.textContent = (pools.length ? 'Also from the open pool (' + pools.map((x) => x.name).join(', ') + ')' : 'The open pool needs YouTube or Twitch on the PC') + ': ' + (pool ? 'on' : 'off'); pb.className = pool ? 'on' : ''; };
+      pb.onclick = () => { if (!pools.length) return; pool = !pool; drawPool(); }; drawPool(); prow.appendChild(pb); d.appendChild(prow);
+      const row = document.createElement('div'); row.className = 'act';
+      const save = document.createElement('button'); save.className = 'go'; save.textContent = c ? 'Save' : 'Add this category';
+      save.onclick = () => { const tg = tags.value.split(/\s+/).map((x) => x.trim()).filter(Boolean); if (!tg.length) { q('#wsNote').textContent = 'Give it at least one #tag or word.'; return; } setWs('category', { category: { id: c ? c.id : 'c' + Date.now().toString(16), name: name.value.trim(), v: 2, tags: tg, rule, pool } }, c ? 'Saved ' + (name.value.trim() || tg.join(' ')) + '.' : 'Added ' + (name.value.trim() || tg.join(' ')) + '.'); };
+      row.appendChild(save);
+      if (c) { const del = document.createElement('button'); del.textContent = 'Delete'; del.onclick = () => { if (del.dataset.sure !== '1') { del.dataset.sure = '1'; del.textContent = 'Delete for sure?'; setTimeout(() => { del.dataset.sure = ''; del.textContent = 'Delete'; }, 4000); return; } setWs('category', { delete: c.id }, 'Deleted ' + (c.name || '') + '.'); }; row.appendChild(del); }
+      d.appendChild(row); cur.appendChild(d);
+    };
+    for (const c of s.categories || []) catBox(c);
+    catBox(null);
+  });
+  sh.scrollTop = keepTop;
+}
 // the break watch's switch (2026-10-07, "we'll have to make this a feature they can shut down"): the PC's own Watch settings box, from the phone
 let bwOn = localStorage.getItem('prismBreakWatch') !== 'off';
 function drawBw() { q('#bwBtn').textContent = 'Cover YouTube TV breaks: ' + (bwOn ? 'on' : 'off'); }
 drawBw();
-q('#bwBtn').onclick = async () => { bwOn = !bwOn; drawBw(); try { localStorage.setItem('prismBreakWatch', bwOn ? 'on' : 'off'); await api('/video/break-watch', { on: bwOn }); } catch (e) { bwOn = !bwOn; drawBw(); } };
+// one switch, two places: the options menu and the Ads panel of Watch settings (2026-10-14, "the YouTube tv ad setting can be added in here too")
+async function setBw(v) { const was = bwOn; bwOn = !!v; drawBw(); try { localStorage.setItem('prismBreakWatch', bwOn ? 'on' : 'off'); await api('/video/break-watch', { on: bwOn }); } catch (e) { bwOn = was; drawBw(); } if (wsState && q('#wsSheet').classList.contains('on')) drawWs(wsState); }
+q('#bwBtn').onclick = () => setBw(!bwOn);
 q('#addHome').onclick = async () => {
   if (installPrompt) { installPrompt.prompt(); try { await installPrompt.userChoice; } catch {} installPrompt = null; return; }
   const ua = navigator.userAgent;
@@ -255,15 +425,20 @@ for (const [id, kind] of [['plMusic', 'music'], ['plVideo', 'video']]) q('#' + i
   try { await api('/ui/route', { route: 'prism://player/' + kind }); q('#menu').classList.remove('on'); setTimeout(pollPlayers, 800); setTimeout(pollPlayers, 2500); } catch (e) { q('#howHome').textContent = e.message; }
 };
 pollPlayers(); setInterval(pollPlayers, 5000);
-// ---- the wall updated: a banner, five minutes to a refresh, or now (2026-10-04)
-let pageVersion = null, refreshAt = 0;
+// ---- the PC updated: a banner, five minutes to a refresh, or now (2026-10-04). The page's own version is written into it as the PC
+// serves it, so the banner never depends on a first check that happened to succeed: a page loaded while the PC was restarting, or one
+// whose first check failed, had taken the NEW version as its own and never said so (2026-10-14, "I should see a refresh button on the
+// phone but do not"). Checked every twenty seconds and each time the page comes back to the front; Refresh this page is under Options too.
+let pageVersion = '__VERSION__', refreshAt = 0;
 async function checkVersion() {
   try {
-    const r = await fetch('/remote/version'); const v = (await r.json()).v;
-    if (pageVersion === null) { pageVersion = v; return; }
+    const r = await fetch('/remote/version', { cache: 'no-store' }); const v = (await r.json()).v;
+    if (!pageVersion || pageVersion.indexOf('__') === 0) { pageVersion = v; return; }
     if (v !== pageVersion && !refreshAt) { refreshAt = Date.now() + 5 * 60 * 1000; q('#banner').classList.add('on'); tickBanner(); }
   } catch {}
 }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+q('#refreshPage').onclick = () => location.reload();
 function tickBanner() {
   if (!refreshAt) return;
   const left = Math.max(0, Math.round((refreshAt - Date.now()) / 1000));
@@ -272,7 +447,7 @@ function tickBanner() {
   setTimeout(tickBanner, 1000);
 }
 q('#refreshNow').onclick = () => location.reload();
-checkVersion(); setInterval(checkVersion, 60000);
+checkVersion(); setInterval(checkVersion, 20000);
 // ---- music: now playing and the transport, the services' Quick play as an accordion
 const mmss = (t) => { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0'); };
 let npPos = null, npDur = null, npPlaying = false, npAt = 0;
@@ -508,8 +683,15 @@ async function pollVideo() {
     q('#vSeekRow').style.visibility = pos !== null ? 'visible' : 'hidden';
     if (pos !== null && !vSeeking) { q('#vPos').textContent = mmss(pos); q('#vDur').textContent = dur ? '-' + mmss(dur - pos) : ''; q('#vSeek').value = dur ? Math.round(pos / dur * 1000) : 0; q('#vSeek').disabled = !(dur && can && can.seek); }
     // the rows only when they changed
-    const sig = JSON.stringify([v.continue, v.list, v.live, !!v.liveReading, !!v.liveCanRead, Math.floor(Date.now() / 60000)]);
-    if (sig !== vSig) { vSig = sig; drawCards('#vCont', v.continue, 'Nothing to carry on with yet.'); drawCards('#vList', v.list, 'Nothing on your lists yet.'); drawLive(v.live, v); }
+    const sig = JSON.stringify([v.continue, v.list, v.watchlist, v.live, !!v.liveReading, !!v.liveCanRead, Math.floor(Date.now() / 60000)]);
+    if (sig !== vSig) {
+      vSig = sig; drawCards('#vCont', v.continue, 'Nothing to carry on with yet.');
+      // My Watchlist in My list's place while a TMDB account is linked, as on the PC (2026-10-14)
+      const wl = v.watchlist && v.watchlist.active ? v.watchlist : null;
+      q('#vListHead').textContent = wl ? 'My Watchlist' + (wl.reading ? ' \u00b7 still reading' : '') : 'My list';
+      if (wl) drawCatalog('#vList', wl.cards, wl.reading ? 'Reading your TMDB watchlist\u2026' : 'Nothing on your TMDB watchlist yet.'); else drawCards('#vList', v.list, 'Nothing on your lists yet.');
+      drawLive(v.live, v);
+    }
     lastVideoServices = v.services || []; drawServices(lastVideoServices);
     pollEpisodes(now); pollLenses();
   } catch (e) { say('#verr', e.message); }
@@ -517,53 +699,120 @@ async function pollVideo() {
 setInterval(pollVideo, 2500);
 // ---- more of the Watch screen (2026-10-05, "more of the watch screen items added to the companion app interface")
 // Search everywhere: TMDB's titles matched to the household's services first, then the services' own search pages; read as it fills
-let vqToken = 0;
-async function runSearch() {
-  const words = q('#vq').value.trim(); if (!words) return;
-  const box = q('#vResults'); box.innerHTML = '<p class="note">Searching for ' + words.replace(/</g, '&lt;') + '\u2026</p>';
-  const my = ++vqToken;
+// The view read here is the one the PC's Search draws (core search-view.ts, 2026-10-14, "tied ... so as changes are made they come to
+// both"): the household's own titles, the top result, one card per work with every service that carries it, the people, the filter
+// chips, and every word on them (the lines, the Play labels, the status, the headings, why there is nothing) as core gives them.
+let vqToken = 0, vFilter = { genre: null, app: null, kind: null };
+const readSearch = () => (vFilter.genre || vFilter.app || vFilter.kind) ? api('/video/search/view', vFilter) : api('/video/search');
+async function runSearch(person) {
+  const words = person ? person.name : q('#vq').value.trim(); if (!words) return;
+  q('#srq').value = words;   // the sheet's own box shows the words, to change or correct them without closing it (2026-10-14)
+  const box = q('#vResults'); box.innerHTML = '<p class="note">Searching for ' + words.replace(/</g, '&lt;') + '\u2026</p>'; showResults();
+  const my = ++vqToken; vFilter = { genre: null, app: null, kind: null };
   try {
-    await api('/video/search', { q: words });
+    await api('/video/search', person ? { person: { id: person.id, name: person.name } } : { q: words });
     for (let i = 0; i < 20 && my === vqToken; i++) {
       await new Promise((r) => setTimeout(r, i ? 1200 : 400));
-      const st = await api('/video/search');
+      const st = await readSearch();
       if (my !== vqToken) return;
       drawResults(st, words);
       if (st.done) break;
     }
-  } catch (e) { say('#verr', e.message); }
+  } catch (e) { const p = document.createElement('p'); p.className = 'note'; p.textContent = e.message; box.appendChild(p); }
 }
-q('#vgo').onclick = runSearch; q('#vq').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('#vq').blur(); runSearch(); } };
+// the results sheet: opened by a search (or a Which service? question from a row), closed by its Close or by a play from it
+function showResults() { const sh = q('#srSheet'); sh.scrollTop = 0; if (!sh.classList.contains('on')) { sh.classList.add('on'); sheetLock(); } }
+function closeResults() { vqToken++; q('#vResults').innerHTML = ''; q('#srSheet').classList.remove('on'); sheetLock(); }
+q('#srClose').onclick = closeResults;
+q('#srq').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('#srq').blur(); const w = q('#srq').value.trim(); if (!w) return; q('#vq').value = w; q('#vq').parentElement.classList.add('has'); runSearch(); } };
+// a filter chip: the same search read under the filter (the state itself untouched), as the PC's chips do
+async function refilter(genre, app, kind) {
+  vFilter = { genre, app, kind: kind === undefined ? vFilter.kind : kind }; const my = vqToken;
+  try { const st = await readSearch(); if (my === vqToken) drawResults(st, (st && st.q) || q('#vq').value.trim()); } catch (e) { say('#verr', e.message); }
+}
+q('#vgo').onclick = () => runSearch();   // not the click event itself: runSearch reads its argument as a person (2026-10-14, "Tried to search from the companion app but nothing happens")
+q('#vq').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('#vq').blur(); runSearch(); } };
 // the search cleared (2026-10-06, "I need a way to clear the search on the companion app"): the words and the results go, the box keeps the focus for new words
 q('#vq').oninput = () => { q('#vq').parentElement.classList.toggle('has', q('#vq').value.length > 0); if (!q('#vq').value) q('#vResults').innerHTML = ''; };
 q('#vclear').onclick = () => { q('#vq').value = ''; q('#vq').parentElement.classList.remove('has'); q('#vResults').innerHTML = ''; q('#vq').focus(); };
 function drawResults(st, words) {
   const box = q('#vResults'); box.innerHTML = '';
   if (!st || st.none) return;
-  const lib = st.library || [], rows = st.rows || [];
-  // the household's own titles the words match come first (no page asked), then the catalog's titles, grouped by title
-  for (const h of lib) {
-    const el = hitCard(h.title, h.artwork, h.kind || '', (h.services || []).map((sv) => ({ label: 'Play on ' + sv.name + (sv.from ? ' \u00b7 ' + ({ continue: 'Continue watching', list: 'My list', owned: 'Owned' }[sv.from] || sv.from) : ''), go: () => playCard(sv.facet, sv.item, sv.name) })),
-      () => { const sv0 = (h.services || [])[0]; openDetails(sv0 && sv0.item ? { item: sv0.item, service: sv0.name, facet: sv0.facet, app: sv0.app || '' } : { catalog: true, title: h.title, kind: h.kind || '', artwork: h.artwork }); });   // the title's details from the search too (2026-10-11)
-    box.appendChild(el);
+  const L = st.layout || {}, lib = st.library || [], works = st.works || [], people = st.people || [];
+  const head = (text) => { const d = document.createElement('div'); d.className = 'shead'; d.textContent = text; box.appendChild(d); };
+  const note = (text) => { const p = document.createElement('p'); p.className = 'note'; p.textContent = text; box.appendChild(p); };
+  head((L.heading || (st.done ? 'Results for' : 'Searching for')) + ' \u201c' + (st.q || words) + '\u201d');
+  if (L.status) note(L.status);
+  // the filter chips: every genre and service the results offer (from the unfiltered rows, so a press never empties the other group)
+  const genres = st.genres || [], fs = st.filterServices || [], kinds = st.kinds || [];
+  if (genres.length || fs.length > 1 || kinds.length > 1) {
+    const row = document.createElement('div'); row.className = 'fchips';
+    const chip = (label, on, go) => { const b = document.createElement('button'); b.textContent = label; if (on) b.className = 'on'; b.onclick = go; row.appendChild(b); };
+    // movies or TV shows (2026-10-14, "Should also let me specify movies or TV shows in the search filters"), offered when the results hold both
+    if (kinds.length > 1) { chip('Movies', vFilter.kind === 'movie', () => refilter(vFilter.genre, vFilter.app, vFilter.kind === 'movie' ? null : 'movie')); chip('TV shows', vFilter.kind === 'series', () => refilter(vFilter.genre, vFilter.app, vFilter.kind === 'series' ? null : 'series')); }
+    if (genres.length) { chip('All genres', !vFilter.genre, () => refilter(null, vFilter.app)); for (const g of genres.slice(0, 12)) chip(g, vFilter.genre === g, () => refilter(vFilter.genre === g ? null : g, vFilter.app)); }
+    if (fs.length > 1) { chip('All services', !vFilter.app, () => refilter(vFilter.genre, null)); for (const s of fs) chip(s.name, vFilter.app === s.app, () => refilter(vFilter.genre, vFilter.app === s.app ? null : s.app)); }
+    box.appendChild(row);
   }
-  const byTitle = new Map();
-  for (const r of rows) { const c = r.candidate || {}; const key = (c.title || '') + '|' + (c.year || ''); if (!byTitle.has(key)) byTitle.set(key, { c, services: [] }); byTitle.get(key).services.push(r); }
-  for (const [, g] of byTitle) {
-    const c = g.c;
-    const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), c.poster || c.backdrop || null, c.kind === 'series' ? 'Series' : c.kind === 'movie' ? 'Film' : '', g.services.map((r) => ({ label: 'Play on ' + r.name + (r.offer ? ' \u00b7 ' + r.offer : ''), go: () => playResult(r.app, r.candidate, r.name) })),
-      () => openDetails({ catalog: true, title: c.title, kind: c.kind || '', artwork: c.poster || c.backdrop || null, id: c.id }));
-    box.appendChild(el);
+  // the people the words named: their work on the household's services is one press away
+  const drawPeople = () => {
+    if (!people.length) return;
+    head('People');
+    const row = document.createElement('div'); row.className = 'people';
+    for (const p of people) {
+      const b = document.createElement('button');
+      if (p.photo) { const im = document.createElement('img'); im.alt = ''; im.src = p.photo; b.appendChild(im); }
+      else { const m = document.createElement('div'); m.className = 'mono'; m.textContent = (p.name || '?').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase(); b.appendChild(m); }
+      const nm = document.createElement('span'); nm.textContent = p.name; b.appendChild(nm);
+      if (p.known) { const k = document.createElement('span'); k.textContent = p.known; b.appendChild(k); }
+      b.onclick = () => runSearch({ id: p.id, name: p.name });
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+  };
+  if (L.personFirst) drawPeople();
+  // the top result first (2026-10-14, "let's put the top result at the actual top of the results"), then the household's own titles, then the rest
+  const workPlays = (w) => (w.services || []).map((sv, i) => ({ label: ((w.card || {}).plays || [])[i] || ('Play on ' + sv.name), go: () => { closeResults(); playResult(sv.app, sv.candidate, sv.name); } }));
+  const workDetails = (w) => () => { const sv0 = (w.services || [])[0]; const c = (sv0 && sv0.candidate) || {}; openDetails({ catalog: true, title: w.title, kind: w.kind || '', artwork: w.poster || w.backdrop || null, id: c.id, app: sv0 ? sv0.app : '' }); };
+  const top = L.top ? works.find((w) => w.key === L.top) : null;
+  if (top) box.appendChild(topCard(top, workPlays(top), workDetails(top)));
+  // the household's own titles, as they type - no service asked
+  if (lib.length) {
+    head(L.libraryHeading || 'In your lists');
+    for (const h of lib.slice(0, 16)) box.appendChild(hitCard(h.title, h.artwork, h.line || '', false, (h.services || []).map((sv, i) => ({ label: (h.plays || [])[i] || ('Play on ' + sv.name), go: () => { closeResults(); playCard(sv.facet, sv.item, sv.name); } })),
+      () => { const sv0 = (h.services || [])[0]; openDetails(sv0 && sv0.item ? { item: sv0.item, service: sv0.name, facet: sv0.facet, app: sv0.app || '' } : { catalog: true, title: h.title, kind: h.kind || '', artwork: h.artwork }); }));   // the title's details from the search too (2026-10-11)
   }
-  if (!lib.length && !rows.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = st.done ? 'Nothing for "' + words + '" on your services.' + (st.elsewhere && st.elsewhere.length ? ' TMDB lists it on ' + st.elsewhere.join(', ') + '.' : '') : 'Searching\u2026'; box.appendChild(n); }
-  if (st.attribution) { const a = document.createElement('p'); a.className = 'note'; a.textContent = st.attribution; box.appendChild(a); }
+  // one card per work, each service's Play with its offer
+  if (!works.length) { if (L.empty) note(L.empty); }
+  else {
+    const rest = top ? works.filter((w) => w !== top) : works;
+    if (rest.length) { head(L.restHeading || 'On your services'); for (const w of rest.slice(0, 40)) { const c = w.card || {}; box.appendChild(hitCard(w.title, w.poster || w.backdrop || null, [w.rating, c.line].filter(Boolean).join(' \u00b7 '), !!c.amber, workPlays(w), workDetails(w))); } }
+  }
+  if (!L.personFirst) drawPeople();
 }
-function hitCard(title, art, sub, plays, details) {
+// the top result: the backdrop large, the facts, the rating, the overview, every service's Play, and Details
+function topCard(w, plays, details) {
+  const c = w.card || {};
+  const el = document.createElement('div'); el.className = 'topr';
+  const art = w.backdrop || w.poster; if (art) { const img = document.createElement('img'); img.alt = ''; img.src = art; if (!w.backdrop) img.className = 'poster'; el.appendChild(img); }   // a 16:9 band shows the backdrop whole; a poster standing in is contained, not cut (2026-10-14)
+  const tb = document.createElement('div'); tb.className = 'tb';
+  const sm = document.createElement('small'); sm.textContent = 'Top result'; tb.appendChild(sm);
+  const b = document.createElement('b'); b.textContent = w.title; tb.appendChild(b);
+  if (c.facts) { const f = document.createElement('div'); f.className = 'f'; f.textContent = c.facts; tb.appendChild(f); }
+  if (w.rating) { const r = document.createElement('div'); r.className = 'f'; r.textContent = w.rating; tb.appendChild(r); }
+  if (w.overview) { const o = document.createElement('div'); o.className = 'o'; o.textContent = w.overview; tb.appendChild(o); }
+  const on = document.createElement('div'); on.className = 'on';
+  for (const pl of plays) { const btn = document.createElement('button'); btn.textContent = pl.label; btn.onclick = pl.go; on.appendChild(btn); }
+  const d = document.createElement('button'); d.className = 'd'; d.textContent = 'Details'; d.onclick = details; on.appendChild(d);
+  tb.appendChild(on); el.appendChild(tb);
+  return el;
+}
+function hitCard(title, art, sub, amber, plays, details) {
   const el = document.createElement('div'); el.className = 'hit';
   const img = document.createElement('img'); img.alt = ''; if (art) img.src = art; el.appendChild(img);
   const t = document.createElement('div'); t.className = 't';
   const b = document.createElement('b'); b.textContent = title; t.appendChild(b);
-  if (sub) { const sp = document.createElement('span'); sp.textContent = sub; t.appendChild(sp); }
+  if (sub) { const sp = document.createElement('span'); sp.textContent = sub; if (amber) sp.className = 'amber'; t.appendChild(sp); }
   const on = document.createElement('div'); on.className = 'on';
   if (details) { const d = document.createElement('button'); d.textContent = 'Details'; d.onclick = details; on.appendChild(d); }
   for (const pl of plays) { const btn = document.createElement('button'); btn.textContent = pl.label; btn.onclick = pl.go; on.appendChild(btn); }
@@ -737,27 +986,37 @@ async function pollLenses() {
       const h = document.createElement('h3'); h.className = 'qh'; h.textContent = row.name + (row.reading ? ' \u00b7 still reading' : '');
       const info = document.createElement('button'); info.className = 'info'; info.textContent = 'i'; info.setAttribute('aria-label', 'About this row');
       const about = document.createElement('p'); about.className = 'about';
-      about.textContent = [row.counted, row.who, row.source ? 'Source: ' + row.source : '', row.dataDate ? 'As of ' + row.dataDate : ''].filter(Boolean).map((t) => t.replace(/[.]$/, '')).join('. ') + '.';
+      // the same two sections as the PC's (i) (2026-10-14, "I'm on the companion app. Which should match"): How it's picked, then Source; a row without the plain words keeps the old line
+      if (row.simple) { const part = (label, text) => { const b = document.createElement('b'); b.textContent = label; about.appendChild(b); about.appendChild(document.createTextNode(text)); }; part("How it's picked", row.simple); part('Source', (row.sourceShort || row.source || '') + (row.dataDate ? ' \u00b7 data as of ' + row.dataDate : '')); if (row.editIn) part('Where to change it', row.editIn); }
+      else about.textContent = [row.counted, row.who, row.source ? 'Source: ' + row.source : '', row.dataDate ? 'As of ' + row.dataDate : ''].filter(Boolean).map((t) => t.replace(/[.]$/, '')).join('. ') + '.';
       info.onclick = () => { about.classList.toggle('on'); info.classList.toggle('on'); };
       h.appendChild(info); wrap.appendChild(h); wrap.appendChild(about);
       const cards = document.createElement('div'); cards.className = 'cards';
-      for (const c of row.cards) {
-        const b = document.createElement('button'); b.className = 'card';
-        const img = document.createElement('img'); img.className = 'art'; img.alt = ''; const art = c.catalog ? c.artwork : (c.item && (c.item.poster || c.item.artwork));
-        if (art) img.src = art; img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); }; b.appendChild(img);
-        const t = document.createElement('b'); t.textContent = c.catalog ? c.title : c.item.title; b.appendChild(t);
-        const sub = document.createElement('span'); sub.textContent = c.catalog ? (c.value || c.rating || '') : (c.lens || c.item.subtitle || c.rating || ''); if (sub.textContent) b.appendChild(sub);
-        const sv = document.createElement('span'); sv.className = 'svc2'; sv.textContent = c.catalog ? (c.services || []).map((x) => x.name).join(', ') : c.service; b.appendChild(sv);
-        const di = document.createElement('button'); di.className = 'di'; di.textContent = 'i'; di.setAttribute('aria-label', 'Details'); di.onclick = (e) => { e.stopPropagation(); openDetails(c); }; b.appendChild(di);
-        if (c.catalog) {
-          const svcs = c.services || [];
-          b.onclick = () => { if (!svcs.length) { say('#verr', 'None of your services carries ' + c.title + '.'); return; } if (svcs.length === 1) browsePlay(svcs[0].app, c.id, c.title, svcs[0].name); else { const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), art, 'Which service?', svcs.map((x) => ({ label: 'Play on ' + x.name + (x.offer ? ' \u00b7 ' + x.offer : ''), go: () => { q('#vResults').innerHTML = ''; browsePlay(x.app, c.id, c.title, x.name); } }))); q('#vResults').innerHTML = ''; q('#vResults').appendChild(el); window.scrollTo({ top: q('#vResults').offsetTop - 80, behavior: 'smooth' }); } };
-        } else b.onclick = () => playCard(c.facet, c.item, c.service);
-        cards.appendChild(b);
-      }
+      for (const c of row.cards) { c.lensId = row.id; cards.appendChild(lensCard(c)); }   // the card's menu knows The Binge's cards (2026-10-15)
       wrap.appendChild(cards); box.appendChild(wrap);
     }
   } catch (e) { say('#verr', e.message); }
+}
+// a lens row's card, a catalog title (TMDB's, with the services that carry it) or a service's own item; My Watchlist draws the same (2026-10-14)
+function lensCard(c) {
+        const b = document.createElement('button'); b.className = 'card';
+        const img = document.createElement('img'); img.className = 'art'; img.alt = ''; const art = c.catalog ? c.artwork : (c.item && (c.item.poster || c.item.artwork));
+        if (art) img.src = art; img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); }; b.appendChild(img);
+        if (!art) { const t = document.createElement('b'); t.textContent = c.catalog ? c.title : c.item.title; b.appendChild(t); }
+        const sv0 = c.catalog ? (c.services || [])[0] : null; b.appendChild(markOf(c.catalog ? (sv0 ? sv0.app : '') : c.app, c.catalog ? (sv0 ? sv0.name : '') : c.service));
+        addScore(b, c);
+        const di = document.createElement('button'); di.className = 'di'; di.textContent = 'i'; di.setAttribute('aria-label', 'Details'); di.onclick = (e) => { e.stopPropagation(); openDetails(c); }; b.appendChild(di);
+        if (c.catalog) {
+          const svcs = c.services || [];
+          b.onclick = () => { if (!svcs.length) { say('#verr', 'None of your services carries ' + c.title + '.'); return; } if (svcs.length === 1) browsePlay(svcs[0].app, c.id, c.title, svcs[0].name); else { const el = hitCard(c.title + (c.year ? ' (' + c.year + ')' : ''), art, 'Which service?', svcs.map((x) => ({ label: 'Play on ' + x.name + (x.offer ? ' \u00b7 ' + x.offer : ''), go: () => { closeResults(); browsePlay(x.app, c.id, c.title, x.name); } }))); q('#vResults').innerHTML = ''; q('#vResults').appendChild(el); showResults(); } };
+        } else b.onclick = () => playCard(c.facet, c.item, c.service);
+        longPress(b, c);
+        return b;
+}
+function drawCatalog(sel, cards, empty) {
+  const box = q(sel); box.innerHTML = '';
+  if (!cards || !cards.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = empty; box.appendChild(n); return; }
+  for (const c of cards) box.appendChild(lensCard(c));
 }
 async function browsePlay(app, cardId, title, service) {
   if (onPhone(null, title, service)) return;   // a catalog title is found through the service's own search on the PC: no address to open
@@ -766,9 +1025,138 @@ async function browsePlay(app, cardId, title, service) {
 }
 // the Details sheet (2026-10-11): core's titleDetails, asked again every 1.5 s while it is working (the first read of a title fetches TMDB)
 let detRun = 0;
+// Send to playlist and the list, on the Details sheet (2026-10-13, "Let's add the functionality to the phone ... Need to be able to add to my
+// watch list too"): the PC's own send job (a list, or New playlist), followed with its question before a large add; the TMDB watchlist while
+// an account is linked, else the service's own list
+// With `actions` (core's block on the details, runtime.ts withPlay, 2026-10-14, "tied ... so as changes are made they come to both"), the
+// sheet draws what the PC's Details card draws: Watch on each service that carries it (the same candidate), the trailer, the list the PC
+// offers (the TMDB watchlist while an account is linked, else the services' own), Send to playlist with the source the PC sends. Before
+// the details arrive (or for a title TMDB has no page for) the sheet falls back to the card's own words.
+async function renderDetActs(c, it, run, actions, host) {
+  const acts = (host && host.acts) || q('#detActs'); acts.innerHTML = '';
+  const note = (m) => { if (run === detRun) ((host && host.note) || q('#detNote')).textContent = m || ''; };
+  const A = actions || null;
+  const kind = it.kind || c.kind || ''; const title = it.title; const app = c.app || null;
+  const sh = (host && host.sheet) || q('#detSheet');
+  if (A) {
+    let ons = A.watchOn || [];
+    if (!host && c.catalog && ons.length) { const sv = ons[0]; const pb = q('#detPlay'); pb.textContent = 'Play on ' + sv.name; pb.style.display = ''; pb.onclick = () => { sh.classList.remove('on'); sheetLock(); playResult(sv.app, A.candidate, sv.name); }; ons = ons.slice(1); }   // the bar's Play (2026-10-15)
+    for (const sv of ons) { const b = document.createElement('button'); b.textContent = 'Play on ' + sv.name; b.onclick = () => { sh.classList.remove('on'); sheetLock(); playResult(sv.app, A.candidate, sv.name); }; acts.appendChild(b); }
+    if (A.trailer && A.trailer.url) { const t = document.createElement('button'); t.textContent = 'Trailer'; t.onclick = () => { const a = document.createElement('a'); a.href = A.trailer.url; a.target = '_blank'; a.rel = 'noreferrer noopener'; document.body.appendChild(a); a.click(); a.remove(); }; acts.appendChild(t); }
+  }
+  const sourceOf = () => { if (A && A.playlist && A.playlist.source) return A.playlist.source;
+    const poster = it.poster || it.artwork || null; if (kind === 'movie') return { type: 'movie', title, tmdb: null, poster, services: app ? [{ app }] : [], year: null };
+    return { type: 'series', show: title, app, services: app ? [app] : [], scope: 'all', tmdb: null, poster, year: null, orMovie: !['series', 'tv', 'episode', 'show'].includes(kind) }; };
+  const send = document.createElement('button'); send.textContent = 'Send to playlist'; if (!A || (A.playlist && A.playlist.can)) acts.appendChild(send);
+  const pick = document.createElement('div'); pick.className = 'plpick'; pick.style.display = 'none'; acts.appendChild(pick);
+  const follow = async (job) => {
+    for (let i = 0; i < 150 && run === detRun; i++) {
+      let j; try { j = await api('/playlists/job', { id: job }); } catch (e) { note(e.message); return; }
+      if (!j || j.error && !j.status) { note(j && j.error || 'The PC did not answer.'); return; }
+      if (j.status === 'reading') { note((j.message || 'Reading') + '\u2026'); await new Promise((r) => setTimeout(r, 800)); continue; }
+      if (j.status === 'confirm') { const yes = confirm(j.message || 'Add them all?'); await api('/playlists/confirm', { id: job, yes }); if (!yes) { note('Nothing added.'); return; } continue; }
+      note(j.message || (j.status === 'error' ? 'That could not be added.' : 'Done.')); return;
+    }
+  };
+  const sendTo = async (target) => { pick.style.display = 'none'; send.disabled = true; let r; try { r = await api('/playlists/send', { target, source: sourceOf() }); } catch (e) { note(e.message); send.disabled = false; return; }
+    if (!r || !r.job) { note(r && r.error || 'That could not be sent to a playlist.'); send.disabled = false; return; } await follow(r.job); send.disabled = false; };
+  send.onclick = async () => {
+    if (pick.style.display !== 'none') { pick.style.display = 'none'; return; }
+    pick.innerHTML = ''; let v; try { v = await api('/playlists'); } catch (e) { note(e.message); return; }
+    if (!v || v.error) { note(v && v.error || 'Playlists are off on the PC.'); return; }
+    for (const l of (v.lists || [])) { const b = document.createElement('button'); b.textContent = l.name; b.onclick = () => sendTo({ id: l.id }); pick.appendChild(b); }
+    const nb = document.createElement('button'); nb.textContent = 'New playlist\u2026'; nb.onclick = () => { const name = prompt('Name the new playlist'); if (name && name.trim()) sendTo({ newName: name.trim() }); }; pick.appendChild(nb);
+    pick.style.display = '';
+  };
+  // the list: the TMDB watchlist while linked, else the service's own - core's call when the details carry it
+  const wl = document.createElement('button'); wl.style.display = 'none'; acts.appendChild(wl);
+  let st = null;
+  if (A && A.list) st = A.list.mode === 'watchlist' ? { active: true, on: A.list.on } : { active: false, services: A.list.services || [] };
+  else if (!A) { try { st = await api('/video/watchlist', { title, kind }); } catch (e) { st = null; } }
+  if (run !== detRun) return;
+  if (st && st.active) {
+    let on = !!st.on; const draw = () => { wl.textContent = on ? 'On My Watchlist \u2713' : 'Add to My Watchlist'; }; draw(); wl.style.display = '';
+    // the PC places the title and writes to TMDB after it answers: asked again while it says so (up to twelve seconds), then the word is
+    // its answer, not the time (2026-10-14: one read 1.5 s after the press had said "Taken off" of a title that was being added)
+    wl.onclick = async () => {
+      wl.disabled = true; const want = !on; wl.textContent = want ? 'Adding\u2026' : 'Taking off\u2026';
+      try {
+        let r2 = await api('/video/watchlist', { title, kind, on: want });
+        for (let i = 0; i < 16 && r2.working; i++) { await new Promise((r) => setTimeout(r, 750)); r2 = await api('/video/watchlist', { title, kind }); }
+        if (r2.on === null && !r2.error) { draw(); note('TMDB could not place ' + title + '.'); }
+        else { on = !!r2.on; draw(); note(r2.error || (on ? 'On your TMDB watchlist.' : 'Taken off your TMDB watchlist.')); }
+      } catch (e) { draw(); note(e.message); }
+      wl.disabled = false;
+      setTimeout(pollVideo, 1500); setTimeout(pollVideo, 6000);   // the row behind the sheet follows (the PC rebuilds its cards after the write, 2026-10-14)
+    };
+  } else if (st && st.services) {
+    // the services' own lists, one button each (the PC offers the same services): the candidate is resolved to the service's copy on the PC
+    for (const s of st.services) {
+      if (!s.can) continue;
+      const b = document.createElement('button'); b.textContent = 'Add to ' + s.name + '\u2019s ' + (s.listName || 'My List'); acts.appendChild(b);
+      b.onclick = async () => { b.disabled = true; try { const r = await api('/video/list', { app: s.app, want: 'add', id: A.candidate.id, title, kind: A.candidate.kind }); note(r && r.error ? r.error : 'Adding on ' + s.name + '\u2026 it shows in My list once the service lists it.'); } catch (e) { note(e.message); b.disabled = false; } };
+    }
+  } else if (app && !c.catalog) {
+    let li = null; try { li = await api('/video/listinfo', { app }); } catch (e) { li = null; }
+    if (run !== detRun || !li || !li.can) return;
+    wl.textContent = 'Add to ' + (c.service || 'the service') + '\u2019s ' + (li.name || 'My List'); wl.style.display = '';
+    wl.onclick = async () => { wl.disabled = true; try { const r = await api('/video/list', { app, want: 'add', id: it.id || '', title, url: it.url || null, kind }); note(r && r.error ? r.error : 'Adding on ' + (c.service || 'the service') + '\u2026 it shows in My list once the service lists it.'); } catch (e) { note(e.message); wl.disabled = false; } };
+  }
+}
+// a long-press (or a right-click) on a card: the PC's right-click menu on the phone (2026-10-14, "I should be able to long-press any item on watch
+// on the phone companion app and get the right-click context menu from Prism"): Play, Details, and the verbs the Details sheet carries - Play on
+// each service, the trailer, Send to playlist, the list - from the same actions block core gives the PC's menu. A video that is a service's
+// own (not TMDB's) gets Play and Details only.
+async function openCtx(c) {
+  const it = c.item || { title: c.title, kind: c.kind, artwork: c.artwork, id: c.id, url: null }; const run = ++detRun;
+  const sh = q('#ctxSheet'); q('#ctxTitle').textContent = it.title + (c.service ? ' \u00b7 ' + c.service : ''); q('#ctxNote').textContent = ''; sh.classList.add('on');
+  const host = { acts: q('#ctxActs'), note: q('#ctxNote'), sheet: sh };
+  // what the service allows for a Continue watching card, read first; the verb is drawn by head() after every render of the actions (which clears them)
+  const wantRm = c.row === 'continue' && !c.catalog && !!c.app && !!it.id;
+  q('#ctxTop').innerHTML = ''; q('#ctxTop').dataset.run = ''; q('#ctxActs').innerHTML = '';
+  const stars = it.kind === 'video' && !c.catalog ? (q('#ctxRate').style.display = 'none', null) : drawRate(c, run, tmdbRefOf(c));   // a YouTube or Twitch video has no TMDB title
+  let rmInfo = null; const infoP = wantRm ? api('/video/remove-info', { app: c.app }).catch(() => null) : Promise.resolve(null);
+  const head = () => {
+    if (run !== detRun) return;
+    // the top group in a fixed order, every render: Play, Details, Remove; the verbs the Details bring land below them, so nothing shifts
+    const top = [];
+    if (!c.catalog) { const play = document.createElement('button'); play.className = 'go'; play.dataset.top = '1'; play.textContent = 'Play'; play.onclick = () => { sh.classList.remove('on'); detRun++; playCard(c.facet, it, c.service); }; top.push(play); }
+    const det = document.createElement('button'); det.dataset.top = '1'; det.textContent = 'Details\u2026'; det.onclick = () => { sh.classList.remove('on'); openDetails(c); }; top.push(det);
+    if (c.lensId === 'the-binge') { const hb = bingeHideButton(c, () => { sh.classList.remove('on'); detRun++; }); hb.dataset.top = '1'; top.push(hb); }
+    if (wantRm) { const rm = document.createElement('button'); rm.dataset.rm = '1'; rm.dataset.top = '1'; if (rmInfo) rmFill(rm, rmInfo); else { rm.disabled = true; rm.textContent = 'Remove' + '\u2026'; } rmEl = rm; top.push(rm); }
+    const tb = q('#ctxTop'); if (tb.dataset.run === String(run)) return; tb.dataset.run = String(run); tb.innerHTML = ''; const halves = top.filter((b) => !b.dataset.rm); if (halves.length === 1) halves[0].style.gridColumn = '1/-1'; for (const b of top) tb.appendChild(b);   // Play and Details side by side, Remove across; drawn once a menu, above the verbs that come later
+  };
+  // Remove from Continue Watching (2026-10-15, "I can't remove from continue watching from companion"): the PC's card menu's verb - the service's own
+  // removal where its site allows one, asked once more first; hidden on the PC alone where it does not (Fandango's site cannot; its app can)
+  // one press (2026-10-15, "It asks for way too many confirmations ... it knows we're removing it from the source service"): the long press that
+  // opened this menu is the deliberate step, as the PC's right-click is; the service's warning, when it has one, is on the note before the press
+  let rmEl = null;
+  const rmFill = (rm, info) => removeFill(rm, c, it, info, () => { sh.classList.remove('on'); detRun++; }, q('#ctxNote'));
+  await renderDetActs(c, it, run, null, host); head();
+  rmInfo = await infoP; if (rmInfo && run === detRun && rmEl) rmFill(rmEl, rmInfo);   // the placeholder becomes the verb in its place
+  if (it.kind === 'video' && !c.catalog) return;
+  for (let i = 0; i < 20 && run === detRun; i++) {
+    let r; try { r = await api('/video/details', { title: it.title, kind: it.kind || '', app: c.app || '' }); } catch (e) { return; }
+    if (run !== detRun) return;
+    if (r.status === 'working') { await new Promise((res) => setTimeout(res, 1500)); continue; }
+    if (r.status === 'ready' && r.details && r.details.actions) { await renderDetActs(c, it, run, r.details.actions, host); head(); if (stars) { const m = /^tmdb:(movie|tv):(\d+)$/.exec(String((r.details.actions.candidate || {}).id || '')); if (m && +m[2] > 0) stars.set({ kind: m[1], id: +m[2] }); else stars.none(); } }
+    else if (stars) stars.none();
+    return;
+  }
+}
+q('#ctxClose').onclick = () => { q('#ctxSheet').classList.remove('on'); detRun++; };
+function longPress(b, c) {
+  let t = null, fired = false, x0 = 0, y0 = 0;
+  const off = () => { clearTimeout(t); t = null; };
+  b.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; fired = false; x0 = e.clientX; y0 = e.clientY; off(); t = setTimeout(() => { t = null; fired = true; try { if (navigator.vibrate) navigator.vibrate(15); } catch (x) {} openCtx(c); }, 520); });
+  b.addEventListener('pointermove', (e) => { if (t && (Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8)) off(); });   // a scroll is not a press
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(ev, off);
+  b.addEventListener('click', (e) => { if (fired) { fired = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);   // the press that opened the menu does not also play
+  b.addEventListener('contextmenu', (e) => { e.preventDefault(); off(); openCtx(c); });
+}
 async function openDetails(c) {
   const it = c.item || { title: c.title, kind: c.kind, artwork: c.artwork, id: c.id, url: null }; const run = ++detRun; const sh = q('#detSheet'); q('#perSheet').classList.remove('on'); q('#chSheet').classList.remove('on'); sh.classList.add('on'); sh.scrollTop = 0; sheetLock();
-  q('#detPlay').style.display = c.catalog ? 'none' : '';
+  q('#detPlay').style.display = c.catalog ? 'none' : ''; q('#detPlay').textContent = 'Play on Prism'; q('#detActs').classList.remove('on'); q('#detMore').textContent = 'Actions'; q('#detNote').textContent = '';
   q('#detTitle').textContent = it.title; q('#detFacts').textContent = [c.service, it.subtitle].filter(Boolean).join(' \u00b7 '); q('#detRating').textContent = ''; q('#detOverview').textContent = ''; q('#detCast').innerHTML = ''; q('#detWhere').textContent = ''; q('#detChan').innerHTML = ''; q('#detTags').innerHTML = '';
   // a YouTube video's own description (2026-10-11): the channel, the length, the date, the words and the creator's tags, from its public page
   const ab = it.about;
@@ -783,6 +1171,7 @@ async function openDetails(c) {
   // a plain video is the service's own, never TMDB's: no read, a film of the same name was standing in (2026-10-11)
   if (it.kind === 'video' && !c.catalog) { q('#detNote').textContent = ab ? '' : 'A video on ' + (c.service || 'its service') + '. Its channel and words arrive once its page is read.'; return; }
   q('#detNote').textContent = 'Reading the details\u2026'; const art = q('#detArt'); art.removeAttribute('src'); if (it.poster || it.artwork) art.src = it.poster || it.artwork;
+  renderDetActs(c, it, run).then(() => detRemove(c, it, run));
   q('#detPlay').onclick = () => { sh.classList.remove('on'); sheetLock(); startVWork(it.title, c.service); api('/video/play', { facet: c.facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not play'); }).catch((e) => endVWork(e.message)); };
   for (let i = 0; i < 20 && run === detRun; i++) {
     let r; try { r = await api('/video/details', { title: it.title, kind: it.kind || '', app: c.app || '' }); } catch (e) { q('#detNote').textContent = e.message; return; }
@@ -790,9 +1179,10 @@ async function openDetails(c) {
     if (r.status === 'working') { await new Promise((res) => setTimeout(res, 1500)); continue; }
     if (r.status !== 'ready' || !r.details) { q('#detNote').textContent = ab ? '' : (it.kind === 'video' ? 'A video on ' + (c.service || 'its service') + ', not a film or a series: TMDB has no page for it.' + (it.subtitle ? '' : '') : (r.why || 'No details for this title. It may not be on TMDB, or Prism has no TMDB key yet.')); return; }
     const d = r.details; q('#detNote').textContent = '';
-    q('#detTitle').textContent = d.title || it.title;
-    const facts = [d.year, d.certification, d.runtime ? d.runtime + ' min' : '', d.seasons ? d.seasons + ' season' + (d.seasons === 1 ? '' : 's') : '', (d.genres || []).slice(0, 3).join(', ')].filter(Boolean).join(' \u00b7 ');
-    q('#detFacts').textContent = facts; q('#detRating').textContent = d.rating ? 'TMDB ' + d.rating.mean.toFixed(1) + ' from ' + d.rating.votes.toLocaleString() + ' votes' : '';
+    q('#detTitle').textContent = (d.title || it.title) + (d.year ? ' (' + d.year + ')' : '');
+    renderDetActs(c, it, run, d.actions || null).then(() => detRemove(c, it, run));   // the PC's own verbs for this title, from core
+    const A = d.actions || {}; const factsLine = [].concat(A.facts || []).concat((d.genres || []).slice(0, 3).join(', ') || []).join(' \u00b7 ');   // the PC's facts line, core's words
+    q('#detFacts').textContent = factsLine; q('#detRating').textContent = A.ratingLine || '';
     if (d.poster) art.src = d.poster;
     q('#detOverview').textContent = (d.tagline ? d.tagline + ' \u2014 ' : '') + (d.overview || '');
     const cast = q('#detCast'); cast.innerHTML = '';
@@ -803,11 +1193,44 @@ async function openDetails(c) {
     if (names('free').length) where.push('Free: ' + [...new Set(names('free'))].join(', '));
     if (names('rent').length || names('buy').length) where.push('Rent or buy: ' + [...new Set([...names('rent'), ...names('buy')])].join(', '));
     q('#detWhere').textContent = where.join('  \u00b7  ') + (where.length ? '  (US, as TMDB lists them)' : '');
+    // Rent or buy on this phone (2026-10-14, "am I able to click a link to work on that transaction"): each store's own page for the title,
+    // opened here as a link the phone hands to the store's app when it is installed, signed in as you are there. No referrer, no sign-in
+    // passed, and Prism takes no part in the purchase (the PC's card shows the same address as a code for the phone to scan).
+    const stores = new Map();
+    for (const k of ['rent', 'buy']) for (const o of (pv[k] || [])) if (o.buy && o.buy.url && !stores.has(o.buy.url)) stores.set(o.buy.url, o);
+    for (const [url, o] of stores) {
+      const b = document.createElement('button'); b.textContent = 'Rent or buy on ' + ((o.play && o.play.name) || o.name);
+      b.onclick = () => { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noreferrer noopener'; document.body.appendChild(a); a.click(); a.remove(); if (o.buy.note) q('#detNote').textContent = o.buy.note; };
+      q('#detActs').appendChild(b);
+    }
+    evenGrid(q('#detActs'));
     return;
   }
   if (run === detRun) q('#detNote').textContent = 'Still reading. Try again in a moment.';
 }
-function sheetLock() { document.body.classList.toggle('locked', !!document.querySelector('.sheet.full.on')); }
+// the page beneath a full sheet (2026-10-14, "I'd rather this window be in the foreground, no access to scrolling behind until it is
+// closed"): the body is pinned where it was scrolled and put back there on close, everything beside the open sheet is inert (no taps, no
+// focus), and a touch drag outside the sheet, or on a sheet with nothing to scroll, moves nothing. On an iPhone the 2026-10-11 lock
+// (body overflow hidden alone) still let the list beneath scroll.
+let lockY = 0;
+function sheetLock() {
+  const opens = document.querySelectorAll('.sheet.full.on'), open = opens[opens.length - 1], was = document.body.classList.contains('locked');
+  if (open && !was) { lockY = window.scrollY; document.body.style.top = -lockY + 'px'; document.body.classList.add('locked'); }
+  else if (!open && was) { document.body.classList.remove('locked'); document.body.style.top = ''; window.scrollTo(0, lockY); }
+  for (const el of [...document.body.children, ...q('main').children]) el.inert = !!open && el !== open && !el.contains(open);
+}
+let tx0 = 0, ty0 = 0;
+document.addEventListener('touchstart', (e) => { const t = e.touches[0]; if (t) { tx0 = t.clientX; ty0 = t.clientY; } }, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (!document.body.classList.contains('locked') || !e.cancelable) return;
+  const sh = e.target && e.target.closest ? e.target.closest('.sheet.full.on') : null;
+  if (!sh) { e.preventDefault(); return; }
+  const t = e.touches[0]; if (t && Math.abs(t.clientX - tx0) > Math.abs(t.clientY - ty0)) return;   // a sideways drag on a rail of cards is the rail's own
+  if (sh.scrollHeight <= sh.clientHeight + 1) e.preventDefault();
+}, { passive: false });
+// two even columns: an odd one out at the end spans the row (2026-10-15, symmetry)
+function evenGrid(box) { const vis = [...box.children].filter((e) => e.tagName === 'BUTTON' && e.style.display !== 'none' && !e.dataset.rm); for (const e of vis) e.style.gridColumn = ''; if (vis.length % 2) vis[vis.length - 1].style.gridColumn = '1/-1'; }
+q('#detMore').onclick = () => { evenGrid(q('#detActs')); const on = q('#detActs').classList.toggle('on'); q('#detMore').textContent = on ? 'Hide actions' : 'Actions'; };
 q('#detClose').onclick = () => { detRun++; q('#detSheet').classList.remove('on'); sheetLock(); };
 // a person's page (2026-10-11): their films and series from TMDB, newest first, each opening its own details
 let perRun = 0, perSort = 'date', perLast = null, lastPersonId = null;
@@ -923,10 +1346,93 @@ async function drawServices(videoServices) {
 }
 q('#vServices .head').onclick = () => { q('#vServices').classList.toggle('open'); svcSig = ''; drawServices(lastVideoServices); };
 let lastVideoServices = [];
+// the service's mark on a card (2026-10-14): the PC's own cached mark, served by it; the service's monogram until it loads, or when there is none
+function markOf(app, name) {
+  const m = document.createElement('span'); m.className = 'mk'; if (!app) { m.style.display = 'none'; return m; }
+  const words = (name || app).replace('+', ' +').split(' ').filter((w) => w && !/^(at|home)$/i.test(w));
+  m.textContent = words.filter((w) => w !== '+').slice(0, 2).map((w) => w[0].toUpperCase()).join('') + (words.includes('+') ? '+' : '');
+  const img = document.createElement('img'); img.alt = name || ''; img.onload = () => { m.textContent = ''; m.appendChild(img); }; img.src = '/remote/mark?app=' + encodeURIComponent(app);
+  return m;
+}
+// '3 days ago' for a card, from a real time only (core's agoLabel, the same words)
+function agoOf(at) { const s = Math.max(0, Math.round((Date.now() - at) / 1000)); if (s < 90) return 'just now'; const m = Math.round(s / 60); if (m < 90) return m + ' min ago'; const h = Math.round(m / 60); if (h < 36) return h + (h === 1 ? ' hour ago' : ' hours ago'); const d = Math.round(h / 24); if (d < 14) return d + (d === 1 ? ' day ago' : ' days ago'); const w = Math.round(d / 7); if (w < 9) return w + (w === 1 ? ' week ago' : ' weeks ago'); const mo = Math.round(d / 30); return mo + (mo === 1 ? ' month ago' : ' months ago'); }
+// the TMDB score bottom right of a card, as on the PC (2026-10-15, "show the TMDB in the bottom right corner where available, just like in Prism"):
+// the card's own label (star, mean, TMDB, votes) read for its mean; the star amber where the person has rated the title
+function scoreOf(c) { const m = typeof c.rating === 'string' ? /\u2605\s*([0-9.]+)/.exec(c.rating) : null; return m ? m[1] : (typeof c.mean === 'number' && c.mean > 0 ? c.mean.toFixed(1) : null); }
+function addScore(b, c) { const v = scoreOf(c); if (!v) return; const e = document.createElement('span'); e.className = 'sc' + (typeof c.mine === 'number' ? ' mine' : ''); e.textContent = '\u2605 ' + v; if (typeof c.rating === 'string') e.title = c.rating + (typeof c.mine === 'number' ? ' \u00b7 yours ' + c.mine : ''); b.appendChild(e); }
+// a card's TMDB title, for the menu's stars: the menu rows' own match, or a catalog card's id
+function tmdbRefOf(c) { if (c.tmdb && c.tmdb.id) return { kind: c.tmdb.kind === 'tv' ? 'tv' : 'movie', id: c.tmdb.id }; const m = /^tmdb:(movie|tv):(\d+)$/.exec(String(c.id || '')); return m ? { kind: m[1], id: +m[2] } : null; }
+// the stars under the menu's top buttons: ten, the lit ones the person's rating; a press on the lit one takes it back (the PC's control). The row is
+// drawn at once (dim until the title is known), so nothing below it moves when it fills in
+function drawRate(c, run, ref) {
+  const box = q('#ctxRate'); box.innerHTML = ''; box.style.display = '';
+  const head = document.createElement('div'); head.className = 'rh'; box.appendChild(head);
+  const row = document.createElement('div'); row.className = 'stars'; box.appendChild(row);
+  let cur = typeof c.mine === 'number' ? c.mine : null, busy = !!ref;
+  const btns = [];
+  const draw = () => { head.textContent = !ref ? 'Your rating' : busy ? 'Your rating\u2026' : cur ? 'Your rating \u00b7 ' + cur + ' / 10' : 'Rate it on TMDB'; btns.forEach((b, i) => { b.className = cur && i < Math.round(cur) ? 'on' : ''; b.disabled = !ref || busy; }); };
+  const read = async () => { for (let i = 0; i < 25 && run === detRun; i++) { let r; try { r = await api('/video/rated', ref); } catch (e) { break; } if (r && !r.working) { cur = typeof r.value === 'number' && r.value > 0 ? r.value : null; break; } await new Promise((res) => setTimeout(res, 500)); } busy = false; if (run === detRun) draw(); };
+  for (let n = 1; n <= 10; n++) {
+    const b = document.createElement('button'); b.textContent = '\u2605'; b.setAttribute('aria-label', n + ' of 10');
+    b.onclick = async () => {
+      const take = cur && Math.round(cur) === n; const want = take ? null : n; busy = true; draw();
+      try { await api('/video/rate', Object.assign({ value: want }, ref)); await read(); q('#ctxNote').textContent = (want === null ? cur === null : cur === want) ? (want === null ? 'Your rating is taken back on TMDB.' : 'Rated ' + n + ' of 10 on TMDB.') : 'TMDB did not take it. Your TMDB account is linked in Watch settings.'; }
+      catch (e) { busy = false; draw(); q('#ctxNote').textContent = e.message; }
+    };
+    btns.push(b); row.appendChild(b);
+  }
+  draw(); if (ref) read();
+  return { set: (r) => { if (ref || !r) return; ref = r; busy = true; draw(); read(); }, none: () => { if (!ref) head.textContent = 'No TMDB match to rate.'; } };
+}
+// Remove from Continue Watching, sent and followed in the status line: the long-press menu's and the Details sheet's Actions (2026-10-15)
+function removeFill(rm, c, it, info, close, noteEl) {
+      const key = c.app + '|' + it.id;
+      const go = async (hide) => {
+        removing.add(key); close(); vSig = ''; pollVideo();
+        const w = q('#verr'); w.className = 'err work on'; w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode((hide ? 'Hiding ' : 'Removing ') + it.title + (hide ? ' on the PC' : ' from ' + c.service) + '\u2026'));
+        try {
+          if (hide) { await api('/video/hide-continue', { app: c.app, id: it.id }); endVWork(it.title + ' is hidden on the PC. ' + c.service + ' still lists it.', true); return; }
+          let r = null; const t0 = Date.now();
+          while (Date.now() - t0 < 200000) { r = await api('/video/remove-continue', { app: c.app, id: it.id, title: it.title }); if (r && (r.status === 'done' || r.status === 'failed')) break; await new Promise((res) => setTimeout(res, 1500)); }
+          if (r && r.status === 'done') { endVWork('Removed ' + it.title + ' from ' + c.service + "'s Continue Watching.", true); setTimeout(() => removing.delete(key), 180000); }
+          else { removing.delete(key); vSig = ''; pollVideo(); endVWork((r && r.error) || 'Could not remove ' + it.title + ' on ' + c.service + '.', false); }
+        } catch (e) { removing.delete(key); vSig = ''; pollVideo(); endVWork(e.message, false); }
+      };
+      rm.disabled = false;
+      if (info.can) { rm.textContent = 'Remove from ' + c.service; rm.title = 'Removes it on ' + c.service + ' itself, not only on the PC.'; rm.onclick = () => go(false); if (info.warning && !noteEl.textContent) noteEl.textContent = info.warning; }
+      else { rm.textContent = 'Hide on the PC'; rm.title = c.service + "'s site cannot remove it; its own app can. Hidden here only."; rm.onclick = () => go(true); }
+}
+// the Details sheet's Remove (2026-10-15, "Where is remove from continue watching on the actions menu? I was looking at invasion on Apple"): first
+// in its Actions, across the row, on a card opened from Continue watching; added again after each render of the actions (which clears them)
+// Hide from The Binge (2026-10-15, "Don't Binge titles have a hide or ignore option in prism? It's not on the companion app"): the PC's right-click
+// verb, kept on the PC; the row is read again without it, and Watch settings' Hidden titles brings it back
+function bingeHideButton(c, close) {
+  const b = document.createElement('button'); b.dataset.rm = '1'; b.textContent = 'Hide from The Binge'; b.title = 'Not shown in The Binge again. Show it again from Watch settings, The Binge.';
+  b.onclick = async () => {
+    close(); const w = q('#verr'); w.className = 'err work on'; w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode('Hiding ' + c.title + '\u2026'));
+    try { const r = await api('/video/settings/hidden', { id: c.id, on: true, title: c.title }); if (r && r.ok === false) throw new Error(r.error || 'Could not hide it'); endVWork(c.title + ' is hidden from The Binge.', true); vLensAt = 0; vLensSig = ''; pollLenses(); }
+    catch (e) { endVWork(e.message, false); }
+  };
+  return b;
+}
+let detRmInfo = null;
+async function detRemove(c, it, run) {
+  if (c.lensId === 'the-binge' && run === detRun) { const box = q('#detActs'); if (!box.querySelector('[data-rm]')) { box.insertBefore(bingeHideButton(c, () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); }), box.firstChild); evenGrid(box); } return; }
+  if (c.row !== 'continue' || c.catalog || !c.app || !it.id || run !== detRun) return;
+  if (!detRmInfo || detRmInfo.run !== run) detRmInfo = { run, p: api('/video/remove-info', { app: c.app }).catch(() => null) };
+  const info = await detRmInfo.p; const box = q('#detActs');
+  if (!info || run !== detRun || box.querySelector('[data-rm]')) return;
+  const rm = document.createElement('button'); rm.dataset.rm = '1';
+  removeFill(rm, c, it, info, () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); }, q('#detNote'));
+  box.insertBefore(rm, box.firstChild); evenGrid(box);
+}
+const removing = new Set();   // app|id of the cards sent for removal, kept out of the row while the PC works (2026-10-15)
 function drawCards(sel, cards, empty) {
   const box = q(sel); box.innerHTML = '';
   if (!cards || !cards.length) { const n = document.createElement('p'); n.className = 'note'; n.textContent = empty; box.appendChild(n); return; }
   for (const c of cards) {
+    if (removing.has(c.app + '|' + (c.item && c.item.id))) continue;
+    c.row = sel === '#vCont' ? 'continue' : 'list';   // the card's menu offers Remove from Continue Watching on that row alone (2026-10-15)
     const it = c.item;
     const b = document.createElement('button'); b.className = 'card';
     // TMDB's poster first, the service's own picture when there is none (2026-10-11, "a mix of formats")
@@ -934,12 +1440,16 @@ function drawCards(sel, cards, empty) {
     img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2) img.classList.add('wide'); };
     b.appendChild(img);
     if (typeof it.progress === 'number' && it.progress > 0) { const bar = document.createElement('div'); bar.className = 'bar'; const i = document.createElement('i'); i.style.width = Math.round(Math.min(1, it.progress) * 100) + '%'; bar.appendChild(i); b.appendChild(bar); }
-    const t = document.createElement('b'); t.textContent = it.title; b.appendChild(t);
-    if (it.subtitle) { const sub = document.createElement('span'); sub.textContent = it.subtitle; b.appendChild(sub); }
-    const sv = document.createElement('span'); sv.className = 'svc2'; sv.textContent = c.service; b.appendChild(sv);
+    // the picture carries the name (2026-10-14, "the show/movie titles show underneath as well, we dont need to do that ... show the service icon overlaid
+    // on the poster image, and get rid of the service name in orange down below"): a card with no picture keeps its name; the service as its mark, top left
+    if (!(it.poster || it.artwork)) { const t = document.createElement('b'); t.textContent = it.title; b.appendChild(t); }
+    b.appendChild(markOf(c.app, c.service));
+    addScore(b, c);
+    if (typeof c.lastWatched === 'number') { const a = document.createElement('span'); a.className = 'ago'; a.textContent = agoOf(c.lastWatched); b.appendChild(a); }   // the one time a card ever shows: Prism's own log (2026-10-14, the Last watched order)
     // the title's details (2026-10-11): TMDB's, as the PC's Details card has them, in a sheet; a press on the i does not play
     const di = document.createElement('button'); di.className = 'di'; di.textContent = 'i'; di.setAttribute('aria-label', 'Details'); di.onclick = (e) => { e.stopPropagation(); openDetails(c); }; b.appendChild(di);
     b.onclick = async () => { startVWork(it.title, c.service); try { const r = await api('/video/play', { facet: c.facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
+    longPress(b, c);
     box.appendChild(b);
   }
 }
@@ -1103,6 +1613,7 @@ q('#trkClose').onclick = () => { q('#trkSheet').classList.remove('on'); if (vTil
 // the TMDB key, sent from the phone it was copied on (the guide's code opens this page with #tmdb). The box is emptied as soon as it is
 // sent, and the key is kept nowhere on the phone
 if (location.hash === '#tmdb') q('#keySheet').classList.add('on');
+if (location.hash === '#settings') setTimeout(openWs, 300);   // the Watch settings sheet by address (2026-10-14)
 q('#tkeyClose').onclick = () => q('#keySheet').classList.remove('on');
 q('#tkeySend').onclick = async () => {
   const said = q('#tkeySaid'), v = q('#tkey').value.trim();

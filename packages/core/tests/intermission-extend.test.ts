@@ -116,3 +116,41 @@ describe("a break whose end the shell knows (hold, a paid programme's half hour)
     expect(calls).toEqual([]);
   });
 });
+
+describe("the backstop is never shortened by a clock (B-372, 2026-10-14)", () => {
+  it("a first clock of 30 s leaves the two-minute backstop where it was", async () => {
+    // a Netflix break's first ad read 30 s; extend() had compared 45 s against an unset due and the cover fell with 32 s of the break to run
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(calls).toContain("show w3");
+    for (let left = 30; left > 0; left--) { c.extend("w3", left); await vi.advanceTimersByTimeAsync(1_000); }
+    await vi.advanceTimersByTimeAsync(40_000);   // 71 s in, the next ad's clock not yet read
+    expect(calls).not.toContain("hide w3");
+    await vi.advanceTimersByTimeAsync(60_000);   // past the two-minute backstop with no word from the page: it falls as before
+    expect(calls).toContain("hide w3");
+  });
+});
+
+describe("a break the page shows but never counts (frame.adHold, Netflix's pause ad, B-372)", () => {
+  it("stays covered while the page keeps saying so, and falls within the hold of the page going quiet", async () => {
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(calls).toContain("show w3");
+    for (let i = 0; i < 600; i++) { expect(c.hold("w3", 90)).toBe(true); await vi.advanceTimersByTimeAsync(1_000); }
+    expect(calls).not.toContain("hide w3");   // ten minutes paused on the ad, still covered
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).not.toContain("hide w3");   // a minute after the last word: the hold's 90 s and margin still run
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).toContain("hide w3");       // two minutes after it: fallen, never trapped
+  });
+  it("the page's own end uncovers at once under a hold", async () => {
+    const { calls, c } = rig();
+    c.onAdBreak("w3", true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    c.hold("w3", 90);
+    c.onAdBreak("w3", false);
+    expect(calls).toContain("hide w3");
+  });
+});

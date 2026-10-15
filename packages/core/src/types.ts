@@ -339,7 +339,7 @@ export interface VideoItem {
   /** The card's own badge in the service's words ("New Season", "New Episodes", "Recently Added", "Coming Soon") - read, never made up. */
   badge?: string | null;
   /** Whose banner it is when not the service's own: "tmdb" - TMDB's new episode this week (2026-09-23), drawn as the card's red corner ribbon. */
-  badgeFrom?: "tmdb";
+  badgeFrom?: "tmdb" | "count";   // "count": the service's own count of what is new ("7 New", YouTube TV's "7 new episodes this week", 2026-10-14) - the host draws it as the ribbon
   /** The tags the creator wrote on the title (a Twitch stream's tags, a YouTube video's keywords), as read, never made up (categories, 2026-10-11). */
   tags?: string[];
   /** The channel a video is on, as the page names it, and its address when the page links it (YouTube, Twitch; 2026-10-11). */

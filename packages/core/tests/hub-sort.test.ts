@@ -61,6 +61,19 @@ describe("the search's filters (2026-09-22): by genre and by service", () => {
     expect(filterLookupRows(rows, { app: "peacock" }).rows.length).toBe(1);
     expect(filterLookupRows(rows, { genre: "Western" }).rows).toEqual([]);   // a genre no row has: nothing, not everything
   });
+  it("movies or TV shows (2026-10-14): the kinds the rows hold are offered, a kind keeps its rows, an episode is its series, a row of no kind is under neither", () => {
+    const kinds = [
+      { app: "netflix", name: "Netflix", candidate: { id: "tmdb:tv:1", kind: "series" } },
+      { app: "netflix", name: "Netflix", candidate: { id: "tmdb:movie:2", kind: "movie" } },
+      { app: "hulu", name: "Hulu", candidate: { id: "h:3", kind: "episode" } },
+      { app: "peacock", name: "Peacock", candidate: { id: "p:4", kind: "title" } },
+    ];
+    expect(filterLookupRows(kinds, {}).kinds).toEqual(["movie", "series"]);
+    expect(filterLookupRows(kinds, { kind: "movie" }).rows.map((r) => r.candidate.id)).toEqual(["tmdb:movie:2"]);
+    expect(filterLookupRows(kinds, { kind: "series" }).rows.map((r) => r.candidate.id)).toEqual(["tmdb:tv:1", "h:3"]);
+    expect(filterLookupRows(kinds, { kind: "series", app: "hulu" }).rows.map((r) => r.candidate.id)).toEqual(["h:3"]);
+    expect(filterLookupRows(kinds.slice(0, 1), {}).kinds).toEqual(["series"]);   // one kind only: nothing to choose between
+  });
   it("TMDB's genre ids are named on the catalog's titles", () => {
     const t = titlesFromSearch([{ id: 66732, media_type: "tv", name: "Stranger Things", first_air_date: "2016-07-15", genre_ids: [18, 10765, 9648, 424242] }]);
     expect(t[0]?.genres).toEqual(["Drama", "Sci-Fi & Fantasy", "Mystery"]);

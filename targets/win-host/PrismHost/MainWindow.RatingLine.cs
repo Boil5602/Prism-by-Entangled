@@ -58,22 +58,22 @@ public sealed partial class MainWindow
         return "TMDB members rate it " + m.Groups[1].Value + " of 10" + (v.Success ? ", from " + v.Groups[1].Value.Trim() + " votes." : ".");
     }
 
-    /// <summary>The star on a card's picture with its hover window (2026-10-13, "on mouse over explain the ratings come from TMDB and how many votes.
-    /// Also let people add their score from that modal"): the window opens when the pointer rests on the star and closes when it leaves; the
-    /// person's own stars in it are the details page's (AddOwnRatingAsync), writing to TMDB under their linked account.</summary>
-    private void AddRatingBadge(Grid art, RatingLineUi ui, string? tmdbKind, int tmdbId)
+    /// <summary>The score pill on a card's picture, and the rating window it anchors (2026-10-13, "Lets make the star ratings a right-click option, rather
+    /// than mouse over tooltip"): the window says where the number comes from and how many voted, with the person's own stars from the details page
+    /// (AddOwnRatingAsync) writing to TMDB under their linked account. Returns what opens it: the card's right-click menu offers it.</summary>
+    private Action AddRatingBadge(Grid art, RatingLineUi ui, string? tmdbKind, int tmdbId)
     {
         var g = MakeRatingBadge(ui);
-        g.IsHitTestVisible = true;
+        g.IsHitTestVisible = false;
         // beside the name on the picture's foot row when the picture has one; the corner otherwise
-        if (NameRows.TryGetValue(art, out var nameRow)) { g.Margin = new Thickness(0); g.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(g, 1); nameRow.IsHitTestVisible = true; nameRow.Children.Add(g); }
+        if (NameRows.TryGetValue(art, out var nameRow)) { g.Margin = new Thickness(0); g.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(g, 1); nameRow.Children.Add(g); }
         else art.Children.Add(g);
         ApplyRatingFill(ui);
-        // the hover window
+        // the rating window, opened from the card's menu
         var content = new StackPanel { Spacing = 8, MinWidth = 280, MaxWidth = 360 };
         var fly = new Flyout { Content = content, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
-        var overContent = false; var built = false;
-        async void Open(Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowMode mode)
+        var built = false;
+        async void Open()
         {
             if (!built)
             {
@@ -84,14 +84,9 @@ public sealed partial class MainWindow
                 if (tmdbKind is { Length: > 0 } && tmdbId > 0) await AddOwnRatingAsync(content, tmdbKind, tmdbId, ui);
                 else content.Children.Add(new TextBlock { Text = "Prism has not matched this title on TMDB, so there is nothing to rate yet.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
             }
-            try { fly.ShowAt(g, new Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowOptions { ShowMode = mode }); } catch { }
+            try { fly.ShowAt(g); } catch { }
         }
-        g.PointerEntered += (_, __) => Open(Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowMode.Transient);
-        g.PointerExited += async (_, __) => { await Task.Delay(700); if (!overContent) { try { fly.Hide(); } catch { } } };
-        content.PointerEntered += (_, __) => overContent = true;
-        content.PointerExited += (_, __) => { overContent = false; try { fly.Hide(); } catch { } };
-        g.Tapped += (_, e) => { e.Handled = true; Open(Microsoft.UI.Xaml.Controls.Primitives.FlyoutShowMode.Standard); };
-        g.RightTapped += (_, e) => e.Handled = true;
+        return Open;
     }
     private static Grid MakeRatingBadge(RatingLineUi ui)
     {

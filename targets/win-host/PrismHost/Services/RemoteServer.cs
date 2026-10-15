@@ -37,6 +37,8 @@ public sealed class RemoteServer : IDisposable
     private bool Paired(string? token) => token is { Length: > 0 } && TokenOk is { } ok && ok(token);
 
     /// <param name="dispatch">The request for core, and the copy of it the log gets (no body: ChannelParser.PhoneRequestJson).</param>
+    /// <summary>A service's mark (bytes and type) by app id, for the phone's cards; set by the host, null until then.</summary>
+    public Func<string, Task<(byte[]? bytes, string? mime)>>? MarkOf { get; set; }
     public RemoteServer(int port, Action<int, string, string> dispatch, Action<string> log)
     {
         _dispatch = dispatch;
@@ -146,6 +148,14 @@ public sealed class RemoteServer : IDisposable
                     var keep = await MediaHub.RefreshAsync();
                     if (disconnected && name is null) _log("audio device asked: none, this session is disconnected (keep the console " + (keep ? "on" : "off") + ")");
                     await WriteAsync(stream, 200, JsonSerializer.Serialize(new { ok = true, device = name, session = disconnected ? "disconnected" : "connected", keepConsole = keep }), "application/json"); return;
+                }
+                // a service's mark for the phone's cards (2026-10-14): the PC's own cached mark, by app id; nothing leaves the machine
+                if (method == "GET" && path == "/remote/mark")
+                {
+                    var app = ""; foreach (var kv in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) { var eq = kv.IndexOf('='); if (eq > 0 && kv[..eq] == "app") app = WebUtility.UrlDecode(kv[(eq + 1)..]); }
+                    var mk = MarkOf is { } mo && app.Length > 0 ? await mo(app) : (null, null);
+                    if (mk.bytes is { Length: > 0 } mb) { await WriteBytesAsync(stream, 200, mb, mk.mime ?? "image/png"); return; }
+                    await WriteAsync(stream, 404, "{}", "application/json"); return;
                 }
                 if (method == "GET" && path == "/remote/icon.png")
                 {
@@ -263,8 +273,10 @@ public sealed class RemoteServer : IDisposable
     }
     /// <summary>The catalog's services as the page lists them (2026-10-11): [{id, name, kind}], set by the host once the catalog is read.</summary>
     public static volatile string ServicesJson = "[]";
-    private static readonly string PageHtml = Services.RemotePage.Html.Replace("__WORDMARK__", Wordmark);
-    private static readonly string PageVersion = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(PageHtml + AppVersion.Text))).ToLowerInvariant()[..12];
+    // the version first (a static field is set in declaration order): the page carries its own version, so it knows at once whether the PC
+    // has moved on, whatever its first check returned (2026-10-14)
+    private static readonly string PageVersion = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(Services.RemotePage.Html + AppVersion.Text))).ToLowerInvariant()[..12];
+    private static readonly string PageHtml = Services.RemotePage.Html.Replace("__WORDMARK__", Wordmark).Replace("__VERSION__", PageVersion);
 
     public void Dispose() { _stopped = true; try { _listener.Stop(); } catch { } }
 }

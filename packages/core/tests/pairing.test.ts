@@ -60,4 +60,19 @@ describe("paired means a phone that connected (§6 housekeeping)", () => {
     expect((await api.handle({ method: "GET", path: "/rects", body: null, token: dead1.token })).status).toBe(401);
     expect((await api.handle({ method: "GET", path: "/rects", body: null, token: dead2.token })).status).toBe(401);
   });
+  it("the PC forgets a phone by its name and pairing day (2026-10-14): its next request is refused, the others stand", async () => {
+    const api = frame();
+    const phone = await api.mintPairing("http://frame");
+    const other = await api.mintPairing("http://frame");
+    const ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15";
+    await api.handle({ method: "GET", path: "/rects", body: null, token: phone.token, userAgent: ua });
+    await api.handle({ method: "GET", path: "/rects", body: null, token: other.token, userAgent: "Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 Chrome/151.0 Mobile Safari/537.36" });
+    const mine = api.devicesNow().find((d) => d.name === "iPhone")!;
+    expect(mine).toBeTruthy();
+    expect(await api.forgetDevice(mine.name, mine.created, mine.lastSeen)).toBe(1);
+    expect((await api.handle({ method: "GET", path: "/rects", body: null, token: phone.token })).status).toBe(401);
+    expect((await api.handle({ method: "GET", path: "/rects", body: null, token: other.token })).status).toBe(200);
+    expect(api.devicesNow().some((d) => d.name === "iPhone")).toBe(false);
+    expect(await api.forgetDevice("nobody", "2020-01-01")).toBe(0);
+  });
 });

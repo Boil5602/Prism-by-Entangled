@@ -15,3 +15,14 @@ describe("a badge drawn in the service's own picture", () => {
     expect(lib.list[2]!.badgeInArt).toBeUndefined();
   });
 });
+
+describe("a service's own count of what is new (YouTube TV's '7 new episodes this week', 2026-10-14)", () => {
+  it("keeps badgeFrom count through the library cleaner, and nothing else as a source", () => {
+    const lib = cleanLibrary({ own: [{ title: "New in your library", items: [
+      { id: "a", title: "Good Morning America", kind: "series", subtitle: "7 new episodes this week", badge: "7 New", badgeFrom: "count" },
+      { id: "b", title: "Nightline", kind: "series", badge: "New Season", badgeFrom: "tmdb" },
+    ] }] });
+    expect(lib.own[0]!.items[0]).toMatchObject({ badge: "7 New", badgeFrom: "count" });
+    expect(lib.own[0]!.items[1]!.badgeFrom).toBeUndefined();   // only core marks TMDB's ribbons
+  });
+});

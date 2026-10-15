@@ -132,6 +132,113 @@ export function searchWorks(q: string, rows: readonly SearchRowIn[]): SearchWork
   return works.map((w, i) => ({ w, i })).sort((a, b) => Number(b.w.exact || b.w.score === 100) - Number(a.w.exact || a.w.score === 100) || (b.w.score >= 75 ? 1 : 0) - (a.w.score >= 75 ? 1 : 0) || a.i - b.i).map((x) => x.w);
 }
 
+// ---- the words every screen draws (2026-10-14, "make the search and details screens on the companion app tied to it in the app so as
+// changes are made they come to both"): the offer word, a card's line, a library hit's line, the status line and the layout of the
+// results are decided here once; the PC's Search and the phone's draw them as given, so a change lands on both.
+
+/** The offer as a card says it: a subscription is "Included"; the rest as the service said. */
+export function offerWord(offer: string | null | undefined): string {
+  const o = offer ?? "";
+  return o.length === 0 ? "" : o.startsWith("Sub") ? "Included" : o;
+}
+export function kindWord(kind: string | null | undefined): string {
+  switch (kind) { case "movie": return "Movie"; case "series": return "Series"; case "episode": return "Episode"; case "live": return "Live"; default: return ""; }
+}
+export interface SearchWorkCard {
+  /** the offer the card leads with: Owned, else the first Included or Free, else the first service's */
+  offer: string;
+  /** "Included  ·  2019  ·  Series  ·  with Disney+" */
+  line: string;
+  /** the line in amber when the title costs (not owned, included or free) */
+  amber: boolean;
+  /** "Netflix: Included" per service, for a tooltip or a list */
+  services: string[];
+  /** "Play on Netflix  ·  Included" per service, in the rows' order */
+  plays: string[];
+  /** the top result's facts: "2019  ·  Series  ·  Drama  ·  Comedy" (three genres at most) */
+  facts: string;
+}
+export function workCard(w: Pick<SearchWork, "owned" | "services" | "year" | "kind" | "via" | "genres">): SearchWorkCard {
+  const offers = w.services.map((s) => offerWord(s.offer));
+  const offer = w.owned ? "Owned" : offers.find((o) => o === "Included" || o.startsWith("Free")) ?? offers[0] ?? "";
+  const amber = !(w.owned || offer === "Included" || offer.startsWith("Free"));
+  const year = w.year === null ? "" : String(w.year);
+  const line = [offer, year, kindWord(w.kind), w.via ? "with " + w.via : ""].filter((x) => x.length > 0).join("  ·  ");
+  const facts = [year, kindWord(w.kind), ...w.genres.slice(0, 3)].filter((x) => x.length > 0).join("  ·  ");
+  const playOffer = (s: SearchWork["services"][number]) => (w.owned && s.offer === "Owned" ? "Owned" : offerWord(s.offer));
+  return { offer, line, amber, services: w.services.map((s) => s.name + (offerWord(s.offer) ? ": " + offerWord(s.offer) : "")), plays: w.services.map((s) => "Play on " + s.name + (playOffer(s) ? "  ·  " + playOffer(s) : "")), facts };
+}
+export function fromWord(from: string | null | undefined): string {
+  switch (from) { case "continue": return "Continue Watching"; case "list": return "My List"; case "owned": return "Owned"; default: return ""; }
+}
+/** "Continue Watching on Netflix  ·  +1 more", and "Play on Netflix  ·  Continue Watching" per service. */
+export function libraryLine(h: Pick<LibraryHit, "services">): { line: string; plays: string[] } {
+  const first = h.services[0];
+  if (!first) return { line: "", plays: [] };
+  return { line: fromWord(first.from) + " on " + first.name + (h.services.length > 1 ? "  ·  +" + (h.services.length - 1) + " more" : ""), plays: h.services.map((s) => "Play on " + s.name + (fromWord(s.from) ? "  ·  " + fromWord(s.from) : "")) };
+}
+
+export interface SearchLayoutIn {
+  q: string; done: boolean; source?: string | null;
+  services: ReadonlyArray<{ name: string; status: string; reason?: string | null }>;
+  works: ReadonlyArray<Pick<SearchWork, "key" | "exact" | "score">>;
+  library: ReadonlyArray<unknown>;
+  people: ReadonlyArray<{ name: string }>;
+  person?: { name: string } | null;
+  elsewhere?: ReadonlyArray<string> | null;
+  attribution?: string | null;
+  /** a filter is on and left nothing of `all` rows */
+  filtered: boolean; all: number;
+}
+export interface SearchLayout {
+  /** the words are a person's name: their face first, their work one press away */
+  personFirst: boolean;
+  /** the key of the work shown large at the top, when the words name it (or a person's best-known work) */
+  top: string | null;
+  /** the heading over the rest of the works ("On your services", "More on your services", "<Name> on your services"); null with no works */
+  restHeading: string | null;
+  /** the heading over the household's own titles */
+  libraryHeading: string;
+  /** what to say when there are no works: the filter's miss, nothing found, or null while still searching */
+  empty: string | null;
+  /** the status line under the title: who is still looking, who had nothing, who could not, the attribution; null when there is nothing to say */
+  status: string | null;
+  /** "Searching for" or "Results for" */
+  heading: string;
+}
+const normWords = (x: string): string => x.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+/** The results' layout and words, from the state (the PC's rules as they stood in C# until 2026-10-14). */
+export function searchLayout(v: SearchLayoutIn): SearchLayout {
+  const works = v.works;
+  const first = v.people[0];
+  const personFirst = !v.person && !!first && normWords(first.name) === normWords(v.q) && !(works.length > 0 && works[0]!.exact);   // a title that IS the words stays first ("Firefly" the show, not a person of that name)
+  const top = works[0];
+  const strong = !!top && (!!v.person || top.exact || top.score >= 90);
+  const rest = strong ? works.length - 1 : works.length;
+  const restHeading = rest > 0 ? (v.person ? v.person.name + " on your services" : strong ? "More on your services" : "On your services") : null;
+  const searching = v.services.filter((s) => s.status === "searching").map((s) => s.name);
+  const empty = v.services.filter((s) => s.status === "empty").map((s) => s.name);
+  const cannot = v.services.filter((s) => s.status !== "searching" && s.status !== "empty" && s.status !== "ok").map((s) => s.name + ": " + (s.reason || s.status));
+  const catalog = v.source === "catalog";
+  const parts: string[] = [];
+  if (catalog) { if (!v.done) parts.push("asking TMDB"); if (cannot.length) parts.push(cannot.join("  ·  ")); }   // a catalog search: the services carrying nothing are simply absent from the row
+  else {
+    if (searching.length) parts.push("still searching " + searching.join(", "));
+    if (empty.length) parts.push("nothing on " + empty.join(", "));
+    if (cannot.length) parts.push(cannot.join("  ·  "));
+  }
+  if (v.attribution) parts.push(v.attribution);
+  let none: string | null = null;
+  if (works.length === 0) {
+    if (v.filtered && v.all > 0) none = "None of the " + v.all + " results match the filter.";
+    else if (v.done && searching.length === 0 && v.library.length === 0) {
+      const elsewhere = (v.elsewhere ?? []).filter((x) => x.length > 0);
+      none = v.person ? "TMDB lists none of " + v.person.name + "'s work on your services." : catalog ? (elsewhere.length ? "Not on any of your services  ·  elsewhere on " + elsewhere.join(", ") : "TMDB knows no title by that name on any of your services.") : "No service had it.";
+    }
+  }
+  return { personFirst, top: strong ? top!.key : null, restHeading, libraryHeading: "In your lists", empty: none, status: parts.length ? parts.join("  ·  ") : null, heading: v.done ? "Results for" : "Searching for" };
+}
+
 export interface SearchPerson { id: number; name: string; photo: string | null; known: string; knownFor: string[] }
 /** The people in TMDB's search results, as TMDB names them: their department and the titles TMDB knows them for. */
 export function peopleFromSearch(results: unknown, max = 8): SearchPerson[] {

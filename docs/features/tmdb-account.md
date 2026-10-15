@@ -23,6 +23,11 @@ TMDB's v3 flow, three calls under the person's key (core `tmdb-account.ts`, `len
 
 No account is ever created: TMDB has no API for that, and Prism signs in, never up (docs/third-party-services-policy.md).
 
+**From the phone** (2026-10-14, "We'll make it so I can do it from the phone companion app even more easily"): the phone's Watch settings open on a
+TMDB panel. The key pasted there goes to the PC (`POST /tmdb/key`, the guide's route), *Clear the key* clears it, and *Link my TMDB account*
+makes the same three calls the PC's card makes (`POST /video/settings/tmdb-link-start`, `tmdb-state`, `tmdb-link-finish`, `tmdb-unlink`):
+TMDB's approval page opens on the phone itself, where the person is most likely signed in, and *I approved it* finishes the link on the PC.
+
 - **Asked right away** (2026-10-03, "Can we ask for this approval right when they enter the account info? That way it's possibly still
   logged in on whatever device they're going through, like their phone"): saving a key brings the card up as the settings close, unless
   the account is linked already. *Not now* is fine.

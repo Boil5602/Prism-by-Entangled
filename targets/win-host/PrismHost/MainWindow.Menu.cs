@@ -570,6 +570,7 @@ public sealed partial class MainWindow
                 BorderBrush = Amber,
                 BorderThickness = new Thickness(1),
             };
+            OwnHover(target);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
             var tid = id;
             target.Click += (_, __) => { CancelSlotPick(); onPick(tid); };
             host.Children.Add(target);

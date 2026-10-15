@@ -119,11 +119,12 @@ public sealed partial class MainWindow
         return null;
     }
 
-    private static string KindWord(string kind) => kind switch { "movie" => "Movie", "series" => "Series", "episode" => "Episode", "live" => "Live", _ => "" };
-    private static string FromWord(string from) => from switch { "continue" => "Continue Watching", "list" => "My List", "owned" => "Owned", _ => "" };
-
-    /// <summary>The body of the search results under the filter chips: the household's own titles, the top result, one card per work, the people.</summary>
-    private void DrawSearchBody(JsonObject state, StackPanel results, string q, Grid overlay, bool done, bool catalog, int searching, int all)
+    /// <summary>
+    /// The body of the search results under the filter chips: the household's own titles, the top result, one card per work, the people.
+    /// The layout and every word come from core (search-view.ts searchLayout, workCard, libraryLine; 2026-10-14, "tied ... so as changes
+    /// are made they come to both"): the phone draws the same view, so a rule changed there is changed here.
+    /// </summary>
+    private void DrawSearchBody(JsonObject state, StackPanel results, string q, Grid overlay)
     {
         // the services unticked in the logo row are left out: a work or title on none of the ticked services goes, the rest keep only the ticked ones
         List<JsonObject> Keep(List<JsonObject> items) => _searchOff.Count == 0 ? items : items.Select(it =>
@@ -135,18 +136,22 @@ public sealed partial class MainWindow
         var library = Keep((state["library"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new());
         var works = Keep((state["works"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new());
         var people = (state["people"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
-        var person = state["person"] as JsonObject;
+        var layout = state["layout"] as JsonObject;
 
-        // the words are a person's name: their face first, their work one press away
-        var personFirst = person is null && people.Count > 0 && string.Equals(Norm(S(people[0], "name")), Norm(q), StringComparison.Ordinal)
-            && !(works.Count > 0 && works[0]["exact"]?.GetValue<bool>() == true);   // a title that IS the words stays first ("Firefly" the show, not a person of that name)
-        static string Norm(string x) => new string(x.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        // the words are a person's name: their face first, their work one press away (core's call)
+        var personFirst = layout?["personFirst"]?.GetValue<bool>() == true;
         if (personFirst) DrawPeople();
 
-        // 1. the household's own titles, as they type - no service asked
+        // the top result first (2026-10-14, "let's put the top result at the actual top of the results"): core names it by key (a service unticked in the logo
+        // row may have taken it out of the works kept here, so the rest then stands alone); then the household's own titles, then the rest
+        var topKey = S(layout, "top");
+        var top = topKey.Length > 0 ? works.FirstOrDefault(w => S(w, "key") == topKey) : null;
+        if (top is not null) results.Children.Add(TopResult(top));
+
+        // the household's own titles, as they type - no service asked
         if (library.Count > 0)
         {
-            results.Children.Add(new TextBlock { Text = "In your lists", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
+            results.Children.Add(new TextBlock { Text = S(layout, "libraryHeading").Length > 0 ? S(layout, "libraryHeading") : "In your lists", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
             foreach (var h in library.Take(16)) if (LibraryCard(h) is { } b) row.Children.Add(b);
             results.Children.Add(Carousel(row));
@@ -154,23 +159,16 @@ public sealed partial class MainWindow
 
         if (works.Count == 0)
         {
-            if ((_lookupGenre is not null || _lookupApp is not null) && all > 0) { results.Children.Add(new TextBlock { Text = "None of the " + all + " results match the filter.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap }); return; }
-            if (done && searching == 0 && library.Count == 0)
-            {
-                var elsewhere = (state["elsewhere"] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).Where(x => x.Length > 0).ToList() ?? new List<string>();
-                results.Children.Add(new TextBlock { Text = person is not null ? "TMDB lists none of " + S(person, "name") + "'s work on your services." : catalog ? (elsewhere.Count > 0 ? "Not on any of your services  ·  elsewhere on " + string.Join(", ", elsewhere) : "TMDB knows no title by that name on any of your services.") : "No service had it.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
-            }
+            // why there is nothing: the filter's miss, nothing found, or no word yet while the services still look (core's words)
+            if (S(layout, "empty").Length > 0) results.Children.Add(new TextBlock { Text = S(layout, "empty"), FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
         }
         else
         {
-            // 2. the top result, when the words name it (or a person's best-known work)
-            var top = works[0];
-            var strong = person is not null || top["exact"]?.GetValue<bool>() == true || (top["score"] is JsonValue sv && sv.TryGetValue<double>(out var sc) && sc >= 90);
-            if (strong) results.Children.Add(TopResult(top));
-            var rest = strong ? works.Skip(1).ToList() : works;
+            // one card per work, the top result (drawn above) left out
+            var rest = top is null ? works : works.Where(w => !ReferenceEquals(w, top)).ToList();
             if (rest.Count > 0)
             {
-                results.Children.Add(new TextBlock { Text = person is not null ? S(person, "name") + " on your services" : strong ? "More on your services" : "On your services", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
+                results.Children.Add(new TextBlock { Text = S(layout, "restHeading").Length > 0 ? S(layout, "restHeading") : "On your services", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
                 var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
                 foreach (var w in rest.Take(40)) if (WorkCard(w) is { } b) row.Children.Add(b);
                 results.Children.Add(Carousel(row));
@@ -220,7 +218,9 @@ public sealed partial class MainWindow
         cell.Children.Add(stack);
         cell.Children.Add(MarqueeTitle(Shorten(title, 36), title, CardTitleSize, HubInk));
         var first = svcs[0];
-        cell.Children.Add(new TextBlock { Text = FromWord(S(first, "from")) + " on " + S(first, "name") + (svcs.Count > 1 ? "  ·  +" + (svcs.Count - 1) + " more" : ""), FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
+        // the line and each service's Play words come from core (search-view.ts libraryLine): the phone's card says the same
+        var plays = (h["plays"] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).ToList() ?? new List<string>();
+        cell.Children.Add(new TextBlock { Text = S(h, "line"), FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
         var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
         void PlayOn(JsonObject s)
         {
@@ -232,7 +232,7 @@ public sealed partial class MainWindow
         if (svcs.Count > 1)
         {
             var pick = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Bottom };
-            foreach (var s in svcs) { var s2 = s; var it = new MenuFlyoutItem { Text = "Play on " + S(s, "name") + "  ·  " + FromWord(S(s, "from")) }; it.Click += (_, __) => PlayOn(s2); pick.Items.Add(it); }
+            for (var i = 0; i < svcs.Count; i++) { var s2 = svcs[i]; var it = new MenuFlyoutItem { Text = i < plays.Count ? plays[i] : "Play on " + S(s2, "name") }; it.Click += (_, __) => PlayOn(s2); pick.Items.Add(it); }
             btn.Click += (_, __) => pick.ShowAt(btn);
             ToolTipService.SetToolTip(btn, title + " is on " + string.Join(", ", svcs.Select(s => S(s, "name"))) + ". Press to choose.");
         }
@@ -241,7 +241,13 @@ public sealed partial class MainWindow
         return btn;
     }
 
-    private static string OfferLine(JsonObject s) { var o = S(s, "offer"); return o.Length == 0 ? "" : o.StartsWith("Sub", StringComparison.Ordinal) ? "Included" : o; }
+    /// <summary>Core's words for a work's card (search-view.ts workCard): the line under the name, its colour, and "Play on X  ·  offer" per service.</summary>
+    private static (string line, bool amber, List<string> services, List<string> plays) CardWords(JsonObject w)
+    {
+        var c = w["card"] as JsonObject;
+        List<string> L(string k) => (c?[k] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).ToList() ?? new List<string>();
+        return (S(c, "line"), c?["amber"]?.GetValue<bool>() == true, L("services"), L("plays"));
+    }
 
     private void PlayWorkOn(JsonObject w, JsonObject s)
     {
@@ -263,13 +269,11 @@ public sealed partial class MainWindow
         cell.Children.Add(stack);
         cell.Children.Add(MarqueeTitle(Shorten(title, 36), title, CardTitleSize, HubInk));
         if (S(w, "rating") is { Length: > 0 } wr) cell.Children.Add(MakeRatingLine(wr, w["mine"] is JsonValue smv && smv.TryGetValue<double>(out var smd) ? smd : null, 11, HubDim).Root);   // TMDB's rating on every title (2026-09-24); the person's own as the star's share (2026-10-03)
-        var owned = w["owned"]?.GetValue<bool>() == true;
-        var offer = owned ? "Owned" : svcs.Select(OfferLine).FirstOrDefault(o => o == "Included" || o.StartsWith("Free", StringComparison.Ordinal)) ?? OfferLine(svcs[0]);
-        var via = S(w, "via");
-        cell.Children.Add(new TextBlock { Text = string.Join("  ·  ", new[] { offer, year, KindWord(kind), via.Length > 0 ? "with " + via : "" }.Where(x => x.Length > 0)), FontSize = 11, Foreground = owned || offer == "Included" || offer.StartsWith("Free", StringComparison.Ordinal) ? HubDim : HubAmber, TextTrimming = TextTrimming.CharacterEllipsis });
+        var (line, amber, svcWords, _) = CardWords(w);
+        cell.Children.Add(new TextBlock { Text = line, FontSize = 11, Foreground = amber ? HubAmber : HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
         var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
         var overview = S(w, "overview");
-        var lines = string.Join("\n", svcs.Select(s => S(s, "name") + (OfferLine(s).Length > 0 ? ": " + OfferLine(s) : "")));
+        var lines = string.Join("\n", svcWords);
         ToolTipService.SetToolTip(btn, title + (year.Length > 0 ? " (" + year + ")" : "") + "\n" + lines + (overview.Length > 0 ? "\n\n" + Shorten(overview, 320) + "\n· TMDB" : "") + "\n\nPress for its details and where to watch.");
         // a press opens the title's Details (2026-09-23): the facts, the cast, and "Where to watch" - each of the household's services there plays it
         var app0 = S(svcs[0], "app");
@@ -287,8 +291,6 @@ public sealed partial class MainWindow
     {
         var svcs = (w["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new();
         var title = S(w, "title"); var kind = S(w, "kind");
-        var year = w["year"] is JsonValue yv && yv.TryGetValue<double>(out var yd) ? ((int)yd).ToString() : "";
-        var genres = (w["genres"] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).Take(3).ToList() ?? new();
         var grid = new Grid { Height = 250, MaxWidth = 1180, HorizontalAlignment = HorizontalAlignment.Left, CornerRadius = new CornerRadius(8), Background = HubCard };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(444) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -299,7 +301,7 @@ public sealed partial class MainWindow
         Grid.SetColumn(side, 1);
         side.Children.Add(new TextBlock { Text = "Top result", FontSize = 11, Foreground = HubAmber });
         side.Children.Add(new TextBlock { Text = title, FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
-        side.Children.Add(new TextBlock { Text = string.Join("  ·  ", new[] { year, KindWord(kind) }.Concat(genres).Where(x => x.Length > 0)), FontSize = 13, Foreground = HubDim });
+        side.Children.Add(new TextBlock { Text = S(w["card"], "facts"), FontSize = 13, Foreground = HubDim });   // the year, the kind, three genres: core's words (workCard)
         if (S(w, "rating") is { Length: > 0 } tr) side.Children.Add(MakeRatingLine(tr, w["mine"] is JsonValue tmv && tmv.TryGetValue<double>(out var tmd) ? tmd : null, 13, HubDim).Root);
         var overview = S(w, "overview");
         if (overview.Length > 0) side.Children.Add(new TextBlock { Text = overview, FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxLines = 3, TextTrimming = TextTrimming.WordEllipsis });
@@ -309,23 +311,25 @@ public sealed partial class MainWindow
         acts.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         acts.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         acts.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        string OfferOf(JsonObject s) => w["owned"]?.GetValue<bool>() == true && S(s, "offer") == "Owned" ? "Owned" : OfferLine(s);
+        var (_, _, _, plays) = CardWords(w);   // "Play on X  ·  offer" per service, core's words
+        string PlayWords(int i) => i < plays.Count ? plays[i] : "Play on " + S(svcs[i], "name");
         if (svcs.Count > 0)
         {
             var s0 = svcs[0];
             var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             line.Children.Add(ServiceMark(S(s0, "app"), S(s0, "name"), 22));
-            line.Children.Add(new TextBlock { Text = "Play on " + S(s0, "name") + (OfferOf(s0).Length > 0 ? "  ·  " + OfferOf(s0) : ""), FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center });
+            line.Children.Add(new TextBlock { Text = PlayWords(0), FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center });
             var b0 = Chip(line, true);
             b0.Click += (_, __) => PlayWorkOn(w, s0);
             acts.Children.Add(b0);
         }
         var others = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var s in svcs.Skip(1))
+        for (var i = 1; i < svcs.Count; i++)
         {
+            var s = svcs[i];
             var mark = ServiceMark(S(s, "app"), S(s, "name"), 32);
             var mb = new Button { Content = mark, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(0) };
-            ToolTipService.SetToolTip(mb, "Play on " + S(s, "name") + (OfferOf(s).Length > 0 ? "  ·  " + OfferOf(s) : ""));
+            ToolTipService.SetToolTip(mb, PlayWords(i));
             var s2 = s; mb.Click += (_, __) => PlayWorkOn(w, s2);
             others.Children.Add(mb);
         }

@@ -37,3 +37,16 @@ describe("the Episodes menu (2026-09-22)", () => {
     expect(seriesKey("Rookie Cops")).not.toBe(seriesKey("The Rookie"));
   });
 });
+
+describe("a recording's day and the page's own mark (YouTube TV's recordings, 2026-10-14)", () => {
+  it("keeps airDate and badge as the service gave them, and leaves them off an episode without", () => {
+    const s = seasonsFrom([
+      { season: "Recordings", episode: 1, title: "Good Morning America", id: "a", airDate: "Oct 14", badge: "New" },
+      { season: "Recordings", episode: 2, title: "Good Morning America", id: "b", airDate: "Oct 13" },
+    ]);
+    expect(s[0]!.label).toBe("Recordings");
+    expect(s[0]!.episodes[0]).toMatchObject({ airDate: "Oct 14", badge: "New" });
+    expect(s[0]!.episodes[1]!.airDate).toBe("Oct 13");
+    expect(s[0]!.episodes[1]!.badge).toBeUndefined();
+  });
+});

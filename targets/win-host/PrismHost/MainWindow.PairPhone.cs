@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using PrismHost.Channel;
 using Microsoft.UI.Xaml.Controls;
@@ -45,6 +46,39 @@ public sealed partial class MainWindow
         }
         catch (Exception ex) { LogLine("pair phone: qr " + ex.Message); }
         card.Children.Add(new TextBlock { Text = "Waiting for the phone" + (char)0x2026, FontSize = 18, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center });
+        // the phones paired now, each with Forget (2026-10-14, "make sure the App has a way of forgetting the phone, and not just the other way
+        // around"): a forgotten phone's next request is refused, and it scans a new code to come back; a second press makes sure
+        var paired = new StackPanel { Spacing = 6 };
+        card.Children.Add(paired);
+        async Task DrawPairedAsync()
+        {
+            paired.Children.Clear();
+            JsonObject? pv = null;
+            try { pv = JsonNode.Parse(await ModelCallAsync("remoteDevices") ?? "null") as JsonObject; } catch { }
+            var devices = (pv?["devices"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+            if (devices.Count == 0) return;
+            paired.Children.Add(new TextBlock { Text = "Paired now", FontSize = 16, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) });
+            foreach (var d in devices)
+            {
+                var name = d["name"]?.GetValue<string>() ?? "Phone"; var created = d["created"]?.GetValue<string>() ?? ""; var seen = d["lastSeen"]?.GetValue<string>() ?? "";
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+                row.Children.Add(new TextBlock { Text = name + "  \u00B7  paired " + created + (seen.Length > 0 ? ", last seen " + seen : ""), FontSize = 15, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
+                var forget = Chip(new TextBlock { Text = "Forget", FontSize = 14, Foreground = HubInk }, false);
+                ToolTipService.SetToolTip(forget, name + " can no longer type, listen or browse here until it scans a new code.");
+                var sure = false;
+                forget.Click += async (_, __) =>
+                {
+                    if (!sure) { sure = true; ((TextBlock)forget.Content).Text = "Forget " + name + " for sure?"; ((TextBlock)forget.Content).Foreground = HubAmber; return; }
+                    try { await ModelCallAsync("remoteForget", name, created, seen.Length > 0 ? seen : null); } catch { }
+                    LogLine("pair phone: forgot " + name + " (" + created + ")");
+                    SetPill("Prism" + Dot + name + " forgotten");
+                    await DrawPairedAsync();
+                };
+                row.Children.Add(forget);
+                paired.Children.Add(row);
+            }
+        }
+        _ = DrawPairedAsync();
         var close = Chip(new TextBlock { Text = "Close", FontSize = 18, Foreground = HubInk }, false);
         close.Click += (_, __) => ClosePairCard();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };

@@ -60,18 +60,23 @@ export function sortCards<T extends { item: { title: string; kind?: string | nul
   }).map((x) => x.c);
 }
 
-/** The search's filter: a genre (as TMDB names it on the card) and / or a service (its App id). Empty = all. */
-export interface LookupFilter { genre?: string | null | undefined; app?: string | null | undefined }
+/** The search's filter: a genre (as TMDB names it on the card), a service (its App id) and / or a kind (2026-10-14, "Should also let me specify
+ * movies or TV shows in the search filters"). Empty = all. */
+export interface LookupFilter { genre?: string | null | undefined; app?: string | null | undefined; kind?: LookupKind | null | undefined }
+export type LookupKind = "movie" | "series";
+/** A row's kind for the filter: a movie, or a series (an episode is its series'); a row whose kind says neither (a service's own 'title', a live channel) is under no kind chip and stays under either filter's miss. */
+export function lookupKindOf(kind: string | null | undefined): LookupKind | null { return kind === "movie" ? "movie" : kind === "series" || kind === "episode" ? "series" : null; }
 
 /**
  * The result rows under the filter, and the choices the rows offer (every genre and service present in the unfiltered
  * rows, so a chip never empties the other group's chips). Pure.
  */
-export function filterLookupRows<T extends { app: string; name: string; candidate: { genres?: readonly string[] | undefined } }>(rows: readonly T[], filter: LookupFilter): { rows: T[]; genres: string[]; services: Array<{ app: string; name: string }> } {
+export function filterLookupRows<T extends { app: string; name: string; candidate: { genres?: readonly string[] | undefined; kind?: string | null | undefined } }>(rows: readonly T[], filter: LookupFilter): { rows: T[]; genres: string[]; services: Array<{ app: string; name: string }>; kinds: LookupKind[] } {
   const genres = [...new Set(rows.flatMap((r) => r.candidate.genres ?? []))].sort((a, b) => a.localeCompare(b));
   const services: Array<{ app: string; name: string }> = [];
   for (const r of rows) if (!services.some((s) => s.app === r.app)) services.push({ app: r.app, name: r.name });
-  const g = filter.genre ?? null; const a = filter.app ?? null;
-  const kept = rows.filter((r) => (!g || (r.candidate.genres ?? []).includes(g)) && (!a || r.app === a));
-  return { rows: kept, genres, services };
+  const kinds = (["movie", "series"] as const).filter((k) => rows.some((r) => lookupKindOf(r.candidate.kind) === k));
+  const g = filter.genre ?? null; const a = filter.app ?? null; const k = filter.kind ?? null;
+  const kept = rows.filter((r) => (!g || (r.candidate.genres ?? []).includes(g)) && (!a || r.app === a) && (!k || lookupKindOf(r.candidate.kind) === k));
+  return { rows: kept, genres, services, kinds };
 }

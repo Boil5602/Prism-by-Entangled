@@ -17,11 +17,11 @@
 
 import { followedRow, isChannelRow, isLiveCard, latestRow } from "./followed.js";
 import { asUpdateChannel } from "./updates.js";
-import { BOILER_TAGS, CATEGORY_RULES, cleanCategory, creatorTags, matches, orderCategory, poolWords, popularTags, withinDays, type Category, type CategoryCard, POOL_LIVE_MS } from "./categories.js";
+import { BOILER_TAGS, CATEGORY_EDIT_IN, CATEGORY_RULES, cleanCategory, creatorTags, matches, orderCategory, poolWords, popularTags, withinDays, type Category, type CategoryCard, POOL_LIVE_MS } from "./categories.js";
 import { FRESH_EPISODES, FRESH_MOVIES } from "./fresh-rows.js";
-import { KIDS_AGES, THE_BINGE, bingeDay, bingeGenreRows, bingeSettingsOf, bingeWords, selectBinge, type BingeThresholds, type KidsMode } from "./binge.js";
-import { libraryForWorks, libraryHits, searchWorks, type LibraryEntry, type LibraryHit, type SearchRowIn } from "./search-view.js";
-import { HUB_SORTS, hubSortOf, filterLookupRows, type HubSort } from "./hub-sort.js";
+import { BINGE_DEFAULTS, KIDS_AGES, THE_BINGE, bingeDay, bingeGenreRows, bingeSettingsOf, bingeWords, selectBinge, type BingeThresholds, type KidsMode } from "./binge.js";
+import { libraryForWorks, libraryHits, libraryLine, searchLayout, searchWorks, workCard, type LibraryEntry, type LibraryHit, type SearchRowIn } from "./search-view.js";
+import { HUB_SORTS, hubSortOf, filterLookupRows, type HubSort, type LookupKind } from "./hub-sort.js";
 import { MOST_READ_CATALOG } from "./most-read.js";
 import { BROWSE_GENRES, BROWSE_OFFERS, BROWSE_REGION, BROWSE_ROWS, browseGenre, browseOfferOf } from "./browse.js";
 import { dedupeKey, newEpisodeBadge, CONTINUE_ORDERS, LIST_ORDERS, continueOrderOf, listOrderOf, reverseOf } from "./menu-order.js";
@@ -99,6 +99,9 @@ export interface PrismRuntimeApi {
    * instead. The menu's explicit "Pair a phone" always mints.
    */
   mintPairing(baseUrl: string, onlyIfUnpaired?: boolean): void;
+  /** The phones paired to this PC, by name and day, no tokens (2026-10-14); and one forgotten by the PC. */
+  remoteDevices(): string;
+  remoteForget(name: string, created: string, lastSeen?: string | null): string;
   /** Switch to another dashboard of the bundle (the TV menu's layout picker). */
   switchTo(dashboardId: string): void;
   /** §31 host picker: add a catalog pick to the current dashboard (core runs pickerTile - the host never builds tiles). */
@@ -433,6 +436,8 @@ export interface PrismRuntimeApi {
   /** A row's order, kept on the device (2026-09-26): row "continue" ("title" the default, "service") or "list" ("prism" the default, "title",
    *  "service"), and reverse ("1"/"0"); a null leaves that part as it is. Returns {row, order, reverse, orders}. */
   videoRowOrder(row: string, order?: string | null, reverse?: string | null): string;
+  /** My Watchlist's order (latest | title | rating) and its reverse ("1" / "0"), each set when given; JSON {order, reverse, orders}. Sync. */
+  videoWatchlistOrder(order?: string | null, reverse?: string | null): string;
   /** Playlists (docs/features/playlists.md, 2026-09-27), all sync JSON, kept per profile set on the device: the Playlists screen's view
    *  {lists, total, open, run, undo, services} (filter q by name and contained titles; sort "name" | "updated"); the Send to picker
    *  {items (the open playlist first, then recent ones), total}; create / open / rename / delete / undo. */
@@ -497,7 +502,7 @@ export interface PrismRuntimeApi {
   /** group: "genre" (a row per genre, the default) or "none" (every title in one list, 2026-09-23). */
   videoLibraryTab(sort?: string | null, group?: string | null): string;
   /** Sync JSON: the cross-service search as it stands under a filter - the lookup state with `rows` filtered by genre (as TMDB names it) and / or service (App id), and the `genres` / `services` chips the unfiltered rows offer (2026-09-22). */
-  videoLookupView(genre?: string | null, app?: string | null): string;
+  videoLookupView(genre?: string | null, app?: string | null, kind?: string | null): string;
   /** Sync JSON: a result of the cross-service search plays on its service - {ok, switched}: its own address, else the service's search with the result pressed. */
   videoPlayResult(appId: string, candidateJson: string): string;
   /** Phase 2 (§2 row 3, §3 tune): tune a live channel - the guide item pressed in the service's own page, the screen switched to the service and its guide first when needed - {ok, switched}. */
@@ -734,6 +739,7 @@ export function createBridgeDrivers(): Drivers {
       privateMute: (on: boolean) => send("ui.privateMute", { on }),
       listenRoutes: (json: string) => send("ui.listenRoutes", { json }),
       breakWatch: (on: boolean) => send("ui.breakWatch", { on }),
+      updateRestart: () => send("ui.updateRestart", {}),
     },
     display: {
       setBrightness: (value: number) => send("display.setBrightness", { value }),
@@ -1315,6 +1321,26 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     } catch (e) { report(e); }
   };
   setInterval(cwReadAhead, 90_000);
+  // the shows of a library row whose series open in place (YouTube TV's recordings, 2026-10-14): their lists read ahead so each card can say
+  // how many recordings it holds ("it should just say the count of episodes in the list"), one show at a time on the service's hidden work
+  // page, the same quiet rules, each show once a day
+  const picksReadAhead = () => {
+    try {
+      if (orchestrator.videoState().some((t) => t.playing) || orchestrator.episodeListWorking() || orchestrator.politeIdle()) return;
+      const hs = hiddenServices();
+      for (const sv of videoServices().services) {
+        const s = hs.find((x) => x.app === sv.app);
+        const spec = s ? orchestrator.adapterSpec(s.adapter) : undefined;
+        if (!s || s.status !== "signed-in" || !spec?.videoSeriesPicks || !spec.videoEpisodes) continue;
+        for (const row of ownSiteRows(sv.app, sv.library.own ?? [])) for (const it of row.items) {
+          if (it.kind !== "series" || !it.id || orchestrator.episodeListRecent(sv.app, it.title, 24 * 3_600_000)) continue;
+          orchestrator.episodesOf(s, it.title, { kind: "episode", title: "", series: it.title, id: it.id } as import("./types.js").VideoContext);
+          return;   // one at a time
+        }
+      }
+    } catch (e) { report(e); }
+  };
+  setInterval(picksReadAhead, 20_000);
   // sign-ins nobody named, named from their account pages: two minutes after the start, then every half hour (each read once a week at most)
   setTimeout(() => { try { labelSignIns(); } catch (e) { report(e); } }, 120_000);
   // the Live tab's channels with TMDB's word (2026-10-02): a show-named channel's type, and the modes what is on now adds
@@ -1609,6 +1635,28 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const bootAt = Date.now();
   let menuReadyAt: number | null = null;   // the boot's Phase 2 has asked for every service's kept rows
   // the services' My List titles not on the watchlist yet, counted and named (video.ts watchlistMissing; the copy matches properly)
+  // My Watchlist's own order (2026-10-14, "Let the user sort my watch list by (latest) release date or alphabetical or by TMDB score"): kept on the device
+  const WATCHLIST_ORDERS = [
+    { id: "latest", label: "Release Date", hint: "Newest release first, by TMDB's release day. Reversed, oldest first." },
+    { id: "title", label: "Alpha", hint: "Alphabetical by title. Reversed, Z to A." },
+    { id: "rating", label: "TMDB score", hint: "Highest TMDB rating first. Reversed, lowest first." },
+  ] as const;
+  type WatchOrder = (typeof WATCHLIST_ORDERS)[number]["id"];
+  const watchOrderOf = (v: unknown): WatchOrder => (WATCHLIST_ORDERS.some((o) => o.id === v) ? (v as WatchOrder) : "latest");
+  const watchOrderNow = (): WatchOrder => watchOrderOf(setRead("video:watchlist-order"));
+  const watchOrderSet = (v: unknown): WatchOrder => { const o = watchOrderOf(v); if (v !== undefined && v !== null && v !== "" && o !== watchOrderNow()) setWrite("video:watchlist-order", o); return v === undefined || v === null || v === "" ? watchOrderNow() : o; };
+  const watchReverseNow = (): boolean => reverseOf(setRead("video:watchlist-reverse"));
+  const watchReverseSet = (v: unknown): boolean => { if (v === undefined || v === null || v === "") return watchReverseNow(); const r = reverseOf(v); if (r !== watchReverseNow()) setWrite("video:watchlist-reverse", r ? "1" : "0"); return r; };
+  const sortWatch = <T extends { title: string; date?: string | undefined; year?: number | undefined; mean?: number | undefined }>(cards: ReadonlyArray<T>): T[] => {
+    const order = watchOrderNow();
+    const byTitle = (a: T, b: T) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    const day = (c: T) => c.date ?? (c.year !== undefined ? String(c.year) : "");
+    const sorted = [...cards].sort((a, b) => order === "title" ? byTitle(a, b)
+      : order === "rating" ? ((b.mean ?? -1) - (a.mean ?? -1)) || byTitle(a, b)
+      : (day(b) > day(a) ? 1 : day(b) < day(a) ? -1 : 0) || byTitle(a, b));
+    return watchReverseNow() ? sorted.reverse() : sorted;   // the row's reverse switch (2026-10-14)
+  };
+  const watchOrdered = <W extends { cards: ReadonlyArray<{ title: string; date?: string | undefined; year?: number | undefined; mean?: number | undefined }> }>(w: W) => ({ ...w, cards: sortWatch(w.cards), order: watchOrderNow(), reverse: watchReverseNow(), orders: WATCHLIST_ORDERS });
   const watchOfferOf = (list: ReadonlyArray<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w: { cards: ReadonlyArray<{ title: string; kind: string }> }): { offer: number; offerTitles: Array<{ title: string; service: string }> } => {
     const missing = watchlistMissing(list, w.cards);
     return { offer: missing.length, offerTitles: missing.slice(0, 40) };
@@ -1642,7 +1690,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     }) : rows.lensRows;
     // New episodes this week and Released this month (fresh-rows.ts, 2026-09-23): TMDB's dates on the household's services, after Most read
     const freshRow = (def: typeof FRESH_EPISODES | typeof FRESH_MOVIES, e: ReturnType<typeof orchestrator.videoFresh>) => e && (e.cards.length || !e.done) ? [{
-      id: def.id, name: def.name, counted: def.counted, who: def.who, decides: def.decides, source: def.source, sourceUrl: def.sourceUrl,
+      id: def.id, name: def.name, simple: def.simple, sourceShort: def.sourceShort, counted: def.counted, who: def.who, decides: def.decides, source: def.source, sourceUrl: def.sourceUrl,
       formula: def.formula.replace("{offer}", offerWords), attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB.",
       catalog: true, total: e.cards.length, dataDate: e.through, reading: e.done ? 0 : 1,
       // the New episodes row's cards carry My List's red ribbon (2026-09-24, "including the banner on the New episodes, Last 10 Days lens")
@@ -1686,7 +1734,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // results)"): at boot the page waits for this and opens once, full
       ready: ((r) => { if (r && menuReadyAt === null) menuReadyAt = Date.now(); return r; })(bootRowsAsked && !orchestrator.videoWarming()),
       // My list is the TMDB watchlist while an account is linked (2026-10-03); the offer counts the services' list titles not on it yet
-      watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); return w.active ? { ...w, ...watchOfferOf(rows.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w), importing: orchestrator.watchlistImportState() } : null; } catch (e) { report(e); return null; } })(),
+      watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); return w.active ? { ...watchOrdered(w), ...watchOfferOf(rows.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w), importing: orchestrator.watchlistImportState() } : null; } catch (e) { report(e); return null; } })(),
       continue: rows.continue, list: rows.list, orders: orchestrator.rowOrders(), orderChoices: { continue: CONTINUE_ORDERS, list: LIST_ORDERS }, lens, lensRows,
       // what the person owns, every service's purchases as ONE library ("it will be nice to see a consolidated library", 2026-09-22): the
       // titles alphabetical, each card badged with its service; the same title bought twice is two cards, one per service
@@ -1705,7 +1753,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // the services whose pictures carry no name, so the host draws the name over them (adapter videoArtPlain, 2026-10-13)
       artPlain: sv.services.filter((s) => !!orchestrator.adapterSpec(s.adapter)?.videoArtPlain).map((s) => s.app),
       latest: latestRow(sv.services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, facet: s.facet, own: ownSiteRows(s.app, s.library.own ?? []) })), Date.now()),
-      ownRows: sv.services.map((s) => ({ app: s.app, name: s.name, facet: s.facet, rows: ownSiteRows(s.app, s.library.own ?? []) })).filter((s) => s.rows.length > 0 && !s.rows.some(isChannelRow)),
+      // seriesPicks: a series card's press lists its episodes in the row (adapter videoSeriesPicks; YouTube TV's recordings, 2026-10-14)
+      // ... and a show card there says how many recordings its list holds once the list is read ("7 recorded"), the service's own count until then
+      ownRows: sv.services.map((s) => { const picks = !!orchestrator.adapterSpec(s.adapter)?.videoSeriesPicks && !!orchestrator.adapterSpec(s.adapter)?.videoEpisodes; return { app: s.app, name: s.name, facet: s.facet, seriesPicks: picks, rows: ownSiteRows(s.app, s.library.own ?? []).map((r) => !picks ? r : { ...r, items: r.items.map((it) => { const n = it.kind === "series" ? orchestrator.episodeCountOf(s.app, it.title) : null; return n === null ? it : { ...it, badge: n + " recorded", badgeFrom: "count" as const }; }) }) }; }).filter((s) => s.rows.length > 0 && !s.rows.some(isChannelRow)),
       screen: sv.screen, active: sv.active, log: rows.log, now: Date.now(),
     };
   };
@@ -2159,7 +2209,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const ordered = orderCategory(c.rule, items, log, now);
       const live = ordered.filter((x) => isLiveCard(x.item));
       const cards = ordered.filter((x) => !isLiveCard(x.item));
-      rows.push({ id: "cat:" + c.id, name: c.name, counted: [rule.counted, ...counted].join(" "), who: rule.who, decides: [rule.decides, ...deciders].join(" "), source: [rule.source, ...sources].join(" "), sourceUrl: "",
+      rows.push({ id: "cat:" + c.id, name: c.name, simple: rule.simple.replace("one of the hashtags", tagsSaid) + (pools.length ? " Also what the services' own pages list for them." : ""), sourceShort: rule.sourceShort, editIn: CATEGORY_EDIT_IN, counted: [rule.counted, ...counted].join(" "), who: rule.who, decides: [rule.decides, ...deciders].join(" "), source: [rule.source, ...sources].join(" "), sourceUrl: "",
         formula: rule.formula.replace("one of the hashtags", tagsSaid) + (pools.length ? ", with " + pools.join(" and ") : ""), attribution: null, dataDate: at ? new Date(at).toISOString().slice(0, 16).replace("T", " ") : null,
         cards: cards.slice(0, 60), total: cards.length, live, reading: busy ? 1 : 0, category: c, ...(pools.length ? { pool: pools.join(", ") } : {}) });
     }
@@ -2197,14 +2247,43 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const ALSO_TTL_MS = 7 * 24 * 3_600_000;
   const alsoChecking = new Set<string>();
   const alsoMap = (): Record<string, { v: boolean; at: number }> => { try { const j = JSON.parse(tilesRead(ALSO_KEY) ?? "{}"); return j && typeof j === "object" ? j : {}; } catch { return {}; } };
-  const withPlay = (r: { status: string; details?: unknown; why?: string }): Record<string, unknown> => {
+  const withPlay = (r: { status: string; details?: unknown; why?: string }, fromApp: string | null = null): Record<string, unknown> => {
     const d = (r as { details?: { providers?: Record<string, Array<{ id?: number; play?: { app: string; name: string } }>> } }).details;
     if (!d?.providers) return r as Record<string, unknown>;
-    const svcs = videoServices().services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, providers: orchestrator.providersOfAdapter(s.adapter), store: orchestrator.storeProvidersOfAdapter(s.adapter) }));
+    const svcs = videoServices().services.filter((s) => s.status === "signed-in").map((s) => ({ app: s.app, name: s.name, adapter: s.adapter, providers: orchestrator.providersOfAdapter(s.adapter), store: orchestrator.storeProvidersOfAdapter(s.adapter) }));
     // a Rent or Buy offer carries the service's own page for the title, for the person's phone (purchase.ts, 2026-10-11); a store's
     // own provider id (Amazon Video) finds the household's service for Open here as well
     const title = typeof (d as { title?: unknown }).title === "string" ? (d as { title: string }).title : "";
-    return { ...r, details: { ...d, providers: Object.fromEntries(Object.entries(d.providers).map(([k, list]) => [k, list.map((o) => { const s = typeof o.id === "number" ? svcs.find((x) => x.providers.includes(o.id!) || ((k === "rent" || k === "buy") && x.store.includes(o.id!))) : undefined; const buy = (k === "rent" || k === "buy") && typeof o.id === "number" && title ? orchestrator.purchaseOffer(o.id, title) : null; return { ...o, ...(s ? { play: { app: s.app, name: s.name } } : {}), ...(buy ? { buy } : {}) }; })])) } };
+    const providers = Object.fromEntries(Object.entries(d.providers).map(([k, list]) => [k, list.map((o) => { const s = typeof o.id === "number" ? svcs.find((x) => x.providers.includes(o.id!) || ((k === "rent" || k === "buy") && x.store.includes(o.id!))) : undefined; const buy = (k === "rent" || k === "buy") && typeof o.id === "number" && title ? orchestrator.purchaseOffer(o.id, title) : null; return { ...o, ...(s ? { play: { app: s.app, name: s.name } } : {}), ...(buy ? { buy } : {}) }; })]));
+    // what a Details page offers, decided here once (2026-10-14, "tied ... so as changes are made they come to both"): the PC's card and the
+    // phone's sheet draw these - the services to watch on and the candidate their Play sends, the list (the TMDB watchlist while an account is
+    // linked, else the services' own), Send to playlist with the source the send job takes, the episodes' service, the trailer, the facts line
+    const dd = d as { kind?: string; id?: number; year?: number | null; poster?: string | null; certification?: string | null; runtime?: number | null; seasons?: number | null; episodes?: number | null; status?: string | null; rating?: { mean: number; votes: number } | null; trailer?: { name: string; youtube: string } | null };
+    const watchOn: Array<{ app: string; name: string }> = [];
+    for (const k of ["stream", "free", "rent", "buy"]) for (const o of (providers[k] ?? []) as Array<{ play?: { app: string; name: string } }>) if (o.play && !watchOn.some((x) => x.app === o.play!.app)) watchOn.push(o.play);
+    const tkind: "movie" | "tv" = dd.kind === "tv" ? "tv" : "movie"; const tid = typeof dd.id === "number" ? dd.id : 0;
+    const candidate = { id: `tmdb:${tkind}:${tid}`, title, kind: tkind === "tv" ? "series" : "movie", ...(typeof dd.year === "number" ? { year: dd.year } : {}) };
+    const list = orchestrator.watchlistActive()
+      ? { mode: "watchlist" as const, kind: tkind, id: tid, on: orchestrator.watchlistHas(tkind, tid) }
+      : watchOn.length ? { mode: "service" as const, services: watchOn.map((s) => { const li = orchestrator.videoListInfo(svcs.find((x) => x.app === s.app)?.adapter ?? s.app); return { app: s.app, name: s.name, can: li.can, listName: li.name }; }) } : null;
+    const sendApp = fromApp && watchOn.some((x) => x.app === fromApp) ? fromApp : watchOn[0]?.app ?? null;   // the service a card opened it from, else the first that carries it
+    const apps = [...new Set([sendApp ?? "", ...watchOn.map((x) => x.app)].filter((a) => a.length > 0))];
+    const tmdbRef = `${tkind}:${tid}`; const poster = dd.poster ?? null; const year = typeof dd.year === "number" ? dd.year : null;
+    const source = tkind === "movie"
+      ? { type: "movie", title, tmdb: tmdbRef, poster, services: apps.map((a) => ({ app: a })), year }
+      : { type: "series", show: title, app: sendApp, services: apps, scope: "all", tmdb: tmdbRef, poster, year, orMovie: false };
+    const playlist = { can: playlists.gate().active, source, app: sendApp };
+    const episodes = { show: tkind === "tv", app: sendApp };
+    const trailer = dd.trailer?.youtube ? { name: dd.trailer.name, url: "https://www.youtube.com/watch?v=" + encodeURIComponent(dd.trailer.youtube) } : null;
+    const facts: string[] = [];
+    if (dd.certification) facts.push(dd.certification);
+    if (tkind === "tv") {
+      if (typeof dd.seasons === "number") facts.push(dd.seasons + (dd.seasons === 1 ? " season" : " seasons") + (typeof dd.episodes === "number" ? ", " + dd.episodes + " episodes" : ""));
+      if (typeof dd.runtime === "number") facts.push(dd.runtime + " min episodes");
+    } else if (typeof dd.runtime === "number") facts.push(dd.runtime >= 60 ? Math.floor(dd.runtime / 60) + " h" + (dd.runtime % 60 ? " " + (dd.runtime % 60) + " min" : "") : dd.runtime + " min");   // "1 h", not "1 h 0 min"
+    if (dd.status) facts.push(dd.status);
+    const ratingLine = dd.rating ? "TMDB " + dd.rating.mean.toFixed(1) + " from " + dd.rating.votes.toLocaleString("en-US") + " votes" : null;
+    return { ...r, details: { ...d, providers, actions: { watchOn, candidate, list, playlist, episodes, trailer, facts, ratingLine } } };
   };
   const videoLookupPerson = (id: number, name: string): Record<string, unknown> => {
     if (!Number.isFinite(id) || !name.trim()) return { ok: false, error: "no person" };
@@ -2212,16 +2291,19 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   };
   // the search under a filter (2026-09-22, "When searching, should be able to filter by genre and service"): the rows filtered
   // by hub-sort.ts, the chips the unfiltered rows offer; the state itself is untouched (a press still checks the service's own answer)
-  const videoLookupFiltered = (genre: string | null, app: string | null): Record<string, unknown> | null => {
+  const videoLookupFiltered = (genre: string | null, app: string | null, kind: LookupKind | null = null): Record<string, unknown> | null => {
     const v = videoLookupNow();
     if (!v) return null;
-    const rows = (v.rows as Array<{ app: string; name: string; candidate: { genres?: string[] } }> | undefined) ?? [];
-    const f = filterLookupRows(rows, { genre, app });
+    const rows = (v.rows as Array<{ app: string; name: string; candidate: { genres?: string[]; kind?: string } }> | undefined) ?? [];
+    const f = filterLookupRows(rows, { genre, app, kind });
     // one card per work, every service that carries it on the card (search-view.ts)
-    const works = searchWorks(String(v.q ?? ""), f.rows as unknown as SearchRowIn[]);
+    const works = searchWorks(String(v.q ?? ""), f.rows as unknown as SearchRowIn[]).map((w) => ({ ...w, card: workCard(w) }));
     // the household's own titles: the words' matches, then any title the search found that they have (a person's work in their Continue Watching)
-    const library = libraryForWorks(v.person ? "" : String(v.q ?? ""), libraryEntries(), works);
-    return { ...v, rows: f.rows, works, library, all: rows.length, genres: f.genres, filterServices: f.services, filter: { genre, app } };
+    const library = libraryForWorks(v.person ? "" : String(v.q ?? ""), libraryEntries(), works).map((h) => ({ ...h, ...libraryLine(h) }));
+    // the words and the layout every screen draws (search-view.ts, 2026-10-14): the PC's Search and the phone's read them, not decide them
+    const people = (Array.isArray(v.people) ? v.people : []) as Array<{ name: string }>;
+    const layout = searchLayout({ q: String(v.q ?? ""), done: v.done === true, source: typeof v.source === "string" ? v.source : null, services: ((v.services as Array<{ name: string; status: string; reason?: string | null }> | undefined) ?? []), works, library, people, person: (v.person as { name: string } | null | undefined) ?? null, elsewhere: (v.elsewhere as string[] | undefined) ?? null, attribution: typeof v.attribution === "string" ? v.attribution : null, filtered: genre !== null || app !== null || kind !== null, all: rows.length });
+    return { ...v, rows: f.rows, works, library, all: rows.length, genres: f.genres, filterServices: f.services, kinds: f.kinds, filter: { genre, app, kind }, layout };
   };
   const videoPlayResult = (appId: string, candidateJson: string): Record<string, unknown> => {
     const sv = videoServices();
@@ -2329,7 +2411,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const bingeHead = () => {
     const { thresholds } = bingeSettingsNow();
     const w = bingeWords(thresholds);
-    return { id: THE_BINGE.id, name: THE_BINGE.name, label: w.label, counted: w.counted, who: THE_BINGE.who, decides: THE_BINGE.decides, source: THE_BINGE.source, sourceUrl: THE_BINGE.sourceUrl, formula: w.formula,
+    return { id: THE_BINGE.id, name: THE_BINGE.name, label: w.label, simple: THE_BINGE.simple, sourceShort: THE_BINGE.sourceShort, editIn: THE_BINGE.editIn, counted: w.counted, who: THE_BINGE.who, decides: THE_BINGE.decides, source: THE_BINGE.source, sourceUrl: THE_BINGE.sourceUrl, formula: w.formula,
       thresholds, attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data from JustWatch, through TMDB." };
   };
   // ---- Playlists (docs/features/playlists.md, 2026-09-27): playlists.ts, wired to the real services, the details window's episode path and the
@@ -2887,6 +2969,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     switchTo(dashboardId) {
       orchestrator.switchTo(dashboardId).catch(report);
     },
+    remoteDevices() { try { return json({ devices: remote.devicesNow() }); } catch (e) { report(e); return json({ devices: [] }); } },
+    remoteForget(name, created, lastSeen) {
+      try { void remote.forgetDevice(String(name ?? ""), String(created ?? ""), lastSeen ? String(lastSeen) : null).catch(report); return json({ ok: true, devices: remote.devicesNow().filter((d) => !(d.name === name && d.created === created && (!lastSeen || d.lastSeen === lastSeen))) }); }
+      catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
     mintPairing(baseUrl, onlyIfUnpaired) {
       const go = (): Promise<void> =>
         remote.mintPairing(baseUrl).then(({ url, token }) => send("remote.pairing", { url, token }));
@@ -3271,6 +3358,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const orders = r === "list" ? LIST_ORDERS : CONTINUE_ORDERS;
       try { return json({ row: r, order: rowOrderSet(r, order || null), reverse: rowReverseSet(r, reverse ?? null), orders }); } catch (e) { report(e); return json({ row: r, order: r === "list" ? "prism" : "title", reverse: false, orders }); }
     },
+    videoWatchlistOrder(order, reverse) {
+      try { return json({ order: watchOrderSet(order ?? null), reverse: watchReverseSet(reverse ?? null), orders: WATCHLIST_ORDERS }); } catch (e) { report(e); return json({ order: "latest", reverse: false, orders: WATCHLIST_ORDERS }); }
+    },
     videoTune(facetId, channelId, url, name) {
       try {
         // an event row of the grid (2026-09-30): the event plays as one, not as a channel
@@ -3316,8 +3406,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     videoBingeHide(cardId, on, title) { try { const id = String(cardId ?? ""); bingeNote(on ? { id, why: "hidden", at: Date.now(), title: title ? String(title) : orchestrator.videoBingeTitle(id) ?? undefined } : null, id); return json({ ok: true }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoBingeHidden() { try { return json(videoBingeHidden()); } catch (e) { report(e); return json({ items: [] }); } },
     videoBingePlay(appId, cardId) { try { return json(videoBingePlay(String(appId ?? ""), String(cardId ?? ""))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
-    videoLookupView(genre, app) {
-      try { return json(videoLookupFiltered(genre ? String(genre) : null, app ? String(app) : null)); } catch (e) { report(e); return "null"; }
+    videoLookupView(genre, app, kind) {
+      try { return json(videoLookupFiltered(genre ? String(genre) : null, app ? String(app) : null, kind === "movie" || kind === "series" ? kind : null)); } catch (e) { report(e); return "null"; }
     },
     videoPlayResult(appId, candidateJson) {
       try { return json(videoPlayResult(appId, String(candidateJson ?? ""))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
@@ -3467,7 +3557,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); return json({ ready: true, series: null, service: null, current: null, seasons: [], canPlay: false, source: null, error: String(e) }); }
     },
     titleDetails(title, kind, app) {
-      try { return json(withPlay(orchestrator.titleDetails(String(title ?? ""), kind ? String(kind) : null, app ? String(app) : null))); }
+      try { return json(withPlay(orchestrator.titleDetails(String(title ?? ""), kind ? String(kind) : null, app ? String(app) : null), app ? String(app) : null)); }
       catch (e) { report(e); return json({ status: "none", why: String(e) }); }
     },
     videoPlayEpisodeNumber(season, episode) {
@@ -3658,7 +3748,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       catch (e) { report(e); return json({ on: null, linked: false }); }
     },
     watchlistView(force) {
-      try { const w = orchestrator.videoWatchlist(hiddenServices(), force === true); const menu = w.active ? videoMenu() : null; return json({ ...w, ...(menu ? watchOfferOf(menu.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w) : { offer: 0, offerTitles: [] }), importing: orchestrator.watchlistImportState(), error: tmdbUi.error }); }
+      try { const w = orchestrator.videoWatchlist(hiddenServices(), force === true); const menu = w.active ? videoMenu() : null; return json({ ...watchOrdered(w), ...(menu ? watchOfferOf(menu.list as Array<{ service?: string; app?: string; item: { title: string; kind?: string } }>, w) : { offer: 0, offerTitles: [] }), importing: orchestrator.watchlistImportState(), error: tmdbUi.error }); }
       catch (e) { report(e); return json({ active: false, reading: false, cards: [], count: 0, offer: 0 }); }
     },
     watchlistHasTitle(title, kind) {
@@ -4255,6 +4345,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     undo: () => plParse(api.playlistUndo()),
     move: (dir) => plParse(api.playlistMove(dir)),
     stop: (mode) => plParse(api.playlistStop(mode)),
+    send: (target, source) => plParse(api.playlistSend(JSON.stringify(target), JSON.stringify(source))),
+    job: (id) => plParse(api.playlistJob(id)),
+    confirm: (id, yes) => plParse(api.playlistJobConfirm(id, yes ? "1" : "0")),
   };
   remote.video = {
     view: () => {
@@ -4263,12 +4356,13 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const names = [...sv.services].sort((a, b) => order.indexOf(a.app) - order.indexOf(b.app)).map((s) => ({ app: s.app, name: s.name, facet: s.facet, adapter: s.adapter }));
       const rows = orchestrator.videoMenuRows(names);
       const off = excludedNow();
-      const card = (c: { app: string; service: string; facet: string; item: VideoItem }) => ({
-        app: c.app, service: c.service, facet: c.facet,
+      const card = (c: { app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }) => ({
+        app: c.app, service: c.service, facet: c.facet, ...(typeof c.lastWatched === "number" ? { lastWatched: c.lastWatched } : {}),
+        rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null,   // the score bottom right and the card menu's stars, as on the PC (2026-10-15)   // the one time a card ever shows: Prism's own log (2026-10-14, the Last watched order)
         // TMDB's poster beside the service's own picture (2026-10-11): the phone draws every card tall, so the poster comes first where there is one
         item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item) },
       });
-      const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem }>) => cs.filter((c) => !off.has(c.app)).slice(0, 40).map(card);
+      const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }>) => cs.filter((c) => !off.has(c.app)).slice(0, 40).map(card);
       const tile = sv.screen?.slot ?? null;
       const st = tile ? orchestrator.videoState().find((x) => x.id === tile) ?? null : null;
       const art = tile ? orchestrator.videoArtOf(tile) : null;
@@ -4276,6 +4370,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       return {
         active: sv.active, screen: sv.screen, now,
         continue: trim(rows.continue), list: trim(rows.list),
+        // My Watchlist (2026-10-14, "my watch list didn't update with the new options ... The companion app is intended to stay in sync with the
+        // prism app"): the TMDB watchlist while an account is linked, as the PC's row has it and in its order, in the lens rows' catalog card
+        // shape; the phone draws it in My list's place, as the PC does
+        watchlist: (() => { try { const w = orchestrator.videoWatchlist(hiddenServices()); if (!w.active) return { active: false }; const o = watchOrdered(w); return { active: true, reading: w.reading, count: w.count, cards: (o.cards as unknown as Array<Record<string, unknown>>).slice(0, 60).map((c) => { const svcs = (c.services as Array<{ app: string; name: string; offer: string }>) ?? []; return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) }; }) }; } catch (e) { report(e); return { active: false }; } })(),
         // each channel's program on now with its span (2026-10-05, "a data bar in each live channel in the companion app showing how much runtime and
         // how close to complete each current show is"): start and end from the guide's schedule; a service that names only what is on gives the end alone
         // a service's live events stand among its rows here as on the PC's tab (2026-10-05, "Isn't Live supposed to show the Formula 1 stuff
@@ -4311,8 +4409,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     tracksDone: (tile) => orchestrator.videoTracksDone(tile),
     startOver: () => { try { return JSON.parse(api.videoStartOver()) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
     // more of the Watch screen (2026-10-05): every play below is the Watch screen's own path, with the curtain signal the PC's own press gives
+    // the phone reads the search as the PC draws it (2026-10-14): the same view, works, cards, layout and filter chips (videoLookupFiltered)
     search: (q) => { orchestrator.notePersonAbout(); return videoLookup(q); },
-    searchState: () => videoLookupNow(),
+    searchPerson: (id, name) => { orchestrator.notePersonAbout(); return videoLookupPerson(id, name); },   // (the person search is a catalog search: no service page is asked until a press)
+    searchState: (genre, app, kind) => videoLookupFiltered(genre, app, kind),
     playResult: (app, candidate) => {
       orchestrator.notePersonAbout();
       const c = candidate as { title?: string };
@@ -4339,6 +4439,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     person: (id) => { try { return JSON.parse(api.personPage(id)) as unknown; } catch (e) { report(e); return { status: "none", why: String(e) }; } },
     details: (title, kind, app) => { try { return JSON.parse(api.titleDetails(title, kind, app)) as unknown; } catch (e) { report(e); return { status: "none", why: String(e) }; } },
+    watchlist: (title, kind, on) => { try { if (on !== null) api.watchlistSetTitle(title, kind, on); const h = JSON.parse(api.watchlistHasTitle(title, kind)) as Record<string, unknown>; return { active: orchestrator.watchlistActive(), ...h }; } catch (e) { report(e); return { active: false, on: null, error: String(e) }; } },
+    listInfo: (app) => { try { return JSON.parse(api.videoListInfo(app)) as unknown; } catch (e) { report(e); return { can: false, name: "My List" }; } },
+    // a catalog id (the Details sheet's candidate, "tmdb:...") is resolved to the service's own copy first, as the PC's card menus do ("auto")
+    listSet: (app, want, id, title, url, kind) => { try { return JSON.parse(api.videoListSet(app, want, id, title, url, kind, "auto")) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
     lenses: () => {
       const m = videoMenu() as { lensRows?: Array<Record<string, unknown>> };
       const rows = (m.lensRows ?? []).map((lr) => {
@@ -4349,9 +4453,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
             return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) };
           }
           const it = c.item as VideoItem;
-          return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, poster: orchestrator.posterFor(it.title, it.kind), progress: it.progress ?? null, about: aboutOf(String(c.app ?? ""), it) } };
+          return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, poster: orchestrator.posterFor(it.title, it.kind), progress: it.progress ?? null, about: aboutOf(String(c.app ?? ""), it) } };
         });
-        return { id: lr.id, name: lr.name, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards };
+        return { id: lr.id, name: lr.name, simple: lr.simple ?? null, sourceShort: lr.sourceShort ?? null, editIn: lr.editIn ?? null, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards };   // simple + sourceShort: the plain words the PC's (i) shows (2026-10-14)
       }).filter((r) => r.cards.length || r.reading);
       return { rows };
     },
@@ -4374,6 +4478,59 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     listenWindow: async (tile: string | null, listener?: string) => { const r = await orchestrator.setListenWindow(tile, listener); return { ok: r === "ok", result: r, listening: listener ? orchestrator.listenWindowOf(listener) : orchestrator.listenWindow }; },
     privateMute: (on: boolean) => { void drivers.ui?.privateMute?.(on); return { ok: !!drivers.ui?.privateMute, on }; },
     breakWatch: (on: boolean) => { void drivers.ui?.breakWatch?.(on); return { ok: !!drivers.ui?.breakWatch, on }; },
+    // a title out of Continue Watching from the phone (2026-10-15): the PC's card menu's three calls
+    // a rating from the phone's card menu (2026-10-15, "Should also be able to score items from the context menu"): the PC's own two calls
+    rate: (kind, id, value) => { try { return JSON.parse(api.tmdbRate(kind, id, value)) as unknown; } catch (e) { report(e); return { status: "failed", error: String(e) }; } },
+    rated: (kind, id) => { try { return JSON.parse(api.tmdbRated(kind, id)) as unknown; } catch (e) { report(e); return { value: null, working: false, error: String(e) }; } },
+    removeInfo: (app) => { try { return JSON.parse(api.videoRemoveInfo(app)) as unknown; } catch (e) { report(e); return { can: false, warning: null }; } },
+    removeContinue: (app, id, title) => { try { return JSON.parse(api.videoRemoveContinue(app, id, title)) as unknown; } catch (e) { report(e); return { status: "failed", error: String(e) }; } },
+    hideContinue: (app, id) => { try { return JSON.parse(api.videoHideContinue(app, id)) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
+    // Watch settings on the phone (2026-10-14, "Let me edit as many of the watch settings as possible from the companion app"): what core keeps,
+    // read and set through the same calls the PC's Watch settings make, so the two never disagree
+    settings: () => {
+      try {
+        const J = (s: string) => JSON.parse(s) as Record<string, unknown>;
+        const st = J(api.videoSettings()), bv = J(api.videoBingeView()), cats = J(api.videoCategories("")), hid = J(api.videoBingeHidden());
+        return { ok: true, pause: st.pause, adsLook: st.adsLook, suggestions: st.suggestions === true, tmdbKey: st.tmdbKey === true,
+          rows: { continue: { order: rowOrderNow("continue"), reverse: rowReverseNow("continue"), orders: CONTINUE_ORDERS }, list: { order: rowOrderNow("list"), reverse: rowReverseNow("list"), orders: LIST_ORDERS },
+            watchlist: { active: orchestrator.watchlistActive(), order: watchOrderNow(), reverse: watchReverseNow(), orders: WATCHLIST_ORDERS } },
+          binge: { thresholds: (bv.head as Record<string, unknown> | undefined)?.thresholds ?? bingeSettingsNow().thresholds, defaults: BINGE_DEFAULTS, kids: bv.kids, animation: bv.animation, ages: bv.ages },
+          categories: cats.categories, rules: cats.rules, poolServices: cats.poolServices, hidden: hid.items,
+          updates: J(api.videoUpdatesStatus()),   // each service's parts and when they were read, the catalog rows, the schedule (the PC's Services tab)
+          software: J(api.updateStatus()),   // this Prism: its version and track, what the update server offers, a staged release, the changelog (2026-10-15)
+          tmdb: J(api.tmdbLinkState()) };   // the key and the account: linked, username, pending, hasKey, url (the approval page while a link is under way), busy, error
+      } catch (e) { report(e); return { ok: false, error: String(e) }; }
+    },
+    settingsSet: (what, b) => {
+      try {
+        const J = (s: string) => JSON.parse(s) as unknown;
+        const str = (v: unknown) => (typeof v === "string" ? v : "");
+        const rev = (v: unknown) => (typeof v === "boolean" ? (v ? "1" : "0") : null);
+        switch (what) {
+          case "rows": return J(api.videoRowOrder(str(b.row), str(b.order) || null, rev(b.reverse)));
+          case "watchlist-order": return J(api.videoWatchlistOrder(str(b.order) || null, rev(b.reverse)));
+          case "ads": return J(api.videoSetAdsLook(str(b.look)));
+          case "refresh-app": return J(api.videoRefreshApp(str(b.app), false));   // one service's pages read again now (the PC's Services tab's Refresh)
+          case "pause": return J(api.videoSetPause(b.on === true, str(b.from), str(b.to)));
+          case "refresh": return J(api.videoRefreshLists(true));
+          case "binge": return J(api.videoBingeSet(b.thresholds && typeof b.thresholds === "object" ? JSON.stringify(b.thresholds) : null, b.kids && typeof b.kids === "object" ? JSON.stringify(b.kids) : null, typeof b.animation === "boolean" ? b.animation : null));
+          case "category": return typeof b.delete === "string" ? J(api.videoCategoryDelete(b.delete)) : J(api.videoCategorySet(JSON.stringify(b.category ?? null)));
+          case "hidden": return J(api.videoBingeHide(str(b.id), b.on === true, str(b.title) || null));
+          // the TMDB account from the phone (2026-10-14): the same three calls the PC's card makes, and the key cleared
+          case "tmdb-state": return J(api.tmdbLinkState());
+          // Prism's own updates from the phone (2026-10-15, "The update menu should let me initialize updates and see the change log"): a check (its
+          // answer), an install (started; the phone follows the status until it is staged), the restart into what is staged (the PC's own)
+          case "update-check": return api.updateCheck().then(J);
+          case "update-install": void api.updateInstallNow().catch(report); return { status: "working" };
+          case "update-restart": { const st = J(api.updateStatus()) as { staged?: unknown }; if (!st.staged) return { ok: false, error: "Nothing is installed and waiting." }; void drivers.ui?.updateRestart?.(); return { ok: !!drivers.ui?.updateRestart }; }
+          case "tmdb-key-clear": return J(api.lensSetTmdbKey(null));
+          case "tmdb-link-start": return J(api.tmdbLinkStart());
+          case "tmdb-link-finish": return J(api.tmdbLinkFinish());
+          case "tmdb-unlink": return J(api.tmdbUnlink());
+          default: return { ok: false, error: "no such setting: " + what };
+        }
+      } catch (e) { report(e); return { ok: false, error: String(e) }; }
+    },
   };
   return api;
 }

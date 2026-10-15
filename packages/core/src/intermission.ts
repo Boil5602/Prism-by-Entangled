@@ -313,6 +313,9 @@ export class IntermissionController {
   }
   private armSafety(id: string, tile: TileState, ms: number): void {
     if (tile.safetyTimer) clearTimeout(tile.safetyTimer);
+    // the due time is the cover's own too (B-372, 2026-10-14: a Netflix break whose first clock read 30 s had its 120 s
+    // backstop replaced by the clock's 45 s - extend() compared against an unset due - and the cover fell with 32 s to run)
+    tile.safetyDue = Date.now() + ms;
     tile.safetyTimer = setTimeout(() => {
       tile.safetyTimer = null;
       // §26 backstop - never trapped behind scenery. B-175 (2026-09-09): but a page still saying "ad" is not unmuted into the

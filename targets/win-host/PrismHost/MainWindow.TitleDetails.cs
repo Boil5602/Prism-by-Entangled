@@ -556,30 +556,26 @@ public sealed partial class MainWindow
         Grid.SetColumn(head, 1);
         var year = I(d, "year");
         head.Children.Add(new TextBlock { Text = S(d, "title") + (year is { } y ? "  (" + y + ")" : ""), FontSize = 36, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DetInk, TextWrapping = TextWrapping.Wrap });
-        var facts = new List<string>();
-        if (S(d, "certification") is { Length: > 0 } cert) facts.Add(cert);
+        // what this page offers and says, decided in core (runtime.ts withPlay `actions`, 2026-10-14, "tied ... so as changes are made they come
+        // to both"): the facts line, the trailer, the services to watch on and their candidate, the list, Send to playlist and its source. The
+        // phone's Details sheet draws the same block, so a rule changed in core changes both.
+        var actions = d["actions"] as JsonObject;
+        var facts = L(actions?["facts"]).ToList();
         var tv = S(d, "kind") == "tv";
-        if (tv)
-        {
-            if (I(d, "seasons") is { } sn) facts.Add(sn + (sn == 1 ? " season" : " seasons") + (I(d, "episodes") is { } en ? ", " + en + " episodes" : ""));
-            if (I(d, "runtime") is { } rt) facts.Add(rt + " min episodes");
-        }
-        else if (I(d, "runtime") is { } rt2) facts.Add(rt2 >= 60 ? rt2 / 60 + " h " + rt2 % 60 + " min" : rt2 + " min");
-        if (S(d, "status") is { Length: > 0 } st) facts.Add(st);
         if (facts.Count > 0) head.Children.Add(new TextBlock { Text = string.Join(DetDot, facts), FontSize = 16, Foreground = DetDim, TextWrapping = TextWrapping.Wrap });
         var genres = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (var g in L(d["genres"])) genres.Children.Add(new Border { Background = DetChip, CornerRadius = new CornerRadius(12), Padding = new Thickness(12, 4, 12, 4), Child = new TextBlock { Text = g, FontSize = 13, Foreground = DetInk } });
         if (genres.Children.Count > 0) head.Children.Add(genres);
         if (S(d, "tagline") is { Length: > 0 } tag) head.Children.Add(new TextBlock { Text = tag, FontSize = 17, FontStyle = Windows.UI.Text.FontStyle.Italic, Foreground = DetAmber, TextWrapping = TextWrapping.Wrap });
-        if (d["trailer"] is JsonObject tr && S(tr, "youtube") is { Length: > 0 } yt)
+        if (actions?["trailer"] is JsonObject tr && S(tr, "url") is { Length: > 0 } url)
         {
             var play = new Button
             {
                 Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { new FontIcon { Glyph = "\uE768", FontSize = 16, Foreground = DetAmber }, new TextBlock { Text = "Trailer", FontSize = 16, Foreground = DetInk } } },
                 Background = DetChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(18), Padding = new Thickness(18, 8, 18, 8), Margin = new Thickness(0, 4, 0, 0),
             };
+            OwnHover(play);   // its own hover, never the system's (memory: hover-loss-tooltips; "The pill for Trailer on the Details screen isnt easy to mouseover", 2026-10-14)
             ToolTipService.SetToolTip(play, S(tr, "name") + " (YouTube)");
-            var url = "https://www.youtube.com/watch?v=" + Uri.EscapeDataString(yt);
             play.Click += (_, __) => { CloseTitleDetails(); CloseVideoHub(); _ = OpenLinkAsync(url, "YouTube"); };
             head.Children.Add(play);
         }
@@ -587,15 +583,13 @@ public sealed partial class MainWindow
         // "I should also be able to click the streaming service (if installed, so show a list for specifically installed ones) and it should take me
         // directly to that item to begin playing in the main video player"); My List beside them
         var mineSvcs = new List<(string app, string name)>();
-        if (d["providers"] is JsonObject pv0)
-            foreach (var key in new[] { "stream", "free", "rent", "buy" })
-                foreach (var o in (pv0[key] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
-                    if (o["play"] is JsonObject pl && S(pl, "app") is { Length: > 0 } a && !mineSvcs.Any(x => x.app == a)) mineSvcs.Add((a, S(pl, "name")));
+        foreach (var o in (actions?["watchOn"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+            if (S(o, "app") is { Length: > 0 } a && !mineSvcs.Any(x => x.app == a)) mineSvcs.Add((a, S(o, "name")));
         if (mineSvcs.Count > 0)
         {
             var tkind = S(d, "kind"); var tid = d["id"]?.GetValue<double>() ?? 0; var ttitle = S(d, "title");
-            var cand = new JsonObject { ["id"] = "tmdb:" + tkind + ":" + ((long)tid).ToString(), ["title"] = ttitle, ["kind"] = tkind == "tv" ? "series" : "movie" };
-            if (d["year"] is JsonValue yv0 && yv0.TryGetValue<double>(out var yd0)) cand["year"] = (int)yd0;
+            // the candidate every Watch on press sends: core's (the phone's Play sends the same one)
+            var cand = actions?["candidate"] is JsonObject ac ? (JsonObject)ac.DeepClone() : new JsonObject { ["id"] = "tmdb:" + tkind + ":" + ((long)tid).ToString(), ["title"] = ttitle, ["kind"] = tkind == "tv" ? "series" : "movie" };
             var poster0 = d["poster"]?.GetValue<string>();
             var watch = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
             watch.Children.Add(new TextBlock { Text = "Watch on", FontSize = 15, Foreground = DetDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
@@ -691,19 +685,18 @@ public sealed partial class MainWindow
                 _ = ReadMineAsync();
             }
             // the TMDB watchlist in place of the services' My List while an account is linked (2026-10-03)
-            if (_watchActive) watch.Children.Add(WatchlistToggle(tkind == "tv" ? "tv" : "movie", (long)tid, ttitle)); else watch.Children.Add(mine);
-            // Send to playlist (docs/features/playlists.md, 2026-09-27): a series sends every episode (specials left out), a movie itself
-            var sendApps = mineSvcs.Select(x => x.app).ToList();
-            var sendTmdb = tkind + ":" + ((long)tid).ToString();
-            int? sendYear = d["year"] is JsonValue syv && syv.TryGetValue<double>(out var syd) ? (int)syd : null;
-            JsonObject SendSrc() => CardSource(ttitle, tkind == "tv" ? "series" : "movie", _detailsApp is { Length: > 0 } dap && sendApps.Contains(dap) ? dap : sendApps.FirstOrDefault(), sendApps, sendTmdb, poster0, sendYear);
+            if (S(actions?["list"], "mode") == "watchlist") watch.Children.Add(WatchlistToggle(tkind == "tv" ? "tv" : "movie", (long)tid, ttitle)); else watch.Children.Add(mine);
+            // Send to playlist (docs/features/playlists.md, 2026-09-27): a series sends every episode (specials left out), a movie itself - the
+            // source core built (actions.playlist.source), the one the phone's sheet sends as well
+            var sendPl = actions?["playlist"] as JsonObject;
+            JsonObject SendSrc() => sendPl?["source"] is JsonObject ss ? (JsonObject)ss.DeepClone() : CardSource(ttitle, tkind == "tv" ? "series" : "movie", null, null, tkind + ":" + ((long)tid).ToString(), poster0, null);
             var sendBtn = new Button { Background = DetChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 6, 14, 6),
                 Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = ((char)0xE8FD).ToString(), FontSize = 13 }, new TextBlock { Text = "Send to playlist", FontSize = 14, Foreground = DetInk } } } };
             OwnHover(sendBtn);
             ToolTipService.SetToolTip(sendBtn, tkind == "tv" ? "Send every episode of " + ttitle + " to a playlist (specials left out)" : "Send " + ttitle + " to a playlist");
             var sendFly = SendToFlyout((tkind == "tv" ? "Send all episodes to" : "Send to", SendSrc));
             sendBtn.Flyout = sendFly;
-            if (_playlistsActive) watch.Children.Add(sendBtn);   // playlists are the TMDB account's lists: offered once one is linked (2026-10-06)
+            if (sendPl?["can"]?.GetValue<bool>() == true) watch.Children.Add(sendBtn);   // playlists are the TMDB account's lists: offered once one is linked (2026-10-06), core's call
             head.Children.Add(new ScrollViewer { Content = watch, HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = ScrollMode.Enabled });
         }
         top.Children.Add(head);

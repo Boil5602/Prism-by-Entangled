@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INFERRED_RECENT_MS, agoLabel, noteLog, noteSeen, orderMerged, orderByService, orderContinueByTitle, continueOrderOf, type FirstSeen, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, sortTitle } from "../src/menu-order.js";
+import { INFERRED_RECENT_MS, agoLabel, noteLog, noteSeen, orderMerged, orderByService, orderByWatched, orderContinueByTitle, continueOrderOf, type FirstSeen, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, sortTitle } from "../src/menu-order.js";
 
 // docs/video-menu-spec.md §4 + the transparency rule (Phase 2, 2026-09-19): the menu's ordering is a PURE function of the
 // four §4 inputs - the services' rows, the local watch log, the first-seen record, now - and nothing else. No ranking or
@@ -41,11 +41,22 @@ describe("menu-order §4 - the merge is a pure function of the four inputs", () 
     expect(orderByService(mixed, [], {}, NOW).map((c) => c.item.title)).toEqual(["The Americans", "Mad Men", "Zorro"]);   // A to Z inside the service, not its own order
   });
 
+  it("Last watched (2026-10-14): what Prism played newest first, with its time; the rest by service A to Z in each service's own order; reversed oldest first, services Z to A", () => {
+    const log: MenuLogEntry[] = [{ app: "hulu", id: "h2", title: "Shrill", at: NOW - DAY }, { app: "netflix", id: "n3", title: "Tires", at: NOW - 3 * DAY }];
+    const out = orderByWatched(rows, log, {}, NOW);
+    expect(out.map((c) => c.item.id)).toEqual(["h2", "n3", "h1", "n1", "n2"]);
+    expect(out[0]!.lastWatched).toBe(NOW - DAY);
+    expect(out.slice(2).every((c) => c.lastWatched === undefined)).toBe(true);   // no time is guessed for the rest
+    expect(orderByWatched(rows, log, {}, NOW, true).map((c) => c.item.id)).toEqual(["n3", "h2", "n2", "n1", "h1"]);
+    expect(orderByWatched(rows, [], {}, NOW).map((c) => c.item.id)).toEqual(["h1", "h2", "n1", "n2", "n3"]);   // nothing played yet: by service, each as the service gives it
+  });
+
   it("Continue watching A to Z (2026-09-26): by title alone, a leading The set aside, ties keep the grouped order; reversed Z to A; the default", () => {
     const out = orderContinueByTitle(orderByService(rows, [], {}, NOW));
     expect(out.map((c) => c.item.title)).toEqual(["The Bear", "Dark", "Heat", "Shrill", "Tires"]);
     expect(orderContinueByTitle(orderByService(rows, [], {}, NOW), true).map((c) => c.item.title)).toEqual(["Tires", "Shrill", "Heat", "Dark", "The Bear"]);
     expect(continueOrderOf("service")).toBe("service");
+    expect(continueOrderOf("watched")).toBe("watched");
     expect(continueOrderOf("bogus")).toBe("title");   // A to Z is the default
     expect(continueOrderOf(null)).toBe("title");
   });

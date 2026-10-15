@@ -63,6 +63,7 @@ public sealed partial class MainWindow
         if ((lr["id"]?.GetValue<string>() ?? "") == "the-binge") return BingeTip(lr);   // the eligibility table (2026-09-24)
         string S(string k) => lr[k]?.GetValue<string>() ?? "";
         var date = S("dataDate") is { Length: > 0 } d ? d : "not read yet";
+        if (S("simple").Length > 0) return CatalogLensHead(lr) + "\n\nHow it's picked: " + S("simple") + "\nSource: " + (S("sourceShort").Length > 0 ? S("sourceShort") : S("source")) + "  \u00B7  data as of " + date + (S("editIn").Length > 0 ? "\nWhere to change it: " + S("editIn") : "");   // plain words (2026-10-14)
         return CatalogLensHead(lr) + "\n\n" + LensDisclosureLine(lr, date)
             + "\n\nWhat is counted: " + S("counted") + "\nWho is counted: " + S("who") + "\nWho decides: " + S("decides") + "\nSource: " + S("source") + "  \u00B7  " + S("sourceUrl");
     }
@@ -121,7 +122,7 @@ public sealed partial class MainWindow
     /// <summary>The Library tab's sort (2026-09-22): own (A to Z) | newest | oldest | rated - core keeps the choice on the device and orders; the host only asks.</summary>
     private string? _hubSort;
     /// <summary>The search's filter (2026-09-22): a genre as TMDB names it, a service's App id; null = all. Reset with each new search.</summary>
-    private string? _lookupGenre, _lookupApp;
+    private string? _lookupGenre, _lookupApp, _lookupKind;
     /// <summary>The Library tab's grouping (2026-09-23): "genre" (a row per genre, the default) or "none" (every title in one list).</summary>
     private string _hubGroup = "genre";
     /// <summary>Bumped when the search is cleared (2026-09-23, "When I clear the search or click away from it, the search items remain at the top of
@@ -1139,7 +1140,7 @@ public sealed partial class MainWindow
             acc.Invoked += (_, e) => { e.Handled = true; if (titleUp) CloseVideoHub(); };
             overlay.KeyboardAccelerators.Add(acc);
         }
-        var page = new Grid { Margin = new Thickness(48, 30, 48, 24) };
+        var page = new Grid { Margin = new Thickness(HubSide, 30, HubSide, 24) };
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -1172,6 +1173,7 @@ public sealed partial class MainWindow
                 Background = on ? HubCard : HubClear, BorderBrush = on ? HubTabRule : HubClear, BorderThickness = new Thickness(1, 1, 1, 0), CornerRadius = new CornerRadius(10, 10, 0, 0),
                 Padding = new Thickness(18, 8, 18, 10), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, on ? -1 : 0),
             };
+            OwnHover(tab);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
             Canvas.SetZIndex(tab, on ? 2 : 1);
             tab.Resources["ButtonBorderBrushPointerOver"] = on ? HubTabRule : HubClear;   // the border stays as drawn through the hover (OwnHover keeps named borders)
             tab.Resources["ButtonBorderBrushPressed"] = on ? HubTabRule : HubClear;
@@ -1219,31 +1221,9 @@ public sealed partial class MainWindow
         // top of watch ... these controls should either be within the big window or removed"): the title is the big window's tooltip and the verbs
         // sit on its bar (WatchScreens.PlaceLabel, ScreenVerbs). The line panel is kept, unattached, for the code that still writes to it.
         var headRight = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0 };
-        var suggestions = Chip(new TextBlock { Text = SuggestionsOn ? "Service suggestions: on" : "Service suggestions: off", FontSize = 12, Foreground = SuggestionsOn ? HubAmber : HubDim }, SuggestionsOn);
-        ToolTipService.SetToolTip(suggestions, "Each service's own rows (\"Netflix suggests…\"). Off by default: Prism ranks nothing and recommends nothing beyond your own lists and what you watched. On, every row is labeled with the service it came from.");
-        // in place (2026-09-25, "why does the whole page have to refresh? Should be able to keep the top 7-8 rows without needing any refresh"): the
-        // services' rows are one panel at the bottom, shown or hidden; the page is drawn again only where there is no such panel
-        // straight to the services' rows (2026-10-08, "a button next to the Service suggestions chip that jumps to the suggestions list below
-        // Services"): they sit under every other row, a long way down. Shown only while the switch is on
-        var suggJump = Chip(new FontIcon { Glyph = "\uE74B", FontSize = 14 }, false);
-        ToolTipService.SetToolTip(suggJump, "Jump to the service suggestions, below Services.");
-        suggJump.Margin = new Thickness(8, 0, 0, 0);
-        suggJump.Visibility = SuggestionsOn && _hubTab == "watch" ? Visibility.Visible : Visibility.Collapsed;
-        suggJump.Click += (_, __) => _suggJump?.Invoke();
-        // core reads each service's home page for its rows while the switch is on (hidden pages, every few hours): told once a run, and at every change
-        if (!_suggTold) { _suggTold = true; _ = ModelCallAsync("videoSetSuggestions", SuggestionsOn); }
-        suggestions.Click += (_, __) =>
-        {
-            SuggestionsOn = !SuggestionsOn;
-            _ = ModelCallAsync("videoSetSuggestions", SuggestionsOn);
-            if (_suggToggle is not { } toggle) { _ = ShowVideoHubAsync(); return; }
-            toggle();
-            suggJump.Visibility = SuggestionsOn && _hubTab == "watch" ? Visibility.Visible : Visibility.Collapsed;
-            if (suggestions.Content is TextBlock st) { st.Text = SuggestionsOn ? "Service suggestions: on" : "Service suggestions: off"; st.Foreground = SuggestionsOn ? HubAmber : HubDim; }
-            suggestions.Background = SuggestionsOn ? HubChipOn : HubChip;
-        };
-        headRight.Children.Add(suggestions);
-        headRight.Children.Add(suggJump);
+        // core reads each service's home page for its rows (hidden pages, every few hours): always, since a service's poster shows them on a press
+        // (2026-10-14, "Lets remove the service suggestions button"); the switch and its jump are gone from the header
+        if (!_suggTold) { _suggTold = true; _ = ModelCallAsync("videoSetSuggestions", true); }
         var gear = Chip(new FontIcon { Glyph = "\uE713", FontSize = 14 }, false);
         ToolTipService.SetToolTip(gear, "Watch settings: the TMDB key, background updates.");
         gear.Margin = new Thickness(8, 0, 0, 0);
@@ -1293,7 +1273,9 @@ public sealed partial class MainWindow
         page.Children.Add(gateRow);
 
         // ---- the five rows (§2), then the labeled suggestions when on
-        var rows = new StackPanel { Spacing = 18, Margin = new Thickness(0, 14, 0, 0) };
+        // the rows' side margins are the panel's own padding, not the page's: the scroller spans the page edge to edge, so a shaded band
+        // (Band) can run through the margins while every other row keeps its 48 px inset (2026-10-14, "go through the side margins as well")
+        var rows = new StackPanel { Spacing = 18, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(HubSide, 0, HubSide, 0) };
         _suggToggle = null; _suggJump = null;
         Button? first = null;
         void Cards(string head, IEnumerable<JsonObject> cards, bool badge, SolidColorBrush ink, string? live = null)
@@ -1370,7 +1352,7 @@ public sealed partial class MainWindow
         // content creator rows down below the channels I follow"): two rows across services, each card with its service's mark, drawn above
         // the categories
         _plainArtApps = new HashSet<string>((menu["artPlain"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "").Where(x => x.Length > 0) ?? Enumerable.Empty<string>());
-        var followedDrawn = false;
+        var followedDrawn = false; var servicesDrawn = false;
         void DrawFollowedRows()
         {
             if (followedDrawn) return; followedDrawn = true;
@@ -1385,8 +1367,7 @@ public sealed partial class MainWindow
                     var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
                     headRow.Children.Add(RowHead("Channels you follow  \u00B7  " + shown.Count(LiveNow) + " live now", HubInk));
                     headRow.Children.Add(HideOfflineBox(13));
-                    rows.Children.Add(headRow);
-                    rows.Children.Add(CardRow(cards, true, now, ref first));
+                    rows.Children.Add(Band(headRow, CardRow(cards, true, now, ref first)));   // on its own shaded band, a separator down the page
                 }
             }
             if (menu["latest"] is JsonArray latest && latest.Count > 0)
@@ -1418,6 +1399,8 @@ public sealed partial class MainWindow
                     if (shown.Count == 0) continue;
                     var cards = shown.Take(48).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" }, ["__library"] = true }).ToList();   // a service's own row: its library's remove when it has one (core says)
                     var headText = name + "  " + Mid.Trim() + "  " + S(r, "title");
+                    // a service whose series open in place (YouTube TV's recordings, 2026-10-14): the row turns into the series' episodes on a press
+                    if (!onAir && !channels && sv["seriesPicks"]?.GetValue<bool>() == true) { SeriesPickRow(rows, app, name, facet, S(r, "title"), cards, now, ref first); continue; }
                     if (!onAir) { Cards(headText, cards, false, HubInk); continue; }
                     var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
                     headRow.Children.Add(RowHead(headText, HubInk));
@@ -1439,11 +1422,12 @@ public sealed partial class MainWindow
         // order, its three-layer disclosure, source, formula and data date on the row - never in a settings page
         var lensBlock = menu["lens"] as JsonObject;
         var hasKey = lensBlock?["tmdbKey"]?.GetValue<bool>() == true;
+        _hubTmdbKey = hasKey;
         var lensPending = lensBlock?["pending"] is JsonValue pv2 && pv2.TryGetValue<int>(out var pn) ? pn : 0;
         if (menu["lensRows"] is JsonArray lensRows)
             foreach (var lr in lensRows.OfType<JsonObject>())
             {
-                if (S(lr, "id").StartsWith("cat:", StringComparison.Ordinal)) DrawFollowedRows();   // the followed rows stand above the categories (2026-10-13)
+                if (S(lr, "id").StartsWith("cat:", StringComparison.Ordinal)) DrawServicesBlock();   // Services and its rows stand above the categories (2026-10-13)
                 var cards = (lr["cards"] as JsonArray)?.OfType<JsonObject>().Take(24).ToList() ?? new List<JsonObject>();
                 // a lens that reads the catalog on the household's services (Most read on Wikipedia, 2026-09-22): Browse's cards, the row filled
                 // in its own panel while its lists are read - the panel alone, never the page
@@ -1455,7 +1439,7 @@ public sealed partial class MainWindow
                     var catHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
                     var catTb = RowHead(CatalogLensShort(lr), HubInk);
                     catHead.Children.Add(catTb);
-                    if (S(lr, "id") == "the-binge") BingeHeadOpens(catHead);   // the head opens The Binge in full
+                    if (S(lr, "id") == "the-binge") { BingeHeadOpens(catHead); catHead.Children.Insert(1, EditMark("Change The Binge's limits.", () => _ = ShowWatchSettingsAsync("binge"))); }   // the head opens The Binge in full; the pencil its limits (2026-10-14)
                     // the details live in the head's tooltip; the disclosure line stays as the tooltip's text holder, never drawn
                     var catDisc = new TextBlock { Text = CatalogLensTip(lr), Visibility = Visibility.Collapsed };
                     catHead.Background = HubClear;
@@ -1483,6 +1467,7 @@ public sealed partial class MainWindow
                 var lensHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
                 var headTb = RowHead(S(lr, "name") + (cards.Count == 0 ? (isCat ? "  ·  reading the open pool…" : "  ·  reading " + lensPending + " title" + (lensPending == 1 ? "" : "s") + "…") : ""), HubInk);
                 lensHead.Children.Add(headTb);
+                if (isCat) { var catId = S(lr, "id").Substring(4); lensHead.Children.Add(EditMark("Edit this category: its hashtags, its order, its services.", () => { _catPick = catId; _ = ShowWatchSettingsAsync("categories"); })); }   // the pencil (2026-10-14)
                 // the row's words behind an (i) beside its name, not on the page (2026-10-13, "there is a lot of text next to those rows, can you put it
                 // into a tooltip under an (i)"): the disclosure line and the rule said in full, in its tooltip; the line itself stays for the follow
                 var disclosure = new TextBlock { Text = LensDisclosureLine(lr, date), Visibility = Visibility.Collapsed };
@@ -1506,7 +1491,6 @@ public sealed partial class MainWindow
                     hostPanel.PointerExited += (_, __) => { if (hostPanel.Tag is string t && t.StartsWith("over|", StringComparison.Ordinal)) hostPanel.Tag = t.Substring(5); };
                 }
             }
-        DrawFollowedRows();   // no category: the followed rows after the lens rows
         if (lensBlock is not null && false)   // (2026-09-24: the TMDB key is in Watch settings now - the gear on the header)
         {
             var keyLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -1535,6 +1519,11 @@ public sealed partial class MainWindow
         }
         // the sources answer in the background: the lines under the cards follow them in place; nothing is rebuilt under a person
         if (lensBlock is not null && lensPending > 0) _ = FollowHubAsync(overlay);
+        // Services, each service's own rows and its suggestions stand above the categories (2026-10-13, "Move 12 after 7. Move 8 after 11.
+        // Move 13 & 14 after 12"): drawn once, before the first category row, or here when there is none
+        void DrawServicesBlock()
+        {
+            if (servicesDrawn) return; servicesDrawn = true;
         // live channels are the Live tab's (docs/features/live.md, 2026-09-28, "make sure any LIVE items on watch get moved into the Live tab"):
         // a line here says how many, and takes the person there
         if (menu["live"] is JsonArray live)
@@ -1547,8 +1536,9 @@ public sealed partial class MainWindow
                 rows.Children.Add(toLive);
             }
         }
-        // Services: every service the household has, as posters - tap enters it natively (sign in where needed)
-        rows.Children.Add(RowHead("Services", HubInk));
+        // Services: every service the household has, as posters - tap enters it natively (sign in where needed); on its own shaded band (Band)
+        _svcSuggLabels.Clear(); _svcSuggBase.Clear();
+        var svcHead = RowHead("Services", HubInk);
         var posters = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         foreach (var s in services)
         {
@@ -1561,9 +1551,11 @@ public sealed partial class MainWindow
             poster.Children.Add(dot);
             var cell = new StackPanel { Spacing = 6, Width = 210 };
             cell.Children.Add(poster);
-            cell.Children.Add(new TextBlock { Text = on ? "On the screen" : signedIn ? "" : "Sign in first", FontSize = 12, Foreground = on ? HubAmber : signedIn ? HubInk : HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
+            var svcLabel = new TextBlock { Text = on ? "On the screen" : signedIn ? "" : "Sign in first", FontSize = 12, Foreground = on ? HubAmber : signedIn ? HubInk : HubDim, TextTrimming = TextTrimming.CharacterEllipsis };
+            cell.Children.Add(svcLabel);
+            if (signedIn) { _svcSuggLabels.Add((app, svcLabel)); _svcSuggBase[app] = (svcLabel.Text, svcLabel.Foreground); }
             var b = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4), VerticalAlignment = VerticalAlignment.Top };   // a cell with a profile chip is taller: the posters stay on one line
-            var tipBase = on ? name + " is on the screen. Press for its profiles and its own page." : signedIn ? name + ": press for who watches, or its own page." : name + " is not signed in yet: opens its sign-in page.";
+            var tipBase = on ? name + " is on the screen. Press for its suggestions; right-click for who watches, or its own page." : signedIn ? name + ": press for its suggestions; right-click for who watches, or its own page." : name + " is not signed in yet: opens its sign-in page.";
             ToolTipService.SetToolTip(b, tipBase);
             _svcDots[app] = (dot, b, tipBase);
             // a signed-in service's own pages are not a place to sit (2026-09-23, "the video player should send me back to watch, not have me
@@ -1573,7 +1565,7 @@ public sealed partial class MainWindow
             // but also include an item to visit the site in case they want to change their login"): the profiles the service has shown, and its own page;
             // a service not signed in still goes straight to its sign-in page, the window growing out of the card (2026-10-03)
             var svcMenu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
-            b.Click += (_, __) => { if (!signedIn) { ExpandFrom(poster); CloseVideoHub(); OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene&signin=1"); return; } svcMenu.ShowAt(b); };
+            b.Click += (_, __) => { if (!signedIn) { ExpandFrom(poster); CloseVideoHub(); OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene&signin=1"); return; } _showServiceSuggestions?.Invoke(app); };
             // the profile, a plain choice under the service (2026-09-19): the profiles the service has shown the wall, with
             // their pictures; a pick stands until another is made (core keeps it and answers the gate wherever it shows)
             if (so["profiles"] is JsonArray plist2 && plist2.Count > 0)
@@ -1613,49 +1605,43 @@ public sealed partial class MainWindow
                 svcMenu.Items.Add(open);
                 if (on) { var here = new MenuFlyoutItem { Text = name + " is on the screen", Foreground = HubInk, IsHitTestVisible = false }; svcMenu.Items.Insert(0, here); }   // a label in ink, never a disabled row (CLAUDE.md, host UI contrast)
             }
+            if (signedIn) b.ContextFlyout = svcMenu;   // who watches, and its own page: a right-click (the press shows its suggestions, 2026-10-14)
             posters.Children.Add(b);
             first ??= b;
         }
-        rows.Children.Add(Carousel(posters));
+        rows.Children.Add(Band(svcHead, Carousel(posters)));
+        // a service's own suggestions under the Services row on its poster's press (2026-10-14, "when the user clicks the service from the services list,
+        // show the suggestions from that service immediately below the services line ... If I deselect the service, those should be removed, or if I
+        // click another it should go to that service's suggestions"); the choice stands across a redraw (MainWindow.ServiceSuggestions.cs)
+        var svcSugg = new StackPanel { Spacing = 18 };
+        rows.Children.Add(svcSugg);
+        _showServiceSuggestions = app2 =>
+        {
+            _svcSuggApp = _svcSuggApp == app2 ? null : app2;
+            svcSugg.Children.Clear();
+            foreach (var (a, lbl) in _svcSuggLabels)
+            {
+                var (baseText, baseInk) = _svcSuggBase.TryGetValue(a, out var bb) ? bb : ("", HubInk);
+                lbl.Text = a == _svcSuggApp ? "Suggestions below" : baseText; lbl.Foreground = a == _svcSuggApp ? HubAmber : baseInk;
+            }
+            if (_svcSuggApp is null) return;
+            var sv = (menu["suggestions"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(x => S(x, "app") == _svcSuggApp);
+            var svName = (menu["services"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(x => S(x, "app") == _svcSuggApp) is { } so2 ? S(so2, "name") : _svcSuggApp;
+            var shelves = (sv?["shelves"] as JsonArray)?.OfType<JsonObject>().Where(sh => sh["items"] is JsonArray its && its.Count > 0).ToList() ?? new List<JsonObject>();
+            if (shelves.Count == 0) { svcSugg.Children.Add(new TextBlock { Text = "No suggestions from " + svName + " yet. Prism reads its home page in the background; they'll be here in a few minutes.", FontSize = 14, Foreground = HubInk }); return; }
+            foreach (var sh in shelves)
+            {
+                var cards2 = ((JsonArray)sh["items"]!).OfType<JsonObject>().Take(24).Select(i => new JsonObject { ["app"] = _svcSuggApp, ["service"] = svName, ["facet"] = S(sv!, "facet"), ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
+                svcSugg.Children.Add(RowHead(svName + " suggests  ·  " + S(sh, "title"), HubDim));
+                Button? f0 = null; svcSugg.Children.Add(CardRow(cards2, false, now, ref f0));
+            }
+        };
+        if (_svcSuggApp is { } keep0) { _svcSuggApp = null; _showServiceSuggestions(keep0); }
         DrawOwnRows();   // each service's rows of the person's own things: under Services, above its suggestions
         // the services' own rows, only when the household asked, each labeled by its source
-        if (menu["suggestions"] is JsonArray sugg)
-        {
-            // their own panel, filled the first time they are shown
-            var suggPanel = new StackPanel { Spacing = 18, Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed };
-            rows.Children.Add(suggPanel);
-            void FillSuggestions()
-            {
-                if (suggPanel.Children.Count > 0) return;
-                var at = rows.Children.Count;
-                SuggestionRows(sugg);
-                while (rows.Children.Count > at) { var el = rows.Children[at]; rows.Children.RemoveAt(at); suggPanel.Children.Add(el); }
-                // none kept yet (the switch just went on, or a first run): said in ink, so the jump lands on words and not on nothing
-                if (suggPanel.Children.Count == 0) suggPanel.Children.Add(new TextBlock { Text = "No service suggestions yet. Prism reads each service's home page in the background, so they'll be here in a few minutes.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
-            }
-            if (SuggestionsOn) FillSuggestions();
-            _suggToggle = () => { if (SuggestionsOn) FillSuggestions(); suggPanel.Visibility = SuggestionsOn ? Visibility.Visible : Visibility.Collapsed; };
-            // the page moved so the services' rows start at its top (the rows panel is the scroller's content, so the panel's place in it is the offset)
-            _suggJump = () =>
-            {
-                if (!SuggestionsOn || _hubScroller is not { } hs) return;
-                try { hs.UpdateLayout(); var y = suggPanel.TransformToVisual(rows).TransformPoint(new Windows.Foundation.Point(0, 0)).Y; hs.ChangeView(null, Math.Max(0, y - 8), null, false); } catch { }
-            };
         }
-        void SuggestionRows(JsonArray sugg)
-        {
-            foreach (var sv in sugg.OfType<JsonObject>())
-            {
-                var name = S(sv, "name"); var facet = S(sv, "facet"); var app = S(sv, "app");
-                if (sv["shelves"] is not JsonArray shelves) continue;
-                foreach (var sh in shelves.OfType<JsonObject>())
-                {
-                    if (sh["items"] is not JsonArray items || items.Count == 0) continue;
-                    var cards = items.OfType<JsonObject>().Take(24).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
-                    Cards(name + " suggests  ·  " + S(sh, "title"), cards, false, HubDim);
-                }
-            }
-        }
+        DrawServicesBlock();
+        DrawFollowedRows();   // the followed rows after the categories
         }
         // search on the Playlists tab too (2026-09-27, "The search icon isnt available on the playlists screen but I see no reason for that")
         if (_hubTab is "watch" or "playlists")
@@ -1874,7 +1860,7 @@ public sealed partial class MainWindow
         }
         if (_hubTab == "watch" && rows.Children.Count <= 2) rows.Children.Add(new TextBlock { Text = "Watch something on a service once and it appears here. Nothing is ranked or recommended by Prism: rows are your own lists and what you watched, newest first.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
         if (_hubTab == "watch") AddPerfPanel(rows);   // the performance stats at the foot, when on (MainWindow.PerfPanel, 2026-10-03)
-        var scroller = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var scroller = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(-HubSide, 0, -HubSide, 0) };   // edge to edge (the rows pad themselves)
         _hubScroller = scroller;   // no bars anywhere on the page: the rows are carousels the arrows (or a wheel, a swipe) move, the focused card brought to the centre (2026-09-21)
         Grid.SetRow(scroller, 2);
         page.Children.Add(scroller);
@@ -1976,6 +1962,18 @@ public sealed partial class MainWindow
     }
 
     private static TextBlock RowHead(string text, SolidColorBrush ink) => new() { Text = text, FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ink };
+    /// <summary>A row on its own shaded band, a natural separator down the Watch page (2026-10-14, "change the background shading for the Services line
+    /// and the channels you follow line ... natural separators"): the band runs through the page's side margins, edge to edge ("go through
+    /// the side margins as well"), its cards staying aligned with the other rows'.</summary>
+    private static readonly SolidColorBrush HubBand = new(Windows.UI.Color.FromArgb(0x14, 0xE8, 0xEC, 0xF2));
+    /// <summary>The Watch page's side margin (the rows' own padding, see the rows panel).</summary>
+    private const double HubSide = 48;
+    private static Border Band(params FrameworkElement[] parts)
+    {
+        var inner = new StackPanel { Spacing = 14 };
+        foreach (var p in parts) inner.Children.Add(p);
+        return new Border { Background = HubBand, Padding = new Thickness(HubSide, 12, HubSide, 16), Margin = new Thickness(-HubSide, 0, -HubSide, 0), Child = inner };
+    }
 
     /// <summary>The 10-foot walk: every enabled control on the page, grouped into rows by where it sits, in order. Left / Right move
     /// within the row, Up / Down to the nearest item (by x) of the adjacent row; the focused item is brought into its row's view.
@@ -2368,6 +2366,7 @@ public sealed partial class MainWindow
             var item = card["item"] as JsonObject; if (item is null) return null;
             var service = S(card, "service"); var facet = S(card, "facet");
             var id = S(item, "id"); var title = S(item, "title"); var kind = S(item, "kind"); var url = item["url"]?.GetValue<string>(); var art = item["artwork"]?.GetValue<string>(); var series = S(item, "series"); var subt = S(item, "subtitle");
+            if (S(item, "badgeFrom") == "count") subt = "";   // the count is the ribbon; no line under (2026-10-14, "Then we dont need the tag line under the series")
             var text = series.Length > 0 && series != title ? series + "  ·  " + title : title;
             var poster = new Grid { Width = CardArtW, Height = CardArtH };
             // a channel card (On now) stands on a colour of the channel's own (2026-10-13, "make sure it has a colored background"), so the wash
@@ -2392,13 +2391,16 @@ public sealed partial class MainWindow
             }
             // the service's own banner on its card ("New Season", "Leaving Soon", 2026-09-23), in its words - it is also why
             // the title stands at the front of My List (core's orderAlphabetical)
-            if (S(item, "badge") is { Length: > 0 } tmdbNew && S(item, "badgeFrom") == "tmdb")
+            // ... and a service's own count of what is new ("7 New", 2026-10-14), and a recording's day in a series row opened in place (MainWindow.SeriesRow.cs)
+            if (S(item, "badge") is { Length: > 0 } tmdbNew && S(item, "badgeFrom") is "tmdb" or "count" or "date")
             {
                 // TMDB's new episode this week (2026-09-23, "a corner diagonal banner ... 'New Sep 18' ... in a small red but readable banner"):
                 // a red ribbon across the top-left corner (the service's symbol took the top right, 2026-09-23), white type; its tip names the source
                 poster.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, poster.Width, poster.Height) };
                 var ribbon = new Border { Width = 124, Height = 22, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xC6, 0x28, 0x28)), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-40, 18, 0, 0), RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = -45 }, Child = new TextBlock { Text = tmdbNew, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-                ToolTipService.SetToolTip(ribbon, "A new episode aired " + tmdbNew.Replace("New ", "") + " - per TMDB.");
+                ToolTipService.SetToolTip(ribbon, S(item, "badgeFrom") == "tmdb" ? "A new episode aired " + tmdbNew.Replace("New ", "") + " - per TMDB."
+                    : S(item, "badgeFrom") == "count" ? (S(item, "subtitle").Length > 0 ? S(item, "subtitle") : tmdbNew) + ", as " + service + " counts them. Press to see them."
+                    : "Aired " + tmdbNew.Replace("New ", "") + ", as " + service + " lists it.");
                 poster.Children.Add(ribbon);
             }
             // a badge the service drew into its own picture (Netflix's box art) is not drawn again (2026-09-24, DANG!'s 'Recently Added' twice)
@@ -2463,7 +2465,8 @@ public sealed partial class MainWindow
             var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
             var ratingTb = MakeRatingLine(ratingText != lensLabel ? ratingText : "", mine, 11, HubDim);   // under the rating lens the lens line already says it
             cell.Children.Add(lensTb);
-            if (named) { var tm = card["tmdb"] as JsonObject; AddRatingBadge(poster, ratingTb, tm is null ? null : S(tm, "kind"), tm?["id"] is JsonValue tiv && tiv.TryGetValue<int>(out var tii) ? tii : 0); }   // the star on the picture (2026-10-13)
+            Action? rateOpen = null;
+            if (named) { var tm = card["tmdb"] as JsonObject; rateOpen = AddRatingBadge(poster, ratingTb, tm is null ? null : S(tm, "kind"), tm?["id"] is JsonValue tiv && tiv.TryGetValue<int>(out var tii) ? tii : 0); }   // the score pill on the picture (2026-10-13)
             else cell.Children.Add(ratingTb.Root);
             (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb, poster));
             _hubArt[poster] = art ?? "";
@@ -2500,7 +2503,7 @@ public sealed partial class MainWindow
                 }
                 btn.ContextFlyout = cf;
             }
-            else btn.ContextFlyout = RatingFlyout(series.Length > 0 ? series : title, series.Length > 0 ? "series" : kind, app: S(card, "app").Length > 0 ? S(card, "app") : null, extra: rmApp.Length > 0 && rmId.Length > 0 ? async fly =>
+            else btn.ContextFlyout = RatingFlyout(series.Length > 0 ? series : title, series.Length > 0 ? "series" : kind, app: S(card, "app").Length > 0 ? S(card, "app") : null, rate: rateOpen, extra: rmApp.Length > 0 && rmId.Length > 0 ? async fly =>
             {
                 if (fromContinue) await AddRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);
                 if (card["__library"]?.GetValue<bool>() == true) await AddLibraryRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);   // a library card: out of the service's library (2026-10-12)
@@ -2549,6 +2552,8 @@ public sealed partial class MainWindow
             // a channel of the Live page's On now view (2026-10-12): the card tunes it, as its row in the timetable would
             else if (card["__tune"]?.GetValue<bool>() == true) btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); SetPill("Prism \u00B7 tuning " + Shorten(t2, 40) + " on " + s2 + "\u2026"); _ = TuneAsync(f2, i2, u2, t2); };
             else if (k2 == "channel") btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); _ = PlayOnAsync(f2, k2, i2, u2, t2); };
+            // a series of a library row that opens in place (MainWindow.SeriesRow.cs, 2026-10-14): its recordings take the row
+            else if (k2 == "series" && card["__pickRow"]?.GetValue<string>() is { Length: > 0 } pickRow) btn.Click += (_, __) => { if (_rowPicks.TryGetValue(pickRow, out var pickFn)) pickFn(card); else { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); } };
             else btn.Click += (_, __) => { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); };
         return btn;
     }
@@ -2655,35 +2660,28 @@ public sealed partial class MainWindow
         b.Click += (_, __) => fly.ShowAt(b);
         place(b);
     }
-    private MenuFlyout RatingFlyout(string title, string? kind = null, Func<MenuFlyout, Task>? extra = null, string? app = null, string? tmdb = null, int? year = null)
+    private MenuFlyout RatingFlyout(string title, string? kind = null, Func<MenuFlyout, Task>? extra = null, string? app = null, string? tmdb = null, int? year = null, Action? rate = null)
     {
         var fly = new MenuFlyout();
         fly.Items.Add(new MenuFlyoutItem { Text = "Reading\u2026", Foreground = HubInk, IsHitTestVisible = false });
         fly.Opening += async (_, __) =>
         {
-            JsonObject? d = null;
-            try { d = JsonNode.Parse(await ModelCallAsync("lensDisclosure", title) ?? "null") as JsonObject; } catch { }
             fly.Items.Clear();
             // the title's details from TMDB, in Prism's own window (2026-09-23 - no outbound IMDb / Letterboxd links: "We should be able to avoid using it")
             var details = new MenuFlyoutItem { Text = "Details" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE946" } };
             ToolTipService.SetToolTip(details, "Cast, where to watch, the trailer and more, from TMDB.");
             details.Click += (_, ___) => ShowTitleDetails(title, kind, app);
             if (await TmdbKeyAsync()) fly.Items.Add(details);   // TMDB's page: with a key only (MainWindow.TmdbGate)
+            // the rating window: TMDB's number and votes, and the person's own stars (2026-10-13, "make the star ratings a right-click option")
+            if (rate is not null) { var rt = new MenuFlyoutItem { Text = "Your rating on TMDB" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE734" } }; rt.Click += (_, ___) => rate(); fly.Items.Add(rt); }
             // Send to playlist, next to Details (docs/features/playlists.md, 2026-09-27): a show sends all its episodes, a movie itself
             if (await PlaylistsActiveAsync()) fly.Items.Add(await SendToSubAsync("Send to playlist", () => CardSource(title, kind, app, null, tmdb, null, year)));   // TMDB's id and year tell same-named shows apart (2026-09-27)
-            await AddWatchlistItemAsync(fly, title, kind);   // the TMDB watchlist, while an account is linked (2026-10-03)
+            await AddWatchlistItemAsync(fly, title, kind, tmdb);   // the TMDB watchlist, while an account is linked (2026-10-03); by the card's id when it has one
             fly.Items.Add(new MenuFlyoutSeparator());
-            if (extra is not null) { await extra(fly); if (fly.Items.Count > 0) fly.Items.Add(new MenuFlyoutSeparator()); }   // a Continue watching card's Remove on the service
-            var rating = d?["rating"]?.GetValue<string>();
-            fly.Items.Add(new MenuFlyoutItem { Text = rating is { Length: > 0 } ? rating : "No TMDB rating for this title" + (rating is null ? " (no key, or not matched)" : ""), Foreground = HubInk, IsHitTestVisible = false });
-            if (rating is { Length: > 0 })
-            {
-                fly.Items.Add(new MenuFlyoutItem { Text = "What is counted: TMDB members' votes, one to ten", Foreground = HubInk, IsHitTestVisible = false });
-                fly.Items.Add(new MenuFlyoutItem { Text = "Who is counted: members who chose to vote on it", Foreground = HubInk, IsHitTestVisible = false });
-                fly.Items.Add(new MenuFlyoutItem { Text = "Who decides: each voter equally; TMDB takes the mean", Foreground = HubInk, IsHitTestVisible = false });
-                var at = (d?["facts"] as JsonObject)?["rating"] is JsonObject r && r["at"] is JsonValue av && av.TryGetValue<double>(out var ad) ? DateTimeOffset.FromUnixTimeMilliseconds((long)ad).ToString("yyyy-MM-dd") : "?";
-                fly.Items.Add(new MenuFlyoutItem { Text = "Source: TMDB API · data date " + at + " · not endorsed or certified by TMDB", Foreground = HubInk, IsHitTestVisible = false });
-            }
+            if (extra is not null) await extra(fly);   // a Continue watching card's Remove on the service
+            // no TMDB block under the verbs (2026-10-14, "it shows a bunch of TMDB info below the options, lets remove that"): the rating and its
+            // disclosure live on Details and in the rating window
+            while (fly.Items.Count > 0 && fly.Items[^1] is MenuFlyoutSeparator) fly.Items.RemoveAt(fly.Items.Count - 1);
         };
         return fly;
     }
@@ -2732,6 +2730,16 @@ public sealed partial class MainWindow
         art.Children.Add(row);
         NameRows.AddOrUpdate(art, row);
     }
+    /// <summary>A pencil beside an editable row's name (2026-10-14, "the editable feeds like binge, Star Trek and comedy should have little pencil edit
+    /// buttons that takes you directly to them. Not in the tooltip, just next to the list name"): a press opens the row's own editor.</summary>
+    private static Button EditMark(string tip, Action go)
+    {
+        var b = Chip(new TextBlock { Text = "\u270E", FontSize = 13, Foreground = HubAmber }, false);
+        b.Padding = new Thickness(10, 2, 10, 3); b.MinHeight = 0; b.MinWidth = 0; b.VerticalAlignment = VerticalAlignment.Center;
+        ToolTipService.SetToolTip(b, tip);
+        b.Click += (_, __) => go();
+        return b;
+    }
     private static Button InfoMark(UIElement tip)
     {
         var b = Chip(new TextBlock { Text = "i", FontSize = 13, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }, false);   // upright (2026-10-13, "can that be removed?")
@@ -2747,6 +2755,15 @@ public sealed partial class MainWindow
         string S(string k) => lr[k]?.GetValue<string>() ?? "";
         var box = new StackPanel { Spacing = 10, MaxWidth = 560, Padding = new Thickness(4, 4, 4, 4) };
         box.Children.Add(new TextBlock { Text = headline is { Length: > 0 } ? headline : S("name"), FontSize = 16, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        // plain words (2026-10-14, "Simple explanations and simple sources for tooltips"): one explanation, one source, nothing else; a row without
+        // them (an adapter's own lens) keeps the parts below
+        if (S("simple").Length > 0)
+        {
+            Part("How it's picked", S("simple"));   // two sections ("an algorithm section and a source section")
+            Part("Source", S("sourceShort").Length > 0 ? S("sourceShort") : S("source"));
+            Part("Where to change it", S("editIn"));   // the editable rows (2026-10-14)
+            return box;
+        }
         void Part(string label, string text)
         {
             if (text.Trim().Length == 0) return;
@@ -2902,11 +2919,11 @@ public sealed partial class MainWindow
         if (st?["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not search" + (st is null ? "" : ": " + S(st, "error"))); return; }
         var token = S(st, "token");
         LogLine("video lookup: " + q + " (" + token + ")");
-        _lookupGenre = null; _lookupApp = null;   // a new search starts unfiltered
+        _lookupGenre = null; _lookupApp = null; _lookupKind = null;   // a new search starts unfiltered
         var started = DateTime.UtcNow;
         // the state under the filter (2026-09-22, "When searching, should be able to filter by genre and service"): core filters the rows and
         // names the chips the unfiltered rows offer; a chip press re-reads and redraws without a new search
-        async Task<JsonObject?> ViewAsync() { try { return JsonNode.Parse(await ModelCallAsync("videoLookupView", _lookupGenre, _lookupApp) ?? "null") as JsonObject; } catch { return null; } }
+        async Task<JsonObject?> ViewAsync() { try { return JsonNode.Parse(await ModelCallAsync("videoLookupView", _lookupGenre, _lookupApp, _lookupKind) ?? "null") as JsonObject; } catch { return null; } }
         var gen = _hubSearchGen;
         if (results.Tag is Action showSearch) showSearch();
         async Task RedrawAsync() { var v = await ViewAsync(); if (v is not null && S(v, "token") == token && ReferenceEquals(_videoHub, overlay) && gen == _hubSearchGen) Draw(v); }
@@ -2925,30 +2942,16 @@ public sealed partial class MainWindow
             _redrawSearch = () => { if (ReferenceEquals(_videoHub, overlay) && gen == _hubSearchGen) Draw(state); };
             results.Children.Clear();
             var done = state["done"]?.GetValue<bool>() == true;
-            results.Children.Add(RowHead((done ? "Results for “" : "Searching for “") + Shorten(q, 40) + "”", HubInk));
-            // the status line: who is still looking, who could not - the service's own reason, never hidden
-            var searching = new List<string>(); var cannot = new List<string>(); var empty = new List<string>();
-            if (state["services"] is JsonArray svcs)
-                foreach (var s in svcs.OfType<JsonObject>())
-                {
-                    var status = S(s, "status"); var name = S(s, "name");
-                    if (status == "searching") searching.Add(name);
-                    else if (status == "empty") empty.Add(name);
-                    else if (status != "ok") cannot.Add(name + ": " + (S(s, "reason").Length > 0 ? S(s, "reason") : status));
-                }
-            var parts = new List<string>();
-            if (searching.Count > 0) parts.Add("still searching " + string.Join(", ", searching));
-            if (empty.Count > 0) parts.Add("nothing on " + string.Join(", ", empty));
-            if (cannot.Count > 0) parts.Add(string.Join("  ·  ", cannot));
-            var catalog = S(state, "source") == "catalog";
-            if (catalog) { parts.Clear(); if (!done) parts.Add("asking TMDB"); if (cannot.Count > 0) parts.Add(string.Join("  ·  ", cannot)); }   // a catalog search: the services carrying nothing are simply absent from the row
-            if (S(state, "attribution").Length > 0) parts.Add(S(state, "attribution"));
-            if (parts.Count > 0) results.Children.Add(new TextBlock { Text = string.Join("  ·  ", parts), FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+            var layout = state["layout"] as JsonObject;
+            results.Children.Add(RowHead((S(layout, "heading").Length > 0 ? S(layout, "heading") : done ? "Results for" : "Searching for") + " “" + Shorten(q, 40) + "”", HubInk));
+            // the status line: who is still looking, who could not - the service's own reason, never hidden - and the attribution, in core's
+            // words (search-view.ts searchLayout, 2026-10-14): the phone's Search says the same
+            if (S(layout, "status").Length > 0) results.Children.Add(new TextBlock { Text = S(layout, "status"), FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
             // the filter chips: every genre and service the results offer (from the unfiltered rows, so a press never empties the other group)
             var genres = (state["genres"] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).Where(x => x.Length > 0).ToList() ?? new List<string>();
             var fsvcs = (state["filterServices"] as JsonArray)?.OfType<JsonObject>().Select(o => (S(o, "app"), S(o, "name"))).Where(x => x.Item1.Length > 0).ToList() ?? new List<(string, string)>();
-            var all = state["all"] is JsonValue av && av.TryGetValue<int>(out var an) ? an : 0;
-            if (genres.Count > 0 || fsvcs.Count > 1)
+            var kinds = (state["kinds"] as JsonArray)?.OfType<JsonValue>().Select(v => v.GetValue<string>()).Where(x => x == "movie" || x == "series").ToList() ?? new List<string>();
+            if (genres.Count > 0 || fsvcs.Count > 1 || kinds.Count > 1)
             {
                 var chips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
                 Button FChip(string label, bool on, string tip, Action press)
@@ -2958,22 +2961,30 @@ public sealed partial class MainWindow
                     c2.Click += (_, __) => press();
                     return c2;
                 }
+                // movies or TV shows (2026-10-14, "Should also let me specify movies or TV shows in the search filters"): offered when the results hold both
+                if (kinds.Count > 1)
+                {
+                    chips.Children.Add(new TextBlock { Text = "Type", FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+                    chips.Children.Add(FChip("All", _lookupKind is null, "Movies and TV shows.", () => { _lookupKind = null; _ = RedrawAsync(); }));
+                    chips.Children.Add(FChip("Movies", _lookupKind == "movie", "Only movies.", () => { _lookupKind = _lookupKind == "movie" ? null : "movie"; _ = RedrawAsync(); }));
+                    chips.Children.Add(FChip("TV shows", _lookupKind == "series", "Only TV shows.", () => { _lookupKind = _lookupKind == "series" ? null : "series"; _ = RedrawAsync(); }));
+                }
                 if (genres.Count > 0)
                 {
-                    chips.Children.Add(new TextBlock { Text = "Genre", FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
+                    chips.Children.Add(new TextBlock { Text = "Genre", FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(kinds.Count > 1 ? 14 : 0, 0, 6, 0) });
                     chips.Children.Add(FChip("All", _lookupGenre is null, "Every genre.", () => { _lookupGenre = null; _ = RedrawAsync(); }));
                     foreach (var g in genres.Take(12)) { var g2 = g; chips.Children.Add(FChip(g, _lookupGenre == g, "Only titles TMDB files under " + g + ".", () => { _lookupGenre = _lookupGenre == g2 ? null : g2; _ = RedrawAsync(); })); }
                 }
                 if (fsvcs.Count > 1)
                 {
-                    chips.Children.Add(new TextBlock { Text = "Service", FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(genres.Count > 0 ? 14 : 0, 0, 6, 0) });
+                    chips.Children.Add(new TextBlock { Text = "Service", FontSize = 12, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(genres.Count > 0 || kinds.Count > 1 ? 14 : 0, 0, 6, 0) });
                     chips.Children.Add(FChip("All", _lookupApp is null, "Every service.", () => { _lookupApp = null; _ = RedrawAsync(); }));
                     foreach (var (fa, fn) in fsvcs) { var a2 = fa; chips.Children.Add(FChip(fn, _lookupApp == fa, "Only " + fn + "'s results.", () => { _lookupApp = _lookupApp == a2 ? null : a2; _ = RedrawAsync(); })); }
                 }
                 results.Children.Add(Carousel(chips));
             }
             // one card per work, each service as its symbol, the household's own titles first, the top result, the people (MainWindow.Search.cs)
-            DrawSearchBody(state, results, q, overlay, done, catalog, searching.Count, all);
+            DrawSearchBody(state, results, q, overlay);
         }
     }
 
@@ -3389,7 +3400,8 @@ public sealed partial class MainWindow
             // TMDB's rating on every title (2026-09-24), as on the Continue / My List cards; not twice under a row that is itself the rating
             var ratingLine = S(c, "rating");
             var mineB = c["mine"] is JsonValue mbv && mbv.TryGetValue<double>(out var mbd) ? mbd : (double?)null;
-            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) { var tp = cid.Split(':'); var tk = tp.Length == 3 && tp[0] == "tmdb" ? tp[1] : S(c, "kind") == "series" ? "tv" : "movie"; var ti = int.TryParse(tp.Length == 3 ? tp[2] : cid, out var cidN) ? cidN : 0; AddRatingBadge(art, rlb, tk, ti); } else cell.Children.Add(rlb.Root); }   // a catalog id reads tmdb:<kind>:<id> (2026-10-13, "the right click menu say nothing found in TMDB")
+            Action? rateOpenB = null;
+            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) { var tp = cid.Split(':'); var tk = tp.Length == 3 && tp[0] == "tmdb" ? tp[1] : S(c, "kind") == "series" ? "tv" : "movie"; var ti = int.TryParse(tp.Length == 3 ? tp[2] : cid, out var cidN) ? cidN : 0; rateOpenB = AddRatingBadge(art, rlb, tk, ti); } else cell.Children.Add(rlb.Root); }   // a catalog id reads tmdb:<kind>:<id> (2026-10-13, "the right click menu say nothing found in TMDB")
             var offer = svcs.Count > 0 ? S(svcs[0], "offer") : "Not on your services";
             var facts = string.Join("  ·  ", new[] { year, kindWord, svcs.Count == 1 ? offer : svcs.Count + " of your services" }.Where(x => x.Length > 0));
             if (!compact) cell.Children.Add(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
@@ -3425,7 +3437,7 @@ public sealed partial class MainWindow
             var lsKind = S(c, "kind") == "series" ? "series" : "movie";
             var bTmdb = cid.StartsWith("tmdb:", StringComparison.Ordinal) ? cid.Substring(5) : null;
             int? bYear = c["year"] is JsonValue byv && byv.TryGetValue<double>(out var byd) ? (int)byd : null;
-            btn.ContextFlyout = RatingFlyout(title, lsKind, tmdb: bTmdb, year: bYear, extra: async fly => { if (playVerb == "videoBingePlay") BingeHideItem(fly, cid, title); if (!_watchActive) foreach (var sv in svcs) await AddListAddItemAsync(fly, S(sv, "app"), S(sv, "name"), cid, title, null, lsKind, "1"); });
+            btn.ContextFlyout = RatingFlyout(title, lsKind, tmdb: bTmdb, year: bYear, rate: rateOpenB, extra: async fly => { if (playVerb == "videoBingePlay") BingeHideItem(fly, cid, title); if (!_watchActive) foreach (var sv in svcs) await AddListAddItemAsync(fly, S(sv, "app"), S(sv, "name"), cid, title, null, lsKind, "1"); });
         return btn;
     }
     /// <summary>Cards laid out in a grid (a row opened in full): as many columns as the canvas fits.</summary>

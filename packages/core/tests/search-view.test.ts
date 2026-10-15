@@ -1,5 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { creditsAsResults, libraryHits, matchScore, normSearch, peopleFromSearch, searchWorks } from "../src/search-view.js";
+import { creditsAsResults, libraryHits, libraryLine, matchScore, normSearch, peopleFromSearch, searchLayout, searchWorks, workCard } from "../src/search-view.js";
+
+// the words and the layout both screens draw (2026-10-14): decided once here, read by the PC's Search and the phone
+describe("workCard", () => {
+  const svc = (name: string, offer: string) => ({ app: name.toLowerCase(), name, facet: name + "-f", offer, candidate: { id: "x", title: "T" } });
+  it("leads with Owned, else Included or Free, else the first offer; amber when the title costs", () => {
+    expect(workCard({ owned: false, services: [svc("Netflix", "Subscription")], year: 2019, kind: "series", via: null, genres: ["Drama", "Comedy", "Crime", "War"] })).toEqual({ offer: "Included", line: "Included  ·  2019  ·  Series", amber: false, services: ["Netflix: Included"], plays: ["Play on Netflix  ·  Included"], facts: "2019  ·  Series  ·  Drama  ·  Comedy  ·  Crime" });
+    expect(workCard({ owned: false, services: [svc("Amazon", "Rent $3.99"), svc("Tubi", "Free with ads")], year: null, kind: "movie", via: "Disney+", genres: [] }).line).toBe("Free with ads  ·  Movie  ·  with Disney+");
+    expect(workCard({ owned: false, services: [svc("Amazon", "Rent $3.99")], year: 2001, kind: "movie", via: null, genres: [] })).toMatchObject({ offer: "Rent $3.99", amber: true, facts: "2001  ·  Movie" });
+    expect(workCard({ owned: true, services: [svc("Fandango", "Owned")], year: 2001, kind: "movie", via: null, genres: [] })).toMatchObject({ offer: "Owned", amber: false, plays: ["Play on Fandango  ·  Owned"] });
+  });
+});
+
+describe("libraryLine", () => {
+  it("names the first service's list and how many more", () => {
+    const s = (name: string, from: "continue" | "list" | "owned") => ({ app: name, name, facet: name, from, item: { id: "1", title: "T" } });
+    expect(libraryLine({ services: [s("Netflix", "continue"), s("Hulu", "list")] })).toEqual({ line: "Continue Watching on Netflix  ·  +1 more", plays: ["Play on Netflix  ·  Continue Watching", "Play on Hulu  ·  My List"] });
+    expect(libraryLine({ services: [] })).toEqual({ line: "", plays: [] });
+  });
+});
+
+describe("searchLayout", () => {
+  const base = { q: "firefly", done: true, source: "catalog", services: [], library: [], people: [], person: null, elsewhere: [], attribution: "TMDB", filtered: false, all: 0 };
+  const w = (key: string, exact: boolean, score: number) => ({ key, exact, score });
+  it("puts a person first when the words are their name, unless a title IS the words", () => {
+    expect(searchLayout({ ...base, people: [{ name: "Fire Fly" }], works: [w("a", false, 60)] }).personFirst).toBe(true);
+    expect(searchLayout({ ...base, people: [{ name: "Fire Fly" }], works: [w("a", true, 100)] }).personFirst).toBe(false);
+    expect(searchLayout({ ...base, people: [{ name: "Someone Else" }], works: [] }).personFirst).toBe(false);
+  });
+  it("shows a top result for the title the words name, a strong match, or a person's work, and heads the rest", () => {
+    expect(searchLayout({ ...base, works: [w("a", true, 100), w("b", false, 60)] })).toMatchObject({ top: "a", restHeading: "More on your services" });
+    expect(searchLayout({ ...base, works: [w("a", false, 90)] })).toMatchObject({ top: "a", restHeading: null });
+    expect(searchLayout({ ...base, works: [w("a", false, 75), w("b", false, 60)] })).toMatchObject({ top: null, restHeading: "On your services" });
+    expect(searchLayout({ ...base, person: { name: "Nathan Fillion" }, works: [w("a", false, 10), w("b", false, 5)] })).toMatchObject({ top: "a", restHeading: "Nathan Fillion on your services" });
+  });
+  it("says what there is to say under the heading, and why there is nothing", () => {
+    const svcs = [{ name: "Netflix", status: "searching" }, { name: "Hulu", status: "empty" }, { name: "Tubi", status: "blocked", reason: "sign in first" }];
+    expect(searchLayout({ ...base, source: "services", done: false, services: svcs, works: [] })).toMatchObject({ heading: "Searching for", status: "still searching Netflix  ·  nothing on Hulu  ·  Tubi: sign in first  ·  TMDB", empty: null });
+    expect(searchLayout({ ...base, source: "catalog", done: false, services: svcs, works: [] }).status).toBe("asking TMDB  ·  Tubi: sign in first  ·  TMDB");
+    expect(searchLayout({ ...base, attribution: null, works: [] }).status).toBeNull();
+    expect(searchLayout({ ...base, works: [], elsewhere: ["Max"] }).empty).toBe("Not on any of your services  ·  elsewhere on Max");
+    expect(searchLayout({ ...base, works: [] }).empty).toBe("TMDB knows no title by that name on any of your services.");
+    expect(searchLayout({ ...base, source: "services", works: [] }).empty).toBe("No service had it.");
+    expect(searchLayout({ ...base, person: { name: "Nathan Fillion" }, works: [] }).empty).toBe("TMDB lists none of Nathan Fillion's work on your services.");
+    expect(searchLayout({ ...base, works: [], filtered: true, all: 7 }).empty).toBe("None of the 7 results match the filter.");
+    expect(searchLayout({ ...base, works: [], library: [{}] }).empty).toBeNull();
+  });
+});
 
 describe("matchScore", () => {
   it("ranks the title itself, its start, its words, inside it, one letter off", () => {

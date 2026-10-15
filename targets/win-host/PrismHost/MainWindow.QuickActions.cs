@@ -1087,6 +1087,7 @@ public sealed partial class MainWindow
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0xD0, 0x6A, 0x5A)), Foreground = LeInk, Padding = new Thickness(8, 3, 8, 3), CornerRadius = new CornerRadius(6),
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(r.X + 8, r.Y + 8, 0, 0),
             };
+            OwnHover(badge);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
             ToolTipService.SetToolTip(badge, "One tap: the App's setup opens; finishing sign-in returns here with the facet reloading.");
             badge.Click += (_, __) => OpenRoute(NeedsAttentionRoute(appId));
             Canvas.SetZIndex(badge, 930);

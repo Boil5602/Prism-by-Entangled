@@ -21,7 +21,7 @@ import { validRegion } from "./focus.js";
 import { clampZoom, hostSlug } from "./catalog.js";
 import type { Drivers, SurfaceEvent, InputEvent } from "./drivers.js";
 import type { Rect, SolvedRects } from "./solver.js";
-import { fillItemAddress, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, mediaFallbackJs, type AdapterSpec } from "./adapters.js";
+import { fillItemAddress, onServiceSite, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, mediaFallbackJs, type AdapterSpec } from "./adapters.js";
 import { cleanCandidates, type LookupState, type LookupServiceState, pickTitleHit } from "./video-lookup.js";
 import { sortCards, releaseOf, type HubSort } from "./hub-sort.js";
 import { BROWSE_FULL_PAGES, BROWSE_FULL_SIZE, BROWSE_GENRES, BROWSE_LOOKAHEAD, BROWSE_MAX_PAGES, BROWSE_REGION, BROWSE_ROW_SIZE, browseGenre, browseValue, discoverQuery, discoverTitles, inGenre, mergeDiscover, offerCounts, type BrowseCard, type BrowseGenre, type BrowseOffer, type BrowseTitle, type DiscoverRowId } from "./browse.js";
@@ -42,13 +42,13 @@ import { parseFeed, type NewsItem } from "./news-feeds.js";
 import { LIVE_TITLE_KEEP_MS, acceptSearch, certificationOf, type LiveTitle, type LiveTitleEntry } from "./live-titles.js";
 import { episodeCount, episodeHealth, fillFromTmdb, type EpisodeHealth } from "./episode-health.js";
 import { showsMatch } from "./playlist-play.js";
-import { LENSES, LensResolver, factsFor, lensById, lensDataDate, mineOf, orderByLens, outboundLinks, ratingLabel, titleKey, type LensDef, type LensedCard, TMDB_ATTRIBUTION } from "./lenses.js";
+import { LENSES, LensResolver, factsFor, factsKey, workKind, lensById, lensDataDate, mineOf, orderByLens, outboundLinks, ratingLabel, titleKey, type LensDef, type LensedCard, TMDB_ATTRIBUTION } from "./lenses.js";
 
 /** What the menu says about its lens (§4a): the active one with its full disclosure, the choices, the data date, the work in flight. */
 export interface LensBlock { active: LensDef | null; lenses: Array<{ id: string; name: string; needsKey: string | null }>; dataDate: string | null; pending: number; tmdbKey: boolean; attribution: string | null }
 /** One lens as a row of the menu (2026-09-21): the household's titles in the lens's order, with the lens's own disclosure on the row. */
 /** One episode in the Episodes menu: the service's own id and address when the service listed it (null from TMDB's list). */
-export interface EpisodeItem { season: number; episode: number; title: string; id: string | null; url: string | null; synopsis: string | null; still: string | null; duration: string | null; airDate?: string | null; /** the episode the account is on, as the service's show page marks it (Netflix's "current") */ resume?: boolean; /** listed by TMDB where the service's own list came back short: shown, not the service's (no id) */ fromTmdb?: boolean }
+export interface EpisodeItem { season: number; episode: number; title: string; id: string | null; url: string | null; synopsis: string | null; still: string | null; duration: string | null; airDate?: string | null; /** the service's own mark on the episode ("New"), read, never made up */ badge?: string | null; /** the episode the account is on, as the service's show page marks it (Netflix's "current") */ resume?: boolean; /** listed by TMDB where the service's own list came back short: shown, not the service's (no id) */ fromTmdb?: boolean }
 export interface EpisodesSeason { season: number; label: string; episodes: EpisodeItem[] }
 interface EpisodesEntry { at: number; status: "working" | "done" | "failed"; source: "service" | "tmdb"; seasons: EpisodesSeason[]; error?: string | null; /** the series' own name (a kept list read back has only its key) */ series?: string; /** the service's read measured against TMDB's aired episodes */ health?: EpisodeHealth | null; /** the service's own seasons so far, while it reads the rest */ partial?: boolean }
 export interface EpisodesView { ready: boolean; series: string | null; service: string | null; current: { season: number; episode: number } | null; seasons: EpisodesSeason[]; canPlay: boolean; source: "service" | "tmdb" | null; error: string | null; /** how Play works: the service's own episode id, or its number pressed in the service's own control (videoEpisodeNumber) */ playBy?: "id" | "number" | null }
@@ -66,7 +66,7 @@ export function seasonsFrom(raw: unknown): EpisodesSeason[] {
     if (!id || !title) continue;
     const str = (k: string) => (typeof x[k] === "string" && (x[k] as string).trim() ? (x[k] as string).trim() : null);
     const season = by.get(sn) ?? { season: sn, label: sl && /[a-z]/i.test(sl) ? sl : sn === 0 ? "Specials" : "Season " + sn, episodes: [] };
-    if (!season.episodes.some((e) => e.id === id)) season.episodes.push({ season: sn, episode: ep, title, id, url: str("url"), synopsis: str("synopsis")?.slice(0, 600) ?? null, still: str("still"), duration: str("duration"), ...(x.resume === true ? { resume: true } : {}) });
+    if (!season.episodes.some((e) => e.id === id)) season.episodes.push({ season: sn, episode: ep, title, id, url: str("url"), synopsis: str("synopsis")?.slice(0, 600) ?? null, still: str("still"), duration: str("duration"), ...(str("airDate") ? { airDate: str("airDate") } : {}), ...(str("badge") ? { badge: str("badge") } : {}), ...(x.resume === true ? { resume: true } : {}) });
     by.set(sn, season);
   }
   return [...by.values()].sort((a, b) => (a.season === 0 ? 1 : b.season === 0 ? -1 : a.season - b.season)).map((s) => ({ ...s, episodes: s.episodes.sort((a, b) => a.episode - b.episode) }));
@@ -4687,7 +4687,7 @@ export class Orchestrator {
   /** TMDB's landscape backdrop for a title (2026-09-23, "Library is showing the movie posters, instead of the landscape oriented images ... use the same image style we're using elsewhere"). */
   backdropFor(title: string, kind?: string | null): string | null { return factsFor(this.lenses.factsOf(), title, kind)?.backdrop ?? null; }
   /** The person's order for Continue watching and My list, kept on the device by the runtime (2026-09-26). */
-  rowOrders: () => { continue: "service" | "title"; list: "prism" | "service" | "title"; continueReverse: boolean; listReverse: boolean } = () => ({ continue: "title", list: "prism", continueReverse: false, listReverse: false });
+  rowOrders: () => { continue: "service" | "title" | "watched"; list: "prism" | "service" | "title"; continueReverse: boolean; listReverse: boolean } = () => ({ continue: "title", list: "prism", continueReverse: false, listReverse: false });
   videoMenuRows(services: readonly { app: string; name: string; facet: string; adapter: string }[]): { continue: LensedCard[]; list: LensedCard[]; log: number; lens: LensBlock; lensRows: LensRow[] } {
     // TMDB's new-episode banner on My List (2026-09-23): only under a key, only where the service gave none
     const now = Date.now();
@@ -5469,7 +5469,7 @@ export class Orchestrator {
     for (const s of svc) {
       const row: LookupServiceState = { app: s.app, name: s.name, facet: s.facet, status: "ok", candidates: rows.filter((r) => r.app === s.app).map((r) => r.candidate), at: Date.now() };
       if (s.status !== "signed-in") { row.status = "unavailable"; row.reason = s.status === "needs-attention" ? "sign in first" : "not set up"; }
-      else if (!s.providers.length) { row.status = "unavailable"; row.reason = "not among TMDB's providers"; }
+      else if (!s.providers.length) continue;   // no TMDB provider (a store with no subscription - YouTube's rentals, whose offer is on the title's Details - or Movies Anywhere, Twitch): no part in a catalog search, and the status line says nothing of it (2026-10-14, "Remove the 'X not part of TMDB' or whatever at the top of the search results"; it had read 'not among TMDB's providers')
       else if (!row.candidates.length) row.status = "empty";
       state.services.push(row);
     }
@@ -5574,7 +5574,7 @@ export class Orchestrator {
     services.sort((a, b) => offerRank(a.offer) - offerRank(b.offer));   // what the household has first; its own order within a kind (the sort keeps it)
     const rating = t.mean !== null && t.votes !== null ? ratingLabel({ mean: t.mean, votes: t.votes }) : null;
     const mine = this.lenses.ownRatingsMap().get(t.kind + ":" + t.id) ?? null;   // the person's own, by the TMDB title (2026-10-03)
-    return { ...(rating ? { rating } : {}), ...(mine !== null ? { mine } : {}), id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), ...(t.genres?.length ? { genres: t.genres } : {}), value, services };
+    return { ...(rating ? { rating } : {}), ...(mine !== null ? { mine } : {}), ...(t.date ? { date: t.date } : {}), ...(t.mean !== null ? { mean: t.mean } : {}), id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), ...(t.genres?.length ? { genres: t.genres } : {}), value, services };
   }
 
   // ---- Most read on Wikipedia across the household's services (most-read.ts is the rule, here the reads; 2026-09-22). Read in the background
@@ -5891,7 +5891,7 @@ export class Orchestrator {
         for (const t of w.titles) {
           if (!t.title) continue;
           const card = this.catalogCard(t, offersFromProviders(await this.watchProvidersOf(t.kind, t.id)), svc, "any", "")
-            ?? { id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), value: "Not on your services", services: [] } as BrowseCard;
+            ?? { id: `tmdb:${t.kind}:${t.id}`, kind: t.kind === "tv" ? "series" : "movie", title: t.title, ...(t.date ? { date: t.date } : {}), ...(t.mean !== null ? { mean: t.mean } : {}), ...(t.year !== undefined ? { year: t.year } : {}), ...(t.poster ? { poster: t.poster } : {}), ...(t.backdrop ? { backdrop: t.backdrop } : {}), ...(t.overview ? { overview: t.overview } : {}), value: "Not on your services", services: [] } as BrowseCard;
           cards.push(card);
         }
         this.watchCards = { key, at: Date.now(), cards };
@@ -5906,17 +5906,41 @@ export class Orchestrator {
     return r;
   }
   watchlistHas(kind: "movie" | "tv", id: number): boolean | null { return this.lenses.watchlistHas(kind, id); }
-  /** By a card's title (a service's card knows no TMDB id): the work the facts matched, else none yet - the lookup starts. */
-  watchlistHasTitle(title: string, kind: string | null): { on: boolean | null; work: { kind: "movie" | "tv"; id: number } | null } {
-    if (!this.lenses.linked()) return { on: null, work: null };
-    const f = factsFor(this.lenses.factsOf(), title, kind);
-    if (!f?.tmdb) return { on: null, work: null };
-    return { on: this.lenses.watchlistHas(f.tmdb.kind, f.tmdb.id), work: f.tmdb };
+  /** The works a press by title found (a search, not the facts), so the title answers by name afterwards; and the presses still working. */
+  private readonly watchWorks = new Map<string, { kind: "movie" | "tv"; id: number }>();
+  private readonly watchPending = new Set<string>();
+  /**
+   * By a card's title (a service's card knows no TMDB id): the work the facts matched or a press found, else none yet - the lookup starts.
+   * `working` while a press for the title is still placing it or writing: the phone's sheet asks again until it is not (2026-10-14, the
+   * sheet read once 1.5 s after the press, before the search and the write were done, and told the person the title was taken off).
+   */
+  /**
+   * The watchlist's own entry for a card's name and kind (2026-10-14, "several items have a right click menu that don't allow me to remove
+   * from watchlist ... carrie and key & peele"): a title known only from the watchlist has no facts yet, and a search by name could land on
+   * a namesake (Carrie the 1976 film for Carrie the 2026 series), so the list itself is asked first, by name and kind.
+   */
+  private watchEntryByTitle(title: string, kind: string | null): { kind: "movie" | "tv"; id: number } | null {
+    const k = workKind(kind); const n = titleKey(title);
+    const hit = this.lenses.watchlist().titles.find((t) => titleKey(t.title) === n && (!k || t.kind === k));
+    return hit ? { kind: hit.kind, id: hit.id } : null;
+  }
+  watchlistHasTitle(title: string, kind: string | null): { on: boolean | null; work: { kind: "movie" | "tv"; id: number } | null; working: boolean } {
+    const working = this.watchPending.has(factsKey(title, kind));
+    if (!this.lenses.linked()) return { on: null, work: null, working };
+    const work = this.watchEntryByTitle(title, kind) ?? factsFor(this.lenses.factsOf(), title, kind)?.tmdb ?? this.watchWorks.get(factsKey(title, kind)) ?? null;
+    if (!work) return { on: null, work: null, working };
+    return { on: this.lenses.watchlistHas(work.kind, work.id), work, working };
   }
   async watchlistSetTitle(title: string, kind: string | null, on: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
-    const work = await this.lenses.workOf(title, kind);
-    if (!work) return { ok: false, error: "TMDB does not know " + title };
-    return this.watchlistSet(work.kind, work.id, on);
+    const key = factsKey(title, kind);
+    this.watchPending.add(key);
+    try {
+      // taking off: the list's own entry by name and kind, never a search's namesake; adding: the facts, else TMDB's search
+      const work = (on ? null : this.watchEntryByTitle(title, kind)) ?? await this.lenses.workOf(title, kind);
+      if (!work) return { ok: false, error: "TMDB does not know " + title };
+      this.watchWorks.set(key, work);
+      return await this.watchlistSet(work.kind, work.id, on);
+    } finally { this.watchPending.delete(key); }
   }
   /**
    * The copy of the services' own lists onto the watchlist (the offer on the row): each title matched to its TMDB work - the facts kept,
@@ -6120,12 +6144,12 @@ export class Orchestrator {
         const addr = fillItemAddress(t, id, card?.url ?? null);
         if (!addr) continue;
         a = await this.askHiddenPage(s, addr, spec.videoRemoveContinue!, "rm",
-          (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
+          (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, spec.videoRemoveContinuePlays ? Orchestrator.REMOVE_PLAYING_TIMEOUT_MS : Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
         // a press the service took but its open page did not redraw (Disney+ kept Zootopia 2's card, 2026-09-23): once more on a fresh load - the
         // script answers 'already-gone' when the title has left the row, and presses again when it has not
         if (a.r && !a.r.ok && a.r.error === "unconfirmed") {
           a = await this.askHiddenPage(s, addr, spec.videoRemoveContinue!, "rm",
-            (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
+            (token) => `window.__prismVideoRemoveContinue && window.__prismVideoRemoveContinue(${JSON.stringify(token)}, ${JSON.stringify(id)}, ${JSON.stringify(title)})`, spec.videoRemoveContinuePlays ? Orchestrator.REMOVE_PLAYING_TIMEOUT_MS : Orchestrator.REMOVE_ANSWER_TIMEOUT_MS, undefined, { mayPlay: !!spec.videoRemoveContinuePlays });
           if (a.r && !a.r.ok && a.r.error === "unconfirmed") a = { r: { ...a.r, error: "the service did not show it gone" } };
         }
         if (!(a.r && !a.r.ok && a.r.error === "not-found")) break;
@@ -6139,6 +6163,9 @@ export class Orchestrator {
     return job;
   }
   static readonly REMOVE_ANSWER_TIMEOUT_MS = 40_000;
+  /** A remove that has to play the video out (Twitch, 2026-10-13: a video played to its end leaves Continue Watching, one moved to its start does
+   *  not): the page, the seek near the end, up to seventy seconds of muted play and the shelf read again. */
+  static readonly REMOVE_PLAYING_TIMEOUT_MS = 160_000;
 
   // ---- Remove from the service's own library (2026-10-12, YouTube TV: "I should be able to remove them from my library AND remove them from
   // DVR"): the adapter's videoLibraryRemove on the title's own page, the same job shape and polling as a Continue Watching removal; done, the
@@ -6230,6 +6257,9 @@ export class Orchestrator {
         if (!hit) { Object.assign(job, { status: "failed", error: "the service's own search did not find it", at: Date.now() }); return; }
         id = hit.id; url = hit.url ?? null;
       }
+      // the hidden signed-in page is only ever pointed at the service's own site: an address from the phone's route (or any caller) that
+      // is not on it is refused, not opened (2026-10-14, review finding)
+      if (url && !onServiceSite(url, [...(spec.match ?? []), s.home])) { Object.assign(job, { status: "failed", error: "that page isn't on the service's own site", at: Date.now() }); return; }
       const templates = Array.isArray(spec.videoListSetUrl) ? spec.videoListSetUrl : [spec.videoListSetUrl ?? "{url}"];
       let last: string | undefined = "the service's page gave no list control for it";
       for (const t of templates) {
@@ -6728,6 +6758,14 @@ export class Orchestrator {
     const e = this.episodeLists.get(app + "|" + titleKey(series));
     return !!e && (e.status === "working" || Date.now() - e.at < withinMs);
   }
+  /** How many episodes the service's own kept list holds for a series (TMDB's fill-ins aside), or null when none is kept: the count on a
+   *  library row's show card (2026-10-14, "instead of 4 new on nightline, it should just say the count of episodes in the list"). */
+  episodeCountOf(app: string, series: string): number | null {
+    this.loadEpisodeLists();
+    const e = this.episodeLists.get(app + "|" + titleKey(series));
+    if (!e || e.source !== "service" || !(e.status === "done" || (e.status === "working" && e.partial))) return null;
+    return e.seasons.reduce((n, s) => n + s.episodes.filter((x) => !x.fromTmdb).length, 0);
+  }
   /** Any episode list being read now (the background read-ahead waits for it). */
   episodeListWorking(): boolean { for (const e of this.episodeLists.values()) if (e.status === "working") return true; return false; }
   static readonly EPISODES_TTL_MS = 30 * 60_000;
@@ -6841,10 +6879,12 @@ export class Orchestrator {
         const a = await this.askHiddenPage(s, url, spec.videoEpisodes, "ep", (token) => `window.__prismVideoEpisodes && window.__prismVideoEpisodes(${JSON.stringify(token)})`, Orchestrator.EPISODES_ANSWER_TIMEOUT_MS, part);
         entry.partial = false;
         // the page stopped part way (a timeout, an error after some seasons): the seasons it did read are the service's own and stay
-        if (!a.r?.ok && parts && entry.seasons.length) { entry.status = "done"; entry.at = Date.now(); await this.checkEpisodes(entry, s, spec, series, url); return; }
+        if (!a.r?.ok && parts && entry.seasons.length) { entry.status = "done"; entry.at = Date.now(); if (!spec?.videoSeriesPicks) await this.checkEpisodes(entry, s, spec, series, url); return; }
         if (a.r?.ok) {
           entry.seasons = seasonsFrom(a.r.candidates as unknown); entry.status = entry.seasons.length ? "done" : "failed"; if (!entry.seasons.length) entry.error = "the service listed no episodes"; entry.at = Date.now();
-          if (entry.seasons.length) await this.checkEpisodes(entry, s, spec, series, url);
+          // a recordings list (videoSeriesPicks) is not a season list: never measured against TMDB, merged or filled (2026-10-14, Dateline's one
+          // recording wore TMDB's 1992 pilot date and 20/20's three its 1978 ones, matched by number as S1 E1-3)
+          if (entry.seasons.length && !spec?.videoSeriesPicks) await this.checkEpisodes(entry, s, spec, series, url);
           return;
         }
         entry.error = a.r ? (a.r.error === "needs-profile" ? "the service is asking who's watching, so choose a profile for it first" : a.r.error || "the service did not list its episodes") : a.error ?? null;
@@ -8283,6 +8323,12 @@ export class Orchestrator {
       await this.drivers.surface.setAdInfo?.(event.id, count, remaining);
       await this.watchAdClock(event.id, remaining);
       if (remaining > 0) this.intermission.extend(event.id, remaining);   // a break the page still counts stays covered past the 2-minute backstop (B-336)
+    }
+    if (event.type === "ad-hold") {
+      // a break the page shows but never counts (Netflix's pause ad, B-372): covered while the page keeps saying so, by the
+      // same hold the break watch uses for a programme whose end it knows (B-364) - never trapped: the page's own end signal
+      // uncovers at once, and a page that falls silent lets the backstop fall
+      if (event.remaining !== undefined && event.remaining > 0) this.intermission.hold(event.id, event.remaining);
     }
     // §26 for native apps: package → launch tile, then the same controller.
     if (event.type === "app-foreground") {

@@ -223,6 +223,8 @@ export interface UiDriver {
   listenRoutes?(json: string): MaybePromise<void>;
   /** The phone's switch for the break watch (YouTube TV's channel breaks read off the picture, 2026-10-07): on or off, as Watch settings' box. */
   breakWatch?(on: boolean): MaybePromise<void>;
+  /** The phone's Restart into the new version (2026-10-15): the shell restarts into the release it has staged; nothing when none is. */
+  updateRestart?(): MaybePromise<void>;
   /**
    * What a single tap on a scene item resolved to (docs/concept-scenes.md §5):
    * the shell asked core to interpret the tap and core answers here, so the
@@ -266,6 +268,12 @@ export type SurfaceEvent =
   | { type: "skip-available"; id: string; available: boolean; target?: string }
   /** §26 observed break progress (`frame.adInfo`): count "N of M", seconds left. */
   | { type: "ad-info"; id: string; count?: string; remaining?: number }
+  /**
+   * §26 a break the page shows but never counts (`frame.adHold(seconds)`, Netflix's pause ad, 2026-10-14): the page vouches
+   * that the break is still on, and the cover's backstop waits this much past the last word - said afresh every tick, so a
+   * page that stops saying it lets the backstop fall as it always did (the shell's adBreakHold, B-364, from the page's side).
+   */
+  | { type: "ad-hold"; id: string; remaining?: number }
   /** §14 a listener's stream ended without the listener asking (peer gone, stream closed). */
   | { type: "listener-lost"; id: string; listener: string }
   /**

@@ -104,13 +104,19 @@ export class RemoteApi {
     startOver: () => unknown;
     /** More of the Watch screen for the phone (2026-10-05): Search everywhere, the Episodes of the series on screen, the lens rows. */
     search: (q: string) => unknown;
-    searchState: () => unknown;
+    searchPerson: (id: number, name: string) => unknown;
+    searchState: (genre: string | null, app: string | null, kind: "movie" | "series" | null) => unknown;
     playResult: (app: string, candidate: unknown) => unknown;
     episodes: () => unknown;
     playEpisode: (id: string) => unknown;
     lenses: () => unknown;
     /** A title's details as the PC's Details card has them (TMDB, under the person's own key), for the phone's sheet (2026-10-11). */
     details: (title: string, kind: string | null, app: string | null) => unknown;
+    /** The TMDB watchlist from the phone's sheet (2026-10-13, "Need to be able to add to my watch list too"): {active, on} and a change; a
+     *  service's own list (its name, and an add) where no account is linked. */
+    watchlist: (title: string, kind: string | null, on: boolean | null) => unknown;
+    listInfo: (app: string) => unknown;
+    listSet: (app: string, want: "add" | "remove", id: string, title: string, url: string | null, kind: string | null) => unknown;
     /** A person's page (their films and series on TMDB) for the phone's cast drill-through (2026-10-11). */
     person: (id: number) => unknown;
     /** A channel's own page (YouTube) for the phone's channel sheet (2026-10-11): {ok, channel}. */
@@ -126,6 +132,18 @@ export class RemoteApi {
     /** The PC's playback device muted while this phone listens, or not (2026-10-05). */
     privateMute: (on: boolean) => unknown;
     breakWatch: (on: boolean) => unknown;
+    /** Watch settings from the phone (2026-10-14, "Let me edit as many of the watch settings as possible from the companion app"): everything
+     *  core keeps, read in one; set one piece at a time by name (rows, watchlist-order, ads, suggestions, pause, refresh, binge, category, hidden). */
+    settings: () => unknown;
+    settingsSet: (what: string, body: Record<string, unknown>) => unknown;
+    /** A title out of a service's Continue Watching from the phone (2026-10-15, "I can't remove from continue watching from companion"): what the
+     *  service's site allows (removeInfo), the removal itself as a job the phone polls (removeContinue), or hidden on the PC alone (hideContinue). */
+    /** The person's TMDB rating of a title from the phone's card menu (2026-10-15): set (null takes it back) and read, polled while working. */
+    rate: (kind: string, id: number, value: number | null) => unknown;
+    rated: (kind: string, id: number) => unknown;
+    removeInfo: (app: string) => unknown;
+    removeContinue: (app: string, id: string, title: string) => unknown;
+    hideContinue: (app: string, id: string) => unknown;
     /** The service's own subtitle and audio tracks for the phone's Captions sheet, a pick, and the sheet closed (2026-10-05). */
     tracks: (tile: string) => Promise<unknown>;
     track: (tile: string, kind: string, id: string) => Promise<string>;
@@ -137,6 +155,9 @@ export class RemoteApi {
     view: () => unknown; create: (name: string) => unknown; open: (id: string) => unknown; rename: (id: string, name: string) => unknown;
     remove: (id: string) => unknown; play: (id: string, key: string | null) => unknown; edit: (id: string, op: Record<string, unknown>) => unknown;
     undo: () => unknown; move: (dir: "previous" | "next") => unknown; stop: (mode: "now" | "after") => unknown;
+    /** A title sent to a list from the phone's Details sheet (2026-10-13, "Let's add the functionality to the phone"): the PC's own send job,
+     *  its state, and its question before a large add answered. */
+    send: (target: Record<string, unknown>, source: Record<string, unknown>) => unknown; job: (id: string) => unknown; confirm: (id: string, yes: boolean) => unknown;
   } | null = null;
 
   constructor(
@@ -166,6 +187,23 @@ export class RemoteApi {
   async listDevices(): Promise<Array<Omit<PairedDevice, "token">>> {
     await this.ensureLoaded();
     return this.devices.map(({ name, created, lastSeen }) => ({ name, created, ...(lastSeen ? { lastSeen } : {}) }));
+  }
+  /** The phones that connected, as loaded (the boot loads them); for the PC's own list, which carries no tokens (2026-10-14). */
+  devicesNow(): Array<Omit<PairedDevice, "token">> {
+    if (!this.loaded) void this.ensureLoaded();
+    return this.devices.filter((d) => d.lastSeen).map(({ name, created, lastSeen }) => ({ name, created, ...(lastSeen ? { lastSeen } : {}) }));
+  }
+  /**
+   * The PC forgets a phone (2026-10-14, "let's make sure the App has a way of forgetting the phone, and not just the other way around"): every
+   * token of that name paired on that day goes, so the phone's next request is refused and it must scan a new code. Nothing else is touched.
+   */
+  async forgetDevice(name: string, created: string, lastSeen?: string | null): Promise<number> {
+    await this.ensureLoaded();
+    const before = this.devices.length;
+    const same = (d: PairedDevice) => d.name === name && d.created === created && (!lastSeen || d.lastSeen === lastSeen);   // two iPhones paired the same day are told apart by their last day here
+    this.devices = this.devices.filter((d) => !same(d));
+    if (this.devices.length !== before) await this.persist();
+    return before - this.devices.length;
   }
 
   /**
@@ -487,6 +525,48 @@ export class RemoteApi {
     // by the phone's own choice, with the notice and the checkbox there)
     // POST /video/break-watch {on} - the phone's switch for covering YouTube TV's channel breaks (2026-10-07, "we'll have to make this a
     // feature they can shut down")
+    // POST /video/rate {kind: movie|tv, id, value: 1-10 | null} -> {status}; POST /video/rated {kind, id} -> {value, working}: the person's TMDB
+    // rating from the phone's card menu, through the PC's own calls (2026-10-15)
+    if (req.method === "POST" && (req.path === "/video/rate" || req.path === "/video/rated")) {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const kind = b["kind"] === "tv" ? "tv" : b["kind"] === "movie" ? "movie" : ""; const id = typeof b["id"] === "number" && Number.isInteger(b["id"]) && b["id"] > 0 ? b["id"] : 0;
+      if (!kind || !id) return json(400, { error: 'body must be {"kind": "movie"|"tv", "id", "value"?}' });
+      if (req.path === "/video/rated") return json(200, this.video.rated(kind, id));
+      const v = b["value"];
+      if (v !== null && !(typeof v === "number" && v >= 0.5 && v <= 10)) return json(400, { error: "value is 0.5 to 10, or null to take it back" });
+      return json(200, this.video.rate(kind, id, v as number | null));
+    }
+    // POST /video/remove-info {app} -> {can, warning}; POST /video/remove-continue {app, id, title} -> {status: working|done|failed, error?}, asked
+    // again until done; POST /video/hide-continue {app, id} -> {ok}: the PC's card menu's Remove from Continue Watching, from the phone (2026-10-15)
+    if (req.method === "POST" && req.path === "/video/remove-info") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const app = this.parseBody(req.body)?.["app"];
+      if (typeof app !== "string" || !app) return json(400, { error: 'body must be {"app"}' });
+      return json(200, this.video.removeInfo(app));
+    }
+    if (req.method === "POST" && (req.path === "/video/remove-continue" || req.path === "/video/hide-continue")) {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const app = typeof b["app"] === "string" ? b["app"] : "", id = typeof b["id"] === "string" ? b["id"] : "";
+      if (!app || !id) return json(400, { error: 'body must be {"app", "id", "title"?}' });
+      return json(200, req.path === "/video/hide-continue" ? this.video.hideContinue(app, id) : this.video.removeContinue(app, id, typeof b["title"] === "string" ? b["title"].slice(0, 200) : ""));
+    }
+    // GET /video/settings - Watch settings as core keeps them (2026-10-14): the rows' orders and their choices, the ads look, the suggestions
+    // rows, the update pause, The Binge's limits, kids mode and animation, the categories with their rules, the hidden titles. The host's own
+    // settings (break covering's lists, performance) stay on the PC.
+    if (req.method === "GET" && req.path === "/video/settings") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      return json(200, this.video.settings());
+    }
+    // POST /video/settings/<what> {...} - one change: rows {row, order?, reverse?}, watchlist-order {order?, reverse?}, ads {look},
+    // suggestions {on}, pause {on, from, to}, refresh {}, binge {thresholds?, kids?, animation?}, category {category} or {delete}, hidden {id, on}
+    if (req.method === "POST" && req.path.startsWith("/video/settings/")) {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const what = req.path.slice("/video/settings/".length);
+      if (!/^[a-z-]{1,24}$/.test(what)) return json(404, { error: "no such setting" });
+      return json(200, await this.video.settingsSet(what, this.parseBody(req.body) ?? {}));   // a check waits for the update server's answer
+    }
     if (req.method === "POST" && req.path === "/video/break-watch") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
       const on = this.parseBody(req.body)?.["on"];
@@ -776,15 +856,26 @@ export class RemoteApi {
     }
     // ---- more of the Watch screen (2026-10-05, "more of the watch screen items added to the companion app") ----
     // POST /video/search {q} starts Search everywhere (TMDB first, then the services' own pages); GET /video/search reads it as it fills
+    // POST {person: {id, name}} searches a person's work instead (the People row, 2026-10-14)
     if (req.method === "POST" && req.path === "/video/search") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
-      const q = this.parseBody(req.body)?.["q"];
-      if (typeof q !== "string" || !q.trim()) return json(400, { error: 'body must be {"q"}' });
+      const b = this.parseBody(req.body) ?? {};
+      const p = b["person"];
+      if (p && typeof p === "object") { const id = Number((p as Record<string, unknown>)["id"]); const name = (p as Record<string, unknown>)["name"]; if (Number.isFinite(id) && typeof name === "string" && name.trim()) return json(200, this.video.searchPerson(id, name.trim())); }
+      const q = b["q"];
+      if (typeof q !== "string" || !q.trim()) return json(400, { error: 'body must be {"q"} or {"person": {"id", "name"}}' });
       return json(200, this.video.search(q));
     }
+    // GET /video/search reads the search as the PC's Search draws it (one view in core, 2026-10-14); POST /video/search/view {genre?, app?, kind?: movie | series}
+    // reads it under a filter chip, the state itself untouched
     if (req.method === "GET" && req.path === "/video/search") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
-      return json(200, this.video.searchState() ?? { none: true });
+      return json(200, this.video.searchState(null, null, null) ?? { none: true });
+    }
+    if (req.method === "POST" && req.path === "/video/search/view") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      return json(200, this.video.searchState(typeof b["genre"] === "string" && b["genre"] ? b["genre"] : null, typeof b["app"] === "string" && b["app"] ? b["app"] : null, b["kind"] === "movie" || b["kind"] === "series" ? b["kind"] : null) ?? { none: true });
     }
     // POST /video/play-result {app, candidate} - a search result on a service, as the Watch screen plays it
     if (req.method === "POST" && req.path === "/video/play-result") {
@@ -793,6 +884,30 @@ export class RemoteApi {
       const app = b?.["app"], candidate = b?.["candidate"];
       if (typeof app !== "string" || !candidate || typeof candidate !== "object") return json(400, { error: 'body must be {"app","candidate"}' });
       return json(200, this.video.playResult(app, candidate));
+    }
+    // POST /video/watchlist {title, kind?, on?} - the TMDB watchlist state for a title, set first when on is given (2026-10-13); the set
+    // runs on after the answer, which says `working` until it is done - the phone asks again until then (2026-10-14)
+    if (req.method === "POST" && req.path === "/video/watchlist") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const title = typeof b["title"] === "string" ? b["title"].slice(0, 200) : "";
+      if (!title) return json(400, { error: 'body must be {"title", "kind"?, "on"?}' });
+      return json(200, this.video.watchlist(title, typeof b["kind"] === "string" && b["kind"] ? b["kind"] : null, typeof b["on"] === "boolean" ? b["on"] : null));
+    }
+    // POST /video/listinfo {app} and POST /video/list {app, want, id, title, url?, kind?} - a service's own list from the sheet (2026-10-13)
+    if (req.method === "POST" && req.path === "/video/listinfo") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const app = typeof b["app"] === "string" ? b["app"] : "";
+      if (!app) return json(400, { error: 'body must be {"app"}' });
+      return json(200, this.video.listInfo(app));
+    }
+    if (req.method === "POST" && req.path === "/video/list") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const app = typeof b["app"] === "string" ? b["app"] : ""; const title = typeof b["title"] === "string" ? b["title"].slice(0, 200) : "";
+      if (!app || !title) return json(400, { error: 'body must be {"app", "want", "id", "title", "url"?, "kind"?}' });
+      return json(200, this.video.listSet(app, b["want"] === "remove" ? "remove" : "add", typeof b["id"] === "string" ? b["id"] : "", title, typeof b["url"] === "string" ? b["url"] : null, typeof b["kind"] === "string" && b["kind"] ? b["kind"] : null));
     }
     // POST /video/details {title, kind?, app?} - a title's TMDB details for the phone's sheet (2026-10-11): {status: working|ready|none, details};
     // the phone asks again while working. The same read the PC's Details card makes, so nothing new leaves the PC for it.
@@ -851,6 +966,9 @@ export class RemoteApi {
         case "/playlists/undo": return json(200, pl.undo());
         case "/playlists/move": return json(200, pl.move(str("dir") === "previous" ? "previous" : "next"));
         case "/playlists/stop": return json(200, pl.stop(str("mode") === "now" ? "now" : "after"));
+        case "/playlists/send": { const target = b["target"]; const source = b["source"]; if (!target || typeof target !== "object" || Array.isArray(target) || !source || typeof source !== "object" || Array.isArray(source)) return json(400, { error: 'body must be {"target", "source"}' }); return json(200, pl.send(target as Record<string, unknown>, source as Record<string, unknown>)); }
+        case "/playlists/job": if (!id) return json(400, { error: 'body must be {"id"}' }); return json(200, pl.job(id));
+        case "/playlists/confirm": if (!id) return json(400, { error: 'body must be {"id", "yes"}' }); return json(200, pl.confirm(id, b["yes"] === true));
         default: return json(404, { error: "no such playlists call" });
       }
     }

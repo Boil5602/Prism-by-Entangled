@@ -163,6 +163,8 @@ export interface BrowseCard {
   value: string;
   /** TMDB's rating as every card shows it (star, mean, TMDB, votes), when TMDB has votes (2026-09-24, "Would prefer to see these on every title") */
   rating?: string | undefined;
+  /** TMDB's release day and mean, for the watchlist's own orders (2026-10-14) */
+  date?: string | undefined; mean?: number | undefined;
   services: Array<{ app: string; name: string; facet: string; offer: string }>;
 }
 

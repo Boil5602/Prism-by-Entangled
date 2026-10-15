@@ -2,6 +2,22 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.31.0 - 2026-10-15 (alpha, 16c3b423)
+
+The phone companion catches up with Prism. Watch settings open from the phone's menu in folded panels: your TMDB key and account, the rows' orders, ads and YouTube TV break covering, Prism's own updates with the changelog, each service's reads, The Binge's limits and Kids mode, and your categories. Long-press a card for its menu, with Play, Details, ten stars to rate it on TMDB, and one press to remove it from a service's Continue Watching or hide it from The Binge. Every card shows its TMDB score. Search opens in a sheet of its own with the box at the top, filters for Movies or TV shows, and the top result first. My Watchlist on the phone stays in step with Prism. On the PC, Watch settings are one subject a tab, Continue watching can sort by Last watched, the Pair a phone card can forget a phone, and each row's (i) says in plain words how it's picked, where it comes from and where to change it. Netflix's pause ad is covered, and a Twitch title can be removed from Continue Watching.
+
+- download: https://prism.entangled.world/windows/Prism-0.31.0-16c3b423.zip
+- sha256: 3381539e83e8d83c9ab9a763cf82dcc19cad719df20c46499b629e2c64b3cead
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.31.0
+
+## 0.30.1 - 2026-10-13 (alpha, 0bbfddb0)
+
+Fixes to this evening's 0.30.0. Every Continue watching card carries its name over the picture, since a service's continue picture is a still without the name. The name and the score share one line at the picture's foot, the name left and the score at the right. A catalog row's score window offers the rating stars instead of saying the title is unmatched. Remove on a Twitch Continue Watching card works: Prism's own guard against a playing page in the background had refused the one page that has to play, muted, for Twitch to forget the place. Unfollow on a Twitch channel opens the channel's videos page and presses again until the confirm shows.
+
+- download: https://prism.entangled.world/windows/Prism-0.30.1-0bbfddb0.zip
+- sha256: 37f70bb6f12bd507e1e77ff8b26ac6c897e3834d5a27c3bd7f0b63df9544e296
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.30.1
+
 ## 0.30.0 - 2026-10-13 (alpha, f69480ce)
 
 Watch's cards now carry everything on the picture. A title's name is drawn over a picture that has none, TMDB's score sits on a pill coloured from red to green, your own rating stands beside it once you have rated, and a Continue watching card is washed grey over the part you have watched. Rest the pointer on the score to see where the number comes from and to rate the title on TMDB from there. The channels you follow on Twitch and YouTube are one row with the latest videos from them under it, Unfollow is on a card's menu, and Twitch's Continue Watching joins the row with a Remove of its own. The Live page opens on what is on now as cards with pictures, content creators live now beside the channels, and the timetable one press away. Categories of your own take hashtags and one clear rule each, filled from your services and the open pool, with every row's formula behind an (i) beside its name. YouTube is a Video player service with Watch later, History and your subscriptions. Netflix's and YouTube's ad breaks are covered. The phone manages playlists, opens Details sheets and sets Prism up. The Binge answers a stricter setting at once.

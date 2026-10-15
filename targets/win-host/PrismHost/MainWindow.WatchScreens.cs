@@ -483,6 +483,7 @@ public sealed partial class MainWindow
             Background = StackLabelBack, BorderThickness = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6, 6, 0),
         };
+        OwnHover(x);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
         ToolTipService.SetToolTip(x, _mvOn ? "Clear this screen. The screens after it move up a place." : "Clear the screen.");
         x.Click += async (_, __) =>
         {

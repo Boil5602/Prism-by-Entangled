@@ -107,6 +107,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "ui.videoPick", m1: true, fields: { title: "string", service: "string", poster: "string?" } },
   { op: "ui.privateMute", m1: true, fields: { on: "boolean" } },
   { op: "ui.listenRoutes", m1: true, fields: { json: "string" } },
+  { op: "ui.updateRestart", m1: true, fields: {} },   // the phone's Restart into the new version (2026-10-15): the PC restarts into the release it staged, as its own Updates window does
   { op: "ui.breakWatch", m1: true, fields: { on: "boolean" } },   // the phone's switch for covering YouTube TV's channel breaks (2026-10-07)   // each phone's window (2026-10-06): {routes: {listener: tile}, hero}
   // -------------------------------------------------------------- display
   { op: "display.setBrightness", fields: { value: "number" } },
@@ -159,6 +160,8 @@ export const HOST_CALLS: string[] = [
   "refreshTile",   // (tileId)
   "http",          // (requestId, requestJson)
   "mintPairing",   // (baseUrl, onlyIfUnpaired?)
+  "remoteDevices", // () -> {devices: [{name, created, lastSeen}]} the phones paired to this PC, no tokens (2026-10-14)
+  "remoteForget",  // (name, created, lastSeen?) -> {ok, devices} the PC forgets a phone (2026-10-14)
   "switchTo",      // (dashboardId)
   "resolve",       // (requestId, resultJson|null, error|null) — answers request ops
   "addCatalogTile",
@@ -250,6 +253,7 @@ export const HOST_CALLS: string[] = [
   "playlistStop",
   "playlistMove",         // Playlists (docs/features/playlists.md, 2026-09-27)
   "videoRowOrder",         // (row, order, reverse) -> {row, order, reverse, orders} (sync): Continue watching / My list order, kept on the device (2026-09-26)
+  "videoWatchlistOrder",   // (order?, reverse?) -> {order, reverse, orders} (sync): My Watchlist's order (latest | title | rating) and its reverse, kept on the device (2026-10-14)
   "videoProfileSet",       // (appId, profileId) -> {ok, error?} (sync): one service switched to a profile - rows swapped, the page pressed, read again
   "videoProfileExclude",   // (appId, on) -> {ok, excluded} (sync): a service left out of Watch's Continue watching / My list for the person on now
   "videoRefreshStale",     // () -> {ok, asked} (sync): the services not read in ten minutes read again - Watch opened (2026-09-24)
@@ -314,7 +318,7 @@ export const HOST_CALLS: string[] = [
   "videoBingeHidden",      // () -> {items:[{id, title, why, service, at, until}]} (sync): the hidden titles, for Watch settings
   "videoBingePlay",        // (appId, cardId) -> {ok, resolving}: a Binge card plays; a miss opens the service's search and notes the card missing
   "videoBrowseRow",        // (genre|null, row, offer|null, want|null) -> one Browse row in full: its head and all its cards (2026-09-22)
-  "videoLookupView",       // (genre|null, app|null) -> the search as it stands with rows filtered by genre / service, plus the genres and services the rows offer (2026-09-22)
+  "videoLookupView",       // (genre|null, app|null, kind|null: movie | series) -> the search as it stands with rows filtered by genre / service / kind, plus the genres, services and kinds the rows offer (2026-09-22, kind 2026-10-14)
   "videoPlayResult",       // (appId, candidateJson) -> {ok, switched}: a cross-service result plays on its service
   "videoTune",             // (facetId, channelId, url|null, name|null) -> {ok, switched}: a Live now card's press - the channel's guide item pressed in the service's page (§3 tune)
   "videoForgetProfile",    // (tileId) - the standing choice forgotten
@@ -374,7 +378,7 @@ export const HOST_CALLS: string[] = [
 /** Surface event type names the host may post via `event` (drivers.ts). */
 export const SURFACE_EVENT_TYPES: string[] = [
   "load-finished", "first-paint", "adapter-ready", "playback", "interaction",
-  "navigated", "focus-result", "ad-break", "skip-available", "ad-info", "listener-lost",
+  "navigated", "focus-result", "ad-break", "skip-available", "ad-info", "ad-hold", "listener-lost",
   "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip", "gpu-reset",
   "media-position", "now-playing", "session", "fullscreen-element", "popup", "music-result",
   "profile-migrated",

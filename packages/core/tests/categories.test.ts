@@ -67,7 +67,7 @@ describe("categories by hashtags, with a clear rule (categories.ts)", () => {
     expect(orderCategory("az", cards, [], now).map((c) => c.item.title)).toEqual(["Fresh one", "Middle", "Old one", "Undated"]);
     expect(orderCategory("service", cards, [], now).map((c) => c.item.title)).toEqual(["Old one", "Undated", "Fresh one", "Middle"]);
     expect(CATEGORY_RULES.map((r) => r.id)).toEqual(["newest", "watched", "az", "service"]);
-    for (const r of CATEGORY_RULES) for (const k of ["counted", "who", "decides", "source", "formula"] as const) expect(r[k].length).toBeGreaterThan(10);
+    for (const r of CATEGORY_RULES) for (const k of ["counted", "who", "decides", "source", "formula", "simple", "sourceShort"] as const) expect(r[k].length).toBeGreaterThan(10);
   });
 
   it("popular hashtags are the words that recur across the household's own rows, a literal #hashtag counting double, no stop words", () => {

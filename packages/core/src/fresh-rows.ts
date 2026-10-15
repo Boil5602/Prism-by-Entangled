@@ -9,6 +9,7 @@ export const FRESH_EPISODE_DAYS = 10;
 export const FRESH_MOVIE_DAYS = 30;
 export const FRESH_EPISODES = {
   id: "fresh-episodes", name: "New episodes, last 10 days",
+  simple: "Shows on your services with a new episode in the last ten days. The one whose episode is oldest comes first, so it leaves the row soonest.", sourceShort: "TMDB, with JustWatch's availability",
   counted: "The air date of each series' latest episode, as TMDB records it.",
   who: "Nobody is counted: it is a date.",
   decides: "The network or studio that aired the episode; TMDB's contributors record the date. Which series your services carry is JustWatch's listing, through TMDB.",
@@ -18,6 +19,7 @@ export const FRESH_EPISODES = {
 
 export const FRESH_MOVIES = {
   id: "fresh-movies", name: "New movies, last 30 days",
+  simple: "Films on your services first released in the last thirty days, the oldest release first.", sourceShort: "TMDB, with JustWatch's availability",
   counted: "Each film's first release date, as TMDB records it. A re-release or a TV airing doesn't count.",
   who: "Nobody is counted: it is a date.",
   decides: "The studio that released it; TMDB's contributors record the date. Which films your services carry is JustWatch's listing, through TMDB.",

@@ -26,24 +26,31 @@ export function poolWords(w: PoolWords, tags: readonly string[]): PoolWords {
   return { name: fill(w.name), counted: fill(w.counted), who: fill(w.who), decides: fill(w.decides), source: fill(w.source) };
 }
 
-export interface RuleWords { id: CategoryRule; name: string; counted: string; who: string; decides: string; source: string; formula: string }
+/** simple and sourceShort: the one-line explanation and the plain source a tooltip shows (2026-10-14); "one of the hashtags" is filled with the tags. */
+export interface RuleWords { id: CategoryRule; name: string; counted: string; who: string; decides: string; source: string; formula: string; simple: string; sourceShort: string }
+/** Where a category is changed, said on its row (2026-10-14). */
+export const CATEGORY_EDIT_IN = "Watch settings on the PC, the Categories tab: its name, hashtags, order and services, or delete it.";
 
 export const CATEGORY_RULES: readonly RuleWords[] = [
   { id: "newest", name: "Newest first",
     counted: "When each title was published, as its service says beside it (3 days ago, 2 weeks ago). A title with no date goes last.",
     who: "Nobody is counted: it is a date.", decides: "The channel or network that published it.",
-    source: "The services' own pages, as Prism read them for its rows.", formula: "the titles with one of the hashtags, by the date beside each, newest first" },
+    source: "The services' own pages, as Prism read them for its rows.", formula: "the titles with one of the hashtags, by the date beside each, newest first",
+    simple: "Titles on your services tagged one of the hashtags, newest first by the date each service shows.", sourceShort: "The services' own pages" },
   { id: "watched", name: "Watched most recently by this household",
     counted: "When this PC last saw each title play. A title never played here goes last.",
     who: "This household, on this PC. Nobody else.", decides: "Whoever pressed play.",
-    source: "Prism's own log on this PC. It leaves the PC for nothing.", formula: "the titles with one of the hashtags, by when this PC last played each, latest first" },
+    source: "Prism's own log on this PC. It leaves the PC for nothing.", formula: "the titles with one of the hashtags, by when this PC last played each, latest first",
+    simple: "Titles on your services tagged one of the hashtags, the ones this PC played most recently first.", sourceShort: "The services' own pages, and Prism's own log on this PC" },
   { id: "az", name: "A to Z",
     counted: "The title's own name, articles aside (The, A, An).", who: "Nobody is counted.", decides: "Whoever named the title.",
-    source: "The services' own pages.", formula: "the titles with one of the hashtags, by name" },
+    source: "The services' own pages.", formula: "the titles with one of the hashtags, by name",
+    simple: "Titles on your services tagged one of the hashtags, A to Z.", sourceShort: "The services' own pages" },
   { id: "service", name: "The service's own order",
     counted: "Nothing: each service's items stand as that service listed them, service after service.",
     who: "Nobody is counted.", decides: "Each service, by whatever its page does. Prism does not know its reason.",
-    source: "The services' own pages, in their order.", formula: "the titles with one of the hashtags, as their services list them" },
+    source: "The services' own pages, in their order.", formula: "the titles with one of the hashtags, as their services list them",
+    simple: "Titles on your services tagged one of the hashtags, in the order each service lists them.", sourceShort: "The services' own pages" },
 ];
 
 export function ruleOf(v: unknown): CategoryRule { return v === "watched" || v === "az" || v === "service" ? v : "newest"; }

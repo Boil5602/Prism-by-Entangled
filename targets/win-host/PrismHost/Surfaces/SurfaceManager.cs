@@ -873,8 +873,10 @@ public sealed partial class SurfaceManager
     // other tiles, and put back where it was when the menu closes. A rect or z core sets meanwhile is kept for the return.
     private readonly Dictionary<string, (ChannelRect rect, int z, (double W, double H)? viewport)> _pip = new();
     /// <summary>The reading pages' first line: no DRM sessions, and no video playing (see where it is added). Prism's own browser views only.
-    /// window.__prismReading marks the page as one no person sees (2026-10-06): an adapter may scroll it to load what it reads (YouTube TV's lazy shelf pictures).</summary>
-    private const string ReaderQuietJs = "(function(){try{window.__prismReading=true;var no=function(n){return Promise.reject(new DOMException(\"a reading page plays nothing\",n));};try{Object.defineProperty(Navigator.prototype,\"requestMediaKeySystemAccess\",{value:function(){return no(\"NotSupportedError\");},configurable:false,writable:false});}catch(e){}var P=HTMLMediaElement.prototype;try{Object.defineProperty(P,\"play\",{value:function(){try{this.muted=true;this.pause();}catch(e){}return no(\"NotAllowedError\");},configurable:false,writable:false});}catch(e){}document.addEventListener(\"play\",function(e){try{var m=e.target;m.muted=true;m.pause();}catch(x){}},true);}catch(e){}})();";
+    /// window.__prismReading marks the page as one no person sees (2026-10-06): an adapter may scroll it to load what it reads (YouTube TV's lazy shelf pictures).
+    /// window.__prismMayPlay, set only by an adapter's remove script on the person's press (Twitch's Continue Watching, 2026-10-13), lets the page play muted:
+    /// Twitch saves a place only while its player runs, and forgets it when the video is played from its start.</summary>
+    private const string ReaderQuietJs = "(function(){try{window.__prismReading=true;var no=function(n){return Promise.reject(new DOMException(\"a reading page plays nothing\",n));};try{Object.defineProperty(Navigator.prototype,\"requestMediaKeySystemAccess\",{value:function(){return no(\"NotSupportedError\");},configurable:false,writable:false});}catch(e){}var P=HTMLMediaElement.prototype;var op=P.play;try{Object.defineProperty(P,\"play\",{value:function(){if(window.__prismMayPlay){try{this.muted=true;this.volume=0;}catch(e){}return op.apply(this,arguments);}try{this.muted=true;this.pause();}catch(e){}return no(\"NotAllowedError\");},configurable:false,writable:false});}catch(e){}document.addEventListener(\"play\",function(e){try{var m=e.target;m.muted=true;m.volume=0;if(!window.__prismMayPlay)m.pause();}catch(x){}},true);}catch(e){}})();";
 
     public void BeginPip(string id, ChannelRect corner)
     {
@@ -1888,6 +1890,7 @@ public sealed partial class SurfaceManager
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC8, 0x0B, 0x0D, 0x12)),
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 10, 0),
             };
+            MainWindow.OwnHover(x);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
             ToolTipService.SetToolTip(x, "Clear this window. The ones after it move up.");
             var id = t.Id;
             x.Click += (_, __) => TileCommand?.Invoke(id, "mv:remove");
@@ -1927,6 +1930,7 @@ public sealed partial class SurfaceManager
                 BorderThickness = new Thickness(0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
+            MainWindow.OwnHover(b);   // its own hover, never the system's (memory: hover-loss-tooltips; the audit's wider net, 2026-10-14)
             ToolTipService.SetToolTip(b, tip);
             b.Click += (_, __) => click();
             return b;
@@ -3299,6 +3303,7 @@ public sealed partial class SurfaceManager
     notifyAdBreak: function (a) { post({ type: 'ad-break', active: !!a }); },
     notifySkipAvailable: function (a, t) { post({ type: 'skip-available', available: !!a, target: t || undefined }); },
     notifyAdInfo: function (c, r) { post({ type: 'ad-info', count: c || undefined, remaining: (r == null || r < 0) ? undefined : +r }); },
+    notifyAdHold: function (s) { post({ type: 'ad-hold', remaining: (s == null || s < 0) ? undefined : +s }); },
     notifyPosition: function (p, d) { post({ type: 'media-position', position: +p || 0, duration: (d == null || d < 0) ? null : +d }); },
     // Quick play cross-service lookup (2026-09-16): an adapter's musicLookup script answers core's question (search /
     // add to playlist / station from song) with the token core handed it; core matches the answer to its wait

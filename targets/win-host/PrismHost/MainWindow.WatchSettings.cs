@@ -28,7 +28,7 @@ public sealed partial class MainWindow
 
     public async Task ShowWatchSettingsAsync(string? tab = null)
     {
-        if (tab is not null) _settingsTab = tab;
+        if (tab is not null) _settingsTab = tab == "hidden" ? "binge" : tab;   // the hidden titles sit under The Binge (2026-10-14)
         JsonObject? v = null;
         try { v = JsonNode.Parse(await ModelCallAsync("videoSettings") ?? "null") as JsonObject; } catch (Exception e) { LogLine("settings: " + e.Message); }
         if (v is null) { SetPill("Prism" + Dot + "settings could not be read"); return; }
@@ -63,7 +63,7 @@ public sealed partial class MainWindow
 
         // the tabs
         var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22 };
-        foreach (var (id, label) in new[] { ("general", "General"), ("updates", "Content updates"), ("binge", "The Binge"), ("categories", "Categories"), ("hidden", "Hidden titles"), ("perf", "Performance") })
+        foreach (var (id, label) in new[] { ("general", "TMDB"), ("ads", "Ads & breaks"), ("updates", "Updates"), ("services", "Services"), ("binge", "The Binge"), ("categories", "Categories"), ("perf", "Performance") })
         {
             var on = _settingsTab == id;
             var t = new Button { Content = new TextBlock { Text = label, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubDim }, Background = HubClear, BorderThickness = new Thickness(0, 0, 0, on ? 2 : 0), BorderBrush = HubAmber, Padding = new Thickness(0, 0, 0, 4) };
@@ -75,10 +75,19 @@ public sealed partial class MainWindow
 
         // the Save & exit of each tab gathers its own changes
         Func<Task<List<string>>> saveTab;
-        if (_settingsTab == "updates") saveTab = BuildUpdatesTab(body, v, run);
-        else if (_settingsTab == "binge") saveTab = BuildBingeTab(body);
+        // one subject a tab (2026-10-14, "needs to be organized and content better segregated so it's quick to navigate"): TMDB, Ads & breaks, Updates,
+        // Services, The Binge with its hidden titles, Categories, Performance
+        if (_settingsTab == "ads") saveTab = BuildAdsTab(body, v);
+        else if (_settingsTab == "updates") saveTab = BuildUpdatesTab(body, v, run);
+        else if (_settingsTab == "services") saveTab = BuildServicesTab(body, run);
+        else if (_settingsTab == "binge")
+        {
+            var limits = BuildBingeTab(body);
+            body.Children.Add(new TextBlock { Text = "Hidden titles", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
+            var hidden = BuildHiddenTab(body);
+            saveTab = async () => { var said = await limits(); said.AddRange(await hidden()); return said; };
+        }
         else if (_settingsTab == "categories") saveTab = BuildCategoriesTab(body);   // categories by hashtags, with a clear rule (2026-10-11)
-        else if (_settingsTab == "hidden") saveTab = BuildHiddenTab(body);
         else if (_settingsTab == "perf") saveTab = BuildPerformanceTab(body);   // the stats (2026-10-03)
         else saveTab = BuildGeneralTab(body, v);
 
@@ -100,7 +109,7 @@ public sealed partial class MainWindow
         scrim.Loaded += (_, __) => scrim.Focus(FocusState.Programmatic);
     }
 
-    /// <summary>General: the TMDB key.</summary>
+    /// <summary>TMDB: the key and the account (the Video ads moved to Ads & breaks, 2026-10-14).</summary>
     private Func<Task<List<string>>> BuildGeneralTab(StackPanel body, JsonObject v)
     {
         var hasKey = v["tmdbKey"]?.GetValue<bool>() == true;
@@ -126,40 +135,12 @@ public sealed partial class MainWindow
             keyRow.Children.Add(clear);
         }
         body.Children.Add(keyRow);
-        // Video ads (2026-10-07, "In watch settings, lets add 3 options for Video Ads: Show, Muted (Picture visible) and Veiled and Muted.
-        // Default to Veiled."): how the Video player's breaks look, from the next break on
-        var adsHead = new TextBlock { Text = "Video ads", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) };
-        ToolTipService.SetToolTip(adsHead, "What a window shows while an ad plays. Prism never blocks or skips an ad. Music services keep their own cover.");
-        body.Children.Add(adsHead);
-        var look = v["adsLook"]?.GetValue<string>() ?? "veil";
-        var adsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
-        RadioButton Look(string label, string value, string tip)
-        {
-            var r = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "videoAds", IsChecked = look == value, Tag = value, MinWidth = 0 };
-            ToolTipService.SetToolTip(r, tip);
-            adsRow.Children.Add(r);
-            return r;
-        }
-        var looks = new[]
-        {
-            Look("Veiled and muted", "veil", "The ad is covered with a picture and its sound is off. Show ad lets you see it for the rest of the break, and Hide ad covers it again."),
-            Look("Muted, picture visible", "mute", "You see the ad with its sound off. An Unmute button on the window brings the sound back for that ad."),
-            Look("Show", "show", "The ad plays as it comes, picture and sound."),
-        };
-        body.Children.Add(adsRow);
         var acct = new StackPanel();   // the account under the key, filled as core answers (MainWindow.TmdbAccount.cs, 2026-10-03)
         body.Children.Add(acct);
         _ = BuildTmdbAccountAsync(acct, hasKey);
         return async () =>
         {
             var said = new List<string>();
-            var chosen = looks.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? look;
-            if (chosen != look)
-            {
-                await ModelCallAsync("videoSetAdsLook", chosen);
-                LogLine("video ads: " + chosen);
-                said.Add(chosen == "veil" ? "ads are veiled and muted" : chosen == "mute" ? "ads are muted with the picture visible" : "ads are shown");
-            }
             var key = keyBox.Password?.Trim() ?? "";
             if (key.Length == 0) return said;
             await ModelCallAsync("lensSetTmdbKey", key);
@@ -179,7 +160,7 @@ public sealed partial class MainWindow
         };
     }
 
-    /// <summary>Content updates: the schedule and its pause, Refresh now, and a live grid of every service's parts and the catalog rows.</summary>
+    /// <summary>Updates: the schedule and its pause, Refresh now, Hide offline (the services grid and the catalog rows are the Services tab's since 2026-10-14).</summary>
     private Func<Task<List<string>>> BuildUpdatesTab(StackPanel body, JsonObject v, int run)
     {
         var pause = v["pause"] as JsonObject;
@@ -204,6 +185,41 @@ public sealed partial class MainWindow
         all.Click += async (_, __) => { await ModelCallAsync("videoRefreshLists", true); SetPill("Prism" + Dot + "reading every service's lists"); };
         body.Children.Add(all);
         body.Children.Add(HideOfflineBox(14));   // the Followed channels rows' setting, here too: with every channel offline the row and its box are hidden
+        _ = FollowUpdatesAsync(run, new Grid(), new Grid(), schedLine);   // the schedule line alone here; the services grid and the catalog rows are the Services tab's (2026-10-14)
+
+        return async () =>
+        {
+            var r = JsonNode.Parse(await ModelCallAsync("videoSetPause", pauseBox.IsChecked == true, fromBox.Text?.Trim() ?? "", toBox.Text?.Trim() ?? "") ?? "null") as JsonObject;
+            var p = r?["pause"] as JsonObject;
+            return new List<string> { p?["on"]?.GetValue<bool>() == true ? "scheduled updates pause " + p["from"] + "-" + p["to"] : "scheduled updates run at all hours" };
+        };
+    }
+
+    /// <summary>Ads & breaks (2026-10-14): how a window shows an ad, and the covering of YouTube TV's channel breaks with its lists.</summary>
+    private Func<Task<List<string>>> BuildAdsTab(StackPanel body, JsonObject v)
+    {
+        // Video ads (2026-10-07, "In watch settings, lets add 3 options for Video Ads: Show, Muted (Picture visible) and Veiled and Muted.
+        // Default to Veiled."): how the Video player's breaks look, from the next break on
+        var adsHead = new TextBlock { Text = "Video ads", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) };
+        ToolTipService.SetToolTip(adsHead, "What a window shows while an ad plays. Prism never blocks or skips an ad. Music services keep their own cover.");
+        body.Children.Add(adsHead);
+        var look = v["adsLook"]?.GetValue<string>() ?? "veil";
+        var adsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+        RadioButton Look(string label, string value, string tip)
+        {
+            var r = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "videoAds", IsChecked = look == value, Tag = value, MinWidth = 0 };
+            ToolTipService.SetToolTip(r, tip);
+            adsRow.Children.Add(r);
+            return r;
+        }
+        var looks = new[]
+        {
+            Look("Veiled and muted", "veil", "The ad is covered with a picture and its sound is off. Show ad lets you see it for the rest of the break, and Hide ad covers it again."),
+            Look("Muted, picture visible", "mute", "You see the ad with its sound off. An Unmute button on the window brings the sound back for that ad."),
+            Look("Show", "show", "The ad plays as it comes, picture and sound."),
+        };
+        body.Children.Add(adsRow);
+        body.Children.Add(new TextBlock { Text = "YouTube TV breaks", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
         var watchBox = new CheckBox { Content = new TextBlock { Text = "Cover breaks on YouTube TV channels", FontSize = 14, Foreground = HubInk }, IsChecked = BreakWatchOn, MinWidth = 0 };
         ToolTipService.SetToolTip(watchBox, "YouTube TV doesn't say when a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen. It covers a break it's sure of. Everything is read on this PC.");
         watchBox.Checked += (_, __) => { HostPrefs.Set("video.breakWatch", true); LogLine("break watch: on"); };
@@ -263,9 +279,26 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(autoBox, "Prism only knows a cover was wrong when you press Not an ad. After this many presses on one channel in a week, it covers that channel only where YouTube TV marks the break.");
         autoRow.Children.Add(autoBox);
         body.Children.Add(autoRow);
+        return async () =>
+        {
+            var said = new List<string>();
+            var chosen = looks.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? look;
+            if (chosen != look)
+            {
+                await ModelCallAsync("videoSetAdsLook", chosen);
+                LogLine("video ads: " + chosen);
+                said.Add(chosen == "veil" ? "ads are veiled and muted" : chosen == "mute" ? "ads are muted with the picture visible" : "ads are shown");
+            }
+            return said;
+        };
+    }
 
+    /// <summary>Services (2026-10-14): the live grid of every service's parts and when each was read, and the catalog rows and ratings.</summary>
+    private Func<Task<List<string>>> BuildServicesTab(StackPanel body, int run)
+    {
+        var schedLine = new TextBlock();   // drawn with the grids, shown on the Updates tab
         // the grid: one row per service
-        body.Children.Add(new TextBlock { Text = "Your services", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 12, 0, 0) });
+        body.Children.Add(new TextBlock { Text = "Your services", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) });
         var grid = new Grid { ColumnSpacing = 16, RowSpacing = 8 };
         foreach (var w in new[] { 190.0, 190, 170, 170, 100 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         body.Children.Add(grid);
@@ -274,13 +307,7 @@ public sealed partial class MainWindow
         foreach (var w in new[] { 260.0, 170, 190, 200 }) feeds.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         body.Children.Add(feeds);
         _ = FollowUpdatesAsync(run, grid, feeds, schedLine);
-
-        return async () =>
-        {
-            var r = JsonNode.Parse(await ModelCallAsync("videoSetPause", pauseBox.IsChecked == true, fromBox.Text?.Trim() ?? "", toBox.Text?.Trim() ?? "") ?? "null") as JsonObject;
-            var p = r?["pause"] as JsonObject;
-            return new List<string> { p?["on"]?.GetValue<bool>() == true ? "scheduled updates pause " + p["from"] + "-" + p["to"] : "scheduled updates run at all hours" };
-        };
+        return () => Task.FromResult(new List<string>());
     }
 
     private static readonly string ScheduleScope =

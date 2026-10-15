@@ -274,6 +274,21 @@ public sealed partial class MainWindow : Window
         try
         {
             _remote = new RemoteServer(8471, (id, json, logged) => RootGrid.DispatcherQueue.TryEnqueue(() => _brain.CallLoggedAs(HostCalls.Http, new object?[] { id, logged }, id, json)), LogLine);
+            // the phone's cards wear the service's mark (2026-10-14): the same cached mark the wall draws, by app id
+            _remote.MarkOf = async app =>
+            {
+                try
+                {
+                    var entry = _catalog.FirstOrDefault(c => c.Id == (_model.App(app)?.CatalogRef ?? app)) ?? _catalog.FirstOrDefault(c => c.Adapter == app);
+                    if (entry is null) return (null, null);
+                    var info = await _posters.GetMarkAsync(entry.Id, entry.Name, entry.Url);
+                    if (info.ImagePath is not { } p || !System.IO.File.Exists(p)) return (null, null);
+                    var ext = System.IO.Path.GetExtension(p).ToLowerInvariant();
+                    var mime = ext is ".svg" ? "image/svg+xml" : ext is ".jpg" or ".jpeg" ? "image/jpeg" : ext is ".ico" ? "image/x-icon" : ext is ".webp" ? "image/webp" : "image/png";
+                    return (await System.IO.File.ReadAllBytesAsync(p), mime);
+                }
+                catch { return (null, null); }
+            };
             // the routes the host answers itself take a paired phone's token only (2026-10-05 review): core's own record of the pairings, read at each ask
             _remote.TokenOk = t =>
             {
@@ -434,6 +449,7 @@ public sealed partial class MainWindow : Window
             // a pick from the phone (2026-10-05): the Watch screen out of the way and the curtain up, as a card pressed here does
             case Ops.UiPrivateMute: _surfaces.PrivateDeviceMute(m.GetBool("on")); break;   // the phone's "mute Prism on the PC while this phone listens" (2026-10-05)
             case Ops.UiListenRoutes: _remote?.Listen?.SetRoutes(m.GetString("json") ?? "{}"); break;   // each phone's window (2026-10-06)
+            case Ops.UiUpdateRestart: LogLine("updates: restart from the phone"); DispatcherQueue.TryEnqueue(RestartIntoStaged); break;   // the phone's Restart into the new version (2026-10-15)
             case Ops.UiBreakWatch: HostPrefs.Set("video.breakWatch", m.GetBool("on")); LogLine("break watch: " + (m.GetBool("on") ? "on" : "off") + " (the phone)"); break;   // the phone's switch (2026-10-07)
             case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; LogLine("video pick from the phone: " + vt + " on " + vs); if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
             case Ops.HttpResponse: _remote?.OnResponse((int)m.GetNumber("requestId"), (int)m.GetNumber("status", 500), m.GetString("body") ?? "", m.GetString("contentType") ?? "application/json"); break;

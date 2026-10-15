@@ -53,6 +53,26 @@ export function fillItemAddress(template: string, id: string, url: string | null
   return missing ? null : out;
 }
 
+/**
+ * Whether an address is on the service's own site (2026-10-14): https, and its host one of the adapter's `match` hosts or the service's
+ * home host, or a subdomain of one with the leading www. taken off (play.hulu.com for www.hulu.com). A card's address comes from the
+ * service's own page, but the phone's list route carries one too, and a signed-in hidden page is only ever pointed at the service.
+ */
+export function onServiceSite(url: string | null, hosts: readonly string[]): boolean {
+  if (!url) return false;
+  let u: URL; try { u = new URL(url); } catch { return false; }
+  if (u.protocol !== "https:") return false;
+  const h = u.hostname.toLowerCase();
+  for (const raw of hosts) {
+    let host = raw.toLowerCase();
+    try { if (/^[a-z]+:\/\//.test(host)) host = new URL(host).hostname; } catch { continue; }
+    if (!host) continue;
+    const base = host.replace(/^www\./, "");
+    if (h === host || h === base || h.endsWith("." + base)) return true;
+  }
+  return false;
+}
+
 export interface AdapterSpec {
   /** Domains the adapter targets (informational in v0; tiles bind by name). */
   match?: string[];
@@ -248,6 +268,9 @@ export interface AdapterSpec {
    * address (Paramount+: /shows/<slug>/).
    */
   videoEpisodesVia?: "id" | "lookup";
+  /** A series card's press lists the series' episodes to pick from instead of opening the show (YouTube TV, 2026-10-14: its show page is a
+   *  dialog with no Play of its own, so "something starts" that no one chose); the list is videoEpisodes', oldest first on the wall. */
+  videoSeriesPicks?: boolean;
   /** One address or several tried in order (as videoListSetUrl), filled by fillItemAddress from the card; a template it cannot fill is skipped. */
   videoRemoveContinueUrl?: string | string[];
   videoRemoveContinueWarning?: string;
@@ -631,6 +654,9 @@ export const FRAME_PRELUDE_JS = `
     },
     adInfo: function (count, remaining) {
       try { tile && tile.notifyAdInfo(typeof count === "string" ? count : "", remaining == null || !isFinite(remaining) ? -1 : +remaining); } catch (e) {}
+    },
+    adHold: function (seconds) {
+      try { tile && tile.notifyAdHold && tile.notifyAdHold(seconds == null || !isFinite(seconds) ? -1 : +seconds); } catch (e) {}
     },
     position: function (pos, dur) {
       try { tile && tile.notifyPosition(+pos || 0, dur == null || !isFinite(dur) ? -1 : +dur); } catch (e) {}

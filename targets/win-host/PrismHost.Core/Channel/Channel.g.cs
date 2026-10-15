@@ -56,6 +56,7 @@ public static class Ops
     public const string UiVideoPick = "ui.videoPick";
     public const string UiPrivateMute = "ui.privateMute";
     public const string UiListenRoutes = "ui.listenRoutes";
+    public const string UiUpdateRestart = "ui.updateRestart";
     public const string UiBreakWatch = "ui.breakWatch";
     public const string DisplaySetBrightness = "display.setBrightness";
     public const string DisplaySetPower = "display.setPower";
@@ -97,6 +98,8 @@ public static class HostCalls
     public const string RefreshTile = "refreshTile";
     public const string Http = "http";
     public const string MintPairing = "mintPairing";
+    public const string RemoteDevices = "remoteDevices";
+    public const string RemoteForget = "remoteForget";
     public const string SwitchTo = "switchTo";
     public const string Resolve = "resolve";
     public const string AddCatalogTile = "addCatalogTile";
@@ -191,6 +194,7 @@ public static class HostCalls
     public const string PlaylistStop = "playlistStop";
     public const string PlaylistMove = "playlistMove";
     public const string VideoRowOrder = "videoRowOrder";
+    public const string VideoWatchlistOrder = "videoWatchlistOrder";
     public const string VideoProfileSet = "videoProfileSet";
     public const string VideoProfileExclude = "videoProfileExclude";
     public const string VideoRefreshStale = "videoRefreshStale";
@@ -322,6 +326,7 @@ public static class SurfaceEvents
     public const string AdBreak = "ad-break";
     public const string SkipAvailable = "skip-available";
     public const string AdInfo = "ad-info";
+    public const string AdHold = "ad-hold";
     public const string ListenerLost = "listener-lost";
     public const string AppAdBreak = "app-ad-break";
     public const string AppSkipAvailable = "app-skip-available";
@@ -560,6 +565,9 @@ public sealed record UiPrivateMuteCommand(
 public sealed record UiListenRoutesCommand(
     [property: JsonPropertyName("json")] string Json);
 
+/// <summary>ui.updateRestart [M1]</summary>
+public sealed record UiUpdateRestartCommand();
+
 /// <summary>ui.breakWatch [M1]</summary>
 public sealed record UiBreakWatchCommand(
     [property: JsonPropertyName("on")] bool On);
@@ -730,6 +738,7 @@ public static class ChannelSchema
         ["ui.videoPick"] = false,
         ["ui.privateMute"] = false,
         ["ui.listenRoutes"] = false,
+        ["ui.updateRestart"] = false,
         ["ui.breakWatch"] = false,
         ["display.setBrightness"] = false,
         ["display.setPower"] = false,
@@ -797,6 +806,7 @@ public static class ChannelSchema
         "ui.videoPick",
         "ui.privateMute",
         "ui.listenRoutes",
+        "ui.updateRestart",
         "ui.breakWatch",
         "update.fetchManifest",
         "update.apply",

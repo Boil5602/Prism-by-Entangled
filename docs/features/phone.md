@@ -79,14 +79,43 @@ phones. The app should also enable the private listening feature through the pho
    Rename, Delete (Undo offered for a minute, as on the PC) and its items in the PC's order, completed ones faded, the one playing in
    amber; a tap on an item offers Play from here, Mark watched / not watched, Up / Down / To top (a Manual list only), Remove. While a
    playlist plays: Previous, Next, Stop after this, Stop now. Every change goes through the verbs the PC's own Playlists tab calls (`GET
-   /playlists`, `POST /playlists`, `/playlists/open`, `/rename`, `/delete`, `/play`, `/edit`, `/undo`, `/move`, `/stop`); adding titles
-   is still done from the PC's Details cards. Not yet walked on a phone.
+   /playlists`, `POST /playlists`, `/playlists/open`, `/rename`, `/delete`, `/play`, `/edit`, `/undo`, `/move`, `/stop`). A title is sent
+   from the phone's Details sheet (2026-10-13): *Send to playlist* lists the playlists and *New playlist…*, and the PC's own send job
+   (`POST /playlists/send {target, source}`, the source as the PC's cards build it: a show sends all its episodes, a movie itself) is
+   followed (`/playlists/job`) with its question before a large add put to the phone (`/playlists/confirm`). The sheet also carries
+   *Add to My Watchlist* (TMDB, while an account is linked: `POST /video/watchlist {title, kind, on?}`; the PC places the title and
+   writes after it answers, saying `working` until it is done, and the sheet asks again until then, up to twelve seconds, before it
+   says On or Taken off, or that TMDB could not place the title) or, with no account, *Add to <service>'s My List* (`/video/listinfo`,
+   `/video/list`), the same verbs as the PC's card menus. Walked on a phone 2026-10-14: the first press had added the title and said
+   Taken off, from one read 1.5 s after the press. Since 2026-10-14 the sheet draws the PC's own Details verbs from the details'
+   `actions` block, which core decides once (runtime.ts withPlay) for the PC's card and the phone alike: Play on each service that carries
+   the title (the same candidate the PC's Watch on sends), the trailer, the list the PC offers (the TMDB watchlist while an account is
+   linked, else each service's own list that Prism can change), Send to playlist only while playlists are on and with the source the PC
+   sends, and the facts and rating lines in the PC's words. The card's own words stand in until the details arrive, or for a title TMDB
+   has no page for. A Rent or Buy offer that one of the household's stores carries is a button, *Rent or buy on <store>* (2026-10-14):
+   the store's own page for the title, opened on the phone as a link (its app when installed, else the browser), signed in as the person
+   is there, with no referrer and no sign-in passed; Prism takes no part in the purchase. The same address the PC's purchase card shows
+   as a code.
+4d. **Search everywhere** (2026-10-14, "make the search and details screens on the companion app tied to it in the app so as changes
+   are made they come to both"). The phone reads the search as the PC's Search draws it: one view in core (search-view.ts, the PC's
+   `videoLookupView`; `GET /video/search`, `POST /video/search/view {genre?, app?}` under a filter chip) with the household's own
+   titles, the top result when the words name one, one card per work with every service that carries it, the people (a tap searches
+   their work: `POST /video/search {person: {id, name}}`), and the genre and service chips. Every word is core's - the lines under the
+   cards, the "Play on X · offer" labels, the headings, the status line, why there is nothing - so a rule changed in core changes both
+   screens; the PC's C# and the phone's JS only draw. Not yet walked on a phone.
 5. **Options (⋯).** *Prism on PC: Music lounge | Video* switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
    dispatched through the PC's own player switch; `GET /players` says which exist and which is on). The Music tab is only shown while
    the Music lounge is on. Add to home screen (the phone's own instructions; the icon opens the wall already paired through the manifest's
-   start address), the sound mode, the page's volume, Forget this wall. When the wall's software changes the page (its version at
-   `/remote/version`, a hash of the page and the host's version), a banner says so and the page refreshes itself in five minutes, or
-   at once on *Refresh now*.
+   start address), the sound mode, the page's volume, Refresh this page, Forget this PC. *Watch settings* (2026-10-14, "Let me edit as
+   many of the watch settings as possible from the companion app") opens a full sheet of what core keeps, read in one (`GET /video/settings`)
+   and saved a piece at a time (`POST /video/settings/<what>`, through the same core calls the PC's Watch settings make): the rows' orders
+   and reverses, the ads look, the suggestion rows, the update pause and a refresh, The Binge's limits, animation and Kids mode, every
+   category (edit, add, delete) and the titles hidden from The Binge. The PC's own settings (break covering's lists, performance) stay on the PC.
+   When the PC's software changes the page (its
+   version at `/remote/version`, a hash of the page and the host's version, written into the page itself as it is served), a banner says
+   so and the page refreshes itself in five minutes, or at once on *Refresh now*; the page checks every twenty seconds and whenever it
+   comes back to the front. Before 2026-10-14 the page took its first successful check as its own version, so one loaded while the PC
+   restarted, or whose first check failed, never showed the banner ("I should see a refresh button on the phone but do not").
 
 - **Details from the phone** (2026-10-11, "Can I open the TMDB details using the companion app too?"): every card on the Video tab
   (Continue watching, My list, the lens rows and the categories) carries an i in its corner. It opens a sheet with the title's TMDB
@@ -110,6 +139,10 @@ phones. The app should also enable the private listening feature through the pho
   A Twitch video says its channel in its own line.
 - **Posters** (2026-10-11, "a mix of formats"): every card carries TMDB's poster beside the service's own picture, and the phone draws
   the poster first, since it draws every card tall; the service's picture is the fallback.
+
+- **The card menu** (B-381, a long-press or a right-click on a card; 2026-10-15): Play, Details, the verbs the Details sheet carries, and on a
+  Continue watching card the PC's own *Remove from X's Continue Watching* (asked once more; `POST /video/remove-info`, `/video/remove-continue`
+  polled until done) or, where the service's site cannot remove, *Hide from Continue Watching* on the PC alone (`POST /video/hide-continue`).
 
 ## How it works
 

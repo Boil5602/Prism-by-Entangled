@@ -18,7 +18,7 @@ import type { AdapterSpec } from "./adapters.js";
 import { normalizeTrackText } from "./music-lookup.js";
 import { isUpcomingLine } from "./live-guide.js";
 import type { NowPlaying, VideoChannel, VideoContext, VideoItem, VideoLibrary, VideoProfiles } from "./types.js";
-import { noteLog, noteSeen, orderMerged, orderByService, orderContinueByTitle, type RowOrders, type FirstSeen, type MenuCard, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, isAwardBadge, foldSameTitle } from "./menu-order.js";
+import { noteLog, noteSeen, orderMerged, orderByService, orderByWatched, orderContinueByTitle, type RowOrders, type FirstSeen, type MenuCard, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, isAwardBadge, foldSameTitle } from "./menu-order.js";
 
 export interface VideoTileState {
   id: string;
@@ -966,7 +966,7 @@ export class VideoController {
     const listRows = listBadge ? rowsOf("list").map((r) => { const adapter = services.find((s) => s.app === r.app)?.adapter ?? r.app; return { ...r, items: r.items.map((it) => { if (it.badge) return it; const b = listBadge(it, adapter); return b ? { ...it, badge: b, badgeFrom: "tmdb" as const } : it; }) }; }) : rowsOf("list");
     // the person's order for each row (2026-09-26): Continue watching by service or A to Z; My list Prism's order (banners first), by service or A to Z
     const cr = orders.continueReverse, lr = orders.listReverse;
-    const cont = orders.continue === "service" ? orderByService(rowsOf("continue"), log, seen, now, cr) : orderContinueByTitle(orderByService(rowsOf("continue"), log, seen, now), cr);
+    const cont = orders.continue === "service" ? orderByService(rowsOf("continue"), log, seen, now, cr) : orders.continue === "watched" ? orderByWatched(rowsOf("continue"), log, seen, now, cr) : orderContinueByTitle(orderByService(rowsOf("continue"), log, seen, now), cr);
     const list = orders.list === "service" ? orderByService(listRows, log, seen, now, lr) : orders.list === "title" ? orderContinueByTitle(orderByService(listRows, log, seen, now), lr) : orderAlphabetical(listRows, log, seen, now, lr);
     return { continue: cont, list: foldSameTitle(list), log: this.log.length };
   }
@@ -1799,7 +1799,7 @@ export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: Video
   const clean = (l: unknown): VideoItem[] => Array.isArray(l)
     ? l.filter((x): x is VideoItem => !!x && typeof x === "object" && typeof (x as VideoItem).id === "string" && typeof (x as VideoItem).title === "string")
       .map(splitEpisodeName)
-      .map((x) => ({ id: x.id, title: x.title, kind: typeof x.kind === "string" ? x.kind : "video", url: typeof x.url === "string" ? x.url : null, artwork: typeof x.artwork === "string" ? jpegArt(x.artwork) : null, subtitle: typeof x.subtitle === "string" ? x.subtitle : null, progress: typeof x.progress === "number" ? x.progress : null, ...(typeof x.badge === "string" && x.badge.trim() && !isAwardBadge(x.badge) ? { badge: x.badge.replace(/\s+/g, " ").trim().slice(0, 48), ...(x.badgeInArt === true ? { badgeInArt: true } : {}) } : {}),
+      .map((x) => ({ id: x.id, title: x.title, kind: typeof x.kind === "string" ? x.kind : "video", url: typeof x.url === "string" ? x.url : null, artwork: typeof x.artwork === "string" ? jpegArt(x.artwork) : null, subtitle: typeof x.subtitle === "string" ? x.subtitle : null, progress: typeof x.progress === "number" ? x.progress : null, ...(typeof x.badge === "string" && x.badge.trim() && !isAwardBadge(x.badge) ? { badge: x.badge.replace(/\s+/g, " ").trim().slice(0, 48), ...(x.badgeInArt === true ? { badgeInArt: true } : {}), ...(x.badgeFrom === "count" ? { badgeFrom: "count" as const } : {}) } : {}),
         // the channel a video is on and its address, as the page named them (YouTube, Twitch; 2026-10-11), and the tags the creator wrote
         ...(typeof x.channel === "string" && x.channel.trim() ? { channel: x.channel.trim().slice(0, 80) } : {}), ...(typeof x.channelUrl === "string" && /^https:\/\//.test(x.channelUrl) ? { channelUrl: x.channelUrl.slice(0, 200) } : {}),
         ...(Array.isArray(x.tags) ? { tags: x.tags.filter((t): t is string => typeof t === "string").slice(0, 30) } : {}) }))

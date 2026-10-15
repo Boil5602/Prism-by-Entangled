@@ -32,6 +32,9 @@ public sealed partial class MainWindow
         var reading = lr["reading"] is JsonValue rv && rv.TryGetValue<int>(out var rn) && rn > 0;
         var date = S("dataDate") is { Length: > 0 } d0 ? d0 : "not read yet";
         var noAnim = lr["animation"] is JsonValue av && av.TryGetValue<bool>(out var ab) && !ab;
+        if (S("simple").Length > 0)   // plain words (2026-10-14): the limits in one line, one explanation, one source
+            return S("label") + (noAnim ? "\nAnimation left out (Include animation, on The Binge's full view)." : "") + (reading ? "  \u00B7  reading TMDB\u2026" : "")
+                + "\n\nHow it's picked: " + S("simple") + "\nSource: " + (S("sourceShort").Length > 0 ? S("sourceShort") : S("source")) + "  \u00B7  data as of " + date + (S("editIn").Length > 0 ? "\nWhere to change it: " + S("editIn") : "");
         return S("label") + (noAnim ? "\nAnimation left out (Include animation, on The Binge's full view)." : "") + (reading ? "  \u00B7  reading TMDB\u2026" : "")
             + "\n\nA series is in The Binge when all of these hold:"
             + "\n\u2022  Episode length \u2264 " + N("maxRuntime", "30") + " min  (TMDB runtime)"
@@ -223,13 +226,37 @@ public sealed partial class MainWindow
         Field("minRating", "Lowest TMDB rating", "TMDB members' mean vote, one to ten; default 7.0.", 0, 10, 0.1, 7.0);
         Field("minVotes", "Fewest TMDB votes", "How many TMDB members voted; default 500.", 0, 100000, 100, 500);
         body.Children.Add(new TextBlock { Text = "The episodic check (scripted or animated, not a miniseries, not tagged \"serialized\") is a best guess, since there's no reliable data on it. You can hide any title from its right-click menu.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+        // Include animation and Kids mode here too (2026-10-14, "Ensure everything is present in both"): the full view's header has them, and the
+        // phone's Watch settings; a press saves at once, as there
+        var extras = new StackPanel { Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
+        body.Children.Add(extras);
         var loaded = new Dictionary<string, double>();
         _ = ((Func<Task>)(async () =>
         {
-            JsonObject? t = null;
-            try { t = (JsonNode.Parse(await ModelCallAsync("videoBingeView") ?? "null") as JsonObject)?["head"]?["thresholds"] as JsonObject; } catch { }
+            JsonObject? bv = null;
+            try { bv = JsonNode.Parse(await ModelCallAsync("videoBingeView") ?? "null") as JsonObject; } catch { }
+            var t = bv?["head"]?["thresholds"] as JsonObject;
             foreach (var (key, box) in boxes)
                 if (t?[key] is JsonValue jv && jv.TryGetValue<double>(out var d)) { box.Value = d; loaded[key] = d; }
+            extras.Children.Clear();
+            var animOn = bv?["animation"]?.GetValue<bool>() != false;
+            var animBox = new CheckBox { Content = new TextBlock { Text = "Include animation", FontSize = 14, Foreground = HubInk }, IsChecked = animOn, MinWidth = 0 };
+            ToolTipService.SetToolTip(animBox, "Shows TMDB lists as Animation. Saved at once, on this device.");
+            animBox.Click += async (_, __) => { await ModelCallAsync("videoBingeSet", null, null, animBox.IsChecked == true); if (VideoHubOpen) _ = ShowVideoHubAsync(); };
+            extras.Children.Add(animBox);
+            var kids = bv?["kids"] as JsonObject; var kidsOn = kids?["on"]?.GetValue<bool>() == true; var age = kids?["age"]?.GetValue<string>() ?? "under10";
+            var kidsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            var kidsBox = new CheckBox { Content = new TextBlock { Text = "Kids mode", FontSize = 14, Foreground = HubInk }, IsChecked = kidsOn, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+            ToolTipService.SetToolTip(kidsBox, "Only the ratings the age allows, on The Binge and its row on Watch. Saved at once, on this device.");
+            var ages = (bv?["ages"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+            var ageBox = new ComboBox { MinWidth = 260, VerticalAlignment = VerticalAlignment.Center, Visibility = kidsOn ? Visibility.Visible : Visibility.Collapsed };
+            foreach (var a in ages) { var ratings = string.Join(", ", (a["ratings"] as JsonArray)?.Select(x => x?.GetValue<string>() ?? "") ?? Enumerable.Empty<string>()); ageBox.Items.Add(new ComboBoxItem { Content = S(a, "label") + "  \u00B7  " + ratings, Tag = S(a, "id") }); }
+            ageBox.SelectedIndex = Math.Max(0, ages.FindIndex(a => S(a, "id") == age));
+            async Task SetKids() { var on = kidsBox.IsChecked == true; ageBox.Visibility = on ? Visibility.Visible : Visibility.Collapsed; await ModelCallAsync("videoBingeSet", null, new JsonObject { ["on"] = on, ["age"] = (ageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? age }.ToJsonString()); if (VideoHubOpen) _ = ShowVideoHubAsync(); }
+            kidsBox.Click += async (_, __) => await SetKids();
+            ageBox.SelectionChanged += async (_, __) => { if (kidsBox.IsChecked == true) await SetKids(); };
+            kidsRow.Children.Add(kidsBox); kidsRow.Children.Add(ageBox);
+            extras.Children.Add(kidsRow);
         }))();
         return async () =>
         {

@@ -64,7 +64,7 @@ public sealed partial class MainWindow
         LogLine("remove continue: " + app + " " + id + " " + title);
         JsonObject? r = null;
         var t0 = DateTime.UtcNow;
-        while ((DateTime.UtcNow - t0).TotalSeconds < 150)   // a removal may wait behind another on the same service (one job at a time on its page)
+        while ((DateTime.UtcNow - t0).TotalSeconds < 200)   // a removal may wait behind another on the same service (one job at a time on its page); Twitch's plays the video out
         {
             try { r = JsonNode.Parse(await ModelCallAsync("videoRemoveContinue", app, id, title) ?? "null") as JsonObject; } catch { r = null; }
             var st = r?["status"]?.GetValue<string>();

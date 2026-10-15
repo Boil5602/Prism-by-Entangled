@@ -121,6 +121,15 @@ website's `src/data/releases.json` and `public/_redirects` (then `npm run deploy
   to `Programs\Prism.previous` first, and all of them go back if any step fails. The previous set stays until the next update.
 - Sign-ins, settings and everything else live in the data folder, untouched (§10).
 
+## From the phone (2026-10-15)
+
+"The update menu should let me initialize updates and see the change log in the companion app": the phone's Watch settings, Updates,
+open on *This Prism* - the version and track, what the server offers, *Check now* (core's check, its answer awaited), *Install* (core's
+install started; the phone follows the status until the release is staged), *Restart into* the staged version (asked once more; core sends
+`ui.updateRestart` and the PC restarts into it as its own Updates window does), and *What's changed*, the signed manifest's history, so showing
+it fetches nothing. The track and the schedule stay on the PC, which keeps them. Routes: `POST /video/settings/update-check`,
+`update-install`, `update-restart`; the state rides on `GET /video/settings` as `software`.
+
 ## Settings (Prism menu, Updates, "Update server")
 
 `update.url` (default the manifest above), `update.key` (public JWK; empty = unsigned), `update.channel` (alpha | beta | stable),

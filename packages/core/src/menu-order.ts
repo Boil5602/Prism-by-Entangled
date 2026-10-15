@@ -153,16 +153,37 @@ export function orderByService(rows: readonly MenuServiceRow[], log: readonly Me
  * (case and accents folded, a leading the / a / an set aside); a title on two services keeps the grouped order. Reverse flips the names (Z to
  * A) and keeps what is not a name: New first keeps the bannered titles in front. By service is A to Z twice, the services and the titles in each. Pure.
  */
-export type ContinueOrder = "service" | "title";
+export type ContinueOrder = "service" | "title" | "watched";
 export const CONTINUE_ORDERS: ReadonlyArray<{ id: ContinueOrder; label: string; hint: string }> = [
-  { id: "title", label: "A to Z", hint: "Every title A to Z by name, whatever the service. A leading The, A or An is skipped. Reversed, Z to A." },
+  { id: "title", label: "Alpha", hint: "Every title A to Z by name, whatever the service. A leading The, A or An is skipped. Reversed, Z to A." },   // "Alpha" (2026-10-14)
   { id: "service", label: "By service", hint: "Each service's titles together, A to Z, with the services A to Z. Reversed, both go Z to A." },
+  { id: "watched", label: "Last watched", hint: "What Prism played most recently first, with the time on the card. Titles Prism has never played sit below in each service's own order, the services A to Z. No service says when you watched something in its own app, so a title watched there sorts below until Prism plays it once. Reversed, the played ones oldest first and the services Z to A." },
 ];
-export function continueOrderOf(v: unknown): ContinueOrder { return v === "service" ? "service" : "title"; }
+export function continueOrderOf(v: unknown): ContinueOrder { return v === "service" ? "service" : v === "watched" ? "watched" : "title"; }
+/**
+ * Last watched (2026-10-14, "Is there any way we can figure out how to sort continue watching by last watched?" - "Do it"): the titles Prism itself
+ * saw playing, newest first by the local log's own time (the one time a card ever shows), then every title the log has no time for, grouped by
+ * service A to Z in the service's own order (its idea of what is next; no time is guessed from it, section 4). No service tells Prism when a title was
+ * watched elsewhere, so a title watched in a service's own app sorts below until Prism plays it once. Reversed: the played ones oldest first, then
+ * the rest with the services Z to A, each in its own order reversed. Pure.
+ */
+export function orderByWatched(rows: readonly MenuServiceRow[], log: readonly MenuLogEntry[], seen: FirstSeen, now: number, reverse = false): MenuCard[] {
+  const merged = orderMerged(rows, log, seen, now);
+  const dir = reverse ? -1 : 1;
+  const played = merged.map((c, i) => ({ c, i })).filter((x) => x.c.lastWatched !== undefined).sort((a, b) => ((b.c.lastWatched! - a.c.lastWatched!) * dir) || a.i - b.i).map((x) => x.c);
+  const byName = rows.map((r, i) => ({ r, i, k: sortTitle(r.name) })).sort((a, b) => (a.k < b.k ? -dir : a.k > b.k ? dir : a.i - b.i)).map((x) => x.r);
+  const rest: MenuCard[] = [];
+  for (const row of byName) {
+    const mine: MenuCard[] = [];
+    for (const it of row.items) { const c = merged.find((m) => m.app === row.app && m.item === it); if (c && c.lastWatched === undefined) mine.push(c); }
+    rest.push(...(reverse ? mine.reverse() : mine));
+  }
+  return [...played, ...rest];
+}
 export type ListOrder = "prism" | "service" | "title";
 export const LIST_ORDERS: ReadonlyArray<{ id: ListOrder; label: string; hint: string }> = [
   { id: "prism", label: "New first", hint: "Titles with a banner come first. That's a new episode in the last " + NEW_EPISODE_DAYS + " days (from TMDB), or a banner the service put on the title itself, like New Season, Recently Added or Leaving Soon. Award banners don't count. The bannered titles go A to Z, then everything else A to Z. Reversed, each group goes Z to A and the bannered titles stay in front. A leading The, A or An is skipped." },
-  { id: "title", label: "A to Z", hint: "Every title A to Z by name, whatever the service. Banners still show but don't move a title. Reversed, Z to A." },
+  { id: "title", label: "Alpha", hint: "Every title A to Z by name, whatever the service. Banners still show but don't move a title. Reversed, Z to A." },
   { id: "service", label: "By service", hint: "Each service's list together, A to Z, with the services A to Z. Banners still show but don't move a title. Reversed, both go Z to A." },
 ];
 export function listOrderOf(v: unknown): ListOrder { return v === "service" ? "service" : v === "title" ? "title" : "prism"; }

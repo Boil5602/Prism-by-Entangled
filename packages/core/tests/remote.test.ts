@@ -258,6 +258,9 @@ describe("playlists on the phone (2026-10-12, 'Make sure I can manage playlists 
       undo: () => { calls.push(["undo"]); return { ok: true }; },
       move: (dir) => { calls.push(["move", dir]); return { ok: true }; },
       stop: (mode) => { calls.push(["stop", mode]); return { ok: true }; },
+      send: (target, source) => { calls.push(["send", target, source]); return { job: "j1" }; },
+      job: (id) => { calls.push(["job", id]); return { status: "confirm", message: "Add 12 episodes?" }; },
+      confirm: (id, yes) => { calls.push(["confirm", id, yes]); return { ok: true }; },
     };
     const post = (path: string, body: unknown) => remote.handle({ method: "POST", path, body: JSON.stringify(body), token });
     expect((await remote.handle({ method: "GET", path: "/playlists", body: null, token })).status).toBe(200);
@@ -274,11 +277,17 @@ describe("playlists on the phone (2026-10-12, 'Make sure I can manage playlists 
     expect((await post("/playlists/move", { dir: "previous" })).status).toBe(200);
     expect((await post("/playlists/stop", { mode: "now" })).status).toBe(200);
     expect((await post("/playlists/delete", { id: "p1" })).status).toBe(200);
+    // a title sent from the phone's Details sheet (2026-10-13): the job, its question, the answer
+    expect((await post("/playlists/send", { target: { id: "p1" }, source: { type: "movie", title: "Heat" } })).status).toBe(200);
+    expect((await post("/playlists/send", { target: "p1", source: { type: "movie" } })).status).toBe(400);
+    expect((await post("/playlists/job", { id: "j1" })).status).toBe(200);
+    expect((await post("/playlists/confirm", { id: "j1", yes: true })).status).toBe(200);
     expect((await post("/playlists/nothing", {})).status).toBe(404);
     expect((await remote.handle({ method: "GET", path: "/playlists/open", body: null, token })).status).toBe(405);
     expect(calls).toEqual([
       ["view"], ["create", "Movie night"], ["open", "p1"], ["rename", "p1", "Friday"], ["play", "p1", "k2"], ["play", "p1", null],
       ["edit", "p1", { op: "mark", keys: ["k2"], done: true }], ["undo"], ["move", "previous"], ["stop", "now"], ["remove", "p1"],
+      ["send", { id: "p1" }, { type: "movie", title: "Heat" }], ["job", "j1"], ["confirm", "j1", true],
     ]);
   });
 });

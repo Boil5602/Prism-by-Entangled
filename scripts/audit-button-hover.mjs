@@ -29,7 +29,7 @@ function files(dir) {
 const offenders = [];
 for (const f of files(hostDir)) {
   const s = readFileSync(f, "utf8");
-  const re = /var (\w+) = new Button \{/g;
+  const re = /var (\w+) = new Button\s*\{/g;   // the brace on the next line too (the Trailer pill slipped by, 2026-10-14)
   let m;
   while ((m = re.exec(s))) {
     let depth = 0, q = m.index + m[0].length - 1;
