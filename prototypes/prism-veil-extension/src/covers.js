@@ -50,6 +50,19 @@
     lbl.setAttribute("data-prism-veil", "1");
     lbl.textContent = glyph || String.fromCharCode(0x25D0);
     lbl.style.cssText = "position:absolute;top:6px;left:6px;font:600 clamp(9px,4cqi,16px)/1 -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;text-shadow:0 1px 6px #000;background:rgba(10,12,15,.5);padding:.3em .45em;border-radius:6px;white-space:nowrap;backdrop-filter:blur(2px)";
+    // The photo's credit on the symbol, on hover (2026-10-15, "I should be able
+    // to mouse over the intermission symbol on an image and see the credit"):
+    // read when the pointer arrives, so a photo swapped for a bundled one
+    // (a strict page CSP) is credited as the one on screen.
+    lbl.style.cursor = "help";
+    lbl.addEventListener("mouseenter", function () {
+      try {
+        var f = String(cover.__artUrl || "").split(/[\/?#]/).filter(Boolean);
+        var name = f.length ? decodeURIComponent(f[f.length - 1]) : "";
+        var c = (PV.ART_CREDITS && PV.ART_CREDITS[name]) || "";
+        lbl.title = (glyph && glyph !== String.fromCharCode(0x25D0) ? "Covered by Prism: labelled AI content." : "Covered by Prism: an ad.") + (c ? "\n\n" + c : "");
+      } catch (e) {}
+    });
     cover.appendChild(lbl);
     requestAnimationFrame(function () { cover.style.opacity = "1"; });
   }
@@ -199,6 +212,10 @@
   // ---- overlay-mode covers: clip under a sticky top bar (never fade - a
   // translucent cover shows the ad through it).
   var barTop = 0, barEl = null, anyOverlay = false;
+  // ... and a bar fixed to the BOTTOM of the viewport (MSN's article page, report
+  // 2026-10-15: "the ads in the scroll area will overlap with the top / bottom
+  // frames of the page"): covers clip above it as they clip under a top bar.
+  var botTop = 0, botEl = null;
   // (jpmasthead / jpfixed / jpstage: Jetpack's collapsed masthead is a fixed,
   // full-width, opaque strip - the ad, not the site's header; Fox 2026-09-11.)
   var AD_BAND_CLS = /(^|[\s_-])(ad|ads|adv|advert|advertisement|ad-slot|adslot|adSlot|ad-slot-header|sponsor|jpmasthead|jpfixed|jpstage)([\s_-]|$)/i;
@@ -253,6 +270,40 @@
         if (barCands.length >= 12) break;
       }
     }
+    // The strips at the viewport's top and bottom edges, by a deep hit-test:
+    // what is drawn there, walked up to its fixed / sticky ancestor. Cheap, and
+    // it finds a bar the walk above never reaches (its budget runs out in MSN's
+    // dozens of shadow roots before the header's).
+    try {
+      [3, innerHeight - 3].forEach(function (y) {
+        [0.2, 0.5, 0.8].forEach(function (fx) {
+          var n = deepHit(innerWidth * fx, y), d = 0;
+          for (; n && d < 40; n = PV.parentAcross(n), d++) {
+            if (n === document.body || n === document.documentElement || n.nodeType !== 1) break;
+            if (n.hasAttribute("data-prism-veil") || n.hasAttribute("data-prism-ui")) break;
+            var cs = getComputedStyle(n);
+            if (cs.position !== "fixed" && cs.position !== "sticky") continue;
+            var r = n.getBoundingClientRect();
+            if (r.width < innerWidth * 0.5 || r.height <= 0 || r.height > innerHeight * 0.4) break;
+            if (!paintsOpaque(n)) break;
+            if (barCands.indexOf(n) < 0) barCands.push(n);
+            break;
+          }
+        });
+      });
+    } catch (eD) {}
+  }
+  // The topmost page element at a point, through open shadow roots, Prism's
+  // own layers skipped at every level.
+  function deepHit(x, y) {
+    var pick = function (list) { for (var i = 0; i < list.length; i++) { if (list[i].hasAttribute && (list[i].hasAttribute("data-prism-veil") || list[i].hasAttribute("data-prism-ui"))) continue; return list[i]; } return null; };
+    var el = pick(document.elementsFromPoint(x, y)), guard = 0;
+    while (el && el.shadowRoot && guard++ < 30) {
+      var inner = pick(el.shadowRoot.elementsFromPoint(x, y));
+      if (!inner || inner === el) break;
+      el = inner;
+    }
+    return el;
   }
   function pickTopBar() {
     var t = 0, el = null;
@@ -267,11 +318,41 @@
       // [aria-label=Advertisement] box whose opaque inner div was taken for
       // the site's bar, and the unit's own cover was then clipped under it to
       // nothing (report 2026-09-13: clipPath inset(345.8px), the ad in full view).
-      var holdsAd = false; veils.forEach(function (c, tgt) { if (!holdsAd && (tgt === e || PV.deepContains(e, tgt) || PV.deepContains(tgt, e))) holdsAd = true; }); if (holdsAd) continue;
+      if (adIsBar(e, r)) continue;
       t = r.bottom; el = e;
     }
     barTop = t; barEl = t ? el : null;
     PV.topBar = { top: barTop, el: barEl };
+    // the bottom bar: the highest top among the fixed strips that reach the
+    // viewport's bottom edge
+    var b = innerHeight, bel = null;
+    for (var j = 0; j < barCands.length; j++) {
+      var e2 = barCands[j];
+      if (!e2.isConnected) continue;
+      var r2 = e2.getBoundingClientRect();
+      if (r2.width < innerWidth * 0.5 || r2.height <= 0 || r2.height > innerHeight * 0.4) continue;
+      if (r2.bottom < innerHeight - 2 || r2.top < innerHeight * 0.5 || r2.top >= b) continue;
+      if (getComputedStyle(e2).position !== "fixed") continue;   // a sticky footer sits in the flow until it sticks; only a fixed one rides the bottom
+      if (adIsBar(e2, r2)) continue;
+      b = r2.top; bel = e2;
+    }
+    botTop = bel ? b : innerHeight; botEl = bel;
+    PV.bottomBar = { top: bel ? botTop : 0, el: botEl };
+  }
+  // A strip holding a veiled ad is the ad, not the bar, when the ad IS the
+  // strip: the strip is the covered element, lies inside it (PCMag's Pogo unit,
+  // whose opaque inner div was taken for the site's bar: report 2026-09-13), or
+  // the ad spans most of its width. A wide bar with a banner IN it is still the
+  // page's bar: MSN's article header carries its top banner, and refusing it
+  // let every cover scroll over the header (report 2026-10-15).
+  function adIsBar(e, r) {
+    var is = false;
+    veils.forEach(function (c, tgt) {
+      if (is) return;
+      if (tgt === e || PV.deepContains(tgt, e)) { is = true; return; }
+      if (PV.deepContains(e, tgt)) { var tr = tgt.getBoundingClientRect(); if (tr.width >= r.width * 0.8) is = true; }
+    });
+    return is;
   }
   function findTopBar() { scanBarCandidates(); pickTopBar(); }
   // ---- the ad's own close control stays reachable THROUGH the cover.
@@ -303,7 +384,50 @@
   // and "closest" do not.
   var CLOSE_TOK = /(^|[\s_-])(close(?!d([\s_-]|$))[a-z]*|[a-z]{1,3}close(btn|button|icon|x)?|dismiss|collapse|btn-close)([\s_-]|$)/i;
   var CLOSE_GLYPH = /^[xX\u00D7\u2715\u2716\u2A2F]$/;
-  var MAX_HOLES = 4;
+  var MAX_HOLES = 6;
+  // A carousel's own controls under a cover: MSN's digest and infopane cards
+  // mix ads and articles in one slider, and its Previous / Next buttons and
+  // the slide dots sat under the cover with no way on to the next slide
+  // (reports 2026-10-09, 2026-10-15: "the right/left arrows ... and the item
+  // selected dashes ... need to cut through the veil"). The person's own press
+  // moves the slider; the cover goes when the slide is no longer an ad. Only
+  // controls that say so: an aria-label / title of Previous or Next (slide,
+  // item ...), a nav-button / flipper / prev / next class token, or a dots
+  // strip (CS-SEQUENCE-DOTS, a pagination / dots / indicators class).
+  var NAV_LABEL = /^(previous|next|prev)( (slide|item|page|story|stories|card|set|image|photo))?$/i;
+  var NAV_TOK = /(^|[\s_-])(nav-button|flipper|carousel-(prev|next)|slick-(prev|next)|swiper-button-(prev|next)|(prev|next)-button|button-(prev|next))([\s_-]|$)/i;
+  var DOTS_TOK = /(^|[\s_-])(pagination-dots|sequence-dots|slick-dots|swiper-pagination|carousel-indicators|carousel-dots|slider-dots|pager-dots|dots)([\s_-]|$)/i;
+  function navKind(e) {
+    if (e.tagName === "CS-SEQUENCE-DOTS" || DOTS_TOK.test(PV.classStr(e))) return "dots";
+    var lab = ((e.getAttribute("aria-label") || e.getAttribute("title") || "") + "").trim();
+    if (NAV_LABEL.test(lab) || NAV_TOK.test(PV.classStr(e))) return "nav";
+    return "";
+  }
+  // The unit across shadow boundaries: MSN's card is a shadow host whose own
+  // tree holds the slide and the controls, so the walk climbs through hosts of
+  // (about) the covered element's size and searches their shadow trees too.
+  function unitDeep(target) {
+    var u = target, r0 = target.getBoundingClientRect();
+    for (var d = 0; d < 8; d++) {
+      var p = PV.parentAcross(u);
+      if (!p || p === document.body || p === document.documentElement || p.nodeType !== 1) break;
+      var pr = p.getBoundingClientRect();
+      if (Math.abs(pr.height - r0.height) > Math.max(12, r0.height * 0.15) || Math.abs(pr.width - r0.width) > Math.max(12, r0.width * 0.15)) break;
+      u = p;
+    }
+    return u;
+  }
+  // Every element under a root, its own shadow tree and the shadow trees
+  // inside it included, up to a cap.
+  function deepAll(root, cap) {
+    var out = [], q = [root];
+    if (root.shadowRoot) q.push(root.shadowRoot);
+    for (var i = 0; i < q.length && out.length < cap; i++) {
+      var list; try { list = q[i].querySelectorAll("*"); } catch (e) { continue; }
+      for (var j = 0; j < list.length && out.length < cap; j++) { out.push(list[j]); if (list[j].shadowRoot) q.push(list[j].shadowRoot); }
+    }
+    return out;
+  }
   // The X may sit in the ad's WRAPPER rather than the covered element: CNN's
   // Wunderkind header (2026-09-12) covers the inner .celtra-banner while
   // a.bx-close lives four wrappers up, all the same box. Search the unit:
@@ -336,12 +460,29 @@
         if (d && d.body) all = all.concat([].slice.call(d.body.querySelectorAll("*"), 0, 600));
       });
     } catch (eI) {}
+    // the shadow trees of the unit (and of the hosts around it)
+    try {
+      var ud = unitDeep(target);
+      var seen = new Set(all);
+      deepAll(ud, 1600).forEach(function (x) { if (!seen.has(x)) all.push(x); });
+    } catch (eS) {}
     var jetpack = false;
     try { jetpack = unit.id === "jpmasthead" || !!(unit.closest && unit.closest("#jpmasthead")) || !!unit.querySelector("#jpmasthead, .jpstage"); } catch (eJ) {}
     for (var i = 0; i < all.length && i < 1800 && out.length < MAX_HOLES; i++) {
       var e = all[i];
       if (e.hasAttribute("data-prism-veil") || e.hasAttribute("data-prism-ui")) continue;
       var r = e.getBoundingClientRect();
+      var nk = "";
+      try { nk = navKind(e); } catch (eN) {}
+      if (nk) {
+        // a dots strip is long and thin (MSN's is 318 x 8); a nav button an X's size
+        if (nk === "dots" ? (r.width < 16 || r.width > 420 || r.height < 4 || r.height > 40) : (r.width < 14 || r.width > 72 || r.height < 14 || r.height > 72)) continue;
+        if (!PV.elVisible(e)) continue;
+        var nestedN = false; for (var kN = 0; kN < out.length; kN++) { if (PV.deepContains(out[kN], e)) { nestedN = true; break; } } if (nestedN) continue;
+        var hN = null; try { hN = deepHit(r.left + r.width / 2, r.top + r.height / 2); } catch (eH) {}
+        if (hN && (hN === e || PV.deepContains(e, hN))) { e.__prismNav = nk; out.push(e); }
+        continue;
+      }
       if (r.width < 10 || r.height < 10 || r.height > 64) continue;
       var lab = (e.getAttribute("aria-label") || "") + " " + (e.getAttribute("title") || "") + " " + (e.id || "") + " " + PV.classStr(e);
       var own = "";
@@ -380,15 +521,16 @@
   // the outer box runs clockwise, each hole counter-clockwise, so the nonzero
   // rule leaves the holes out - and a clip-path hole hit-tests.
   function paintClip(cover) {
-    var u = cover.__under || 0, holes = (cover.__holeBoxes || []).filter(function (h) { return h.y1 > u + 2; })
-      .map(function (h) { return { x0: h.x0, y0: Math.max(h.y0, u), x1: h.x1, y1: h.y1 }; })
+    var u = cover.__under || 0, o = cover.__over || 0, lo = o > 0 ? (cover.offsetHeight || cover.getBoundingClientRect().height) - o : Infinity;
+    var holes = (cover.__holeBoxes || []).filter(function (h) { return h.y1 > u + 2 && h.y0 < lo - 2; })
+      .map(function (h) { return { x0: h.x0, y0: Math.max(h.y0, u), x1: h.x1, y1: Math.min(h.y1, lo) }; })
       .sort(function (a, b) { return a.x0 - b.x0; });
-    if (!holes.length) { cover.style.clipPath = u > 0 ? "inset(" + u.toFixed(1) + "px 0 0 0)" : ""; return; }
+    if (!holes.length) { cover.style.clipPath = (u > 0 || o > 0) ? "inset(" + u.toFixed(1) + "px 0 " + (o > 0 ? o.toFixed(1) + "px" : "0") + " 0)" : ""; return; }
     var pts = ["0 " + u + "px"];
     holes.forEach(function (h) {
       pts.push(h.x0 + "px " + u + "px", h.x0 + "px " + h.y1 + "px", h.x1 + "px " + h.y1 + "px", h.x1 + "px " + h.y0 + "px", h.x0 + "px " + h.y0 + "px", h.x0 + "px " + u + "px");
     });
-    pts.push("100% " + u + "px", "100% 100%", "0 100%");
+    pts.push("100% " + u + "px", o > 0 ? "100% " + lo.toFixed(1) + "px" : "100% 100%", o > 0 ? "0 " + lo.toFixed(1) + "px" : "0 100%");
     cover.style.clipPath = "polygon(" + pts.join(", ") + ")";
   }
   function applyCloseHole(cover, target) {
@@ -399,7 +541,8 @@
       ctrls.forEach(function (x) {
         var r = pageRect(x);
         // clamp to the cover (Jetpack's stage runs a few px past its masthead)
-        var x0 = Math.max(0, r.left - pad - cr.left), y0 = Math.max(0, r.top - pad - cr.top), x1 = Math.min(cr.width, r.right + pad - cr.left), y1 = Math.min(cr.height, r.bottom + pad - cr.top);
+        var py = x.__prismNav === "dots" ? 10 : pad;
+        var x0 = Math.max(0, r.left - pad - cr.left), y0 = Math.max(0, r.top - py - cr.top), x1 = Math.min(cr.width, r.right + pad - cr.left), y1 = Math.min(cr.height, r.bottom + py - cr.top);
         if (x1 - x0 >= 6 && y1 - y0 >= 6) boxes.push({ x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1), el: x });
       });
     }
@@ -415,7 +558,7 @@
   }
   function clipOverlays() {
     veils.forEach(function (cover, target) {
-      if (cover.__fixed) { cover.__under = 0; paintClip(cover); cover.style.opacity = "1"; return; }   // a fixed cover rides the viewport - it IS the sticky bar, never clip it under one
+      if (cover.__fixed) { cover.__under = 0; cover.__over = 0; paintClip(cover); cover.style.opacity = "1"; return; }   // a fixed cover rides the viewport - it IS the sticky bar, never clip it under one
       // "inside" covers (MSN cards) sit at a huge z-index INSIDE the card, so
       // they too paint over a sticky bar (reported 2026-08-28: MSN search bar).
       // Clip them by their own box, same as overlays by their target's.
@@ -423,11 +566,13 @@
       // header) is part of the bar: clipping it "under" the bar would erase the
       // cover entirely (Firefox report 2026-08-28: target in targets, 12 veils,
       // banner still visible). Never clip a cover under a bar containing it.
-      if (barEl && (barEl === target || PV.deepContains(barEl, target))) { cover.__under = 0; paintClip(cover); cover.style.opacity = "1"; return; }
+      var inBot = !!(botEl && (botEl === target || PV.deepContains(botEl, target)));
+      if (barEl && (barEl === target || PV.deepContains(barEl, target))) { cover.__under = 0; cover.__over = 0; paintClip(cover); cover.style.opacity = "1"; return; }
       var r = cover.__mode === "overlay" ? target.getBoundingClientRect() : cover.getBoundingClientRect();
       if (r.height <= 0) { cover.style.opacity = "0"; return; }
       cover.style.opacity = "1";
       cover.__under = Math.max(0, Math.min(r.height, barTop - r.top));
+      cover.__over = (botEl && !inBot) ? Math.max(0, Math.min(r.height, r.bottom - botTop)) : 0;
       paintClip(cover);
     });
   }
@@ -506,6 +651,15 @@
     PV.videoAdBreak();
     var res = PV.collectTargets(), targets = res.targets;
     why = res.why;
+    // A cover the page took out of its tree is made again: MSN's ad SDK
+    // redraws its banner container and drops our cover with the old children
+    // (report 2026-10-15: "ads poking through on the bottom bar", the cover
+    // disconnected while the target was still counted as covered).
+    veils.forEach(function (cover, t) {
+      if (cover.isConnected) return;
+      lowerPager(cover); veils.delete(t);
+      if (PV.recordError && !t.__prismReattachLogged) { t.__prismReattachLogged = true; PV.recordError("cover re-made (page removed it) " + t.tagName + "." + PV.classStr(t).slice(0, 40)); }
+    });
     targets.forEach(function (t) {
       if (veils.has(t)) return;
       var cv = makeCover(t, /^ai-(lookup|label)/.test(why.get(t) || "") ? "\u2726" : "\u25D0"); veils.set(t, cv); raisePager(t, cv); muteUnder(t); if (PV.reclaimDisplaySlot) PV.reclaimDisplaySlot(t);

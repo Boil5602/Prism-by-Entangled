@@ -65,8 +65,15 @@ public sealed partial class MainWindow
         var reading = w["reading"]?.GetValue<bool>() == true;
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         var title = RowHead("My Watchlist", HubInk);
-        ToolTipService.SetToolTip(title, "Your TMDB watchlist, from the TMDB account linked in Watch settings: the same list on any device signed in to it. Each card shows the services here that carry the title. Your services' own My Lists are not read while this is on; unlink the account and they come back.");
         head.Children.Add(title);
+        // the row's words behind an (i), as the other rows have them (2026-10-15, "My WATCHLIST has a tooltip, can you move that to an (i) icon")
+        head.Children.Add(InfoMark(InfoTip(new JsonObject
+        {
+            ["name"] = "My Watchlist",
+            ["simple"] = "Your TMDB watchlist, the same list on any device signed in to your TMDB account. Adding or removing a title here does the same on your services' own lists, where they can. Each card shows the services that carry the title.",
+            ["sourceShort"] = "Your TMDB account, with JustWatch's availability",
+            ["editIn"] = "Watch settings, on the PC or the phone, the TMDB panel: link or unlink the account.",
+        }, "")));
         // the row's own order (2026-10-14, "Let the user sort my watch list by (latest) release date or alphabetical or by TMDB score"): core orders and
         // keeps the choice on the device; TMDB score only with a key
         if (w["orders"] is JsonArray wOrders && wOrders.Count > 0)
@@ -156,10 +163,14 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(it, on ? "Takes " + title + " off your TMDB watchlist." : "Puts " + title + " on your TMDB watchlist, the same list on any device signed in to your TMDB account.");
         it.Click += async (_, __) =>
         {
-            if (byId is { } b1) await ModelCallAsync("watchlistSet", b1.kind, b1.id, !on); else await ModelCallAsync("watchlistSetTitle", title, kind, !on);
-            await Task.Delay(1500);
-            var r = JsonNode.Parse(await (byId is { } b2 ? ModelCallAsync("watchlistHas", b2.kind, b2.id) : ModelCallAsync("watchlistHasTitle", title, kind)) ?? "null") as JsonObject;
-            SetPill("Prism" + Dot + (S(r, "error") is { Length: > 0 } e ? e : on ? title + " taken off your watchlist" : title + " added to your watchlist"));
+            if (byId is { } b1) { await ModelCallAsync("watchlistSet", b1.kind, b1.id, !on, title); await FollowWatchlistAsync(b1.kind, b1.id, title, !on); }
+            else
+            {
+                await ModelCallAsync("watchlistSetTitle", title, kind, !on);
+                JsonObject? r = null;
+                for (var i = 0; i < 30; i++) { await Task.Delay(400); try { r = JsonNode.Parse(await ModelCallAsync("watchlistHasTitle", title, kind) ?? "null") as JsonObject; } catch { r = null; } if (r?["working"]?.GetValue<bool>() != true) break; }
+                SetPill("Prism" + Dot + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e ? e : on ? title + " is off your watchlist." : title + " is on your watchlist."));
+            }
             if (VideoHubOpen && _hubTab == "watch" && _watchRowRefresh is { } rf) _ = rf();   // the My Watchlist row alone, in place; the rest of the page stays put
         };
         fly.Items.Add(it);
@@ -178,13 +189,48 @@ public sealed partial class MainWindow
         b.Click += async (_, __) =>
         {
             b.IsEnabled = false;
-            await ModelCallAsync("watchlistSet", kind, id, !on);
-            await Task.Delay(1200);
-            var r = JsonNode.Parse(await ModelCallAsync("watchlistHas", kind, id) ?? "null") as JsonObject;
-            if (S(r, "error") is { Length: > 0 } e) SetPill("Prism" + Dot + e);
+            await ModelCallAsync("watchlistSet", kind, id, !on, title);
+            var r = await FollowWatchlistAsync(kind, id, title, !on);
             on = r?["on"]?.GetValue<bool>() == true; Draw(); b.IsEnabled = true;
         };
         Draw(); _ = Read();
         return b;
+    }
+    /// <summary>A watchlist change followed through (2026-10-15, "I just tried to remove an item from my watch list but it fails"): TMDB's own
+    /// answer is waited for - the state had been read 1.5 s after the press, before TMDB answered, and the row redrawn with the title still on
+    /// it - then the services whose own lists follow My Watchlist ("remove it from both my TMDB watch list and Apple", "when we add to my watch
+    /// list can we add to both, only where possible") are named, and their outcome said when their hidden pages finish.</summary>
+    private async Task<JsonObject?> FollowWatchlistAsync(string kind, long id, string title, bool wantOn)
+    {
+        JsonObject? r = null;
+        for (var i = 0; i < 30; i++)
+        {
+            await Task.Delay(400);
+            try { r = JsonNode.Parse(await ModelCallAsync("watchlistHas", kind, id) ?? "null") as JsonObject; } catch { r = null; }
+            if (r?["working"]?.GetValue<bool>() != true) break;
+        }
+        var on = r?["on"]?.GetValue<bool>() == true;
+        if (S(r ?? new JsonObject(), "error") is { Length: > 0 } err) { SetPill("Prism" + Dot + err); return r; }
+        if (on != wantOn) { SetPill("Prism" + Dot + "TMDB has not taken it yet. Try again in a moment."); return r; }
+        var svc = (r?["follow"]?["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+        var also = svc.Count == 0 ? "" : " Also " + (wantOn ? "adding it to " : "taking it off ") + string.Join(" and ", svc.Select(x => S(x, "name") + "'s " + S(x, "list"))) + (char)0x2026;
+        SetPill("Prism" + Dot + title + (wantOn ? " is on your watchlist." : " is off your watchlist.") + also);
+        if (svc.Count > 0) _ = FollowServiceListsAsync(kind, id, title, wantOn);
+        return r;
+    }
+    private async Task FollowServiceListsAsync(string kind, long id, string title, bool wantOn)
+    {
+        var t0 = DateTime.UtcNow;
+        List<JsonObject> svc = new();
+        while ((DateTime.UtcNow - t0).TotalSeconds < 180)
+        {
+            await Task.Delay(2000);
+            try { svc = ((JsonNode.Parse(await ModelCallAsync("watchlistHas", kind, id) ?? "null") as JsonObject)?["follow"]?["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new(); } catch { }
+            if (svc.Count == 0 || svc.All(x => S(x, "status") is "done" or "failed")) break;
+        }
+        var done = svc.Where(x => S(x, "status") == "done").Select(x => S(x, "name") + "'s " + S(x, "list")).ToList();
+        var failed = svc.Where(x => S(x, "status") == "failed").Select(x => S(x, "name") + (S(x, "error") is { Length: > 0 } e ? " (" + e + ")" : "")).ToList();
+        var line = (done.Count > 0 ? title + (wantOn ? " added to " : " taken off ") + string.Join(" and ", done) + "." : "") + (failed.Count > 0 ? (done.Count > 0 ? " " : "") + "Not changed on " + string.Join(", ", failed) + "." : "");
+        if (line.Length > 0) { LogLine("watchlist follow: " + line); SetPill("Prism" + Dot + line); }
     }
 }

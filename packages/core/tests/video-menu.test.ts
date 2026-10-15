@@ -167,6 +167,31 @@ describe("the universal video menu (video-menu-spec §2-§4)", () => {
     expect(String(navs[0]!.url)).toContain("/watch/82675090");
   });
 
+  it("after a graphics driver reset, a window whose player filled it is asked to fill it again once the reloaded page plays (2026-10-15)", async () => {
+    const r = rig();
+    const rt = createRuntime(r.drivers);
+    rt.init(JSON.stringify(doc), 1920, 1080, JSON.stringify({ adapters: { netflix: { match: ["www.netflix.com"], videoContext: "/*c*/", videoCmd: "/*cmd fullscreen*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(JSON.parse(rt.modelSaveApp(JSON.stringify({ id: "netflix", name: "Netflix", baseUrl: "https://www.netflix.com/browse", profileId: "netflix", setup: { status: "signed-in" }, render: { audio: "exclusive" } }))).ok).toBe(true);
+    expect(JSON.parse(rt.modelSaveFacet(JSON.stringify({ id: "nf", app: "netflix", url: "https://www.netflix.com/browse", slotClass: "16:9·XL", label: "Home" }))).ok).toBe(true);
+    expect(JSON.parse(rt.modelSaveLayout(JSON.stringify({ id: "night", name: "Night", canvasSize: FHD, slots: [{ id: "screen", rect: { x: 0, y: 0, w: 1, h: 1 } }], source: { mode: "template", template: "movie-night" } }))).ok).toBe(true);
+    expect(JSON.parse(rt.modelSaveScene(JSON.stringify({ id: "mn", name: "Movie Night", layout: "night", assign: { screen: "nf" }, floating: [], hidden: [] }))).ok).toBe(true);
+    rt.switchPlayer("video");
+    await vi.advanceTimersByTimeAsync(50);
+    const playing = () => report(rt, "screen", { playing: true, video: { kind: "episode", title: "Episode 8", series: "Animal Control", id: "82675090", url: "https://www.netflix.com/watch/82675090", playing: true } });
+    playing();
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));   // its player fills the window
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "gpu-reset", id: "host" }));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(r.ops.some((o) => o.op === "navigate" && o.id === "screen")).toBe(true);
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: false }));   // the reload takes it out
+    r.ops.length = 0;
+    playing();   // the reloaded page plays
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(r.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(true);
+  });
+
   it("a service that asks for it gets its next title's page loaded fresh when it rolls into it in place; the wall's own pick never (2026-09-28)", async () => {
     const r = rig();
     const rt = createRuntime(r.drivers);

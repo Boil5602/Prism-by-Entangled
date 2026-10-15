@@ -45,6 +45,7 @@ public sealed partial class MainWindow
             _mvBig = r["big"] as JsonObject;
             SyncWatchStack();   // Watch's corner places follow the windows (MainWindow.WatchScreens)
             SyncMvBars();   // a window opened, closed or swapped: its bar follows the controls at once
+            SyncMvGates();   // a small window behind the service's own gate wears its card (2026-10-15)
             PlaceStageBar();   // the controls follow the big window's place
             SyncMvIcon();   // the icon beside the tabs says on / off whichever control changed it (2026-09-24: it stayed gold after Turn off)
             SyncEmptyStage();   // the last window out: the empty stage (MultiviewDrag)
@@ -263,6 +264,20 @@ public sealed partial class MainWindow
     }
     private readonly HashSet<string> _mvCloseShown = new();
 
+    /// <summary>A small window behind its service's own gate (Twitch's content disclaimer) wears the gate's card - the words and the verb, a press
+    /// passed to the service's own button; the big window says a gate on its curtain and its bar, so it wears none (2026-10-15).</summary>
+    private void SyncMvGates()
+    {
+        var i = 0;
+        foreach (var w in _mvWindows.OfType<JsonObject>())
+        {
+            var id = w["tile"]?.GetValue<string>();
+            var g = w["gate"] as JsonObject;
+            if (id is not null) _surfaces.SetGate(id, _mvOn && i > 0 ? g?["text"]?.GetValue<string>() : null, g?["verb"]?.GetValue<string>());
+            i++;
+        }
+    }
+
     /// <summary>A window's X (2026-09-24): out of multiview, as a drag off the strip does - the windows after it move up a place (core's remove).</summary>
     private async Task MvRemoveWindowAsync(string tile)
     {
@@ -324,7 +339,7 @@ public sealed partial class MainWindow
     private async Task AddMvVerbsAsync(StackPanel bar)
     {
         await MvCallAsync("state");
-        // no Multiview switch (2026-09-24): a title dragged onto a small window starts it; Clear all, or the last small window closing, ends it
+        // no Multiview switch (2026-09-24): a title dragged onto a small window starts it; Watch's Clear screens, or the last small window closing, ends it
         if (_mvOn && _mvWindows.Count > 1)
         {
             var swapText = new TextBlock { Text = SwapLabelText(), FontSize = 13, Foreground = HubInk };
@@ -333,10 +348,9 @@ public sealed partial class MainWindow
             if (SwapChoosing) _swapLabels.Add(swapText);
             swap.Click += (_, __) => SwapPress(swapText);   // nothing moves until the choice settles (MainWindow.SwapPick)
             bar.Children.Add(swap);
-            var clearAll = Chip(new TextBlock { Text = "Clear all", FontSize = 13, Foreground = HubInk }, false);
-            ToolTipService.SetToolTip(clearAll, "Close every small window at once; the big one plays on.");
-            clearAll.Click += async (_, __) => await MvClearAllAsync();
-            bar.Children.Add(clearAll);
+            // no Clear all on the playing controls (2026-10-15, "I pressed clear all and it cleared all my windows, I think I would like to leave that
+            // out of the control bar while in full window or full screen. I'm fine with the Clear Screens button inside of the Watch screen"): one
+            // stray press there ended every window; Watch's Clear screens and each window's X stay
         }
     }
 

@@ -34,7 +34,7 @@ key and, once linked, their own session.
 | to | for | from |
 |---|---|---|
 | api.themoviedb.org (v3, v4), image.tmdb.org | the catalog rows, search, details, ratings, the watchlist, the playlists' lists, posters; the person's own key | core lenses.ts, catalog-search.ts, playlist-tmdb.ts; host FetchKeyedAsync |
-| wikimedia.org (pageviews), en.wikipedia.org (summaries), wikidata.org (ids) | Most read this week, a person's or title's summary | core most-read.ts, lenses.ts |
+| wikimedia.org (pageviews), en.wikipedia.org (summaries), wikidata.org (ids; and a search for works also known by a store title's name when TMDB's pick is not one the store sells, 2026-10-15) | Most read this week, a person's or title's summary, matching an owned title | core most-read.ts, lenses.ts |
 | site.api.espn.com, site.web.api.espn.com | Live's Sports mode scores | core scores.ts |
 | the networks' own feeds named in the adapters (`newsFeeds`) | Live's News mode front pages | core news-feeds.ts, adapters |
 | easylist.to (EasyList, EasyPrivacy), raw.githubusercontent.com (one hosts list) | the Veil's ad covers and the news shelf's source list | core blocking.ts, news-shelf.ts |

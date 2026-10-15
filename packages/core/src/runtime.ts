@@ -304,6 +304,8 @@ export interface PrismRuntimeApi {
   videoSetPause(on: boolean, from: string, to: string): string;
   /** Sync JSON {ok, look}: Watch settings' Video ads - "veil" (scenery and mute, the default), "mute" (the ad's picture, its sound off) or "show". */
   videoSetAdsLook(look: string): string;
+  /** The Video player's cover pictures: photos (the hand-picked pool) | gallery | cosmos. JSON {ok, source}. */
+  videoSetCoverSource(source: string): string;
   /** Sync JSON {ok, on, asked}: Watch's Service suggestions switch, named to core - while on, each service's home page is read on its hidden surface for the service's own rows (every few hours); `asked` = the Apps whose home page is being read now. */
   videoSetSuggestions(on: boolean): string;
   /** Sync JSON {ok}: a muted-only break's Unmute (true) or Mute again (false), for this break. */
@@ -363,7 +365,7 @@ export interface PrismRuntimeApi {
    */
   liveScores(force: boolean): string;
   liveNews(force: boolean, mode?: string | null): string;
-  watchlistSet(kind: string, id: number, on: boolean | string): string;
+  watchlistSet(kind: string, id: number, on: boolean | string, title?: string | null): string;
   watchlistHas(kind: string, id: number): string;
   watchlistImport(): string;
   watchlistView(force: boolean): string;
@@ -438,6 +440,8 @@ export interface PrismRuntimeApi {
   videoRowOrder(row: string, order?: string | null, reverse?: string | null): string;
   /** My Watchlist's order (latest | title | rating) and its reverse ("1" / "0"), each set when given; JSON {order, reverse, orders}. Sync. */
   videoWatchlistOrder(order?: string | null, reverse?: string | null): string;
+  /** The new-release rows' order (2026-10-15): Release Date, newest first; reverse = oldest first. JSON {row, order, reverse, orders}. */
+  videoFreshOrder(row: string, reverse?: string | null): string;
   /** Playlists (docs/features/playlists.md, 2026-09-27), all sync JSON, kept per profile set on the device: the Playlists screen's view
    *  {lists, total, open, run, undo, services} (filter q by name and contained titles; sort "name" | "updated"); the Send to picker
    *  {items (the open playlist first, then recent ones), total}; create / open / rename / delete / undo. */
@@ -1101,6 +1105,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // to the TARGET window: the big one by default (what was there moves down into a small window and keeps playing), or small window
   // 2 / 3 / 4 when the Watch page's quick change names it. Sound follows the big window. Off closes the small windows.
   let mvTarget = 0;
+  /** When a title was last dropped on a window: the pick that follows within MV_DROP_MS replaces that window's content, the big window's too. */
+  let mvDropAt = 0; const MV_DROP_MS = 10_000;
+  /** A title dropped on an empty place ("drop", "new"): the pick that follows takes the next place free when it arrives, not the place the shell
+   *  counted (2026-10-15, five titles dropped one after another - the second named the place the first was still opening, and replaced it). */
+  let mvDropNewAt = 0;
   const mvWindows = (): Array<{ tile: string; facet: string; app: string; slot: boolean }> => {
     const sv = videoServices();
     const scene = sv.scene ? model.scene(sv.scene) : undefined;
@@ -1165,6 +1174,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   };
   /** Where a pick lands with multiview on: {tile, ready} - ready when the service already had a window (play now), else once its page is up. */
   const mvPlace = (facetId: string): { tile: string; ready: boolean; sceneId?: string; refused?: string } | null => {
+    mvDropAt = 0;   // a drop is used by the pick that follows it
+    const dropNew = Date.now() - mvDropNewAt < MV_DROP_MS; mvDropNewAt = 0;
     const st = orchestrator.videoMultiviewState();
     if (!st.on || !st.slot) return null;
     const sv = videoServices();
@@ -1172,7 +1183,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const facet = model.facet(facetId);
     if (!scene || !facet) return null;
     const wins = mvWindows();
-    const target = st.collapsed ? 0 : Math.max(0, Math.min(MV_MAX - 1, mvTarget));   // hidden: a pick is the big window's
+    const target = st.collapsed ? 0 : dropNew ? Math.min(MV_MAX - 1, mvWindows().length) : Math.max(0, Math.min(MV_MAX - 1, mvTarget));   // hidden: a pick is the big window's
     const order = wins.map((w) => w.tile);
     // the target place already shows this service: the title plays there; a service elsewhere keeps its window and its title
     const atTarget = target < wins.length ? wins[target] : undefined;
@@ -1189,7 +1200,12 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     // service (2026-09-29, a fourth Paramount+ live window) - refused, in words, before it is made
     const app = model.app(facet.app);
     const cap = orchestrator.adapterSpec(app?.adapter ?? app?.catalogRef ?? orchestrator.adapterNameForUrl(facet.url) ?? facet.app)?.maxStreams;
-    const outgoing = target > 0 && target < order.length ? wins[target] : undefined;   // the window that would give way
+    // a title put on a window replaces what that window shows - the big one's too, by a drop or a click (2026-10-15, "If I drag something over an
+    // existing screen, It should just replace that content ... it pushed 1 to 2, 2 to 3, 3 to 4, 4 to 5, 5 removed"; "I just clicked a video,
+    // and intended for it to replace the big window video, but instead it pushed all videos a window again"). A window is added only past the
+    // last one (Watch's + places); the 2026-09-23 rule - a pick on another service opened its own big window and the old one went small - is gone
+    const replaces = target < order.length;
+    const outgoing = replaces ? wins[target] : undefined;   // the window that would give way
     // ... or the oldest small window, when the wall is full and a new window is made (the overflow rule below)
     let dropped: (typeof wins)[number] | undefined;
     if (!outgoing && order.length >= MV_MAX) { let drop = order.length - 1; while (drop > 0 && order[drop] === st.slot) drop--; dropped = wins.find((w) => w.tile === order[drop] && !w.slot); }
@@ -1201,7 +1217,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const winFacet = mvFacetFor(facet, wins.filter((w) => !w.slot));   // the screen slot is its own surface: its facet may be shown again
     if (!winFacet) return null;
     let tile = winFacet;
-    if (target > 0 && target < order.length) {   // small window N named: that window's service gives way
+    if (replaces) {   // window N named (a small one, or any one a title was dropped on): that window's service gives way
       const out = wins[target]!;
       if (out.slot) { assign = { ...assign, [st.slot]: facet.id }; tile = st.slot; orchestrator.videoClearTile(st.slot); }
       else { floating = floating.filter((f) => f.facet !== out.facet); floating.push(mvFloatingOf(winFacet)); }
@@ -1258,7 +1274,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (w === wins[0] && t?.pending) { mvEmptySince.delete(w.tile); continue; }
       // ... and a big window on one of the service's own playing pages (adapter videoPlaysAt) is a title that is quiet, the doctor's to mend,
       // not an empty window: only a home or feed page with nothing playing is
-      if (w === wins[0]) {
+      // a title played to its end (2026-10-15, the stream watch: a YouTube window in multiview stood on YouTube's own fullscreen grid of
+      // suggestions after an SNL clip ended, since its page still named the clip and so never read as empty): core's at-end rule says it is
+      // over, so the window is empty like one with nothing up - a small one closes at once, the big one after its grace (a playlist goes on there)
+      const ended = (t as { atEnd?: boolean } | undefined)?.atEnd === true;
+      if (w === wins[0] && !ended) {
         const plays = orchestrator.adapterSpec(videoServices().services.find((s) => s.app === w.app)?.adapter ?? w.app)?.videoPlaysAt ?? [];
         const page = (orchestrator.videoPageUrl(w.tile) ?? "").split("?")[0]!;
         if (!plays.length || plays.some((pat) => page.includes(pat))) { mvEmptySince.delete(w.tile); continue; }
@@ -1273,11 +1293,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // ... and a window in an ad break is not empty (2026-09-28, the Live tab: a Paramount+ channel tuned into window 2 opened on a 2.5-minute
       // ad break, its page naming nothing until the channel itself began - the window was closed as empty in the middle of the break)
       // ... and a window whose player plays is not empty, even before its page names what it plays (C-SPAN2's, playing for five seconds when closed)
-      if (t?.video || t?.playing || loading || restoring || orchestrator.inAdBreak(w.tile)) { mvEmptySince.delete(w.tile); continue; }
+      if ((t?.video && !ended) || t?.playing || loading || restoring || orchestrator.inAdBreak(w.tile)) { mvEmptySince.delete(w.tile); continue; }
       const since = mvEmptySince.get(w.tile) ?? now;
       mvEmptySince.set(w.tile, since);
-      if (!(failed || now - since >= emptyMs)) continue;
-      const ch = failed ? null : orchestrator.videoChannelOf(w.tile);
+      if (!(failed || (ended && w !== wins[0]) || now - since >= emptyMs)) continue;
+      const ch = failed || ended ? null : orchestrator.videoChannelOf(w.tile);
       if (ch && now - (mvRetuneAt.get(w.tile) ?? -MV_RETUNE_MS) >= MV_RETUNE_MS) {
         mvRetuneAt.set(w.tile, now); mvEmptySince.delete(w.tile);
         mvNote("multiview: window " + w.tile + " went quiet on " + ch.name + ": tuning it again");
@@ -1286,7 +1306,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         continue;
       }
       gone.push(w.tile);
-      mvSay("Window " + (wins.indexOf(w) + 1) + " closed. " + (ch ? ch.name + " stopped playing and didn't come back" : "Nothing was playing in it"));
+      mvSay("Window " + (wins.indexOf(w) + 1) + " closed. " + (ended ? "Its video ended" : ch ? ch.name + " stopped playing and didn't come back" : "Nothing was playing in it"));
     }
     for (const t of new Set(mvEmptySince.keys())) if (!wins.some((w) => w.tile === t)) mvEmptySince.delete(t);
     for (const t of new Set(mvRetuneAt.keys())) if (!wins.some((w) => w.tile === t)) mvRetuneAt.delete(t);
@@ -1412,7 +1432,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     } catch (e) { report(e); }
   }, 20_000);
   // checked every few seconds while multiview is on - nothing may be asking for its state while a person just watches
-  setInterval(() => { try { if (orchestrator.videoMultiviewState().on) mvPruneEmpty(); } catch (e) { report(e); } }, 5000);
+  setInterval(() => { try { if (orchestrator.videoMultiviewState().on) { mvPruneEmpty(); orchestrator.videoStageKeep(); } } catch (e) { report(e); } }, 5000);
   // the wall's cover over the service's pages while a press moves the screen to another episode (2026-10-06: start-over's previous episode,
   // "I pressed back episode 3x ... it showed the pages while I was navigating"; the next episode, "it showed the big door prize home page, and
   // then started the video"): the same word a phone pick sends; the screen only, and not while multiview's small windows are up (that word
@@ -1521,6 +1541,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (i !== to) { const other = order[to]!; order[to] = tile; order[i] = other; void orchestrator.videoMultiviewOrder(order); }
     } else if (action === "target") {
       mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0));
+    } else if (action === "drop") {
+      // a title dropped on a window (2026-10-15): the target, and the next pick replaces what that window shows - the big one's too; on an empty
+      // place ("new") the next pick opens the next window, wherever the windows stand by then
+      if (arg === "new") { mvDropNewAt = Date.now(); mvDropAt = 0; }
+      else { mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0)); mvDropAt = Date.now(); mvDropNewAt = 0; }
     } else if (action !== "state") return { ok: false, error: "unknown multiview action " + action };
     return { ok: true, ...mvState() };
   };
@@ -1531,7 +1556,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const wins = mvWindows().map((w, i) => {
       const t = vs.find((x) => x.id === w.tile);
       const v = t?.video ?? null;
-      return { index: i, tile: w.tile, app: w.app, facet: w.facet, name: sv.services.find((x) => x.app === w.app)?.name ?? w.app, title: v ? [v.series, v.title].filter(Boolean).join(" \u00B7 ") : null, playing: !!t?.playing, can: t?.can ?? null };   // can: the big window's bar draws the screen's verbs (2026-10-01)
+      return { index: i, tile: w.tile, app: w.app, facet: w.facet, name: sv.services.find((x) => x.app === w.app)?.name ?? w.app, title: v ? [v.series, v.title].filter(Boolean).join(" \u00B7 ") : null, playing: !!t?.playing, can: t?.can ?? null, gate: t?.gate ?? null };   // gate: a small window's own card (2026-10-15); can: the big window's bar draws the screen's verbs (2026-10-01)
     });
     // what the big screen holds, with multiview on or off (2026-09-24, "Should screen 2 show if nothing has been added to screen 1?"): a
     // second window is offered only once the big one has a title playing or loading
@@ -1610,6 +1635,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (r !== rowReverseNow(row)) setWrite("video:" + row + "-reverse", r ? "1" : "0");
     return r;
   };
+  orchestrator.servicesNow = () => hiddenServices();   // a service's own search, for the services' lists that follow My Watchlist (2026-10-15)
   orchestrator.rowOrders = () => ({ continue: continueOrderOf(rowOrderNow("continue")), list: listOrderOf(rowOrderNow("list")), continueReverse: rowReverseNow("continue"), listReverse: rowReverseNow("list") });
   const hubSortSet = (v: unknown): HubSort => { const sort = hubSortOf(v); if (v !== undefined && v !== null && sort !== hubSortNow()) setWrite("video:hub-sort", sort); return v === undefined || v === null ? hubSortNow() : sort; };
   const LIBRARY_GROUPS = [
@@ -1646,6 +1672,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const watchOrderNow = (): WatchOrder => watchOrderOf(setRead("video:watchlist-order"));
   const watchOrderSet = (v: unknown): WatchOrder => { const o = watchOrderOf(v); if (v !== undefined && v !== null && v !== "" && o !== watchOrderNow()) setWrite("video:watchlist-order", o); return v === undefined || v === null || v === "" ? watchOrderNow() : o; };
   const watchReverseNow = (): boolean => reverseOf(setRead("video:watchlist-reverse"));
+  // the new-release rows' one order and its reverse, kept on the device per row (2026-10-15)
+  const FRESH_ORDERS = [{ id: "released", label: "Release Date", hint: "Newest release first, by TMDB's date. Reversed, the oldest first, so the title about to leave the row is on the left." }] as const;
+  const freshRowOf = (v: unknown): "fresh-episodes" | "fresh-movies" => (v === "fresh-movies" ? "fresh-movies" : "fresh-episodes");
+  const freshReverseNow = (row: string): boolean => reverseOf(setRead("video:" + freshRowOf(row) + "-reverse"));
+  const freshReverseSet = (row: string, v: unknown): boolean => { if (v === undefined || v === null || v === "") return freshReverseNow(row); const r = reverseOf(v); if (r !== freshReverseNow(row)) setWrite("video:" + freshRowOf(row) + "-reverse", r ? "1" : "0"); return r; };
   const watchReverseSet = (v: unknown): boolean => { if (v === undefined || v === null || v === "") return watchReverseNow(); const r = reverseOf(v); if (r !== watchReverseNow()) setWrite("video:watchlist-reverse", r ? "1" : "0"); return r; };
   const sortWatch = <T extends { title: string; date?: string | undefined; year?: number | undefined; mean?: number | undefined }>(cards: ReadonlyArray<T>): T[] => {
     const order = watchOrderNow();
@@ -1689,12 +1720,15 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       catalog: true, cards: mr.cards.slice(0, 40), total: mr.cards.length, dataDate: mr.through, reading: mr.done ? 0 : 1, weighed: mr.read,
     }) : rows.lensRows;
     // New episodes this week and Released this month (fresh-rows.ts, 2026-09-23): TMDB's dates on the household's services, after Most read
+    // the newest first, with the reverse switch the other rows have (2026-10-15, "lets add the sort 'Release Date' and go by latest first, and add
+    // the reverse button we have in the other lists"): reversed, the oldest first, as the rows ran before (core keeps them oldest first)
     const freshRow = (def: typeof FRESH_EPISODES | typeof FRESH_MOVIES, e: ReturnType<typeof orchestrator.videoFresh>) => e && (e.cards.length || !e.done) ? [{
       id: def.id, name: def.name, simple: def.simple, sourceShort: def.sourceShort, counted: def.counted, who: def.who, decides: def.decides, source: def.source, sourceUrl: def.sourceUrl,
       formula: def.formula.replace("{offer}", offerWords), attribution: "This product uses the TMDB API but is not endorsed or certified by TMDB.",
       catalog: true, total: e.cards.length, dataDate: e.through, reading: e.done ? 0 : 1,
+      order: "released", reverse: freshReverseNow(def.id), orders: FRESH_ORDERS,
       // the New episodes row's cards carry My List's red ribbon (2026-09-24, "including the banner on the New episodes, Last 10 Days lens")
-      cards: e.cards.slice(0, 40).map((c) => { const badge = def.id === FRESH_EPISODES.id ? newEpisodeBadge(c.date, Date.now()) : null; return badge ? { ...c, badge, badgeFrom: "tmdb" } : c; }),
+      cards: (freshReverseNow(def.id) ? e.cards : [...e.cards].reverse()).slice(0, 40).map((c) => { const badge = def.id === FRESH_EPISODES.id ? newEpisodeBadge(c.date, Date.now()) : null; return badge ? { ...c, badge, badgeFrom: "tmdb" } : c; }),
     }] : [];
     const epRow = freshRow(FRESH_EPISODES, orchestrator.videoFresh(hiddenServices(), offer, "episodes"));
     const mvRow = freshRow(FRESH_MOVIES, orchestrator.videoFresh(hiddenServices(), offer, "movies"));
@@ -2017,12 +2051,15 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   let pauseLoaded = false;
   // Watch settings' Video ads (2026-10-07): veil (the default), mute or show - read once the store answers, kept on every change
   const ADS_LOOK_KEY = "video:ads-look";
+  const COVER_SOURCE_KEY = "video:cover-source";   // the cover pictures (2026-10-15)
   let adsLookLoaded = false;
   const loadAdsLook = () => {
     if (adsLookLoaded) return;
     try {
       const v = tilesRead(ADS_LOOK_KEY);
       if (v === "veil" || v === "mute" || v === "show") orchestrator.videoAdsLook = v;
+      const cs = tilesRead(COVER_SOURCE_KEY);
+      if (cs === "photos" || cs === "gallery" || cs === "cosmos") orchestrator.videoCoverSource = cs;
       adsLookLoaded = true;
     } catch { /* tried again below */ }
   };
@@ -2166,18 +2203,22 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const poolRefreshAll = (force: boolean): Promise<number> => {
     if (poolRun && Date.now() - poolRunAt < POOL_ROUND_MS) return poolRun;   // a round that never ended gives way (2026-10-13)
     poolRunAt = Date.now();
-    poolRun = (async () => {
+    // the round clears its own mark when it ends, and only its own (2026-10-15, "Vintage story 'Reading the open pool' has this ever completed?"):
+    // a round with nothing due ran to its end before it was stored, so its finally cleared nothing and the finished round stood as running for
+    // POOL_ROUND_MS - a category added then (and Watch closed after) was not read until a restart
+    const run: Promise<number> = (async () => {
+      await Promise.resolve();
       let n = 0;
-      try {
-        for (const c of categoriesNow()) if (c.pool) for (const t of c.tags.slice(0, POOL_TAGS)) for (const s of poolServices()) {
-          const e = poolCache.get(s.app + "|" + t);
-          const due = !e || Date.now() - e.at > POOL_MS; const retry = !e?.failedAt || Date.now() - e.failedAt > POOL_RETRY_MS;
-          if (force || (due && retry)) { if (await poolRefreshOne(s, t)) n++; }
-        }
-      } finally { poolRun = null; }
+      for (const c of categoriesNow()) if (c.pool) for (const t of c.tags.slice(0, POOL_TAGS)) for (const s of poolServices()) {
+        const e = poolCache.get(s.app + "|" + t);
+        const due = !e || Date.now() - e.at > POOL_MS; const retry = !e?.failedAt || Date.now() - e.failedAt > POOL_RETRY_MS;
+        if (force || (due && retry)) { if (await poolRefreshOne(s, t)) n++; }
+      }
       return n;
     })();
-    return poolRun;
+    poolRun = run;
+    void run.finally(() => { if (poolRun === run) poolRun = null; }).catch(() => undefined);
+    return run;
   };
   const categoryRows = (): Array<Record<string, unknown>> => {
     const cats = categoriesNow(); if (!cats.length) return [];
@@ -3358,6 +3399,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const orders = r === "list" ? LIST_ORDERS : CONTINUE_ORDERS;
       try { return json({ row: r, order: rowOrderSet(r, order || null), reverse: rowReverseSet(r, reverse ?? null), orders }); } catch (e) { report(e); return json({ row: r, order: r === "list" ? "prism" : "title", reverse: false, orders }); }
     },
+    videoFreshOrder(row, reverse) {
+      try { const id = freshRowOf(row); return json({ row: id, order: "released", reverse: freshReverseSet(id, reverse ?? null), orders: FRESH_ORDERS }); } catch (e) { report(e); return json({ row, order: "released", reverse: false, orders: FRESH_ORDERS }); }
+    },
     videoWatchlistOrder(order, reverse) {
       try { return json({ order: watchOrderSet(order ?? null), reverse: watchReverseSet(reverse ?? null), orders: WATCHLIST_ORDERS }); } catch (e) { report(e); return json({ order: "latest", reverse: false, orders: WATCHLIST_ORDERS }); }
     },
@@ -3444,7 +3488,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     async videoChannelInfo(appId, url) { try { const c = await orchestrator.videoChannelInfo(hiddenServices(), String(appId ?? ""), String(url ?? "")); return json({ ok: !!c, channel: c }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRefreshApp(appId, owned) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? ""), owned === true) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
-      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, suggestions: orchestrator.videoSuggestions }); }
+      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, coverSource: orchestrator.videoCoverSource, suggestions: orchestrator.videoSuggestions }); }
       catch (e) { report(e); return json({ pause: { on: false, from: "23:00", to: "07:00" }, tmdbKey: false }); }
     },
     videoSetPause(on, from, to) {
@@ -3454,6 +3498,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         pauseLoaded = true;
         void drivers.store?.set(BG_PAUSE_KEY, JSON.stringify(orchestrator.bgPause));
         return json({ ok: true, pause: orchestrator.bgPause });
+      } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
+    },
+    videoSetCoverSource(source) {
+      try {
+        if (source !== "photos" && source !== "gallery" && source !== "cosmos") return json({ ok: false, error: "source is photos, gallery or cosmos" });
+        orchestrator.videoCoverSource = source; adsLookLoaded = true;
+        void drivers.store?.set(COVER_SOURCE_KEY, source);
+        return json({ ok: true, source });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoSetAdsLook(look) {
@@ -3735,16 +3787,16 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
     },
     // the TMDB watchlist (2026-10-03): a toggle by TMDB title, its state, and the copy of the services' lists
-    watchlistSet(kind, id, on) {
+    watchlistSet(kind, id, on, title) {
       try {
         const kk = String(kind) === "tv" || String(kind) === "series" ? "tv" : "movie";
         tmdbUi.error = null;
-        void orchestrator.watchlistSet(kk, Number(id), on === true || on === "true" || on === "1").then((r) => { if (!r.ok) tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); });
+        void orchestrator.watchlistSet(kk, Number(id), on === true || on === "true" || on === "1", undefined, title ? String(title) : undefined).then((r) => { if (!r.ok) tmdbUi.error = r.error; }).catch((e) => { tmdbUi.error = String(e); });
         return json({ status: "working" });
       } catch (e) { report(e); return json({ status: "failed", error: String(e) }); }
     },
     watchlistHas(kind, id) {
-      try { const kk = String(kind) === "tv" || String(kind) === "series" ? "tv" : "movie"; return json({ on: orchestrator.watchlistHas(kk, Number(id)), linked: orchestrator.watchlistActive(), error: tmdbUi.error }); }
+      try { const kk = String(kind) === "tv" || String(kind) === "series" ? "tv" : "movie"; return json({ on: orchestrator.watchlistHas(kk, Number(id)), linked: orchestrator.watchlistActive(), error: tmdbUi.error, working: orchestrator.watchlistWorking(kk, Number(id)), follow: orchestrator.watchlistFollowState(kk, Number(id)) }); }
       catch (e) { report(e); return json({ on: null, linked: false }); }
     },
     watchlistView(force) {
@@ -3752,7 +3804,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       catch (e) { report(e); return json({ active: false, reading: false, cards: [], count: 0, offer: 0 }); }
     },
     watchlistHasTitle(title, kind) {
-      try { return json({ ...orchestrator.watchlistHasTitle(String(title ?? ""), kind ? String(kind) : null), error: tmdbUi.error }); }
+      try { const h = orchestrator.watchlistHasTitle(String(title ?? ""), kind ? String(kind) : null); return json({ ...h, error: tmdbUi.error, follow: h.work ? orchestrator.watchlistFollowState(h.work.kind, h.work.id) : null }); }
       catch (e) { report(e); return json({ on: null, work: null }); }
     },
     watchlistSetTitle(title, kind, on) {
@@ -4491,9 +4543,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       try {
         const J = (s: string) => JSON.parse(s) as Record<string, unknown>;
         const st = J(api.videoSettings()), bv = J(api.videoBingeView()), cats = J(api.videoCategories("")), hid = J(api.videoBingeHidden());
-        return { ok: true, pause: st.pause, adsLook: st.adsLook, suggestions: st.suggestions === true, tmdbKey: st.tmdbKey === true,
+        return { ok: true, pause: st.pause, adsLook: st.adsLook, coverSource: st.coverSource ?? "photos", suggestions: st.suggestions === true, tmdbKey: st.tmdbKey === true,
           rows: { continue: { order: rowOrderNow("continue"), reverse: rowReverseNow("continue"), orders: CONTINUE_ORDERS }, list: { order: rowOrderNow("list"), reverse: rowReverseNow("list"), orders: LIST_ORDERS },
-            watchlist: { active: orchestrator.watchlistActive(), order: watchOrderNow(), reverse: watchReverseNow(), orders: WATCHLIST_ORDERS } },
+            watchlist: { active: orchestrator.watchlistActive(), order: watchOrderNow(), reverse: watchReverseNow(), orders: WATCHLIST_ORDERS },
+            freshEpisodes: { order: "released", reverse: freshReverseNow("fresh-episodes"), orders: FRESH_ORDERS }, freshMovies: { order: "released", reverse: freshReverseNow("fresh-movies"), orders: FRESH_ORDERS } },
           binge: { thresholds: (bv.head as Record<string, unknown> | undefined)?.thresholds ?? bingeSettingsNow().thresholds, defaults: BINGE_DEFAULTS, kids: bv.kids, animation: bv.animation, ages: bv.ages },
           categories: cats.categories, rules: cats.rules, poolServices: cats.poolServices, hidden: hid.items,
           updates: J(api.videoUpdatesStatus()),   // each service's parts and when they were read, the catalog rows, the schedule (the PC's Services tab)
@@ -4509,7 +4562,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         switch (what) {
           case "rows": return J(api.videoRowOrder(str(b.row), str(b.order) || null, rev(b.reverse)));
           case "watchlist-order": return J(api.videoWatchlistOrder(str(b.order) || null, rev(b.reverse)));
+          case "fresh-order": return J(api.videoFreshOrder(str(b.row), rev(b.reverse)));
           case "ads": return J(api.videoSetAdsLook(str(b.look)));
+          case "cover-source": return J(api.videoSetCoverSource(str(b.source)));
           case "refresh-app": return J(api.videoRefreshApp(str(b.app), false));   // one service's pages read again now (the PC's Services tab's Refresh)
           case "pause": return J(api.videoSetPause(b.on === true, str(b.from), str(b.to)));
           case "refresh": return J(api.videoRefreshLists(true));

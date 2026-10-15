@@ -149,6 +149,30 @@ describe("the playback doctor", () => {
     expect(v.state(["screen"])[0]!.skip).toBeNull();
   });
 
+  it("a multiview window the doctor repairs fills its window again once it plays, though the doctor never saw it there (2026-10-15)", async () => {
+    const navigated: string[] = []; const staged: string[] = [];
+    const v = new VideoController({
+      adapterOf: () => ({ match: ["www.hulu.com"], videoContext: "/*c*/" }), adapterIdOf: () => "hulu", tileExists: () => true,
+      inject: async () => {}, navigate: async (_id, url) => { navigated.push(url); }, dashId: () => "d", store: () => undefined,
+      arm: () => {}, claimAudio: async () => {}, urlOf: () => URL, onStage: () => false, enterStage: (id) => { staged.push(id); },
+      alwaysStaged: () => true,
+      evaluate: async () => JSON.stringify(""), personActedSince: () => false,
+    });
+    const report = (video: Record<string, unknown>, playing: boolean) => v.onObservation("screen", { playing, title: "", artist: "", album: "", artwork: null, video } as unknown as NowPlaying);
+    await v.restoreTitle("screen", URL, "Paradise", true);
+    // it plays for five minutes - the restore's own ask to fill the window has run out by then
+    let pos = 3;
+    for (let t = 0; t < 300_000; t += 5000) { report(face({ playing: true, position: pos, duration: 3000 }), true); pos += 5; await vi.advanceTimersByTimeAsync(5000); }
+    // its clock stops while the page says it plays: the doctor repairs it
+    for (let t = 0; t < DOCTOR_FROZEN_MS + 20_000; t += 5000) { report(face({ playing: true, position: pos, duration: 3000 }), true); await vi.advanceTimersByTimeAsync(5000); }
+    await vi.advanceTimersByTimeAsync(DOCTOR_GAP_MS);
+    expect(navigated.length).toBeGreaterThanOrEqual(1);   // repaired
+    staged.length = 0;
+    report(face({ playing: true, position: pos + 5, duration: 3000 }), true);   // it plays again
+    await vi.advanceTimersByTimeAsync(50);
+    expect(staged).toContain("screen");
+  });
+
   it("the probe is plain page JS that parses", () => {
     expect(() => new Function(PLAYBACK_ERROR_PROBE_JS)).not.toThrow();
     expect(PLAYBACK_ERROR_PROBE_JS).toContain("/\\s+/g");

@@ -277,7 +277,11 @@ public sealed partial class MainWindow
         if (!_mvOn) await MvCallAsync("on");
         if (!_mvOn) { SetPill("Prism · multiview could not come on"); return; }
         var was = _mvTarget;
-        await MvCallAsync("target", index.ToString());
+        // a drop on a window replaces what it shows, the big window too; a drop on an empty place opens the next window, the place core finds free
+        // when the pick arrives - not the one counted here, which a drop made a moment before may already be opening (2026-10-15, "I should just be
+        // able to drop items to the multiscreen area without any delay from the previous action ... it seemed to just disregard my drop")
+        var onEmpty = _mvOn && index >= _mvWindows.Count;
+        await MvCallAsync("drop", onEmpty ? "new" : index.ToString());
         SetPill("Prism · " + Shorten(c.Title, 40) + " → " + (index == 0 ? "the big window" : "window " + (index + 1)));
         await PlayPickAsync(c);
         _ = FollowStartingAsync();

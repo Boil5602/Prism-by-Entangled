@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.31.1 - 2026-10-15 (alpha, 87fa0b80)
+
+New pictures, and they move. Prism's picture pool is now 134 hand-picked photos instead of nearly four thousand: coral reefs, Monument Valley, glaciers, wildflowers, lava, nebulae and more, all CC0 or public domain. Pictures that left the pool leave your PC too. The picture over an ad break now drifts slowly, easing in with a gentle pan the way the extension's start page does, and it stays still if Windows' animations are off.
+
+- download: https://prism.entangled.world/windows/Prism-0.31.1-87fa0b80.zip
+- sha256: 7708978fe6f8c4b96b8a1acc2f01b9bd7da34b64e999f973ad5f00e1effe7d91
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.31.1
+
 ## 0.31.0 - 2026-10-15 (alpha, 16c3b423)
 
 The phone companion catches up with Prism. Watch settings open from the phone's menu in folded panels: your TMDB key and account, the rows' orders, ads and YouTube TV break covering, Prism's own updates with the changelog, each service's reads, The Binge's limits and Kids mode, and your categories. Long-press a card for its menu, with Play, Details, ten stars to rate it on TMDB, and one press to remove it from a service's Continue Watching or hide it from The Binge. Every card shows its TMDB score. Search opens in a sheet of its own with the box at the top, filters for Movies or TV shows, and the top result first. My Watchlist on the phone stays in step with Prism. On the PC, Watch settings are one subject a tab, Continue watching can sort by Last watched, the Pair a phone card can forget a phone, and each row's (i) says in plain words how it's picked, where it comes from and where to change it. Netflix's pause ad is covered, and a Twitch title can be removed from Continue Watching.

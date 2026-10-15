@@ -72,6 +72,8 @@ export interface VideoHost {
   urlOf(tileId: string): string | null;
   /** The page is in element fullscreen (the stage), as the shell reports it. */
   onStage(tileId: string): boolean;
+  /** A window whose player always fills it - a multiview window (2026-10-15): the doctor puts it back on its stage after any repair. */
+  alwaysStaged?(tileId: string): boolean;
   /**
    * The stage (2026-09-20, "1 stage where we watched all videos ... much like we're feeding all music through to 1 player"):
    * the play a person asked for has begun - the player's own fullscreen control is pressed once, so the service's chrome
@@ -1099,6 +1101,8 @@ export class VideoController {
   }
   /** Forget the standing choice for this App (the gate is the person's again). */
   /** A pick called off before it played ("Cancel and return to Watch", 2026-09-22): its pending face and its stage ask go, so nothing enters the stage for it. */
+  /** The player asked to fill its window once the title plays again (a page loaded afresh by the wall, not by a pick: a graphics reset, 2026-10-15). */
+  askStage(tileId: string): void { this.stageAsk.set(tileId, Date.now()); }
   cancelPick(tileId: string): void { this.pending.delete(tileId); this.stageAsk.delete(tileId); this.openStarts.delete(tileId); }
   /** A pick that never became a title is marked failed (2026-09-23): its face says so, and the wall no longer counts it as a title up. */
   failPick(tileId: string, why: string): void { const p = this.pending.get(tileId); if (p && !p.failed) { this.pending.set(tileId, { ...p, failed: why }); this.stageAsk.delete(tileId); } }
@@ -1386,7 +1390,9 @@ export class VideoController {
     if (hint.url && d.lastPos !== null && d.lastPos > 60) d.resumeAt = d.lastPos;   // a title reopened goes back to where it was (not the service's resume point)
     d.healing = true; d.lostAt = 0; d.lastPos = null;
     this.healNote.set(tileId, { why, attempt: d.attempts.length, at: now });
-    const url = target, stage = d.wasStage, channel = !hint.url;
+    // ... or a multiview window, whose player always fills it (2026-10-15, "Window 2 has a page up": a restart's Play press opened its page again,
+    // the doctor's watch began afresh and never saw it on its stage, so its repair left Twitch's page up with the video at half the window)
+    const url = target, stage = d.wasStage || this.host.alwaysStaged?.(tileId) === true, channel = !hint.url;
     setTimeout(() => {
       d.healing = false;
       const h = this.hints.get(tileId);

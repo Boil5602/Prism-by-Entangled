@@ -47,8 +47,10 @@ describe("a playing multiview window outlives its service's hidden page saying s
     rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
     await vi.advanceTimersByTimeAsync(50);
     expect(JSON.parse(rt.videoMultiview("on")).ok).toBe(true);
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
     expect(JSON.parse(rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace"))).toMatchObject({ ok: true, multiview: true, tile: "nf" });
     await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
     rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
     let pos = 30;
     const play = () => { pos += 3; for (const [id, title, url] of [["nf", "Grace", "https://www.netflix.com/watch/81"], ["screen", "Only Murders", "https://www.hulu.com/watch/7"]]) rt.event(JSON.stringify({ type: "now-playing", id, info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title, id: "81", url, playing: true, position: pos, duration: 3000, ad: false } } })); };

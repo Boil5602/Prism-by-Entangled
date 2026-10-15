@@ -109,6 +109,12 @@ public sealed partial class SurfaceManager
         public Button? PeekChip;
         public TextBlock? Caption;
         public TextBlock? CountText;
+        /// <summary>The paused look's parts (Netflix's pause ad, 2026-10-15): the card's heading and line as built, the poster, Play.</summary>
+        public TextBlock? CardHead, CardLine; public string? CardHeadText, CardLineText; public Image? CardPoster; public Button? CardPlay; public bool PausedLook;
+        /// <summary>The page's own panel left open in a paused look (the service's poster and episode, 2026-10-15): the hole's selector.</summary>
+        public string? PauseHoleSel;
+        /// <summary>The page's own now-playing words and art, for the paused card (any window, not only floating ones).</summary>
+        public string? NpCoverTitle, NpCoverSub, NpCoverArt;
         public bool Covered;
         /// <summary>How core asked this break to look (Watch settings' Video ads): veil draws the scenery, mute and show leave the picture up.</summary>
         public string Look = "veil";
@@ -155,6 +161,8 @@ public sealed partial class SurfaceManager
         public Button? CloseBtn;
         /// <summary>Multiview's X in the window's own top right corner, above the veil (SyncCornerX).</summary>
         public Button? CornerX;
+        /// <summary>A small multiview window's card for the service's own gate (SetGate).</summary>
+        public Border? GateCard;
         public FontIcon? FaceIcon, NpPlayIcon, NpMuteIcon;
         public TextBlock? NpTitle, NpArtist, NpTime;
         public Image? NpArt;
@@ -1122,10 +1130,13 @@ public sealed partial class SurfaceManager
                 Margin = new Thickness(0, 10, 0, 0),
                 Visibility = Visibility.Collapsed,
             };
+            // the ad count in light ink, a little larger (2026-10-15, "I dont like the intermission 'Ad 3 of 3' label being so dark. It's dark gray on
+            // transparent back and is difficult to see with this contrast"): information is ink, never the dim secondary grey (win-host-spec section 5)
             var count = new TextBlock
             {
-                FontSize = 14,
-                Foreground = new SolidColorBrush(dim),
+                FontSize = 16,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xE8, 0xEC, 0xF2)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 4, 0, 0),
                 Visibility = Visibility.Collapsed,
@@ -1196,6 +1207,12 @@ public sealed partial class SurfaceManager
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 14, 0, 0),
             };
+            // Play on the paused look: the person's press, sent as the window's own play (the service's play route - Netflix's is Space; the pause
+            // ad's own Play button plays nothing, 2026-10-14)
+            var playBtn = Outline("Play");
+            playBtn.Visibility = Visibility.Collapsed;
+            playBtn.Click += (_, __) => TileCommand?.Invoke(tile.Id, "play");
+            actions.Children.Add(playBtn);
             actions.Children.Add(skip);
             actions.Children.Add(peek);
             actions.Children.Add(fillSlot);
@@ -1222,7 +1239,10 @@ public sealed partial class SurfaceManager
                 Visibility = Visibility.Collapsed,
                 IsTextSelectionEnabled = true,
             };
+            // the paused look (2026-10-15): the title's own picture above the heading, collapsed until a pause ad
+            var poster = new Image { Height = 150, MaxWidth = 300, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 10), Visibility = Visibility.Collapsed };
             var stack = new StackPanel();
+            stack.Children.Add(poster);
             stack.Children.Add(caption);
             stack.Children.Add(sub);
             stack.Children.Add(time);
@@ -1290,6 +1310,7 @@ public sealed partial class SurfaceManager
             tile.PeekChip = peek;
             tile.Caption = time;
             tile.CountText = count;
+            tile.CardHead = caption; tile.CardLine = sub; tile.CardHeadText = caption.Text; tile.CardLineText = sub.Text; tile.CardPoster = poster; tile.CardPlay = playBtn;
             tile.SubSlabs = subSlabs;
             tile.ArtSlabs = artSlabs;
             tile.ArtFrames = artFrames;
@@ -1949,6 +1970,43 @@ public sealed partial class SurfaceManager
         }
         t.CornerX.Visibility = Visibility.Visible;
     }
+    /// <summary>
+    /// The service's own gate on a small multiview window (2026-10-15, "saw a twitch page appear for a minute": a Twitch video with a content
+    /// disclaimer dropped into window 4 stood on Twitch's page, gate and all, since only the big window's curtain says a gate). The card hides the
+    /// page and says the gate in the service's own words with its own verb; a press is the person's and goes to the service's button (core's
+    /// "gate" command) - Prism never presses it alone (third-party-services-policy rule 6). Under the corner X, over the page and the veil.
+    /// </summary>
+    public void SetGate(string id, string? text, string? verb)
+    {
+        if (Get(id) is not { } t) return;
+        if (string.IsNullOrEmpty(text)) { if (t.GateCard is { } old) old.Visibility = Visibility.Collapsed; return; }
+        var amber = Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C);
+        if (t.GateCard is null)
+        {
+            var words = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxLines = 5, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = new SolidColorBrush(amber) };
+            var go = new Button
+            {
+                Content = new TextBlock { FontSize = 13, Foreground = new SolidColorBrush(amber) },
+                Padding = new Thickness(14, 6, 14, 6), CornerRadius = new CornerRadius(16), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x33, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(amber),
+            };
+            MainWindow.OwnHover(go);   // its own hover, never the system's (memory: hover-loss-tooltips)
+            var gid = t.Id;
+            go.Click += (_, __) => { TileCommand?.Invoke(gid, "gate"); if (t.GateCard is { } c) c.Visibility = Visibility.Collapsed; };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(16) };
+            stack.Children.Add(words); stack.Children.Add(go);
+            t.GateCard = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0x0B, 0x0D, 0x12)), Child = stack, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
+            Canvas.SetZIndex(t.GateCard, 999);   // under the corner X (1000)
+            t.Container.Children.Add(t.GateCard);
+        }
+        var st = (StackPanel)t.GateCard.Child;
+        ((TextBlock)st.Children[0]).Text = text;
+        var verbText = string.IsNullOrEmpty(verb) ? "Start watching" : verb;
+        var btn = (Button)st.Children[1];
+        ((TextBlock)btn.Content).Text = verbText;
+        ToolTipService.SetToolTip(btn, "Presses the service's own " + verbText + " button.");
+        t.GateCard.Visibility = Visibility.Visible;
+    }
     public void SetFloatBarShown(string id, bool shown)
     {
         if (shown) _barsQuiet.Remove(id); else _barsQuiet.Add(id);
@@ -2183,6 +2241,8 @@ public sealed partial class SurfaceManager
             }
             t.NpPlaying = r.TryGetProperty("playing", out var p) && p.ValueKind == JsonValueKind.True;
             var title = NpStr(r, "title"); var artist = NpStr(r, "artist"); var art = NpStr(r, "artwork");
+            if (!string.IsNullOrWhiteSpace(title)) { t.NpCoverTitle = title; t.NpCoverSub = artist; }
+            if (!string.IsNullOrEmpty(art) && art.StartsWith("http", StringComparison.OrdinalIgnoreCase)) t.NpCoverArt = art;
             t.NpPos = NpNum(r, "position"); t.NpDur = NpNum(r, "duration");
             t.NpAt = Environment.TickCount64;
             if (t.NpTitle is not null) t.NpTitle.Text = string.IsNullOrWhiteSpace(title) ? "Nothing playing" : title;
@@ -2595,6 +2655,13 @@ public sealed partial class SurfaceManager
     {
         var tile = Get(id);
         if (tile is null) return;
+        // a pause ad (count "paused", Netflix 2026-10-15, "the intermission makes it look like the show is on a temporary break. But the truth is,
+        // until I hit PLAY ... it will resume and the ad will disappear. So I think we need to display the show poster and the play button, and
+        // veil the ad"): the card says Paused with the title's picture and name and a Play, never a break's clock
+        // "paused:<selector>": the page's own panel (its title art, episode, time left) is left open through the cover, the ad around it covered
+        // (2026-10-15, "Netflix isnt partially veiling, it's a full screen now ... I'd rather see the non ad content")
+        if (count == "paused" || count.StartsWith("paused:", StringComparison.Ordinal)) { SetPausedLook(tile, true, count.Length > 7 ? count.Substring(7) : null); return; }
+        if (tile.PausedLook) SetPausedLook(tile, false);
         if (tile.Caption is { } time)
         {
             if (remaining >= 0)
@@ -2617,6 +2684,31 @@ public sealed partial class SurfaceManager
         }
     }
 
+    private void SetPausedLook(Tile tile, bool on, string? openSel = null)
+    {
+        tile.PausedLook = on;
+        var hadHole = tile.PauseHoleSel is not null;
+        tile.PauseHoleSel = on && !string.IsNullOrEmpty(openSel) ? openSel : null;
+        if (tile.PauseHoleSel is not null) StartSkipHole(tile); else if (hadHole && string.IsNullOrEmpty(tile.SkipTarget)) StopSkipHole(tile);
+        if (tile.CardHead is { } h) h.Text = on ? "Paused" : tile.CardHeadText ?? h.Text;
+        if (tile.CardLine is { } l) l.Text = on ? (string.IsNullOrWhiteSpace(tile.NpCoverTitle) ? "Press Play to go on" : tile.NpCoverTitle + (string.IsNullOrWhiteSpace(tile.NpCoverSub) ? "" : "  \u00B7  " + tile.NpCoverSub)) : tile.CardLineText ?? l.Text;
+        if (tile.CardPoster is { } ps)
+        {
+            ps.Source = null;
+            if (on && tile.NpCoverArt is { } a) { try { ps.Source = new BitmapImage(new Uri(a)); } catch { } }
+            ps.Visibility = on && ps.Source is not null && tile.PauseHoleSel is null ? Visibility.Visible : Visibility.Collapsed;   // the page's own poster shows through the hole
+        }
+        if (tile.CardPlay is { } pb) pb.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (on)
+        {
+            if (tile.Caption is { } tm) tm.Visibility = Visibility.Collapsed;
+            if (tile.CountText is { } ct) ct.Visibility = Visibility.Collapsed;
+            tile.AdTimeLeft = null;
+            if (tile.CardMinimal) tile.CardMinimal = false;   // the Play must be in reach: the card shows whole
+        }
+        ApplyArtAttribution(tile);
+    }
+
     public void HideIntermission(string id)
     {
         var tile = Get(id);
@@ -2633,6 +2725,7 @@ public sealed partial class SurfaceManager
         if (tile.PeekChip is { } pc) pc.Content = "Show ad";
         if (tile.Caption is { } cap) cap.Visibility = Visibility.Collapsed;
         if (tile.CountText is { } cnt) cnt.Visibility = Visibility.Collapsed;
+        if (tile.PausedLook) SetPausedLook(tile, false);
         // The picture is gone, so its attribution goes with it - a stale caption
         // over the next image would be a wrong label, which is the one thing
         // spec 5 does not allow. CardMinimal is a per-tile CHOICE and persists.
@@ -2667,7 +2760,7 @@ public sealed partial class SurfaceManager
         if (tile.SkipChip is { } chip)
             chip.Visibility = available && string.IsNullOrEmpty(target) ? Visibility.Visible : Visibility.Collapsed;
         if (available && !string.IsNullOrEmpty(target)) StartSkipHole(tile);
-        else StopSkipHole(tile);
+        else if (tile.PauseHoleSel is null) StopSkipHole(tile);   // a paused look's open panel stays open
     }
 
     private void StartSkipHole(Tile tile)
@@ -2693,7 +2786,7 @@ public sealed partial class SurfaceManager
 
     private async Task PollSkipHoleAsync(Tile tile)
     {
-        if (!tile.Covered || tile.SkipTarget is not { Length: > 0 } sel) { StopSkipHole(tile); return; }
+        if (!tile.Covered || (tile.SkipTarget ?? tile.PauseHoleSel) is not { Length: > 0 } sel) { StopSkipHole(tile); return; }
         var js = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
             + "for(var i=0;i<els.length;i++){var e=els[i],r=e.getBoundingClientRect();"
             + "if(r.width>0&&r.height>0)return JSON.stringify({x:r.x,y:r.y,w:r.width,h:r.height});}return null;})()";

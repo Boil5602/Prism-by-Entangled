@@ -149,9 +149,36 @@ public sealed partial class MainWindow
         install.Click += async (_, __) => { line.Text = "Downloading and checking" + ell + " The status line says how far."; install.IsEnabled = false; try { _updateStatus = JsonNode.Parse(await ModelCallAwaitAsync("updateInstallNow", 15 * 60_000) ?? "null") as JsonObject; } catch { } install.IsEnabled = true; Draw(); OfferRestartIfStaged(); };
         restart.Click += (_, __) => RestartIntoStaged();
 
-        // 2. which track, and when to check: taken the moment they change
+        // 2. which track, and when to check; 3. the update server (UpdateChoiceParts, shared with Watch settings)
+        var (checkingParts, fork) = UpdateChoiceParts(t => line.Text = t, () => { SayRunning(); Draw(); });
         var checking = new StackPanel { Spacing = 10 };
         checking.Children.Add(Section("Checking for updates"));
+        checking.Children.Add(checkingParts);
+        body.Children.Add(Card(checking));
+        body.Children.Add(Card(fork));
+
+        var sides = new Grid();
+        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        sides.Children.Add(new ScrollViewer { Content = body, MaxHeight = 640, Padding = new Thickness(0, 0, 14, 0), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        Grid.SetColumn(feedPane, 1);
+        sides.Children.Add(feedPane);
+        var dlg = new ContentDialog { Title = "Updates", Content = sides, CloseButtonText = "Close", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
+        dlg.Resources["ContentDialogMaxWidth"] = 1160.0;   // room for the feed beside the three parts
+        _updatesDlg = dlg;
+        try { await dlg.ShowAsync(); } catch (Exception ex) { SetStatus("updates: " + ex.Message); }
+        finally { _updatesDlg = null; if (TourOwed) TourReturn(); }   // closed after How Prism works opened it: back to the tour
+    }
+
+    /// <summary>The track, the check's schedule and the update server: in the Updates window and on Watch settings' Updates section alike
+    /// (2026-10-15, "I dont understand why Updates under watch settings and Track Schedule update are a separate window. Plenty of room in the
+    /// watch settings screen"). <paramref name="say"/> takes the status line's text while a track is checked; <paramref name="changed"/>
+    /// redraws the caller once the update server has answered.</summary>
+    private (StackPanel checking, Expander fork) UpdateChoiceParts(Action<string> say, Action changed)
+    {
+        var ell = ((char)0x2026).ToString();
+        // which track, and when to check: taken the moment they change
+        var checking = new StackPanel { Spacing = 10 };
         var track = new ComboBox { Header = "Track", FontSize = 13, MinWidth = 300 };
         foreach (var (id, label, note) in new[] { ("alpha", "Alpha", "what ships while Prism is built"), ("beta", "Beta", "the release candidate"), ("stable", "Full", "the full release") })
             track.Items.Add(new ComboBoxItem { Content = label + Mid + note, Tag = id });
@@ -161,9 +188,9 @@ public sealed partial class MainWindow
             var ch = (track.SelectedItem as ComboBoxItem)?.Tag as string ?? Services.Updates.BuildTrack;
             if (ch == Services.Updates.Channel) return;
             Services.Updates.Channel = ch;
-            line.Text = "Checking the " + Services.Updates.TrackLabel(ch) + " track" + ell;
+            say("Checking the " + Services.Updates.TrackLabel(ch) + " track" + ell);
             try { _updateStatus = JsonNode.Parse(await ModelCallAwaitAsync("updateSetChannel", 30_000, ch) ?? "null") as JsonObject; } catch { }
-            SayRunning(); Draw();
+            changed();
             LogLine("updates: track " + ch);
         };
         // when the check runs (2026-10-06, "Let the user check for updates at a scheduled time"): daily or one day a week at a time of day, or
@@ -207,9 +234,8 @@ public sealed partial class MainWindow
         at.TimeChanged += async (_, __) => await ApplyWhen();
         SayNext();
         checking.Children.Add(track); checking.Children.Add(whenRow); checking.Children.Add(nextLine);
-        body.Children.Add(Card(checking));
 
-        // 3. the update server: shown, not edited (2026-10-05, "Why is the public key editable"): the key decides which releases this Prism will
+        // the update server: shown, not edited (2026-10-05, "Why is the public key editable"): the key decides which releases this Prism will
         // install, so a page or a message saying "paste this" must not find an open field. Change the update server reveals the fields, for a
         // fork of Prism someone runs themselves, with the warning first; its Save saves those two alone.
         var fork = new Expander { Header = new TextBlock { Text = "Update server" + (Services.Updates.ServerIsCustom ? "  " + Mid + "  not Entangled's" : ""), FontSize = 14, Foreground = Services.Updates.ServerIsCustom ? HubAmber : HubInk }, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
@@ -246,19 +272,7 @@ public sealed partial class MainWindow
         editor.Children.Add(url); editor.Children.Add(key); editor.Children.Add(editVerbs); editor.Children.Add(saved);
         inner.Children.Add(shown); inner.Children.Add(change); inner.Children.Add(editor);
         fork.Content = inner;
-        body.Children.Add(Card(fork));
-
-        var sides = new Grid();
-        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        sides.Children.Add(new ScrollViewer { Content = body, MaxHeight = 640, Padding = new Thickness(0, 0, 14, 0), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
-        Grid.SetColumn(feedPane, 1);
-        sides.Children.Add(feedPane);
-        var dlg = new ContentDialog { Title = "Updates", Content = sides, CloseButtonText = "Close", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
-        dlg.Resources["ContentDialogMaxWidth"] = 1160.0;   // room for the feed beside the three parts
-        _updatesDlg = dlg;
-        try { await dlg.ShowAsync(); } catch (Exception ex) { SetStatus("updates: " + ex.Message); }
-        finally { _updatesDlg = null; if (TourOwed) TourReturn(); }   // closed after How Prism works opened it: back to the tour
+        return (checking, fork);
     }
 
     /// <summary>Numeric version order (0.26.9 before 0.26.10); anything after a '+' or a space is not compared.</summary>

@@ -380,6 +380,47 @@ describe("page-sized guard is about height, not area", () => {
 // Fox's collapsed Jetpack strip, as reported 2026-09-12 with the pick ON the
 // close button: a 42x42 `*_ButtonModule_*` whose class is "closeleavebehind",
 // top of the stack over the full-width "clickcollapsed" click-layer.
+// MSN's digest / infopane cards (reports 2026-10-09, 2026-10-15): a slider
+// mixing ads and articles inside a shadow host, its Previous / Next buttons
+// and slide dots under the cover. They are holes, found through the host's
+// shadow tree and hit-tested through it.
+describe("carousel controls through the cover", () => {
+  function withCovers(PV) {
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    return PV;
+  }
+  function card() {
+    document.body.innerHTML = `<div id="card" ${R(0, 0, 688, 368)}></div>`;
+    const host = document.getElementById("card");
+    const sr = host.attachShadow({ mode: "open" });
+    sr.innerHTML = `<div id="slide" ${R(2, 2, 684, 366)}></div><cs-sequence-dots id="dots" class="navigation" ${R(185, 340, 318, 8)}></cs-sequence-dots>` +
+      `<button id="prev" aria-label="Previous" class="nav-button" ${R(580, 326, 36, 36)}></button><button id="next" aria-label="Next" class="nav-button" ${R(624, 326, 36, 36)}></button>` +
+      `<button id="more" aria-label="More options" ${R(20, 326, 36, 36)}></button>`;
+    return { host, sr, $: (id) => sr.getElementById(id) };
+  }
+  it("Previous, Next and the dots are holes; an unrelated button is not", () => {
+    const PV = withCovers(loadVeil({ host: "www.msn.com" }));
+    const { host, sr, $ } = card();
+    document.elementsFromPoint = () => [host];
+    sr.elementsFromPoint = (x) => [x > 620 ? $("next") : x > 570 ? $("prev") : x < 100 ? $("more") : $("dots")];
+    expect(PV.closeControls($("slide"))).toEqual([$("dots"), $("prev"), $("next")]);
+  });
+  it("a control the ad's own layer sits over is not a hole", () => {
+    const PV = withCovers(loadVeil({ host: "www.msn.com" }));
+    const { host, sr, $ } = card();
+    document.elementsFromPoint = () => [host];
+    sr.elementsFromPoint = () => [$("slide")];
+    expect(PV.closeControls($("slide"))).toEqual([]);
+  });
+  it("a bottom bar insets the cover from below", () => {
+    const PV = withCovers(loadVeil());
+    const c = document.createElement("div");
+    c.__under = 0; c.__over = 30; c.__holeBoxes = [];
+    PV.paintClip(c);
+    expect(c.style.clipPath).toBe("inset(0.0px 0 30.0px 0)");
+  });
+});
+
 describe("Fox collapsed strip: the X is a hole", () => {
   const STRIP = `<div id="jpmasthead" class="jpfixed" ${R(0, 0, 1897, 212)}><div class="jpstage background2 bp-default" ${R(0, 0, 1912, 212)}><div class="Image_ImageModule_8_1_default collapsed_bg jp_default jp_all jp_collapsed" ${R(0, 0, 1912, 212)}><img src="https://ads.jetpackdigital.com/c.jpg" ${R(0, 0, 1912, 212)}></div><div id="layer" class="Button_ButtonModule_22_2_default clickcollapsed jp_default jp_all jp_collapsed jpleft50 jpcenterhorizontally" ${R(0, 0, 1912, 212)}></div><div id="x" class="Button_ButtonModule_30_3_default closeleavebehind jp_default jp_all jp_collapsed" ${R(1840, 10, 42, 42)}></div></div></div>`;
   function withCovers(PV) {
@@ -599,6 +640,26 @@ describe("Pogo close button through the cover", () => {
     const x = document.getElementById("x");
     document.elementsFromPoint = () => [x];
     expect(PV.closeControls(document.getElementById("pogoQSWPR"))).toEqual([x]);
+  });
+});
+
+// The photo credit on the cover's symbol (2026-10-15, "I should be able to mouse
+// over the intermission symbol on an image and see the credit"): read on hover from
+// the photo on screen, bundled or hosted alike (same file name).
+describe("the cover symbol credits its photo on hover", () => {
+  it("names the photo, its author and license; a hosted URL is credited by its file name", () => {
+    const PV = loadVeil();
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    PV.ART_CREDITS = { "commons_coral_reef_84.jpg": "Coral reef | Photo: NOAA | Public domain" };
+    const c = document.createElement("div");
+    PV.__styleCover(c, "https://prism.entangled.world/veil/art/commons_coral_reef_84.jpg", null);
+    const sym = c.lastElementChild;
+    sym.dispatchEvent(new Event("mouseenter"));
+    expect(sym.title).toContain("Covered by Prism: an ad.");
+    expect(sym.title).toContain("Coral reef | Photo: NOAA | Public domain");
+    c.__artUrl = "chrome-extension://abc/art/unknown.jpg";
+    sym.dispatchEvent(new Event("mouseenter"));
+    expect(sym.title).toBe("Covered by Prism: an ad.");
   });
 });
 

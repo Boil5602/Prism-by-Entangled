@@ -274,11 +274,13 @@ function drawWs(s) {
     sub('The order of each row on the Video tab, as the PC draws it.');
     rowSec('Continue watching', 'rows', rows.continue, { row: 'continue' });
     if (rows.watchlist && rows.watchlist.active) rowSec('My Watchlist', 'watchlist-order', rows.watchlist, {});
+    rowSec('New episodes, last 10 days', 'fresh-order', rows.freshEpisodes, { row: 'fresh-episodes' });
+    rowSec('New movies, last 30 days', 'fresh-order', rows.freshMovies, { row: 'fresh-movies' });
     rowSec(rows.watchlist && rows.watchlist.active ? "My list (the services' own lists)" : 'My list', 'rows', rows.list, { row: 'list' });
   });
   section('Ads', () => {
     h('Video ads'); sub('What a window shows while an ad plays. Prism never blocks or skips an ad.');
-    chips([{ id: 'veil', label: 'Veiled and muted', hint: 'The ad is covered with a picture and its sound is off.' }, { id: 'mute', label: 'Muted, picture visible', hint: 'You see the ad with its sound off.' }, { id: 'show', label: 'Show', hint: 'The ad plays as it comes, picture and sound.' }], s.adsLook || 'veil', (id) => setWs('ads', { look: id }));
+    chips([{ id: 'veil', label: 'Veiled and muted', hint: 'The ad is covered with a picture and its sound is off.' }, { id: 'mute', label: 'Muted, picture visible', hint: 'You see the ad with its sound off.' }, { id: 'show', label: 'Show', hint: 'The ad plays as it comes, picture and sound.' }], s.adsLook || 'veil', (id) => setWs('ads', { look: id })); h('Cover pictures'); sub('The pictures on a covered ad.'); chips([{ id: 'photos', label: 'Nature photos', hint: 'Prism' + String.fromCharCode(39) + 's hand-picked nature and space photos, all public domain.' }, { id: 'gallery', label: 'Gallery paintings', hint: 'Paintings from the Art Institute of Chicago and the Met, public domain.' }, { id: 'cosmos', label: 'Cosmos', hint: 'NASA' + String.fromCharCode(39) + 's pictures of space, public domain.' }], s.coverSource || 'photos', (id) => setWs('cover-source', { source: id }));
     h('YouTube TV breaks'); sub('YouTube TV doesn\u2019t say when a channel\u2019s commercials play, so Prism watches the picture and covers them. The never-covered and sure-breaks lists are on the PC.');
     toggle('Cover breaks', bwOn, (v) => setBw(v));
   });
@@ -328,7 +330,7 @@ function drawWs(s) {
     const b = s.binge || {}; const t = b.thresholds || b.defaults || {};
     h('Limits'); sub('A series is in The Binge when all of these hold.');
     const num = (label, key, step) => { const inp = document.createElement('input'); inp.type = 'number'; inp.step = step || '1'; inp.inputMode = 'decimal'; inp.value = t[key]; field(label, inp); return inp; };
-    const mr = num('Episode length, minutes at most', 'maxRuntime'), me = num('Episodes, at least', 'minEpisodes'), rt = num('TMDB rating, at least', 'minRating', '0.1'), vt = num('TMDB votes, at least', 'minVotes');
+    const mr = num('Median episode, minutes or shorter', 'maxRuntime'), me = num('Episodes, at least', 'minEpisodes'), rt = num('TMDB rating, at least', 'minRating', '0.1'), vt = num('TMDB votes, at least', 'minVotes');
     act([{ label: 'Save the limits', go_: true, go: () => setWs('binge', { thresholds: { maxRuntime: +mr.value, minEpisodes: +me.value, minRating: +rt.value, minVotes: +vt.value } }) }, { label: 'Back to the defaults', go: () => setWs('binge', { thresholds: b.defaults || {} }) }]);
     h('Animation'); toggle('Animated series', b.animation !== false, (v) => setWs('binge', { animation: v }));
     const k = b.kids || {}; h('Kids mode'); sub('Only shows rated for the age.');
@@ -1084,7 +1086,8 @@ async function renderDetActs(c, it, run, actions, host) {
         let r2 = await api('/video/watchlist', { title, kind, on: want });
         for (let i = 0; i < 16 && r2.working; i++) { await new Promise((r) => setTimeout(r, 750)); r2 = await api('/video/watchlist', { title, kind }); }
         if (r2.on === null && !r2.error) { draw(); note('TMDB could not place ' + title + '.'); }
-        else { on = !!r2.on; draw(); note(r2.error || (on ? 'On your TMDB watchlist.' : 'Taken off your TMDB watchlist.')); }
+        else { on = !!r2.on; draw(); const fs = (r2.follow && r2.follow.services) || [];   // the services' own lists follow My Watchlist (2026-10-15)
+          note(r2.error || ((on ? 'On your TMDB watchlist.' : 'Taken off your TMDB watchlist.') + (fs.length ? ' Also ' + (on ? 'adding it to ' : 'taking it off ') + fs.map((x) => x.name + '\u2019s ' + x.list).join(' and ') + '\u2026' : ''))); }
       } catch (e) { draw(); note(e.message); }
       wl.disabled = false;
       setTimeout(pollVideo, 1500); setTimeout(pollVideo, 6000);   // the row behind the sheet follows (the PC rebuilds its cards after the write, 2026-10-14)

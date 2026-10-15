@@ -253,6 +253,8 @@ export const HOST_CALLS: string[] = [
   "playlistStop",
   "playlistMove",         // Playlists (docs/features/playlists.md, 2026-09-27)
   "videoRowOrder",         // (row, order, reverse) -> {row, order, reverse, orders} (sync): Continue watching / My list order, kept on the device (2026-09-26)
+  "videoSetCoverSource",   // (source) -> {ok, source} (sync): the Video player's cover pictures - photos | gallery | cosmos (2026-10-15)
+  "videoFreshOrder",   // (row, reverse?) -> {row, order, reverse, orders} (sync): the new-release rows' Release Date order, newest first, and its reverse (2026-10-15)
   "videoWatchlistOrder",   // (order?, reverse?) -> {order, reverse, orders} (sync): My Watchlist's order (latest | title | rating) and its reverse, kept on the device (2026-10-14)
   "videoProfileSet",       // (appId, profileId) -> {ok, error?} (sync): one service switched to a profile - rows swapped, the page pressed, read again
   "videoProfileExclude",   // (appId, on) -> {ok, excluded} (sync): a service left out of Watch's Continue watching / My list for the person on now
@@ -287,8 +289,8 @@ export const HOST_CALLS: string[] = [
   "tmdbUnlink",           // the session ended and forgotten
   "tmdbRated",            // the account's own rating of a title
   "tmdbRate",             // a rating written, or taken back
-  "watchlistSet",         // the TMDB watchlist (2026-10-03): a title on or off
-  "watchlistHas",         // whether a title is on it
+  "watchlistSet",         // the TMDB watchlist (2026-10-03): a title on or off - (kind, id, on, title?); the services' own lists follow it (2026-10-15)
+  "watchlistHas",         // whether a title is on it - {on, working (TMDB has not answered yet), error, follow (the services' lists)}
   "watchlistImport",      // the services' My List titles copied onto it
   "watchlistView",        // the watchlist row's cards, the offer and the copy's progress
   "watchlistHasTitle",    // a card's title on the watchlist or not

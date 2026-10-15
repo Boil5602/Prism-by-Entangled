@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace PrismHost;
 
@@ -35,16 +36,22 @@ public sealed partial class MainWindow
         var headRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
         headRow.Children.Add(head); headRow.Children.Add(back);
         var host = new StackPanel { Background = HubClear };
+        var band = new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(12, 8, 12, 10), Margin = new Thickness(-12, 0, -12, 0), BorderThickness = new Thickness(3, 0, 0, 0), BorderBrush = HubClear, Background = HubClear };   // the drill-down band (below), made before the press handler that tints it
         foreach (var c in cards) c["__pickRow"] = rowKey;
         _rowPicks[rowKey] = card => _ = ShowSeriesAsync(card);   // before the cards are built: a card looks its row up as it is pressed
         Button? f = null;
         host.Children.Add(CardRow(cards, false, now, ref f));
         first ??= f;
-        rows.Children.Add(headRow); rows.Children.Add(host);
+        // the row on a band that tints while a show is open (2026-10-15, "When I click a show in my youtube tv library, can you highlight the row a
+        // different color so it's a little more obviously it's drilled down? Just when the user drills into a show"): amber at a tenth with an
+        // amber edge, clear otherwise; the padding is the same either way so nothing moves when it changes
+        band.Child = new StackPanel { Spacing = rows.Spacing, Children = { headRow, host } };
+        void Drilled(bool on) { band.Background = on ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x24, 0xF2, 0xB1, 0x4C)) : HubClear; band.BorderBrush = on ? HubAmber : HubClear; }
+        rows.Children.Add(band);
         void ShowShows()
         {
             _seriesRowRun++;
-            head.Text = headText; back.Visibility = Visibility.Collapsed;
+            head.Text = headText; back.Visibility = Visibility.Collapsed; Drilled(false);
             host.Children.Clear(); Button? f2 = null; host.Children.Add(CardRow(cards, false, now, ref f2));
         }
         back.Click += (_, __) => ShowShows();
@@ -55,7 +62,7 @@ public sealed partial class MainWindow
             var title = item["title"]?.GetValue<string>() ?? ""; var id = item["id"]?.GetValue<string>() ?? ""; var showArt = item["artwork"]?.GetValue<string>();
             if (title.Length == 0) return;
             var run = ++_seriesRowRun;
-            head.Text = service + "  " + Mid.Trim() + "  " + title; back.Visibility = Visibility.Visible;
+            head.Text = service + "  " + Mid.Trim() + "  " + title; back.Visibility = Visibility.Visible; Drilled(true);
             var status = new TextBlock { Text = "Reading the recordings of " + title + " from " + service + (char)0x2026, FontSize = 14, Foreground = HubInk, Margin = new Thickness(0, 8, 0, 8) };
             host.Children.Clear(); host.Children.Add(status);
             var shown = -1;

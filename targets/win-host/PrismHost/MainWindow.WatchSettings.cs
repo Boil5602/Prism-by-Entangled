@@ -40,61 +40,103 @@ public sealed partial class MainWindow
         var esc = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
         esc.Invoked += (_, e) => { e.Handled = true; CloseWatchSettings(); };
         scrim.KeyboardAccelerators.Add(esc);
-        var body = new StackPanel { Spacing = 14, Margin = new Thickness(32, 26, 32, 26) };
+        // the window, laid out again (2026-10-15, "The tabs are all laid out poorly, light gray text on dark gray, Hard to read, poorly organized.
+        // Give it some thought", "Categories runs off the screen at the bottom"): sized to the screen, the sections in a list on the left, one
+        // topic a card, information in full ink at 14 px and up, and Cancel / Save & exit fixed at the foot outside the scrolling part
+        var winW = RootGrid.ActualWidth > 0 ? RootGrid.ActualWidth : 1600;
+        var winH = RootGrid.ActualHeight > 0 ? RootGrid.ActualHeight : 1000;
+        var body = new StackPanel { Spacing = 16, Margin = new Thickness(26, 4, 30, 26) };
+        var frame = new Grid();
+        frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        frame.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        frame.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
+        frame.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var card = new Border
         {
             Background = HubCard, CornerRadius = new CornerRadius(14), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x55, 0xF2, 0xB1, 0x4C)), BorderThickness = new Thickness(1),
-            Width = 980, MaxHeight = 900, Margin = new Thickness(60, 40, 60, 40), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-            Child = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollMode = ScrollMode.Disabled },
+            Width = Math.Min(1280, winW - 80), Height = Math.Max(520, winH - 80), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            Child = frame,
         };
         card.PointerPressed += (_, e) => e.Handled = true;
         scrim.Children.Add(card);
 
-        var head = new Grid();
+        // the sections, each with the line that says what it holds
+        var sections = new[]
+        {
+            ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, My Watchlist."),
+            ("ads", "Ads & breaks", "How a window looks while an ad plays, and the covering of YouTube TV's breaks."),
+            ("updates", "Updates", "This Prism's own updates and changelog, and when your services' lists are read again."),
+            ("services", "Services", "Each service, when its lists were last read, and a Refresh for it."),
+            ("binge", "The Binge", "The Binge's limits, animation, Kids mode, and the titles you hid from it."),
+            ("categories", "Categories", "Rows of titles from your services, chosen by hashtags or words."),
+            ("perf", "Performance", "What Prism is using on this PC."),
+        };
+        var curLine = sections.FirstOrDefault(x => x.Item1 == _settingsTab).Item3 ?? "";
+
+        var head = new Grid { Margin = new Thickness(26, 20, 20, 14) };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(new TextBlock { Text = "Watch settings", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
-        var close = Chip(new FontIcon { Glyph = "\uE711", FontSize = 13 }, false);
+        var heads = new StackPanel { Spacing = 2 };
+        heads.Children.Add(new TextBlock { Text = "Watch settings", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
+        heads.Children.Add(new TextBlock { Text = curLine, FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        head.Children.Add(heads);
+        var close = Chip(new FontIcon { Glyph = "\uE711", FontSize = 14 }, false);
         ToolTipService.SetToolTip(close, "Close without changing anything (Esc)");
         close.Click += (_, __) => CloseWatchSettings();
+        close.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(close, 1);
         head.Children.Add(close);
-        body.Children.Add(head);
+        Grid.SetColumnSpan(head, 2);
+        frame.Children.Add(head);
 
-        // the tabs
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22 };
-        foreach (var (id, label) in new[] { ("general", "TMDB"), ("ads", "Ads & breaks"), ("updates", "Updates"), ("services", "Services"), ("binge", "The Binge"), ("categories", "Categories"), ("perf", "Performance") })
+        // the list of sections on the left
+        var nav = new StackPanel { Spacing = 4, Padding = new Thickness(14, 6, 12, 14) };
+        foreach (var (id, label, line) in sections)
         {
             var on = _settingsTab == id;
-            var t = new Button { Content = new TextBlock { Text = label, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = on ? HubAmber : HubDim }, Background = HubClear, BorderThickness = new Thickness(0, 0, 0, on ? 2 : 0), BorderBrush = HubAmber, Padding = new Thickness(0, 0, 0, 4) };
+            var t = Chip(new TextBlock { Text = label, FontSize = 16, Foreground = on ? HubAmber : HubInk, FontWeight = on ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal }, on);
+            t.HorizontalAlignment = HorizontalAlignment.Stretch; t.HorizontalContentAlignment = HorizontalAlignment.Left; t.Padding = new Thickness(16, 11, 16, 11);
+            ToolTipService.SetToolTip(t, line);
             var id2 = id;
             t.Click += (_, __) => { if (_settingsTab != id2) { _settingsTab = id2; _ = ShowWatchSettingsAsync(); } };
-            tabs.Children.Add(t);
+            nav.Children.Add(t);
         }
-        body.Children.Add(tabs);
+        var navHost = new Border { Child = nav, BorderThickness = new Thickness(0, 0, 1, 0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)) };
+        Grid.SetRow(navHost, 1);
+        frame.Children.Add(navHost);
+
+        var scroller = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollMode = ScrollMode.Disabled, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Grid.SetRow(scroller, 1); Grid.SetColumn(scroller, 1);
+        frame.Children.Add(scroller);
 
         // the Save & exit of each tab gathers its own changes
         Func<Task<List<string>>> saveTab;
-        // one subject a tab (2026-10-14, "needs to be organized and content better segregated so it's quick to navigate"): TMDB, Ads & breaks, Updates,
-        // Services, The Binge with its hidden titles, Categories, Performance
+        // one subject a section: TMDB, Ads & breaks, Updates (This Prism first), Services, The Binge with its hidden titles, Categories, Performance
         if (_settingsTab == "ads") saveTab = BuildAdsTab(body, v);
-        else if (_settingsTab == "updates") saveTab = BuildUpdatesTab(body, v, run);
+        else if (_settingsTab == "updates") { BuildSoftwareSection(body, run); saveTab = BuildUpdatesTab(body, v, run); }
         else if (_settingsTab == "services") saveTab = BuildServicesTab(body, run);
         else if (_settingsTab == "binge")
         {
+            body.Children.Add(new TextBlock { Text = "What's in The Binge", FontSize = 17, Foreground = HubInk });
             var limits = BuildBingeTab(body);
-            body.Children.Add(new TextBlock { Text = "Hidden titles", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
+            body.Children.Add(new TextBlock { Text = "Hidden titles", FontSize = 17, Foreground = HubInk });
             var hidden = BuildHiddenTab(body);
             saveTab = async () => { var said = await limits(); said.AddRange(await hidden()); return said; };
         }
         else if (_settingsTab == "categories") saveTab = BuildCategoriesTab(body);   // categories by hashtags, with a clear rule (2026-10-11)
         else if (_settingsTab == "perf") saveTab = BuildPerformanceTab(body);   // the stats (2026-10-03)
         else saveTab = BuildGeneralTab(body, v);
+        if (_settingsTab is "general" or "ads" or "updates" or "services" or "binge") GroupIntoCards(body);
+        if (_settingsTab != "perf") ReadableText(body);
 
-        var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
-        var cancel = Chip(new TextBlock { Text = "Cancel", FontSize = 14, Foreground = HubInk }, false);
+        var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
+        var footHost = new Border { Child = foot, Padding = new Thickness(26, 12, 22, 16), BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)) };
+        Grid.SetRow(footHost, 2); Grid.SetColumnSpan(footHost, 2);
+        frame.Children.Add(footHost);
+        var cancel = Chip(new TextBlock { Text = "Cancel", FontSize = 15, Foreground = HubInk }, false);
         cancel.Click += (_, __) => CloseWatchSettings();
-        var save = Chip(new TextBlock { Text = "Save & exit", FontSize = 14, Foreground = HubAmber }, true);
+        var save = Chip(new TextBlock { Text = "Save & exit", FontSize = 15, Foreground = HubAmber }, true);
         save.Click += async (_, __) =>
         {
             var said = await saveTab();
@@ -102,11 +144,54 @@ public sealed partial class MainWindow
             if (said.Count > 0) SetPill("Prism" + Dot + string.Join(Dot, said));
         };
         foot.Children.Add(cancel); foot.Children.Add(save);
-        body.Children.Add(foot);
 
         RootGrid.Children.Add(scrim);
         _settingsWin = scrim;
         scrim.Loaded += (_, __) => scrim.Focus(FocusState.Programmatic);
+    }
+
+    private static readonly SolidColorBrush SettingsCardBg = new(Windows.UI.Color.FromArgb(255, 0x2A, 0x30, 0x3A));
+    private static readonly SolidColorBrush SettingsCardEdge = new(Windows.UI.Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
+    /// <summary>A section's children as cards (2026-10-15): each heading (a 17 px line the builders write) starts a card of its own, in a larger,
+    /// heavier type, and what follows it sits on the card; anything before the first heading gets a card without one.</summary>
+    private static void GroupIntoCards(StackPanel body)
+    {
+        var items = body.Children.ToList();
+        body.Children.Clear();
+        StackPanel? cur = null;
+        StackPanel NewCard(TextBlock? heading)
+        {
+            var c = new StackPanel { Spacing = 12 };
+            body.Children.Add(new Border { Child = c, Background = SettingsCardBg, CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), BorderBrush = SettingsCardEdge, Padding = new Thickness(22, 18, 22, 20) });
+            if (heading is not null) c.Children.Add(heading);
+            return c;
+        }
+        foreach (var el in items)
+        {
+            if (el is TextBlock tb && tb.FontSize == 17)   // the builders' headings are 17 px exactly (a 18 px line is a lead line, not a heading)
+            {
+                tb.FontSize = 19; tb.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; tb.Margin = new Thickness(0);
+                cur = NewCard(tb); continue;
+            }
+            cur ??= NewCard(null);
+            cur.Children.Add(el);
+        }
+    }
+    /// <summary>Text the host draws is read from across a room (CLAUDE.md, win-host-spec 5): every line at 14 px or more, and the grey reserved
+    /// for a secondary line becomes ink here, where nothing is secondary (2026-10-15, "light gray text on dark gray, Hard to read").</summary>
+    private static void ReadableText(UIElement root)
+    {
+        switch (root)
+        {
+            case TextBlock tb:
+                if (tb.FontSize < 14) tb.FontSize = 14;
+                if (ReferenceEquals(tb.Foreground, HubDim)) tb.Foreground = HubInk;
+                break;
+            case Panel p: foreach (var c in p.Children) ReadableText(c); break;
+            case Border b when b.Child is not null: ReadableText(b.Child); break;
+            case ScrollViewer sv when sv.Content is UIElement sc: ReadableText(sc); break;
+            case ContentControl cc when cc.Content is UIElement ce: ReadableText(ce); break;
+        }
     }
 
     /// <summary>TMDB: the key and the account (the Video ads moved to Ads & breaks, 2026-10-14).</summary>
@@ -219,6 +304,25 @@ public sealed partial class MainWindow
             Look("Show", "show", "The ad plays as it comes, picture and sound."),
         };
         body.Children.Add(adsRow);
+        // the pictures on the cover (2026-10-15, "Prism app on the desktop is still using the old images", "lets fix the video player veil images"):
+        // the hand-picked photos by default, or one of the packs the app carries
+        body.Children.Add(new TextBlock { Text = "Cover pictures", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
+        var coverNow = v["coverSource"]?.GetValue<string>() ?? "photos";
+        var coverRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+        RadioButton Pics(string label, string value, string tip)
+        {
+            var r = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "coverPics", IsChecked = coverNow == value, Tag = value, MinWidth = 0 };
+            ToolTipService.SetToolTip(r, tip);
+            coverRow.Children.Add(r);
+            return r;
+        }
+        var pics = new[]
+        {
+            Pics("Nature photos", "photos", "Prism's hand-picked nature and space photos, all public domain. Hover the corner symbol on a cover for each one's credit."),
+            Pics("Gallery paintings", "gallery", "Paintings from the Art Institute of Chicago and the Met, public domain."),
+            Pics("Cosmos", "cosmos", "NASA's pictures of space, public domain."),
+        };
+        body.Children.Add(coverRow);
         body.Children.Add(new TextBlock { Text = "YouTube TV breaks", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
         var watchBox = new CheckBox { Content = new TextBlock { Text = "Cover breaks on YouTube TV channels", FontSize = 14, Foreground = HubInk }, IsChecked = BreakWatchOn, MinWidth = 0 };
         ToolTipService.SetToolTip(watchBox, "YouTube TV doesn't say when a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen. It covers a break it's sure of. Everything is read on this PC.");
@@ -282,6 +386,13 @@ public sealed partial class MainWindow
         return async () =>
         {
             var said = new List<string>();
+            var picked = pics.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? coverNow;
+            if (picked != coverNow)
+            {
+                await ModelCallAsync("videoSetCoverSource", picked);
+                LogLine("video cover pictures: " + picked);
+                said.Add(picked == "photos" ? "covers show nature photos" : picked == "gallery" ? "covers show gallery paintings" : "covers show Cosmos pictures");
+            }
             var chosen = looks.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? look;
             if (chosen != look)
             {
@@ -339,7 +450,7 @@ public sealed partial class MainWindow
             var mins = (int)Math.Round((nowMs - ms) / 60000.0);
             return mins <= 0 ? "just now" : mins == 1 ? "1 min ago" : mins < 90 ? mins + " min ago" : (mins / 60) + " h ago";
         }
-        TextBlock Cell(string text, SolidColorBrush ink, double size = 13) => new() { Text = text, FontSize = size, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        TextBlock Cell(string text, SolidColorBrush ink, double size = 14) => new() { Text = text, FontSize = size, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         void Put(Grid g, FrameworkElement el, int row, int col) { Grid.SetRow(el, row); Grid.SetColumn(el, col); g.Children.Add(el); }
 
         // the schedule line
@@ -353,7 +464,7 @@ public sealed partial class MainWindow
         grid.Children.Clear(); grid.RowDefinitions.Clear();
         var heads = new[] { "Service", "Continue & My List", "Owned library", "Profiles", "" };
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var c = 0; c < heads.Length; c++) Put(grid, Cell(heads[c], HubDim, 12), 0, c);
+        for (var c = 0; c < heads.Length; c++) Put(grid, Cell(heads[c], HubAmber, 14), 0, c);
         var r = 1;
         foreach (var s in (st["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {
@@ -384,14 +495,14 @@ public sealed partial class MainWindow
         feeds.Children.Clear(); feeds.RowDefinitions.Clear();
         var fheads = new[] { "Row", "Source", "Last read", "Titles" };
         feeds.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var c = 0; c < fheads.Length; c++) Put(feeds, Cell(fheads[c], HubDim, 12), 0, c);
+        for (var c = 0; c < fheads.Length; c++) Put(feeds, Cell(fheads[c], HubAmber, 14), 0, c);
         r = 1;
         foreach (var f in (st["feeds"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {
             feeds.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var done = f["done"]?.GetValue<bool>() != false;
             Put(feeds, Cell(f["name"]?.GetValue<string>() ?? "", HubInk, 14), r, 0);
-            Put(feeds, Cell((f["source"]?.GetValue<string>() ?? "") + Dot + "every " + (f["every"]?.GetValue<string>() ?? ""), HubDim), r, 1);
+            Put(feeds, Cell((f["source"]?.GetValue<string>() ?? "") + Dot + "every " + (f["every"]?.GetValue<string>() ?? ""), HubInk), r, 1);
             Put(feeds, Cell(done ? Ago(f["at"]) : "reading now" + (char)0x2026, done ? HubInk : HubAmber), r, 2);
             Put(feeds, Cell((f["count"]?.GetValue<int>() ?? 0) + " titles", HubInk), r, 3);
             r++;
@@ -399,7 +510,7 @@ public sealed partial class MainWindow
         var ratings = st["ratings"] as JsonObject;
         feeds.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Put(feeds, Cell("Ratings on cards", HubInk, 14), r, 0);
-        Put(feeds, Cell("TMDB" + Dot + "a day per title", HubDim), r, 1);
+        Put(feeds, Cell("TMDB" + Dot + "a day per title", HubInk), r, 1);
         var pending = ratings?["pending"]?.GetValue<int>() ?? 0;
         Put(feeds, Cell(ratings?["key"]?.GetValue<bool>() != true ? "no TMDB key" : pending > 0 ? "reading " + pending + " titles" + (char)0x2026 : "up to date", pending > 0 ? HubAmber : HubInk), r, 2);
     }

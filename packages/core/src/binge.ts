@@ -109,7 +109,7 @@ export const THE_BINGE = {
   simple: "Shows with short episodes, lots of them and a good TMDB rating, on your services, shuffled once a day. The limits are yours to set.",
   editIn: "Watch settings on the PC, The Binge tab: episode length, episode count, rating and votes, animation, Kids mode, hidden titles.", sourceShort: "TMDB, with JustWatch's availability",
   label: "The Binge · every ≤{runtime}-min, {episodes}+ episode series on your services rated {rating}+ on TMDB · shuffled daily.",
-  counted: "Series with episodes of {runtime} minutes or less, {episodes} or more episodes, scripted or animated (not a miniseries, no \"serialized\" keyword), TMDB rating {rating} or better with {votes}+ votes, streaming on a service signed in on this device.",
+  counted: "Series whose median episode runs {runtime} minutes or less, {episodes} or more episodes, scripted or animated (not a miniseries, no \"serialized\" keyword), TMDB rating {rating} or better with {votes}+ votes, streaming on a service signed in on this device.",
   who: "TMDB members' votes; the runtimes, episode counts and keywords are TMDB contributors'.",
   decides: "You set the thresholds in Watch settings. There's no reliable data on whether a show is episodic, so that check is a best guess, and you can hide any title.",
   source: "TMDB (details, keywords, ratings) · JustWatch availability, through TMDB",

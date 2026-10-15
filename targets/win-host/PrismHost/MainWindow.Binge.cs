@@ -37,7 +37,7 @@ public sealed partial class MainWindow
                 + "\n\nHow it's picked: " + S("simple") + "\nSource: " + (S("sourceShort").Length > 0 ? S("sourceShort") : S("source")) + "  \u00B7  data as of " + date + (S("editIn").Length > 0 ? "\nWhere to change it: " + S("editIn") : "");
         return S("label") + (noAnim ? "\nAnimation left out (Include animation, on The Binge's full view)." : "") + (reading ? "  \u00B7  reading TMDB\u2026" : "")
             + "\n\nA series is in The Binge when all of these hold:"
-            + "\n\u2022  Episode length \u2264 " + N("maxRuntime", "30") + " min  (TMDB runtime)"
+            + "\n\u2022  Median episode \u2264 " + N("maxRuntime", "30") + " min  (TMDB)"
             + "\n\u2022  Total episodes \u2265 " + N("minEpisodes", "80") + "  (TMDB)"
             + "\n\u2022  Episodic: scripted or animated, not a miniseries, no \"serialized\" keyword  (TMDB type + keywords)"
             + "\n\u2022  TMDB rating \u2265 " + N("minRating", "7.0") + " with \u2265 " + N("minVotes", "500") + " votes  (TMDB)"
@@ -211,17 +211,20 @@ public sealed partial class MainWindow
         var intro = new TextBlock { Text = "A series is in The Binge when all of these hold. Series on none of your signed-in services are never shown.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
         body.Children.Add(intro);
         var boxes = new List<(string key, NumberBox box)>();
-        void Field(string key, string label, string tip, double min, double max, double step, double def)
+        void Field(string key, string label, string tip, double min, double max, double step, double def, string? after = null)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             var nb = new NumberBox { Minimum = min, Maximum = max, SmallChange = step, Value = def, Width = 140, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
             var tb = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center, Width = 260 };
             ToolTipService.SetToolTip(tb, tip);
             row.Children.Add(tb); row.Children.Add(nb);
+            if (after is not null) row.Children.Add(new TextBlock { Text = after, FontSize = 14, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
             body.Children.Add(row);
             boxes.Add((key, nb));
         }
-        Field("maxRuntime", "Longest episode (minutes)", "TMDB's episode runtime; default 30.", 5, 120, 5, 30);
+        // named for what it reads, with the direction beside the box (2026-10-15, "make that Average Episode (minutes) and indicate this filters to
+        // include items under that value", then "I like median even better")
+        Field("maxRuntime", "Median episode (minutes)", "The median length of a show's season one episodes, from TMDB. Shows this long or shorter are in. Default 30.", 5, 120, 5, 30, "or shorter");
         Field("minEpisodes", "Fewest episodes", "TMDB's episode count; default 80.", 1, 2000, 10, 80);
         Field("minRating", "Lowest TMDB rating", "TMDB members' mean vote, one to ten; default 7.0.", 0, 10, 0.1, 7.0);
         Field("minVotes", "Fewest TMDB votes", "How many TMDB members voted; default 500.", 0, 100000, 100, 500);

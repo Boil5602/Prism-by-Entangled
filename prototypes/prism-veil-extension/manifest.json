@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Prism",
-  "version": "0.7.185",
+  "version": "0.7.186",
   "description": "Ads become art. The Prism intermission veil (spec section 27) for any page: ad elements are covered - exactly, scroll-synced, never a pixel outside - by imagery you chose. Observe-only: nothing is clicked, nothing is blocked from loading.",
   "content_scripts": [
     {
@@ -47,6 +47,7 @@
       ],
       "js": [
         "src/art.js",
+        "src/art-credits.js",
         "src/dom.js",
         "src/ai-tiles.js",
         "src/rules.js",
@@ -97,6 +98,7 @@
       ],
       "js": [
         "src/art.js",
+        "src/art-credits.js",
         "src/dom.js",
         "src/ai-tiles.js",
         "src/rules.js",

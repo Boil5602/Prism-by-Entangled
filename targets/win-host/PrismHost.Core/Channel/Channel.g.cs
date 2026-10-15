@@ -194,6 +194,8 @@ public static class HostCalls
     public const string PlaylistStop = "playlistStop";
     public const string PlaylistMove = "playlistMove";
     public const string VideoRowOrder = "videoRowOrder";
+    public const string VideoSetCoverSource = "videoSetCoverSource";
+    public const string VideoFreshOrder = "videoFreshOrder";
     public const string VideoWatchlistOrder = "videoWatchlistOrder";
     public const string VideoProfileSet = "videoProfileSet";
     public const string VideoProfileExclude = "videoProfileExclude";

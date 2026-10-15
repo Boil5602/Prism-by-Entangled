@@ -389,11 +389,11 @@ export class LensResolver {
     // 0. under a key, TMDB's word on which work this is - its kind and year - before any article is looked for: the plain
     //    name on Wikipedia is the older namesake (The Naked Gun 1988 for the 2025 film, 2026-09-22)
     if (this.tmdbKey && this.hooks.fetchKeyed && (f.year === undefined || f.backdrop === undefined)) {   // (a title matched before the backdrop was kept is asked once more)
-      const c = await this.cached<{ kind: WorkKind; id: number; year: number | null; qid?: string | null; poster?: string | null; backdrop?: string | null; at: number }>("tmdbref4", key);   // (3: the ref carries the Wikidata item since 2026-09-22; 4: the backdrop, 2026-09-23)
+      const c = await this.cached<{ kind: WorkKind; id: number; year: number | null; qid?: string | null; poster?: string | null; backdrop?: string | null; at: number }>("tmdbref6", key);   // (3: the ref carries the Wikidata item since 2026-09-22; 4: the backdrop, 2026-09-23)
       if (c && now - c.at <= TTL.wiki) { f.tmdb = { kind: c.kind, id: c.id }; f.year = c.year; if (c.qid) f.qid = c.qid; f.poster = c.poster ?? null; f.backdrop = c.backdrop ?? null; }
       else {
         const r = await this.tmdbRef(title, kind, providers);
-        f.year = r?.year ?? null; f.poster = r?.poster ?? null; f.backdrop = r?.backdrop ?? null; if (r) { f.tmdb = { kind: r.kind, id: r.id }; if (r.qid) f.qid = r.qid; this.remember("tmdbref4", key, { ...r, at: now }); }
+        f.year = r?.year ?? null; f.poster = r?.poster ?? null; f.backdrop = r?.backdrop ?? null; if (r) { f.tmdb = { kind: r.kind, id: r.id }; if (r.qid) f.qid = r.qid; this.remember("tmdbref6", key, { ...r, at: now }); }
       }
     }
     if (want.size === 1 && want.has("poster")) return;   // the poster alone: the ref step above was all
@@ -440,7 +440,8 @@ export class LensResolver {
       // a cached answer WITH a rating is believed for a day; one without is asked again (a call that failed - the shell had
       // refused the keyed fetch on 2026-09-21 - had been cached as "no rating" for a day)
       // an entry from before the latest-date field (2026-09-22) is read again
-      if (c && c.rating && c.latest !== undefined && c.genres !== undefined && c.first !== undefined && now - c.at <= TTL.tmdb) { f.rating = c.rating; f.tmdb = f.tmdb ?? c.tmdb ?? null; f.imdb = f.imdb ?? c.imdb ?? null; f.latest = c.latest ?? null; f.genres = c.genres; f.first = c.first; f.at.tmdb = c.at; }
+      const sameWork = !f.tmdb || !c?.tmdb || (c.tmdb.kind === f.tmdb.kind && c.tmdb.id === f.tmdb.id);   // a rating cached for another work is read again (Redemption, 2026-10-15)
+      if (c && c.rating && sameWork && c.latest !== undefined && c.genres !== undefined && c.first !== undefined && now - c.at <= TTL.tmdb) { f.rating = c.rating; f.tmdb = f.tmdb ?? c.tmdb ?? null; f.imdb = f.imdb ?? c.imdb ?? null; f.latest = c.latest ?? null; f.genres = c.genres; f.first = c.first; f.at.tmdb = c.at; }
       else {
         const r = await this.tmdb(f, title);
         f.rating = r?.rating ?? null; if (r?.tmdb) f.tmdb = r.tmdb; if (r?.imdb) f.imdb = r.imdb; f.latest = r?.latest ?? null; f.genres = r?.genres ?? []; f.first = r?.first ?? null;
@@ -495,6 +496,46 @@ export class LensResolver {
    * carries is the work (Better Things on Hulu is the 2016 series, not the 2008 film, 2026-09-22) - one providers read per
    * candidate, at most three.
    */
+  /** The one work, among those Wikidata names or also knows by `name` (its label or an English alias) and that carry a TMDB id, that the
+   *  service offers - null when none or more than one does. Wikidata's search reads aliases, which TMDB's does not ("Redemption", the US title
+   *  of Hummingbird, 2026-10-15). Asked by path, as every static read is (the shell takes no query string, §19/§22): Wikidata's search page,
+   *  whose results head each work with the name that matched; then TMDB, under the person's key, names the work for each item. */
+  private async offeredNamesake(name: string, kind: WorkKind | null, offered: (mt: string, id: number) => Promise<boolean>):
+      Promise<{ id: number; media_type: string; title?: string; name?: string; release_date?: string; first_air_date?: string; poster_path?: string; backdrop_path?: string } | null> {
+    const want = titleKey(name);
+    if (!want) return null;
+    const qids: string[] = [];
+    // films and series asked apart: the search takes no "P4947|P4983" (it answers nothing)
+    for (const prop of kind === "movie" ? ["P4947"] : kind === "tv" ? ["P4983"] : ["P4947", "P4983"]) {
+      const term = `inlabel:"${name.replace(/"/g, "")}"@en haswbstatement:${prop}`;
+      const html = await withTimeout(this.fetchStaticPaced("https://www.wikidata.org/wiki/Special:Search/" + encodeURIComponent(term).replace(/%20/g, "_")), "wikidata");
+      for (const m of html.matchAll(/mw-search-result-heading[^>]*>\s*<a [^>]*href="\/wiki\/(Q\d+)"[^>]*title="([^"]*)"/g)) {
+        const label = (m[2] ?? "").split(" | ")[0]!.replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/[\u200e\u200f]/g, "").trim();
+        if (titleKey(label) === want && !qids.includes(m[1]!)) qids.push(m[1]!);
+        if (qids.length >= 8) break;
+      }
+    }
+    const carried: Array<{ mt: "movie" | "tv"; id: number }> = [];
+    for (const q of qids) {
+      const f = await this.tmdbGet(`/find/${q}`, "external_source=wikidata_id");
+      const pick = (k: "movie_results" | "tv_results", mt: "movie" | "tv") => ((f?.[k] as Array<{ id?: number }> | undefined) ?? []).map((r) => r.id).filter((id): id is number => typeof id === "number").map((id) => ({ mt, id }));
+      for (const w of [...pick("movie_results", "movie"), ...pick("tv_results", "tv")]) {
+        if (kind && w.mt !== kind) continue;
+        if (carried.some((c) => c.mt === w.mt && c.id === w.id)) continue;
+        if (await offered(w.mt, w.id)) carried.push(w);
+        if (carried.length > 1) return null;
+      }
+    }
+    if (carried.length !== 1) return null;
+    const { mt, id } = carried[0]!;
+    const d = await this.tmdbGet(`/${mt}/${id}`);
+    if (!d) return null;
+    const str = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : undefined);
+    const out: { id: number; media_type: string; title?: string; name?: string; release_date?: string; first_air_date?: string; poster_path?: string; backdrop_path?: string } = { id, media_type: mt };
+    for (const k of ["title", "name", "release_date", "first_air_date", "poster_path", "backdrop_path"] as const) { const v = str(k); if (v !== undefined) out[k] = v; }
+    return out;
+  }
+
   private async tmdbRef(title: string, kind: WorkKind | null, providers: readonly number[] = []): Promise<{ kind: WorkKind; id: number; year: number | null; qid: string | null; poster: string | null; backdrop: string | null } | null> {
     // a store's edition is not the work's name: 'American Psycho (Uncut Version)', 'Are You Afraid of the Dark? [TV Series]', 'Hook - Anniversary Edition'.
     // The full name is asked first; on a miss the trailing bracketed group goes, then a trailing ' - ' / ': ' edition phrase (2026-09-22)
@@ -535,6 +576,26 @@ export class LensResolver {
         const us = (p?.results as Record<string, Record<string, Array<{ provider_id?: number }>>> | undefined)?.US;
         const ids = us ? ["flatrate", "free", "ads", "rent", "buy"].flatMap((k) => (us[k] ?? []).map((x) => x.provider_id)) : [];
         if (ids.some((id) => typeof id === "number" && providers.includes(id))) { hit = r; break; }
+      }
+    }
+    // A title read from a service is a work that service offers (2026-10-15, "I see some things like Redemption (2022) in my library, but I
+    // really dont think I own that series. I do see a movie called Redemption from 2013"). Fandango at Home sells Jason Statham's 2013 film as
+    // Redemption; TMDB files it under its UK name, Hummingbird, and its search for "Redemption" never returns it, so the most popular
+    // Redemption - a 2022 series no US service offers - was taken. When the pick is not offered by the service, the works Wikidata names
+    // or also knows by the title (each with its TMDB id) are asked instead, and the one the service offers is taken - only when exactly one is
+    // (a JustWatch gap must not trade a right match for a guess).
+    if (providers.length) {
+      const offered = async (mt: string | undefined, id: number): Promise<boolean> => {
+        const p = await this.tmdbGet(`/${mt}/${id}/watch/providers`);
+        const us = (p?.results as Record<string, Record<string, Array<{ provider_id?: number }>>> | undefined)?.US;
+        const ids = us ? ["flatrate", "free", "ads", "rent", "buy"].flatMap((k) => (us[k] ?? []).map((x) => x.provider_id)) : [];
+        return ids.some((id2) => typeof id2 === "number" && providers.includes(id2));
+      };
+      // only for a name several works share: a lone exact match the service is not listed for is a JustWatch gap, and a library of two
+      // thousand titles must not walk Wikidata for each one
+      if (hit && named.length > 1 && !(await offered(hit.media_type, hit.id))) {
+        const alt = await this.offeredNamesake(noEdition || noGroup || title, kind, offered).catch(() => null);
+        if (alt) hit = alt;
       }
     }
     if (!hit) return null;

@@ -991,7 +991,9 @@ export class Orchestrator {
     );
     this.refresh.onReadinessTimeout = (id) => void this.recordCompat("readiness-timeout", id);
     this.intermission = new IntermissionController({
-      show: (id, source, look) => this.drivers.surface.showIntermission?.(id, source, look),
+      // the Video player's cover pictures are Watch settings' choice (2026-10-15, "Prism app on the desktop is still using the old images", "lets fix
+      // the video player veil images"): the hand-picked photos by default, or a pack; a music window keeps its scene's own source
+      show: (id, source, look) => this.drivers.surface.showIntermission?.(id, this.video.isVideoTile(id) ? (this.videoCoverSource === "photos" ? "photos" : "pack:" + this.videoCoverSource) : source, look),
       // the Video ads setting is the Video player's (Watch settings): a music service's break keeps its own (§26, veil)
       look: (id) => (this.video.isVideoTile(id) ? this.videoAdsLook : "veil"),
       hide: (id) => this.drivers.surface.hideIntermission?.(id),
@@ -4498,7 +4500,7 @@ export class Orchestrator {
     adapterIdOf: (id) => this.tile(id)?.adapter ?? null,
     tileExists: (id) => !!this.tile(id),
     inject: (id, js) => Promise.resolve(this.drivers.surface.inject(id, null, js)),
-    navigate: (id, url) => Promise.resolve(this.drivers.surface.navigate(id, url)),
+    navigate: (id, url) => this.videoNavigate(id, url),
     renew: (id, url) => this.renewSurface(id, url),
     dashId: () => this.doc?.id ?? null,
     store: () => this.drivers.store,
@@ -4507,6 +4509,7 @@ export class Orchestrator {
     adSkip: (id, available) => this.intermission.onSkipAvailable(id, available),
     urlOf: (id) => this.currentUrl.get(id) ?? this.tile(id)?.url ?? null,
     onStage: (id) => this.elementFullscreen.has(id),
+    alwaysStaged: (id) => this.mv.on && (this.mvSmall.has(id) || this.videoMultiviewHero() === id),
     claimAudio: (id) => this.claimAudio(id),
     enterStage: (id) => this.videoEnterStage(id),
     // the playback doctor (2026-09-23): its read of the page's error, and a person's pause or press, which it never heals over
@@ -4628,7 +4631,7 @@ export class Orchestrator {
       const mine = mineOf(f, own);
       if (rating) rated++;
       // a store's bonus material ("Dolphin Tale 2: Blooper Reel (featurette)", "... - The Making of ...") is owned, and is not a title: the Extras row, last
-      const extra = /\(featurette\)|\bfeaturette\b|blooper reel|\bthe making of\b|behind the scenes|deleted scenes|\(bonus\b|bonus feature/i.test(c.item.title);
+      const extra = /\(featurette\)|\bfeaturette\b|blooper reel|\bthe making of\b|behind the scenes|deleted scenes|\(bonus\b|bonus feature|\ba short film by\b|:\s*trailer$|\(trailer\)/i.test(c.item.title);   // a film's own short or trailer beside it too (Gravity's ANINGAAQ, a YouTube TV "Trailer", 2026-10-15)
       const genre = extra ? "Extras" : f?.genres?.[0] ?? (f?.at.tmdb ? "Other" : "Unsorted");
       const card = { ...c, rating, mine, genres: f?.genres ?? [], released: releaseOf(f) };
       (byGenre.get(genre) ?? byGenre.set(genre, []).get(genre)!).push(card);
@@ -4964,6 +4967,50 @@ export class Orchestrator {
   private readonly mvHidePaused = new Set<string>();
   /** The windows small at the last layout (their framing set aside). */
   private mvSmall = new Set<string>();
+  /**
+   * A pick into a small multiview window holds the window's last frame until the player fills it (2026-10-15, "I dropped a Twitch channel to
+   * window 5. It worked but it shows the web page again through the process until the video is up"): a pick navigates the window in place, and
+   * Twitch's page stood in it for the four seconds before its player took the window. The window is frozen (section 16's still) before the
+   * address changes and revealed when the page reports its player fullscreen - or plays, on a service with no fullscreen press - or after
+   * PICK_COVER_MS whatever happens, so a page that needs a person (a sign-in, a gate) is never hidden for good.
+   */
+  private readonly pickCovered = new Map<string, number>();
+  /**
+   * The stage keeper (2026-10-15, "I still see the same issues repeating with twitch windows" - a page with the video at half the window, after a
+   * restart whose page loaded slowly, a doctor's repair, a graphics reset): a multiview window whose page plays a title and whose player does not
+   * fill it, with no cover over it, is asked onto its stage again - at most once every STAGE_KEEP_MS a window. Whatever took the player out, it
+   * goes back; the ask is the same one a pick makes (videoEnterStage), and a window covered for a break is left to its cover.
+   */
+  private readonly stageKeptAt = new Map<string, number>();
+  static readonly STAGE_KEEP_MS = 15_000;
+  videoStageKeep(): void {
+    if (!this.mv.on) return;
+    const now = Date.now();
+    const ids = [...this.mvSmall]; const hero = this.videoMultiviewHero(); if (hero && !ids.includes(hero)) ids.push(hero);
+    for (const st of this.video.state(ids)) {
+      const id = st.id; const v = st.video;
+      if (!st.playing || !v || v.ad || !(v.title || v.series)) continue;
+      if (this.elementFullscreen.has(id) || this.intermission.isCovered(id) || !this.surfaces.has(id)) continue;
+      if (now - (this.stageKeptAt.get(id) ?? 0) < Orchestrator.STAGE_KEEP_MS) continue;
+      this.stageKeptAt.set(id, now);
+      this.videoEnterStage(id);
+    }
+  }
+  static readonly PICK_COVER_MS = 15_000;
+  private async videoNavigate(id: string, url: string): Promise<void> {
+    // ... only over a player already filling the window: a window still loading is under its dark cover already, and a frame taken then was
+    // the half-drawn page itself (2026-10-15, four titles dropped in six seconds: window 4's second title held a still of Twitch's page)
+    if (this.mvSmall.has(id) && this.surfaces.has(id) && this.elementFullscreen.has(id)) {
+      const at = Date.now();
+      try { await this.drivers.surface.freeze(id); this.pickCovered.set(id, at); } catch { /* no still: the page shows as before */ }
+      setTimeout(() => { if (this.pickCovered.get(id) === at) this.pickUncover(id); }, Orchestrator.PICK_COVER_MS);
+    }
+    await this.drivers.surface.navigate(id, url);
+  }
+  private pickUncover(id: string): void {
+    if (!this.pickCovered.delete(id) || !this.surfaces.has(id)) return;
+    void Promise.resolve(this.drivers.surface.reveal(id, 300)).catch(() => undefined);
+  }
   /** The screen slot is out of multiview (parked, paused) at the last layout. */
   private mvParked = false;
   /** Multiview on (the scene's screen slot the first window) or off. */
@@ -5900,15 +5947,60 @@ export class Orchestrator {
     return { active: true, reading: w.reading || this.watchBuilding, cards: this.watchCards.cards, count: w.titles.length };
   }
   /** A watchlist toggle from a card or a title's page; the cards are built again on the next look. */
-  async watchlistSet(kind: "movie" | "tv", id: number, on: boolean, title?: BrowseTitle): Promise<{ ok: true } | { ok: false; error: string }> {
-    const r = await this.lenses.watchlistSet(kind, id, on, title);
-    if (r.ok) this.watchCards.key = "";
-    return r;
+  async watchlistSet(kind: "movie" | "tv", id: number, on: boolean, title?: BrowseTitle, name?: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    const k = kind + ":" + id;
+    // the title's name for the services' own searches: the caller's, else the list's own entry (gone from it once taken off)
+    const label = name ?? title?.title ?? this.lenses.watchlist().titles.find((t) => t.kind === kind && t.id === id)?.title ?? "";
+    this.watchPendingIds.add(k);
+    try {
+      const r = await this.lenses.watchlistSet(kind, id, on, title);
+      if (r.ok) { this.watchCards.key = ""; if (label) void this.watchlistFollow(kind, id, on, label).catch(() => { /* the services' lists are a courtesy; TMDB's answer stands */ }); }
+      return r;
+    } finally { this.watchPendingIds.delete(k); }
+  }
+  /** A watchlist write still on its way to TMDB, by the title's TMDB id (2026-10-15: the PC read the state 1.5 s after a press, before TMDB
+   *  had answered, redrew the row with the title still on it, and the removal looked like it had failed). */
+  watchlistWorking(kind: "movie" | "tv", id: number): boolean { return this.watchPendingIds.has(kind + ":" + id); }
+  /** The household's full service records, for a service's own search (the runtime's, set at start). */
+  servicesNow: () => ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; profile: string; home: string; status: string }> = () => [];
+  /**
+   * My Watchlist and the services' own lists move together (2026-10-15, "Probably should remove it from both my TMDB watch list and Apple",
+   * "And when we add to my watch list can we add to both, only where possible"): once TMDB has taken the change, each signed-in service whose
+   * own list can be changed and that carries the title takes the same change on its own page, hidden - an add only where the title is
+   * included (a subscription, free, free with ads; never where it is only for rent or sale), a removal wherever it is carried. The
+   * service's own search finds its copy of the title by name (videoCatalogResolve), and its list script presses only when the state differs,
+   * so a removal never adds and an add never removes.
+   */
+  private async watchlistFollow(kind: "movie" | "tv", id: number, on: boolean, label: string): Promise<void> {
+    const all = this.servicesNow();
+    const services = all.filter((s) => s.status === "signed-in" && !!this.adapters.get(s.adapter)?.videoListSet);
+    if (!services.length) { this.watchFollow.set(kind + ":" + id, { on, at: Date.now(), jobs: [] }); return; }
+    const offers = offersFromProviders(await this.watchProvidersOf(kind, id));
+    const kinds = on ? (["subscription", "free", "ads"] as const) : (["subscription", "free", "ads", "rent", "buy"] as const);
+    const ids = new Set<number>(kinds.flatMap((o) => offers[o] ?? []));
+    const itemKind = kind === "tv" ? "series" : "movie";
+    const item = { id: `tmdb:${kind}:${id}`, title: label, kind: itemKind } as VideoItem;
+    const jobs: Array<{ app: string; name: string; key: string }> = [];
+    for (const s of services) {
+      if (!providersOf(this.adapters.get(s.adapter)).some((p) => ids.has(p))) continue;
+      this.videoListSet(s, on, item, () => this.videoCatalogResolve(s.app, label, all, itemKind));
+      jobs.push({ app: s.app, name: s.name, key: (on ? "add|" : "rm|") + s.app + "|" + item.id });
+    }
+    this.watchFollow.set(kind + ":" + id, { on, at: Date.now(), jobs });
+  }
+  /** How the services' own lists took the last change to this title: each service's name, its list's name and the job's state. */
+  watchlistFollowState(kind: "movie" | "tv", id: number): { on: boolean; services: Array<{ app: string; name: string; list: string; status: string; error?: string }> } | null {
+    const f = this.watchFollow.get(kind + ":" + id);
+    if (!f || Date.now() - f.at > 10 * 60_000) return null;
+    return { on: f.on, services: f.jobs.map((j) => { const job = this.listJobs.get(j.key); const ad = this.knownServices.find((x) => x.app === j.app)?.adapter ?? j.app;
+      return { app: j.app, name: j.name, list: this.videoListInfo(ad).name, status: job?.status ?? "working", ...(job?.error ? { error: job.error } : {}) }; }) };
   }
   watchlistHas(kind: "movie" | "tv", id: number): boolean | null { return this.lenses.watchlistHas(kind, id); }
   /** The works a press by title found (a search, not the facts), so the title answers by name afterwards; and the presses still working. */
   private readonly watchWorks = new Map<string, { kind: "movie" | "tv"; id: number }>();
   private readonly watchPending = new Set<string>();
+  private readonly watchPendingIds = new Set<string>();
+  private readonly watchFollow = new Map<string, { on: boolean; at: number; jobs: Array<{ app: string; name: string; key: string }> }>();
   /**
    * By a card's title (a service's card knows no TMDB id): the work the facts matched or a press found, else none yet - the lookup starts.
    * `working` while a press for the title is still placing it or writing: the phone's sheet asks again until it is not (2026-10-14, the
@@ -5939,7 +6031,7 @@ export class Orchestrator {
       const work = (on ? null : this.watchEntryByTitle(title, kind)) ?? await this.lenses.workOf(title, kind);
       if (!work) return { ok: false, error: "TMDB does not know " + title };
       this.watchWorks.set(key, work);
-      return await this.watchlistSet(work.kind, work.id, on);
+      return await this.watchlistSet(work.kind, work.id, on, undefined, title);
     } finally { this.watchPending.delete(key); }
   }
   /**
@@ -7324,7 +7416,10 @@ export class Orchestrator {
     if (spec.videoLibrary && isPageUrl(s.home) && this.homeRowsDue(s.app, s.adapter))
       steps.push({ go: () => this.homeOne(s.app, s.profile, s.adapter, s.home), done: (t0) => (entry()?.homeRead ?? 0) > t0 && Date.now() - t0 > Orchestrator.HOME_ROWS_STAY_MS, max: Orchestrator.LIST_SETTLE_MS + 4000 });
     // the services' list pages are not read while My list is the TMDB watchlist (2026-10-03, "This would reduce prism's workload when TMDB is configured")
-    if (!o.homeOnly && o.list !== false && !this.watchlistActive() && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
+    // the services' own lists are read while a TMDB watchlist is linked too (2026-10-15, "if they do add something directly in the apps, will they
+    // get a message to add it to their watch list" - "Yes, proceed"): never drawn as My list then (the watchlist is), only compared with the
+    // watchlist for the offer to add what a service's app put on its list
+    if (!o.homeOnly && o.list !== false && spec.videoLibrary && (spec.videoListUrl || spec.videoListRoute))
       steps.push({ go: () => this.listOne(s.app, s.profile, s.adapter, spec.videoListUrl ?? s.home, !!spec.videoListRoute && !spec.videoListUrl), done: read, max: Orchestrator.LIST_SETTLE_MS + 4000 });
     // the household's profiles once a day (2026-09-28, "could something we've coded be causing issues with authentication and their security?"):
     // the Who's watching page had been opened with every background read, every 20 minutes around the clock - some 70 a day per service, nothing
@@ -7393,10 +7488,14 @@ export class Orchestrator {
     const now = Date.now();
     if (now - this.gpuResetAt < 60_000) return;
     this.gpuResetAt = now;
+    const staged = new Set(this.elementFullscreen);   // the players filling their windows when the reset came
     setTimeout(() => {
       for (const st of this.video.state((this.doc?.tiles ?? []).map((t) => t.id))) {
         if (!st.playing || !st.video || !this.surfaces.has(st.id)) continue;
         const url = this.currentUrl.get(st.id) ?? st.video.url;
+        // ... and a window whose player filled it fills it again once the page plays (2026-10-15, "Seeing 3 item web pages, not full window, why?":
+        // a reset at 16:38 loaded three Twitch windows again, and each came back as Twitch's page with the video at half its window)
+        if (url && staged.has(st.id)) this.video.askStage(st.id);
         if (url) void this.drivers.surface.navigate(st.id, url);
       }
     }, Orchestrator.GPU_RESET_SETTLE_MS);
@@ -7540,6 +7639,8 @@ export class Orchestrator {
   bgPause: { on: boolean; from: string; to: string } = { on: false, from: "23:00", to: "07:00" };
   /** Watch settings' Video ads (2026-10-07): how the Video player's breaks look - veiled and muted (the default), muted with the picture up, or shown. */
   videoAdsLook: AdLook = "veil";
+  /** The Video player's cover pictures (2026-10-15): "photos" (the hand-picked pool, the default), "gallery" or "cosmos" (the packs). */
+  videoCoverSource: "photos" | "gallery" | "cosmos" = "photos";
   /** A muted-only break's Unmute / Mute again, from the window's chip. */
   intermissionUnmute(id: string, on: boolean): boolean { return this.intermission.unmute(id, on); }
   private inBgPause(now: number): boolean {
@@ -8243,6 +8344,7 @@ export class Orchestrator {
     if (event.type === "fullscreen-element") {
       // §26: the shell auto-granted element fullscreen; presentation keeping reads the state from here
       if (event.contains) this.elementFullscreen.add(event.id); else this.elementFullscreen.delete(event.id);
+      if (event.contains && this.pickCovered.has(event.id)) setTimeout(() => this.pickUncover(event.id), 250);   // the player fills the window: the held frame goes
       await this.feedKeeper(event.id, { type: "presentation", at: Date.now(), state: event.contains ? "fullscreen" : "none" });
       // a pause from the wall must not take the picture out of its window: Paramount+ leaves its player's fullscreen for its own pause
       // screen (2026-09-23, "When I did the global pause it lost its fullscreen focus") - the player goes back, once, while it stays paused
@@ -8360,6 +8462,8 @@ export class Orchestrator {
       }
     }
     if (event.type === "playback") this.video.notePlayback(event.id, !!event.playing);
+    // a service with no fullscreen press shows its player as it plays: the held frame goes then
+    if (event.type === "playback" && event.playing && this.pickCovered.has(event.id)) { const sp = this.tile(event.id)?.adapter ? this.adapters.get(this.tile(event.id)!.adapter!) : undefined; if (!this.video.cmdJs(sp, "fullscreen")) setTimeout(() => this.pickUncover(event.id), 250); }
     // a title brought back paused that starts by itself (or by the restore's own Play press): paused once, as it was left (2026-10-06)
     if (event.type === "playback" && event.playing && this.restorePaused.has(event.id)) {
       const until = this.restorePaused.get(event.id)!;

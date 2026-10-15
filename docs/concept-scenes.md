@@ -747,6 +747,8 @@ enforces its license rule at fetch time and keeps `pool/manifest.json` as the
 provenance record. `bundled.txt` pins the subset copied into the host's
 `Assets/packs/<id>` at build.
 
+*Decision (2026-10-15):* the Video player's cover pictures are a Watch settings choice, not the scene's pack: Nature photos (the hand-picked pool, the default), Gallery paintings or Cosmos, on the PC and the phone. A template's `intermission.source` still names a pack, and a music window still draws from it; a video window takes the setting (the owner, 2026-10-15: "Prism app on the desktop is still using the old images", "lets fix the video player veil images").
+
 *Decision (CS-10.4, 2026-09-03) — the example above, and why Gallery had no
 Bierstadt.* The worked example previously cited AIC artwork **64818** as
 Bierstadt's *The Rocky Mountains, Lander's Peak*. Checked against the live

@@ -1134,6 +1134,63 @@ public sealed partial class MainWindow
             for (var d = e.OriginalSource as DependencyObject; d is not null; d = VisualTreeHelper.GetParent(d)) if (ReferenceEquals(d, hs) || (d is ScrollViewer c && Equals(c.Tag, CarouselTag))) return;
             hs.ChangeView(null, hs.VerticalOffset - e.GetCurrentPoint(hs).Properties.MouseWheelDelta * 1.2, null, false); e.Handled = true;
         };
+
+        // the margins say how the page moves (2026-10-15, "When I put my mouse over the left and right margins in prism, can flashing images/arrows
+        // indicating scroll motion so the users know how to go up and down"): over a side margin the wheel moves the whole page (over a row it
+        // moves the row), so an up and a down chevron pulse in both margins at the pointer's height, each lit only while the page can go that way
+        var marginHints = new List<(StackPanel panel, FontIcon up, FontIcon down)>();
+        Microsoft.UI.Xaml.Media.Animation.Storyboard? marginPulse = null;
+        for (var hi = 0; hi < 2; hi++)
+        {
+            var hUp = new FontIcon { Glyph = "\uE70E", FontSize = 22, Foreground = HubAmber, RenderTransform = new TranslateTransform() };
+            var hMouse = new FontIcon { Glyph = "\uE962", FontSize = 18, Foreground = HubInk };
+            var hDown = new FontIcon { Glyph = "\uE70D", FontSize = 22, Foreground = HubAmber, RenderTransform = new TranslateTransform() };
+            var hp = new StackPanel { Spacing = 10, Width = 36, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = 0 };
+            hp.Children.Add(hUp); hp.Children.Add(hMouse); hp.Children.Add(hDown);
+            hp.OpacityTransition = new ScalarTransition { Duration = TimeSpan.FromMilliseconds(220) };
+            Canvas.SetZIndex(hp, 50);
+            overlay.Children.Add(hp);
+            marginHints.Add((hp, hUp, hDown));
+        }
+        void MarginPulse(bool on)
+        {
+            if (!on) { marginPulse?.Stop(); marginPulse = null; return; }
+            if (marginPulse is not null) return;
+            bool motion; try { motion = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled; } catch { motion = true; }
+            if (!motion) return;
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard { RepeatBehavior = Microsoft.UI.Xaml.Media.Animation.RepeatBehavior.Forever };
+            foreach (var (_, u, d) in marginHints)
+                foreach (var (el, to) in new[] { (u, -6.0), (d, 6.0) })
+                {
+                    var an = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { From = 0, To = to, Duration = new Duration(TimeSpan.FromMilliseconds(650)), AutoReverse = true,
+                        EasingFunction = new Microsoft.UI.Xaml.Media.Animation.SineEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut } };
+                    Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(an, el.RenderTransform); Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(an, "Y");
+                    sb.Children.Add(an);
+                }
+            marginPulse = sb; sb.Begin();
+        }
+        void MarginHints(Windows.Foundation.Point? at)
+        {
+            var hs = _hubScroller;
+            var on = false; Windows.Foundation.Point tl = default;
+            if (at is { } pt && hs is not null && hs.ActualHeight > 0 && hs.ScrollableHeight > 1)
+            {
+                tl = hs.TransformToVisual(overlay).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var inY = pt.Y >= tl.Y && pt.Y <= tl.Y + hs.ActualHeight;
+                on = inY && ((pt.X >= tl.X && pt.X <= tl.X + HubSide) || (pt.X >= tl.X + hs.ActualWidth - HubSide && pt.X <= tl.X + hs.ActualWidth));
+            }
+            if (on && hs is not null && at is { } p2)
+            {
+                var y = Math.Clamp(p2.Y - 60, tl.Y + 8, tl.Y + hs.ActualHeight - 128);
+                marginHints[0].panel.Margin = new Thickness(tl.X + (HubSide - 36) / 2, y, 0, 0);
+                marginHints[1].panel.Margin = new Thickness(tl.X + hs.ActualWidth - HubSide + (HubSide - 36) / 2, y, 0, 0);
+                foreach (var (_, u, d) in marginHints) { u.Opacity = hs.VerticalOffset > 1 ? 1 : 0.2; d.Opacity = hs.VerticalOffset < hs.ScrollableHeight - 1 ? 1 : 0.2; }
+            }
+            foreach (var (hp, _, _) in marginHints) hp.Opacity = on ? 1 : 0;
+            MarginPulse(on);
+        }
+        overlay.PointerMoved += (_, e) => MarginHints(e.GetCurrentPoint(overlay).Position);
+        overlay.PointerExited += (_, __) => MarginHints(null);
         foreach (var key in new[] { Windows.System.VirtualKey.Escape, Windows.System.VirtualKey.GoBack })
         {
             var acc = new KeyboardAccelerator { Key = key };
@@ -1361,6 +1418,15 @@ public sealed partial class MainWindow
                 var all = followed.OfType<JsonObject>().ToList();
                 bool LiveNow(JsonObject c) => c["item"] is JsonObject it && (S(it, "kind") == "live" || S(it, "badge") == "LIVE");
                 var shown = HideOfflineChannels ? all.Where(LiveNow).ToList() : all;
+                // with Hide offline on and nobody live, the row keeps its head and its box, so the box can be unticked (2026-10-15, "I chose the Hide
+                // Offline option for my channels, and now the whole row is gone. Any way to get it back?")
+                if (shown.Count == 0 && all.Count > 0)
+                {
+                    var quietHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                    quietHead.Children.Add(RowHead("Channels you follow  \u00B7  none live now", HubInk));
+                    quietHead.Children.Add(HideOfflineBox(13));
+                    rows.Children.Add(Band(quietHead, new TextBlock { Text = "None of them is live right now. Untick Hide offline to see them all.", FontSize = 15, Foreground = HubInk, Margin = new Thickness(0, 4, 0, 6) }));
+                }
                 if (shown.Count > 0)
                 {
                     var cards = shown.Take(60).Select(c => { var o = (JsonObject)c.DeepClone(); o["recency"] = new JsonObject { ["kind"] = "rank" }; o["__followed"] = true; return o; }).ToList();   // a followed channel, live or not: its card carries Unfollow (2026-10-13)
@@ -1396,6 +1462,15 @@ public sealed partial class MainWindow
                     // for youtube subscriptions, doesnt that mean hide the ones that arent currently live? Because it's not currently happening")
                     var onAir = channels && all.Any(i => ChannelOffline(i) || System.Text.RegularExpressions.Regex.IsMatch(S(i, "subtitle"), @"\bviewers?\b|\blive\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
                     var shown = onAir && HideOfflineChannels ? all.Where(i => !ChannelOffline(i)).ToList() : all;
+                    if (shown.Count == 0 && onAir && all.Count > 0)
+                    {
+                        var quietRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+                        quietRow.Children.Add(RowHead(name + "  " + Mid.Trim() + "  " + S(r, "title") + "  \u00B7  none live now", HubInk));
+                        quietRow.Children.Add(HideOfflineBox(13));
+                        rows.Children.Add(quietRow);
+                        rows.Children.Add(new TextBlock { Text = "None of them is live right now. Untick Hide offline to see them all.", FontSize = 15, Foreground = HubInk, Margin = new Thickness(0, 4, 0, 6) });
+                        continue;
+                    }
                     if (shown.Count == 0) continue;
                     var cards = shown.Take(48).Select(i => new JsonObject { ["app"] = app, ["service"] = name, ["facet"] = facet, ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" }, ["__library"] = true }).ToList();   // a service's own row: its library's remove when it has one (core says)
                     var headText = name + "  " + Mid.Trim() + "  " + S(r, "title");
@@ -1456,7 +1531,8 @@ public sealed partial class MainWindow
                     rows.Children.Add(catHost);
                     // the fresh rows run oldest to newest (2026-09-24, "add 'Oldest to Newest' and make Oldest a link for jumping the row all the
                     // way to the left, and newest a link that jumps the carousel row all the way to the right")
-                    if (S(lr, "id") is "fresh-episodes" or "fresh-movies") catHead.Children.Insert(1, FreshEnds(catHost));
+                    // ... and now newest first, with the Release Date chip and the reverse switch the other rows have (2026-10-15, MainWindow.FreshOrder.cs)
+                    if (S(lr, "id") is "fresh-episodes" or "fresh-movies") catHead.Children.Insert(lr["orders"] is JsonArray ? Math.Min(2, catHead.Children.Count) : 1, lr["orders"] is JsonArray ? FreshOrderSwitch(lr, catHost) : FreshEnds(catHost));   // after the (i), as My Watchlist has it
                     if (catReading) _hubLensPending[S(lr, "id")] = (catTb, catHost, S(lr, "name"), catDisc);
                     continue;
                 }
