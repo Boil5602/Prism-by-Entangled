@@ -61,6 +61,7 @@ public sealed partial class MainWindow
             panel.Children.Add(chips);
             FillContinueJumps(cards);
         }
+        QuietHead(panel, title);   // Simple Watch: the order chips wait for the pointer
         return panel;
     }
 

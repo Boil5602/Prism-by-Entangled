@@ -74,6 +74,8 @@
     <h3>Photos</h3>
     <div class="row" id="photos-row" data-tip="The photos behind every veil. Built-in: the 24 that ship inside Prism. Server: 24 random photos from the signed pool at prism.entangled.world (CC0 / public domain, each photo checked against the signed index; no identifiers sent)."><span class="dest" id="photos-text">…</span><button class="btn primary" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Restore defaults</button></div>
     <div class="err" id="photos-err" hidden></div>
+    <div class="row" id="art-sets" data-tip="Which pictures the veils and the start page draw from, all public domain from Prism's server: Nature photos, NASA's Cosmos, and Museum art from the Art Institute of Chicago. At least one stays on."><span class="dest">Pictures</span><label><input type="checkbox" value="nature"> Nature</label> <label><input type="checkbox" value="cosmos"> Cosmos</label> <label><input type="checkbox" value="gallery"> Museum art</label></div>
+    <div class="err" id="art-sets-note" hidden></div>
     <label class="row" data-tip="Fetch a fresh random 24 from the server once a week, automatically (catches up at next start if the browser was closed)."><input type="checkbox" id="art-weekly"><span class="dest">Refresh photos weekly</span></label>
   </section>
 

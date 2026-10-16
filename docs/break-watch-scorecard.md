@@ -96,5 +96,9 @@ for disabling ad veils for live channels if false positives exceed a certain thr
 - **The threshold.** Prism only knows a cover was wrong when it is told, so the count is of Not an ad presses: three on one channel in
   seven days (two, five or never, in Watch settings; `video.breakWatchAutoSure`) move that channel from On to Sure breaks only. The
   status line says so when it happens, and the channel's menu or Watch settings put it back. It never moves a channel to Off.
+- **For every channel** (2026-10-15, "YouTube tv breaks is supposed to have 3 options, the all ads, only guaranteed ads, or none"): Watch
+  settings and the phone's Ads panel choose All breaks, Sure breaks only or Off for YouTube TV as a whole (`video.breakWatchMode`; the
+  old on/off `video.breakWatch` follows it and is read until the choice is made). A channel's own choice narrows it: a channel Off or
+  Sure stays so under All breaks, and under Sure breaks only every channel is sure-only.
 - **Kept** in host-prefs.json by channel name: `video.breakWatchOff`, `video.breakWatchSure`, the week's presses in
   `video.breakWatchNotAd`. Code: `ChannelCovers`, `SetChannelMode`, `NotAdCounted` (MainWindow.BreakWatch.cs), `LiveMenu` (MainWindow.Live.cs).

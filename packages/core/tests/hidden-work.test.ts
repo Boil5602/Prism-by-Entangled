@@ -76,6 +76,9 @@ describe("background work on a service's hidden page", () => {
     rt.videoRemoveContinue("hulu", "a2", "The Bear");
     await vi.advanceTimersByTimeAsync(20);
     expect(ops.filter((o) => o.op === "navigate").length).toBe(1);   // the second waits
+    // each poll says how many are ahead (2026-10-15: the phone and the PC follow a queued one for as long as it waits)
+    expect(JSON.parse(rt.videoRemoveContinue("hulu", "a1", "Breeders"))).toMatchObject({ status: "working", ahead: 0 });
+    expect(JSON.parse(rt.videoRemoveContinue("hulu", "a2", "The Bear"))).toMatchObject({ status: "working", ahead: 1 });
     await up(rt);
     const first = tokenOf(ops)!;
     expect(ops.filter((o) => o.op === "navigate").length).toBe(1);
@@ -88,6 +91,17 @@ describe("background work on a service's hidden page", () => {
     await answer(rt, second, true);
     expect(JSON.parse(rt.videoRemoveContinue("hulu", "a1", "Breeders"))).toMatchObject({ status: "done" });
     expect(JSON.parse(rt.videoRemoveContinue("hulu", "a2", "The Bear"))).toMatchObject({ status: "done" });
+  });
+
+  it("a broadcast still live is said plainly, never called removed (2026-10-15, Twitch)", async () => {
+    const { rt, ops } = await setup();
+    rt.videoRemoveContinue("hulu", "a1", "Live show");
+    await vi.advanceTimersByTimeAsync(20);
+    await up(rt);
+    await answer(rt, tokenOf(ops)!, false, "remove", { error: "still-live" });
+    const r = JSON.parse(rt.videoRemoveContinue("hulu", "a1", "Live show")) as { status: string; error: string };
+    expect(r.status).toBe("failed");
+    expect(r.error).toMatch(/still live.*until the broadcast ends/);
   });
 
   it("a failure is reported once; the next ask is a new job", async () => {

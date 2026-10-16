@@ -993,7 +993,7 @@ export class Orchestrator {
     this.intermission = new IntermissionController({
       // the Video player's cover pictures are Watch settings' choice (2026-10-15, "Prism app on the desktop is still using the old images", "lets fix
       // the video player veil images"): the hand-picked photos by default, or a pack; a music window keeps its scene's own source
-      show: (id, source, look) => this.drivers.surface.showIntermission?.(id, this.video.isVideoTile(id) ? (this.videoCoverSource === "photos" ? "photos" : "pack:" + this.videoCoverSource) : source, look),
+      show: (id, source, look) => this.drivers.surface.showIntermission?.(id, this.video.isVideoTile(id) ? this.videoCoverPick() : source, look),
       // the Video ads setting is the Video player's (Watch settings): a music service's break keeps its own (§26, veil)
       look: (id) => (this.video.isVideoTile(id) ? this.videoAdsLook : "veil"),
       hide: (id) => this.drivers.surface.hideIntermission?.(id),
@@ -4983,6 +4983,45 @@ export class Orchestrator {
    */
   private readonly stageKeptAt = new Map<string, number>();
   static readonly STAGE_KEEP_MS = 15_000;
+  /**
+   * Prism's loading mark (2026-10-16, "Netflix shows its own red loading spinner ... Prism mark, all windows"): over a video window while a pick
+   * there has not started (a small window; the big screen has its curtain) or while its page's player waits for data when it should be playing,
+   * outside an ad and its cover. It shows after LOADING_HOLD_MS of waiting, so a short stall never flickers it, and goes the moment the window
+   * plays. The page's word is the host's page script on every page (the buffering event); a service's own spinner is hidden by its adapter.
+   */
+  private readonly pageBuffering = new Map<string, boolean>();
+  private readonly loadingMark = new Map<string, { since: number; shown: boolean }>();
+  static readonly LOADING_HOLD_MS = 600;
+  videoLoadingTick(now = Date.now()): void {
+    const want = new Map<string, boolean>();
+    const hero = this.mv.on ? this.videoMultiviewHero() : null;
+    const ids = new Set<string>([...this.mvSmall, ...(hero ? [hero] : [])]);
+    // a page's own word counts on a video window alone (a wall tile whose adapter reads video) - never a hidden work page or a music tile
+    for (const id of this.pageBuffering.keys()) { const t = this.tile(id); if (t?.adapter && this.adapters.get(t.adapter)?.videoContext) ids.add(id); }
+    for (const id of this.loadingMark.keys()) ids.add(id);
+    for (const st of this.video.state([...ids])) {
+      const id = st.id;
+      if (!this.surfaces.has(id)) { want.set(id, false); this.pageBuffering.delete(id); continue; }
+      const big = hero ? id === hero : !this.mvSmall.has(id);
+      const covered = this.intermission.isCovered(id) || st.video?.ad === true;
+      const picking = !big && !st.playing && ((!!st.pending && !st.pending.failed) || this.videoPlayQueued.has(id));   // a pick waiting for its page counts
+      const waiting = this.pageBuffering.get(id) === true;
+      want.set(id, !covered && (picking || waiting));
+    }
+    for (const [id, on] of want) {
+      const m = this.loadingMark.get(id) ?? { since: 0, shown: false };
+      if (on) {
+        if (!m.since) m.since = now;
+        if (!m.shown && now - m.since >= Orchestrator.LOADING_HOLD_MS) { m.shown = true; void Promise.resolve(this.drivers.surface.setLoading?.(id, true)).catch(() => undefined); }
+        this.loadingMark.set(id, m);
+      } else {
+        if (m.shown) void Promise.resolve(this.drivers.surface.setLoading?.(id, false)).catch(() => undefined);
+        this.loadingMark.delete(id);
+      }
+    }
+  }
+  /** Is Prism's loading mark up over this window (tests, the doctor)? */
+  videoLoadingShown(id: string): boolean { return this.loadingMark.get(id)?.shown === true; }
   videoStageKeep(): void {
     if (!this.mv.on) return;
     const now = Date.now();
@@ -4990,8 +5029,22 @@ export class Orchestrator {
     for (const st of this.video.state(ids)) {
       const id = st.id; const v = st.video;
       if (!st.playing || !v || v.ad || !(v.title || v.series)) continue;
-      if (this.elementFullscreen.has(id) || this.intermission.isCovered(id) || !this.surfaces.has(id)) continue;
+      if (this.intermission.isCovered(id) || !this.surfaces.has(id)) continue;
       if (now - (this.stageKeptAt.get(id) ?? 0) < Orchestrator.STAGE_KEEP_MS) continue;
+      // a fullscreen mark the shell never took back (2026-10-15: a YouTube window that went on to its next video sat at 63% of its window for
+      // minutes, the mark from 21:38 still standing, no "left" from WebView2): the page is asked, as a page load asks it, and a stale mark goes
+      if (this.elementFullscreen.has(id)) {
+        if (!this.drivers.surface.evaluate) continue;
+        this.stageKeptAt.set(id, now);
+        void (async () => {
+          let still = true;
+          try { const raw = await this.drivers.surface.evaluate!(id, "!!document.fullscreenElement"); still = raw ? JSON.parse(raw) === true : true; } catch { still = true; }
+          if (still || !this.elementFullscreen.delete(id)) return;
+          await this.feedKeeper(id, { type: "presentation", at: Date.now(), state: "none" });
+          this.videoEnterStage(id);
+        })().catch(() => undefined);
+        continue;
+      }
       this.stageKeptAt.set(id, now);
       this.videoEnterStage(id);
     }
@@ -5915,6 +5968,8 @@ export class Orchestrator {
     for (const entry of this.browseFullCache.values()) { const c = hit(entry.cards); if (c) return c; }
     for (const entry of this.mostReadCache.values()) { const c = hit(entry.cards); if (c) return c; }
     { const c = hit(this.watchCards.cards); if (c) return c; }   // a watchlist card (2026-10-03)
+    // a series in The Binge (its row, or a genre of it from the phone's dropdown, 2026-10-16)
+    for (const entry of this.bingeCache.values()) for (const cand of entry.cands) if (cand.card.id === cardId && cand.card.services.some((s) => s.app === app)) return cand.card;
     return null;
   }
   // ---- the person's TMDB watchlist as My list (2026-10-03, "disable the existing My List items from different services and replace it with
@@ -6206,7 +6261,7 @@ export class Orchestrator {
   }
 
   // ---- remove from the service's own Continue Watching (2026-09-22): the adapter's script on a hidden surface in the App's profile
-  private readonly removeJobs = new Map<string, { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean }>();
+  private readonly removeJobs = new Map<string, { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean; seq?: number }>();
   /** What the wall can offer for an App's Continue Watching cards: whether the service has a remove script, and what to warn. */
   /** Hide a title from the wall's Continue Watching (a service whose site cannot remove it). */
   videoHideContinue(adapterKey: string, id: string): void { this.video.hideContinue(adapterKey, id); }
@@ -6215,16 +6270,21 @@ export class Orchestrator {
     return { can: !!spec?.videoRemoveContinue, warning: spec?.videoRemoveContinueWarning ?? null };
   }
   /** Start (or report) the removal of one title from one service's Continue Watching. A job is kept a minute after it ends, for the host's poll. */
-  videoRemoveContinue(s: { app: string; adapter: string; profile: string; home: string; status: string }, id: string, title: string): { status: "working" | "done" | "failed"; error?: string } {
+  videoRemoveContinue(s: { app: string; adapter: string; profile: string; home: string; status: string }, id: string, title: string): { status: "working" | "done" | "failed"; error?: string; ahead?: number } {
     const key = s.app + "|" + id;
     const have = this.removeJobs.get(key);
+    // removals on one service run one at a time (its hidden page); a queued one says how many are ahead of it, so a person's eighth Twitch removal
+    // is followed for as long as it waits (2026-10-15, "It doesn't seem to be able to handle multiple removals in a queue": the phone and the PC
+    // gave up after 200 s and put the card back while the PC was still on its way to it)
+    const ahead = (seq: number): number => { let n = 0; for (const [k, j] of this.removeJobs) if (k.startsWith(s.app + "|") && j.status === "working" && (j.seq ?? 0) < seq) n++; return n; };
+    if (have && have.status === "working") return { status: "working", ahead: ahead(have.seq ?? 0) };
     // a job in hand answers its polls; a finished one answers once more (the poll that reads its outcome) - after that a new ask is a new
     // job (1923's retry had been answered by the failure of a minute before, instantly, without trying, 2026-09-22)
     if (have && (have.status === "working" || (!have.reported && Date.now() - have.at < 60_000))) { if (have.status !== "working") have.reported = true; return have; }
     const spec = this.adapters.get(s.adapter);
     if (!spec?.videoRemoveContinue) return { status: "failed", error: "this service's adapter cannot remove titles yet" };
     if (s.status !== "signed-in") return { status: "failed", error: "sign in to the service first" };
-    const job: { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean } = { status: "working", at: Date.now() };
+    const job: { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean; seq?: number } = { status: "working", at: Date.now(), seq: ++this.removeSeq };
     this.removeJobs.set(key, job);
     this.touchLookups();
     void (async () => {
@@ -6248,12 +6308,15 @@ export class Orchestrator {
       }
       if (!a.r) { Object.assign(job, { status: "failed", error: a.error, at: Date.now() }); return; }
       const r = a.r;
-      if (!r.ok) { Object.assign(job, { status: "failed", error: r.error === "needs-profile" ? "the service is asking who's watching, so choose a profile for it first" : r.error || "the service did not remove it", at: Date.now() }); return; }
+      // still-live (2026-10-15, Twitch: "1 continues to return. Which I suspect is because it's live"): a broadcast still being recorded has no end to
+      // play out to - it came back after a removal called done at its live edge - so it is said plainly and left as it is
+      if (!r.ok) { Object.assign(job, { status: "failed", error: r.error === "needs-profile" ? "the service is asking who's watching, so choose a profile for it first" : r.error === "still-live" ? "it's still live, so it can't be removed until the broadcast ends. Try again then, or hide it on the PC" : r.error || "the service did not remove it", at: Date.now() }); return; }
       this.video.dropFromContinue(s.adapter, id);
       Object.assign(job, { status: "done", at: Date.now() });
     })();
     return job;
   }
+  private removeSeq = 0;
   static readonly REMOVE_ANSWER_TIMEOUT_MS = 40_000;
   /** A remove that has to play the video out (Twitch, 2026-10-13: a video played to its end leaves Continue Watching, one moved to its start does
    *  not): the page, the seek near the end, up to seventy seconds of muted play and the shelf read again. */
@@ -7641,6 +7704,15 @@ export class Orchestrator {
   videoAdsLook: AdLook = "veil";
   /** The Video player's cover pictures (2026-10-15): "photos" (the hand-picked pool, the default), "gallery" or "cosmos" (the packs). */
   videoCoverSource: "photos" | "gallery" | "cosmos" = "photos";
+  /** The cover pictures switched on (2026-10-15, "checkboxes next to the options, with only nature on by default, but allow them to enable cosmos
+   *  pack and museum pics. Require at least one selection"): each cover draws from all of them together. Never empty. */
+  videoCoverSources: Array<"photos" | "gallery" | "cosmos"> = ["photos"];
+  /** The sets for the shell, comma-joined ("photos,pack:cosmos"): the shell draws one picture from all of them together, every picture with the
+   *  same chance (2026-10-15, "Is the selection for veils random across the whole enabled picture set?" - core had chosen a set first). */
+  private videoCoverPick(): string {
+    const on = this.videoCoverSources.length ? this.videoCoverSources : ["photos" as const];
+    return on.map((one) => (one === "photos" ? "photos" : "pack:" + one)).join(",");
+  }
   /** A muted-only break's Unmute / Mute again, from the window's chip. */
   intermissionUnmute(id: string, on: boolean): boolean { return this.intermission.unmute(id, on); }
   private inBgPause(now: number): boolean {
@@ -8341,6 +8413,7 @@ export class Orchestrator {
       this.noteSeriesUp(event.id);
       return;
     }
+    if (event.type === "buffering") { if (event.on) this.pageBuffering.set(event.id, true); else this.pageBuffering.delete(event.id); this.videoLoadingTick(); return; }
     if (event.type === "fullscreen-element") {
       // §26: the shell auto-granted element fullscreen; presentation keeping reads the state from here
       if (event.contains) this.elementFullscreen.add(event.id); else this.elementFullscreen.delete(event.id);
@@ -9392,5 +9465,6 @@ export function bingeCandidateOf(card: import("./browse.js").BrowseCard, t: { ge
     runtime: median ?? ert ?? last, episodes: num(d.number_of_episodes), type: typeof d.type === "string" ? d.type : null,
     keywords: kw.map((k) => k.name).filter((n): n is string => typeof n === "string"),
     certification: typeof us?.rating === "string" && us.rating ? us.rating : null,
+    year: typeof d.first_air_date === "string" && /^[0-9]{4}/.test(d.first_air_date) ? Number(d.first_air_date.slice(0, 4)) : card.year ?? null,
   };
 }

@@ -110,17 +110,31 @@
   function initArt() {
     useBundled();   // instant paint; replaced by the hosted pool once it verifies
     if (state.onlineArt) {
-      (function tryHost(i) {
-        if (i >= ART_HOSTS.length) return;
-        loadHosted(ART_HOSTS[i]).then(function (list) {
-          if (!list.length) throw new Error("empty");
-          ART = list; artHost = ART_HOSTS[i]; current = -1; showArt();
-        }).catch(function () { tryHost(i + 1); });
-      })(0);
+      // the sets switched on in the popup (pv:ui.artSets, 2026-10-15: nature alone by default; Cosmos and Museum art in folders beside the
+      // pool, each list signed): every picture of every set is one candidate, so each has the same chance whatever its set's size
+      var SETS = { nature: "", cosmos: "cosmos/", gallery: "gallery/" };
+      chrome.storage.local.get("pv:ui", function (r) {
+        var on = ((r && r["pv:ui"] && r["pv:ui"].artSets) || ["nature"]).filter(function (k) { return SETS.hasOwnProperty(k); });
+        if (!on.length) on = ["nature"];
+        (function tryHost(i) {
+          if (i >= ART_HOSTS.length) return;
+          Promise.all(on.map(function (k) { return loadHosted(ART_HOSTS[i] + SETS[k]).catch(function () { return []; }); })).then(function (lists) {
+            var list = [].concat.apply([], lists);
+            if (!list.length) throw new Error("empty");
+            ART = list; artHost = ART_HOSTS[i]; current = -1; showArt();
+          }).catch(function () { tryHost(i + 1); });
+        })(0);
+      });
     }
     if (artTimer) clearInterval(artTimer);
     artTimer = setInterval(showArt, 4 * 60 * 1000);
   }
+  // the sets changed in the popup: the start page draws from the new ones at once
+  try { chrome.storage.onChanged.addListener(function (ch, area) {
+    if (area !== "local" || !ch["pv:ui"]) return;
+    var was = JSON.stringify((ch["pv:ui"].oldValue || {}).artSets || null), now = JSON.stringify((ch["pv:ui"].newValue || {}).artSets || null);
+    if (was !== now && state.onlineArt) { ART = []; artHost = ""; current = -1; initArt(); }
+  }); } catch (e) {}
 
   // ---- clock
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

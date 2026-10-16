@@ -23,6 +23,7 @@ entry never ships. Source page, author and license for every photo are in
 | `fetch-cred.py` | builds `hosted-cred/iffy.json` (Iffy Index via MBFC, CC BY 4.0; colour = MBFC factual rating) and `hosted-cred/sb.json` (Steven Black fakenews hosts, MIT; listed = red) |
 | `hosted-cred/` | GENERATED, git-ignored: the three source-reliability lists + `.sig` each -> `veil/credibility/` (`list` = RSP, `iffy`, `sb`) |
 | `refresh-pool.cmd` | fetch more -> regen -> sign -> upload, one command (weekly is plenty) |
+| `publish-packs.py` | serves Prism's Cosmos and Museum art packs (`../../packs`) beside the pool at `veil/art/cosmos/` and `veil/art/gallery/`, each with its own signed `list.json` (same key) and `manifest.json`; the extension's picture sets (popup, `pv:ui.artSets`, nature alone by default) read them. The pool's own list is untouched, and `upload-pool.py` never deletes inside those folders |
 
 ## Hosting (Tigris object storage, no machine)
 

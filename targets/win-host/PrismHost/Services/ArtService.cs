@@ -86,10 +86,41 @@ public sealed class ArtService
     /// </summary>
     public ArtPick? Pick(string? source)
     {
-        var packId = PackIdOf(source);
-        if (packId is not null && _packs.TryGetValue(packId, out var images) && images.Count > 0)
-            return images[_rng.Next(images.Count)];
-        return RandomPoolArt() is { } path ? new ArtPick(path, null, null) : null;
+        // one source or several, comma-joined ("photos,pack:cosmos,pack:gallery" - Watch settings' cover pictures, 2026-10-15): every picture of
+        // every set switched on is one candidate, so each has the same chance whatever the size of its set ("Is the selection for veils random
+        // across the whole enabled picture set?" - it had been a set first, then a picture), and the ones shown lately are passed over
+        var candidates = new List<ArtPick>();
+        var pool = false;
+        foreach (var part in (source ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var packId = PackIdOf(part);
+            if (packId is null) { pool = true; continue; }
+            if (_packs.TryGetValue(packId, out var images)) candidates.AddRange(images);
+        }
+        if (pool || candidates.Count == 0) candidates.AddRange(PoolArt().Select(p => new ArtPick(p, null, null)));   // a pack that shipped nothing: the pool
+        if (candidates.Count == 0) return null;
+        var fresh = candidates.Where(c => !_recent.Contains(c.Path)).ToList();
+        var pick = (fresh.Count > 0 ? fresh : candidates)[_rng.Next(fresh.Count > 0 ? fresh.Count : candidates.Count)];
+        _recent.Enqueue(pick.Path);
+        var keep = Math.Max(1, Math.Min(RecentMax, candidates.Count / 2));   // never more than half the candidates held back
+        while (_recent.Count > keep) _recent.Dequeue();
+        return pick;
+    }
+
+    /// <summary>The pictures shown lately, passed over by the next picks (RecentMax at most, half the candidates at most).</summary>
+    private readonly Queue<string> _recent = new();
+    private const int RecentMax = 30;
+
+    /// <summary>Every cached pool picture (the hand-picked photos); none yet starts the fetch.</summary>
+    private IEnumerable<string> PoolArt()
+    {
+        try
+        {
+            var files = Directory.GetFiles(Dir, "*.jpg");
+            if (files.Length == 0) _fetch ??= FetchAsync();
+            return files;
+        }
+        catch { return Array.Empty<string>(); }
     }
 
     /// <summary>"pack:gallery" -> "gallery"; anything else -> null (the pool / a photos album).</summary>

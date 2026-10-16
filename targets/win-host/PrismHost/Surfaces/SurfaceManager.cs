@@ -163,6 +163,10 @@ public sealed partial class SurfaceManager
         public Button? CornerX;
         /// <summary>A small multiview window's card for the service's own gate (SetGate).</summary>
         public Border? GateCard;
+        /// <summary>Prism's loading mark over the window (core's surface.setLoading, 2026-10-16).</summary>
+        public Border? LoadMark;
+        /// <summary>Simple Watch's dim over a corner window while Watch's rows are browsed (MainWindow.SetDim, 2026-10-16).</summary>
+        public Border? DimLayer;
         public FontIcon? FaceIcon, NpPlayIcon, NpMuteIcon;
         public TextBlock? NpTitle, NpArtist, NpTime;
         public Image? NpArt;
@@ -658,7 +662,8 @@ public sealed partial class SurfaceManager
         t.Dozing = false;
         try
         {
-            if (t.View?.CoreWebView2 is { } core) await core.CallDevToolsProtocolMethodAsync("Emulation.setCPUThrottlingRate", "{\"rate\":1}");
+            UneaseFor(t);   // its renderer at normal priority again, then its memory target (SurfaceManager.Parking)
+            ParkMemory(t, false);
             _onStatus("reader woke: " + t.Id);
             // a music page's player needs a moment after the thaw before a play lands (2026-10-04: the first play after a wake did nothing)
             if (IsMusicFacet(t)) await Task.Delay(400);
@@ -670,17 +675,18 @@ public sealed partial class SurfaceManager
     {
         foreach (var t in _tiles.Values.ToArray())
         {
-            if (!IsParkable(t) || t.View?.CoreWebView2 is not { } core) continue;
+            if (!IsParkable(t) || t.View?.CoreWebView2 is null) continue;
             if (!ReadersDark) { if (t.Dozing) await WakeAsync(t); continue; }
             if (t.Dozing) continue;
             var music = IsMusicFacet(t);
             if (music && (t.NpPlaying || DateTime.UtcNow - t.LastTouched < MusicIdle)) continue;
             if (!music && DateTime.UtcNow - t.LastTouched < ReaderIdle) continue;
-            // a doze is the page's CPU throttled eightfold, never the lifecycle's frozen state (2026-10-13, B-371): a page once frozen came back with
-            // its document hidden for good, whatever was done after, and YouTube's menus never opened on it again
-            try { await core.CallDevToolsProtocolMethodAsync("Emulation.setCPUThrottlingRate", "{\"rate\":8}"); t.Dozing = true; _onStatus((music ? "music parked: " : "reader dozing: ") + t.Id); }
-            catch (Exception ex) { _onStatus("reader doze " + t.Id + ": " + ex.Message); }
+            // a doze is the page's memory target Low and its renderer eased (SurfaceManager.Parking, 2026-10-16), never the lifecycle's frozen
+            // state (2026-10-13, B-371: a page once frozen came back with its document hidden for good, and YouTube's menus never opened on it
+            // again) and no longer the DevTools CPU throttle (a throttled page with work of its own held a full core, measured 2026-10-16)
+            ParkMemory(t, true); t.Dozing = true; _onStatus((music ? "music parked: " : "reader dozing: ") + t.Id);
         }
+        try { await EaseRenderersAsync(); } catch (Exception ex) { _onStatus("readers ease: " + ex.Message); }
     }
     /// <summary>How many readers doze now (perf.log).</summary>
     public int DozingCount => _tiles.Values.Count(t => t.Dozing);
@@ -2006,6 +2012,42 @@ public sealed partial class SurfaceManager
         ((TextBlock)btn.Content).Text = verbText;
         ToolTipService.SetToolTip(btn, "Presses the service's own " + verbText + " button.");
         t.GateCard.Visibility = Visibility.Visible;
+    }
+    /// <summary>Simple Watch's dim (2026-10-16): a dark layer over a corner window while the person browses Watch's rows - under the loading mark
+    /// and the gate card, taking no press, never the page's own picture; in at a short fade, out at once.</summary>
+    public void SetDim(string id, bool on)
+    {
+        if (Get(id) is not { } t) return;
+        if (!on) { if (t.DimLayer is { } d) d.Visibility = Visibility.Collapsed; return; }
+        if (t.DimLayer is null)
+        {
+            t.DimLayer = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC8, 0x0B, 0x0D, 0x12)), HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
+            Canvas.SetZIndex(t.DimLayer, 997);   // under the loading mark (998), the gate card (999) and the corner X (1000)
+            t.Container.Children.Add(t.DimLayer);
+        }
+        if (t.DimLayer.Visibility != Visibility.Visible) { t.DimLayer.Visibility = Visibility.Visible; Fade(t.DimLayer, 0, 1, 220); }
+    }
+    /// <summary>Prism's loading mark (2026-10-16, "Prism mark, all windows"): the triangle, breathing, on the dark substrate over a window while
+    /// core says it loads or waits for data; in at a short fade, out at once. It never takes a press (the page's own controls stay reachable).</summary>
+    public void SetLoading(string id, bool on)
+    {
+        if (Get(id) is not { } t) return;
+        if (!on) { if (t.LoadMark is { } old) old.Visibility = Visibility.Collapsed; return; }
+        if (t.LoadMark is null)
+        {
+            var icon = new Image { Width = 72, Height = 72, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+            try { var path = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon-192.png"); if (System.IO.File.Exists(path)) icon.Source = new BitmapImage(new Uri(path)); } catch { }
+            var breathe = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { From = 0.35, To = 1.0, Duration = new Duration(TimeSpan.FromMilliseconds(900)), AutoReverse = true, RepeatBehavior = Microsoft.UI.Xaml.Media.Animation.RepeatBehavior.Forever };
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(breathe, icon);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(breathe, "Opacity");
+            sb.Children.Add(breathe);
+            t.LoadMark = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0x0B, 0x0D, 0x12)), Child = icon, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, IsHitTestVisible = false };
+            Canvas.SetZIndex(t.LoadMark, 998);   // under the gate card (999) and the corner X (1000)
+            t.Container.Children.Add(t.LoadMark);
+            sb.Begin();
+        }
+        if (t.LoadMark.Visibility != Visibility.Visible) { t.LoadMark.Visibility = Visibility.Visible; Fade(t.LoadMark, 0, 1, 160); }
     }
     public void SetFloatBarShown(string id, bool shown)
     {
@@ -3678,6 +3720,20 @@ public sealed partial class SurfaceManager
   var lastSession = '';
   every(function () { try { var s = window.__prismSession || ''; if (s && s !== lastSession) { lastSession = s; post({ type: 'session', state: s }); } } catch (e) {} }, 1500);
   every(scan, 800);
+  // Prism's loading mark (2026-10-16): the page's largest video waiting for data while it should play - every page, every service; core
+  // decides whether the window wears the mark (a video window, outside an ad)
+  var lastBuf = false;
+  var bufScan = function () {
+    try {
+      var vs = document.querySelectorAll('video'), b = null, a = 0;
+      for (var i = 0; i < vs.length; i++) { var r = vs[i].getBoundingClientRect(); var ar = r.width * r.height; if (ar > a) { a = ar; b = vs[i]; } }
+      var on = !!(b && a > 40000 && !b.paused && !b.ended && b.readyState < 3);
+      if (on !== lastBuf) { lastBuf = on; post({ type: 'buffering', on: on }); }
+    } catch (e) {}
+  };
+  every(bufScan, 500);
+  addEventListener('waiting', function () { setTimeout(bufScan, 0); }, true);
+  addEventListener('playing', function () { setTimeout(bufScan, 0); }, true);
   var kick = function () { setTimeout(scan, 0); };
   addEventListener('playing', kick, true);
   addEventListener('pause', kick, true);

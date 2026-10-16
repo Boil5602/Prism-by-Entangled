@@ -31,6 +31,7 @@ public static class Ops
     public const string SurfaceSuspend = "surface.suspend";
     public const string SurfaceResume = "surface.resume";
     public const string SurfaceSetPeek = "surface.setPeek";
+    public const string SurfaceSetLoading = "surface.setLoading";
     public const string SurfaceShowIntermission = "surface.showIntermission";
     public const string SurfaceHideIntermission = "surface.hideIntermission";
     public const string SurfaceSetIntermissionSkip = "surface.setIntermissionSkip";
@@ -54,6 +55,7 @@ public static class Ops
     public const string UiRoute = "ui.route";
     public const string UiTapResult = "ui.tapResult";
     public const string UiVideoPick = "ui.videoPick";
+    public const string UiScreenClear = "ui.screenClear";
     public const string UiPrivateMute = "ui.privateMute";
     public const string UiListenRoutes = "ui.listenRoutes";
     public const string UiUpdateRestart = "ui.updateRestart";
@@ -342,6 +344,7 @@ public static class SurfaceEvents
     public const string Popup = "popup";
     public const string MusicResult = "music-result";
     public const string ProfileMigrated = "profile-migrated";
+    public const string Buffering = "buffering";
 }
 
 /// <summary>One command from core; RequestId is set on request-lane ops.</summary>
@@ -427,6 +430,11 @@ public sealed record SurfaceResumeCommand(
 public sealed record SurfaceSetPeekCommand(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("peeking")] bool Peeking);
+
+/// <summary>surface.setLoading [M1]</summary>
+public sealed record SurfaceSetLoadingCommand(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("on")] bool On);
 
 /// <summary>surface.showIntermission [M1]</summary>
 public sealed record SurfaceShowIntermissionCommand(
@@ -557,7 +565,12 @@ public sealed record UiTapResultCommand(
 public sealed record UiVideoPickCommand(
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("service")] string Service,
+    [property: JsonPropertyName("window")] double Window,
     [property: JsonPropertyName("poster")] string? Poster = null);
+
+/// <summary>ui.screenClear [M1]</summary>
+public sealed record UiScreenClearCommand(
+    [property: JsonPropertyName("tile")] string? Tile = null);
 
 /// <summary>ui.privateMute [M1]</summary>
 public sealed record UiPrivateMuteCommand(
@@ -572,7 +585,8 @@ public sealed record UiUpdateRestartCommand();
 
 /// <summary>ui.breakWatch [M1]</summary>
 public sealed record UiBreakWatchCommand(
-    [property: JsonPropertyName("on")] bool On);
+    [property: JsonPropertyName("on")] bool On,
+    [property: JsonPropertyName("mode")] string Mode);
 
 /// <summary>display.setBrightness [stub until later milestone]</summary>
 public sealed record DisplaySetBrightnessCommand(
@@ -715,6 +729,7 @@ public static class ChannelSchema
         ["surface.suspend"] = false,
         ["surface.resume"] = false,
         ["surface.setPeek"] = false,
+        ["surface.setLoading"] = false,
         ["surface.showIntermission"] = false,
         ["surface.hideIntermission"] = false,
         ["surface.setIntermissionSkip"] = false,
@@ -738,6 +753,7 @@ public static class ChannelSchema
         ["ui.route"] = false,
         ["ui.tapResult"] = false,
         ["ui.videoPick"] = false,
+        ["ui.screenClear"] = false,
         ["ui.privateMute"] = false,
         ["ui.listenRoutes"] = false,
         ["ui.updateRestart"] = false,
@@ -786,6 +802,7 @@ public static class ChannelSchema
         "surface.suspend",
         "surface.resume",
         "surface.setPeek",
+        "surface.setLoading",
         "surface.showIntermission",
         "surface.hideIntermission",
         "surface.setIntermissionSkip",
@@ -806,6 +823,7 @@ public static class ChannelSchema
         "ui.route",
         "ui.tapResult",
         "ui.videoPick",
+        "ui.screenClear",
         "ui.privateMute",
         "ui.listenRoutes",
         "ui.updateRestart",

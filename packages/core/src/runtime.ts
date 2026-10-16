@@ -308,6 +308,8 @@ export interface PrismRuntimeApi {
   videoSetCoverSource(source: string): string;
   /** Sync JSON {ok, on, asked}: Watch's Service suggestions switch, named to core - while on, each service's home page is read on its hidden surface for the service's own rows (every few hours); `asked` = the Apps whose home page is being read now. */
   videoSetSuggestions(on: boolean): string;
+  /** Simple Watch is on at the PC (the host's own switch, said at each Watch draw and when it changes): the phone's Watch draws the same calm way. */
+  videoSetSimpleWatch(on: boolean): string;
   /** Sync JSON {ok}: a muted-only break's Unmute (true) or Mute again (false), for this break. */
   intermissionUnmute(tileId: string, on: boolean): string;
   /** §4a lenses. Sync JSON {ok, active}: the lens over the menu's rows, or null for none (the default). Not persisted: every boot starts with none. */
@@ -705,6 +707,7 @@ export function createBridgeDrivers(): Drivers {
       // §25: brackets one peek — the shell keeps the still up until readiness and never lets an
       // aborted peek's freeze replace it (no white frames, §16).
       setPeek: (id: string, peeking: boolean) => send("surface.setPeek", { id, peeking }),
+      setLoading: (id: string, on: boolean) => send("surface.setLoading", { id, on }),
       showIntermission: (id: string, source: string, look?: string) =>
         send("surface.showIntermission", { id, source, ...(look ? { look } : {}) }),
       hideIntermission: (id: string) => send("surface.hideIntermission", { id }),
@@ -739,10 +742,11 @@ export function createBridgeDrivers(): Drivers {
       // concept-scenes §5: the verdict of one tap, back to whoever is showing state (pill, phone).
       tapResult: (id: string, r: import("./drivers.js").TapOutcome) =>
         send("ui.tapResult", { id, action: r.action, did: r.did, audio: r.audio ?? null, error: r.error ?? null }),
-      videoPick: (title: string, service: string, poster: string | null) => send("ui.videoPick", { title, service, poster }),
+      videoPick: (title: string, service: string, poster: string | null, window?: number) => send("ui.videoPick", { title, service, poster, window: window ?? 0 }),
+      screenClear: (tile: string | null) => send("ui.screenClear", { tile }),
       privateMute: (on: boolean) => send("ui.privateMute", { on }),
       listenRoutes: (json: string) => send("ui.listenRoutes", { json }),
-      breakWatch: (on: boolean) => send("ui.breakWatch", { on }),
+      breakWatch: (on: boolean, mode?: string) => send("ui.breakWatch", { on, mode: mode ?? (on ? "all" : "off") }),
       updateRestart: () => send("ui.updateRestart", {}),
     },
     display: {
@@ -1110,6 +1114,20 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   /** A title dropped on an empty place ("drop", "new"): the pick that follows takes the next place free when it arrives, not the place the shell
    *  counted (2026-10-15, five titles dropped one after another - the second named the place the first was still opening, and replaced it). */
   let mvDropNewAt = 0;
+  /** "Add a window" on the phone (2026-10-15): the phone's next pick, within five minutes, opens the next window - a person browsing takes longer than a drop. */
+  let mvNewUntil = 0;
+  /** A pick from the phone (2026-10-15, "Why can't the phone just use the pc path it takes when I drag a title onto any window?"): each pick names its
+   *  window (the phone keeps the choice), set as a drop just before the pick - the PC's own drag path - so nothing stands between the choice and
+   *  the pick for the PC's Watch to put back. A phone pick naming no window plays on the big screen; the phone steps its own choice along. */
+  let pickByPhone = false;
+  /** Where the phone's last pick was placed (0 the big window), for the PC's word on it. */
+  let phonePlacedAt = 0;
+  /** The PC's own target while a phone pick borrowed it for its drop, put back after. */
+  let pcTargetKept: number | null = null;
+  const asPhone = <T,>(f: () => T): T => {
+    pickByPhone = true; phonePlacedAt = 0;
+    try { return f(); } finally { pickByPhone = false; if (pcTargetKept !== null) { mvTarget = pcTargetKept; pcTargetKept = null; } }
+  };
   const mvWindows = (): Array<{ tile: string; facet: string; app: string; slot: boolean }> => {
     const sv = videoServices();
     const scene = sv.scene ? model.scene(sv.scene) : undefined;
@@ -1173,9 +1191,12 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     for (const f of model.snapshot().facets) if (MV_COPY.test(f.id)) model.removeFacet(f.id);
   };
   /** Where a pick lands with multiview on: {tile, ready} - ready when the service already had a window (play now), else once its page is up. */
-  const mvPlace = (facetId: string): { tile: string; ready: boolean; sceneId?: string; refused?: string } | null => {
-    mvDropAt = 0;   // a drop is used by the pick that follows it
-    const dropNew = Date.now() - mvDropNewAt < MV_DROP_MS; mvDropNewAt = 0;
+  const mvPlace = (facetId: string): { tile: string; ready: boolean; sceneId?: string; refused?: string; step?: { at: number; count: number } | null } | null => {
+    const wasDrop = Date.now() - mvDropAt < MV_DROP_MS; mvDropAt = 0;   // a drop is used by the pick that follows it
+    // the phone's picks go by its drop alone: the PC's own target and armed new window are the PC's
+    const dropNew = Date.now() - mvDropNewAt < MV_DROP_MS || (!pickByPhone && Date.now() < mvNewUntil); mvDropNewAt = 0;
+    if (!pickByPhone) mvNewUntil = 0;
+    const placeAsked = pickByPhone && !wasDrop ? 0 : mvTarget;
     const st = orchestrator.videoMultiviewState();
     if (!st.on || !st.slot) return null;
     const sv = videoServices();
@@ -1183,7 +1204,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const facet = model.facet(facetId);
     if (!scene || !facet) return null;
     const wins = mvWindows();
-    const target = st.collapsed ? 0 : dropNew ? Math.min(MV_MAX - 1, mvWindows().length) : Math.max(0, Math.min(MV_MAX - 1, mvTarget));   // hidden: a pick is the big window's
+    const target = st.collapsed ? 0 : dropNew ? Math.min(MV_MAX - 1, mvWindows().length) : Math.max(0, Math.min(MV_MAX - 1, placeAsked));   // hidden: a pick is the big window's
+    if (pickByPhone) phonePlacedAt = target;
+    // a pick into a small window or a new place moves the target on, as Watch's Play into does (2026-10-15, the phone: "make it just like Watch"); a drop names its own place
+    const steps = !pickByPhone && !wasDrop && !st.collapsed && (dropNew || target > 0);
     const order = wins.map((w) => w.tile);
     // the target place already shows this service: the title plays there; a service elsewhere keeps its window and its title
     const atTarget = target < wins.length ? wins[target] : undefined;
@@ -1193,9 +1217,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (!have && parked && parked.app === facet.app) {
       order.splice(Math.min(target, order.length), 0, st.slot);
       void orchestrator.videoMultiviewOrder(order.slice(0, MV_MAX));
-      return { tile: st.slot, ready: true };
+      return { tile: st.slot, ready: true, step: steps ? { at: order.indexOf(st.slot), count: Math.min(order.length, MV_MAX) } : null };
     }
-    if (have) return { tile: have.tile, ready: true };
+    if (have) return { tile: have.tile, ready: true, step: steps ? { at: target, count: order.length } : null };
     // the service's own limit on streams at once (adapter maxStreams): a window past it would sit on an empty player with no word from the
     // service (2026-09-29, a fourth Paramount+ live window) - refused, in words, before it is made
     const app = model.app(facet.app);
@@ -1238,7 +1262,15 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     mvDropCopies();   // a copy whose window gave way
     const applied = applyScene(scene.id);
     void orchestrator.videoMultiviewOrder(order);
-    return { tile, ready: false, ...(applied && (applied as { ok?: boolean }).ok !== false ? { sceneId: scene.id } : {}) };
+    return { tile, ready: false, step: steps ? { at: order.indexOf(tile), count: order.length } : null, ...(applied && (applied as { ok?: boolean }).ok !== false ? { sceneId: scene.id } : {}) };
+  };
+  /** After a pick that steps (mvPlace): the next place - the next window, a new one when the next place is empty (the next pick opens it), the big
+   *  window again after the last place - as Watch's target steps after a small window is filled, so all five can be set in a row. */
+  const mvStepAfter = (step: { at: number; count: number }): void => {
+    if (step.at < 0) return;
+    const next = step.at + 1;
+    const t = next >= MV_MAX ? 0 : next, adding = next < MV_MAX && next >= step.count ? Date.now() + 5 * 60_000 : 0;
+    mvTarget = t; mvNewUntil = adding;
   };
   // a small window with no video closes (2026-09-24, "all the multiview windows are filled with some junk. Its not supposed to show any of
   // them if not assigned a video"): a pick that failed closes its window at once; a window with nothing playing a title - a home page, a
@@ -1432,6 +1464,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     } catch (e) { report(e); }
   }, 20_000);
   // checked every few seconds while multiview is on - nothing may be asking for its state while a person just watches
+  setInterval(() => { try { orchestrator.videoLoadingTick(); } catch (e) { report(e); } }, 300);   // Prism's loading mark (2026-10-16)
   setInterval(() => { try { if (orchestrator.videoMultiviewState().on) { mvPruneEmpty(); orchestrator.videoStageKeep(); } } catch (e) { report(e); } }, 5000);
   // the wall's cover over the service's pages while a press moves the screen to another episode (2026-10-06: start-over's previous episode,
   // "I pressed back episode 3x ... it showed the pages while I was navigating"; the next episode, "it showed the big door prize home page, and
@@ -1540,12 +1573,12 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const to = Math.max(0, Math.min(order.length - 1, at));
       if (i !== to) { const other = order[to]!; order[to] = tile; order[i] = other; void orchestrator.videoMultiviewOrder(order); }
     } else if (action === "target") {
-      mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0));
+      mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0)); mvNewUntil = 0;
     } else if (action === "drop") {
       // a title dropped on a window (2026-10-15): the target, and the next pick replaces what that window shows - the big one's too; on an empty
       // place ("new") the next pick opens the next window, wherever the windows stand by then
       if (arg === "new") { mvDropNewAt = Date.now(); mvDropAt = 0; }
-      else { mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0)); mvDropAt = Date.now(); mvDropNewAt = 0; }
+      else { mvTarget = Math.max(0, Math.min(MV_MAX - 1, Number(arg) || 0)); mvDropAt = Date.now(); mvDropNewAt = 0; mvNewUntil = 0; }   // a drop on a window is that window, whatever was armed
     } else if (action !== "state") return { ok: false, error: "unknown multiview action " + action };
     return { ok: true, ...mvState() };
   };
@@ -1563,8 +1596,10 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const scr = sv.screen;
     const bt = scr ? vs.find((x) => x.id === scr.slot) : undefined;
     const loading = !!bt?.pending && !bt.pending.failed && !bt.video;
-    const bigTitle = bt?.video ? [bt.video.series, bt.video.title].filter(Boolean).join(" \u00B7 ") : loading ? bt!.pending!.name : null;
-    const big = scr ? { tile: scr.slot, app: scr.app, name: sv.services.find((x) => x.app === scr.app)?.name ?? scr.app, title: bigTitle, loading, playing: !!bt?.playing, starting: !!scr && orchestrator.videoStartingOpen(scr.slot), has: !!bt?.video || loading } : null;   // playing: the host's corner holds a loading title out until it plays (2026-10-06)
+    // a service's page opened for the person's own pick (its search, kind "open", 2026-10-16) is up: the corner and the stage show it, named
+    const opened = !bt?.video && !loading ? bt?.opened ?? null : null;
+    const bigTitle = bt?.video ? [bt.video.series, bt.video.title].filter(Boolean).join(" \u00B7 ") : loading ? bt!.pending!.name : opened ? opened.name : null;
+    const big = scr ? { tile: scr.slot, app: scr.app, name: sv.services.find((x) => x.app === scr.app)?.name ?? scr.app, title: bigTitle, loading, playing: !!bt?.playing, starting: !!scr && orchestrator.videoStartingOpen(scr.slot), has: !!bt?.video || loading || !!opened, opened: !!opened } : null;   // playing: the host's corner holds a loading title out until it plays (2026-10-06)
     return { on: st.on && !st.collapsed, target: mvTarget, max: MV_MAX, windows: st.collapsed ? wins.slice(0, 1) : wins, big };
   };
   const videoSwitch = (facetId: string): Record<string, unknown> => {
@@ -2051,15 +2086,16 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   let pauseLoaded = false;
   // Watch settings' Video ads (2026-10-07): veil (the default), mute or show - read once the store answers, kept on every change
   const ADS_LOOK_KEY = "video:ads-look";
-  const COVER_SOURCE_KEY = "video:cover-source";   // the cover pictures (2026-10-15)
+  const COVER_SOURCE_KEY = "video:cover-source";   // the cover pictures (2026-10-15): one or more of photos, gallery, cosmos, comma-joined
+  const coverSourcesOf = (v: unknown): Array<"photos" | "gallery" | "cosmos"> => [...new Set(String(v ?? "").split(",").map((x) => x.trim()))].filter((x): x is "photos" | "gallery" | "cosmos" => x === "photos" || x === "gallery" || x === "cosmos");
   let adsLookLoaded = false;
   const loadAdsLook = () => {
     if (adsLookLoaded) return;
     try {
       const v = tilesRead(ADS_LOOK_KEY);
       if (v === "veil" || v === "mute" || v === "show") orchestrator.videoAdsLook = v;
-      const cs = tilesRead(COVER_SOURCE_KEY);
-      if (cs === "photos" || cs === "gallery" || cs === "cosmos") orchestrator.videoCoverSource = cs;
+      const cs = coverSourcesOf(tilesRead(COVER_SOURCE_KEY));   // "photos" as kept before 2026-10-15, or "photos,cosmos"
+      if (cs.length) { orchestrator.videoCoverSources = cs; orchestrator.videoCoverSource = cs[0]!; }
       adsLookLoaded = true;
     } catch { /* tried again below */ }
   };
@@ -2069,6 +2105,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   // while it is on. The host keeps the switch (its pref) and says it again whenever Watch opens; kept here so a restart knows before then.
   const SUGGESTIONS_KEY = "video:suggestions";
   let suggestionsLoaded = false;
+  // Simple Watch at the PC (the host's own switch, host-prefs video.simpleWatch): said by the host at each Watch draw; the phone's Watch follows it (2026-10-16)
+  let simpleWatchOn = false;
   const loadSuggestions = () => {
     if (suggestionsLoaded) return;
     try {
@@ -2653,6 +2691,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const mv = mvPlace(facetId);
     if (mv?.refused) return { ok: false, error: mv.refused };
     if (mv) {
+      if (mv.step) mvStepAfter(mv.step);
       if (mv.ready) orchestrator.videoPlay(mv.tile, kind, id, url, name ?? undefined).then((r) => { if (r !== "ok") report(new Error("videoPlayOn " + facetId + ": " + r)); }, report);
       else orchestrator.videoPlayWhenUp(mv.tile, { kind, id, url, ...(name ? { name } : {}) });
       return { ok: true, switched: !mv.ready, multiview: true, tile: mv.tile, ...(mv.sceneId ? { sceneId: mv.sceneId } : {}) };
@@ -3488,7 +3527,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     async videoChannelInfo(appId, url) { try { const c = await orchestrator.videoChannelInfo(hiddenServices(), String(appId ?? ""), String(url ?? "")); return json({ ok: !!c, channel: c }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRefreshApp(appId, owned) { try { return json({ ok: orchestrator.videoRefreshApp(hiddenServices(), String(appId ?? ""), owned === true) }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoSettings() {
-      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, coverSource: orchestrator.videoCoverSource, suggestions: orchestrator.videoSuggestions }); }
+      try { if (!pauseLoaded) { loadPause(); pauseLoaded = true; } loadAdsLook(); return json({ pause: orchestrator.bgPause, tmdbKey: orchestrator.lensHasKey(), background: orchestrator.backgroundState(), adsLook: orchestrator.videoAdsLook, coverSource: orchestrator.videoCoverSources.join(","), suggestions: orchestrator.videoSuggestions }); }
       catch (e) { report(e); return json({ pause: { on: false, from: "23:00", to: "07:00" }, tmdbKey: false }); }
     },
     videoSetPause(on, from, to) {
@@ -3502,10 +3541,12 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     videoSetCoverSource(source) {
       try {
-        if (source !== "photos" && source !== "gallery" && source !== "cosmos") return json({ ok: false, error: "source is photos, gallery or cosmos" });
-        orchestrator.videoCoverSource = source; adsLookLoaded = true;
-        void drivers.store?.set(COVER_SOURCE_KEY, source);
-        return json({ ok: true, source });
+        // one or more of photos, gallery, cosmos (comma-joined); at least one stays on
+        const on = coverSourcesOf(source);
+        if (!on.length) return json({ ok: false, error: "Keep at least one set of pictures on" });
+        orchestrator.videoCoverSources = on; orchestrator.videoCoverSource = on[0]!; adsLookLoaded = true;
+        void drivers.store?.set(COVER_SOURCE_KEY, on.join(","));
+        return json({ ok: true, source: on.join(","), sources: on });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoSetAdsLook(look) {
@@ -3516,6 +3557,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return json({ ok: true, look });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
+    videoSetSimpleWatch(on) { simpleWatchOn = on === true; return json({ ok: true, on: simpleWatchOn }); },
     videoSetSuggestions(on) {
       try {
         loadSuggestions();
@@ -4401,6 +4443,11 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     job: (id) => plParse(api.playlistJob(id)),
     confirm: (id, yes) => plParse(api.playlistJobConfirm(id, yes ? "1" : "0")),
   };
+  /** A catalog card as the phone's rows draw it (TMDB's title, the services that carry it). */
+  const phoneCatalogCard = (c: Record<string, unknown>): Record<string, unknown> => {
+    const svcs = (c.services as Array<{ app: string; name: string; facet: string; offer: string }>) ?? [];
+    return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) };
+  };
   remote.video = {
     view: () => {
       const sv = videoServices();
@@ -4414,7 +4461,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         // TMDB's poster beside the service's own picture (2026-10-11): the phone draws every card tall, so the poster comes first where there is one
         item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item) },
       });
-      const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }>) => cs.filter((c) => !off.has(c.app)).slice(0, 40).map(card);
+      const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }>) => cs.filter((c) => !off.has(c.app)).map(card);   // every card the PC row has (2026-10-16, "remove the cap": it had been 40)
       const tile = sv.screen?.slot ?? null;
       const st = tile ? orchestrator.videoState().find((x) => x.id === tile) ?? null : null;
       const art = tile ? orchestrator.videoArtOf(tile) : null;
@@ -4442,15 +4489,15 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     play: (facet, kind, id, url, name) => {
       orchestrator.notePersonAbout();
-      const r = videoPlayOn(facet, kind, id, url, name);
+      const r = asPhone(() => videoPlayOn(facet, kind, id, url, name));
       // the PC's Watch screen stood over the playing video (2026-10-05, "No video playing on the PC"): the same close-and-curtain its own press does
-      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? id, sv?.name ?? facet, null); }
+      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? id, sv?.name ?? facet, null, phonePlacedAt); }
       return r;
     },
     tune: (facet, channel, url, name) => {
       orchestrator.notePersonAbout();
-      const r = videoTune(facet, channel, url, name);
-      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? channel, sv?.name ?? facet, null); }
+      const r = asPhone(() => videoTune(facet, channel, url, name));
+      if (r.ok) { const sv = videoServices().services.find((x) => x.facet === facet); void drivers.ui?.videoPick?.(name ?? channel, sv?.name ?? facet, null, phonePlacedAt); }
       return r;
     },
     seek: (tile, seconds) => orchestrator.videoSeek(tile, seconds),
@@ -4468,8 +4515,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     playResult: (app, candidate) => {
       orchestrator.notePersonAbout();
       const c = candidate as { title?: string };
-      const r = videoPlayResult(app, JSON.stringify(candidate));
-      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(c.title ?? "the title", sv?.name ?? app, null); }
+      const r = asPhone(() => videoPlayResult(app, JSON.stringify(candidate)));
+      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(c.title ?? "the title", sv?.name ?? app, null, phonePlacedAt); }
       return r;
     },
     episodes: () => { try { return JSON.parse(api.videoEpisodes()) as unknown; } catch (e) { report(e); return { ready: true, seasons: [], error: String(e) }; } },
@@ -4499,23 +4546,28 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const m = videoMenu() as { lensRows?: Array<Record<string, unknown>> };
       const rows = (m.lensRows ?? []).map((lr) => {
         const catalog = lr.catalog === true;
-        const cards = ((lr.cards as Array<Record<string, unknown>>) ?? []).slice(0, 30).map((c) => {
-          if (catalog) {
-            const svcs = (c.services as Array<{ app: string; name: string; facet: string; offer: string }>) ?? [];
-            return { catalog: true, id: c.id, title: c.title, kind: c.kind, year: c.year ?? null, artwork: c.poster ?? c.backdrop ?? null, value: c.value ?? null, rating: c.rating ?? null, services: svcs.map((s) => ({ app: s.app, name: s.name, offer: s.offer })) };
-          }
+        const cards = ((lr.cards as Array<Record<string, unknown>>) ?? []).map((c) => {   // every card the PC row has (2026-10-16, "remove the cap": it had been 30)
+          if (catalog) return phoneCatalogCard(c);
           const it = c.item as VideoItem;
           return { catalog: false, app: c.app, service: c.service, facet: c.facet, lens: (c.lens as { label?: string } | null)?.label ?? null, rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null, item: { id: it.id, title: it.title, subtitle: it.subtitle ?? null, kind: it.kind, url: it.url ?? null, artwork: it.artwork ?? null, poster: orchestrator.posterFor(it.title, it.kind), progress: it.progress ?? null, about: aboutOf(String(c.app ?? ""), it) } };
         });
-        return { id: lr.id, name: lr.name, simple: lr.simple ?? null, sourceShort: lr.sourceShort ?? null, editIn: lr.editIn ?? null, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards };   // simple + sourceShort: the plain words the PC's (i) shows (2026-10-14)
+        return { id: lr.id, name: lr.name, simple: lr.simple ?? null, sourceShort: lr.sourceShort ?? null, editIn: lr.editIn ?? null, counted: lr.counted, who: lr.who ?? null, source: lr.source, dataDate: lr.dataDate ?? null, reading: lr.reading ?? 0, cards, total: ((lr.cards as unknown[]) ?? []).length };   // simple + sourceShort: the plain words the PC's (i) shows (2026-10-14)
       }).filter((r) => r.cards.length || r.reading);
-      return { rows };
+      return { rows, simpleWatch: simpleWatchOn };   // the phone's Watch follows the PC's Simple Watch (2026-10-16)
+    },
+    // The Binge by genre for the phone (2026-10-16, "Maybe we should add a genre breakdown for binge? So people can drill into it"): the PC's full
+    // view's genres, each with every series in it, as the row's catalog cards
+    bingeGenres: () => {
+      try {
+        const v = JSON.parse(api.videoBingeView()) as { genres?: Array<{ genre: string; cards?: Array<Record<string, unknown>> }>; reading?: number };
+        return { genres: (v.genres ?? []).map((g) => ({ genre: g.genre, cards: (g.cards ?? []).map(phoneCatalogCard) })), reading: v.reading ?? 0 };
+      } catch (e) { report(e); return { genres: [], reading: 0, error: String(e) }; }
     },
     browsePlay: (app, cardId) => {
       orchestrator.notePersonAbout();
       const card = orchestrator.videoBrowseCard(cardId, app);
-      const r = videoBrowsePlay(app, cardId);
-      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(card?.title ?? "the title", sv?.name ?? app, card?.poster ?? null); }
+      const r = asPhone(() => videoBrowsePlay(app, cardId));
+      if (r.ok) { const sv = videoServices().services.find((x) => x.app === app); void drivers.ui?.videoPick?.(card?.title ?? "the title", sv?.name ?? app, card?.poster ?? null, phonePlacedAt); }
       return r;
     },
     liveRead: () => { try { return JSON.parse(api.videoLiveRead(false)) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
@@ -4527,9 +4579,36 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const owner = orchestrator.getState()?.audioOwner ?? null;
       return { on: !!st.on, listening, windows: wins.map((w, i) => ({ tile: w.tile, index: i, label: i === 0 ? "Big window" : "Window " + (i + 1), name: w.name, title: w.title, playing: w.playing, heard: (listening ?? wins[0]?.tile) === w.tile, owner: owner === w.tile })) };
     },
+    screens: () => {
+      const st = mvState() as { on?: boolean; windows?: Array<Record<string, unknown>>; max?: number; big?: Record<string, unknown> | null };
+      const wins = st.windows ?? [];
+      return { on: !!st.on, max: st.max ?? MV_MAX, big: st.big ?? null,
+        windows: wins.map((w, i) => ({ tile: w.tile, index: i, label: i === 0 ? "Big window" : "Window " + (i + 1), name: w.name, title: w.title, playing: w.playing })) };
+    },
+    // the window the phone's next pick names, set as the PC's drag sets it (a drop) - the pick follows in the same request
+    into: (place: number | "new") => {
+      const st = orchestrator.videoMultiviewState();
+      if (place === "new") { if (!st.on || st.collapsed) videoMultiview("on"); videoMultiview("drop", "new"); return; }
+      if (!st.on || st.collapsed || place <= 0) return;
+      if (pcTargetKept === null) pcTargetKept = mvTarget;
+      videoMultiview("drop", String(place));
+    },
+    // a screen cleared from the phone (2026-10-15, "I should be able to tap and clear a screen"): the PC's own X on a window - or its Clear screens
+    // when the big screen is the only one - so the PC's windows and chrome follow as they do for its own press
+    screenClear: (index: number) => {
+      const st = orchestrator.videoMultiviewState();
+      const wins = mvWindows();
+      const multi = !!st.on && !st.collapsed && wins.length > 1;
+      const w = multi ? wins[index] : undefined;
+      if (multi && !w) return { ok: false, error: "no such window" };
+      if (!multi && index !== 0) return { ok: false, error: "no such window" };
+      if (!drivers.ui?.screenClear) return { ok: false, error: "this shell cannot clear a screen" };
+      void drivers.ui.screenClear(w ? w.tile : null);
+      return { ok: true };
+    },
     listenWindow: async (tile: string | null, listener?: string) => { const r = await orchestrator.setListenWindow(tile, listener); return { ok: r === "ok", result: r, listening: listener ? orchestrator.listenWindowOf(listener) : orchestrator.listenWindow }; },
     privateMute: (on: boolean) => { void drivers.ui?.privateMute?.(on); return { ok: !!drivers.ui?.privateMute, on }; },
-    breakWatch: (on: boolean) => { void drivers.ui?.breakWatch?.(on); return { ok: !!drivers.ui?.breakWatch, on }; },
+    breakWatch: (mode: "all" | "sure" | "off") => { void drivers.ui?.breakWatch?.(mode !== "off", mode); return { ok: !!drivers.ui?.breakWatch, on: mode !== "off", mode }; },
     // a title out of Continue Watching from the phone (2026-10-15): the PC's card menu's three calls
     // a rating from the phone's card menu (2026-10-15, "Should also be able to score items from the context menu"): the PC's own two calls
     rate: (kind, id, value) => { try { return JSON.parse(api.tmdbRate(kind, id, value)) as unknown; } catch (e) { report(e); return { status: "failed", error: String(e) }; } },

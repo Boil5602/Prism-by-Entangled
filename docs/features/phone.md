@@ -17,6 +17,13 @@ phones. The app should also enable the private listening feature through the pho
    suggests it. Whether the wall's password manager offers to save is the page's doing (its own markup); the phone's text arrives
    through the browser's input pipeline like a keyboard's, so the offer should come as it would for one - to be seen on a real
    sign-in.
+   A username or password on the wall is typed into a sign-in form's own boxes on the phone (autocomplete `username` and
+   `current-password`, inside a form), so the phone's password manager - Bitwarden, 1Password, the phone's own - offers to fill it
+   (2026-10-15, "How do we make the keyboard allow entries from password managers like Bitwarden?"). The manager fills the phone and
+   the person presses Send (or Go, which is Send + Enter), one field at a time as for anything typed; Prism fills nothing itself and
+   keeps nothing. The page is served from the PC's address, not the service's, so a manager matches no login by itself: the person
+   searches the vault for the service, or adds the Prism page's address to the item once. A manager that fills both boxes at once
+   leaves the password waiting in its box until the wall's password field is focused.
 3. **Listen.** Earbuds in, press *Listen on this phone*. The wall's sound plays on the phone. The wall keeps playing for the room:
    while a phone listens, the wall's mute and volume act on the playback device (the TV or soundbar) and the phone has its own
    (2026-10-04, "We should have volume separation between the two"). Two ways to carry the sound, swapped under the page's options

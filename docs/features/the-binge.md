@@ -10,6 +10,7 @@ episodic series the household can play right now on this device.
 | Total episodes | ≥ 80 | TMDB/TVmaze |
 | Episodic format | Scripted or animated, not a miniseries, no community "serialized" keyword | TMDB type + keywords |
 | Quality floor | TMDB ≥ 7.0 with ≥ 500 votes | TMDB |
+| Released in (2026-10-15) | first aired in 1888 or later: the oldest surviving film's year, so the default leaves nothing out; a person sets a later year to keep older shows out, and a series whose year is not known is never left out for it | TMDB (first_air_date) |
 | Available here | Streaming on ≥ 1 service signed in on this device | TMDB watch providers (JustWatch data; attribution required) matched to signed-in Apps |
 
 Episodic note (shown to users): no open data marks shows episodic vs.

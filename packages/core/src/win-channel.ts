@@ -66,6 +66,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // with peeking=true … peeking=false so the host can hold §16 across it: the still stays up until readiness,
   // and a freeze arriving from the PEEK_TIMEOUT_MS abort keeps the last still instead of capturing a blank.
   { op: "surface.setPeek", m1: true, fields: { id: "string", peeking: "boolean" } },
+  { op: "surface.setLoading", m1: true, fields: { id: "string", on: "boolean" } },   // Prism's loading mark over a video window (2026-10-16)
   { op: "surface.showIntermission", m1: true, fields: { id: "string", source: "string", look: "string?" } },
   { op: "surface.hideIntermission", m1: true, fields: { id: "string" } },
   { op: "surface.setIntermissionSkip", m1: true, fields: { id: "string", available: "boolean", target: "string?" } },
@@ -104,11 +105,12 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // async) and core answers here — from an on-wall tap and from the §6 remote alike, so both report one verdict.
   { op: "ui.tapResult", m1: true, fields: { id: "string", action: "string", did: "string", audio: "string?", error: "string?" } },
   // a video pick from the phone (2026-10-05): the host closes its Watch screen and raises its curtain, as its own card press does
-  { op: "ui.videoPick", m1: true, fields: { title: "string", service: "string", poster: "string?" } },
+  { op: "ui.videoPick", m1: true, fields: { title: "string", service: "string", poster: "string?", window: "number" } },
+  { op: "ui.screenClear", m1: true, fields: { tile: "string?" } },   // a screen cleared from the phone (2026-10-15): the PC's X on that window, null its Clear screens
   { op: "ui.privateMute", m1: true, fields: { on: "boolean" } },
   { op: "ui.listenRoutes", m1: true, fields: { json: "string" } },
   { op: "ui.updateRestart", m1: true, fields: {} },   // the phone's Restart into the new version (2026-10-15): the PC restarts into the release it staged, as its own Updates window does
-  { op: "ui.breakWatch", m1: true, fields: { on: "boolean" } },   // the phone's switch for covering YouTube TV's channel breaks (2026-10-07)   // each phone's window (2026-10-06): {routes: {listener: tile}, hero}
+  { op: "ui.breakWatch", m1: true, fields: { on: "boolean", mode: "string" } },   // the phone's switch for covering YouTube TV's channel breaks (2026-10-07)   // each phone's window (2026-10-06): {routes: {listener: tile}, hero}
   // -------------------------------------------------------------- display
   { op: "display.setBrightness", fields: { value: "number" } },
   { op: "display.setPower", fields: { state: "string" } },
@@ -383,5 +385,5 @@ export const SURFACE_EVENT_TYPES: string[] = [
   "navigated", "focus-result", "ad-break", "skip-available", "ad-info", "ad-hold", "listener-lost",
   "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip", "gpu-reset",
   "media-position", "now-playing", "session", "fullscreen-element", "popup", "music-result",
-  "profile-migrated",
+  "profile-migrated", "buffering",
 ];

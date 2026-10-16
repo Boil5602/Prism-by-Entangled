@@ -2,6 +2,22 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.34.0 - 2026-10-16 (alpha, cf5b09c5)
+
+Simple Watch, a calmer Watch page. Switch it on in Watch settings, or choose Calm when Prism first opens. Continue watching comes first and larger, with a Resume button for the first title in it, then My list and The Binge, and every other row waits behind More to watch. Ratings, ribbons and row controls appear when you point at a card or reach it with the remote, nothing on the page moves by itself, and the small screens dim while you browse. The phone's Watch follows the same switch. Prism also uses much less of the PC when nothing plays, because idle hidden pages no longer hold a processor core each. Also new: Prism's own loading mark over every video window, Netflix's preview pictures over the slider again, three break choices for every YouTube TV channel, a minimum release year for The Binge, The Binge by genre and full rows on the phone, cover pictures from Nature, Cosmos and Museum art sets, and every screen with Play into on the phone's Video tab. Password managers can fill the phone keyboard's sign-in boxes. A title that starts while Watch is open moves into its corner, switching Watch's tabs no longer reloads the small screens, and when a service cannot find a title by itself its own search opens for you to pick from.
+
+- download: https://prism.entangled.world/windows/Prism-0.34.0-cf5b09c5.zip
+- sha256: 3c9a898af2c421ca28b7cfce9a89965ea06262a5dbbdc5eca9edb65b21c577fa
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.34.0
+
+## 0.32.0 - 2026-10-15 (alpha, ee723725)
+
+Multiview and ad covers, from a day of watching five streams at once. A title dropped or clicked onto a window replaces what that window shows, the big one included, and titles dropped one after another each get a window of their own. A window whose video has ended closes, and a window whose player slips out of its frame goes back by itself, after a restart or a graphics reset too. Twitch's side-by-side display ads are covered, the cover counts its ads, its muted-audio notice is hidden, and its content warning shows on the small windows with its own Start watching. Netflix's pause ad shows your show's own panel and a Play button with the ad covered, and Netflix's error page is caught and the title opened again once. The cover's pictures are the nature photos by default, with a choice in Watch settings, and Clear all is gone from the playing controls.
+
+- download: https://prism.entangled.world/windows/Prism-0.32.0-ee723725.zip
+- sha256: e1a4a2c59dce3120314f9bb2977f42a41497279c6a64445c8017bd1e93c21347
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.32.0
+
 ## 0.31.1 - 2026-10-15 (alpha, 87fa0b80)
 
 New pictures, and they move. Prism's picture pool is now 134 hand-picked photos instead of nearly four thousand: coral reefs, Monument Valley, glaciers, wildflowers, lava, nebulae and more, all CC0 or public domain. Pictures that left the pool leave your PC too. The picture over an ad break now drifts slowly, easing in with a gentle pan the way the extension's start page does, and it stays still if Windows' animations are off.

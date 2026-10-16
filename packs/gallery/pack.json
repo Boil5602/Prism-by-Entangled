@@ -1,8 +1,8 @@
 {
   "schema": "prism.imagery-pack/v0.1",
   "id": "gallery",
-  "name": "Gallery",
-  "blurb": "Public-domain paintings from open museum collections.",
+  "name": "Museum art",
+  "blurb": "Public-domain paintings and prints from the Art Institute of Chicago's open collection.",
   "source": {
     "name": "Art Institute of Chicago — Open Access",
     "url": "https://api.artic.edu/"
@@ -10,238 +10,778 @@
   "requiresCreator": true,
   "images": [
     {
-      "file": "aic-76571.jpg",
-      "title": "View of Cotopaxi",
-      "creator": "Frederic Edwin Church",
-      "date": "1857",
+      "file": "aic-129849.jpg",
+      "title": "Houses at Murnau",
+      "creator": "Vasily Kandinsky",
+      "date": "1909",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Gift of Jennette Hamlin in memory of Mr. and Mrs. Louis Dana Webster",
+      "creditLine": "Bequest of Katharine Kuh",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Frederic Edwin Church, View of Cotopaxi (1857) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/76571",
-      "sha256": "64a573bf23b7f5ed4aee0ae98ff1989c8b20c9cbe1f7a4794f742c74cca353da",
+      "attribution": "Vasily Kandinsky, Houses at Murnau (1909) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/129849",
+      "sha256": "a034127ce4fbdae06ba356dfae6c1fde56779f2562ea2f6ca261a975f97c298a",
       "w": 1686,
-      "h": 1119
+      "h": 1299
     },
     {
-      "file": "aic-90048.jpg",
-      "title": "Distant View of Niagara Falls",
-      "creator": "Thomas Cole",
-      "date": "1830",
+      "file": "aic-8983.jpg",
+      "title": "Painting with Troika",
+      "creator": "Vasily Kandinsky",
+      "date": "January 18, 1911",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Friends of American Art Collection",
+      "creditLine": "Arthur Jerome Eddy Memorial Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Thomas Cole, Distant View of Niagara Falls (1830) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/90048",
-      "sha256": "da794da3f19926b44fbb94344c96de9eb6e75c956ba1d98f3c8401d47e24def6",
+      "attribution": "Vasily Kandinsky, Painting with Troika (January 18, 1911) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/8983",
+      "sha256": "9c43b1fc974c64591fad4336751a9e868d55ede800c68a518a4c8992403ba4ad",
       "w": 1686,
-      "h": 1306
+      "h": 1238
     },
     {
-      "file": "aic-64724.jpg",
-      "title": "The Home of the Heron",
-      "creator": "George Inness",
-      "date": "1893",
+      "file": "aic-18307.jpg",
+      "title": "Shirasuka: Shiomi Slope,no. 33 from the series Fifty-Three Stations of the Tokaido (Tōkaidō gojūsan tsugi)",
+      "creator": "Utagawa Hiroshige",
+      "date": "1847-52",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Edward B. Butler Collection",
+      "creditLine": "Gift of Mr. and Mrs. Harold G. Henderson",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "George Inness, The Home of the Heron (1893) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/64724",
-      "sha256": "997ae037b170a2b3d4b2c9551dcb645b85db97647833b72d46deca3954bd920e",
+      "attribution": "Utagawa Hiroshige, Shirasuka: Shiomi Slope,no. 33 from the series Fifty-Three Stations of the Tokaido (Tōkaidō gojūsan tsugi) (1847-52) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/18307",
+      "sha256": "1af58e2afb19bea355498cf73b756f2882d8f6af973b67a89a3dce49c548ab4a",
       "w": 1686,
-      "h": 1103
+      "h": 1125
     },
     {
-      "file": "aic-71971.jpg",
-      "title": "Mist Rising at Sunset in the Catskills",
-      "creator": "Sanford Robinson Gifford",
-      "date": "c. 1861",
+      "file": "aic-16617.jpg",
+      "title": "Chrysanthemums",
+      "creator": "Pierre-Auguste Renoir",
+      "date": "1881–82",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Gift of Jamee J. and Marshall Field",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Sanford Robinson Gifford, Mist Rising at Sunset in the Catskills (c. 1861) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/71971",
-      "sha256": "5542c8e4a21cffdd753defd75a59abfaa5a24dc406dda61987de96e212a33d4a",
+      "attribution": "Pierre-Auguste Renoir, Chrysanthemums (1881–82) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/16617",
+      "sha256": "62e8615dc40ed4cc6ebe4c4f009719c37406b2389426779b7b1b270c9ff74c1c",
+      "w": 1686,
+      "h": 1403
+    },
+    {
+      "file": "aic-28560.jpg",
+      "title": "The Bedroom",
+      "creator": "Vincent van Gogh",
+      "date": "1889",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Helen Birch Bartlett Memorial Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Vincent van Gogh, The Bedroom (1889) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/28560",
+      "sha256": "24325ee9e957a3fcd874d8b4e2d0f0c596dcd7071635936cc1207b39d31c1951",
+      "w": 1686,
+      "h": 1320
+    },
+    {
+      "file": "aic-8980.jpg",
+      "title": "Landscape with Two Poplars",
+      "creator": "Vasily Kandinsky",
+      "date": "1912",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Arthur Jerome Eddy Memorial Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Vasily Kandinsky, Landscape with Two Poplars (1912) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/8980",
+      "sha256": "60ff649d005f33d1ecca1b4f0683701580e0280fdd3d59a4beed74a8bff35f10",
+      "w": 1686,
+      "h": 1328
+    },
+    {
+      "file": "aic-18278.jpg",
+      "title": "Hodogaya: Katabira River and Katabira Brige (Hodogaya, Katabiragawa Katabirabashi)—No. 5, from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Reisho Tokaido",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1847/52",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Mr. and Mrs. Harold G. Henderson",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, Hodogaya: Katabira River and Katabira Brige (Hodogaya, Katabiragawa Katabirabashi)—No. 5, from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Reisho Tokaido (c. 1847/52) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/18278",
+      "sha256": "40e072ab8db801d48ad6105ffabb7186eb4fe1d3a52e85b21fd04d431030a505",
+      "w": 1686,
+      "h": 1150
+    },
+    {
+      "file": "aic-100627.jpg",
+      "title": "Fishing Boats at Choshi in Shimosa (Soshu Choshi) from the series \"One Thousand Pictures of the Ocean (Chie no umi)\"",
+      "creator": "Katsushika Hokusai",
+      "date": "c. 1833/34",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Kate S. Buckingham Endowment",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Fishing Boats at Choshi in Shimosa (Soshu Choshi) from the series \"One Thousand Pictures of the Ocean (Chie no umi)\" (c. 1833/34) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/100627",
+      "sha256": "b05b603341f9d966fe18aa04bc3de3f38020ab3bb07b2176f121bdb0c1ed2886",
+      "w": 1686,
+      "h": 1246
+    },
+    {
+      "file": "aic-89503.jpg",
+      "title": "Under the Wave off Kanagawa (Kanagawa oki nami ura), also known as The Great Wave, from the series \"Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)\"",
+      "creator": "Katsushika Hokusai",
+      "date": "1830/33",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Under the Wave off Kanagawa (Kanagawa oki nami ura), also known as The Great Wave, from the series \"Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)\" (1830/33) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/89503",
+      "sha256": "a34e336c4f4a71fc029dc42c9f720b95672e3c0cef55cd1c5c19920d2738cba5",
+      "w": 1686,
+      "h": 1166
+    },
+    {
+      "file": "aic-10932.jpg",
+      "title": "Snow at Akabane Bridge in Shiba (Shiba Akabane no yuki), from the series \"Famous Places in the Eastern Capital (Toto meisho)\"",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1843/47",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of H. R. Warner",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, Snow at Akabane Bridge in Shiba (Shiba Akabane no yuki), from the series \"Famous Places in the Eastern Capital (Toto meisho)\" (c. 1843/47) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/10932",
+      "sha256": "a731c7bc088a5df654aaf3c98fb7153a3ed0074077400a09fa0ba114fa31fcd6",
+      "w": 1686,
+      "h": 1124
+    },
+    {
+      "file": "aic-89524.jpg",
+      "title": "Ariwara no Narihirafrom the series One Hundred Poems Explained by the Nurse (Hyakunin isshu uba ga etoki)",
+      "creator": "Katsushika Hokusai",
+      "date": "1835–36",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Ariwara no Narihirafrom the series One Hundred Poems Explained by the Nurse (Hyakunin isshu uba ga etoki) (1835–36) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/89524",
+      "sha256": "918eb4e33bcc7141c7348dea4fff8b1c2402b03eabe5bbef8d8c356ce07aeddb",
+      "w": 1686,
+      "h": 1164
+    },
+    {
+      "file": "aic-122130.jpg",
+      "title": "Les Andelys, Côte d'Aval",
+      "creator": "Paul Signac",
+      "date": "1886",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Through prior gift of William Wood Prince",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Paul Signac, Les Andelys, Côte d'Aval (1886) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/122130",
+      "sha256": "528d3c89637a31d8732efd7e216b4bc469f1d06f337494ab090e71fa2aa858fb",
       "w": 1686,
       "h": 1102
     },
     {
-      "file": "aic-109228.jpg",
-      "title": "Near Newport",
-      "creator": "John Frederick Kensett",
-      "date": "1869",
+      "file": "aic-16629.jpg",
+      "title": "Fruits of the Midi",
+      "creator": "Pierre-Auguste Renoir",
+      "date": "1881",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Friends of American Art Collection; Goodman Fund",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "John Frederick Kensett, Near Newport (1869) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/109228",
-      "sha256": "b172edebc25f7c5910ec79806cd6eaf85780c99cce1a4f9efc4a5ddd307c3f58",
+      "attribution": "Pierre-Auguste Renoir, Fruits of the Midi (1881) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/16629",
+      "sha256": "4e99136ddb16c4e4986938f5cbfa0ef4789932049749cb276a8c67f335d15bc3",
       "w": 1686,
-      "h": 783
+      "h": 1300
     },
     {
-      "file": "aic-100829.jpg",
-      "title": "Magnolias on Light Blue Velvet Cloth",
-      "creator": "Martin Johnson Heade",
-      "date": "1885–95",
+      "file": "aic-95654.jpg",
+      "title": "Near the Lake",
+      "creator": "Pierre-Auguste Renoir",
+      "date": "1879–80",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "Purchased with funds provided by Gloria and Richard Manney; Harold L. Stuart Endowment Fund",
+      "creditLine": "Potter Palmer Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Martin Johnson Heade, Magnolias on Light Blue Velvet Cloth (1885–95) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/100829",
-      "sha256": "559d865278abbe7691cdc5ff4aecaca0fe9ed16833baf8149c0ee0d47a839e7f",
+      "attribution": "Pierre-Auguste Renoir, Near the Lake (1879–80) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/95654",
+      "sha256": "4483ed0ea60d4a4951be04fcb8a9268a72b779742b168a49325353d67df8648f",
       "w": 1686,
-      "h": 1036
+      "h": 1412
     },
     {
-      "file": "aic-27163.jpg",
-      "title": "Niagara Falls in Winter",
-      "creator": "Jasper Francis Cropsey",
+      "file": "aic-14792.jpg",
+      "title": "Olive Trees, Corfu",
+      "creator": "John Singer Sargent",
+      "date": "1909",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Olivia Shaler Swan Memorial Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "John Singer Sargent, Olive Trees, Corfu (1909) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/14792",
+      "sha256": "01196cdf0df2c5e1f91acbc990d11c270c282a6bd024bf683bbaec7f20e1441d",
+      "w": 1686,
+      "h": 1199
+    },
+    {
+      "file": "aic-38666.jpg",
+      "title": "The Water Fan",
+      "creator": "Winslow Homer",
+      "date": "1898/99",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Dorothy A., John A., Jr., and Christopher Holabird in memory of William and Mary Holabird",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Winslow Homer, The Water Fan (1898/99) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/38666",
+      "sha256": "01bc0aa0593cd5e0ec06f1944d99f5ba8663e78b1bdcf7741a610cac5d184d3f",
+      "w": 1686,
+      "h": 1174
+    },
+    {
+      "file": "aic-4783.jpg",
+      "title": "Poppy Field (Giverny)",
+      "creator": "Claude Monet",
+      "date": "1890–91",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. W. W. Kimball Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Claude Monet, Poppy Field (Giverny) (1890–91) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/4783",
+      "sha256": "ab2df77c3f8e70f91f0867f438c895b318214fe070c48258936d14bf52aa5038",
+      "w": 1686,
+      "h": 1095
+    },
+    {
+      "file": "aic-113100.jpg",
+      "title": "North Woods Club, Adirondacks (The Interrupted Tete-a-Tete)",
+      "creator": "Winslow Homer",
+      "date": "1892",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Winslow Homer, North Woods Club, Adirondacks (The Interrupted Tete-a-Tete) (1892) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/113100",
+      "sha256": "5184688db993dadb130a43dc9ef6d493ad0fa915ff448bd1e0d36ef834b1a4f5",
+      "w": 1686,
+      "h": 1170
+    },
+    {
+      "file": "aic-111062.jpg",
+      "title": "Te raau rahi (The Big Tree)",
+      "creator": "Paul Gauguin",
+      "date": "1891",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Kate L. Brewster",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Paul Gauguin, Te raau rahi (The Big Tree) (1891) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/111062",
+      "sha256": "b8c588d5866fc5d950303b58e8cb00f26f8568ed52252de304fb33f81e9ecc51",
+      "w": 1686,
+      "h": 1330
+    },
+    {
+      "file": "aic-25110.jpg",
+      "title": "Chrysanthemum and Horsefly, from an untitled series of Large Flowers",
+      "creator": "Katsushika Hokusai",
+      "date": "c. 1831–33",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Chrysanthemum and Horsefly, from an untitled series of Large Flowers (c. 1831–33) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/25110",
+      "sha256": "cc7b0f4754edc8c8dbd05c20fb3926f14185d3b7b52d32d77388b12b5f3b6a04",
+      "w": 1686,
+      "h": 1159
+    },
+    {
+      "file": "aic-4368.jpg",
+      "title": "Mitsuke: Ferries Crossing the Tenryu River (Mitsuke, Tenryugawa funawatashi), from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Tokaido with Poem (Kyoka iri Tokaido)",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1837/42",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, Mitsuke: Ferries Crossing the Tenryu River (Mitsuke, Tenryugawa funawatashi), from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Tokaido with Poem (Kyoka iri Tokaido) (c. 1837/42) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/4368",
+      "sha256": "a8c2e075747e5db28ce832cb64dbbc89271d259bf12a6f87ef92aa14db108496",
+      "w": 1686,
+      "h": 1259
+    },
+    {
+      "file": "aic-142537.jpg",
+      "title": "Study of a Tree in Bloom",
+      "creator": "William Turner",
+      "date": "c. 1835",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Sara R. Shorey Endowment",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "William Turner, Study of a Tree in Bloom (c. 1835) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/142537",
+      "sha256": "c58d19209d2a0515832ba1fccb33acfe198b1fb2c27cea30714ede0409aad91d",
+      "w": 1686,
+      "h": 1199
+    },
+    {
+      "file": "aic-24800.jpg",
+      "title": "Ejiri in Suruga Province (Sunshu Ejiri), from the series \"Thirty-six Views of Mount Fuji (Fugaku sanjurokkei)\"",
+      "creator": "Katsushika Hokusai",
+      "date": "c. 1830/33",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Ejiri in Suruga Province (Sunshu Ejiri), from the series \"Thirty-six Views of Mount Fuji (Fugaku sanjurokkei)\" (c. 1830/33) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/24800",
+      "sha256": "12f710061c0d85a980ab42f5936219a213b4122c3e766a26e0acc511bb174ce8",
+      "w": 1686,
+      "h": 1148
+    },
+    {
+      "file": "aic-3652.jpg",
+      "title": "Togetsu Bridge at Arashiyama in Yamashiro Province (Yamashiro Arashiyama no Togetsukyo), from the series \"Unusual Views of Famous Bridges in Various Provinces (Shokoku meikyo kiran)\"",
+      "creator": "Katsushika Hokusai",
+      "date": "c. 1833/34",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Katsushika Hokusai, Togetsu Bridge at Arashiyama in Yamashiro Province (Yamashiro Arashiyama no Togetsukyo), from the series \"Unusual Views of Famous Bridges in Various Provinces (Shokoku meikyo kiran)\" (c. 1833/34) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/3652",
+      "sha256": "d153ad5e8606d59780029477f83ab476605ed19ab8deed7f15704f6b87268288",
+      "w": 1686,
+      "h": 1143
+    },
+    {
+      "file": "aic-14586.jpg",
+      "title": "The Poet's Garden",
+      "creator": "Vincent van Gogh",
+      "date": "1888",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Lewis Larned Coburn Memorial Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Vincent van Gogh, The Poet's Garden (1888) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/14586",
+      "sha256": "f31eceb5a993cd064d6182c7eac6a9199cca268387ca967bfa6cd92599e6888f",
+      "w": 1686,
+      "h": 1332
+    },
+    {
+      "file": "aic-81537.jpg",
+      "title": "Bordighera",
+      "creator": "Claude Monet",
+      "date": "1884",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Potter Palmer Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Claude Monet, Bordighera (1884) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/81537",
+      "sha256": "6c53ae44e103d05b04d57c0f7b3c00b3203236b6156dcc7b544ae9de118ca9a3",
+      "w": 1686,
+      "h": 1357
+    },
+    {
+      "file": "aic-61616.jpg",
+      "title": "Oil Sketch for \"A Sunday on La Grande Jatte — 1884\"",
+      "creator": "Georges Seurat",
+      "date": "1884",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Mary and Leigh Block",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Georges Seurat, Oil Sketch for \"A Sunday on La Grande Jatte — 1884\" (1884) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/61616",
+      "sha256": "ab38db235089a6f2653708e4d2048956ad81698dee0a4723a3a376da8a56b3bf",
+      "w": 1686,
+      "h": 1033
+    },
+    {
+      "file": "aic-81539.jpg",
+      "title": "On the Bank of the Seine, Bennecourt",
+      "creator": "Claude Monet",
       "date": "1868",
       "credit": "Art Institute of Chicago, Public Domain",
-      "creditLine": "A. A. McKay Fund",
+      "creditLine": "Potter Palmer Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Jasper Francis Cropsey, Niagara Falls in Winter (1868) — Art Institute of Chicago, public domain",
-      "sourceUrl": "https://www.artic.edu/artworks/27163",
-      "sha256": "b5b14028d1ba69cafa4ad50388d95f0e434cea0fc442280b9a0b2acc5199a4e9",
+      "attribution": "Claude Monet, On the Bank of the Seine, Bennecourt (1868) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/81539",
+      "sha256": "98dc9177145ede4e7f139829895c580ba2c4dcde85f982b521719150205199cb",
       "w": 1686,
-      "h": 1015
+      "h": 1362
     },
     {
-      "file": "met-10481.jpg",
-      "title": "Heart of the Andes",
-      "creator": "Frederic Edwin Church",
-      "date": "1859",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Bequest of Margaret E. Dows, 1909",
+      "file": "aic-109314.jpg",
+      "title": "Fishing in Spring, the Pont de Clichy (Asnières)",
+      "creator": "Vincent van Gogh",
+      "date": "1887",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Charles Deering McCormick, Brooks McCormick, and Roger McCormick",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Frederic Edwin Church, Heart of the Andes (1859) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10481",
-      "sha256": "e0be54abb9d69f4f924da4ab4e2ade23464cd134c0a0b534cd58c19187b63c81",
-      "w": 3811,
-      "h": 2099
+      "attribution": "Vincent van Gogh, Fishing in Spring, the Pont de Clichy (Asnières) (1887) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/109314",
+      "sha256": "cba32c787fd142dd039ee6823c089e8f07dde3c1337bc2987b9c7201886f3035",
+      "w": 1686,
+      "h": 1406
     },
     {
-      "file": "met-10945.jpg",
-      "title": "Isola Bella in Lago Maggiore",
-      "creator": "Sanford Robinson Gifford",
-      "date": "1871",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Gift of Colonel Charles A. Fowler, 1921",
+      "file": "aic-4378.jpg",
+      "title": "Arai, from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Tokaido with Poem (Kyoka iri Tokaido)",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1837/42",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Sanford Robinson Gifford, Isola Bella in Lago Maggiore (1871) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10945",
-      "sha256": "f6b8802c6dc15f3c7c185311ff2e5072bbc397ddefe16561bfd9f7276d1ed84a",
-      "w": 3811,
-      "h": 2141
+      "attribution": "Utagawa Hiroshige, Arai, from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi),\" also known as the Tokaido with Poem (Kyoka iri Tokaido) (c. 1837/42) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/4378",
+      "sha256": "e47c639f83a2c2d3c6ca975679be89ccc7cd1c6eb3ab9405778805ad2d8a654a",
+      "w": 1686,
+      "h": 1230
     },
     {
-      "file": "met-11311.jpg",
-      "title": "Lake George",
-      "creator": "John Frederick Kensett",
-      "date": "1869",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Bequest of Maria DeWitt Jesup, from the collection of her husband, Morris K. Jesup, 1914",
+      "file": "aic-87008.jpg",
+      "title": "Shower Below the Summit (Sanka hakuu), from the series \"Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)\"",
+      "creator": "Katsushika Hokusai",
+      "date": "c. 1830/33",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "John Frederick Kensett, Lake George (1869) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/11311",
-      "sha256": "a9c2a6f08d19629035179b79072dcb559a6eb115966b0a9a052ff065e1a0400b",
-      "w": 3811,
-      "h": 2577
+      "attribution": "Katsushika Hokusai, Shower Below the Summit (Sanka hakuu), from the series \"Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)\" (c. 1830/33) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/87008",
+      "sha256": "d97dfb0390e24e5f411d0f6e73275a68c1f799b09431d7031c03154065042c5b",
+      "w": 1686,
+      "h": 1167
     },
     {
-      "file": "met-11050.jpg",
-      "title": "Approaching Thunder Storm",
-      "creator": "Martin Johnson Heade",
-      "date": "1859",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Gift of Erving Wolf Foundation and Mr. and Mrs. Erving Wolf, in memory of Diane R. Wolf, 1975",
+      "file": "aic-87000.jpg",
+      "title": "Haymaking at Éragny",
+      "creator": "Camille Pissarro",
+      "date": "1892",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Bruce Borland",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Martin Johnson Heade, Approaching Thunder Storm (1859) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/11050",
-      "sha256": "6847ffa5cf072e89826d0a37feff04ba33209f098a7148fd3383fbc2194d3e27",
-      "w": 1959,
-      "h": 1245
+      "attribution": "Camille Pissarro, Haymaking at Éragny (1892) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/87000",
+      "sha256": "60262ac9327c292d650f1af841dd5be8ae590046f83658f2100e0240874927b8",
+      "w": 1686,
+      "h": 1352
     },
     {
-      "file": "met-10793.jpg",
-      "title": "Landscape—Scene from \"Thanatopsis\"",
-      "creator": "Asher Brown Durand",
-      "date": "1850",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Gift of J. Pierpont Morgan, 1911",
+      "file": "aic-16487.jpg",
+      "title": "The Bay of Marseille, Seen from L'Estaque",
+      "creator": "Paul Cezanne",
+      "date": "c. 1885",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Asher Brown Durand, Landscape—Scene from \"Thanatopsis\" (1850) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10793",
-      "sha256": "06cdc8d2dba8df2bfa30f0167b6b160d63e2b11376bcb04840268e931fce2eaa",
-      "w": 3811,
-      "h": 2489
+      "attribution": "Paul Cezanne, The Bay of Marseille, Seen from L'Estaque (c. 1885) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/16487",
+      "sha256": "f24fd7ade0ef267f1e4447598568a1d83c59897010f154273e9c30f892e1072e",
+      "w": 1686,
+      "h": 1351
     },
     {
-      "file": "met-10154.jpg",
-      "title": "The Rocky Mountains, Lander's Peak",
-      "creator": "Albert Bierstadt",
-      "date": "1863",
-      "credit": "The Metropolitan Museum of Art, Open Access (CC0 1.0)",
-      "creditLine": "Rogers Fund, 1907",
+      "file": "aic-183043.jpg",
+      "title": "An April Shower: A View from Binsey Ferry Near Oxford, Looking Towards Port Meadow and Godstow",
+      "creator": "William Turner",
+      "date": "1842",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Helen A. Regenstein Endowment",
       "license": {
         "id": "public-domain",
         "name": "Public domain (CC0 1.0)",
         "url": "https://creativecommons.org/publicdomain/zero/1.0/"
       },
-      "attribution": "Albert Bierstadt, The Rocky Mountains, Lander's Peak (1863) — The Metropolitan Museum of Art, CC0 1.0",
-      "sourceUrl": "https://www.metmuseum.org/art/collection/search/10154",
-      "sha256": "b0159f218c5363e2e6108eb01dde44cf96b10c3e25dc4b431d7d335daf942a2e",
-      "w": 3811,
-      "h": 2284
+      "attribution": "William Turner, An April Shower: A View from Binsey Ferry Near Oxford, Looking Towards Port Meadow and Godstow (1842) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/183043",
+      "sha256": "ffc8cb1a42486c1731ba81d4a3e2c6f813649d1ddd0c59809ad9e4a95ca763c5",
+      "w": 1686,
+      "h": 1105
+    },
+    {
+      "file": "aic-81557.jpg",
+      "title": "Seascape",
+      "creator": "Pierre-Auguste Renoir",
+      "date": "1879",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Potter Palmer Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Pierre-Auguste Renoir, Seascape (1879) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/81557",
+      "sha256": "a2343f4967acf83022a0f2775f665801e5970c291a9a712c6bec22477d7c142a",
+      "w": 1686,
+      "h": 1329
+    },
+    {
+      "file": "aic-37741.jpg",
+      "title": "Watering Place at Marly",
+      "creator": "Alfred Sisley",
+      "date": "1875",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Mrs. Clive Runnells",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Alfred Sisley, Watering Place at Marly (1875) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/37741",
+      "sha256": "6a469475a69cb2a2f640f7828e9761f0666303d67d40914f17772b47da51cd67",
+      "w": 1686,
+      "h": 1180
+    },
+    {
+      "file": "aic-19040.jpg",
+      "title": "Snow at Benzaiten Shrine in Inokashira Pond (Inokashira no ike Benzaiten no yashiro yuki no kei), from the series \"Snow, Moon, and Flowers at Famous Places (Meisho setsugekka)\"",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1844/45",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, Snow at Benzaiten Shrine in Inokashira Pond (Inokashira no ike Benzaiten no yashiro yuki no kei), from the series \"Snow, Moon, and Flowers at Famous Places (Meisho setsugekka)\" (c. 1844/45) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/19040",
+      "sha256": "f8f1a574ccd7e97aa7ac2b46874fdd982aa638a0eb38efa849d501fef735a64c",
+      "w": 1686,
+      "h": 1083
+    },
+    {
+      "file": "aic-14620.jpg",
+      "title": "Cliff Walk at Pourville",
+      "creator": "Claude Monet",
+      "date": "1882",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Lewis Larned Coburn Memorial Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Claude Monet, Cliff Walk at Pourville (1882) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/14620",
+      "sha256": "4390e6c9f489c22c493526e7f0b6e5e00a0ee386b888c8445f3aa8438172a3e7",
+      "w": 1686,
+      "h": 1350
+    },
+    {
+      "file": "aic-16554.jpg",
+      "title": "The Artist's House at Argenteuil",
+      "creator": "Claude Monet",
+      "date": "1873",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Claude Monet, The Artist's House at Argenteuil (1873) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/16554",
+      "sha256": "4c2b1ab43de65d279e021a954c545537ff02098ba6ac3a9c4fa09ced645be998",
+      "w": 1686,
+      "h": 1377
+    },
+    {
+      "file": "aic-16633.jpg",
+      "title": "The Seine at Port-Marly, Piles of Sand",
+      "creator": "Alfred Sisley",
+      "date": "1875",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Mr. and Mrs. Martin A. Ryerson Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Alfred Sisley, The Seine at Port-Marly, Piles of Sand (1875) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/16633",
+      "sha256": "0467848c8abf2be9f5e1f4c95be86868d5bc8d704223ee14efcd0aa4da124a47",
+      "w": 1686,
+      "h": 1204
+    },
+    {
+      "file": "aic-25613.jpg",
+      "title": "Kanbara: Evening Snow (Kanbara, yoru no yuki), from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi no uchi),\" also known as the Hoeido Tokaido",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1833/34",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Clarence Buckingham Collection",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, Kanbara: Evening Snow (Kanbara, yoru no yuki), from the series \"Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi no uchi),\" also known as the Hoeido Tokaido (c. 1833/34) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/25613",
+      "sha256": "eb19993048605630840e894aee23a698dbe322a70a5b66a6ee927cc817487609",
+      "w": 1686,
+      "h": 1094
+    },
+    {
+      "file": "aic-20545.jpg",
+      "title": "Rocks at Port-Goulphar, Belle-Île",
+      "creator": "Claude Monet",
+      "date": "1886",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of Mr. and Mrs. Chauncey B. Borland",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Claude Monet, Rocks at Port-Goulphar, Belle-Île (1886) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/20545",
+      "sha256": "b3acc602f446b96e5f143bdf45acf1929316a2784d9825dd20d03caf00af10ee",
+      "w": 1686,
+      "h": 1350
+    },
+    {
+      "file": "aic-11054.jpg",
+      "title": "No. 32: Seba, from the series \"Sixty-nine Stations of the Kisokaido (Kisokaido rokujukyu tsugi no uchi)\"",
+      "creator": "Utagawa Hiroshige",
+      "date": "c. 1835/38",
+      "credit": "Art Institute of Chicago, Public Domain",
+      "creditLine": "Gift of H. R. Warner",
+      "license": {
+        "id": "public-domain",
+        "name": "Public domain (CC0 1.0)",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+      },
+      "attribution": "Utagawa Hiroshige, No. 32: Seba, from the series \"Sixty-nine Stations of the Kisokaido (Kisokaido rokujukyu tsugi no uchi)\" (c. 1835/38) — Art Institute of Chicago, public domain",
+      "sourceUrl": "https://www.artic.edu/artworks/11054",
+      "sha256": "4715c29498a8d4d4628f1cf203c4170424fa78c5877f224db1fe9b6c62fb8b55",
+      "w": 1686,
+      "h": 1071
     }
   ]
 }

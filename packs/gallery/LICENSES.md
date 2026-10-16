@@ -1,6 +1,6 @@
-# Gallery — licences and attribution
+# Museum art — licences and attribution
 
-`pack:gallery` · Public-domain paintings from open museum collections.
+`pack:gallery` · Public-domain paintings and prints from the Art Institute of Chicago's open collection.
 
 Source collection: [Art Institute of Chicago — Open Access](https://api.artic.edu/)
 
@@ -12,45 +12,138 @@ manifest roll-up and `pack.json` are the tracked provenance record.
 
 | File | Title | Creator | Date | Credit | Licence | Source |
 |---|---|---|---|---|---|---|
-| `aic-76571.jpg` | View of Cotopaxi | Frederic Edwin Church | 1857 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/76571) |
-| `aic-90048.jpg` | Distant View of Niagara Falls | Thomas Cole | 1830 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/90048) |
-| `aic-64724.jpg` | The Home of the Heron | George Inness | 1893 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/64724) |
-| `aic-71971.jpg` | Mist Rising at Sunset in the Catskills | Sanford Robinson Gifford | c. 1861 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/71971) |
-| `aic-109228.jpg` | Near Newport | John Frederick Kensett | 1869 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/109228) |
-| `aic-100829.jpg` | Magnolias on Light Blue Velvet Cloth | Martin Johnson Heade | 1885–95 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/100829) |
-| `aic-27163.jpg` | Niagara Falls in Winter | Jasper Francis Cropsey | 1868 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/27163) |
-| `met-10481.jpg` | Heart of the Andes | Frederic Edwin Church | 1859 | The Metropolitan Museum of Art, Open Access (CC0 1.0) | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.metmuseum.org/art/collection/search/10481) |
-| `met-10945.jpg` | Isola Bella in Lago Maggiore | Sanford Robinson Gifford | 1871 | The Metropolitan Museum of Art, Open Access (CC0 1.0) | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.metmuseum.org/art/collection/search/10945) |
-| `met-11311.jpg` | Lake George | John Frederick Kensett | 1869 | The Metropolitan Museum of Art, Open Access (CC0 1.0) | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.metmuseum.org/art/collection/search/11311) |
-| `met-11050.jpg` | Approaching Thunder Storm | Martin Johnson Heade | 1859 | The Metropolitan Museum of Art, Open Access (CC0 1.0) | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.metmuseum.org/art/collection/search/11050) |
-| `met-10793.jpg` | Landscape—Scene from "Thanatopsis" | Asher Brown Durand | 1850 | The Metropolitan Museum of Art, Open Access (CC0 1.0) | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.metmuseum.org/art/collection/search/10793) |
+| `aic-129849.jpg` | Houses at Murnau | Vasily Kandinsky | 1909 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/129849) |
+| `aic-8983.jpg` | Painting with Troika | Vasily Kandinsky | January 18, 1911 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/8983) |
+| `aic-18307.jpg` | Shirasuka: Shiomi Slope,no. 33 from the series Fifty-Three Stations of the Tokaido (Tōkaidō gojūsan tsugi) | Utagawa Hiroshige | 1847-52 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/18307) |
+| `aic-16617.jpg` | Chrysanthemums | Pierre-Auguste Renoir | 1881–82 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/16617) |
+| `aic-28560.jpg` | The Bedroom | Vincent van Gogh | 1889 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/28560) |
+| `aic-8980.jpg` | Landscape with Two Poplars | Vasily Kandinsky | 1912 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/8980) |
+| `aic-18278.jpg` | Hodogaya: Katabira River and Katabira Brige (Hodogaya, Katabiragawa Katabirabashi)—No. 5, from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Reisho Tokaido | Utagawa Hiroshige | c. 1847/52 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/18278) |
+| `aic-100627.jpg` | Fishing Boats at Choshi in Shimosa (Soshu Choshi) from the series "One Thousand Pictures of the Ocean (Chie no umi)" | Katsushika Hokusai | c. 1833/34 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/100627) |
+| `aic-89503.jpg` | Under the Wave off Kanagawa (Kanagawa oki nami ura), also known as The Great Wave, from the series "Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)" | Katsushika Hokusai | 1830/33 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/89503) |
+| `aic-10932.jpg` | Snow at Akabane Bridge in Shiba (Shiba Akabane no yuki), from the series "Famous Places in the Eastern Capital (Toto meisho)" | Utagawa Hiroshige | c. 1843/47 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/10932) |
+| `aic-89524.jpg` | Ariwara no Narihirafrom the series One Hundred Poems Explained by the Nurse (Hyakunin isshu uba ga etoki) | Katsushika Hokusai | 1835–36 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/89524) |
+| `aic-122130.jpg` | Les Andelys, Côte d'Aval | Paul Signac | 1886 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/122130) |
+| `aic-16629.jpg` | Fruits of the Midi | Pierre-Auguste Renoir | 1881 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/16629) |
+| `aic-95654.jpg` | Near the Lake | Pierre-Auguste Renoir | 1879–80 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/95654) |
+| `aic-14792.jpg` | Olive Trees, Corfu | John Singer Sargent | 1909 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/14792) |
+| `aic-38666.jpg` | The Water Fan | Winslow Homer | 1898/99 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/38666) |
+| `aic-4783.jpg` | Poppy Field (Giverny) | Claude Monet | 1890–91 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/4783) |
+| `aic-113100.jpg` | North Woods Club, Adirondacks (The Interrupted Tete-a-Tete) | Winslow Homer | 1892 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/113100) |
+| `aic-111062.jpg` | Te raau rahi (The Big Tree) | Paul Gauguin | 1891 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/111062) |
+| `aic-25110.jpg` | Chrysanthemum and Horsefly, from an untitled series of Large Flowers | Katsushika Hokusai | c. 1831–33 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/25110) |
+| `aic-4368.jpg` | Mitsuke: Ferries Crossing the Tenryu River (Mitsuke, Tenryugawa funawatashi), from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Tokaido with Poem (Kyoka iri Tokaido) | Utagawa Hiroshige | c. 1837/42 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/4368) |
+| `aic-142537.jpg` | Study of a Tree in Bloom | William Turner | c. 1835 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/142537) |
+| `aic-24800.jpg` | Ejiri in Suruga Province (Sunshu Ejiri), from the series "Thirty-six Views of Mount Fuji (Fugaku sanjurokkei)" | Katsushika Hokusai | c. 1830/33 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/24800) |
+| `aic-3652.jpg` | Togetsu Bridge at Arashiyama in Yamashiro Province (Yamashiro Arashiyama no Togetsukyo), from the series "Unusual Views of Famous Bridges in Various Provinces (Shokoku meikyo kiran)" | Katsushika Hokusai | c. 1833/34 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/3652) |
+| `aic-14586.jpg` | The Poet's Garden | Vincent van Gogh | 1888 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/14586) |
+| `aic-81537.jpg` | Bordighera | Claude Monet | 1884 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/81537) |
+| `aic-61616.jpg` | Oil Sketch for "A Sunday on La Grande Jatte — 1884" | Georges Seurat | 1884 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/61616) |
+| `aic-81539.jpg` | On the Bank of the Seine, Bennecourt | Claude Monet | 1868 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/81539) |
+| `aic-109314.jpg` | Fishing in Spring, the Pont de Clichy (Asnières) | Vincent van Gogh | 1887 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/109314) |
+| `aic-4378.jpg` | Arai, from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Tokaido with Poem (Kyoka iri Tokaido) | Utagawa Hiroshige | c. 1837/42 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/4378) |
+| `aic-87008.jpg` | Shower Below the Summit (Sanka hakuu), from the series "Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)" | Katsushika Hokusai | c. 1830/33 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/87008) |
+| `aic-87000.jpg` | Haymaking at Éragny | Camille Pissarro | 1892 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/87000) |
+| `aic-16487.jpg` | The Bay of Marseille, Seen from L'Estaque | Paul Cezanne | c. 1885 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/16487) |
+| `aic-183043.jpg` | An April Shower: A View from Binsey Ferry Near Oxford, Looking Towards Port Meadow and Godstow | William Turner | 1842 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/183043) |
+| `aic-81557.jpg` | Seascape | Pierre-Auguste Renoir | 1879 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/81557) |
+| `aic-37741.jpg` | Watering Place at Marly | Alfred Sisley | 1875 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/37741) |
+| `aic-19040.jpg` | Snow at Benzaiten Shrine in Inokashira Pond (Inokashira no ike Benzaiten no yashiro yuki no kei), from the series "Snow, Moon, and Flowers at Famous Places (Meisho setsugekka)" | Utagawa Hiroshige | c. 1844/45 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/19040) |
+| `aic-14620.jpg` | Cliff Walk at Pourville | Claude Monet | 1882 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/14620) |
+| `aic-16554.jpg` | The Artist's House at Argenteuil | Claude Monet | 1873 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/16554) |
+| `aic-16633.jpg` | The Seine at Port-Marly, Piles of Sand | Alfred Sisley | 1875 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/16633) |
+| `aic-25613.jpg` | Kanbara: Evening Snow (Kanbara, yoru no yuki), from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi no uchi)," also known as the Hoeido Tokaido | Utagawa Hiroshige | c. 1833/34 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/25613) |
+| `aic-20545.jpg` | Rocks at Port-Goulphar, Belle-Île | Claude Monet | 1886 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/20545) |
+| `aic-11054.jpg` | No. 32: Seba, from the series "Sixty-nine Stations of the Kisokaido (Kisokaido rokujukyu tsugi no uchi)" | Utagawa Hiroshige | c. 1835/38 | Art Institute of Chicago, Public Domain | [Public domain (CC0 1.0)](https://creativecommons.org/publicdomain/zero/1.0/) | [object page](https://www.artic.edu/artworks/11054) |
 
 ## Attribution lines (what the §26 card shows)
 
-- `aic-76571.jpg` — Frederic Edwin Church, View of Cotopaxi (1857) — Art Institute of Chicago, public domain
-- `aic-90048.jpg` — Thomas Cole, Distant View of Niagara Falls (1830) — Art Institute of Chicago, public domain
-- `aic-64724.jpg` — George Inness, The Home of the Heron (1893) — Art Institute of Chicago, public domain
-- `aic-71971.jpg` — Sanford Robinson Gifford, Mist Rising at Sunset in the Catskills (c. 1861) — Art Institute of Chicago, public domain
-- `aic-109228.jpg` — John Frederick Kensett, Near Newport (1869) — Art Institute of Chicago, public domain
-- `aic-100829.jpg` — Martin Johnson Heade, Magnolias on Light Blue Velvet Cloth (1885–95) — Art Institute of Chicago, public domain
-- `aic-27163.jpg` — Jasper Francis Cropsey, Niagara Falls in Winter (1868) — Art Institute of Chicago, public domain
-- `met-10481.jpg` — Frederic Edwin Church, Heart of the Andes (1859) — The Metropolitan Museum of Art, CC0 1.0
-- `met-10945.jpg` — Sanford Robinson Gifford, Isola Bella in Lago Maggiore (1871) — The Metropolitan Museum of Art, CC0 1.0
-- `met-11311.jpg` — John Frederick Kensett, Lake George (1869) — The Metropolitan Museum of Art, CC0 1.0
-- `met-11050.jpg` — Martin Johnson Heade, Approaching Thunder Storm (1859) — The Metropolitan Museum of Art, CC0 1.0
-- `met-10793.jpg` — Asher Brown Durand, Landscape—Scene from "Thanatopsis" (1850) — The Metropolitan Museum of Art, CC0 1.0
+- `aic-129849.jpg` — Vasily Kandinsky, Houses at Murnau (1909) — Art Institute of Chicago, public domain
+- `aic-8983.jpg` — Vasily Kandinsky, Painting with Troika (January 18, 1911) — Art Institute of Chicago, public domain
+- `aic-18307.jpg` — Utagawa Hiroshige, Shirasuka: Shiomi Slope,no. 33 from the series Fifty-Three Stations of the Tokaido (Tōkaidō gojūsan tsugi) (1847-52) — Art Institute of Chicago, public domain
+- `aic-16617.jpg` — Pierre-Auguste Renoir, Chrysanthemums (1881–82) — Art Institute of Chicago, public domain
+- `aic-28560.jpg` — Vincent van Gogh, The Bedroom (1889) — Art Institute of Chicago, public domain
+- `aic-8980.jpg` — Vasily Kandinsky, Landscape with Two Poplars (1912) — Art Institute of Chicago, public domain
+- `aic-18278.jpg` — Utagawa Hiroshige, Hodogaya: Katabira River and Katabira Brige (Hodogaya, Katabiragawa Katabirabashi)—No. 5, from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Reisho Tokaido (c. 1847/52) — Art Institute of Chicago, public domain
+- `aic-100627.jpg` — Katsushika Hokusai, Fishing Boats at Choshi in Shimosa (Soshu Choshi) from the series "One Thousand Pictures of the Ocean (Chie no umi)" (c. 1833/34) — Art Institute of Chicago, public domain
+- `aic-89503.jpg` — Katsushika Hokusai, Under the Wave off Kanagawa (Kanagawa oki nami ura), also known as The Great Wave, from the series "Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)" (1830/33) — Art Institute of Chicago, public domain
+- `aic-10932.jpg` — Utagawa Hiroshige, Snow at Akabane Bridge in Shiba (Shiba Akabane no yuki), from the series "Famous Places in the Eastern Capital (Toto meisho)" (c. 1843/47) — Art Institute of Chicago, public domain
+- `aic-89524.jpg` — Katsushika Hokusai, Ariwara no Narihirafrom the series One Hundred Poems Explained by the Nurse (Hyakunin isshu uba ga etoki) (1835–36) — Art Institute of Chicago, public domain
+- `aic-122130.jpg` — Paul Signac, Les Andelys, Côte d'Aval (1886) — Art Institute of Chicago, public domain
+- `aic-16629.jpg` — Pierre-Auguste Renoir, Fruits of the Midi (1881) — Art Institute of Chicago, public domain
+- `aic-95654.jpg` — Pierre-Auguste Renoir, Near the Lake (1879–80) — Art Institute of Chicago, public domain
+- `aic-14792.jpg` — John Singer Sargent, Olive Trees, Corfu (1909) — Art Institute of Chicago, public domain
+- `aic-38666.jpg` — Winslow Homer, The Water Fan (1898/99) — Art Institute of Chicago, public domain
+- `aic-4783.jpg` — Claude Monet, Poppy Field (Giverny) (1890–91) — Art Institute of Chicago, public domain
+- `aic-113100.jpg` — Winslow Homer, North Woods Club, Adirondacks (The Interrupted Tete-a-Tete) (1892) — Art Institute of Chicago, public domain
+- `aic-111062.jpg` — Paul Gauguin, Te raau rahi (The Big Tree) (1891) — Art Institute of Chicago, public domain
+- `aic-25110.jpg` — Katsushika Hokusai, Chrysanthemum and Horsefly, from an untitled series of Large Flowers (c. 1831–33) — Art Institute of Chicago, public domain
+- `aic-4368.jpg` — Utagawa Hiroshige, Mitsuke: Ferries Crossing the Tenryu River (Mitsuke, Tenryugawa funawatashi), from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Tokaido with Poem (Kyoka iri Tokaido) (c. 1837/42) — Art Institute of Chicago, public domain
+- `aic-142537.jpg` — William Turner, Study of a Tree in Bloom (c. 1835) — Art Institute of Chicago, public domain
+- `aic-24800.jpg` — Katsushika Hokusai, Ejiri in Suruga Province (Sunshu Ejiri), from the series "Thirty-six Views of Mount Fuji (Fugaku sanjurokkei)" (c. 1830/33) — Art Institute of Chicago, public domain
+- `aic-3652.jpg` — Katsushika Hokusai, Togetsu Bridge at Arashiyama in Yamashiro Province (Yamashiro Arashiyama no Togetsukyo), from the series "Unusual Views of Famous Bridges in Various Provinces (Shokoku meikyo kiran)" (c. 1833/34) — Art Institute of Chicago, public domain
+- `aic-14586.jpg` — Vincent van Gogh, The Poet's Garden (1888) — Art Institute of Chicago, public domain
+- `aic-81537.jpg` — Claude Monet, Bordighera (1884) — Art Institute of Chicago, public domain
+- `aic-61616.jpg` — Georges Seurat, Oil Sketch for "A Sunday on La Grande Jatte — 1884" (1884) — Art Institute of Chicago, public domain
+- `aic-81539.jpg` — Claude Monet, On the Bank of the Seine, Bennecourt (1868) — Art Institute of Chicago, public domain
+- `aic-109314.jpg` — Vincent van Gogh, Fishing in Spring, the Pont de Clichy (Asnières) (1887) — Art Institute of Chicago, public domain
+- `aic-4378.jpg` — Utagawa Hiroshige, Arai, from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi)," also known as the Tokaido with Poem (Kyoka iri Tokaido) (c. 1837/42) — Art Institute of Chicago, public domain
+- `aic-87008.jpg` — Katsushika Hokusai, Shower Below the Summit (Sanka hakuu), from the series "Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)" (c. 1830/33) — Art Institute of Chicago, public domain
+- `aic-87000.jpg` — Camille Pissarro, Haymaking at Éragny (1892) — Art Institute of Chicago, public domain
+- `aic-16487.jpg` — Paul Cezanne, The Bay of Marseille, Seen from L'Estaque (c. 1885) — Art Institute of Chicago, public domain
+- `aic-183043.jpg` — William Turner, An April Shower: A View from Binsey Ferry Near Oxford, Looking Towards Port Meadow and Godstow (1842) — Art Institute of Chicago, public domain
+- `aic-81557.jpg` — Pierre-Auguste Renoir, Seascape (1879) — Art Institute of Chicago, public domain
+- `aic-37741.jpg` — Alfred Sisley, Watering Place at Marly (1875) — Art Institute of Chicago, public domain
+- `aic-19040.jpg` — Utagawa Hiroshige, Snow at Benzaiten Shrine in Inokashira Pond (Inokashira no ike Benzaiten no yashiro yuki no kei), from the series "Snow, Moon, and Flowers at Famous Places (Meisho setsugekka)" (c. 1844/45) — Art Institute of Chicago, public domain
+- `aic-14620.jpg` — Claude Monet, Cliff Walk at Pourville (1882) — Art Institute of Chicago, public domain
+- `aic-16554.jpg` — Claude Monet, The Artist's House at Argenteuil (1873) — Art Institute of Chicago, public domain
+- `aic-16633.jpg` — Alfred Sisley, The Seine at Port-Marly, Piles of Sand (1875) — Art Institute of Chicago, public domain
+- `aic-25613.jpg` — Utagawa Hiroshige, Kanbara: Evening Snow (Kanbara, yoru no yuki), from the series "Fifty-three Stations of the Tokaido (Tokaido gojusan tsugi no uchi)," also known as the Hoeido Tokaido (c. 1833/34) — Art Institute of Chicago, public domain
+- `aic-20545.jpg` — Claude Monet, Rocks at Port-Goulphar, Belle-Île (1886) — Art Institute of Chicago, public domain
+- `aic-11054.jpg` — Utagawa Hiroshige, No. 32: Seba, from the series "Sixty-nine Stations of the Kisokaido (Kisokaido rokujukyu tsugi no uchi)" (c. 1835/38) — Art Institute of Chicago, public domain
 
 ## The institutions' own credit lines
 
-- `aic-76571.jpg` — Gift of Jennette Hamlin in memory of Mr. and Mrs. Louis Dana Webster
-- `aic-90048.jpg` — Friends of American Art Collection
-- `aic-64724.jpg` — Edward B. Butler Collection
-- `aic-71971.jpg` — Gift of Jamee J. and Marshall Field
-- `aic-109228.jpg` — Friends of American Art Collection; Goodman Fund
-- `aic-100829.jpg` — Purchased with funds provided by Gloria and Richard Manney; Harold L. Stuart Endowment Fund
-- `aic-27163.jpg` — A. A. McKay Fund
-- `met-10481.jpg` — Bequest of Margaret E. Dows, 1909
-- `met-10945.jpg` — Gift of Colonel Charles A. Fowler, 1921
-- `met-11311.jpg` — Bequest of Maria DeWitt Jesup, from the collection of her husband, Morris K. Jesup, 1914
-- `met-11050.jpg` — Gift of Erving Wolf Foundation and Mr. and Mrs. Erving Wolf, in memory of Diane R. Wolf, 1975
-- `met-10793.jpg` — Gift of J. Pierpont Morgan, 1911
+- `aic-129849.jpg` — Bequest of Katharine Kuh
+- `aic-8983.jpg` — Arthur Jerome Eddy Memorial Collection
+- `aic-18307.jpg` — Gift of Mr. and Mrs. Harold G. Henderson
+- `aic-16617.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-28560.jpg` — Helen Birch Bartlett Memorial Collection
+- `aic-8980.jpg` — Arthur Jerome Eddy Memorial Collection
+- `aic-18278.jpg` — Gift of Mr. and Mrs. Harold G. Henderson
+- `aic-100627.jpg` — Kate S. Buckingham Endowment
+- `aic-89503.jpg` — Clarence Buckingham Collection
+- `aic-10932.jpg` — Gift of H. R. Warner
+- `aic-89524.jpg` — Clarence Buckingham Collection
+- `aic-122130.jpg` — Through prior gift of William Wood Prince
+- `aic-16629.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-95654.jpg` — Potter Palmer Collection
+- `aic-14792.jpg` — Olivia Shaler Swan Memorial Collection
+- `aic-38666.jpg` — Gift of Dorothy A., John A., Jr., and Christopher Holabird in memory of William and Mary Holabird
+- `aic-4783.jpg` — Mr. and Mrs. W. W. Kimball Collection
+- `aic-113100.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-111062.jpg` — Gift of Kate L. Brewster
+- `aic-25110.jpg` — Clarence Buckingham Collection
+- `aic-4368.jpg` — Clarence Buckingham Collection
+- `aic-142537.jpg` — Sara R. Shorey Endowment
+- `aic-24800.jpg` — Clarence Buckingham Collection
+- `aic-3652.jpg` — Clarence Buckingham Collection
+- `aic-14586.jpg` — Mr. and Mrs. Lewis Larned Coburn Memorial Collection
+- `aic-81537.jpg` — Potter Palmer Collection
+- `aic-61616.jpg` — Gift of Mary and Leigh Block
+- `aic-81539.jpg` — Potter Palmer Collection
+- `aic-109314.jpg` — Gift of Charles Deering McCormick, Brooks McCormick, and Roger McCormick
+- `aic-4378.jpg` — Clarence Buckingham Collection
+- `aic-87008.jpg` — Clarence Buckingham Collection
+- `aic-87000.jpg` — Gift of Bruce Borland
+- `aic-16487.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-183043.jpg` — Helen A. Regenstein Endowment
+- `aic-81557.jpg` — Potter Palmer Collection
+- `aic-37741.jpg` — Gift of Mrs. Clive Runnells
+- `aic-19040.jpg` — Clarence Buckingham Collection
+- `aic-14620.jpg` — Mr. and Mrs. Lewis Larned Coburn Memorial Collection
+- `aic-16554.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-16633.jpg` — Mr. and Mrs. Martin A. Ryerson Collection
+- `aic-25613.jpg` — Clarence Buckingham Collection
+- `aic-20545.jpg` — Gift of Mr. and Mrs. Chauncey B. Borland
+- `aic-11054.jpg` — Gift of H. R. Warner

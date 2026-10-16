@@ -6,9 +6,13 @@
 import type { BrowseCard } from "./browse.js";
 
 /** The thresholds (all editable in Watch settings). */
-export interface BingeThresholds { maxRuntime: number; minEpisodes: number; minRating: number; minVotes: number; top: number }
+export interface BingeThresholds { maxRuntime: number; minEpisodes: number; minRating: number; minVotes: number; top: number; minYear: number }
+/** The earliest year a person can ask for, and the default: 1888, the year of the oldest surviving film (2026-10-15, "Binge on both pc and
+ *  mobile should also use minimum release year ... I suppose we could just default to the earliest movie released year (for fun)"). At the
+ *  default the limit leaves nothing out. */
+export const BINGE_EARLIEST_YEAR = 1888;
 // top 0 = no limit: every eligible series (2026-09-24, "can we remove the limit and bring in all 126"; the spec had said top 50)
-export const BINGE_DEFAULTS: BingeThresholds = { maxRuntime: 30, minEpisodes: 80, minRating: 7.0, minVotes: 500, top: 0 };
+export const BINGE_DEFAULTS: BingeThresholds = { maxRuntime: 30, minEpisodes: 80, minRating: 7.0, minVotes: 500, top: 0, minYear: BINGE_EARLIEST_YEAR };
 
 /** Kids mode's ages and the US TV ratings each allows (the spec's table; TV-PG has no official age - Prism's editable default). */
 export type KidsAge = "under7" | "under10" | "under14" | "under17";
@@ -35,13 +39,17 @@ export interface BingeCandidate {
   keywords: string[];
   /** the US content rating (TV-Y ... TV-MA); null when unrated */
   certification: string | null;
+  /** the year its first episode aired (TMDB's first_air_date); absent in a pool read before 2026-10-15, then the card's year */
+  year?: number | null;
 }
+/** A series' first year: its own, else its card's; null when neither is known (never left out for that alone). */
+export function bingeYearOf(c: BingeCandidate): number | null { return c.year ?? c.card.year ?? null; }
 
 /** The episodic heuristic's community keywords (no open data marks a show serialized; the criterion is labeled as a heuristic). */
 const SERIALIZED = /\bserial(ized)?\b|\bserialised\b/i;
 
 /** Every eligibility criterion, and whether the candidate meets it - the card's own reasons. Pure. */
-export function bingeChecks(c: BingeCandidate, t: BingeThresholds = BINGE_DEFAULTS): { runtime: boolean; episodes: boolean; episodic: boolean; quality: boolean; available: boolean } {
+export function bingeChecks(c: BingeCandidate, t: BingeThresholds = BINGE_DEFAULTS): { runtime: boolean; episodes: boolean; episodic: boolean; quality: boolean; available: boolean; year: boolean } {
   const animated = c.genres.some((g) => /animation/i.test(g));
   return {
     runtime: c.runtime !== null && c.runtime > 0 && c.runtime <= t.maxRuntime,
@@ -49,11 +57,12 @@ export function bingeChecks(c: BingeCandidate, t: BingeThresholds = BINGE_DEFAUL
     episodic: (c.type === "Scripted" || animated) && c.type !== "Miniseries" && !c.keywords.some((k) => SERIALIZED.test(k)),
     quality: c.mean !== null && c.votes !== null && c.mean >= t.minRating && c.votes >= t.minVotes,
     available: c.card.services.length > 0,
+    year: (t.minYear ?? BINGE_EARLIEST_YEAR) <= BINGE_EARLIEST_YEAR || (() => { const y = bingeYearOf(c); return y === null || y >= t.minYear; })(),
   };
 }
 export function bingeEligible(c: BingeCandidate, t: BingeThresholds = BINGE_DEFAULTS): boolean {
   const k = bingeChecks(c, t);
-  return k.runtime && k.episodes && k.episodic && k.quality && k.available;
+  return k.runtime && k.episodes && k.episodic && k.quality && k.available && k.year;
 }
 
 /** Kids mode: off - every rating; on - only the ratings the age allows, and an unrated title never. Pure. */
@@ -107,7 +116,7 @@ export const THE_BINGE = {
   id: "the-binge",
   name: "The Binge",
   simple: "Shows with short episodes, lots of them and a good TMDB rating, on your services, shuffled once a day. The limits are yours to set.",
-  editIn: "Watch settings on the PC, The Binge tab: episode length, episode count, rating and votes, animation, Kids mode, hidden titles.", sourceShort: "TMDB, with JustWatch's availability",
+  editIn: "Watch settings on the PC, The Binge tab: episode length, episode count, rating and votes, the earliest year, animation, Kids mode, hidden titles.", sourceShort: "TMDB, with JustWatch's availability",
   label: "The Binge · every ≤{runtime}-min, {episodes}+ episode series on your services rated {rating}+ on TMDB · shuffled daily.",
   counted: "Series whose median episode runs {runtime} minutes or less, {episodes} or more episodes, scripted or animated (not a miniseries, no \"serialized\" keyword), TMDB rating {rating} or better with {votes}+ votes, streaming on a service signed in on this device.",
   who: "TMDB members' votes; the runtimes, episode counts and keywords are TMDB contributors'.",
@@ -118,7 +127,10 @@ export const THE_BINGE = {
 } as const;
 export function bingeWords(t: BingeThresholds): { label: string; counted: string; formula: string } {
   const fill = (s: string) => s.replace("{top}", String(t.top)).replace("{runtime}", String(t.maxRuntime)).replace("{episodes}", String(t.minEpisodes)).replace("{rating}", t.minRating.toFixed(1)).replace("{votes}", String(t.minVotes));
-  return { label: fill(THE_BINGE.label), counted: fill(THE_BINGE.counted), formula: fill(THE_BINGE.formula) };
+  // the year said only when it leaves something out
+  const yr = t.minYear > BINGE_EARLIEST_YEAR ? t.minYear : 0;
+  const label = fill(THE_BINGE.label), counted = fill(THE_BINGE.counted);
+  return { label: yr ? label.replace(" · shuffled daily.", ", from " + yr + " on · shuffled daily.") : label, counted: yr ? counted.replace(/[.]?$/, ", first aired in " + yr + " or later.") : counted, formula: fill(THE_BINGE.formula) };
 }
 
 /** Thresholds and kids mode as kept on the device, each field checked (a bad one falls back to its default). */
@@ -130,6 +142,7 @@ export function bingeSettingsOf(raw: unknown): { thresholds: BingeThresholds; ki
     thresholds: {
       maxRuntime: num(t.maxRuntime, BINGE_DEFAULTS.maxRuntime, 5, 120), minEpisodes: num(t.minEpisodes, BINGE_DEFAULTS.minEpisodes, 1, 2000),
       minRating: num(t.minRating, BINGE_DEFAULTS.minRating, 0, 10), minVotes: num(t.minVotes, BINGE_DEFAULTS.minVotes, 0, 100000), top: BINGE_DEFAULTS.top,
+      minYear: Math.floor(num(t.minYear, BINGE_DEFAULTS.minYear, BINGE_EARLIEST_YEAR, 2100)),
     },
     kids: { on: r.kids?.on === true, age: KIDS_AGES.some((a) => a.id === r.kids?.age) ? (r.kids!.age as KidsAge) : KIDS_OFF.age },
     animation: r.animation !== false,   // included unless the household left it out

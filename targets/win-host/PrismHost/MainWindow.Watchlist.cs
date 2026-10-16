@@ -44,7 +44,10 @@ public sealed partial class MainWindow
                 var ok = false;
                 RootGrid.DispatcherQueue.TryEnqueue(async () =>
                 {
-                    if (my != _watchFollow || !ReferenceEquals(_videoHub, overlay) || _hubTab != "watch") { _watchFollow++; return; }
+                    // a follow already replaced (Watch drawn again) only stops itself: it had stepped the counter on and so stopped the new row's
+                    // follow too, which stood on "Reading your watchlist..." with the list read (2026-10-16, "it didn't show my watch list, was still refreshing")
+                    if (my != _watchFollow) return;
+                    if (!ReferenceEquals(_videoHub, overlay) || _hubTab != "watch") { _watchFollow++; return; }
                     try { if (JsonNode.Parse(await ModelCallAsync("watchlistView", false) ?? "null") is JsonObject nw) { w = nw; var sig = nw.ToJsonString(); if (sig != last) { last = sig; FillWatchlistRow(panel, nw); } } } catch { }
                     ok = true;
                 });
@@ -136,6 +139,7 @@ public sealed partial class MainWindow
             if (unmatched.Count > 0) ToolTipService.SetToolTip(note, "Not matched: " + string.Join(", ", unmatched.Take(30)) + (unmatched.Count > 30 ? ", and more" : "") + ".");
             head.Children.Add(note);
         }
+        QuietHead(head, title);   // Simple Watch: the (i) and the order chips wait for the pointer
         panel.Children.Add(head);
         if (cards.Count == 0)
         {

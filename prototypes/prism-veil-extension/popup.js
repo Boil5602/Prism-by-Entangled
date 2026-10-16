@@ -97,6 +97,8 @@
     var hud = ui.hud || "interactive";
     Array.prototype.forEach.call(document.querySelectorAll("#hud label"), function (l) { var on = l.querySelector("input").value === hud; l.classList.toggle("on", on); l.querySelector("input").checked = on; });
     $("art-weekly").checked = !!ui.artWeekly;
+    var sets = ui.artSets || ["nature"];
+    Array.prototype.forEach.call(document.querySelectorAll("#art-sets input"), function (i) { i.checked = sets.indexOf(i.value) >= 0; });
   }
   $("report-chip").addEventListener("change", function () { setUi("reportChip", $("report-chip").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
@@ -106,6 +108,17 @@
   });
   Array.prototype.forEach.call(document.querySelectorAll("#hud input"), function (r) { r.addEventListener("change", function () { if (r.checked) setUi("hud", r.value); }); });
   $("art-weekly").addEventListener("change", function () { setUi("artWeekly", $("art-weekly").checked); });
+  // the picture sets (2026-10-15): nature on by default, Cosmos and Museum art from Prism's server, never none; photos already fetched from the
+  // server are fetched again from the new sets
+  Array.prototype.forEach.call(document.querySelectorAll("#art-sets input"), function (i) {
+    i.addEventListener("change", function () {
+      var on = Array.prototype.filter.call(document.querySelectorAll("#art-sets input"), function (x) { return x.checked; }).map(function (x) { return x.value; });
+      if (!on.length) { i.checked = true; $("art-sets-note").textContent = "Keep at least one set of pictures on."; $("art-sets-note").hidden = false; return; }
+      $("art-sets-note").hidden = true;
+      setUi("artSets", on);
+      chrome.storage.local.get("pv:art", function (x) { if (x && x["pv:art"] && x["pv:art"].urls && x["pv:art"].urls.length) $("photos-get").click(); });
+    });
+  });
 
   // ---- photos (bg.js fetches; pv:art holds the set) ---------------------------
   function paintArt(rec) {

@@ -154,6 +154,17 @@ describe("the universal video menu (video-menu-spec §2-§4)", () => {
     expect(net.some((u) => /Secret|Private/.test(u))).toBe(false);
   });
 
+  it("cover pictures are one or more sets - nature on by default, never none (2026-10-15)", async () => {
+    const { rt } = await setup();
+    expect(JSON.parse(rt.videoSettings()).coverSource).toBe("photos");
+    expect(JSON.parse(rt.videoSetCoverSource("photos,cosmos,gallery"))).toMatchObject({ ok: true, sources: ["photos", "cosmos", "gallery"] });
+    expect(JSON.parse(rt.videoSettings()).coverSource).toBe("photos,cosmos,gallery");
+    expect(JSON.parse(rt.videoSetCoverSource("")).ok).toBe(false);   // at least one stays on
+    expect(JSON.parse(rt.videoSetCoverSource("nonsense")).ok).toBe(false);
+    expect(JSON.parse(rt.videoSettings()).coverSource).toBe("photos,cosmos,gallery");
+    expect(JSON.parse(rt.videoSetCoverSource("cosmos"))).toMatchObject({ ok: true, sources: ["cosmos"] });   // one alone, as before
+  });
+
   it("after a graphics driver reset, a video tile playing a title is loaded again at its own address, once a reset (2026-09-28)", async () => {
     const { rt, ops } = await setup();
     report(rt, "screen", { playing: true, video: { kind: "episode", title: "Episode 8", series: "Animal Control", id: "82675090", url: "https://www.netflix.com/watch/82675090", playing: true } });

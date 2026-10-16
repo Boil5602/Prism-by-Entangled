@@ -141,16 +141,14 @@ describe("the §26 card corner (§3.2)", () => {
 describe("the Gallery pack as shipped", () => {
   const gallery = JSON.parse(readFileSync(new URL("../../../packs/gallery/pack.json", import.meta.url), "utf8"));
 
-  it("ships a Bierstadt - the painter the charter names first (CS-10.4)", () => {
-    const b = gallery.images.filter((i: PackImage) => (i.creator ?? "").includes("Bierstadt"));
-    expect(b.length).toBeGreaterThan(0);
-    // The Met holds it; AIC's only public-domain Bierstadt painting is portrait
-    // (1832x2250) and cannot pass the fetcher's landscape filter, which is why
-    // CS-2 shipped none.
-    expect(b[0].title).toBe("The Rocky Mountains, Lander's Peak");
-    expect(b[0].creator).toBe("Albert Bierstadt");
-    expect(b[0].date).toBe("1863");
-    expect(b[0].w / b[0].h).toBeGreaterThanOrEqual(1.15);      // landscape: it hangs on a wall
+  it("ships the curated Museum art - every picture the Art Institute of Chicago's own, public domain, landscape (2026-10-15)", () => {
+    // the Hudson River School register (CS-10.4's Bierstadt) gave way to pictures chosen for colour: concept-scenes section 3, Decision 2026-10-15
+    expect(gallery.images.length).toBeGreaterThanOrEqual(30);
+    for (const i of gallery.images as PackImage[]) {
+      expect(i.sourceUrl, i.file).toMatch(/^https:\/\/www\.artic\.edu\/artworks\/\d+$/);
+      expect(i.license.name, i.file).toBe("Public domain (CC0 1.0)");
+      expect((i.w ?? 0) / (i.h ?? 1), i.file).toBeGreaterThanOrEqual(1.15);   // landscape: it hangs on a wall
+    }
   });
 
   it("Gallery declares requiresCreator, and every painting has a painter", () => {
@@ -159,16 +157,17 @@ describe("the Gallery pack as shipped", () => {
   });
 
   it("the card line carries the LICENCE, not just the credit (§3.2)", () => {
-    const b = (gallery.images as PackImage[]).find((i) => (i.creator ?? "").includes("Bierstadt"))!;
+    const b = (gallery.images as PackImage[])[0]!;
     const card = cardAttribution(b, "card");
     expect(card.line).toContain(b.title);
-    expect(card.line).toContain("Albert Bierstadt");
-    expect(card.line).toContain("The Metropolitan Museum of Art");
+    expect(card.line).toContain(b.creator!);
+    expect(card.line).toContain("Art Institute of Chicago");
     expect(card.line).toContain("Public domain (CC0 1.0)");    // the half the mockup omitted
     // minimal mode collapses to the credit alone - collapsed, never hidden
     expect(cardAttribution(b, "minimal").line).toBe(b.credit);
-    expect(card.sourceUrl).toBe("https://www.metmuseum.org/art/collection/search/10154");
+    expect(card.sourceUrl).toBe(b.sourceUrl);
   });
+
 
   it("the whole pack validates under the §3.1 format", () => {
     expect(validateImageryPack(gallery)).toEqual([]);

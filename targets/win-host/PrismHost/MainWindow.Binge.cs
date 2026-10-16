@@ -41,6 +41,7 @@ public sealed partial class MainWindow
             + "\n\u2022  Total episodes \u2265 " + N("minEpisodes", "80") + "  (TMDB)"
             + "\n\u2022  Episodic: scripted or animated, not a miniseries, no \"serialized\" keyword  (TMDB type + keywords)"
             + "\n\u2022  TMDB rating \u2265 " + N("minRating", "7.0") + " with \u2265 " + N("minVotes", "500") + " votes  (TMDB)"
+            + (N("minYear", "1888") != "1888" ? "\n\u2022  First aired in " + N("minYear", "1888") + " or later  (TMDB)" : "")
             + "\n\u2022  Streaming on a service signed in on this device  (TMDB watch providers, JustWatch data)"
             + "\n\nThere's no reliable data on whether a show is episodic, so that check is a best guess. You can hide any title by right-clicking it."
             + "\n\n" + S("formula") + "\nData as of " + date + ".  Source: " + S("source") + "  \u00B7  " + S("sourceUrl")
@@ -228,6 +229,9 @@ public sealed partial class MainWindow
         Field("minEpisodes", "Fewest episodes", "TMDB's episode count; default 80.", 1, 2000, 10, 80);
         Field("minRating", "Lowest TMDB rating", "TMDB members' mean vote, one to ten; default 7.0.", 0, 10, 0.1, 7.0);
         Field("minVotes", "Fewest TMDB votes", "How many TMDB members voted; default 500.", 0, 100000, 100, 500);
+        // how old a show may be (2026-10-15, "Binge on both pc and mobile should also use minimum release year"): the default is 1888, the oldest
+        // surviving film's year, which leaves nothing out
+        Field("minYear", "Released in", "The year a show's first episode aired, from TMDB. Shows from this year on are in. Default 1888, the year of the oldest surviving film, which leaves nothing out.", 1888, 2100, 1, 1888, "or later");
         body.Children.Add(new TextBlock { Text = "The episodic check (scripted or animated, not a miniseries, not tagged \"serialized\") is a best guess, since there's no reliable data on it. You can hide any title from its right-click menu.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
         // Include animation and Kids mode here too (2026-10-14, "Ensure everything is present in both"): the full view's header has them, and the
         // phone's Watch settings; a press saves at once, as there

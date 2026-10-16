@@ -122,6 +122,8 @@ export interface SurfaceDriver {
    * it simply shows the ordinary revive crossfade.
    */
   setPeek?(id: string, peeking: boolean): MaybePromise<void>;
+  /** Prism's loading mark over a video window (2026-10-16): on while a pick has not started or the page's player waits for data, off on play. */
+  setLoading?(id: string, on: boolean): MaybePromise<void>;
   /** Persist a snapshot to disk for instant-boot display (§18); optional. */
   snapshot?(id: string): MaybePromise<string>;
   /**
@@ -213,7 +215,10 @@ export interface UiDriver {
    * A video pick made away from the shell's own screens (the phone, 2026-10-05): the shell does what its own card press does - its
    * Watch screen out of the way, its curtain up with the title - because core has asked the service to play. Optional.
    */
-  videoPick?(title: string, service: string, poster: string | null): MaybePromise<void>;
+  /** `window`: where it plays - 0 or absent the big window, n a small one (a phone pick into a small window leaves Watch and the big screen be, 2026-10-15). */
+  videoPick?(title: string, service: string, poster: string | null, window?: number): MaybePromise<void>;
+  /** A screen cleared from the phone: `tile` a window, as the PC's own X on it; null the big screen alone, as Clear screens (2026-10-15). */
+  screenClear?(tile: string | null): MaybePromise<void>;
   /** The phone's "mute Prism on the PC while this phone listens" (2026-10-05): the PLAYBACK DEVICE's mute, which the phone's stream ignores
    *  (it taps the browser's audio before the device) - never the pages' own mutes, which silence the stream too. */
   privateMute?(on: boolean): MaybePromise<void>;
@@ -222,7 +227,7 @@ export interface UiDriver {
    *  phones that chose it; the room's sound is untouched. */
   listenRoutes?(json: string): MaybePromise<void>;
   /** The phone's switch for the break watch (YouTube TV's channel breaks read off the picture, 2026-10-07): on or off, as Watch settings' box. */
-  breakWatch?(on: boolean): MaybePromise<void>;
+  breakWatch?(on: boolean, mode?: string): MaybePromise<void>;
   /** The phone's Restart into the new version (2026-10-15): the shell restarts into the release it has staged; nothing when none is. */
   updateRestart?(): MaybePromise<void>;
   /**
@@ -248,6 +253,7 @@ export type SurfaceEvent =
   | { type: "first-paint"; id: string }
   /** Explicit adapter readiness signal — `frame.ready()` for late-painting SPAs (§16). */
   | { type: "adapter-ready"; id: string }
+  | { type: "buffering"; id: string; on: boolean }   // the page's largest video waits for data while it should play (the host's page script, every page)
   | { type: "playback"; id: string; playing: boolean; /** the element reached its end (the media `ended` event) - §26 onEnd / presentation keeping */ ended?: boolean }
   /** User touched/focused the tile — feeds §18 recency and revives warm tiles. */
   | { type: "interaction"; id: string }

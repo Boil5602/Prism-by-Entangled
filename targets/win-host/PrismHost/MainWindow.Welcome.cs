@@ -99,6 +99,8 @@ public sealed partial class MainWindow
     }
 
     private List<WelcomeService> _welcomeServices = new();
+    /// <summary>Busy or calm has been opened for the person once this run (it is not opened over their own choice of part again).</summary>
+    private bool _welcomeCalmNudged;
     private void RenderWelcome(List<WelcomeService> services)
     {
         _welcomeServices = services;
@@ -129,6 +131,13 @@ public sealed partial class MainWindow
         {
             bool Todo(string k) => !services.Any(s => s.Kind == k && s.Added) || services.Any(s => s.Kind == k && s.Added && s.Status != "signed-in");
             _welcomeOpen = Todo("music") ? "music" : Todo("video") ? "video" : "music";
+        }
+        // busy or calm opens by itself, once, as soon as a video service is signed in and nothing is chosen yet (2026-10-16, a nudge rather than a
+        // wizard: the page stays one page, and the picture plays where the person is looking)
+        if (!_welcomeCalmNudged && !HostPrefs.GetBool("video.simpleWatchChosen", false) && services.Any(s => s.Kind == "video" && s.Added && s.Status == "signed-in"))
+        {
+            _welcomeCalmNudged = true;
+            _welcomeOpen = "calm";
         }
         var parts = new List<(string id, FrameworkElement body, FontIcon chev)>();
         var accordion = new StackPanel { Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
@@ -231,6 +240,34 @@ public sealed partial class MainWindow
             content.Children.Add(new TextBlock { Text = "New to a service? Create the account in your browser first, then press its card here. Right-click a card to take it off your player.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
             Part(kind, title, sum, content);
         }
+        // busy or calm (2026-10-16, "6. Yes. Love that." - offered at first run, not left in Watch settings): the Simple Watch picture, the two
+        // choices, the choice kept (host-prefs video.simpleWatch, and that it was made)
+        var calm = new StackPanel { Spacing = 10 };
+        var calmSum = Summary();
+        void CalmSum()
+        {
+            var chosen = HostPrefs.GetBool("video.simpleWatchChosen", false);
+            calmSum.Text = !chosen ? "Choose one" : SimpleWatch ? "Calm" : "Everything at once";
+            calmSum.Foreground = chosen ? HubInk : HubAmber;
+        }
+        CalmSum();
+        calm.Children.Add(Line("Calm shows less at once, so choosing what to watch takes less effort. You can change it any time in Watch settings.", 17, HubInk));
+        calm.Children.Add(SimpleWatchPicture());
+        var calmRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        void Choose(bool on)
+        {
+            HostPrefs.Set("video.simpleWatch", on);
+            HostPrefs.Set("video.simpleWatchChosen", true);
+            LogLine("welcome: Watch " + (on ? "calm" : "everything at once"));
+            _ = ModelCallAsync("videoSetSimpleWatch", on);
+            if (!on) UndimScreens();
+            RenderWelcome(services);
+        }
+        var chosenNow = HostPrefs.GetBool("video.simpleWatchChosen", false);
+        calmRow.Children.Add(Pill("Calm", chosenNow && SimpleWatch, "Simple Watch: three rows to start from, the rest behind More to watch.", () => Choose(true)));
+        calmRow.Children.Add(Pill("Everything at once", chosenNow && !SimpleWatch, "Every row and every detail on Watch, as before.", () => Choose(false)));
+        calm.Children.Add(calmRow);
+        Part("calm", "Watch: busy or calm", calmSum, calm);
         // TMDB (2026-10-05, "Lets add the TMDB config to the Set up services screen as well"): the key and the account, as Watch settings has
         // them, filled once core answers
         var tmdb = new StackPanel { Spacing = 6 };

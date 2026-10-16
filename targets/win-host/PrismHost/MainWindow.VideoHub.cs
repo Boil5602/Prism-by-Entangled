@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.Json.Nodes;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -272,6 +273,14 @@ public sealed partial class MainWindow
             // Apple TV's stream still went play, stop, play - the player's own chrome showed through that half second), or after 30 s regardless
             var stageUp = tile?["stage"]?.GetValue<bool>() == true;
             var playingNow = tile?["playing"]?.GetValue<bool>() == true;
+            // no title to wait for: the service did not name it, and its own search is open on the screen for the person to pick from (2026-10-16,
+            // Chicago Med on YouTube TV) - the curtain lifts onto that page once it has loaded, and says why
+            if (tile?["opened"] is JsonObject && !playingNow && slot is not null && _navAt.TryGetValue(slot, out var openAt) && openAt > _curtainUpAt && (DateTime.UtcNow - openAt).TotalSeconds > 1.5)
+            {
+                HideStageCurtain();
+                SetPill("Prism \u00B7 " + service + " didn't find " + Shorten(title, 40) + " by itself. Pick it on its page.");
+                return;
+            }
             // ... and not on the title that was already playing when the curtain rose (2026-10-12, Next episode on Apple TV: the old episode's
             // own playing dropped the curtain two seconds after the press, and the next episode's page then showed for a second and a half
             // before Apple's player took it): the picture has changed title, or the page has navigated since, or eight seconds have passed
@@ -414,7 +423,23 @@ public sealed partial class MainWindow
                             url = (await _surfaces.EvalOnTileAsync(tileId, "window.__prismVideoPreviewRead ? window.__prismVideoPreviewRead() : ''"))?.Trim().Trim('"') ?? "";
                         }
                     }
-                    if (url.StartsWith("http", StringComparison.Ordinal) || url.StartsWith("data:image", StringComparison.Ordinal)) { try { previewImg.Source = new BitmapImage(Services.ArtCache.UriFor(url)); } catch { } }
+                    if (url.StartsWith("http", StringComparison.Ordinal)) { try { previewImg.Source = new BitmapImage(Services.ArtCache.UriFor(url)); } catch { } }
+                    // a picture the page drew itself (Netflix's preview, read from its canvas, 2026-10-16): a BitmapImage takes no data: address,
+                    // so the box stood grey ("Slider still shows a gray empty box") - its bytes are decoded here
+                    else if (url.StartsWith("data:image", StringComparison.Ordinal) && url.IndexOf(";base64,", StringComparison.Ordinal) is var b64 and > 0)
+                    {
+                        try
+                        {
+                            var bytes = Convert.FromBase64String(url.Substring(b64 + 8));
+                            using var ms = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                            await ms.WriteAsync(bytes.AsBuffer());
+                            ms.Seek(0);
+                            var bmp = new BitmapImage();
+                            await bmp.SetSourceAsync(ms);
+                            if (wantAt >= 0) previewImg.Source = bmp;
+                        }
+                        catch { }
+                    }
                     if (Math.Abs(wantAt - at) < 0.5) break;   // the pointer has not moved on: this picture stands
                 }
             }
@@ -941,9 +966,37 @@ public sealed partial class MainWindow
         if (tile is null) return false;
         if (tile["atEnd"]?.GetValue<bool>() == true) return false;   // stuck at its end, on an end card that still names it - over (core, every service, 2026-09-28)
         if (tile["stage"]?.GetValue<bool>() == true) return true;
+        if (tile["opened"] is JsonObject) return true;   // a service's page opened for the person's own pick (its search, core's kind "open", 2026-10-16)
         if (tile["pending"] is JsonObject pd && pd["failed"] is null && pd["restored"]?.GetValue<bool>() != true) return true;   // a title being brought back after a restart is not up until it plays (2026-09-23)
         var v = tile["video"] as JsonObject;
         return v is not null && ((v["title"]?.GetValue<string>() ?? "").Length > 0 || (v["series"]?.GetValue<string>() ?? "").Length > 0);
+    }
+    /// <summary>Watch open over a screen whose title came up after Watch last read it (2026-10-16, "I started a show, moved to watch while it was
+    /// loading but then it disappeared. It should be playing in my little mini player right?"): the curtain lifted by hand, Watch opened while
+    /// Paramount+ still searched, and the corner said Nothing playing; the episode then played full size behind Watch, heard and never moved in,
+    /// until Watch was closed and opened again. The old title's play (Netflix's, four seconds on) had closed the pick's start, so neither the
+    /// corner's starting follow nor anything else read the screens again. Now, while the corner is empty or holds a title as still starting, the
+    /// screen is read every lap of the home watch: a title up on an empty corner, or playing in a held one, has the corner read again.</summary>
+    private async Task CatchUpCornerAsync()
+    {
+        if (_mvOn || _stackOverlay is null || !ReferenceEquals(_videoHub, _stackOverlay)) return;   // multiview's windows have their own follow
+        var held = _mvBig?["starting"]?.GetValue<bool>() == true || _startingTiles.Count > 0;
+        if (_mvBigHas && !held) return;
+        JsonObject? tile = null;
+        try
+        {
+            var sv = JsonNode.Parse(await ModelCallAsync("videoServices") ?? "null") as JsonObject;
+            var s = (sv?["screen"] as JsonObject)?["slot"]?.GetValue<string>();
+            var vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray;
+            tile = vs?.OfType<JsonObject>().FirstOrDefault(t => t["id"]?.GetValue<string>() == s);
+        }
+        catch { return; }
+        if (!VideoHubOpen || !(_mvBigHas ? tile?["playing"]?.GetValue<bool>() == true : TitleUp(tile))) return;
+        await MvCallAsync("state");   // the corner follows what core says now (SyncWatchStack)
+        if (_mvBig?["starting"]?.GetValue<bool>() != true && _startingTiles.Count > 0 && tile?["playing"]?.GetValue<bool>() == true)
+        {
+            _startingTiles.Clear(); for (var i = 0; i < WatchPlaces; i++) _stackKey[i] = null; SyncWatchStack();
+        }
     }
     private int _watchHomeRun;
     /// <summary>No title, no service page: back to Watch (2026-09-22, widened 2026-09-23 - "if a video is not playing, the video player should
@@ -970,7 +1023,8 @@ public sealed partial class MainWindow
         {
             await Task.Delay(1500);
             if (run != _watchHomeRun) return;
-            if (VideoHubOpen || StageCurtain.Visibility == Visibility.Visible || _asSession) { gone = 0; SyncSkipOffer(null, null); continue; }
+            if (StageCurtain.Visibility == Visibility.Visible || _asSession) { gone = 0; SyncSkipOffer(null, null); continue; }
+            if (VideoHubOpen) { gone = 0; SyncSkipOffer(null, null); await CatchUpCornerAsync(); continue; }
             JsonObject? tile = null; string? s = null; var signedIn = true;
             try
             {
@@ -1033,16 +1087,21 @@ public sealed partial class MainWindow
         }
         catch { }
     }
-    public void CloseVideoHub()
+    /// <param name="redraw">Watch drawn again in place (a tab, a filter): the screens in its corner stay where they are, still dimmed, and the page
+    /// that follows takes them over (2026-10-16, "Whenever I click a new tab, the miniplayer seems to reload. The audio doesnt cut, but the video
+    /// sure does. And it often gets bright instead of staying dimmed"): each redraw had sent every corner screen back to its full size for a
+    /// moment, its page laid out again, and taken Simple Watch's dim off with it.</param>
+    public void CloseVideoHub(bool redraw = false)
     {
         if (_videoHub is null) return;
+        if (!redraw) UndimScreens();   // Simple Watch's dim never outlives Watch
         var focusScreen = _pipSlot is null;
-        var wasPip = EndWatchStack();   // the windows in Watch's places back to their own, never covered: not re-linked below (B-295)
+        var wasPip = EndWatchStack(keepPlaces: redraw);   // the windows in Watch's places back to their own, never covered: not re-linked below (B-295)
         if (_hubCanvasSize is not null) { TileCanvas.SizeChanged -= _hubCanvasSize; _hubCanvasSize = null; }
         TileCanvas.Children.Remove(_videoHub);
         // keyboard focus back onto the screen's page (2026-09-21): the stage keys ride the page's own prelude, and the Watch page
         // had taken focus with it - after Esc out of it, Space did nothing until the picture was clicked
-        if (focusScreen && WatchGrip.Visibility == Visibility.Visible) _ = FocusScreenAsync();
+        if (focusScreen && WatchGrip.Visibility == Visibility.Visible && !redraw) _ = FocusScreenAsync();
         _videoHub = null;
         _hubSearch = null;
         // B-295: the windows Watch covered come back as empty frames unless their views present afresh - and the windows that were in Watch's
@@ -1050,8 +1109,21 @@ public sealed partial class MainWindow
         // grown from Watch's corner to the whole window, came back see-through, a still of Watch showing through it while its page took the
         // clicks). They were left out because a re-link put Peacock's own controls back; those are hidden always now.
         _ = wasPip;
-        _surfaces.NudgeSoon();
         _hubCur = null;
+        if (redraw)
+        {
+            // the next page takes the corner over at once; if no page follows, the screens go back as on any close
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, async () =>
+            {
+                await Task.Delay(3000);
+                if (_videoHub is not null) return;
+                foreach (var s in _pipSlots.ToList()) _surfaces.EndPip(s);
+                _pipSlots.Clear(); UndimScreens(); _surfaces.NudgeSoon(); SyncEmptyStage();
+            });
+            LogLine("video hub: redrawn in place");
+            return;
+        }
+        _surfaces.NudgeSoon();
         SyncEmptyStage();   // nothing on the screens: the empty stage, not a service's home page
         LogLine("video hub: closed");
     }
@@ -1092,7 +1164,7 @@ public sealed partial class MainWindow
         catch (Exception e) { LogLine("video hub: " + e.Message); }
         if (menu?["services"] is not JsonArray services || services.Count == 0) { SetPill("Prism · no video service yet. Add one from Apps"); return; }
         await MvCallAsync("state");
-        CloseVideoHub();
+        CloseVideoHub(redraw: true);
         HideStageBar();
         _hubLines.Clear(); _hubArt.Clear(); _hubLensHead = null; _hubLensPending.Clear(); _liveRows.Clear(); _svcDots.Clear();
         if (_asSession) { await FinishAppSetupAsync(save: false); }   // a setup page under the menu is a trap (the Watch tab pressed mid-sign-in ends the setup instead)
@@ -1120,6 +1192,8 @@ public sealed partial class MainWindow
         // screen goes back to full size. Nothing is re-rendered or captured. The page draws a ring around the corner.
         var titleUp = active && TitleUp(tile);
         _hubHeadRule = null;   // this page's own rule, drawn below; never the last page's (2026-10-06: a reopen measured the old one and fell back)
+        s_calm = SimpleWatch;   // Simple Watch's calm for every page of Watch (MainWindow.SimpleWatch.cs)
+        _ = ModelCallAsync("videoSetSimpleWatch", s_calm);   // the phone's Watch follows it
         BuildWatchStack(overlay);   // the big screen and windows 2 to 5 in the corner (2026-09-25, MainWindow.WatchScreens)
         _ = FollowStartingAsync(quitIfIdle: true);   // a title still loading (a pick, or the one resumed after a restart) moves in once it plays (2026-10-06)
         // Watch is the Video player's home (2026-09-22): it closes only onto a title that is up ("why do you still X out of Watch to
@@ -1223,6 +1297,7 @@ public sealed partial class MainWindow
             // playlists are the TMDB account's lists: no tab until one is linked (2026-10-07, "Why does the playlists tab show when TMDB isnt
             // configured? ... would prefer they dont show up if TMDB isnt configured")
             if (tabId == "playlists" && !_playlistsTab) continue;
+            if (s_calm && tabId is "browse" or "playlists") continue;   // Simple Watch: under More (below)
             var on = _hubTab == tabId;
             var tab = new Button
             {
@@ -1244,6 +1319,7 @@ public sealed partial class MainWindow
             tab.Click += (_, __) => { if (_hubTab != id2 || _bingeOpen) { _hubTab = id2; _browseRow = null; _bingeOpen = false; _ = ShowVideoHubAsync(); } };
             OwnHover(tab);
             tabs.Children.Add(tab);
+            if (s_calm && tabId == "library") tabs.Children.Add(SimpleMoreTab());
             if (tabId == "playlists")   // the run's tag, on the tab and never over the video (docs/features/playlists.md, 2026-09-27)
             {
                 _playlistsTabTag = new TextBlock { Text = _plRunTag ?? "", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0), Visibility = _plRunTag is null ? Visibility.Collapsed : Visibility.Visible };
@@ -1332,22 +1408,27 @@ public sealed partial class MainWindow
         // ---- the five rows (§2), then the labeled suggestions when on
         // the rows' side margins are the panel's own padding, not the page's: the scroller spans the page edge to edge, so a shaded band
         // (Band) can run through the margins while every other row keeps its 48 px inset (2026-10-14, "go through the side margins as well")
+        s_quiet = _hubTab == "watch" && !_bingeOpen && SimpleWatch;   // Simple Watch (MainWindow.SimpleWatch.cs, 2026-10-16)
         var rows = new StackPanel { Spacing = 18, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(HubSide, 0, HubSide, 0) };
         _suggToggle = null; _suggJump = null;
         Button? first = null;
-        void Cards(string head, IEnumerable<JsonObject> cards, bool badge, SolidColorBrush ink, string? live = null)
+        void Cards(string head, IEnumerable<JsonObject> cards, bool badge, SolidColorBrush ink, string? live = null, double scale = 1)
         {
             var list = cards.ToList();
             if (live is null) { if (list.Count == 0) return; rows.Children.Add(RowHead(head, ink)); rows.Children.Add(CardRow(list, badge, now, ref first)); return; }
+            // Simple Watch's rows drawn larger, head and cards together (MainWindow.SimpleWatch.cs ScaledRow)
+            var into = rows;
+            if (scale != 1) into = new StackPanel { Spacing = rows.Spacing };
             // a row the live follow keeps current in place (2026-09-24): its head and its host always there, the head hidden while it is empty
             FrameworkElement headEl = LiveRowHead(head, ink, live, menu, list);   // its order switch, and Continue watching's service chips (2026-09-26)
             headEl.Visibility = list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-            rows.Children.Add(headEl);
+            into.Children.Add(headEl);
             var host = new StackPanel { Background = HubClear, Tag = string.Join("|", list.Select(LiveKey)) };
             host.PointerEntered += (_, __) => _liveOver.Add(live);
             host.PointerExited += (_, __) => _liveOver.Remove(live);
             if (list.Count > 0) host.Children.Add(CardRow(list, badge, now, ref first));
-            rows.Children.Add(host);
+            into.Children.Add(host);
+            if (!ReferenceEquals(into, rows)) rows.Children.Add(ScaledRow(into, scale));
             _liveRows[live] = (headEl, host, badge);
         }
         // the Library tab's sort (2026-09-22, "sort options for the ... library"; the Watch tab keeps its rows' own order - a global sort there made
@@ -1392,12 +1473,20 @@ public sealed partial class MainWindow
         }
         else
         {
-        Cards("New in your library", LiveCards(menu, "newOwned"), true, HubAmber);   // with the service's mark on each card, as every row has (2026-10-12)   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
-        Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue");   // its cards offer Remove on the service (2026-09-22)
+        if (!s_quiet) Cards("New in your library", LiveCards(menu, "newOwned"), true, HubAmber);   // with the service's mark on each card, as every row has (2026-10-12)   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
+        var resumeAt = rows.Children.Count; var firstBeforeContinue = first;
+        Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue", s_quiet ? SimpleLeadScale : 1);
+        // Simple Watch's one clear next step: Resume, the first card of Continue watching as its own bar above the row (MainWindow.SimpleWatch.cs)
+        if (s_quiet && firstBeforeContinue is null && first is not null && LiveCards(menu, "continue").FirstOrDefault() is { } resumeCard && ResumeBar(resumeCard, first) is { } resumeBar)
+            rows.Children.Insert(resumeAt, resumeBar);   // its cards offer Remove on the service (2026-09-22)
         // My list is the TMDB watchlist while an account is linked (MainWindow.Watchlist.cs, 2026-10-03); the services' own lists otherwise
         _watchActive = menu["watchlist"] is JsonObject wl0 && wl0["active"]?.GetValue<bool>() == true;
-        if (_watchActive) DrawWatchlistRow(rows, overlay, (JsonObject)menu["watchlist"]!);
-        else Cards("My list", LiveCards(menu, "list"), true, HubInk, "list");   // its cards offer Remove on the service (2026-09-23)
+        if (_watchActive && s_quiet) { var wlGroup = new StackPanel { Spacing = rows.Spacing }; DrawWatchlistRow(wlGroup, overlay, (JsonObject)menu["watchlist"]!); rows.Children.Add(ScaledRow(wlGroup, SimpleRowScale)); }
+        else if (_watchActive) DrawWatchlistRow(rows, overlay, (JsonObject)menu["watchlist"]!);
+        else Cards("My list", LiveCards(menu, "list"), true, HubInk, "list", s_quiet ? SimpleRowScale : 1);   // its cards offer Remove on the service (2026-09-23)
+        // Simple Watch (2026-10-16): The Binge in the pick's place under these two, every other row behind More to watch in its usual order
+        StackPanel? simpleMain = null, simplePick = null, simpleMore = null; Button? simpleToggle = null;
+        if (s_quiet) { simpleMain = rows; (simplePick, simpleMore, simpleToggle) = SimpleWatchMore(rows); rows = simpleMore; Cards("New in your library", LiveCards(menu, "newOwned"), true, HubAmber); }
         // a service's own rows (2026-10-05, "I would think we'd place followed content somewhere specific, subscribed content somewhere specific"):
         // what the account lists as the person's own - Twitch's Followed channels and their latest videos - a row each, named for the service,
         // always drawn (a suggestion row is the service's pick; these are the person's)
@@ -1502,6 +1591,7 @@ public sealed partial class MainWindow
         if (menu["lensRows"] is JsonArray lensRows)
             foreach (var lr in lensRows.OfType<JsonObject>())
             {
+                if (simpleMore is not null) rows = S(lr, "id") == "the-binge" && simplePick is not null ? simplePick : simpleMore;   // The Binge is Simple Watch's pick
                 if (S(lr, "id").StartsWith("cat:", StringComparison.Ordinal)) DrawServicesBlock();   // Services and its rows stand above the categories (2026-10-13)
                 var cards = (lr["cards"] as JsonArray)?.OfType<JsonObject>().Take(24).ToList() ?? new List<JsonObject>();
                 // a lens that reads the catalog on the household's services (Most read on Wikipedia, 2026-09-22): Browse's cards, the row filled
@@ -1522,18 +1612,21 @@ public sealed partial class MainWindow
                     catHead.Children.Add(InfoMark(InfoTip(lr, LensDisclosureLine(lr, S(lr, "dataDate") is { Length: > 0 } cdd ? cdd : "not read yet"), CatalogLensHead(lr))));   // the (i) (2026-10-13)
                     catDisc.Tag = catHead;
                     catHead.Children.Add(catDisc);
-                    rows.Children.Add(catHead);
+                    var catInto = s_quiet && S(lr, "id") == "the-binge" ? new StackPanel { Spacing = rows.Spacing } : rows;   // Simple Watch's pick, drawn larger
+                    catInto.Children.Add(catHead);
                     var catHost = new StackPanel { Tag = string.Join("|", catCards.Select(c => S(c, "id"))), Background = HubClear };
                     // the pointer over the row holds it still while its titles are being placed
                     catHost.PointerEntered += (_, __) => { if (catHost.Tag is string t && !t.StartsWith("over|", StringComparison.Ordinal)) catHost.Tag = "over|" + t; };
                     catHost.PointerExited += (_, __) => { if (catHost.Tag is string t && t.StartsWith("over|", StringComparison.Ordinal)) catHost.Tag = t.Substring(5); };
                     if (catCards.Count > 0) catHost.Children.Add(BrowseRow(catCards, ref first, true));
-                    rows.Children.Add(catHost);
+                    catInto.Children.Add(catHost);
+                    if (!ReferenceEquals(catInto, rows)) rows.Children.Add(ScaledRow(catInto, SimpleRowScale));
                     // the fresh rows run oldest to newest (2026-09-24, "add 'Oldest to Newest' and make Oldest a link for jumping the row all the
                     // way to the left, and newest a link that jumps the carousel row all the way to the right")
                     // ... and now newest first, with the Release Date chip and the reverse switch the other rows have (2026-10-15, MainWindow.FreshOrder.cs)
                     if (S(lr, "id") is "fresh-episodes" or "fresh-movies") catHead.Children.Insert(lr["orders"] is JsonArray ? Math.Min(2, catHead.Children.Count) : 1, lr["orders"] is JsonArray ? FreshOrderSwitch(lr, catHost) : FreshEnds(catHost));   // after the (i), as My Watchlist has it
                     if (catReading) _hubLensPending[S(lr, "id")] = (catTb, catHost, S(lr, "name"), catDisc);
+                    QuietHead(catHead, catTb);
                     continue;
                 }
                 var rowReading = lr["reading"] is JsonValue rrv && rrv.TryGetValue<int>(out var rrn) && rrn > 0;   // a category's open pool still being read (2026-10-11)
@@ -1552,6 +1645,7 @@ public sealed partial class MainWindow
                 lensHead.Children.Add(info);
                 lensHead.Children.Add(disclosure);
                 rows.Children.Add(lensHead);
+                QuietHead(lensHead, headTb);
                 var hostPanel = new StackPanel(); rows.Children.Add(hostPanel);
                 if (cards.Count > 0) hostPanel.Children.Add(CardRow(cards, true, now, ref first));
                 // a category row follows its pool reads while Watch is open (2026-10-13, "it still hasn't loaded now and it has been 10+ minutes": a row
@@ -1567,6 +1661,7 @@ public sealed partial class MainWindow
                     hostPanel.PointerExited += (_, __) => { if (hostPanel.Tag is string t && t.StartsWith("over|", StringComparison.Ordinal)) hostPanel.Tag = t.Substring(5); };
                 }
             }
+        if (simpleMore is not null) rows = simpleMore;
         if (lensBlock is not null && false)   // (2026-09-24: the TMDB key is in Watch settings now - the gear on the header)
         {
             var keyLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -1718,6 +1813,7 @@ public sealed partial class MainWindow
         }
         DrawServicesBlock();
         DrawFollowedRows();   // the followed rows after the categories
+        if (simpleMain is not null) { rows = simpleMain; if (simpleMore!.Children.Count == 0) simpleToggle!.Visibility = Visibility.Collapsed; }
         }
         // search on the Playlists tab too (2026-09-27, "The search icon isnt available on the playlists screen but I see no reason for that")
         if (_hubTab is "watch" or "playlists")
@@ -1938,6 +2034,7 @@ public sealed partial class MainWindow
         if (_hubTab == "watch") AddPerfPanel(rows);   // the performance stats at the foot, when on (MainWindow.PerfPanel, 2026-10-03)
         var scroller = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(-HubSide, 0, -HubSide, 0) };   // edge to edge (the rows pad themselves)
         _hubScroller = scroller;   // no bars anywhere on the page: the rows are carousels the arrows (or a wheel, a swipe) move, the focused card brought to the centre (2026-09-21)
+        WireBrowseDim(scroller);   // Simple Watch: the corner's screens dim while the rows are browsed
         Grid.SetRow(scroller, 2);
         page.Children.Add(scroller);
         {
@@ -2023,6 +2120,7 @@ public sealed partial class MainWindow
         RootGrid.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (!ReferenceEquals(_videoHub, overlay) || first is null) return;
+            s_autoFocused = first;   // Simple Watch: this focus is Prism's, not the person's - the card keeps its details quiet
             var ok = first.Focus(FocusState.Keyboard);
             if (!ok) { overlay.UpdateLayout(); ok = first.Focus(FocusState.Keyboard); }
             LogLine("video hub: focus on the first card " + (ok ? "taken" : "REFUSED"));
@@ -2477,11 +2575,11 @@ public sealed partial class MainWindow
                 ToolTipService.SetToolTip(ribbon, S(item, "badgeFrom") == "tmdb" ? "A new episode aired " + tmdbNew.Replace("New ", "") + " - per TMDB."
                     : S(item, "badgeFrom") == "count" ? (S(item, "subtitle").Length > 0 ? S(item, "subtitle") : tmdbNew) + ", as " + service + " counts them. Press to see them."
                     : "Aired " + tmdbNew.Replace("New ", "") + ", as " + service + " lists it.");
-                poster.Children.Add(ribbon);
+                poster.Children.Add(QuietPart(ribbon));
             }
             // a badge the service drew into its own picture (Netflix's box art) is not drawn again (2026-09-24, DANG!'s 'Recently Added' twice)
             else if (S(item, "badge") is { Length: > 0 } banner && item["badgeInArt"]?.GetValue<bool>() != true)
-                poster.Children.Add(new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x0F, 0x12, 0x16)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(6, 6, 6, 10), Child = new TextBlock { Text = Shorten(banner, 26), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubAmber } });
+                poster.Children.Add(QuietPart(new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x0F, 0x12, 0x16)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(6, 6, 6, 10), Child = new TextBlock { Text = Shorten(banner, 26), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubAmber } }));
             if (item["progress"] is JsonValue pv && pv.TryGetValue<double>(out var pd) && pd > 0)
             {
                 // a Continue watching card too (2026-10-13, "lets do the same grayscale elapsed to color for the remaining time on the poster")
@@ -2531,7 +2629,7 @@ public sealed partial class MainWindow
             else cell.Children.Add(MarqueeTitle(Shorten(text, 36) + (subt.Length > 0 ? "  ·  " + Shorten(subt, 16) : ""), text + (subt.Length > 0 ? "  ·  " + subt : ""), CardTitleSize, HubInk));
             // the one time a card ever shows: the log's own; an inferred or ranked recency shows nothing (§4)
             if (card["lastWatched"] is JsonValue lw && lw.TryGetValue<double>(out var at))
-                cell.Children.Add(new TextBlock { Text = Ago(at, now) + "  ·  " + service, FontSize = 11, Foreground = HubDim });
+                cell.Children.Add(QuietPart(new TextBlock { Text = Ago(at, now) + "  ·  " + service, FontSize = 11, Foreground = HubDim }));
             // §4a: the lens's own number for this title, and TMDB's rating - always with its source and vote count, never bare;
             // both lines live on the card from the start and fill in as the sources answer (FollowHubAsync)
             var lensLabel = card["lens"] is JsonObject lv ? S(lv, "label") : "";
@@ -2540,10 +2638,11 @@ public sealed partial class MainWindow
             // the rating line with the person's own rating as the star's amber share (MainWindow.RatingLine.cs, 2026-10-03)
             var mine = card["mine"] is JsonValue mnv && mnv.TryGetValue<double>(out var mnd) ? mnd : (double?)null;
             var ratingTb = MakeRatingLine(ratingText != lensLabel ? ratingText : "", mine, 11, HubDim);   // under the rating lens the lens line already says it
-            cell.Children.Add(lensTb);
+            cell.Children.Add(QuietPart(lensTb));
             Action? rateOpen = null;
             if (named) { var tm = card["tmdb"] as JsonObject; rateOpen = AddRatingBadge(poster, ratingTb, tm is null ? null : S(tm, "kind"), tm?["id"] is JsonValue tiv && tiv.TryGetValue<int>(out var tii) ? tii : 0); }   // the score pill on the picture (2026-10-13)
-            else cell.Children.Add(ratingTb.Root);
+            else cell.Children.Add(QuietPart(ratingTb.Root));
+            if (named) QuietPart(ratingTb.Badge);
             (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb, poster));
             _hubArt[poster] = art ?? "";
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
@@ -2631,6 +2730,7 @@ public sealed partial class MainWindow
             // a series of a library row that opens in place (MainWindow.SeriesRow.cs, 2026-10-14): its recordings take the row
             else if (k2 == "series" && card["__pickRow"]?.GetValue<string>() is { Length: > 0 } pickRow) btn.Click += (_, __) => { if (_rowPicks.TryGetValue(pickRow, out var pickFn)) pickFn(card); else { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); } };
             else btn.Click += (_, __) => { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); };
+        RevealOnHover(btn);   // Simple Watch
         return btn;
     }
     /// <summary>
@@ -3462,7 +3562,7 @@ public sealed partial class MainWindow
                 art.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, art.Width, art.Height) };
                 var ribbon = new Border { Width = 124, Height = 22, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xC6, 0x28, 0x28)), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-40, 18, 0, 0), RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5), RenderTransform = new RotateTransform { Angle = -45 }, Child = new TextBlock { Text = newEp, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
                 ToolTipService.SetToolTip(ribbon, "A new episode aired " + newEp.Replace("New ", "") + " - per TMDB.");
-                art.Children.Add(ribbon);
+                art.Children.Add(QuietPart(ribbon));
             }
             // each service as its symbol, a title on several of them on a small stack (2026-09-23)
             art.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = MarkStack(svcs.Select(x => (S(x, "app"), S(x, "name")))) });
@@ -3472,15 +3572,15 @@ public sealed partial class MainWindow
             var value = S(c, "value");
             // compact (Watch's rows, 2026-09-24, "move lines #2 and #4 under the tooltip for each item, so they can match the continue & my
             // list rows better"): the title and the rating; the row's own number and the facts line go to the tooltip
-            if (value.Length > 0 && !compact) cell.Children.Add(new TextBlock { Text = value, FontSize = 11, Foreground = HubAmber, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (value.Length > 0 && !compact) cell.Children.Add(QuietPart(new TextBlock { Text = value, FontSize = 11, Foreground = HubAmber, TextTrimming = TextTrimming.CharacterEllipsis }));
             // TMDB's rating on every title (2026-09-24), as on the Continue / My List cards; not twice under a row that is itself the rating
             var ratingLine = S(c, "rating");
             var mineB = c["mine"] is JsonValue mbv && mbv.TryGetValue<double>(out var mbd) ? mbd : (double?)null;
             Action? rateOpenB = null;
-            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) { var tp = cid.Split(':'); var tk = tp.Length == 3 && tp[0] == "tmdb" ? tp[1] : S(c, "kind") == "series" ? "tv" : "movie"; var ti = int.TryParse(tp.Length == 3 ? tp[2] : cid, out var cidN) ? cidN : 0; rateOpenB = AddRatingBadge(art, rlb, tk, ti); } else cell.Children.Add(rlb.Root); }   // a catalog id reads tmdb:<kind>:<id> (2026-10-13, "the right click menu say nothing found in TMDB")
+            if ((ratingLine.Length > 0 && ratingLine != value) || mineB is not null) { var rlb = MakeRatingLine(ratingLine != value ? ratingLine : "", mineB, 11, HubDim); if (namedOnArt) { var tp = cid.Split(':'); var tk = tp.Length == 3 && tp[0] == "tmdb" ? tp[1] : S(c, "kind") == "series" ? "tv" : "movie"; var ti = int.TryParse(tp.Length == 3 ? tp[2] : cid, out var cidN) ? cidN : 0; rateOpenB = AddRatingBadge(art, rlb, tk, ti); QuietPart(rlb.Badge); } else cell.Children.Add(QuietPart(rlb.Root)); }   // a catalog id reads tmdb:<kind>:<id> (2026-10-13, "the right click menu say nothing found in TMDB")
             var offer = svcs.Count > 0 ? S(svcs[0], "offer") : "Not on your services";
             var facts = string.Join("  ·  ", new[] { year, kindWord, svcs.Count == 1 ? offer : svcs.Count + " of your services" }.Where(x => x.Length > 0));
-            if (!compact) cell.Children.Add(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (!compact) cell.Children.Add(QuietPart(new TextBlock { Text = facts, FontSize = 11, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis }));
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
             var overview = S(c, "overview");
             var where = string.Join(", ", svcs.Select(x => S(x, "name") + (S(x, "offer").Length > 0 ? " (" + S(x, "offer") + ")" : "")));
@@ -3514,6 +3614,7 @@ public sealed partial class MainWindow
             var bTmdb = cid.StartsWith("tmdb:", StringComparison.Ordinal) ? cid.Substring(5) : null;
             int? bYear = c["year"] is JsonValue byv && byv.TryGetValue<double>(out var byd) ? (int)byd : null;
             btn.ContextFlyout = RatingFlyout(title, lsKind, tmdb: bTmdb, year: bYear, rate: rateOpenB, extra: async fly => { if (playVerb == "videoBingePlay") BingeHideItem(fly, cid, title); if (!_watchActive) foreach (var sv in svcs) await AddListAddItemAsync(fly, S(sv, "app"), S(sv, "name"), cid, title, null, lsKind, "1"); });
+        RevealOnHover(btn);   // Simple Watch
         return btn;
     }
     /// <summary>Cards laid out in a grid (a row opened in full): as many columns as the canvas fits.</summary>
@@ -3582,6 +3683,7 @@ public sealed partial class MainWindow
     /// <summary>A card slides to its new place when its row changes around it, instead of jumping (a composition implicit Offset animation).</summary>
     private static void SlideOnMove(UIElement el)
     {
+        if (s_calm) return;   // Simple Watch: a card takes its new place without moving across the row
         try
         {
             var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(el);

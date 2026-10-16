@@ -64,11 +64,16 @@ public sealed partial class MainWindow
         LogLine("remove continue: " + app + " " + id + " " + title);
         JsonObject? r = null;
         var t0 = DateTime.UtcNow;
-        while ((DateTime.UtcNow - t0).TotalSeconds < 200)   // a removal may wait behind another on the same service (one job at a time on its page); Twitch's plays the video out
+        // a removal may wait behind others on the same service (one job at a time on its page; Twitch's plays each video out): followed while core
+        // says it is working, the count ahead of it on the line (2026-10-15, "It doesn't seem to be able to handle multiple removals in a queue")
+        var lastAhead = -1;
+        while ((DateTime.UtcNow - t0).TotalMinutes < 30)
         {
             try { r = JsonNode.Parse(await ModelCallAsync("videoRemoveContinue", app, id, title) ?? "null") as JsonObject; } catch { r = null; }
             var st = r?["status"]?.GetValue<string>();
             if (st is "done" or "failed") break;
+            var ahead = r?["ahead"] is JsonValue av && av.TryGetValue<double>(out var ad) ? (int)ad : 0;
+            if (ahead != lastAhead) { lastAhead = ahead; if (ahead > 0) SetPill("Prism \u00B7 removing " + Shorten(title, 40) + " (" + ahead + " ahead of it)"); }
             await Task.Delay(700);
         }
         if (r?["status"]?.GetValue<string>() == "done")

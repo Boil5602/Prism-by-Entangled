@@ -146,10 +146,13 @@ What the first night found and fixed (2026-10-03, 01:24 to 02:25, three windows 
 | store file writes (the whole 7 MB each) | 20/min | 1-2/min |
 
 - **Readers dark** (SurfaceManager.DozeIdleReadersAsync, host-prefs `perf.readersDark`, the dev hook "readers on|off"): a hidden reader page
-  (core's "app:<service>:lookup" / "work" pages) untouched for ninety seconds is frozen through Chromium's page lifecycle
-  (`Page.setWebLifecycleState frozen`: scripts, timers, animation and media stop; the layout stands so the adapters' readers see the
-  same shape) and woken before any script, navigation or pointer reaches it. The music players' facets are kind "hidden" too and play
-  while hidden: never readers. Apple TV's lookup page had been the busiest renderer on the wall (5% CPU, 1 MB/s) for nobody.
+  (core's "app:<service>:lookup" / "work" pages) untouched for ninety seconds, and a music player's facet that has not played for ten
+  minutes, is parked (SurfaceManager.Parking): its WebView2 memory target is Low, and a renderer process drawing only parked pages
+  runs below normal priority in Windows' efficiency mode (EcoQoS); both are undone before any script, navigation or pointer reaches
+  it. The page itself is never slowed or frozen. The lifecycle freeze (`Page.setWebLifecycleState frozen`) left a page's document
+  hidden for good (B-371), and the DevTools CPU throttle that replaced it (8x) made each throttled page that had work of its own hold
+  a full core: measured 2026-10-16, four parked music pages at 25% of a 16-core machine with nothing playing, 1.3% once woken.
+  Apple TV's lookup page had been the busiest renderer on the wall (5% CPU, 1 MB/s) for nobody.
 - **Decorative loops paused on hidden surfaces** (SurfaceManager.DecorJs): Apple Music's home page looped two muted animated-artwork
   videos, one 1662 by 2216, under the Video player - its profile's GPU process at 13% decoding for nobody. A page action on a surface
   entering hidden presence pauses every muted looping video (new ones too) and resumes the ones Prism paused when it comes back.

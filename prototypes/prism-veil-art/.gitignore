@@ -1,6 +1,7 @@
 fetch.log
 hosted/
 hosted-cred/
+hosted-packs/
 reports/
 candidates/thumbs/
 candidates/*.log

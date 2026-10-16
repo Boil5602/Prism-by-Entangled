@@ -24,6 +24,20 @@ describe("The Binge - eligibility", () => {
     expect(bingeEligible(cand(9, { mean: 6.9 }))).toBe(false);
     expect(bingeEligible(cand(10, { votes: 499 }))).toBe(false);
   });
+  it("the earliest year (2026-10-15): 1888 by default leaves nothing out; set, older shows go, an unknown year never counts against one", () => {
+    expect(BINGE_DEFAULTS.minYear).toBe(1888);
+    expect(bingeEligible(cand(20, { year: 1951 }))).toBe(true);
+    const t = { ...BINGE_DEFAULTS, minYear: 2000 };
+    expect(bingeEligible(cand(21, { year: 1999 }), t)).toBe(false);
+    expect(bingeEligible(cand(22, { year: 2000 }), t)).toBe(true);
+    expect(bingeEligible(cand(23, {}), t)).toBe(true);   // no year known (a pool read before the year was kept)
+    const c = cand(24, {}); c.card = { ...c.card, year: 1990 };
+    expect(bingeEligible(c, t)).toBe(false);   // the card's year when the series' own is not kept
+    expect(bingeSettingsOf({ thresholds: { minYear: 1700 } }).thresholds.minYear).toBe(1888);
+    expect(bingeSettingsOf({ thresholds: { minYear: 2005.6 } }).thresholds.minYear).toBe(2005);
+    expect(bingeWords(t).label).toContain("from 2000 on");
+    expect(bingeWords(BINGE_DEFAULTS).label).not.toContain("from 1888");
+  });
   it("nothing that cannot be played here: a title on none of the signed-in services is never eligible", () => {
     const c = cand(11, {});
     c.card = { ...c.card, services: [] };

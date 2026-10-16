@@ -749,6 +749,10 @@ provenance record. `bundled.txt` pins the subset copied into the host's
 
 *Decision (2026-10-15):* the Video player's cover pictures are a Watch settings choice, not the scene's pack: Nature photos (the hand-picked pool, the default), Gallery paintings or Cosmos, on the PC and the phone. A template's `intermission.source` still names a pack, and a music window still draws from it; a video window takes the setting (the owner, 2026-10-15: "Prism app on the desktop is still using the old images", "lets fix the video player veil images").
 
+*Decision (2026-10-15, later):* the cover pictures are a set, not one choice - checkboxes for Nature photos (on by default), Cosmos and Museum art, at least one always on; each cover draws one picture from all the sets switched on together, every picture with the same chance and the ones shown lately passed over (the shell picks: core sends the sets comma-joined). Stored comma-joined under `video:cover-source`; a single value kept before reads as a set of one.
+
+*Decision (2026-10-15, vibrant packs):* both packs are chosen for colour now (the owner: "Can we look at the CC0 space and museum art pics too? Looking for vibrant options"). **Museum art** (the `gallery` pack, renamed on the card and in Watch settings) is 43 Art Institute of Chicago public-domain works picked by a person from 202 candidates ranked by vividness: Hokusai and Hiroshige prints, Monet, Van Gogh, Gauguin, Renoir, Seurat, Signac, Sisley, Pissarro, Cezanne, early Kandinsky, Turner, Homer and Sargent. The Hudson River School register above, and CS-10.4's Bierstadt with it, is retired. **Cosmos** is 30 NASA public-domain images picked from 310, any ESA or ESO credit left out. `fetch-pack.mjs` fetches the curated id lists (`GALLERY_CURATED`, `COSMOS_CURATED`; `--search` keeps the old mode), and `scripts/shrink-pack.py` re-encodes them at 1920 px, quality 80, for the download, rewriting each sha256.
+
 *Decision (CS-10.4, 2026-09-03) — the example above, and why Gallery had no
 Bierstadt.* The worked example previously cited AIC artwork **64818** as
 Bierstadt's *The Rocky Mountains, Lander's Peak*. Checked against the live

@@ -43,8 +43,9 @@ for fn in sorted(os.listdir(SRC)):
     cache = "public, max-age=300" if index else "public, max-age=31536000, immutable"
     s3.put_object(Bucket=bucket, Key=key, Body=data, ContentType=ctype, CacheControl=cache, ACL="public-read")
     up += 1
-# remove hosted photos no longer in the pool
-gone = [k for k in have if k[len(PREFIX):] not in os.listdir(SRC)]
+# remove hosted photos no longer in the pool - only the pool's own files: the sets in folders beside it (veil/art/cosmos/, veil/art/gallery/,
+# publish-packs.py, 2026-10-15) are not this folder's to delete
+gone = [k for k in have if "/" not in k[len(PREFIX):] and k[len(PREFIX):] not in os.listdir(SRC)]
 for k in gone:
     s3.delete_object(Bucket=bucket, Key=k)
 print("uploaded %d, unchanged %d, deleted %d -> s3://%s/%s" % (up, skip, len(gone), bucket, PREFIX))

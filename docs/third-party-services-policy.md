@@ -27,6 +27,11 @@ terms go to Entangled Labs LLC.
    out of this repository; see `docs/dashboard-schema.md`.)
 3. **Page actions only.** Adapters read what a service's page shows and press the page's own
    controls. No calls to a service's private or internal interfaces, no use of its session tokens.
+   *Exceptions, named (decided 2026-10-16):* Netflix's player object in its own page
+   (`netflix.appContext`, the video player's seek and its subtitle and audio tracks), because
+   Netflix's page refuses a scripted seek and its track menu cannot be reached by keys; and
+   Fandango's own Continue Watching delete, which has no button on its site. Nothing else of
+   either's internals, no tokens, and no new exception without a line here.
 4. **The household's own accounts only.** No account sharing, no reading anyone else's data, no
    collecting a service's catalogue beyond what the household's own pages show.
 5. **A person's pace.** Background reads are paced, rest when nobody is about, back off from a
@@ -36,6 +41,9 @@ terms go to Entangled Labs LLC.
    says so. No workarounds, no disguises built to get past a block. A gate a service puts in front of
    a person (Twitch's content disclaimer and its Start Watching) is shown in the service's own words
    with its own verb, and only the person's press goes through to it; Prism never presses it alone.
+   *Exception (decided 2026-10-16):* a removal the person asked for from Twitch's Continue
+   Watching plays the video out on a hidden page, and there it may press Twitch's content
+   disclaimer's Start Watching for that one video. A gate on screen is still the person's to press.
 7. **No disguises.** Prism does not mask what it is to avoid a service's detection.
 8. **Ads.** On streaming services Prism covers an ad's picture and mutes the tab while the ad
    plays underneath. The ad is still served. It does not block or skip ads on a service's player.

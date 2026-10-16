@@ -12,30 +12,66 @@ manifest roll-up and `pack.json` are the tracked provenance record.
 
 | File | Title | Creator | Date | Credit | Licence | Source |
 |---|---|---|---|---|---|---|
-| `nasa-PIA07902.jpg` | Planetary Nebula NGC 7293 also Known as the Helix Nebula | — | 2005-05-05 | NASA/JPL-Caltech/SSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA07902) |
-| `nasa-PIA15656.jpg` | Portrait of a Galaxy Life | — | 2007-11-14 | NASA/JPL-Caltech/CTIO/Las Campanas/Palomar, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA15656) |
-| `nasa-STS047-20-015.jpg` | STS-47 view of the Aurora Australis | — | 1992-09-20 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/STS047-20-015) |
 | `nasa-STS052-23-022.jpg` | Sunrise, Earth Limb | — | 1992-11-01 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/STS052-23-022) |
-| `nasa-PIA02241.jpg` | Saturn Rings | — | 2000-02-07 | NASA/JPL, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA02241) |
-| `nasa-PIA14096.jpg` | Star Cluster Overshadowed by Infrared Objects | — | 2011-05-23 | NASA/JPL-Caltech/UCLA, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA14096) |
-| `nasa-NHQ202606040044.jpg` | Beyond the Deep Field: Hubble’s Legacy and the Future of Cosmi | NASA/Keegan Barber | 2026-06-04 | HQ, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/NHQ202606040044) |
-| `nasa-PIA02098.jpg` | Clouds and Hazes of Jupiter Southern Hemisphere | — | 1999-08-27 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA02098) |
-| `nasa-MAF_20240408_NOLAeclipse02.jpg` | Partial Solar Eclipse in New Orleans | Michael DeMocker | 2024-04-08 | MSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/MAF_20240408_NOLAeclipse02) |
-| `nasa-PIA24576.jpg` | A Break in the Milky Way's Sagittarius Arm | — | 2021-08-17 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA24576) |
 | `nasa-GSFC_20171208_Archive_e001896.jpg` | NASA's Hubble Sees A New Supernova Remnant Light Up | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e001896) |
-| `nasa-PIA22228.jpg` | InSight on the Surface of Mars | — | 2018-01-25 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA22228) |
+| `nasa-iss059e059210.jpg` | iss059e059210 | — | 2019-05-08 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/iss059e059210) |
+| `nasa-carina_nebula.jpg` | James Webb Space Telescope NIRCam Image of the “Cosmic Cliffs” in Carina Nebula | NASA ESA CSA STScI | 2022-07-12 | STScI (Webb), NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/carina_nebula) |
+| `nasa-0302063.jpg` | History of Hubble Space Telescope (HST) | — | 1999-05-29 | MSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/0302063) |
+| `nasa-GSFC_20171208_Archive_e001504.jpg` | Sun Emits a Mid-Level Flare | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e001504) |
+| `nasa-PIA09267.jpg` | Every Rose has a Thorn | — | 2007-04-18 | NASA/JPL-Caltech/Univ. of Ariz., NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA09267) |
+| `nasa-PIA14415.jpg` | A New View of the Tarantula Nebula | — | 2012-04-17 | X-ray: NASA/CXC/PSU/L.Townsley et al.; Optical: NASA/STScI; Infrared: NASA/JPL/PSU/L.Townsley et al., NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA14415) |
+| `nasa-GSFC_20171208_Archive_e001963.jpg` | Hubble Captures Cosmic Ice Sculptures | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e001963) |
+| `nasa-PIA09072.jpg` | Seeing Stars in Serpens | — | 2006-12-08 | NASA/JPL-Caltech/UT Austin, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA09072) |
+| `nasa-PIA08787.jpg` | Amazing Andromeda Galaxy | — | 2006-09-28 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA08787) |
+| `nasa-PIA03519.jpg` | Cassiopeia A: Death Becomes Her | — | 2005-06-10 | NASA/JPL-Caltech/STScI/CXC/SAO<br /> Animation: NASA/JPL-Caltech/Univ. of Ariz./STScI/CXC/SAO, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA03519) |
+| `nasa-S39-342-026.jpg` | Aurora Australis, Spiked and Sinuous Red and Green Airglow | — | 1991-05-06 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/S39-342-026) |
+| `nasa-PIA09178.jpg` | Comets Kick up Dust in Helix Nebula | — | 2007-02-12 | NASA/JPL-Caltech/Univ.of Ariz., NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA09178) |
+| `nasa-S39-25-006.jpg` | Aurora Australis, Spiked, Sinuous Green Airglow | — | 1991-05-06 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/S39-25-006) |
+| `nasa-PIA15079.jpg` | 30 Doradus: The Growing Tarantula Within | — | 2011-11-16 | X-ray: NASA/CXC/PSU/L. Townsley et al.; Infrared: NASA/JPL/PSU/L. Townsley et al., NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA15079) |
+| `nasa-GSFC_20171208_Archive_e002152.jpg` | Carina Nebula Detail | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e002152) |
+| `nasa-GSFC_20171208_Archive_e002076.jpg` | Hubble Captures Spectacular "Landscape" in the Carina Nebula | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e002076) |
+| `nasa-iss045e013851.jpg` | Earth Observation from the International Space Station | — | 2015-09-17 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/iss045e013851) |
+| `nasa-PIA19836.jpg` | Seeing Beyond the Monkey Head | — | 2015-08-20 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA19836) |
+| `nasa-S39-23-036.jpg` | Aurora Australis, Red Crown | — | 1991-05-06 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/S39-23-036) |
+| `nasa-GSFC_20171208_Archive_e000933.jpg` | Hubble Sees Turquoise-Tinted Plumes in Large Magellanic Cloud | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e000933) |
+| `nasa-s09-11-675.jpg` | Earth limb at sunrise | — | 1983-11-28 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/s09-11-675) |
+| `nasa-PIA07902.jpg` | Planetary Nebula NGC 7293 also Known as the Helix Nebula | — | 2005-05-05 | NASA/JPL-Caltech/SSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA07902) |
+| `nasa-GSFC_20171208_Archive_e001188.jpg` | GREECE Mission Launching Into Aurora | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e001188) |
+| `nasa-S39-23-020.jpg` | Aurora Australis, Sinuous Loop | — | 1991-05-06 | JSC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/S39-23-020) |
+| `nasa-PIA23121.jpg` | Space Butterfly | — | 2019-03-27 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA23121) |
+| `nasa-GSFC_20171208_Archive_e000382.jpg` | Hubble Sees a Star ‘Inflating’ a Giant Bubble | — | 2017-12-08 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/GSFC_20171208_Archive_e000382) |
+| `nasa-hubble-sees-a-dying-stars-final-moments_20149292766_o.jpg` | The long goodbye | — | 2015-07-27 | GSFC, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/hubble-sees-a-dying-stars-final-moments_20149292766_o) |
+| `nasa-PIA23647.jpg` | Tarantula Nebula Spitzer 3-Color Image | — | 2020-01-27 | NASA/JPL-Caltech, NASA — Public domain | [Public domain](https://creativecommons.org/publicdomain/mark/1.0/) | [object page](https://images.nasa.gov/details/PIA23647) |
 
 ## Attribution lines (what the §26 card shows)
 
-- `nasa-PIA07902.jpg` — Planetary Nebula NGC 7293 also Known as the Helix Nebula — NASA/JPL-Caltech/SSC, NASA (NASA ID PIA07902), public domain
-- `nasa-PIA15656.jpg` — Portrait of a Galaxy Life — NASA/JPL-Caltech/CTIO/Las Campanas/Palomar, NASA (NASA ID PIA15656), public domain
-- `nasa-STS047-20-015.jpg` — STS-47 view of the Aurora Australis — JSC, NASA (NASA ID STS047-20-015), public domain
 - `nasa-STS052-23-022.jpg` — Sunrise, Earth Limb — JSC, NASA (NASA ID STS052-23-022), public domain
-- `nasa-PIA02241.jpg` — Saturn Rings — NASA/JPL, NASA (NASA ID PIA02241), public domain
-- `nasa-PIA14096.jpg` — Star Cluster Overshadowed by Infrared Objects — NASA/JPL-Caltech/UCLA, NASA (NASA ID PIA14096), public domain
-- `nasa-NHQ202606040044.jpg` — Beyond the Deep Field: Hubble’s Legacy and the Future of Cosmi — HQ, NASA (NASA ID NHQ202606040044), public domain
-- `nasa-PIA02098.jpg` — Clouds and Hazes of Jupiter Southern Hemisphere — NASA/JPL-Caltech, NASA (NASA ID PIA02098), public domain
-- `nasa-MAF_20240408_NOLAeclipse02.jpg` — Partial Solar Eclipse in New Orleans — MSFC, NASA (NASA ID MAF_20240408_NOLAeclipse02), public domain
-- `nasa-PIA24576.jpg` — A Break in the Milky Way's Sagittarius Arm — NASA/JPL-Caltech, NASA (NASA ID PIA24576), public domain
 - `nasa-GSFC_20171208_Archive_e001896.jpg` — NASA's Hubble Sees A New Supernova Remnant Light Up — GSFC, NASA (NASA ID GSFC_20171208_Archive_e001896), public domain
-- `nasa-PIA22228.jpg` — InSight on the Surface of Mars — NASA/JPL-Caltech, NASA (NASA ID PIA22228), public domain
+- `nasa-iss059e059210.jpg` — iss059e059210 — JSC, NASA (NASA ID iss059e059210), public domain
+- `nasa-carina_nebula.jpg` — James Webb Space Telescope NIRCam Image of the “Cosmic Cliffs” in Carina Nebula — STScI (Webb), NASA (NASA ID carina_nebula), public domain
+- `nasa-0302063.jpg` — History of Hubble Space Telescope (HST) — MSFC, NASA (NASA ID 0302063), public domain
+- `nasa-GSFC_20171208_Archive_e001504.jpg` — Sun Emits a Mid-Level Flare — GSFC, NASA (NASA ID GSFC_20171208_Archive_e001504), public domain
+- `nasa-PIA09267.jpg` — Every Rose has a Thorn — NASA/JPL-Caltech/Univ. of Ariz., NASA (NASA ID PIA09267), public domain
+- `nasa-PIA14415.jpg` — A New View of the Tarantula Nebula — X-ray: NASA/CXC/PSU/L.Townsley et al.; Optical: NASA/STScI; Infrared: NASA/JPL/PSU/L.Townsley et al., NASA (NASA ID PIA14415), public domain
+- `nasa-GSFC_20171208_Archive_e001963.jpg` — Hubble Captures Cosmic Ice Sculptures — GSFC, NASA (NASA ID GSFC_20171208_Archive_e001963), public domain
+- `nasa-PIA09072.jpg` — Seeing Stars in Serpens — NASA/JPL-Caltech/UT Austin, NASA (NASA ID PIA09072), public domain
+- `nasa-PIA08787.jpg` — Amazing Andromeda Galaxy — NASA/JPL-Caltech, NASA (NASA ID PIA08787), public domain
+- `nasa-PIA03519.jpg` — Cassiopeia A: Death Becomes Her — NASA/JPL-Caltech/STScI/CXC/SAO<br /> Animation: NASA/JPL-Caltech/Univ. of Ariz./STScI/CXC/SAO, NASA (NASA ID PIA03519), public domain
+- `nasa-S39-342-026.jpg` — Aurora Australis, Spiked and Sinuous Red and Green Airglow — JSC, NASA (NASA ID S39-342-026), public domain
+- `nasa-PIA09178.jpg` — Comets Kick up Dust in Helix Nebula — NASA/JPL-Caltech/Univ.of Ariz., NASA (NASA ID PIA09178), public domain
+- `nasa-S39-25-006.jpg` — Aurora Australis, Spiked, Sinuous Green Airglow — JSC, NASA (NASA ID S39-25-006), public domain
+- `nasa-PIA15079.jpg` — 30 Doradus: The Growing Tarantula Within — X-ray: NASA/CXC/PSU/L. Townsley et al.; Infrared: NASA/JPL/PSU/L. Townsley et al., NASA (NASA ID PIA15079), public domain
+- `nasa-GSFC_20171208_Archive_e002152.jpg` — Carina Nebula Detail — GSFC, NASA (NASA ID GSFC_20171208_Archive_e002152), public domain
+- `nasa-GSFC_20171208_Archive_e002076.jpg` — Hubble Captures Spectacular "Landscape" in the Carina Nebula — GSFC, NASA (NASA ID GSFC_20171208_Archive_e002076), public domain
+- `nasa-iss045e013851.jpg` — Earth Observation from the International Space Station — JSC, NASA (NASA ID iss045e013851), public domain
+- `nasa-PIA19836.jpg` — Seeing Beyond the Monkey Head — NASA/JPL-Caltech, NASA (NASA ID PIA19836), public domain
+- `nasa-S39-23-036.jpg` — Aurora Australis, Red Crown — JSC, NASA (NASA ID S39-23-036), public domain
+- `nasa-GSFC_20171208_Archive_e000933.jpg` — Hubble Sees Turquoise-Tinted Plumes in Large Magellanic Cloud — GSFC, NASA (NASA ID GSFC_20171208_Archive_e000933), public domain
+- `nasa-s09-11-675.jpg` — Earth limb at sunrise — JSC, NASA (NASA ID s09-11-675), public domain
+- `nasa-PIA07902.jpg` — Planetary Nebula NGC 7293 also Known as the Helix Nebula — NASA/JPL-Caltech/SSC, NASA (NASA ID PIA07902), public domain
+- `nasa-GSFC_20171208_Archive_e001188.jpg` — GREECE Mission Launching Into Aurora — GSFC, NASA (NASA ID GSFC_20171208_Archive_e001188), public domain
+- `nasa-S39-23-020.jpg` — Aurora Australis, Sinuous Loop — JSC, NASA (NASA ID S39-23-020), public domain
+- `nasa-PIA23121.jpg` — Space Butterfly — NASA/JPL-Caltech, NASA (NASA ID PIA23121), public domain
+- `nasa-GSFC_20171208_Archive_e000382.jpg` — Hubble Sees a Star ‘Inflating’ a Giant Bubble — GSFC, NASA (NASA ID GSFC_20171208_Archive_e000382), public domain
+- `nasa-hubble-sees-a-dying-stars-final-moments_20149292766_o.jpg` — The long goodbye — GSFC, NASA (NASA ID hubble-sees-a-dying-stars-final-moments_20149292766_o), public domain
+- `nasa-PIA23647.jpg` — Tarantula Nebula Spitzer 3-Color Image — NASA/JPL-Caltech, NASA (NASA ID PIA23647), public domain

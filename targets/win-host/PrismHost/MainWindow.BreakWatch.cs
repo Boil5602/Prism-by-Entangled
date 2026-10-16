@@ -71,7 +71,25 @@ public sealed partial class MainWindow
     private Windows.Media.Ocr.OcrEngine? _ocr;
     private bool _ocrTried;
 
-    private static bool BreakWatchOn => HostPrefs.GetBool("video.breakWatch", true);
+    /// <summary>YouTube TV breaks, for every channel (2026-10-15, "YouTube tv breaks is supposed to have 3 options, the all ads, only guaranteed
+    /// ads, or none"): "all" every break the watch finds, "sure" only what does not guess (Sure breaks only, as a channel's own choice), "off"
+    /// none. A channel's own choice still narrows it (a channel Off or Sure stays so under All). Read from the old on/off switch until set.</summary>
+    private static string BreakWatchMode
+    {
+        get
+        {
+            var m = HostPrefs.GetString("video.breakWatchMode", "");
+            return m is "all" or "sure" or "off" ? m : HostPrefs.GetBool("video.breakWatch", true) ? "all" : "off";
+        }
+    }
+    private void SetBreakWatchMode(string mode, string from)
+    {
+        if (mode is not ("all" or "sure" or "off")) return;
+        HostPrefs.Set("video.breakWatchMode", mode);
+        HostPrefs.Set("video.breakWatch", mode != "off");   // the old switch follows, for anything that still reads it
+        LogLine("break watch: " + (mode == "all" ? "all breaks" : mode == "sure" ? "sure breaks only" : "off") + from);
+    }
+    private static bool BreakWatchOn => BreakWatchMode != "off";
     // the learned detector (Assets/breakwatch/learned.json, 2026-10-07): it decides the covers when its file is there and the setting is on;
     // the hand rules still run (they make its readings) and decide alone without it
     private static LearnedBreak? s_learned;
@@ -329,7 +347,7 @@ public sealed partial class MainWindow
             st.Model.NearEdge = near;
             st.Model.EdgeKnown = st.EdgeStart > 0;
             st.Model.AdFreeChannel = AdFree.IsMatch(st.ChannelName) || ChannelOff(st.ChannelName);   // and the channels the person turned off
-            st.SureOnly = !st.Model.AdFreeChannel && ChannelsSure().Contains(st.ChannelName, StringComparer.OrdinalIgnoreCase);
+            st.SureOnly = !st.Model.AdFreeChannel && (BreakWatchMode == "sure" || ChannelsSure().Contains(st.ChannelName, StringComparer.OrdinalIgnoreCase));
             var hadLogo = st.Model.HasLogo;
             var changed = st.Model.Step(shot.Value.Gray, now, dt);
             st.Recent.Enqueue(DateTime.Now.ToString("HH:mm:ss") + " " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " covered" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : "") + (st.Model.NearEdge ? " near edge" : ""));

@@ -31,6 +31,9 @@ export interface VideoTileState {
   resume: VideoResumePoint | null;
   /** A Quick play pick the page has not started yet (the feed's "loading"), or its failure. */
   pending: { kind: string; id: string; name: string; at: number; failed?: string; restored?: boolean } | null;
+  /** A service's own page the wall opened for the person to pick on (kind "open": its search, when it did not name the title), while the
+   *  screen stays on that service and nothing newer was asked; the wall shows it rather than calling the screen empty (2026-10-16). */
+  opened?: { name: string; at: number } | null;
   /** The skip the service's page offers now - "Skip Intro", "Skip Recap", "Skip Credits" - for the wall's own button; null when it offers none. */
   skip?: string | null;
   /** Why this service cannot be searched from the wall (the adapter's videoLookupNote), for the lookup entry. */
@@ -307,6 +310,21 @@ export class VideoController {
    *  (a title brought back may stay paused on purpose). The pending pick can land earlier (a restored title lands once its page names it), so
    *  this is its own record. Watch's big window holds the title out while it stands. */
   private readonly openStarts = new Map<string, { at: number; until: number }>();
+  /** A page opened for the person's own pick (kind "open"), by tile (2026-10-16, "I started chicago med on youtube tv, and then click watch. It
+   *  says nothing playing in the mini window. I then pressed show video, and it does say nothing is playing"): YouTube TV's search answered no
+   *  match, its search opened on the screen, and Watch's corner and the empty stage both called the screen empty over the page the person
+   *  was sent to. It stands for half an hour while the screen stays on the service's site and nothing newer is asked there. */
+  private readonly opened = new Map<string, { name: string; url: string; at: number }>();
+  private static readonly OPENED_MS = 30 * 60_000;
+  private openedNow(tileId: string): { name: string; at: number } | null {
+    const o = this.opened.get(tileId);
+    if (!o) return null;
+    const p = this.pending.get(tileId);
+    const site = (u: string): string => { try { return new URL(u).hostname; } catch { return ""; } };
+    const here = this.host.urlOf(tileId) ?? "";
+    if ((p && p.at > o.at) || Date.now() - o.at > VideoController.OPENED_MS || (here && o.url && site(here) !== site(o.url))) { this.opened.delete(tileId); return null; }
+    return { name: o.name, at: o.at };
+  }
   private noteStartPlayed(tileId: string, playing: boolean): void {
     const o = this.openStarts.get(tileId);
     if (playing && o && Date.now() - o.at > 1500) this.openStarts.delete(tileId);   // not the last title's play, reported before the page moved on
@@ -803,6 +821,7 @@ export class VideoController {
       out.push({
         id, adapter: this.host.adapterIdOf(id), playing: this.playing.get(id) ?? false, video: this.contexts.get(id) ?? null,
         library: this.libraries.get(app) ?? { continue: [], list: [] }, resume: this.resumes.get(app) ?? null, pending: this.pending.get(id) ?? null,
+        opened: this.openedNow(id),
         error: this.errors.get(id)?.text ?? null,
         gate: this.gates.get(id) ?? null,
         recovering: this.healNote.get(id) ?? null,
@@ -1004,6 +1023,7 @@ export class VideoController {
     if (kind !== "open") this.pending.set(tileId, { kind, id, name: name ?? id, at: Date.now() }); else this.pending.delete(tileId);
     if (kind !== "live") this.tunedChannel.delete(tileId);   // a title now, no channel
     if (kind !== "open") this.openStarts.set(tileId, { at: Date.now(), until: Date.now() + 45_000 }); else this.openStarts.delete(tileId);   // a new ask supersedes the last pick
+    if (kind === "open") this.opened.set(tileId, { name: name ?? id, url: url ?? "", at: Date.now() }); else this.opened.delete(tileId);
     // the pick's own clock (2026-09-25, "that Tubi title never seemed to start successfully. It hung for a while and eventually went to Nothing is
     // Playing" - then "it has sent me to the Tubi page for American Gods. It shouldn't have"): a page that sends no reports (Tubi's show page) never
     // had its pick marked failed, so it stayed "loading", the wall counted it as a title, and the empty stage stepped aside for the service's page
@@ -1159,7 +1179,7 @@ export class VideoController {
   clearTile(tileId: string): void {
     this.lastSeen.delete(tileId);
     this.tunedChannel.delete(tileId);
-    this.pending.delete(tileId); this.hints.delete(tileId); this.contexts.delete(tileId); this.playing.delete(tileId); this.profiles.delete(tileId); this.gatePicked.delete(tileId); this.stageAsk.delete(tileId); this.errors.delete(tileId); this.doctor.delete(tileId); this.healNote.delete(tileId);
+    this.pending.delete(tileId); this.opened.delete(tileId); this.hints.delete(tileId); this.contexts.delete(tileId); this.playing.delete(tileId); this.profiles.delete(tileId); this.gatePicked.delete(tileId); this.stageAsk.delete(tileId); this.errors.delete(tileId); this.doctor.delete(tileId); this.healNote.delete(tileId);
   }
 
   /**

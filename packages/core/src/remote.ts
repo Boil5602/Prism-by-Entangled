@@ -110,6 +110,7 @@ export class RemoteApi {
     episodes: () => unknown;
     playEpisode: (id: string) => unknown;
     lenses: () => unknown;
+    bingeGenres: () => unknown;
     /** A title's details as the PC's Details card has them (TMDB, under the person's own key), for the phone's sheet (2026-10-11). */
     details: (title: string, kind: string | null, app: string | null) => unknown;
     /** The TMDB watchlist from the phone's sheet (2026-10-13, "Need to be able to add to my watch list too"): {active, on} and a change; a
@@ -128,10 +129,15 @@ export class RemoteApi {
     liveRead: () => unknown;
     /** The windows a phone can listen to and the choice (2026-10-05). */
     listenWindows: (listener?: string) => unknown;
+    /** The screens and where the next pick plays (2026-10-15, "Can I set what's playing from the companion app?"): {on, windows, target, adding, max, big}. */
+    screens: () => unknown;
+    /** The next pick plays into window n (0 = the big one), or into a new window ("new"). */
+    into: (place: number | "new") => void;
+    screenClear: (index: number) => unknown;
     listenWindow: (tile: string | null, listener?: string) => Promise<unknown>;
     /** The PC's playback device muted while this phone listens, or not (2026-10-05). */
     privateMute: (on: boolean) => unknown;
-    breakWatch: (on: boolean) => unknown;
+    breakWatch: (mode: "all" | "sure" | "off") => unknown;
     /** Watch settings from the phone (2026-10-14, "Let me edit as many of the watch settings as possible from the companion app"): everything
      *  core keeps, read in one; set one piece at a time by name (rows, watchlist-order, ads, suggestions, pause, refresh, binge, category, hidden). */
     settings: () => unknown;
@@ -500,6 +506,23 @@ export class RemoteApi {
     // POST /audio/heartbeat, POST /audio/resume, POST /audio/offset {"ms", "transport"?}
     // GET /audio/windows - the windows a phone can listen to in multiview, big first, with what each plays; POST /audio/listen-window {tile|null}
     // - the one the phone hears (null: the big window again). 2026-10-05, "with remote listening, we should allow any 1 (big or mini) window"
+    // GET /video/screens - the screens and what each plays (2026-10-15, "Can I set what's playing from the companion app?"); POST /video/screens
+    // {clear: n} - that screen cleared, as the PC's X on it. The phone keeps its own choice of window: each pick names it as {into: n | "new"}
+    // and core sets it as the PC's drag does, just before the pick (below)
+    if (req.method === "POST" && this.video && ["/video/play", "/video/tune", "/video/play-result", "/video/browse-play"].includes(req.path)) {
+      const into = this.parseBody(req.body)?.["into"];
+      if (into === "new" || (typeof into === "number" && Number.isInteger(into) && into > 0 && into < 8)) this.video.into(into as number | "new");
+    }
+    if (req.method === "GET" && req.path === "/video/screens") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      return json(200, this.video.screens());
+    }
+    if (req.method === "POST" && req.path === "/video/screens") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      const c = this.parseBody(req.body)?.["clear"];
+      if (!(typeof c === "number" && Number.isInteger(c) && c >= 0 && c < 8)) return json(400, { error: 'body must be {"clear": <window index>}' });
+      return json(200, this.video.screenClear(c));
+    }
     if (req.method === "GET" && req.path === "/audio/windows") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
       return json(200, this.video.listenWindows(req.token));   // this phone's own choice among them
@@ -569,9 +592,11 @@ export class RemoteApi {
     }
     if (req.method === "POST" && req.path === "/video/break-watch") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
-      const on = this.parseBody(req.body)?.["on"];
-      if (typeof on !== "boolean") return json(400, { error: 'body must be {"on": true|false}' });
-      return json(200, this.video.breakWatch(on));
+      // {mode: "all" | "sure" | "off"} (2026-10-15, the three choices), or the older {on}
+      const b = this.parseBody(req.body); const mode = b?.["mode"], on = b?.["on"];
+      if (mode === "all" || mode === "sure" || mode === "off") return json(200, this.video.breakWatch(mode));
+      if (typeof on !== "boolean") return json(400, { error: 'body must be {"mode": "all"|"sure"|"off"}' });
+      return json(200, this.video.breakWatch(on ? "all" : "off"));
     }
     // POST /tmdb/key {apiKey} - the person's own TMDB key, sent from the phone it was copied on (2026-10-10, the TMDB guide: "A nice
     // fluid helpful guide"): a long key is nothing to type with a remote. The field is named apiKey so the log's redactor masks it in
@@ -976,6 +1001,11 @@ export class RemoteApi {
     if (req.method === "GET" && req.path === "/video/lenses") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });
       return json(200, this.video.lenses());
+    }
+    // GET /video/binge-genres - The Binge by genre, every series in each (2026-10-16): the phone's genre dropdown on The Binge's row
+    if (req.method === "GET" && req.path === "/video/binge-genres") {
+      if (!this.video) return json(501, { error: "this shell has no Video player" });
+      return json(200, this.video.bingeGenres());
     }
     // POST /video/browse-play {app, card} - a catalog card (TMDB's title) on a service, through the service's own search
     if (req.method === "POST" && req.path === "/video/browse-play") {

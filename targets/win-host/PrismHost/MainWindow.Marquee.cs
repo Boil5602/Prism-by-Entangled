@@ -19,6 +19,9 @@ public sealed partial class MainWindow
 
     private static FrameworkElement MarqueeTitle(string rest, string full, double fontSize, Brush ink)
     {
+        // Simple Watch: nothing moves by itself; the whole title on up to two lines, cut with an ellipsis after (a card reached by the remote shows
+        // its details as a pointed card does, MainWindow.SimpleWatch)
+        if (s_calm) return new TextBlock { Text = full, FontSize = fontSize, Foreground = ink, TextWrapping = TextWrapping.WrapWholeWords, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
         var restTb = new TextBlock { Text = rest, FontSize = fontSize, Foreground = ink, TextTrimming = TextTrimming.CharacterEllipsis };
         var move = new TextBlock { Text = full, FontSize = fontSize, Foreground = ink, TextWrapping = TextWrapping.NoWrap, Visibility = Visibility.Collapsed };
         var shift = new TranslateTransform();

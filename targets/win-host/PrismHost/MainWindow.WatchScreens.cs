@@ -124,6 +124,15 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(panel, 30);
         overlay.Children.Add(panel);
         _stackBar = panel;
+        if (s_calm)
+        {
+            // Simple Watch: the strip rests faint, full while pointed at or reached by keys
+            panel.Opacity = 0.4;
+            panel.PointerEntered += (_, __) => panel.Opacity = 1;
+            panel.PointerExited += (_, __) => panel.Opacity = 0.4;
+            panel.GotFocus += (_, __) => panel.Opacity = 1;
+            panel.LostFocus += (_, __) => panel.Opacity = 0.4;
+        }
         panel.SizeChanged += (_, __) => PlaceStack();   // the + keeps left of the bar as the bar's width settles
         BuildPlaylistDock(overlay);   // the playlist panel under the windows (2026-09-27)
         for (var i = 0; i < WatchPlaces; i++)
@@ -498,11 +507,10 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Watch closing: every surface back to its own place, the labels gone. The surfaces that were in a place were never covered.</summary>
-    private IReadOnlyCollection<string> EndWatchStack()
+    private IReadOnlyCollection<string> EndWatchStack(bool keepPlaces = false)
     {
         var was = _pipSlots.ToList();
-        foreach (var s in was) _surfaces.EndPip(s);
-        _pipSlots.Clear();
+        if (!keepPlaces) { foreach (var s in was) _surfaces.EndPip(s); _pipSlots.Clear(); }   // kept: Watch drawn again in place moves them on, or ends them
         for (var i = 0; i < WatchPlaces; i++) { if (_stackLabels[i] is { } l) TileCanvas.Children.Remove(l); _stackLabels[i] = null; _stackCells[i] = null; _stackKey[i] = null; }
         _stackZones.Clear();
         _stackOverlay = null;

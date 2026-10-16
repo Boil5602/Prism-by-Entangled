@@ -419,6 +419,7 @@ public sealed partial class MainWindow : Window
             case Ops.SurfaceResume: Chain(id, () => _surfaces.ResumeAsync(id)); break;
             // §25 living previews: core brackets one peek; the host holds the still across it (§16) and never runs two.
             case Ops.SurfaceSetPeek: Chain(id, () => { _surfaces.SetPeek(id, m.GetBool("peeking")); return Task.CompletedTask; }); break;
+            case Ops.SurfaceSetLoading: { var lon = m.GetBool("on"); DispatcherQueue.TryEnqueue(() => _surfaces.SetLoading(id, lon)); break; }   // Prism's loading mark (2026-10-16)
             case Ops.SurfaceSetMuted: Chain(id, () => { _surfaces.SetMuted(id, m.GetBool("muted")); return Task.CompletedTask; }); break;
             case Ops.SurfaceHover: Chain(id, () => _surfaces.HoverAsync(id, m.GetNumber("x", 0), m.GetNumber("y", 0))); break;
             case Ops.SurfaceScrub: Chain(id, () => _surfaces.ScrubAsync(id, m.GetNumber("x", 0), m.GetNumber("y", 0), m.GetBool("press", true))); break;   // the slider's seek on a service's own scrubber
@@ -447,11 +448,15 @@ public sealed partial class MainWindow : Window
             case Ops.UiRoute: OnUiRoute(m.GetString("route") ?? "", m.GetString("source") ?? "core", m.GetString("id")); break;
             case Ops.UiTapResult: OnTapResult(id, m.GetString("action") ?? "promote", m.GetString("did") ?? "none", m.GetString("audio"), m.GetString("error")); break;
             // a pick from the phone (2026-10-05): the Watch screen out of the way and the curtain up, as a card pressed here does
+            // a screen cleared from the phone (2026-10-15, "I should be able to tap and clear a screen"): the PC's own X on that window, or its Clear
+            // screens when the big screen is the only one - the same press, so the windows, the strip and the line follow as for a press here
+            case Ops.UiScreenClear: { var ct = m.GetString("tile"); LogLine("screen cleared from the phone: " + (string.IsNullOrEmpty(ct) ? "the big screen" : ct)); if (string.IsNullOrEmpty(ct)) _ = ClearScreensAsync(); else _ = MvRemoveWindowAsync(ct); break; }
             case Ops.UiPrivateMute: _surfaces.PrivateDeviceMute(m.GetBool("on")); break;   // the phone's "mute Prism on the PC while this phone listens" (2026-10-05)
             case Ops.UiListenRoutes: _remote?.Listen?.SetRoutes(m.GetString("json") ?? "{}"); break;   // each phone's window (2026-10-06)
             case Ops.UiUpdateRestart: LogLine("updates: restart from the phone"); DispatcherQueue.TryEnqueue(RestartIntoStaged); break;   // the phone's Restart into the new version (2026-10-15)
-            case Ops.UiBreakWatch: HostPrefs.Set("video.breakWatch", m.GetBool("on")); LogLine("break watch: " + (m.GetBool("on") ? "on" : "off") + " (the phone)"); break;   // the phone's switch (2026-10-07)
-            case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; LogLine("video pick from the phone: " + vt + " on " + vs); if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
+            case Ops.UiBreakWatch: { var bm = m.GetString("mode"); SetBreakWatchMode(bm is "all" or "sure" or "off" ? bm : m.GetBool("on") ? "all" : "off", " (the phone)"); break; }   // the phone's switch (2026-10-07)
+            // a phone pick into a small window (2026-10-15, the phone's Play into): Watch and the big screen are left as they are, a word on the line
+            case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; var vw = (int)m.GetNumber("window", 0); LogLine("video pick from the phone: " + vt + " on " + vs + (vw > 0 ? " into window " + (vw + 1) : "")); if (vw > 0) { SetPill("Prism \u00B7 " + Shorten(vt, 40) + " \u2192 window " + (vw + 1)); _ = MvCallAsync("state"); break; } if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
             case Ops.HttpResponse: _remote?.OnResponse((int)m.GetNumber("requestId"), (int)m.GetNumber("status", 500), m.GetString("body") ?? "", m.GetString("contentType") ?? "application/json"); break;
             case Ops.RemotePairing: LogLine("pairing url minted (token withheld from status)"); OnPairingMinted(m.GetString("url") ?? ""); break;   // the QR card when the menu asked (MainWindow.PairPhone)
             case Ops.RemotePaired: SetPill("Prism · phone paired"); ClosePairCard(); break;

@@ -42,6 +42,7 @@ const args = process.argv.slice(2);
 const opt = (n, d) => { const a = args.find((x) => x.startsWith(`--${n}=`)); return a ? a.slice(n.length + 3) : d; };
 const target = args.find((a) => !a.startsWith("--")) ?? "";
 const COUNT = Number(opt("count", "12"));
+const SEARCH = args.includes("--search");   // the old search-and-take-the-first mode; without it the curated lists below are fetched
 const OUT = join(root, opt("out", "packs"));
 
 const UA = "PrismImageryPackFetcher/0.1 (+https://github.com/entangled/prism; maintainer tooling, no identifiers)";
@@ -114,7 +115,53 @@ const GALLERY_ARTISTS = [
   "Martin Johnson Heade", "Asher Brown Durand", "Jasper Francis Cropsey", "Worthington Whittredge",
 ];
 
+/**
+ * The curated Gallery (2026-10-15, "Can we look at the CC0 space and museum art pics too? Looking for vibrant options"): Art Institute of
+ * Chicago object ids chosen by a person from 202 public-domain candidates ranked by vividness - Hokusai and Hiroshige prints, Monet, Van Gogh,
+ * Gauguin, Renoir, Seurat, Signac, Sisley, Pissarro, Cezanne, early Kandinsky, Turner, Homer and Sargent. Each is read afresh from the
+ * museum's API and must still be is_public_domain; nothing about it is written here but its id.
+ */
+const GALLERY_CURATED = [129849, 8983, 18307, 16617, 28560, 8980, 18278, 100627, 89503, 10932, 89524, 122130, 16629, 95654, 14792, 38666,
+  4783, 113100, 111062, 25110, 4368, 142537, 24800, 3652, 14586, 81537, 61616, 81539, 109314, 4378, 87008, 87000, 16487, 183043, 81557,
+  37741, 19040, 14620, 16554, 16633, 25613, 20545, 11054];
+
+async function fetchGalleryCurated() {
+  const images = [];
+  const fields = "id,title,artist_title,date_display,is_public_domain,image_id,credit_line";
+  console.log(`gallery · ${GALLERY_CURATED.length} curated Art Institute of Chicago objects - is_public_domain checked again for each`);
+  for (const id of GALLERY_CURATED) {
+    let a, iiif;
+    try { const d = await polite(`https://api.artic.edu/api/v1/artworks/${id}?fields=${fields}`, { headers: AIC_HEADERS }); a = d?.data; iiif = d?.config?.iiif_url ?? "https://www.artic.edu/iiif/2"; }
+    catch (e) { console.log(`  skip aic-${id}: ${e.message}`); continue; }
+    if (!a || a.is_public_domain !== true || !a.image_id || !a.title || !a.artist_title) { console.log(`  skip aic-${id}: not public domain, or no image, title or artist`); continue; }
+    let bytes;
+    try { bytes = await polite(`${iiif}/${a.image_id}/full/1686,/0/default.jpg`, { json: false, headers: AIC_HEADERS }); }
+    catch (e) { console.log(`  skip aic-${id}: ${e.message}`); continue; }
+    const size = imageSize(bytes);
+    if (size && (size.w < MIN_W || size.h < MIN_H)) { console.log(`  skip aic-${id}: ${size.w}x${size.h} is below wall scale`); continue; }
+    const date = a.date_display && a.date_display !== "n.d." ? String(a.date_display) : undefined;
+    images.push({
+      file: `aic-${a.id}.jpg`,
+      title: String(a.title),
+      creator: String(a.artist_title),
+      ...(date ? { date } : {}),
+      credit: "Art Institute of Chicago, Public Domain",
+      ...(a.credit_line ? { creditLine: String(a.credit_line) } : {}),
+      license: CC0,
+      attribution: `${a.artist_title}, ${a.title}${date ? ` (${date})` : ""} — Art Institute of Chicago, public domain`,
+      sourceUrl: `https://www.artic.edu/artworks/${a.id}`,
+      sha256: sha256(bytes),
+      ...(size ? { w: size.w, h: size.h } : {}),
+      _bytes: bytes,
+    });
+    console.log(`  aic-${a.id}  ${(bytes.length / 1024).toFixed(0)} KB  ${size ? size.w + "x" + size.h : "?"}  ${a.artist_title} — ${a.title}`);
+  }
+  return { schema: "prism.imagery-pack/v0.1", id: "gallery", name: "Museum art", blurb: "Public-domain paintings and prints from the Art Institute of Chicago's open collection.",
+    source: { name: "Art Institute of Chicago — Open Access", url: "https://api.artic.edu/" }, requiresCreator: true, images };
+}
+
 async function fetchGallery(count) {
+  if (!SEARCH) return fetchGalleryCurated();
   const images = [];
   const seen = new Set();
   const fields = "id,title,artist_title,date_display,is_public_domain,image_id,credit_line,artwork_type_title,thumbnail";
@@ -232,7 +279,68 @@ const COSMOS_QUERIES = [
   "hubble deep field", "jupiter cloud", "solar eclipse", "milky way", "supernova remnant", "mars surface",
 ];
 
+/**
+ * The curated Cosmos (2026-10-15, the same ask): NASA Image and Video Library ids chosen by a person from 310 candidates ranked by vividness -
+ * solar flares, nebulae, Spitzer and Chandra views, Voyager's Neptune and Saturn, auroras and sunrises from orbit. Any with an ESA or ESO credit
+ * were left out (not NASA's to place in the public domain); each is read afresh and the third-party-credit rule applies again.
+ */
+const COSMOS_CURATED = ["GSFC_20171208_Archive_e001980", "GSFC_20171208_Archive_e001434", "STS052-23-022", "GSFC_20171208_Archive_e001896",
+  "iss059e059210", "carina_nebula", "0302063", "GSFC_20171208_Archive_e001504", "PIA09267", "PIA14415", "GSFC_20171208_Archive_e001963",
+  "PIA09072", "PIA08787", "PIA03519", "PIA03096", "GSFC_20171208_Archive_e000607", "PIA00050", "S39-342-026", "PIA09178", "S39-25-006",
+  "PIA01969", "PIA15079", "GSFC_20171208_Archive_e002152", "GSFC_20171208_Archive_e002076", "GSFC_20171208_Archive_e002105", "iss045e013851",
+  "PIA19836", "GSFC_20171208_Archive_e001800", "S39-23-036", "GSFC_20171208_Archive_e000933", "s09-11-675", "PIA07902",
+  "GSFC_20171208_Archive_e001188", "S39-23-020", "PIA23121", "GSFC_20171208_Archive_e000382", "hubble-sees-a-dying-stars-final-moments_20149292766_o",
+  "PIA23647", "PIA09268"];
+
+async function fetchCosmosById(ids) {
+  const images = [];
+  console.log(`cosmos · ${ids.length} curated NASA Image and Video Library items - public domain, third-party credits skipped`);
+  for (const nasaId of ids) {
+    let item;
+    try { const d = await polite(`https://images-api.nasa.gov/search?nasa_id=${encodeURIComponent(nasaId)}`); item = d?.collection?.items?.find((x) => x?.data?.[0]?.nasa_id === nasaId); }
+    catch (e) { console.log(`  skip ${nasaId}: ${e.message}`); continue; }
+    const meta = item?.data?.[0];
+    if (!meta || !item.href || !meta.title) { console.log(`  skip ${nasaId}: not found`); continue; }
+    const credit = String(meta.secondary_creator ?? meta.center ?? "NASA").trim();
+    if (/getty|shutterstock|copyright|©|\(c\)|all rights reserved|\bESA\b|\bESO\b|European/i.test(credit)) { console.log(`  skip ${nasaId}: credit ${credit}`); continue; }
+    if (/getty|shutterstock|copyright|©|all rights reserved/i.test(String(meta.description ?? ""))) { console.log(`  skip ${nasaId}: rights in its description`); continue; }
+    let assets;
+    try { assets = await polite(item.href); } catch { continue; }
+    const orig = assets.find((u) => /~orig\.(jpg|png)$/i.test(u));
+    const large = assets.find((u) => /~large\.jpg$/i.test(u)) ?? assets.find((u) => /~medium\.jpg$/i.test(u));
+    let bytes, size;
+    for (const pick of [large, orig].filter(Boolean)) {
+      try { bytes = await polite(pick.replace(/^http:/, "https:"), { json: false }); } catch (e) { console.log(`  skip ${nasaId}: ${e.message}`); bytes = null; continue; }
+      size = imageSize(bytes);
+      if (size && (size.w < MIN_W || size.h < MIN_H) && pick !== orig && orig) continue;   // the large copy is small: the original
+      break;
+    }
+    if (!bytes) continue;
+    if (size && (size.w < MIN_W || size.h < MIN_H)) { console.log(`  skip ${nasaId}: ${size.w}x${size.h} is below wall scale`); continue; }
+    const id = String(nasaId).replace(/[^A-Za-z0-9_-]+/g, "_");
+    const date = meta.date_created ? String(meta.date_created).slice(0, 10) : undefined;
+    const creator = meta.photographer ? String(meta.photographer) : undefined;
+    images.push({
+      file: `nasa-${id}.jpg`,
+      title: String(meta.title),
+      ...(creator ? { creator } : {}),
+      ...(date ? { date } : {}),
+      credit: `${credit}, NASA — Public domain`,
+      license: PD,
+      attribution: `${meta.title} — ${credit}, NASA (NASA ID ${nasaId}), public domain`,
+      sourceUrl: `https://images.nasa.gov/details/${encodeURIComponent(nasaId)}`,
+      sha256: sha256(bytes),
+      ...(size ? { w: size.w, h: size.h } : {}),
+      _bytes: bytes,
+    });
+    console.log(`  nasa-${id}  ${(bytes.length / 1024).toFixed(0)} KB  ${size ? size.w + "x" + size.h : "?"}  ${meta.title}`);
+  }
+  return { schema: "prism.imagery-pack/v0.1", id: "cosmos", name: "Cosmos", blurb: "Public-domain deep-space and Earth imagery from NASA's image library.",
+    source: { name: "NASA Image and Video Library", url: "https://images.nasa.gov/" }, images };
+}
+
 async function fetchCosmos(count) {
+  if (!SEARCH) return fetchCosmosById(COSMOS_CURATED);
   const images = [];
   const seen = new Set();
   console.log("cosmos · NASA Image and Video Library (images-api.nasa.gov) — public domain, third-party credits skipped");

@@ -120,33 +120,42 @@ function fetchSignedCred(file) {
 // when the person switched it on (pv:ui.artWeekly).
 var ART_HOST = "https://prism.entangled.world/veil/art/", ART_N = 24, ART_ALARM = "prism-art-weekly";
 var artInflight = null;
-function fetchSignedArt() {
+// The picture sets (2026-10-15, "Nah let's just serve them from the server"): nature is the pool itself; Cosmos and Museum art are Prism's
+// packs in folders beside it, each with its own signed list. pv:ui.artSets names the ones switched on (nature alone by default, never none).
+var ART_SETS = { nature: "", cosmos: "cosmos/", gallery: "gallery/" };
+function artSetsOn(ui) { var on = ((ui && ui.artSets) || ["nature"]).filter(function (k) { return ART_SETS.hasOwnProperty(k); }); return on.length ? on : ["nature"]; }
+function fetchSignedArt(base) {
+  base = base || ART_HOST;
   var opts = { referrerPolicy: "no-referrer", cache: "no-cache", credentials: "omit" };
   return Promise.all([
-    fetch(ART_HOST + "list.json", opts).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
-    fetch(ART_HOST + "list.sig", opts).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }),
+    fetch(base + "list.json", opts).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
+    fetch(base + "list.sig", opts).then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }),
     crypto.subtle.importKey("jwk", CRED_PUBKEY, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"])
   ]).then(function (x) {
     return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, x[2], b64ToBuf(x[1]), x[0]).then(function (ok) {
       if (!ok) throw new Error("bad signature");
       var idx = JSON.parse(new TextDecoder().decode(x[0]));
       if (!idx || idx.v !== 1 || !idx.files) throw new Error("bad index");
-      return idx.files.filter(function (e) { return e && /^[\w.-]+\.jpe?g$/i.test(e.f) && /^[0-9a-f]{64}$/.test(e.sha256); });
+      return idx.files.filter(function (e) { return e && /^[\w.-]+\.jpe?g$/i.test(e.f) && /^[0-9a-f]{64}$/.test(e.sha256); }).map(function (e) { return { f: e.f, sha256: e.sha256, url: base + e.f }; });
     });
   });
 }
 function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return (b < 16 ? "0" : "") + b.toString(16); }).join(""); }
 function artRefresh(cb) {
   if (artInflight) { artInflight.then(cb); return; }
-  artInflight = fetchSignedArt().then(function (files) {
+  // every picture of every set switched on is one candidate, so each has the same chance whatever its set's size
+  artInflight = new Promise(function (res) { chrome.storage.local.get("pv:ui", function (r) { res(artSetsOn(r && r["pv:ui"])); }); }).then(function (sets) {
+    return Promise.all(sets.map(function (k) { return fetchSignedArt(ART_HOST + ART_SETS[k]).catch(function () { return []; }); }))
+      .then(function (lists) { var all = [].concat.apply([], lists); if (!all.length) throw new Error("no verified list"); return all; });
+  }).then(function (files) {
     var pool = files.slice(); for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
     var pick = pool.slice(0, ART_N), good = [];
     return pick.reduce(function (chain, e) {
       return chain.then(function () {
-        return fetch(ART_HOST + e.f, { referrerPolicy: "no-referrer", credentials: "omit" })
+        return fetch(e.url, { referrerPolicy: "no-referrer", credentials: "omit" })
           .then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
           .then(function (buf) { return crypto.subtle.digest("SHA-256", buf); })
-          .then(function (d) { if (hex(d) === e.sha256) good.push(ART_HOST + e.f); })
+          .then(function (d) { if (hex(d) === e.sha256) good.push(e.url); })
           .catch(function () {});
       });
     }, Promise.resolve()).then(function () {

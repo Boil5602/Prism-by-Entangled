@@ -64,6 +64,7 @@ public sealed partial class MainWindow
         // the sections, each with the line that says what it holds
         var sections = new[]
         {
+            ("simple", "Simple Watch", "A calmer Watch page that makes choosing easy."),
             ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, My Watchlist."),
             ("ads", "Ads & breaks", "How a window looks while an ad plays, and the covering of YouTube TV's breaks."),
             ("updates", "Updates", "This Prism's own updates and changelog, and when your services' lists are read again."),
@@ -126,8 +127,9 @@ public sealed partial class MainWindow
         }
         else if (_settingsTab == "categories") saveTab = BuildCategoriesTab(body);   // categories by hashtags, with a clear rule (2026-10-11)
         else if (_settingsTab == "perf") saveTab = BuildPerformanceTab(body);   // the stats (2026-10-03)
+        else if (_settingsTab == "simple") saveTab = BuildSimpleWatchTab(body);   // MainWindow.SimpleWatch.cs (2026-10-16)
         else saveTab = BuildGeneralTab(body, v);
-        if (_settingsTab is "general" or "ads" or "updates" or "services" or "binge") GroupIntoCards(body);
+        if (_settingsTab is "general" or "ads" or "updates" or "services" or "binge" or "simple") GroupIntoCards(body);
         if (_settingsTab != "perf") ReadableText(body);
 
         var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
@@ -307,28 +309,44 @@ public sealed partial class MainWindow
         // the pictures on the cover (2026-10-15, "Prism app on the desktop is still using the old images", "lets fix the video player veil images"):
         // the hand-picked photos by default, or one of the packs the app carries
         body.Children.Add(new TextBlock { Text = "Cover pictures", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
+        // one or more sets at once (2026-10-15, "checkboxes next to the options, with only nature on by default, but allow them to enable cosmos pack
+        // and museum pics. Require at least one selection"): each cover takes its picture from one of the sets switched on
         var coverNow = v["coverSource"]?.GetValue<string>() ?? "photos";
+        var coverOn = coverNow.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet();
+        if (coverOn.Count == 0) coverOn.Add("photos");
         var coverRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
-        RadioButton Pics(string label, string value, string tip)
+        var coverNote = new TextBlock { FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center };
+        var pics = new List<CheckBox>();
+        CheckBox Pics(string label, string value, string tip)
         {
-            var r = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "coverPics", IsChecked = coverNow == value, Tag = value, MinWidth = 0 };
+            var r = new CheckBox { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, IsChecked = coverOn.Contains(value), Tag = value, MinWidth = 0 };
             ToolTipService.SetToolTip(r, tip);
+            // the last set on stays on: covers always have pictures to show
+            r.Unchecked += (_, __) => { if (!pics.Any(x => x.IsChecked == true)) { r.IsChecked = true; coverNote.Text = "Keep at least one set of pictures on."; } };
+            r.Checked += (_, __) => coverNote.Text = "";
             coverRow.Children.Add(r);
+            pics.Add(r);
             return r;
         }
-        var pics = new[]
-        {
-            Pics("Nature photos", "photos", "Prism's hand-picked nature and space photos, all public domain. Hover the corner symbol on a cover for each one's credit."),
-            Pics("Gallery paintings", "gallery", "Paintings from the Art Institute of Chicago and the Met, public domain."),
-            Pics("Cosmos", "cosmos", "NASA's pictures of space, public domain."),
-        };
+        Pics("Nature photos", "photos", "Prism's hand-picked nature photos, all public domain. Hover the corner symbol on a cover for each one's credit.");
+        Pics("Cosmos", "cosmos", "NASA's pictures of space, public domain.");
+        Pics("Museum art", "gallery", "Paintings and prints from the Art Institute of Chicago and the Met, public domain.");
+        coverRow.Children.Add(coverNote);
         body.Children.Add(coverRow);
         body.Children.Add(new TextBlock { Text = "YouTube TV breaks", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) });
-        var watchBox = new CheckBox { Content = new TextBlock { Text = "Cover breaks on YouTube TV channels", FontSize = 14, Foreground = HubInk }, IsChecked = BreakWatchOn, MinWidth = 0 };
-        ToolTipService.SetToolTip(watchBox, "YouTube TV doesn't say when a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen. It covers a break it's sure of. Everything is read on this PC.");
-        watchBox.Checked += (_, __) => { HostPrefs.Set("video.breakWatch", true); LogLine("break watch: on"); };
-        watchBox.Unchecked += (_, __) => { HostPrefs.Set("video.breakWatch", false); LogLine("break watch: off"); };
-        body.Children.Add(watchBox);
+        // three choices for every channel (2026-10-15, "YouTube tv breaks is supposed to have 3 options, the all ads, only guaranteed ads, or none")
+        var bwRow = new StackPanel { Spacing = 2 };
+        void BwChoice(string mode, string label, string tip)
+        {
+            var rb = new RadioButton { Content = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk }, GroupName = "breakWatchMode", IsChecked = BreakWatchMode == mode, MinWidth = 0 };
+            ToolTipService.SetToolTip(rb, tip);
+            rb.Checked += (_, __) => SetBreakWatchMode(mode, "");
+            bwRow.Children.Add(rb);
+        }
+        BwChoice("all", "All breaks", "YouTube TV doesn't say when most of a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen, and covers each break it finds. Everything is read on this PC.");
+        BwChoice("sure", "Sure breaks only", "Only the breaks that need no guess: the ad slots YouTube TV marks itself, and paid programmes the guide or the screen names. It never covers the show by mistake, and it misses the breaks YouTube TV doesn't mark.");
+        BwChoice("off", "Off", "YouTube TV's channels are never covered.");
+        body.Children.Add(bwRow);
         // the channels the person turned off (the cover card's Never cover): each one here to cover again
         var offRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(28, 0, 0, 0) };
         void DrawOff()
@@ -386,12 +404,13 @@ public sealed partial class MainWindow
         return async () =>
         {
             var said = new List<string>();
-            var picked = pics.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? coverNow;
-            if (picked != coverNow)
+            var pickedSets = pics.Where(r => r.IsChecked == true).Select(r => (string)r.Tag).ToList();
+            var picked = string.Join(",", pickedSets);
+            if (pickedSets.Count > 0 && !pickedSets.ToHashSet().SetEquals(coverOn))
             {
                 await ModelCallAsync("videoSetCoverSource", picked);
                 LogLine("video cover pictures: " + picked);
-                said.Add(picked == "photos" ? "covers show nature photos" : picked == "gallery" ? "covers show gallery paintings" : "covers show Cosmos pictures");
+                said.Add("covers show " + string.Join(" and ", pickedSets.Select(x => x == "photos" ? "nature photos" : x == "gallery" ? "museum art" : "Cosmos pictures")));
             }
             var chosen = looks.FirstOrDefault(r => r.IsChecked == true)?.Tag as string ?? look;
             if (chosen != look)
