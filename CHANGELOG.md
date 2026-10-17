@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.35.1 - 2026-10-17 (alpha, deb98fc3)
+
+Fixes a crash in Watch. Pressing More to watch at the foot of the Watch page could put one row's clearance from the corner screens into a loop that closed Prism. The clearance now stops after a few flips and holds the corner clear.
+
+- download: https://prism.entangled.world/windows/Prism-0.35.1-deb98fc3.zip
+- sha256: 14c74c45a11c8704b14afcb438e42e9afe8d08cb6ccf915956646b7453a09e70
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.35.1
+
 ## 0.35.0 - 2026-10-17 (alpha, baa46346)
 
 Live broadcasts and YouTube TV. Removing a Twitch broadcast from Continue watching while it is still live now marks the card instead of failing. The card moves to the end of the row under a dark scrim that says it will be removed when the stream ends, and its menu or a long press on the phone offers Undo removal. Prism finishes the removal once the channel shows Offline, tries a card still marked live after twelve hours anyway, and lets the mark go after four failed tries. YouTube TV now finds a show by itself, so a title pressed from Search everywhere or a catalog card opens the show and starts an episode instead of leaving its search page open. On the phone, simple-mode posters fill their cards.

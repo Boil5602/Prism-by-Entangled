@@ -2045,6 +2045,7 @@ public sealed partial class MainWindow
             // rows, and the page's vertical scroll, and only margins that differ are written (no layout loop).
             var origRight = new Dictionary<FrameworkElement, double>();
             var origTop = new Dictionary<FrameworkElement, double>();
+            var flips = new Dictionary<FrameworkElement, (int n, long at)>();   // writes per element in quick succession: a feedback loop's tell
             void Clearance()
             {
                 // every row at the same spacing (2026-09-26, "I dont like the big gap between continue and my list. Cant you make it uniform and just shorten
@@ -2070,7 +2071,16 @@ public sealed partial class MainWindow
                     var inBand = b.Top < holeBottom + 12 && b.Bottom > holeTop - 12;
                     if (!origRight.TryGetValue(e, out var orig)) { orig = e.Margin.Right; origRight[e] = orig; }
                     var want = inBand ? orig + pipW + 8 : orig;
-                    if (Math.Abs(e.Margin.Right - want) > 0.5) { s_devLog?.Invoke("clearance margin " + e.GetType().Name + " -> " + want); e.Margin = new Thickness(e.Margin.Left, e.Margin.Top, want, e.Margin.Bottom); }
+                    if (Math.Abs(e.Margin.Right - want) <= 0.5) continue;
+                    // bounded (2026-10-17, a layout cycle crashed Prism: a row's margin flipped 0 -> 448 -> 0 on every layout pass after More to watch
+                    // was pressed, its height following its width and the page's scroll following its height): a margin written four times within
+                    // a second is in a loop, and from then on that element only widens its clearance - it keeps the corner clear and the page stands still
+                    var now = Environment.TickCount64;
+                    flips.TryGetValue(e, out var f);
+                    var n = now - f.at < 1000 ? f.n + 1 : 1;
+                    if (n >= 4 && want < e.Margin.Right) { if (n == 4) s_devLog?.Invoke("clearance held " + e.GetType().Name + " at " + e.Margin.Right); flips[e] = (n, now); continue; }
+                    flips[e] = (n, now);
+                    s_devLog?.Invoke("clearance margin " + e.GetType().Name + " -> " + want); e.Margin = new Thickness(e.Margin.Left, e.Margin.Top, want, e.Margin.Bottom);
                 }
             }
             // the row after the first starts below the corner (2026-09-25, "hoping the continue watching pushes my list down a little bit so it
