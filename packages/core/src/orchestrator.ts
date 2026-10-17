@@ -4497,6 +4497,7 @@ export class Orchestrator {
   // ---- VP-2 (2026-09-19): the video player's own calls, delegated to video.ts
   private readonly video: VideoController = new VideoController({
     adapterOf: (id) => { const t = this.tile(id); return t?.adapter ? this.adapters.get(t.adapter) : undefined; },
+    adapterByKey: (key) => this.adapters.get(key),
     adapterIdOf: (id) => this.tile(id)?.adapter ?? null,
     tileExists: (id) => !!this.tile(id),
     inject: (id, js) => Promise.resolve(this.drivers.surface.inject(id, null, js)),
@@ -6261,7 +6262,7 @@ export class Orchestrator {
   }
 
   // ---- remove from the service's own Continue Watching (2026-09-22): the adapter's script on a hidden surface in the App's profile
-  private readonly removeJobs = new Map<string, { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean; seq?: number }>();
+  private readonly removeJobs = new Map<string, { status: "working" | "done" | "failed" | "queued"; error?: string; note?: string; at: number; reported?: boolean; seq?: number }>();
   /** What the wall can offer for an App's Continue Watching cards: whether the service has a remove script, and what to warn. */
   /** Hide a title from the wall's Continue Watching (a service whose site cannot remove it). */
   videoHideContinue(adapterKey: string, id: string): void { this.video.hideContinue(adapterKey, id); }
@@ -6270,7 +6271,7 @@ export class Orchestrator {
     return { can: !!spec?.videoRemoveContinue, warning: spec?.videoRemoveContinueWarning ?? null };
   }
   /** Start (or report) the removal of one title from one service's Continue Watching. A job is kept a minute after it ends, for the host's poll. */
-  videoRemoveContinue(s: { app: string; adapter: string; profile: string; home: string; status: string }, id: string, title: string): { status: "working" | "done" | "failed"; error?: string; ahead?: number } {
+  videoRemoveContinue(s: { app: string; adapter: string; profile: string; home: string; status: string }, id: string, title: string, evenIfLive = false): { status: "working" | "done" | "failed" | "queued"; error?: string; ahead?: number; note?: string } {
     const key = s.app + "|" + id;
     const have = this.removeJobs.get(key);
     // removals on one service run one at a time (its hidden page); a queued one says how many are ahead of it, so a person's eighth Twitch removal
@@ -6284,7 +6285,11 @@ export class Orchestrator {
     const spec = this.adapters.get(s.adapter);
     if (!spec?.videoRemoveContinue) return { status: "failed", error: "this service's adapter cannot remove titles yet" };
     if (s.status !== "signed-in") return { status: "failed", error: "sign in to the service first" };
-    const job: { status: "working" | "done" | "failed"; error?: string; at: number; reported?: boolean; seq?: number } = { status: "working", at: Date.now(), seq: ++this.removeSeq };
+    // a broadcast the service marks as still being recorded is said so at once, without a hidden page trying to play an end it does not have yet
+    // (2026-10-16, "I cant seem to permanently get rid of that twitch video either": a live HasanAbi broadcast failed twice as "would not play")
+    // ... marked for removal instead, and finished when the broadcast has ended (videoFinishPendingRemovals); the person can undo it until then
+    if (!evenIfLive && (this.video.libraryOf(s.adapter).library.continue ?? []).find((x) => x.id === id)?.live === true) { this.video.markRemoving(s.adapter, id, title); return { status: "queued", note: Orchestrator.STILL_LIVE_NOTE }; }
+    const job: { status: "working" | "done" | "failed" | "queued"; error?: string; note?: string; at: number; reported?: boolean; seq?: number } = { status: "working", at: Date.now(), seq: ++this.removeSeq };
     this.removeJobs.set(key, job);
     this.touchLookups();
     void (async () => {
@@ -6310,13 +6315,45 @@ export class Orchestrator {
       const r = a.r;
       // still-live (2026-10-15, Twitch: "1 continues to return. Which I suspect is because it's live"): a broadcast still being recorded has no end to
       // play out to - it came back after a removal called done at its live edge - so it is said plainly and left as it is
+      if (!r.ok && r.error === "still-live") { this.video.markRemoving(s.adapter, id, title); Object.assign(job, { status: "queued", note: Orchestrator.STILL_LIVE_NOTE, at: Date.now() }); return; }   // found live on its page: marked, finished at its end
       if (!r.ok) { Object.assign(job, { status: "failed", error: r.error === "needs-profile" ? "the service is asking who's watching, so choose a profile for it first" : r.error === "still-live" ? "it's still live, so it can't be removed until the broadcast ends. Try again then, or hide it on the PC" : r.error || "the service did not remove it", at: Date.now() }); return; }
       this.video.dropFromContinue(s.adapter, id);
+      this.video.clearRemoving(s.adapter, id);
       Object.assign(job, { status: "done", at: Date.now() });
     })();
     return job;
   }
   private removeSeq = 0;
+  static readonly STILL_LIVE_NOTE = "Can't finish until the live broadcast ends. It will be removed then.";
+  static readonly PENDING_REMOVE_LIVE_WAIT_MS = 12 * 3600_000;
+  static readonly PENDING_REMOVE_MAX_TRIES = 4;
+  /** The person's Undo on a removal still waiting for its broadcast to end. */
+  videoUndoRemoveContinue(adapter: string, id: string): { ok: boolean } { return { ok: this.video.clearRemoving(adapter, id) }; }
+  /**
+   * Removals waiting on a live broadcast, looked at every two minutes: a card the service no longer lists is let go; one no longer live has its
+   * removal run as any other (one at a time on the service's page); one that failed is tried again ten minutes later.
+   */
+  videoFinishPendingRemovals(services: ReadonlyArray<{ app: string; adapter: string; profile: string; home: string; status: string }>): void {
+    for (const p of this.video.removingList()) {
+      const s = services.find((x) => x.adapter === p.adapter);
+      if (!s || s.status !== "signed-in") continue;
+      const card = (this.video.libraryOf(p.adapter).library.continue ?? []).find((x) => x.id === p.id);
+      if (!card) { this.video.clearRemoving(p.adapter, p.id); continue; }
+      // a card still live waits, but not for ever (2026-10-17): a channel the person does not follow keeps the service's "processing" picture past
+      // the broadcast's end, so twelve hours after the mark, or the last try, the removal is tried regardless - the page's own still-live check
+      // (the length still growing) marks it again if the broadcast really is on
+      const live = card.live === true;
+      if (live && Date.now() - Math.max(p.at, p.tried ?? 0) < Orchestrator.PENDING_REMOVE_LIVE_WAIT_MS) continue;
+      const job = this.removeJobs.get(s.app + "|" + p.id);
+      if (job && (job.status === "working" || (job.status === "failed" && Date.now() - job.at < 10 * 60_000))) continue;
+      if (job) this.removeJobs.delete(s.app + "|" + p.id);
+      // bounded (a recovery that cannot succeed is not run for days, each try playing the page): after four tries the mark is let go, and the card
+      // stands as before - a Remove pressed again says the service's own error
+      if (p.tries >= Orchestrator.PENDING_REMOVE_MAX_TRIES) { this.video.clearRemoving(p.adapter, p.id); continue; }
+      this.video.noteRemovingTry(p.adapter, p.id);
+      this.videoRemoveContinue(s, p.id, p.title, live);
+    }
+  }
   static readonly REMOVE_ANSWER_TIMEOUT_MS = 40_000;
   /** A remove that has to play the video out (Twitch, 2026-10-13: a video played to its end leaves Continue Watching, one moved to its start does
    *  not): the page, the seek near the end, up to seventy seconds of muted play and the shelf read again. */

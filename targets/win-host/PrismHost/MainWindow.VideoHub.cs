@@ -2540,7 +2540,8 @@ public sealed partial class MainWindow
             var item = card["item"] as JsonObject; if (item is null) return null;
             var service = S(card, "service"); var facet = S(card, "facet");
             var id = S(item, "id"); var title = S(item, "title"); var kind = S(item, "kind"); var url = item["url"]?.GetValue<string>(); var art = item["artwork"]?.GetValue<string>(); var series = S(item, "series"); var subt = S(item, "subtitle");
-            if (S(item, "badgeFrom") == "count") subt = "";   // the count is the ribbon; no line under (2026-10-14, "Then we dont need the tag line under the series")
+            if (S(item, "badgeFrom") == "count") subt = "";
+            var removing = item["removing"]?.GetValue<bool>() == true;   // marked for removal, waiting on its live broadcast's end (2026-10-16)   // the count is the ribbon; no line under (2026-10-14, "Then we dont need the tag line under the series")
             var text = series.Length > 0 && series != title ? series + "  ·  " + title : title;
             var poster = new Grid { Width = CardArtW, Height = CardArtH };
             // a channel card (On now) stands on a colour of the channel's own (2026-10-13, "make sure it has a colored background"), so the wash
@@ -2615,6 +2616,7 @@ public sealed partial class MainWindow
             // a Continue watching card always: a service's continue picture is a still of the episode, not its box art with the name (2026-10-13, "All the items in the
             // continue watching line are missing titles")
             if (named && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")) || card["__continue"]?.GetValue<bool>() == true)) TitleOverlay(poster, series.Length > 0 ? series : title);
+            if (removing) poster.Children.Add(PendingRemovalMark());
             var cell = new StackPanel { Spacing = 4, Width = CardCellW };
             cell.Children.Add(StackBehind(poster, card["also"] is JsonArray alsoN ? alsoN.Count + 1 : 1));
             // a channel card (On now, 2026-10-12, "Why are all the channel names present inside the block and below. Very redundant"): the box is
@@ -2646,6 +2648,9 @@ public sealed partial class MainWindow
             (_hubLines.TryGetValue(CardKey(card), out var lineList) ? lineList : _hubLines[CardKey(card)] = new()).Add((lensTb, ratingTb, poster));
             _hubArt[poster] = art ?? "";
             var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(4) };
+            // marked for removal while its broadcast is still live: faded at the row's end, the reason on hover (2026-10-16, "Can't finish until live
+            // broadcast ends in a tooltip"); its menu offers Undo removal (MainWindow.RemoveContinue)
+            if (removing) ToolTipService.SetToolTip(btn, "Marked for removal. Can't finish until the live broadcast ends.");
             // no tooltip on a card (2026-10-13, "Lets generally drop the mouse over tooltip for the videos on the Watch tab. They're very long and the
             // information can be found in Details"): the rating's disclosure stays a right-click away
             var fromContinue = card["__continue"]?.GetValue<bool>() == true;
@@ -2680,7 +2685,7 @@ public sealed partial class MainWindow
             }
             else btn.ContextFlyout = RatingFlyout(series.Length > 0 ? series : title, series.Length > 0 ? "series" : kind, app: S(card, "app").Length > 0 ? S(card, "app") : null, rate: rateOpen, extra: rmApp.Length > 0 && rmId.Length > 0 ? async fly =>
             {
-                if (fromContinue) await AddRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);
+                if (fromContinue) await AddRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn, item["removing"]?.GetValue<bool>() == true);
                 if (card["__library"]?.GetValue<bool>() == true) await AddLibraryRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, btn);   // a library card: out of the service's library (2026-10-12)
                 if (fromList) await AddListRemoveItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, btn);
                 else if (!_watchActive) await AddListAddItemAsync(fly, rmApp, rmService, rmId, rmTitle, lsUrl, lsKind, null);   // the watchlist is My list while linked

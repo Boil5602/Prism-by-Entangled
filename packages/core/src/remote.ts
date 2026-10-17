@@ -150,6 +150,8 @@ export class RemoteApi {
     removeInfo: (app: string) => unknown;
     removeContinue: (app: string, id: string, title: string) => unknown;
     hideContinue: (app: string, id: string) => unknown;
+    /** Undo a removal still waiting for its live broadcast to end (2026-10-16). */
+    undoRemove?: (app: string, id: string) => unknown;
     /** The service's own subtitle and audio tracks for the phone's Captions sheet, a pick, and the sheet closed (2026-10-05). */
     tracks: (tile: string) => Promise<unknown>;
     track: (tile: string, kind: string, id: string) => Promise<string>;
@@ -567,6 +569,14 @@ export class RemoteApi {
       const app = this.parseBody(req.body)?.["app"];
       if (typeof app !== "string" || !app) return json(400, { error: 'body must be {"app"}' });
       return json(200, this.video.removeInfo(app));
+    }
+    // POST /video/undo-remove {app, id} -> {ok}: a removal waiting on a live broadcast's end called off (2026-10-16)
+    if (req.method === "POST" && req.path === "/video/undo-remove") {
+      if (!this.video?.undoRemove) return json(501, { error: "this shell has no Video player" });
+      const b = this.parseBody(req.body) ?? {};
+      const app = typeof b["app"] === "string" ? b["app"] : "", id = typeof b["id"] === "string" ? b["id"] : "";
+      if (!app || !id) return json(400, { error: 'body must be {"app", "id"}' });
+      return json(200, this.video.undoRemove(app, id));
     }
     if (req.method === "POST" && (req.path === "/video/remove-continue" || req.path === "/video/hide-continue")) {
       if (!this.video) return json(501, { error: "this shell has no Video player" });

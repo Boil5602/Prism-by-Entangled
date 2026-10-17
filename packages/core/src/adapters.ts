@@ -274,6 +274,9 @@ export interface AdapterSpec {
   /** One address or several tried in order (as videoListSetUrl), filled by fillItemAddress from the card; a template it cannot fill is skipped. */
   videoRemoveContinueUrl?: string | string[];
   videoRemoveContinueWarning?: string;
+  /** A piece of the picture address the service gives a Continue Watching card of a broadcast still being recorded (Twitch:
+   *  "/_404/404_processing"): such a card is live, its removal said at once to wait for the broadcast's end, and the PC offers Hide. */
+  videoLiveArtwork?: string;
   /**
    * Remove a title from the service's own library (2026-10-12, YouTube TV: the show's 'Added to library' button, which ends its recordings):
    * window.__prismVideoLibraryRemove(token, id, title) on a hidden page at videoLibraryRemoveUrl ({id}, {url} as fillItemAddress fills them),

@@ -62,7 +62,7 @@ p.note{color:#E8ECF2;font-size:14px;line-height:1.4}
 .target .tl{font-size:16px;font-weight:600;color:#E8ECF2}.target.on .tl{color:#F2B14C}.target .ts{font-size:13px;color:#E8ECF2}p.err{color:#F2B14C;font-size:14px;min-height:1.4em}
 label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:100%;margin-top:6px}
 .moreRows{display:block;margin:16px 0 4px;background:#1C2129;color:#E8ECF2;border:0;border-radius:12px;padding:12px 18px;font:16px system-ui}
-.simple #vCont .card{width:150px}
+.simple #vCont .card{width:150px}.simple #vCont .card .art,.simple #vCont .card .pend{width:150px;height:225px}.simple #vCont .card .nm{width:150px;top:169px}.simple #vCont .card .ago,.simple #vCont .card .sc{top:199px}.card .pend{position:absolute;left:0;top:0;width:112px;height:168px;border-radius:10px;background:rgba(5,6,9,.74);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;box-sizing:border-box;color:#E8ECF2;font:600 12px/1.25 system-ui;text-align:center;white-space:normal}.card .pend svg{width:30px;height:30px;fill:#F2B14C}
 </style></head><body>
 <header>__WORDMARK__<span id="who">on this PC</span><button id="more" class="more" aria-label="Options">&#8943;</button></header>
 <div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music lounge</button><button id="plVideo">Video</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="modeBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><button id="refreshPage">Refresh this page</button><button id="forget">Forget this PC</button><button id="closeMenu">Close</button><p id="howHome" class="how"></p></div>
@@ -1522,6 +1522,13 @@ function drawRate(c, run, ref) {
 // Remove from Continue Watching, sent and followed in the status line: the long-press menu's and the Details sheet's Actions (2026-10-15)
 function removeFill(rm, c, it, info, close, noteEl) {
       const key = c.app + '|' + it.id;
+      // marked for removal, waiting on its live broadcast's end (2026-10-16, "allow the user to undo the removal since it will still be sitting there")
+      if (it.removing) {
+        rm.disabled = false; rm.textContent = 'Undo removal'; rm.title = 'Keeps it in Continue Watching on ' + c.service + '.';
+        rm.onclick = async () => { close(); try { await api('/video/undo-remove', { app: c.app, id: it.id }); vSig = ''; pollVideo(); endVWork(it.title + ' stays in Continue Watching.', true); } catch (e) { endVWork(e.message, false); } };
+        if (noteEl && !noteEl.textContent) noteEl.textContent = "Marked for removal. Can't finish until the live broadcast ends.";
+        return;
+      }
       const go = async (hide) => {
         removing.add(key); close(); vSig = ''; pollVideo();
         const w = q('#verr'); w.className = 'err work on'; w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode((hide ? 'Hiding ' : 'Removing ') + it.title + (hide ? ' on the PC' : ' from ' + c.service) + '\u2026'));
@@ -1532,10 +1539,12 @@ function removeFill(rm, c, it, info, close, noteEl) {
           // multiple removals in a queue": a fixed 200 s gave up on the eighth Twitch removal while the PC was still on its way to it)
           const line = w.lastChild;
           while (Date.now() - t0 < 1800000) {
-            r = await api('/video/remove-continue', { app: c.app, id: it.id, title: it.title }); if (r && (r.status === 'done' || r.status === 'failed')) break;
+            r = await api('/video/remove-continue', { app: c.app, id: it.id, title: it.title }); if (r && (r.status === 'done' || r.status === 'failed' || r.status === 'queued')) break;
             if (line) line.textContent = 'Removing ' + it.title + ' from ' + c.service + (r && r.ahead ? ' (' + r.ahead + ' ahead of it)' : '') + '\u2026';
             await new Promise((res) => setTimeout(res, 1500));
           }
+          // still live: marked for removal, back in the row at its end, finished once the broadcast ends (2026-10-16)
+          if (r && r.status === 'queued') { removing.delete(key); vSig = ''; pollVideo(); endVWork(it.title + ' will be removed from ' + c.service + ' when the live broadcast ends.', true); return; }
           if (r && r.status === 'done') { endVWork('Removed ' + it.title + ' from ' + c.service + "'s Continue Watching.", true); setTimeout(() => removing.delete(key), 180000); }
           else { removing.delete(key); vSig = ''; pollVideo(); endVWork((r && r.error) || 'Could not remove ' + it.title + ' on ' + c.service + '.', false); }
         } catch (e) { removing.delete(key); vSig = ''; pollVideo(); endVWork(e.message, false); }
@@ -1585,12 +1594,16 @@ function drawCards(sel, cards, empty) {
     c.row = sel === '#vCont' ? 'continue' : 'list';   // the card's menu offers Remove from Continue Watching on that row alone (2026-10-15)
     const it = c.item;
     const b = document.createElement('button'); b.className = 'card';
+    // marked for removal while its broadcast is still live (2026-10-16): faded at the row's end, its menu offers Undo removal
+    if (it.removing) b.title = "Marked for removal. Can't finish until the live broadcast ends.";
     // TMDB's poster first, the service's own picture when there is none (2026-10-11, "a mix of formats")
     const img = document.createElement('img'); img.className = 'art'; img.alt = ''; if (it.poster || it.artwork) img.src = it.poster || it.artwork;
     // a wide picture (a service's still) fills the same tall frame as the posters, its middle, and carries the title's name over it, since a still
     // has none (2026-10-15, "2 wide format images in continue watching on the phone, should match the tall images all the others show")
     img.onload = () => { if (img.naturalWidth > img.naturalHeight * 1.2 && !b.querySelector('.nm')) { img.classList.add('still'); const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.title; img.after(nm); } };
     b.appendChild(img);
+    // ... drawn over its picture: a trash mark and when it goes (2026-10-16, "I don't see any indication that it's scheduled to be removed")
+    if (it.removing) { const pend = document.createElement('span'); pend.className = 'pend'; pend.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h4v2H4V5h4zM6 8h12l-1 13H7z"/></svg>Removing when the stream ends'; b.appendChild(pend); }
     if (typeof it.progress === 'number' && it.progress > 0) { const bar = document.createElement('div'); bar.className = 'bar'; const i = document.createElement('i'); i.style.width = Math.round(Math.min(1, it.progress) * 100) + '%'; bar.appendChild(i); b.appendChild(bar); }
     // the picture carries the name (2026-10-14, "the show/movie titles show underneath as well, we dont need to do that ... show the service icon overlaid
     // on the poster image, and get rid of the service name in orange down below"): a card with no picture keeps its name; the service as its mark, top left

@@ -63,6 +63,8 @@ export interface VideoHost {
   /** The tile's page in a fresh window of its own, opened at `url` (the doctor's last try: a reload keeps the same page process). */
   renew?(tileId: string, url: string): Promise<void>;
   adapterOf(tileId: string): AdapterSpec | undefined;
+  /** An adapter by its key (a library is kept by adapter, not by tile). */
+  adapterByKey?(adapterKey: string): AdapterSpec | undefined;
   adapterIdOf(tileId: string): string | null;
   tileExists(tileId: string): boolean;
   inject(tileId: string, js: string): Promise<void>;
@@ -820,7 +822,7 @@ export class VideoController {
       const app = this.appKey(id);
       out.push({
         id, adapter: this.host.adapterIdOf(id), playing: this.playing.get(id) ?? false, video: this.contexts.get(id) ?? null,
-        library: this.libraries.get(app) ?? { continue: [], list: [] }, resume: this.resumes.get(app) ?? null, pending: this.pending.get(id) ?? null,
+        library: this.markLive(app, this.libraries.get(app) ?? { continue: [], list: [] }), resume: this.resumes.get(app) ?? null, pending: this.pending.get(id) ?? null,
         opened: this.openedNow(id),
         error: this.errors.get(id)?.text ?? null,
         gate: this.gates.get(id) ?? null,
@@ -838,7 +840,7 @@ export class VideoController {
 
   async library(tileId: string): Promise<VideoLibrary> {
     await this.load(tileId);
-    return this.libraries.get(this.appKey(tileId)) ?? { continue: [], list: [] };
+    return this.markLive(this.appKey(tileId), this.libraries.get(this.appKey(tileId)) ?? { continue: [], list: [] });
   }
   /**
    * VP-3: a service's library and resume point by the App's adapter name, whether or not the service is on the wall now
@@ -965,10 +967,55 @@ export class VideoController {
   }
   /** When each service's rows were last set here (a read, a merge), for the categories tab's "as read at" (2026-10-11). */
   private libraryAt = new Map<string, number>();
+  /** A Continue Watching card whose picture is the service's own mark of a broadcast still being recorded (the adapter's videoLiveArtwork:
+   *  Twitch's "processing" picture, 2026-10-16) is live: it has no end yet to play out to. Read from the picture, so a kept row is marked too. */
+  private markLive(appKey: string, lib: VideoLibrary): VideoLibrary {
+    void this.loadPendingRemove();
+    const mark = this.host.adapterByKey?.(appKey)?.videoLiveArtwork;
+    // ... unless its channel is listed Offline among the followed channels (2026-10-17, "I don't think it removed that twitch stream when it
+    // ended": Twitch keeps the "processing" picture on the card after the broadcast has ended, and HasanAbi stood Offline beside it)
+    const offline = new Set<string>();
+    for (const row of lib.own ?? []) for (const c of row.items ?? []) if (c.kind === "channel" && /^offline$/i.test((c.subtitle ?? "").trim())) offline.add(c.title.trim().toLowerCase());
+    const ended = (x: VideoItem) => !!x.channel && offline.has(x.channel.trim().toLowerCase());
+    const live = (x: VideoItem) => !x.live && !!mark && (x.artwork ?? "").includes(mark) && !ended(x);
+    const over = (x: VideoItem) => !!x.live && ended(x);
+    const rm = (x: VideoItem) => !x.removing && this.pendingRemove.has(appKey + "|" + x.id);
+    if (!lib.continue?.some((x) => live(x) || over(x) || rm(x))) return lib;
+    return { ...lib, continue: lib.continue.map((x) => {
+      if (!live(x) && !over(x) && !rm(x)) return x;
+      const y: VideoItem = { ...x, ...(live(x) ? { live: true } : {}), ...(rm(x) ? { removing: true } : {}) };
+      if (over(x)) delete y.live;
+      return y;
+    }) };
+  }
+  /** Removals the person asked for that wait on a live broadcast's end (2026-10-16, "it should just be marked for removal ... throw it at the end of
+   *  continue watching, and remove it when no longer live ... allow the user to undo"), by adapter|id, kept on the device. */
+  private readonly pendingRemove = new Map<string, { adapter: string; id: string; title: string; at: number; tries: number; tried?: number }>();
+  private pendingRemoveLoaded = false;
+  private async loadPendingRemove(): Promise<void> {
+    const dash = this.host.dashId(); const store = this.host.store();
+    if (this.pendingRemoveLoaded || !dash || !store) return;
+    this.pendingRemoveLoaded = true;
+    try {
+      const raw = await store.get(`video:pending-remove:${dash}`);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) for (const p of arr) if (p && typeof p.adapter === "string" && typeof p.id === "string") this.pendingRemove.set(p.adapter + "|" + p.id, { adapter: p.adapter, id: p.id, title: typeof p.title === "string" ? p.title : p.id, at: typeof p.at === "number" ? p.at : Date.now(), tries: typeof p.tries === "number" ? p.tries : 0, ...(typeof p.tried === "number" ? { tried: p.tried } : {}) });
+    } catch { /* unreadable: nothing waits */ }
+  }
+  private persistPendingRemove(): void {
+    const dash = this.host.dashId(); const store = this.host.store();
+    if (!dash || !store) return;
+    try { void store.set(`video:pending-remove:${dash}`, JSON.stringify([...this.pendingRemove.values()])); } catch { /* best effort */ }
+  }
+  markRemoving(adapter: string, id: string, title: string): void { const had = this.pendingRemove.get(adapter + "|" + id); this.pendingRemove.set(adapter + "|" + id, { adapter, id, title, at: had?.at ?? Date.now(), tries: had?.tries ?? 0, ...(had?.tried ? { tried: had.tried } : {}) }); this.persistPendingRemove(); }
+  /** One more try of a waiting removal launched now (2026-10-17): counted, so the tries are bounded, and timed, so a still-live card is tried again only after a long wait. */
+  noteRemovingTry(adapter: string, id: string): void { const p = this.pendingRemove.get(adapter + "|" + id); if (!p) return; p.tries += 1; p.tried = Date.now(); this.persistPendingRemove(); }
+  clearRemoving(adapter: string, id: string): boolean { const had = this.pendingRemove.delete(adapter + "|" + id); if (had) this.persistPendingRemove(); return had; }
+  removingList(): Array<{ adapter: string; id: string; title: string; at: number; tries: number; tried?: number }> { void this.loadPendingRemove(); return [...this.pendingRemove.values()]; }
   libraryOf(appKey: string): { library: VideoLibrary; resume: VideoResumePoint | null; recent: VideoResumePoint[]; live: VideoChannel[]; at: number | null } {
     void this.loadApp(appKey);
     void this.loadMenu();   // the log and the first-seen record warm with the rows, so the menu's first open orders by them
-    return { library: this.libraries.get(appKey) ?? { continue: [], list: [], shelves: [] }, resume: this.resumes.get(appKey) ?? null, recent: this.recents.get(appKey) ?? [], live: this.live.get(appKey) ?? [], at: this.libraryAt.get(appKey) ?? null };
+    return { library: this.markLive(appKey, this.libraries.get(appKey) ?? { continue: [], list: [], shelves: [] }), resume: this.resumes.get(appKey) ?? null, recent: this.recents.get(appKey) ?? [], live: this.live.get(appKey) ?? [], at: this.libraryAt.get(appKey) ?? null };
   }
   /**
    * Phase 2: the merged rows of the universal menu (video-menu-spec §2 rows 1-2), ordered by §4 through the pure function
@@ -978,7 +1025,7 @@ export class VideoController {
   menu(services: readonly { app: string; name: string; facet: string; adapter: string; listMerge?: boolean }[], now = Date.now(), listBadge?: (item: VideoItem, adapter: string) => string | null, orders: RowOrders = { continue: "title", list: "prism", continueReverse: false, listReverse: false }): { continue: MenuCard[]; list: MenuCard[]; log: number } {
     void this.loadMenu();
     // a service may keep its list out of the merged row (adapter videoListMerge false); its Continue Watching merges as any
-    const rowsOf = (key: "continue" | "list"): MenuServiceRow[] => services.filter((s) => key === "continue" || s.listMerge !== false).map((s) => { const items = (this.libraries.get(s.adapter)?.[key] ?? []).filter((it) => !isLiveItem(it)) as VideoItem[]; return { app: s.app, name: s.name, facet: s.facet, items: key === "continue" ? this.shownContinue(s.adapter, items) : items }; }).filter((r) => r.items.length > 0);   // live items are the Live tab's (docs/features/live.md)
+    const rowsOf = (key: "continue" | "list"): MenuServiceRow[] => services.filter((s) => key === "continue" || s.listMerge !== false).map((s) => { const items = ((key === "continue" ? this.markLive(s.adapter, this.libraries.get(s.adapter) ?? { continue: [], list: [] }) : this.libraries.get(s.adapter))?.[key] ?? []).filter((it) => !isLiveItem(it)) as VideoItem[]; return { app: s.app, name: s.name, facet: s.facet, items: key === "continue" ? this.shownContinue(s.adapter, items) : items }; }).filter((r) => r.items.length > 0);   // live items are the Live tab's (docs/features/live.md)
     // the log speaks in App ids; the rows are keyed the same way (the App), so a log entry finds its row by App
     const log = this.log.map((e) => ({ ...e, app: this.appIdFor(e.app, services) }));
     const seen: FirstSeen = {};
@@ -989,7 +1036,8 @@ export class VideoController {
     const cr = orders.continueReverse, lr = orders.listReverse;
     const cont = orders.continue === "service" ? orderByService(rowsOf("continue"), log, seen, now, cr) : orders.continue === "watched" ? orderByWatched(rowsOf("continue"), log, seen, now, cr) : orderContinueByTitle(orderByService(rowsOf("continue"), log, seen, now), cr);
     const list = orders.list === "service" ? orderByService(listRows, log, seen, now, lr) : orders.list === "title" ? orderContinueByTitle(orderByService(listRows, log, seen, now), lr) : orderAlphabetical(listRows, log, seen, now, lr);
-    return { continue: cont, list: foldSameTitle(list), log: this.log.length };
+    // a removal waiting on its broadcast's end stands last, whatever the order (2026-10-16)
+    return { continue: [...cont.filter((c) => !c.item.removing), ...cont.filter((c) => c.item.removing)], list: foldSameTitle(list), log: this.log.length };
   }
   /** The log and the first-seen record are keyed by the adapter's name (like everything kept per App here); the menu's rows by the App id. */
   private appIdFor(adapterKey: string, services: readonly { app: string; adapter: string }[]): string { return services.find((s) => s.adapter === adapterKey)?.app ?? adapterKey; }
@@ -1827,7 +1875,7 @@ export function cleanLibrary(raw: unknown): { continue: VideoItem[]; list: Video
       .map(splitEpisodeName)
       .map((x) => ({ id: x.id, title: x.title, kind: typeof x.kind === "string" ? x.kind : "video", url: typeof x.url === "string" ? x.url : null, artwork: typeof x.artwork === "string" ? jpegArt(x.artwork) : null, subtitle: typeof x.subtitle === "string" ? x.subtitle : null, progress: typeof x.progress === "number" ? x.progress : null, ...(typeof x.badge === "string" && x.badge.trim() && !isAwardBadge(x.badge) ? { badge: x.badge.replace(/\s+/g, " ").trim().slice(0, 48), ...(x.badgeInArt === true ? { badgeInArt: true } : {}), ...(x.badgeFrom === "count" ? { badgeFrom: "count" as const } : {}) } : {}),
         // the channel a video is on and its address, as the page named them (YouTube, Twitch; 2026-10-11), and the tags the creator wrote
-        ...(typeof x.channel === "string" && x.channel.trim() ? { channel: x.channel.trim().slice(0, 80) } : {}), ...(typeof x.channelUrl === "string" && /^https:\/\//.test(x.channelUrl) ? { channelUrl: x.channelUrl.slice(0, 200) } : {}),
+        ...(typeof x.channel === "string" && x.channel.trim() ? { channel: x.channel.trim().slice(0, 80) } : {}), ...(x.live === true ? { live: true } : {}), ...(typeof x.channelUrl === "string" && /^https:\/\//.test(x.channelUrl) ? { channelUrl: x.channelUrl.slice(0, 200) } : {}),
         ...(Array.isArray(x.tags) ? { tags: x.tags.filter((t): t is string => typeof t === "string").slice(0, 30) } : {}) }))
     : [];
   const shelves = Array.isArray(r.shelves)

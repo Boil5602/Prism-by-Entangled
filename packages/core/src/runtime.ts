@@ -401,6 +401,8 @@ export interface PrismRuntimeApi {
   videoRemoveInfo(appId: string): string;
   /** Sync JSON {status: working|done|failed, error?}: remove a title from the service's own Continue Watching - starts the job, or reports it (2026-09-22). */
   videoRemoveContinue(appId: string, itemId: string, title: string): string;
+  /** Undo a removal still waiting for its live broadcast to end (2026-10-16). */
+  videoUndoRemoveContinue(appId: string, itemId: string): string;
   /** Remove from the service's own library (2026-10-12): JSON {can, warning} for a card, and the job {status, error?} polled as videoRemoveContinue is. */
   videoLibraryRemoveInfo(appId: string, itemId: string): string;
   videoLibraryRemove(appId: string, itemId: string, title: string): string;
@@ -1445,6 +1447,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   setTimeout(() => { try { void orchestrator.scoresLoad(); } catch (e) { report(e); } }, 6_000);
   setTimeout(() => { try { orchestrator.scores(false, 15 * 60_000); } catch (e) { report(e); } }, 60_000);
   setInterval(() => { try { orchestrator.scores(false, 15 * 60_000); } catch (e) { report(e); } }, 15 * 60_000);
+  // removals waiting on a live broadcast's end, finished once it has ended (2026-10-16)
+  setInterval(() => { try { orchestrator.videoFinishPendingRemovals(hiddenServices()); } catch (e) { report(e); } }, 120_000);
   // the per-league day pages, today's and yesterday's, in a hidden page: three minutes after the start, then hourly
   setTimeout(() => { try { orchestrator.scoresDayRead(); } catch (e) { report(e); } }, 180_000);
   setInterval(() => { try { orchestrator.scoresDayRead(); } catch (e) { report(e); } }, 60 * 60_000);
@@ -3641,6 +3645,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     videoLibraryRemoveInfo(appId, itemId) { try { const s = videoServices().services.find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoLibraryRemoveInfo(s.adapter, String(itemId ?? "")) : { can: false, warning: null }); } catch (e) { report(e); return json({ can: false, warning: null }); } },
     videoLibraryRemove(appId, itemId, title) { try { const s = hiddenServices().find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoLibraryRemove(s, String(itemId ?? ""), String(title ?? "")) : { status: "failed", error: "unknown service" }); } catch (e) { report(e); return json({ status: "failed", error: String(e) }); } },
+    videoUndoRemoveContinue(appId, itemId) { try { const s = hiddenServices().find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoUndoRemoveContinue(s.adapter, String(itemId ?? "")) : { ok: false, error: "unknown service" }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoRemoveContinue(appId, itemId, title) { try { const s = hiddenServices().find((x) => x.app === String(appId ?? "")); return json(s ? orchestrator.videoRemoveContinue(s, String(itemId ?? ""), String(title ?? "")) : { status: "failed", error: "unknown service" }); } catch (e) { report(e); return json({ status: "failed", error: String(e) }); } },
     videoArtOf(tileId) { try { return json(orchestrator.videoArtOf(String(tileId ?? ""))); } catch (e) { report(e); return json({ title: null, art: null }); } },
     videoEpisodes() {
@@ -4459,7 +4464,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         app: c.app, service: c.service, facet: c.facet, ...(typeof c.lastWatched === "number" ? { lastWatched: c.lastWatched } : {}),
         rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null,   // the score bottom right and the card menu's stars, as on the PC (2026-10-15)   // the one time a card ever shows: Prism's own log (2026-10-14, the Last watched order)
         // TMDB's poster beside the service's own picture (2026-10-11): the phone draws every card tall, so the poster comes first where there is one
-        item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item) },
+        item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item), ...(c.item.live ? { live: true } : {}), ...(c.item.removing ? { removing: true } : {}) },   // a removal waiting on the broadcast's end, as on the PC (2026-10-16)
       });
       const trim = (cs: Array<{ app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }>) => cs.filter((c) => !off.has(c.app)).map(card);   // every card the PC row has (2026-10-16, "remove the cap": it had been 40)
       const tile = sv.screen?.slot ?? null;
@@ -4616,6 +4621,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     removeInfo: (app) => { try { return JSON.parse(api.videoRemoveInfo(app)) as unknown; } catch (e) { report(e); return { can: false, warning: null }; } },
     removeContinue: (app, id, title) => { try { return JSON.parse(api.videoRemoveContinue(app, id, title)) as unknown; } catch (e) { report(e); return { status: "failed", error: String(e) }; } },
     hideContinue: (app, id) => { try { return JSON.parse(api.videoHideContinue(app, id)) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
+    undoRemove: (app, id) => { try { return JSON.parse(api.videoUndoRemoveContinue(app, id)) as unknown; } catch (e) { report(e); return { ok: false, error: String(e) }; } },
     // Watch settings on the phone (2026-10-14, "Let me edit as many of the watch settings as possible from the companion app"): what core keeps,
     // read and set through the same calls the PC's Watch settings make, so the two never disagree
     settings: () => {

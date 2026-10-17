@@ -21,10 +21,10 @@ function rig() {
 }
 const doc: DashboardDocument = { schema: "frame.dashboard/v0.1", id: "wall", name: "Wall", layout: { mode: "hero", hero: "news", heroSize: 0.62, satellites: "auto", gap: 0 }, tiles: [{ id: "news", url: "https://news.example.com/", audio: "mute" }] };
 
-async function setup() {
+async function setup(extra: Record<string, unknown> = {}) {
   const r = rig();
   const rt = createRuntime(r.drivers);
-  const adapters = { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoRemoveContinue: "/*rm*/", videoRemoveContinueUrl: "https://www.hulu.com/hub/home" } };
+  const adapters = { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoRemoveContinue: "/*rm*/", videoRemoveContinueUrl: "https://www.hulu.com/hub/home", ...extra } };
   rt.init(JSON.stringify(doc), 1920, 1080, JSON.stringify({ adapters }));
   await vi.advanceTimersByTimeAsync(50);
   expect(JSON.parse(rt.modelSaveApp(JSON.stringify({ id: "hulu", name: "Hulu", adapter: "hulu", baseUrl: "https://www.hulu.com/hub/home", profileId: "hulu", setup: { status: "signed-in" }, render: { audio: "exclusive" } }))).ok).toBe(true);
@@ -93,16 +93,60 @@ describe("background work on a service's hidden page", () => {
     expect(JSON.parse(rt.videoRemoveContinue("hulu", "a2", "The Bear"))).toMatchObject({ status: "done" });
   });
 
-  it("a broadcast still live is said plainly, never called removed (2026-10-15, Twitch)", async () => {
+  it("a broadcast still live is marked for removal, never called removed, and the mark can be undone (2026-10-15/16, Twitch)", async () => {
     const { rt, ops } = await setup();
     rt.videoRemoveContinue("hulu", "a1", "Live show");
     await vi.advanceTimersByTimeAsync(20);
     await up(rt);
     await answer(rt, tokenOf(ops)!, false, "remove", { error: "still-live" });
-    const r = JSON.parse(rt.videoRemoveContinue("hulu", "a1", "Live show")) as { status: string; error: string };
-    expect(r.status).toBe("failed");
-    expect(r.error).toMatch(/still live.*until the broadcast ends/);
+    const r = JSON.parse(rt.videoRemoveContinue("hulu", "a1", "Live show")) as { status: string; note: string };
+    expect(r.status).toBe("queued");
+    expect(r.note).toMatch(/until the live broadcast ends/);
+    expect(JSON.parse(rt.videoUndoRemoveContinue("hulu", "a1"))).toMatchObject({ ok: true });   // undone: nothing waits any more
+    expect(JSON.parse(rt.videoUndoRemoveContinue("hulu", "a1"))).toMatchObject({ ok: false });
   });
+
+  it("a card with the service's live picture waits while its channel is live, and its removal runs once the channel is Offline (2026-10-17, Twitch)", async () => {
+    const { rt, ops } = await setup({ videoLiveArtwork: "/_404/404_processing" });
+    const lib = (state: string) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, videoLibrary: {
+      continue: [{ id: "v1", title: "Big stream", kind: "video", url: "https://www.hulu.com/watch/v1", artwork: "https://vod.example/_404/404_processing_320x180.png", channel: "Host", progress: 0.7 }],
+      list: [], shelves: [], own: [{ title: "Followed channels", items: [{ id: "host", title: "Host", kind: "channel", url: "https://www.hulu.com/host", subtitle: state }] }] } } }));
+    lib("Live");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(JSON.parse(rt.videoRemoveContinue("hulu", "v1", "Big stream"))).toMatchObject({ status: "queued" });   // live: marked, nothing asked of the page
+    await vi.advanceTimersByTimeAsync(121_000);
+    expect(ops.filter((o) => o.op === "navigate" && o.id === W).length).toBe(0);   // still live: still waiting
+    lib("Offline");   // the broadcast is over, the picture still Twitch's "processing" one
+    await vi.advanceTimersByTimeAsync(121_000);
+    expect(ops.filter((o) => o.op === "navigate" && o.id === W).length).toBe(1);   // the removal runs now
+  });
+
+  it("a card still live twelve hours on is tried regardless; a removal that fails four times is let go (2026-10-17, bounded)", async () => {
+    const { rt, ops } = await setup({ videoLiveArtwork: "/_404/404_processing" });
+    const lib = (art: string) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, videoLibrary: {
+      continue: [{ id: "v1", title: "Big stream", kind: "video", url: "https://www.hulu.com/watch/v1", artwork: art, channel: "Nobody", progress: 0.7 }],
+      list: [], shelves: [], own: [] } } }));
+    lib("https://vod.example/_404/404_processing_320x180.png");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(JSON.parse(rt.videoRemoveContinue("hulu", "v1", "Big stream"))).toMatchObject({ status: "queued" });
+    const navs = () => ops.filter((o) => o.op === "navigate" && o.id === W).length;
+    await vi.advanceTimersByTimeAsync(11 * 3600_000);
+    expect(navs()).toBe(0);   // live, its channel not followed: waiting
+    await vi.advanceTimersByTimeAsync(3600_000 + 130_000);
+    expect(navs()).toBe(1);   // twelve hours on: tried regardless
+    lib("https://vod.example/thumb/v1.jpg");   // the picture is a real one now: no longer live, so a failed try is retried after ten minutes
+    for (let n = 1; n <= 3; n++) {
+      await up(rt);
+      await answer(rt, tokenOf(ops)!, false, "remove", { error: "the video would not play" });
+      await vi.advanceTimersByTimeAsync(10 * 60_000 + 130_000);
+      expect(navs()).toBe(n + 1);
+    }
+    await up(rt);
+    await answer(rt, tokenOf(ops)!, false, "remove", { error: "the video would not play" });
+    await vi.advanceTimersByTimeAsync(10 * 60_000 + 130_000);
+    expect(navs()).toBe(4);   // the fourth failure was the last: not tried again
+    expect(JSON.parse(rt.videoUndoRemoveContinue("hulu", "v1"))).toMatchObject({ ok: false });   // the mark is gone
+  }, 30_000);
 
   it("a failure is reported once; the next ask is a new job", async () => {
     const { rt, ops } = await setup();

@@ -17,8 +17,31 @@ public sealed partial class MainWindow
     private Grid? _removePanel;
 
     /// <summary>Added to a Continue watching card's menu when its service can remove titles (asked of core as the menu opens).</summary>
-    private async Task AddRemoveItemAsync(MenuFlyout fly, string app, string service, string id, string title, Button card)
+    // a card marked for removal, waiting on its live broadcast's end, says so over its picture (2026-10-16, "I don't see any indication that it's
+    // scheduled to be removed (overlay a pending deletion symbol)"): a dark scrim, the trash mark in amber, and when it goes
+    private static UIElement PendingRemovalMark()
     {
+        var words = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10) };
+        words.Children.Add(new FontIcon { Glyph = "\uE74D", FontSize = 30, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center });
+        words.Children.Add(new TextBlock { Text = "Removing when the stream ends", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextWrapping = TextWrapping.WrapWholeWords, TextAlignment = TextAlignment.Center });
+        return new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC0, 0x0F, 0x12, 0x16)), CornerRadius = new CornerRadius(6), Child = words };
+    }
+    private async Task AddRemoveItemAsync(MenuFlyout fly, string app, string service, string id, string title, Button card, bool removing = false)
+    {
+        // marked for removal while its broadcast is still live (2026-10-16, "it should just be marked for removal ... allow the user to undo the
+        // removal since it will still be sitting there"): the removal finishes on its own once the broadcast ends; until then it can be undone
+        if (removing)
+        {
+            var undo = new MenuFlyoutItem { Text = "Undo removal", Icon = new FontIcon { Glyph = "\uE7A7" } };
+            ToolTipService.SetToolTip(undo, "Keeps " + title + " in Continue Watching on " + service + ".");
+            undo.Click += async (_, __) =>
+            {
+                await ModelCallAsync("videoUndoRemoveContinue", app, id);
+                ReleasePill("Prism \u00B7 " + Shorten(title, 40) + " stays in Continue Watching");
+            };
+            fly.Items.Add(undo);
+            return;
+        }
         JsonObject? info = null;
         try { info = JsonNode.Parse(await ModelCallAsync("videoRemoveInfo", app) ?? "null") as JsonObject; } catch { }
         if (info?["can"]?.GetValue<bool>() != true)
@@ -71,10 +94,18 @@ public sealed partial class MainWindow
         {
             try { r = JsonNode.Parse(await ModelCallAsync("videoRemoveContinue", app, id, title) ?? "null") as JsonObject; } catch { r = null; }
             var st = r?["status"]?.GetValue<string>();
-            if (st is "done" or "failed") break;
+            if (st is "done" or "failed" or "queued") break;
             var ahead = r?["ahead"] is JsonValue av && av.TryGetValue<double>(out var ad) ? (int)ad : 0;
             if (ahead != lastAhead) { lastAhead = ahead; if (ahead > 0) SetPill("Prism \u00B7 removing " + Shorten(title, 40) + " (" + ahead + " ahead of it)"); }
             await Task.Delay(700);
+        }
+        if (r?["status"]?.GetValue<string>() == "queued")
+        {
+            // still live: marked for removal, back in the row at its end, faded, until the broadcast ends (2026-10-16)
+            LogLine("remove continue: queued " + title + " (still live)");
+            card.Visibility = Visibility.Visible; card.IsHitTestVisible = true; card.Opacity = 1;
+            ReleasePill("Prism \u00B7 " + Shorten(title, 40) + " will be removed when the live broadcast ends");
+            return;
         }
         if (r?["status"]?.GetValue<string>() == "done")
         {

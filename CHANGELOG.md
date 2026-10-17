@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.35.0 - 2026-10-17 (alpha, baa46346)
+
+Live broadcasts and YouTube TV. Removing a Twitch broadcast from Continue watching while it is still live now marks the card instead of failing. The card moves to the end of the row under a dark scrim that says it will be removed when the stream ends, and its menu or a long press on the phone offers Undo removal. Prism finishes the removal once the channel shows Offline, tries a card still marked live after twelve hours anyway, and lets the mark go after four failed tries. YouTube TV now finds a show by itself, so a title pressed from Search everywhere or a catalog card opens the show and starts an episode instead of leaving its search page open. On the phone, simple-mode posters fill their cards.
+
+- download: https://prism.entangled.world/windows/Prism-0.35.0-baa46346.zip
+- sha256: 62616112253e5a4249c8071aa188f22c9740930c76fe97e763d34a3e3c16ad59
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.35.0
+
 ## 0.34.0 - 2026-10-16 (alpha, cf5b09c5)
 
 Simple Watch, a calmer Watch page. Switch it on in Watch settings, or choose Calm when Prism first opens. Continue watching comes first and larger, with a Resume button for the first title in it, then My list and The Binge, and every other row waits behind More to watch. Ratings, ribbons and row controls appear when you point at a card or reach it with the remote, nothing on the page moves by itself, and the small screens dim while you browse. The phone's Watch follows the same switch. Prism also uses much less of the PC when nothing plays, because idle hidden pages no longer hold a processor core each. Also new: Prism's own loading mark over every video window, Netflix's preview pictures over the slider again, three break choices for every YouTube TV channel, a minimum release year for The Binge, The Binge by genre and full rows on the phone, cover pictures from Nature, Cosmos and Museum art sets, and every screen with Play into on the phone's Video tab. Password managers can fill the phone keyboard's sign-in boxes. A title that starts while Watch is open moves into its corner, switching Watch's tabs no longer reloads the small screens, and when a service cannot find a title by itself its own search opens for you to pick from.

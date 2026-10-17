@@ -31,7 +31,8 @@ public sealed partial class MainWindow
 
     /// <summary>A live card's key: the card and its picture - a picture that changes (a service's tall poster swapped for TMDB's wide backdrop once it is
     /// read, 2026-09-24) swaps the card in place.</summary>
-    private static string LiveKey(JsonObject card) => CardKey(card) + "|" + ((card["item"] as JsonObject)?["artwork"]?.GetValue<string>() ?? "");
+    private static string LiveKey(JsonObject card) => CardKey(card) + "|" + ((card["item"] as JsonObject)?["artwork"]?.GetValue<string>() ?? "")
+        + ((card["item"] as JsonObject)?["removing"]?.GetValue<bool>() == true ? "|removing" : "");   // marked for removal or undone: the card is drawn again
     /// <summary>A live row's cards from core's menu, with the flags their cards' menus read (Remove on the service).</summary>
     private static IEnumerable<JsonObject> LiveCards(JsonObject menu, string key)
     {

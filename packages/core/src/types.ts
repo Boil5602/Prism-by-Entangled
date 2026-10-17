@@ -351,7 +351,10 @@ export interface VideoItem {
   /** A live event (kind "live" from an events page, 2026-09-30): when it starts and ends (epoch ms), whether it is on now, and its series ("Formula 1", "MLS"). */
   start?: number | null;
   end?: number | null;
+  /** ... and a Continue Watching broadcast still being recorded (Twitch's "processing" picture on its card, 2026-10-16): no end yet to play out to. */
   live?: boolean;
+  /** A removal the person asked for that waits on the broadcast's end (2026-10-16): the card stands last in Continue watching until it finishes. */
+  removing?: boolean;
   group?: string | null;
 }
 
