@@ -187,7 +187,7 @@ public sealed partial class MainWindow
         _wzLeft.Children.Add(new TextBlock { Text = _tplScene is { } tsid && _model.Scene(tsid) is { } tsc ? "Change apps · " + tsc.Name : firstRun ? "Welcome to Prism" : _tplLayout is not null ? "Custom scene" : "New scene", FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
         if (_tpl is null)
         {
-            if (firstRun) _wzLeft.Children.Add(new TextBlock { Text = "Nothing is on the wall yet. Pick a scene below; the wizard asks only which services you use, signs you in once, and cuts everything else to fit.", FontSize = 13, Foreground = LeInk, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
+            if (firstRun) _wzLeft.Children.Add(new TextBlock { Text = "Nothing is on the screen yet. Pick a scene below; the wizard asks only which services you use, signs you in once, and cuts everything else to fit.", FontSize = 13, Foreground = LeInk, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
             _wzLeft.Children.Add(new TextBlock { Text = "Start from a template: it names the roles a scene needs, never the apps. You pick each app, and the wizard signs you in and cuts the facet as it goes. Or build a blank scene slot by slot.", FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
             _wzLeft.Children.Add(Small("Custom scene from a layout…", () => { _tplPickLayout = true; RenderWizard(); }));
             _wzLeft.Children.Add(Small("Back to the scene  (Esc)", RouteBack));
@@ -229,9 +229,9 @@ public sealed partial class MainWindow
         var create = Primary(_tplScene is null ? "Create scene" : "Save to this scene", () => _ = _tplScene is null ? (_tplLayout is null ? CreateFromTemplateAsync() : CreateCustomSceneAsync()) : SaveToSceneAsync());
         // a custom scene may be created with slots still empty: they show as tappable Empty slots on the wall
         create.IsEnabled = unresolved.Count == 0 || _tplLayout is not null;
-        ToolTipService.SetToolTip(create, unresolved.Count == 0 ? "Every role is resolved: the layout and the scene are created and the wall becomes the scene." : "Not yet: " + string.Join(", ", unresolved) + " still unresolved (a template is never instantiable with an open role).");
+        ToolTipService.SetToolTip(create, unresolved.Count == 0 ? "Every role is resolved: the layout and the scene are created and the screen becomes the scene." : "Not yet: " + string.Join(", ", unresolved) + " still unresolved (a template is never instantiable with an open role).");
         _wzLeft.Children.Add(create);
-        _wzLeft.Children.Add(Meta(unresolved.Count == 0 ? (_tplScene is not null ? "Every role answered. Save writes them into this scene and the wall becomes it." : "All roles resolved. Name defaults to \"" + tpl.Name + "\".") : unresolved.Count + " role" + (unresolved.Count == 1 ? "" : "s") + " to go: " + string.Join(", ", unresolved)));
+        _wzLeft.Children.Add(Meta(unresolved.Count == 0 ? (_tplScene is not null ? "Every role answered. Save writes them into this scene and the screen becomes it." : "All roles resolved. Name defaults to \"" + tpl.Name + "\".") : unresolved.Count + " role" + (unresolved.Count == 1 ? "" : "s") + " to go: " + string.Join(", ", unresolved)));
         _wzLeft.Children.Add(Small("Back to the scene  (Esc)", RouteBack));
 
         var role = WalkRoles(tpl).FirstOrDefault(r => r.Id == _tplRole);
@@ -265,7 +265,7 @@ public sealed partial class MainWindow
         foreach (var (roleId, x, y, w, h) in t.Slots)
         {
             var role = t.Roles.FirstOrDefault(r => r.Id == roleId);
-            var box = new Border { Width = Math.Max(2, w * width - 2), Height = Math.Max(2, h * height - 2), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), BorderBrush = Amber, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3) };
+            var box = new Border { Width = Math.Max(2, w * width - 2), Height = Math.Max(2, h * height - 2), Background = Tokens.AmberAt(0x40), BorderBrush = Amber, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(3) };
             var col = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             col.Children.Add(new TextBlock { Text = role?.Label ?? roleId, FontSize = 11, Foreground = LeInk, HorizontalAlignment = HorizontalAlignment.Center });
             if (h * height > 30) col.Children.Add(new TextBlock { Text = role?.Class ?? "", FontSize = 9, Foreground = LeDim, HorizontalAlignment = HorizontalAlignment.Center, FontFamily = new FontFamily("Consolas") });
@@ -376,7 +376,7 @@ public sealed partial class MainWindow
         var card = new StackPanel { Spacing = 6, Padding = new Thickness(14), Background = LeSlot, CornerRadius = new CornerRadius(8) };
         card.Children.Add(new TextBlock { Text = StyleName(viz.Style) + " · artwork " + viz.Artwork + "   ·   " + role.Class, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = done ? LeTeal : LeInk });
         card.Children.Add(Meta(done
-            ? "Sourced to " + ResolvedText(viz.Source) + " - the hidden facet, this scene's audio. Tap the wall to reveal its player; tap again to send it back."
+            ? "Sourced to " + ResolvedText(viz.Source) + " - the hidden facet, this scene's audio. Tap the screen to reveal its player; tap again to send it back."
             : "Waiting on " + (source?.Label ?? viz.Source) + ". Choose the service and this is created with it, sourced to it - no second decision."));
         card.Children.Add(Meta("Audio " + role.Audio + "  ·  touch " + role.Touch + " - the template's defaults, written per assignment."));
         main.Children.Add(card);
@@ -635,7 +635,7 @@ public sealed partial class MainWindow
     {
         if (_wzLeft is null || _wzMain is null) return;
         _wzLeft.Children.Add(new TextBlock { Text = "Custom scene", FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
-        _wzLeft.Children.Add(new TextBlock { Text = "Pick the layout first. Every slot then becomes a question (which app goes here?) answered the way a template's roles are, with a service, a sign-in and a facet cut to the slot. Slots you skip stay empty and tappable on the wall.", FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
+        _wzLeft.Children.Add(new TextBlock { Text = "Pick the layout first. Every slot then becomes a question (which app goes here?) answered the way a template's roles are, with a service, a sign-in and a facet cut to the slot. Slots you skip stay empty and tappable on the screen.", FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
         _wzLeft.Children.Add(Small("Templates instead…", () => { _tplPickLayout = false; RenderWizard(); }));
         _wzLeft.Children.Add(Small("Build it by hand in the scene builder…", () => { CloseTemplateWizard(); OpenSceneBuilder(null); }));
         _wzLeft.Children.Add(Small("Back to the scene  (Esc)", RouteBack));
@@ -644,7 +644,7 @@ public sealed partial class MainWindow
         foreach (var l in _model.Layouts.Where(x => !x.Archived).OrderBy(x => x.Name))
         {
             var body = new StackPanel { Spacing = 6 };
-            body.Children.Add(LayoutThumb(l, l.Portrait ? 112 : 220, s => (new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), s.Label ?? s.Class)));
+            body.Children.Add(LayoutThumb(l, l.Portrait ? 112 : 220, s => (Tokens.AmberAt(0x40), s.Label ?? s.Class)));
             body.Children.Add(CardTitle(l.Name));
             body.Children.Add(Meta(l.CanvasAspect + " · " + l.CanvasResolution + "  ·  " + l.Slots.Count + " slot" + (l.Slots.Count == 1 ? "" : "s") + "  ·  " + string.Join(", ", l.Slots.Select(s => s.Class).Distinct())));
             var lid = l.Id;
@@ -747,7 +747,7 @@ public sealed partial class MainWindow
         var tcs = new TaskCompletionSource<(HostCatalogEntry? entry, string? appId)?>();
         var present = new HashSet<string>(scene.Hidden.Select(h => h["facet"]?.GetValue<string>()).Where(f => f is not null).Select(f => _model.Facet(f!)?.App).Where(a => a is not null)!);
         var dlg = new ContentDialog { Title = add ? "Add a music service" : "Music service", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
-        list.Children.Add(Meta(add ? "A second service for this wall: sign in once, and its playlists and stations join Quick play under their own heading." : "Which service plays on this wall. You sign in once; the beams do the rest."));
+        list.Children.Add(Meta(add ? "A second service for this PC: sign in once, and its playlists and stations join Quick play under their own heading." : "Which service plays on this PC. You sign in once; the beams do the rest."));
         foreach (var sug in role.Suggestions)
         {
             var entry = _catalog.FirstOrDefault(c => c.Id == sug); var known = _model.App(sug);
@@ -766,7 +766,7 @@ public sealed partial class MainWindow
             if (role.Suggestions.Contains(entry.Id) || (add && present.Contains(entry.Id))) continue;
             if (!EntryIsMusicService(entry)) continue;
             var known = _model.App(entry.Id);
-            var note = (known is not null ? StatusWord(known) : "not added yet") + "  ·  not yet verified on the wall" + (currentApp == entry.Id ? "  ·  playing now" : "");
+            var note = (known is not null ? StatusWord(known) : "not added yet") + "  ·  not yet verified on Prism" + (currentApp == entry.Id ? "  ·  playing now" : "");
             var e = entry; var k = known?.Id;
             list.Children.Add(AppRow(entry.Name, note, () => { tcs.TrySetResult((e, k)); dlg.Hide(); }));
         }
@@ -809,7 +809,7 @@ public sealed partial class MainWindow
             var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
             try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not save the scene"); return null; } } catch { }
             LogLine("call {\"fn\":\"music.service\",\"scene\":\"" + sid + "\",\"app\":\"" + a2.Id + "\",\"facet\":\"" + facetId + "\"}");
-            SetPill(add ? "Prism · " + a2.Name + " joined this wall's music. Open Quick play (⟲) to pick something" : "Prism · " + a2.Name + " is this wall's music. Tap the stage to pick something, then Play");
+            SetPill(add ? "Prism · " + a2.Name + " joined this PC's music. Open Quick play (⟲) to pick something" : "Prism · " + a2.Name + " is this PC's music. Tap the stage to pick something, then Play");
             await ReadModelAsync();
             await ApplySceneAsync(sid);
             return facetId;
@@ -842,11 +842,11 @@ public sealed partial class MainWindow
         await RefreshMusicSourcesAsync();
         if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
         var sources = _musicSources.ToList();
-        if (sources.Count == 0) { SetPill("Prism · this wall has no music service to remove"); return; }
+        if (sources.Count == 0) { SetPill("Prism · this PC has no music service to remove"); return; }
         var list = new StackPanel { Spacing = 3, Width = 440 };
         var tcs = new TaskCompletionSource<(string tile, string app, string name)?>();
         var dlg = new ContentDialog { Title = "Remove a music service", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
-        list.Children.Add(Meta("What leaves is the service's facet in this scene - its place on this wall, and its playlists and stations in Quick play. The App itself (the sign-in, the settings) stays under Apps, so it comes back with one pick."));
+        list.Children.Add(Meta("What leaves is the service's facet in this scene - its place on this PC, and its playlists and stations in Quick play. The App itself (the sign-in, the settings) stays under Apps, so it comes back with one pick."));
         foreach (var s in sources)
         {
             var known = _model.App(s.app);
@@ -865,13 +865,13 @@ public sealed partial class MainWindow
         var next = sc.Clone();
         var before = next.Hidden.Count;
         next.Hidden.RemoveAll(h => h["facet"]?.GetValue<string>() == c.tile);
-        if (next.Hidden.Count == before) { SetPill("Prism · " + c.name + " is not one of this wall's services"); return; }
+        if (next.Hidden.Count == before) { SetPill("Prism · " + c.name + " is not one of this PC's services"); return; }
         var fallback = next.Hidden.FirstOrDefault()?["facet"]?.GetValue<string>();
         foreach (var v in next.Visualizations) if (v["source"]?.GetValue<string>() == c.tile) v["source"] = fallback;
         var raw = await ModelCallAsync("modelSaveScene", next.ToJson());
         try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not save the scene"); return; } } catch { }
         LogLine("call {\"fn\":\"music.service.remove\",\"scene\":\"" + sid + "\",\"app\":\"" + c.app + "\",\"facet\":\"" + c.tile + "\"}");
-        SetPill("Prism · " + c.name + "'s facet left this scene. The App stays under Apps" + (fallback is null ? ". This wall has no music service now" : ""));
+        SetPill("Prism · " + c.name + "'s facet left this scene. The App stays under Apps" + (fallback is null ? ". This PC has no music service now" : ""));
         await ReadModelAsync();
         await ApplySceneAsync(sid);
     }

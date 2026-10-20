@@ -25,7 +25,7 @@ public sealed partial class MainWindow
             var b = new Button { Content = face, Background = on ? HubChipOn : HubClear, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(0, 0, 8, 8), Padding = new Thickness(10, 4, 10, 5), MinHeight = 0 };
             OwnHover(b);
             ToolTipService.SetPlacement(b, Microsoft.UI.Xaml.Controls.Primitives.PlacementMode.Bottom);
-            ToolTipService.SetToolTip(b, label + " player" + (on ? ": the wall now." : name is null ? ": none yet. This opens Set up services to make one." : ": switch the wall to " + name + "."));
+            ToolTipService.SetToolTip(b, label + " player" + (on ? ": on the screen now." : name is null ? ": none yet. This opens Set up services to make one." : ": switch the screen to " + name + "."));
             var k = kind;
             b.Click += (_, __) => { if (_playerGripActive != k) _ = SwitchPlayerAsync(k); };
             PlayerGripBody.Children.Add(b);

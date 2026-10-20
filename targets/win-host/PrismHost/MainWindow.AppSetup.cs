@@ -178,9 +178,9 @@ public sealed partial class MainWindow
         if (_asStatusLine is null || _asStatusPill is null) return;
         var (text, color) = status switch
         {
-            "signed-in" => ("signed in", Windows.UI.Color.FromArgb(0x60, 0x5C, 0xC8, 0xC0)),
+            "signed-in" => ("signed in", Tokens.TealColorAt(0x60)),
             "needs-attention" => ("needs attention", Windows.UI.Color.FromArgb(0x60, 0xD0, 0x6A, 0x5A)),
-            _ => ("unknown", Windows.UI.Color.FromArgb(0x60, 0x9A, 0x9C, 0xA8)),
+            _ => ("unknown", Tokens.DimColorAt(0x60)),
         };
         // the sign-in window says it in a person's words (2026-09-30 walk: "needs attention, verified now (unsaved)" on a first sign-in);
         // the setup window keeps the status vocabulary, and says when Done saves it
@@ -265,7 +265,7 @@ public sealed partial class MainWindow
                 _asSignIn = false;
                 await SaveAppStatusAsync(app, "signed-in", "probe");
                 RenderSetupStatus("signed-in", DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), _asTile is { } t2 ? _surfaces.SourceOf(t2) ?? app.BaseUrl : app.BaseUrl);
-                if (_asHint is not null) _asHint.Text = "You're signed in to " + app.Name + ". Pick something to play, then Done. It keeps playing on the wall.";
+                if (_asHint is not null) _asHint.Text = "You're signed in to " + app.Name + ". Pick something to play, then Done. It keeps playing on Prism.";
                 if (_asMark is not null) _asMark.Visibility = Visibility.Collapsed;
                 if (_asDone is not null) _asDone.Visibility = Visibility.Visible;
                 return;

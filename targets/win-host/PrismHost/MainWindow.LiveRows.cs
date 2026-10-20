@@ -72,7 +72,9 @@ public sealed partial class MainWindow
                     {
                         r.head.Visibility = cards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                         var line = FindChild<ScrollViewer>(r.host)?.Content as StackPanel;
-                        if (line is null) { r.host.Children.Clear(); Button? f = null; if (cards.Count > 0) r.host.Children.Add(CardRow(cards, r.badge, now, ref f)); }
+                        var hero = key == "continue" && _resumeHero is { } rh && IsInTree(rh, r.host) ? rh : null;   // Simple Watch: the first card is the Resume hero (MainWindow.SimpleWatch.cs)
+                        if (line is null || (hero is not null && cards.Count == 0)) { r.host.Children.Clear(); _resumeHero = null; Button? f = null; if (cards.Count > 0) r.host.Children.Add(key == "continue" && s_quiet ? ResumeRow(cards, r.badge, now, ref f) : CardRow(cards, r.badge, now, ref f)); }
+                        else if (hero is not null) { Button? f = null; ResumeHeroFill(hero, cards[0], r.badge, now, ref f); UpdateCardRowInPlace(line, cards.Skip(1).ToList(), r.badge, now); }
                         else UpdateCardRowInPlace(line, cards, r.badge, now);
                         r.host.Tag = sig;
                         if (key == "continue") FillContinueJumps(cards);   // the services it holds now

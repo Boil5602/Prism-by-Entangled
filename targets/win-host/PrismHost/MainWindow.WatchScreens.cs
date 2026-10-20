@@ -69,8 +69,8 @@ public sealed partial class MainWindow
         Add(_plDock);
         return all;
     }
-    private static readonly SolidColorBrush StackRing = new(Windows.UI.Color.FromArgb(0x90, 0xE8, 0xEC, 0xF2));
-    private static readonly SolidColorBrush StackLabelBack = new(Windows.UI.Color.FromArgb(0xC8, 0x0B, 0x0D, 0x12));
+    private static readonly SolidColorBrush StackRing = Tokens.Ring;
+    private static readonly SolidColorBrush StackLabelBack = Tokens.LabelBack;
 
     /// <summary>The corner stack's width for a page this wide (the big place's; the grid under it is as wide).</summary>
     /// <summary>The control bar's height: its chips (34) and its padding.</summary>
@@ -202,8 +202,11 @@ public sealed partial class MainWindow
         if (want[0] is not null && !_stackMoving) for (var k = 1; k < WatchPlaces; k++) if (want[k] is null) { nextFree = k; break; }
         var lowest = 0.0;
         var emptyChanged = false;
-        for (var i = 1; i < WatchPlaces; i++) { var e = want[i] is null; if (_stackEmpty[i] != e) { _stackEmpty[i] = e; emptyChanged = true; } }
-        if (emptyChanged) PlaceStack();   // an empty window small, a filled one its full size
+        // the big window too (2026-10-17, the designer's pass, finding 2: 440 px of "Nothing playing" sat in the best spot on the page): empty, it is the
+        // small + box in the control bar and the rows run full width; it takes its size the moment a title starts there or a card is dropped on it
+        var bigStarting = _mvBig?["starting"]?.GetValue<bool>() == true;   // a pick or a resume open, not failed, nothing playing yet
+        for (var i = 0; i < WatchPlaces; i++) { var e = want[i] is null && !(i == 0 && bigStarting); if (_stackEmpty[i] != e) { _stackEmpty[i] = e; emptyChanged = true; } }
+        if (emptyChanged) { PlaceStack(); _ = FillPlaylistDockAsync(); }   // an empty window small, a filled one its full size; the playlist panel follows the big window
         for (var i = 0; i < WatchPlaces; i++)
         {
             var shown = i == 0 || want[i] is not null || i == nextFree;
@@ -219,12 +222,11 @@ public sealed partial class MainWindow
         // the big window's title still loading (core's big.loading, not yet playing) stays out of the corner from Watch's first draw (2026-10-06,
         // "When the software closes while something is actively playing, it autostarts the title from its last known location. I noticed the
         // apple title that is playing, the homepage for the title displays first before the video (in the big window), it should not")
-        var bigStarting = _mvBig?["starting"]?.GetValue<bool>() == true;   // a pick or a resume open, not failed, nothing playing yet
         for (var i = 0; i < WatchPlaces; i++)
         {
             var r = _stackRects[i];
             var tile = want[i];
-            var key = tile is null ? "blank" : tile + "|" + (info[i]?["app"]?.GetValue<string>() ?? "") + "|" + (info[i]?["title"]?.GetValue<string>() ?? "");
+            var key = tile is null ? (i == 0 && bigStarting ? "starting" : "blank") : tile + "|" + (info[i]?["app"]?.GetValue<string>() ?? "") + "|" + (info[i]?["title"]?.GetValue<string>() ?? "");
             if (tile is not null && _stackMoving) continue;   // it moves in where the glide ends
             // still starting: a placeholder in the place, the window itself not moved in (its search and its pages stay out of sight)
             if (tile is not null && (_startingTiles.Contains(tile) || (i == 0 && bigStarting)))
@@ -245,7 +247,7 @@ public sealed partial class MainWindow
                 cell.Background = tile is null ? HubCard : HubClear;
                 // the plain screen when empty, the big window too (2026-09-25, the curtains taken back: "a little too much of a blink when the movie is
                 // added ... go back to the original movie screen without the curtains in the Watch screen"; the glide and the fade-ins stay)
-                cell.Child = tile is null ? BlankPlace(i) : null;
+                cell.Child = tile is null ? (i == 0 && bigStarting ? StartingPlace(0, _mvBig) : BlankPlace(i)) : null;
             }
             if (_stackLabels[i] is { } old) { TileCanvas.Children.Remove(old); _stackLabels[i] = null; }
             if (tile is not null && info[i] is { } o) _stackLabels[i] = PlaceLabel(o, r, i == 0, tile, i);
@@ -267,13 +269,13 @@ public sealed partial class MainWindow
         for (var i = 0; i < WatchPlaces; i++)
         {
             var b = _stackBase[i];
-            var small = i > 0 && _stackEmpty[i];
+            var small = _stackEmpty[i];
             // the empty place offered next (the +) sits up in the control bar, at its left, not under the windows (2026-10-02, "Most of it is
             // empty": My list had stopped short of the screens for the sake of a 56 px box hanging below them); it is still the drop target
             // left of the control bar whatever the width (2026-10-13, "the + new window icon is under the mute / Clear screens pills"): at a narrow
             // window the bar is wider than the stack, so the stack's left edge is under it
             var barW = _stackBar?.ActualWidth ?? 0;
-            var plusX = barW > 0 ? Math.Min(_stackBase[0].X, _stackBase[0].Right - barW - 8 - 46) : _stackBase[0].X;
+            var plusX = barW > 0 ? _stackBase[0].Right - barW - 8 - 46 : _stackBase[0].X;   // beside the bar (2026-10-17: with the big window collapsed too, the box stood 200 px from it at the stack's left edge)
             var r = _stackRects[i] = small
                 ? new Windows.Foundation.Rect(plusX, 24 + (StackBarH - 38) / 2, 46, 38)
                 : new Windows.Foundation.Rect(b.X, b.Y + _stackDy, b.Width, b.Height);
@@ -426,22 +428,14 @@ public sealed partial class MainWindow
     private bool IsMultiviewWindow(string tile) =>
         _mvBig?["tile"]?.GetValue<string>() == tile || _mvWindows.OfType<System.Text.Json.Nodes.JsonObject>().Any(w => w["tile"]?.GetValue<string>() == tile);
 
-    private static FrameworkElement BlankPlace(int i) => i > 0 ? PlusPlace(i) : new StackPanel
-    {
-        Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-        Children =
-        {
-            new TextBlock { Text = i == 0 ? "Nothing playing" : "Window " + (i + 1), FontSize = i == 0 ? 15 : 12, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center },
-            new TextBlock { Text = "Drag a title here", FontSize = 11, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
-        },
-    };
+    private static FrameworkElement BlankPlace(int i) => PlusPlace(i);
 
     /// <summary>An empty window: a + in a small box, the words in its tooltip.</summary>
     private static FrameworkElement PlusPlace(int i)
     {
         var plus = new FontIcon { Glyph = ((char)0xE710).ToString(), FontSize = 20, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var box = new Grid { Background = HubClear, Children = { plus } };
-        ToolTipService.SetToolTip(box, "Window " + (i + 1) + ": drag a title here to watch it beside the big screen");
+        ToolTipService.SetToolTip(box, i == 0 ? "Drag a title here to watch it on the big window" : "Window " + (i + 1) + ": drag a title here to watch it beside the big screen");
         return box;
     }
 

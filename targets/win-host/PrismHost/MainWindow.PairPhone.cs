@@ -38,7 +38,7 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(scrim, 985);
         var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 660 };
         // read from the sofa, phone in hand (2026-10-10, "make the text around the QR code larger so its more readable on the screen")
-        card.Children.Add(new TextBlock { Text = "Your phone as a keyboard and earbuds", FontSize = 28, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        card.Children.Add(new TextBlock { Text = "Pair your phone", FontSize = 28, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         card.Children.Add(new TextBlock { Text = "Scan this with the phone's camera. The page that opens types into whatever is focused in Prism, and plays Prism's sound on the phone while the PC stays quiet. The phone must be on the same network as this PC.", FontSize = 20, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         try
         {
@@ -121,7 +121,7 @@ public sealed partial class MainWindow
             // would have brought the room's sound back (seen 2026-10-04, Apple Music started while a phone listened)
             // volume separation (2026-10-04): the wall keeps playing for the room, its mute and volume on the playback device while a phone
             // listens; the phone's volume is the phone's own
-            if (n > 0 && _listenSavedVolume is null) { _listenSavedVolume = 1; _surfaces.PrivateListening = true; SetPill("Prism" + Dot + "a phone is listening. The wall's mute and volume are the TV's for now"); }
+            if (n > 0 && _listenSavedVolume is null) { _listenSavedVolume = 1; _surfaces.PrivateListening = true; SetPill("Prism" + Dot + "a phone is listening. Prism's mute and volume are the TV's for now"); }
             else if (n == 0 && _listenSavedVolume is not null)
             {
                 _surfaces.PrivateListening = false; _listenSavedVolume = null; SetPill("Prism" + Dot + "no phone is listening now");

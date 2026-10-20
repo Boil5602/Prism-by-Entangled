@@ -46,7 +46,7 @@ public sealed partial class SurfaceManager
                     SessionMute.Private = true;   // the sessions at full level under the wall's volume
                     dev.AudioEndpointVolume.Mute = _wallMutedWhilePrivate || _deviceMuteWanted;   // the phone's switch (PrivateDeviceMute) counts from the start
                     dev.AudioEndpointVolume.MasterVolumeLevelScalar = (float)Math.Clamp(SessionMute.Volume, 0, 1);
-                    _onStatus("private listening: the wall's mute and volume are the device's for now");
+                    _onStatus("private listening: Prism's mute and volume are the device's for now");
                 }
                 else
                 {
@@ -54,7 +54,7 @@ public sealed partial class SurfaceManager
                     foreach (var t in _tiles.Values) if (Audible(t) && t.View?.CoreWebView2 is { } c) c.IsMuted = t.Muted;   // the pages' own mutes back
                     dev.AudioEndpointVolume.Mute = _deviceWasMuted;
                     if (_deviceWasVolume >= 0) dev.AudioEndpointVolume.MasterVolumeLevelScalar = _deviceWasVolume;
-                    _onStatus("private listening: over; the wall's sound as it was");
+                    _onStatus("private listening: over; Prism's sound as it was");
                 }
             }
             catch (Exception ex) { _onStatus("private listening: device " + ex.Message); }

@@ -72,6 +72,7 @@ ap.add_argument("--site", help="the website repo's folder: its releases.json and
 ap.add_argument("--no-github", action="store_true", help="no GitHub Release")
 ap.add_argument("--public-repo", default="Boil5602/Prism-by-Entangled")
 ap.add_argument("--daytime", action="store_true", help="publish in the daytime (Eastern) all the same")
+ap.add_argument("--unsigned", action="store_true", help="skip code signing although a signing setup is present")
 a = ap.parse_args()
 if not a.dry_run:
     daytime_guard(a.daytime, "a release")
@@ -81,6 +82,61 @@ if ";" in a.notes:
 
 def sh(cmd, cwd=ROOT):
     return subprocess.run(cmd, cwd=cwd, shell=isinstance(cmd, str), check=True, capture_output=True, text=True).stdout.strip()
+
+
+SIGN_META = os.environ.get("PRISM_SIGN_METADATA", os.path.expanduser("~/.prism/trusted-signing.json"))
+SIGN_DLIB = os.environ.get("PRISM_SIGN_DLIB", os.path.expanduser("~/.prism/trusted-signing/bin/x64/Azure.CodeSigning.Dlib.dll"))
+
+
+def find_signtool():
+    """SIGNTOOL, else signtool on PATH, else the newest Windows 10/11 SDK's x64 signtool.exe (Trusted Signing needs SDK 10.0.22621 or later)."""
+    env = os.environ.get("SIGNTOOL", "").strip()
+    if env:
+        return env
+    import shutil
+    on_path = shutil.which("signtool")
+    if on_path:
+        return on_path
+    kits = os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Windows Kits", "10", "bin")
+    found = []
+    if os.path.isdir(kits):
+        for v in os.listdir(kits):
+            exe = os.path.join(kits, v, "x64", "signtool.exe")
+            if v.startswith("10.") and os.path.exists(exe):
+                found.append((tuple(int(x) for x in v.split(".")), exe))
+    if not found:
+        sys.exit("no signtool found: install the Windows SDK's signing tools, or set SIGNTOOL to signtool.exe")
+    return max(found)[1]
+
+
+def sign_files(out):
+    """Signs PrismHost.exe and Prism's own DLLs in the publish folder; True when they were signed, False when no signing setup is present."""
+    thumb = os.environ.get("PRISM_SIGN_THUMBPRINT", "").strip()
+    trusted = os.path.exists(SIGN_META)
+    if not trusted and not thumb:
+        print("not signed: no " + SIGN_META + " and no PRISM_SIGN_THUMBPRINT (docs/features/updates.md, Code signing)")
+        return False
+    signtool = find_signtool()
+    targets = [os.path.join(out, "PrismHost.exe")] + sorted(os.path.join(out, x) for x in os.listdir(out) if x.lower().endswith(".dll") and x.lower().startswith("prismhost"))
+    common = ["/fd", "SHA256", "/td", "SHA256", "/d", "Prism by Entangled", "/du", "https://entangled.world/prism"]
+    if trusted:
+        if not os.path.exists(SIGN_DLIB):
+            sys.exit("Trusted Signing: " + SIGN_META + " is present but the dlib is not at " + SIGN_DLIB + NL
+                     + "unpack the Microsoft.Trusted.Signing.Client NuGet package to ~/.prism/trusted-signing (or set PRISM_SIGN_DLIB)")
+        cmd = [signtool, "sign", "/tr", "http://timestamp.acs.microsoft.com", "/dlib", SIGN_DLIB, "/dmdf", SIGN_META] + common + targets
+        how = "Azure Trusted Signing (" + json.load(open(SIGN_META, encoding="utf-8")).get("CertificateProfileName", "?") + ")"
+    else:
+        cmd = [signtool, "sign", "/sha1", thumb, "/tr", "http://timestamp.digicert.com"] + common + targets
+        how = "certificate " + thumb[:8]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit("signing failed with " + how + " (nothing published):" + NL + (r.stdout + r.stderr).strip())
+    # the proof: Windows itself must accept every signature (chain to a trusted root, timestamp present) before the zip is made
+    v = subprocess.run([signtool, "verify", "/pa", "/all"] + targets, capture_output=True, text=True)
+    if v.returncode != 0:
+        sys.exit("signed, but Windows does not accept the signature (nothing published):" + NL + (v.stdout + v.stderr).strip())
+    print("signed", len(targets), "files with", how)
+    return True
 
 version = re.search(r"<Version>([^<]+)</Version>", open(CSPROJ, encoding="utf-8").read()).group(1).strip()
 commit = sh(["git", "rev-parse", "--short=8", "HEAD"])
@@ -108,17 +164,13 @@ else:
                    cwd=os.path.dirname(CSPROJ), check=True)
     for must in ("PrismHost.exe", "PrismHost.pri", os.path.join("Assets", "brain", "prism-runtime.js")):
         if not os.path.exists(os.path.join(out, must)): sys.exit("the publish lacks " + must)
-    # code signing (2026-10-05, SmartScreen's "Unknown publisher" on first run): when PRISM_SIGN_THUMBPRINT names a certificate in the
-    # current user's store (an EV/OV certificate for Entangled Labs LLC, or Azure Trusted Signing's), every exe and Prism dll is signed with
-    # signtool before zipping; without it the build goes out unsigned and the README says what the screen means
-    thumb = os.environ.get("PRISM_SIGN_THUMBPRINT", "").strip()
-    signed = False
-    if thumb:
-        signtool = os.environ.get("SIGNTOOL", "signtool")
-        targets = [os.path.join(out, "PrismHost.exe")] + [os.path.join(out, x) for x in os.listdir(out) if x.lower().endswith(".dll") and x.lower().startswith("prismhost")]
-        subprocess.run([signtool, "sign", "/sha1", thumb, "/fd", "SHA256", "/tr", "http://timestamp.digicert.com", "/td", "SHA256", "/d", "Prism by Entangled"] + targets, check=True)
-        signed = True
-        print("signed", len(targets), "files")
+    # code signing (2026-10-05, SmartScreen's "Unknown publisher" on first run; Azure Trusted Signing chosen 2026-10-17): PrismHost.exe
+    # and Prism's own DLLs are signed with signtool before zipping, SHA-256 with a timestamp, so the signature outlives the subscription.
+    # Trusted Signing when ~/.prism/trusted-signing.json (or PRISM_SIGN_METADATA) exists: signtool loads Microsoft's dlib, which signs
+    # through the account named in that file under the Azure sign-in of this PC (az login). A certificate in the user's store when
+    # PRISM_SIGN_THUMBPRINT names one. Neither: the build goes out unsigned and the README says what the screen means. A signing setup that
+    # is present but fails stops the publish rather than letting an unsigned build out by accident (--unsigned skips it on purpose).
+    signed = False if a.unsigned else sign_files(out)
     smart = "" if signed else (NL + "First run: Windows may show " + Q + "Windows protected your PC" + Q + " because this build is not code-signed yet." + NL
                                 + "Press " + Q + "More info" + Q + ", then " + Q + "Run anyway" + Q + ". To check the file first, compare its SHA-256 with the one on" + NL
                                 + "entangled.world/prism/download (in PowerShell: Get-FileHash Prism-" + version + "-" + commit + ".zip)." + NL)

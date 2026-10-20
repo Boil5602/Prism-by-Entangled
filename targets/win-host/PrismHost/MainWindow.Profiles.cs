@@ -573,14 +573,15 @@ public sealed partial class MainWindow
     /// <summary>The large Prism triangle on the Watch header: the preset on now beside it, a press drops down the presets and the Profiles window.</summary>
     private Button PresetTriangle()
     {
-        var icon = new Image { Width = 80, Height = 80, HorizontalAlignment = HorizontalAlignment.Center };   // twice as large (2026-09-24)
+        var icon = new Image { Width = 64, Height = 64, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };   // twice as large (2026-09-24); 64 since the heads grew to 22 px (2026-10-17)
         try { var p = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png"); if (System.IO.File.Exists(p)) icon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(p)); } catch { }
         // the preset on now named UNDER the triangle, blank when none (2026-09-24, "add the name of the preset under the triangle ... Leave blank for nothing")
         // the name centred under the triangle alone (2026-09-24, "The preset name is not centered under the triangle"); the arrow beside the triangle
-        var who = new TextBlock { FontSize = 20, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 140 };
+        // the name BESIDE the triangle with the chevron after it (2026-10-17, the designer's pass, finding 7: under it, the triangle read as a logo
+        // with a caption rather than the Who's watching control it is)
+        var who = new TextBlock { FontSize = 20, Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 200 };
         _triangleWho = who;
-        var mark = new StackPanel { Orientation = Orientation.Vertical, Spacing = 0, Children = { icon, who } };
-        var face = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { mark, new FontIcon { Glyph = "\uE70D", FontSize = 16, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 32, 0, 0) } } };
+        var face = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Children = { icon, who, new FontIcon { Glyph = "\uE70D", FontSize = 14, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center } } };
         var btn = new Button { Content = face, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         ToolTipService.SetToolTip(btn, "Who's watching: a preset switches every service's profile at once.");
         var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft };

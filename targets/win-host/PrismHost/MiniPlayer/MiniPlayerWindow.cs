@@ -43,14 +43,14 @@ public sealed class MiniPlayerWindow : Window
     private static readonly string GlyphRestore = ((char)0xE740).ToString();
     private static readonly string GlyphLike = ((char)0xE8E1).ToString(), GlyphDislike = ((char)0xE8E0).ToString();   // B-155's thumbs, "still accessible in the mini player" (2026-09-17)   // FullScreen (arrows outward: expand) - back to the full player
 
-    private static readonly Windows.UI.Color Ink = Windows.UI.Color.FromArgb(255, 0xE8, 0xEC, 0xF2);
-    private static readonly Windows.UI.Color Amber = Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C);
+    private static readonly Windows.UI.Color Ink = Tokens.InkColor;
+    private static readonly Windows.UI.Color Amber = Tokens.AmberColor;
     private static readonly Windows.UI.Color Matte = Windows.UI.Color.FromArgb(255, 0x0C, 0x0D, 0x12);
 
     private readonly Grid _root = new();
     private readonly Grid _sceneHost = new();
     private readonly Grid _controls = new();
-    private readonly TextBlock _title = new(), _artist = new(), _from = new();
+    private readonly TextBlock _title = new(), _artist = new(), _from = new(), _notice = new();
     private readonly Grid _meta = new();
     private readonly FontIcon _playIcon = new() { FontSize = 16 }, _muteIcon = new() { FontSize = 14 };
     private readonly FontIcon _prevIcon = new() { FontSize = 13 }, _nextIcon = new() { FontSize = 13 }, _backIcon = new() { FontSize = 13 };
@@ -159,7 +159,8 @@ public sealed class MiniPlayerWindow : Window
         _title.FontSize = 14; _title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold; _title.Foreground = new SolidColorBrush(Ink); _title.TextTrimming = TextTrimming.CharacterEllipsis;
         _artist.FontSize = 12; _artist.Foreground = new SolidColorBrush(Ink); _artist.TextTrimming = TextTrimming.CharacterEllipsis;
         _from.FontSize = 11; _from.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x8A, 0x93, 0xA2)); _from.TextTrimming = TextTrimming.CharacterEllipsis;
-        col.Children.Add(_title); col.Children.Add(_artist); col.Children.Add(_from);
+        _notice.FontSize = 12; _notice.Foreground = new SolidColorBrush(Amber); _notice.TextWrapping = TextWrapping.Wrap; _notice.Visibility = Visibility.Collapsed;
+        col.Children.Add(_title); col.Children.Add(_artist); col.Children.Add(_from); col.Children.Add(_notice);
         _meta.Children.Add(col);
         return _meta;
     }
@@ -180,7 +181,7 @@ public sealed class MiniPlayerWindow : Window
         _prev = Ctl("prev", _prevIcon, "Previous", () => Command?.Invoke("prev"));
         _play = Ctl("play", _playIcon, "Play / pause", () => Command?.Invoke(_playing ? "pause" : "play"));
         _next = Ctl("next", _nextIcon, "Next", () => Command?.Invoke("next"));
-        _mute = Ctl("mute", _muteIcon, "Mute / unmute the wall", () => Command?.Invoke(_muted ? "unmute" : "mute"));
+        _mute = Ctl("mute", _muteIcon, "Mute / unmute Prism", () => Command?.Invoke(_muted ? "unmute" : "mute"));
         _back = Ctl("back", _backIcon, "Back to the full player (Esc, or double-click)", () => ReturnRequested?.Invoke());
         var c = 0;
         foreach (var b in new[] { _down, _up, _prev, _play, _next, _mute, _back }) { Grid.SetColumn(b, c++); row.Children.Add(b); }
@@ -248,7 +249,7 @@ public sealed class MiniPlayerWindow : Window
     private void ApplyTextScale()
     {
         var s = Math.Pow(_widthDip / DefaultWidth, 0.85);
-        _title.FontSize = 14 * s; _artist.FontSize = 12 * s; _from.FontSize = 11 * s;
+        _title.FontSize = 14 * s; _artist.FontSize = 12 * s; _from.FontSize = 11 * s; _notice.FontSize = 12 * s;
         _playIcon.FontSize = 16 * s; _muteIcon.FontSize = 14 * s; _prevIcon.FontSize = 13 * s; _nextIcon.FontSize = 13 * s; _backIcon.FontSize = 13 * s; _upIcon.FontSize = 13 * s; _downIcon.FontSize = 13 * s;
         var pad = 8 * s;
         foreach (var b in new[] { _down, _up, _prev, _play, _next, _mute, _back }) if (b is not null) b.Padding = new Thickness(pad, pad * 0.6, pad, pad * 0.6);
@@ -282,6 +283,14 @@ public sealed class MiniPlayerWindow : Window
     }
 
     /// <summary>Core's feed for the stage (palette, artwork, active), mirrored here.</summary>
+    /// <summary>A line under the track for a few seconds, in amber (the page crashed, 2026-10-19); a later notice replaces an earlier one.</summary>
+    private int _noticeSeq;
+    public void Notice(string text)
+    {
+        var seq = ++_noticeSeq;
+        _notice.Text = text; _notice.Visibility = Visibility.Visible;
+        _ = System.Threading.Tasks.Task.Delay(6000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => { if (seq == _noticeSeq) _notice.Visibility = Visibility.Collapsed; }));
+    }
     public void Feed(string json) { try { _viz?.SetFeed(json); } catch (Exception ex) { Log?.Invoke("mini player: feed failed: " + ex.Message); } }
 
     /// <summary>The transport as the stage shows it - the same facts, from the same poll.</summary>

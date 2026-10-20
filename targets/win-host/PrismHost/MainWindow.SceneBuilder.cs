@@ -59,9 +59,9 @@ public sealed partial class MainWindow
             right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            right.Children.Add(new TextBlock { Text = "Preview. Tap a slot to assign it. Empty slots show the App-poster placeholder on the wall.", FontSize = 12, Foreground = LeDim, Margin = new Thickness(0, 0, 0, 8) });
+            right.Children.Add(new TextBlock { Text = "Preview. Tap a slot to assign it. Empty slots show the App-poster placeholder on the screen.", FontSize = 12, Foreground = LeDim, Margin = new Thickness(0, 0, 0, 8) });
             _sbPreview = new Canvas { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x0B, 0x0D, 0x12)) };
-            var host = new Border { Child = _sbPreview, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var host = new Border { Child = _sbPreview, BorderBrush = Tokens.AmberAt(0x60), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var hostGrid = new Grid();
             hostGrid.Children.Add(host);
             hostGrid.SizeChanged += (_, e) =>
@@ -103,7 +103,7 @@ public sealed partial class MainWindow
         left.Children.Clear();
         var isNew = _sceneDraft.Id.Length == 0;
         left.Children.Add(new TextBlock { Text = isNew ? "New scene" : "Scene builder", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
-        left.Children.Add(new TextBlock { Text = "A layout, a facet in each slot, floating and hidden extras, visualizations. Save keeps it; Set active puts it on the wall. Esc returns to the scene.", FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
+        left.Children.Add(new TextBlock { Text = "A layout, a facet in each slot, floating and hidden extras, visualizations. Save keeps it; Set active puts it on the screen. Esc returns to the scene.", FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
         _sbName = new TextBox { Text = _sceneDraft.Name, PlaceholderText = "Name this scene (Kitchen evening, Game day…)" };
         _sbName.TextChanged += (_, __) => { if (_sceneDraft is not null) _sceneDraft.Name = _sbName!.Text; };
         left.Children.Add(_sbName);
@@ -122,9 +122,9 @@ public sealed partial class MainWindow
         {
             var lid = l.Id;
             var thumb = new StackPanel { Spacing = 3 };
-            thumb.Children.Add(LayoutThumb(l, 118, s => (new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), null)));
+            thumb.Children.Add(LayoutThumb(l, 118, s => (Tokens.AmberAt(0x40), null)));
             thumb.Children.Add(new TextBlock { Text = l.Name + (l.Archived ? " (archived)" : ""), FontSize = 11, Foreground = lid == _sceneDraft.Layout ? Amber : LeInk, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 118 });
-            var b = new Button { Content = thumb, Padding = new Thickness(6), Background = lid == _sceneDraft.Layout ? LeSlotSel : LeSlot, BorderBrush = lid == _sceneDraft.Layout ? Amber : new SolidColorBrush(Windows.UI.Color.FromArgb(0x24, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) };
+            var b = new Button { Content = thumb, Padding = new Thickness(6), Background = lid == _sceneDraft.Layout ? LeSlotSel : LeSlot, BorderBrush = lid == _sceneDraft.Layout ? Amber : Tokens.AmberAt(0x24), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6) };
             OwnHover(b);   // its own hover, never the system's (memory: hover-loss-tooltips)
             b.Click += (_, __) => { if (_sceneDraft is not null && _sceneDraft.Layout != lid) { _sceneDraft.Layout = lid; _sceneDraft.Assign.Clear(); _sceneDraft.Settings.Clear(); RenderBuilder(); } };
             lgrid.Children.Add(b);
@@ -284,7 +284,7 @@ public sealed partial class MainWindow
         if (_sbWarn is not null)
         {
             var assigned = layout.Slots.Count(s => _sceneDraft.Assign.ContainsKey(s.Id));
-            _sbWarn.Text = _model.Facets.Count == 0 ? "No facets yet. Every slot's picker offers + New facet for this slot." : assigned == 0 ? "Every slot is empty. Empty slots show the App-poster placeholder on the wall, tappable to assign." : "";
+            _sbWarn.Text = _model.Facets.Count == 0 ? "No facets yet. Every slot's picker offers + New facet for this slot." : assigned == 0 ? "Every slot is empty. Empty slots show the App-poster placeholder on the screen, tappable to assign." : "";
         }
     }
 
@@ -311,7 +311,7 @@ public sealed partial class MainWindow
         var fly = new Flyout { Placement = FlyoutPlacementMode.Right };
         var col = new StackPanel { Spacing = 2, Width = 400 };
         col.Children.Add(new TextBlock { Text = "What goes in " + (slot.Label ?? slot.Id) + "?  ·  " + slot.Class, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk, Margin = new Thickness(0, 0, 0, 6) });
-        col.Children.Add(AppRow("Empty", "the App-poster placeholder, tappable on the wall", () => { fly.Hide(); _sceneDraft.Assign.Remove(slotId); _sceneDraft.Settings.Remove(slotId); RenderBuilder(); }));
+        col.Children.Add(AppRow("Empty", "the App-poster placeholder, tappable on the screen", () => { fly.Hide(); _sceneDraft.Assign.Remove(slotId); _sceneDraft.Settings.Remove(slotId); RenderBuilder(); }));
         var fits = _model.Facets.Where(f => !f.Music).Select(f => (f, fit: FacetFits(f.SlotClass, slot.Class))).Where(x => x.fit.Ok).OrderBy(x => x.fit.Match == "exact" ? 0 : 1).ThenBy(x => _model.App(x.f.App)?.Name ?? x.f.App).ThenBy(x => x.f.Label).ToList();
         if (fits.Count > 0) col.Children.Add(new TextBlock { Text = "COMPATIBLE FACETS", FontSize = 10, Foreground = LeDim, Margin = new Thickness(4, 6, 0, 0), CharacterSpacing = 80 });
         foreach (var (f, fit) in fits)
@@ -457,7 +457,7 @@ public sealed partial class MainWindow
         col.Children.Add(art);
         // 2026-09-05: beams past the tile edge looked good on the wall; it is the household's call, per visualization
         var spill = new ToggleButton { Content = "Spill past the tile", IsChecked = viz["spill"]?.GetValue<bool>() == true, Padding = new Thickness(10, 4, 10, 4) };
-        ToolTipService.SetToolTip(spill, "Off (default): the drawing stays inside its slot. On: beams and motes reach across the neighbouring tiles, but the wall's edge still clips them.");
+        ToolTipService.SetToolTip(spill, "Off (default): the drawing stays inside its slot. On: beams and motes reach across the neighbouring tiles, but the screen's edge still clips them.");
         spill.Click += (_, __) => { if (spill.IsChecked == true) viz["spill"] = true; else viz.Remove("spill"); RenderBuilder(); };
         col.Children.Add(spill);
         col.Children.Add(new TextBlock { Text = "Source (a hidden music facet of this scene)", FontSize = 12, Foreground = LeDim });
@@ -481,7 +481,7 @@ public sealed partial class MainWindow
         floatIt.Click += (_, __) => { fly.Hide(); if (!_sceneDraft.Floating.Any(p => p["visualization"]?.GetValue<string>() == vizId)) _sceneDraft.Floating.Add(new JsonObject { ["visualization"] = vizId, ["anchor"] = "bottom-left", ["size"] = 0.28 }); RenderBuilder(); };
         place.Children.Add(floatIt);
         col.Children.Add(place);
-        col.Children.Add(Meta("Tap the visualization on the wall to reveal the player (transient - Back tucks it away). Transport lives on its chrome and in the Prism menu → Now playing."));
+        col.Children.Add(Meta("Tap the visualization on the screen to reveal the player (transient - Back tucks it away). Transport lives on its chrome and in the Prism menu → Now playing."));
         fly.Content = new ScrollViewer { Content = col, MaxHeight = 600 };
         fly.ShowAt(_sbLeft ?? (FrameworkElement)_builder);
     }
@@ -537,7 +537,7 @@ public sealed partial class MainWindow
             double x = anchor.EndsWith("left") ? 0.02 : 1 - w - 0.02, y = anchor.StartsWith("top") ? 0.02 : 1 - h - 0.02;
             if (p["rect"] is JsonObject r) { x = r["x"]?.GetValue<double>() ?? x; y = r["y"]?.GetValue<double>() ?? y; w = r["w"]?.GetValue<double>() ?? w; h = r["h"]?.GetValue<double>() ?? h; }
             var who = p["facet"]?.GetValue<string>() is { } ff ? (_model.Facet(ff)?.Label ?? ff) : "♪ " + (p["visualization"]?.GetValue<string>() ?? "");
-            var box = new Border { Width = Math.Max(2, w * W), Height = Math.Max(2, h * H), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x70, 0x5C, 0xC8, 0xC0)), BorderBrush = LeTeal, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Child = new TextBlock { Text = who + "  ⤴", FontSize = 11, Foreground = LeInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
+            var box = new Border { Width = Math.Max(2, w * W), Height = Math.Max(2, h * H), Background = new SolidColorBrush(Tokens.TealColorAt(0x70)), BorderBrush = LeTeal, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Child = new TextBlock { Text = who + "  ⤴", FontSize = 11, Foreground = LeInk, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
             Canvas.SetLeft(box, x * W); Canvas.SetTop(box, y * H); Canvas.SetZIndex(box, 10);
             _sbPreview.Children.Add(box);
         }

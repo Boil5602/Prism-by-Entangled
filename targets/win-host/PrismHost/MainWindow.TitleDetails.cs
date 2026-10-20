@@ -20,7 +20,7 @@ public sealed partial class MainWindow
     private int _detailsRun;
     private static readonly string DetDot = "  " + (char)0x00B7 + "  ";
     private static readonly string DetStar = ((char)0x2605).ToString();
-    private static readonly SolidColorBrush DetChipHover = new(Windows.UI.Color.FromArgb(0xFF, 0x33, 0x38, 0x45));
+    private static readonly SolidColorBrush DetChipHover = Tokens.ChipHover;
     /// <summary>
     /// A press-able control's reaction (2026-09-24, "there is no focus change when mousing over a service to watch ... Can we add a focus reaction?
     /// Like onmouseover and click"): the pointer over it lifts it a little and lights it (a lighter chip, an amber edge - or a brighter ring on a
@@ -90,11 +90,11 @@ public sealed partial class MainWindow
         b.GotFocus += (_, __) => { if (b.FocusState == FocusState.Keyboard) { Lit(true); To(1.06); } };
         b.LostFocus += (_, __) => { if (!over) { Lit(false); To(1.0); } };
     }
-    private static readonly SolidColorBrush DetInk = new(Windows.UI.Color.FromArgb(0xFF, 0xE8, 0xEC, 0xF2));
-    private static readonly SolidColorBrush DetDim = new(Windows.UI.Color.FromArgb(0xFF, 0x8A, 0x93, 0xA2));
-    private static readonly SolidColorBrush DetAmber = new(Windows.UI.Color.FromArgb(0xFF, 0xF2, 0xB1, 0x4C));
-    private static readonly SolidColorBrush DetCard = new(Windows.UI.Color.FromArgb(0xFF, 0x12, 0x13, 0x1A));
-    private static readonly SolidColorBrush DetChip = new(Windows.UI.Color.FromArgb(0xFF, 0x22, 0x25, 0x2E));
+    private static readonly SolidColorBrush DetInk = Tokens.Ink;
+    private static readonly SolidColorBrush DetDim = Tokens.Dim;
+    private static readonly SolidColorBrush DetAmber = Tokens.Amber;
+    private static readonly SolidColorBrush DetCard = Tokens.Panel;
+    private static readonly SolidColorBrush DetChip = Tokens.Card;
 
     /// <summary>The open Details page's dim and card, fitted again to where the corner is now.</summary>
     private Action? _detailsReshape;

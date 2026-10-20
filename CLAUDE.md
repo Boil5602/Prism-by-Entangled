@@ -111,6 +111,11 @@ unreadable - reported 2026-09-16); give labels their own template or a TextBlock
 secondary line under a primary one. A verb that cannot act may be disabled, with the reason
 in its tooltip.
 
+Every host colour comes from `targets/win-host/PrismHost/Tokens.cs` (Ink, Dim, Amber, the grounds, the chip states,
+`AmberAt(alpha)`), and the phone page's stylesheet from the custom properties in its `:root`; a new UI colour is added there first,
+never as a `FromArgb` literal in a page (`node scripts/audit-tokens.mjs`, a verify step, fails on one). The visualizations' art
+palettes are pictures and keep their own.
+
 A host Button with a background colour of its own is made with `Chip()` or has `OwnHover(button)`
 called on it (MainWindow.VideoHub.cs) - WinUI's own hover fades a coloured button to near-clear and
 drops it ("lights up then turns off", reported 2026-09-25). `node scripts/audit-button-hover.mjs`

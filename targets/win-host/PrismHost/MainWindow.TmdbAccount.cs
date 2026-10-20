@@ -26,7 +26,7 @@ public sealed partial class MainWindow
         var state = await TmdbLinkStateAsync();
         if (state?["loading"]?.GetValue<bool>() == true) { await Task.Delay(400); state = await TmdbLinkStateAsync(); }
         var head = new TextBlock { Text = "TMDB account", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) };
-        ToolTipService.SetToolTip(head, "Optional: the same TMDB account your key came from, approved once on TMDB's own site. With it, a star pressed on a title's details page is a rating on TMDB under your name, and your own ratings show on the wall. Prism keeps the session on this device and sends it to TMDB alone, only when you rate.");
+        ToolTipService.SetToolTip(head, "Optional: the same TMDB account your key came from, approved once on TMDB's own site. With it, a star pressed on a title's details page is a rating on TMDB under your name, and your own ratings show on Prism. Prism keeps the session on this device and sends it to TMDB alone, only when you rate.");
         body.Children.Add(head);
         var linked = state?["linked"]?.GetValue<bool>() == true;
         var user = S(state, "username");
@@ -53,7 +53,7 @@ public sealed partial class MainWindow
         {
             // the note a person needs when the key is in but the approval is not (2026-10-03, "add a note in options to indicate where ratings
             // approval hasn't been granted"): amber, the thing to notice
-            line.Children.Add(new TextBlock { Text = "Ratings approval not granted yet. You see TMDB's ratings, but can't rate from the wall until you approve Prism on your TMDB account.", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 });
+            line.Children.Add(new TextBlock { Text = "Ratings approval not granted yet. You see TMDB's ratings, but can't rate from Prism until you approve Prism on your TMDB account.", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 });
             var link = Chip(new TextBlock { Text = "Approve now", FontSize = 13, Foreground = HubInk }, true);
             ToolTipService.SetToolTip(link, "TMDB shows an approval page: scan it with your phone or open it here, sign in to TMDB, press Approve, then come back and press I approved it.");
             link.Click += async (_, __) => { await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync(); };
@@ -75,7 +75,7 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(scrim, 985);
         var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 560 };
         card.Children.Add(new TextBlock { Text = "Approve Prism on TMDB", FontSize = 20, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        card.Children.Add(new TextBlock { Text = "Your key is in. One more step lets you rate titles from the wall: scan this with the phone you're signed in to TMDB on and press Approve, or press Open here to do it on the wall. Then come back and press I approved it. Not now is fine; the link waits under the key in Watch settings.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        card.Children.Add(new TextBlock { Text = "Your key is in. One more step lets you rate titles from Prism: scan this with the phone you're signed in to TMDB on and press Approve, or press Open here to do it on this PC. Then come back and press I approved it. Not now is fine; the link waits under the key in Watch settings.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         try
         {
             card.Children.Add(await QrWithMarkAsync(url, 250));   // the code with the Prism mark in its middle (MainWindow.Qr.cs)

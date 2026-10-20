@@ -215,7 +215,7 @@ public sealed partial class MainWindow
         void Field(string key, string label, string tip, double min, double max, double step, double def, string? after = null)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            var nb = new NumberBox { Minimum = min, Maximum = max, SmallChange = step, Value = def, Width = 140, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
+            var nb = new NumberBox { Minimum = min, Maximum = max, SmallChange = step, Value = def, Width = 170, MinHeight = 40, FontSize = 18, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };   // read from a room (2026-10-17, finding 12)
             var tb = new TextBlock { Text = label, FontSize = 14, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center, Width = 260 };
             ToolTipService.SetToolTip(tb, tip);
             row.Children.Add(tb); row.Children.Add(nb);

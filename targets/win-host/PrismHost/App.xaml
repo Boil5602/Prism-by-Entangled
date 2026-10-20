@@ -11,7 +11,7 @@
                  every checked toggle, focus ring and selection, so the config pages read as one product. -->
             <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
             <CornerRadius x:Key="OverlayCornerRadius">12</CornerRadius>
-            <Color x:Key="SystemAccentColor">#F0A83C</Color>
+            <Color x:Key="SystemAccentColor">#F2B14C</Color>
             <Color x:Key="SystemAccentColorLight1">#F5BE66</Color>
             <Color x:Key="SystemAccentColorLight2">#F8D08F</Color>
             <Color x:Key="SystemAccentColorLight3">#FBE2B8</Color>
@@ -22,6 +22,51 @@
             <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
             <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
             <Style TargetType="ToggleButton" BasedOn="{StaticResource DefaultToggleButtonStyle}"><Setter Property="FontFamily" Value="{StaticResource PrismText}" /></Style>
+            <!-- Prism's own check box (2026-10-17, the designer's pass, finding 10): WinUI's drew a checked box as an amber disc with a dash on this PC
+                 (the 8 px control radius rounded the 20 px box, and its check glyph did not show). A 20 px square with a 4 px radius, an ink edge,
+                 amber when checked with a dark tick, a dash only for a third state; the label in Prism's text face. Tokens.cs values. -->
+            <Style TargetType="CheckBox">
+                <Setter Property="FontFamily" Value="{StaticResource PrismText}" />
+                <Setter Property="Foreground" Value="#E8ECF2" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="32" />
+                <Setter Property="Padding" Value="10,0,0,0" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <Grid x:Name="Root" Background="Transparent">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CombinedStates">
+                                        <VisualState x:Name="UncheckedNormal" />
+                                        <VisualState x:Name="UncheckedPointerOver"><VisualState.Setters><Setter Target="Box.BorderBrush" Value="#F2B14C" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="UncheckedPressed"><VisualState.Setters><Setter Target="Box.BorderBrush" Value="#F2B14C" /><Setter Target="Box.Background" Value="#3A2E14" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="UncheckedDisabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.5" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="CheckedNormal"><VisualState.Setters><Setter Target="Box.Background" Value="#F2B14C" /><Setter Target="Box.BorderBrush" Value="#F2B14C" /><Setter Target="Tick.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="Box.Background" Value="#F5BE66" /><Setter Target="Box.BorderBrush" Value="#F5BE66" /><Setter Target="Tick.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="Box.Background" Value="#D68F2C" /><Setter Target="Box.BorderBrush" Value="#D68F2C" /><Setter Target="Tick.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="CheckedDisabled"><VisualState.Setters><Setter Target="Box.Background" Value="#F2B14C" /><Setter Target="Box.BorderBrush" Value="#F2B14C" /><Setter Target="Tick.Visibility" Value="Visible" /><Setter Target="Root.Opacity" Value="0.5" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="IndeterminateNormal"><VisualState.Setters><Setter Target="Box.BorderBrush" Value="#F2B14C" /><Setter Target="Dash.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="IndeterminatePointerOver"><VisualState.Setters><Setter Target="Box.BorderBrush" Value="#F5BE66" /><Setter Target="Dash.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="IndeterminatePressed"><VisualState.Setters><Setter Target="Box.BorderBrush" Value="#D68F2C" /><Setter Target="Dash.Visibility" Value="Visible" /></VisualState.Setters></VisualState>
+                                        <VisualState x:Name="IndeterminateDisabled"><VisualState.Setters><Setter Target="Dash.Visibility" Value="Visible" /><Setter Target="Root.Opacity" Value="0.5" /></VisualState.Setters></VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border x:Name="Box" Width="20" Height="20" CornerRadius="4" BorderThickness="2" BorderBrush="#E8ECF2" Background="Transparent" VerticalAlignment="Center">
+                                    <Grid>
+                                        <FontIcon x:Name="Tick" Glyph="&#xE73E;" FontSize="13" FontFamily="Segoe MDL2 Assets" Foreground="#14171C" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        <Rectangle x:Name="Dash" Width="10" Height="2" Fill="#F2B14C" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Margin="{TemplateBinding Padding}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
             <!-- Every tooltip opens below what it belongs to, with a clear gap (2026-09-25, "only get focus on initial hover and immediately
                  disappears"): a tooltip that opened on or at the edge of the pointer took the pointer from its button, whose hover went out
                  half a second in. One rule for every button, not one button at a time (memory: hover-loss-tooltips). -->

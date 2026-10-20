@@ -211,9 +211,11 @@ public sealed partial class MainWindow
         {
             var nx = _updateStatus?["nextCheck"]?.GetValue<string>();
             nextLine.Text = !Services.Updates.Enabled ? "Prism checks only when you press Check now."
-                : nx is { Length: > 0 } && DateTime.TryParse(nx, null, System.Globalization.DateTimeStyles.RoundtripKind, out var nd) ? "Next check " + nd.ToLocalTime().ToString("dddd") + " at " + nd.ToLocalTime().ToString("t") + "."
+                : nx is { Length: > 0 } && DateTime.TryParse(nx, null, System.Globalization.DateTimeStyles.RoundtripKind, out var nd) ? "Next check " + Nearest5(nd.ToLocalTime()).ToString("dddd") + " " + Nearest5(nd.ToLocalTime()).ToString("t") + "."
                 : "";
         }
+        // the picker steps in fives and the line under it said 3:59 for a 4:00 check (2026-10-17, finding 16): one clock, to the nearest five minutes
+        static DateTime Nearest5(DateTime t) => new DateTime(t.Year, t.Month, t.Day, t.Hour, 0, 0, t.Kind).AddMinutes(Math.Round(t.Minute / 5.0) * 5);
         async Task ApplyWhen()
         {
             var mode = (how.SelectedItem as ComboBoxItem)?.Tag as string ?? "daily";

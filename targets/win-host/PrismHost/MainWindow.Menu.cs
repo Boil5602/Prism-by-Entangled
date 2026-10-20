@@ -30,9 +30,9 @@ public sealed partial class MainWindow
     private bool _wallFs;
     private readonly List<string> _armedAdapters = new();
 
-    private static readonly SolidColorBrush Amber = new(Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C));
-    private static readonly SolidColorBrush Muted = new(Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2));
-    private static readonly SolidColorBrush Danger = new(Windows.UI.Color.FromArgb(255, 0xD0, 0x6A, 0x5A));
+    private static readonly SolidColorBrush Amber = Tokens.Amber;
+    private static readonly SolidColorBrush Muted = Tokens.Ink;
+    private static readonly SolidColorBrush Danger = Tokens.Danger;
 
     private void WireMenuGrip()
     {
@@ -137,7 +137,7 @@ public sealed partial class MainWindow
         // --- slots on the wall: add (catalog / any site), arrange
         menu.Items.Add(Item("Add an app from the catalog…", "", "Ctrl+N", TogglePicker));
         menu.Items.Add(Item("Add a website…", "", null, () => _ = AddWebsiteAsync()));
-        menu.Items.Add(Item("Arrange the wall…", "", "Ctrl+A", ToggleArrange));
+        menu.Items.Add(Item("Arrange the screen…", "", "Ctrl+A", ToggleArrange));
         menu.Items.Add(new MenuFlyoutSeparator());
 
         // --- layout: mode, lattice, hero + size (spec 8 / 1)
@@ -146,7 +146,7 @@ public sealed partial class MainWindow
 
         // --- slots (doc order; Ctrl+digit matches ToggleTileFullscreen's index)
         var slots = new MenuFlyoutSubItem { Text = n == 1 ? "1 slot" : n + " slots", Icon = Glyph("") };
-        if (n == 0) slots.Items.Add(new MenuFlyoutItem { Text = "No slots on the wall. Add one above", IsEnabled = false });
+        if (n == 0) slots.Items.Add(new MenuFlyoutItem { Text = "No slots on the screen. Add one above", IsEnabled = false });
         for (var i = 0; i < n; i++)
         {
             var t = wall.Tiles[i];
@@ -179,7 +179,7 @@ public sealed partial class MainWindow
             if (hasCover)
                 sub.Items.Add(Item(vs.Peeked ? "Hide ad" : "Show ad", null, null, () => _surfaces.TogglePeek(id)));
             sub.Items.Add(new MenuFlyoutSeparator());
-            var rm = Item("Remove from wall", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
+            var rm = Item("Remove from the screen", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
             rm.Foreground = Danger;
             sub.Items.Add(rm);
             slots.Items.Add(sub);
@@ -214,8 +214,8 @@ public sealed partial class MainWindow
             else ToggleWallFullscreen();
         });
         menu.Items.Add(fsItem); keep.Add(fsItem);   // in the short menu too: with a mouse or a remote and no keyboard there is no other way to it
-        menu.Items.Add(Item("Wall shot", "", "Ctrl+Shift+S", () => _ = CaptureWallShotAsync()));
-        menu.Items.Add(Item("Open wall shots folder", "", null, () =>
+        menu.Items.Add(Item("Prism shot", "", "Ctrl+Shift+S", () => _ = CaptureWallShotAsync()));
+        menu.Items.Add(Item("Open Prism shots folder", "", null, () =>
             OpenPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Prism"), ensureDir: true)));
         menu.Items.Add(new MenuFlyoutSeparator());
 
@@ -263,7 +263,7 @@ public sealed partial class MainWindow
     private MenuFlyoutSubItem BuildLayoutMenu(WallState wall)
     {
         var n = wall.Tiles.Count;
-        var layout = new MenuFlyoutSubItem { Text = "This wall now (mode · hero · size)", Icon = Glyph("") };
+        var layout = new MenuFlyoutSubItem { Text = "This screen now (mode · hero · size)", Icon = Glyph("") };
         if (wall.LayoutMode == "fixed")
         {
             // B-12: a materialized scene - the layout's normalized rects, no solver; the modes below would leave the scene
@@ -271,7 +271,7 @@ public sealed partial class MainWindow
             layout.Items.Add(Radio("Scene · " + sceneName + "  (fixed rects)", "mode", true, () => OpenRoute("prism://scenes")));
             layout.Items.Add(Item("Edit this scene…", null, null, () => { if (_model.ActiveScene is { } s) OpenRoute("prism://scene/" + Uri.EscapeDataString(s) + "/edit"); }));
             layout.Items.Add(new MenuFlyoutSeparator());
-            layout.Items.Add(new MenuFlyoutItem { Text = "Hero / grid / solo below leave the scene for a solved wall", IsEnabled = false });
+            layout.Items.Add(new MenuFlyoutItem { Text = "Hero / grid / solo below leave the scene for a solved layout", IsEnabled = false });
         }
         layout.Items.Add(Radio("Hero - one anchor, satellites solved around it", "mode", wall.LayoutMode == "hero",
             () => _brain.Call(HostCalls.SetLayout, "{\"mode\":\"hero\"}")));
@@ -398,7 +398,7 @@ public sealed partial class MainWindow
                     rows = g.GetProperty("rows").GetInt32();
                 }
             }
-            catch (Exception ex) { SetStatus("wall state: doc unreadable - " + ex.Message); }
+            catch (Exception ex) { SetStatus("screen state: doc unreadable, " + ex.Message); }
         }
         return new WallState(mode, cols, rows, hero, heroSize, framing, tiles, shapes);
     }
@@ -762,7 +762,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(addressBox, "The page this slot shows. Enter or Go loads it right here. The page is live, so you can scroll, click and sign in.");
         ToolTipService.SetToolTip(catalogBtn, "This slot becomes a catalog app in the same place, with its own account.");
         ToolTipService.SetToolTip(customBtn, "This slot becomes a custom website in the same place, with its own profile and no adapter.");
-        ToolTipService.SetToolTip(shapes, "The box's shape: the slot's own, or a shape the layout will ask the wall's solver for when it is assigned.");
+        ToolTipService.SetToolTip(shapes, "The box's shape: the slot's own, or a shape the layout will ask Prism's solver for when it is assigned.");
         _vfHintPanel = hint;
         dock.Children.Add(hint);
         if (_vfMode == "app")
@@ -772,11 +772,11 @@ public sealed partial class MainWindow
             foreach (var el in new UIElement[] { viewsHeader, _vfLayouts, saveLayout, regionHeader, shapes, _vfPickBtn, _vfApplyBtn, whole, _vfControlsBtn })
                 dock.Children.Remove(el);
             var saveClose = DockButton("✓  Save & close");
-            ToolTipService.SetToolTip(saveClose, "The page showing now (or the address typed above) becomes this app's home page. It's set for the whole app, so every facet and scene that uses the app starts there. Then back to the wall.");
+            ToolTipService.SetToolTip(saveClose, "The page showing now (or the address typed above) becomes this app's home page. It's set for the whole app, so every facet and scene that uses the app starts there. Then back to the screen.");
             saveClose.Click += (_, __) => _ = SaveAppHomeAndCloseAsync(id);
             dock.Children.Insert(dock.Children.IndexOf(cancel), saveClose);
             cancel.Content = "Close without saving  (Esc)";
-            ToolTipService.SetToolTip(cancel, "Back to the wall. The slot keeps the page it is on for now; the app's saved home page is unchanged. Sign-ins persist either way.");
+            ToolTipService.SetToolTip(cancel, "Back to the screen. The slot keeps the page it is on for now; the app's saved home page is unchanged. Sign-ins persist either way.");
             _vfReadout.Text = "Sign in, browse, find the page this app should open on, then Save & close. Go previews an address without saving it. Sign-in popups open in a sheet. Regions, shapes and zoom are made on Configure app facets.";
         }
         floatHost.Children.Add(FloatingPanel((_vfMode == "app" ? "Configure " : "Views of ") + id, dock, panelBg, HorizontalAlignment.Left, VerticalAlignment.Top, new Thickness(16, 44, 0, 0)));
@@ -801,7 +801,7 @@ public sealed partial class MainWindow
         var host = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), IsHitTestVisible = false };
         var halo = new Border
         {
-            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xF0, 0xA8, 0x3C)),
+            BorderBrush = Tokens.AmberAt(0x60),
             BorderThickness = new Thickness(7),
             CornerRadius = new CornerRadius(8),
             Margin = new Thickness(-7),
@@ -811,7 +811,7 @@ public sealed partial class MainWindow
             BorderBrush = Amber,
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(3),
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x16, 0xF0, 0xA8, 0x3C)),
+            Background = Tokens.AmberAt(0x16),
         };
         var box = new Grid { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
         box.Children.Add(halo);
@@ -900,7 +900,7 @@ public sealed partial class MainWindow
     {
         var handle = new Border
         {
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xF0, 0xA8, 0x3C)),
+            Background = Tokens.AmberAt(0x30),
             CornerRadius = new CornerRadius(12, 12, 0, 0),
             Padding = new Thickness(12, 6, 12, 6),
             Child = new StackPanel
@@ -926,7 +926,7 @@ public sealed partial class MainWindow
             Margin = margin,
             Background = background,
             CornerRadius = new CornerRadius(12),
-            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x50, 0xF0, 0xA8, 0x3C)),
+            BorderBrush = Tokens.AmberAt(0x50),
             BorderThickness = new Thickness(1),
             Child = stack,
             RenderTransform = new TranslateTransform(),
@@ -1322,7 +1322,7 @@ public sealed partial class MainWindow
             menu.Items.Add(Item("Custom website…", null, null, () => _ = ConfigureCustomAsync(id)));
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(tile.Kind == "floating"
-                ? Item("Dock into the wall", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":null}"))
+                ? Item("Dock into the layout", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":null}"))
                 : Item("Float this slot", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":\"floating\"}")));
             if (tile.Kind != "floating") menu.Items.Add(Item("Make hero", null, null, () => _brain.Call(HostCalls.PromoteHero, id)));
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -1373,19 +1373,19 @@ public sealed partial class MainWindow
         if (tile?.Kind == "floating")
         {
             menu.Items.Add(Item("Reveal the player (transient)", null, null, () => OpenRoute("prism://facet/" + Uri.EscapeDataString(id) + "/reveal")));
-            menu.Items.Add(Item("Dock into the wall", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":null}")));
+            menu.Items.Add(Item("Dock into the layout", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":null}")));
         }
         else
         {
             var floatIt = Item("Float this slot", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":\"floating\"}"));
-            ToolTipService.SetToolTip(floatIt, "Lift this slot out of the wall: it hovers at a small footprint with Prism's own player control up and the page beneath. The wall reflows without it.");
+            ToolTipService.SetToolTip(floatIt, "Lift this slot out of the layout: it hovers at a small footprint with Prism's own player control up and the page beneath. The layout reflows without it.");
             menu.Items.Add(floatIt);
             menu.Items.Add(Item("Make hero", null, null, () => _brain.Call(HostCalls.PromoteHero, id)));
         }
         var veil = _surfaces.VeilStates().FirstOrDefault(v => v.Id == id);
         if (veil.Covered) menu.Items.Add(Item(veil.Peeked ? "Hide ad" : "Show ad", null, null, () => _surfaces.TogglePeek(id)));
         menu.Items.Add(new MenuFlyoutSeparator());
-        var rm = Item("Remove from wall", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
+        var rm = Item("Remove from the screen", null, null, () => _brain.Call(HostCalls.RemoveTile, id));
         rm.Foreground = Danger;
         menu.Items.Add(rm);
         menu.ShowAt(RootGrid, new FlyoutShowOptions { Position = at, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
@@ -1435,7 +1435,7 @@ public sealed partial class MainWindow
     /// <summary>Add a website…: any http(s) URL becomes a plain custom tile (§31 step 2).</summary>
     private async Task AddWebsiteAsync()
     {
-        var url = await PromptUrlAsync("Add a website to the wall", "https://", "Add");
+        var url = await PromptUrlAsync("Add a website to Prism", "https://", "Add");
         if (url is null) return;
         _brain.Call(HostCalls.AddCustomTile, url, "{}");
         SetPill("Prism · adding " + Shorten(url, 60));
@@ -1484,7 +1484,7 @@ public sealed partial class MainWindow
                 ? Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen
                 : Microsoft.UI.Windowing.AppWindowPresenterKind.Overlapped);
         }
-        catch (Exception ex) { _wallFs = false; SetStatus("full-screen wall: " + ex.Message); }
+        catch (Exception ex) { _wallFs = false; SetStatus("full screen: " + ex.Message); }
     }
 
     private void OpenPath(string path, bool ensureDir = false)
@@ -1527,7 +1527,7 @@ public sealed partial class MainWindow
         Fact("webview2  ", wv2);
         Fact("brain     ", _brain.Ready ? "ready" : "starting");
         Fact("adapters  ", _armedAdapters.Count > 0 ? string.Join(", ", _armedAdapters) : "none armed");
-        Fact("wall      ", $"{_w:0}×{_h:0}");
+        Fact("screen    ", $"{_w:0}×{_h:0}");
         Fact("data      ", _store.Root);
         body.Children.Add(facts);
         body.Children.Add(new TextBlock

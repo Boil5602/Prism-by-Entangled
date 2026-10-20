@@ -749,7 +749,7 @@ public sealed partial class MainWindow : Window
         column.Children.Add(new TextBlock
         {
             Text = hint,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2)),
+            Foreground = Tokens.Ink,
             FontSize = 13,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
@@ -779,7 +779,7 @@ public sealed partial class MainWindow : Window
                 Text = entry.Badge.Length > 0 ? entry.Name + "   " + entry.Badge : entry.Name,
                 FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2)),
+                Foreground = Tokens.Ink,
             };
             var cell = new StackPanel { Spacing = 6 };
             cell.Children.Add(poster);
@@ -943,8 +943,8 @@ public sealed partial class MainWindow : Window
         var column = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 10, MinWidth = 420 };
         column.Children.Add(new TextBlock
         {
-            Text = "Arrange: Hero reflows the wall around a tile and the slider sizes it. Esc closes.",
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2)),
+            Text = "Arrange: Hero reflows the screen around a tile and the slider sizes it. Esc closes.",
+            Foreground = Tokens.Ink,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 6),
         });
         foreach (var id in tiles)
@@ -955,7 +955,7 @@ public sealed partial class MainWindow : Window
                 Text = id + (id == hero ? "   HERO" : ""),
                 Width = 220, VerticalAlignment = VerticalAlignment.Center, FontSize = 14,
                 Foreground = new SolidColorBrush(id == hero
-                    ? Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C)
+                    ? Tokens.AmberColor
                     : Windows.UI.Color.FromArgb(255, 0xF2, 0xF4, 0xF7)),
             });
             var tileId = id;
@@ -978,7 +978,7 @@ public sealed partial class MainWindow : Window
         sliderRow.Children.Add(new TextBlock
         {
             Text = "Hero size", VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2)),
+            Foreground = Tokens.Ink,
         });
         var slider = new Slider { Minimum = 30, Maximum = 85, Value = heroSize * 100, Width = 260, StepFrequency = 1 };
         slider.ValueChanged += (_, e) => _brain.Call(HostCalls.SetHeroSize, e.NewValue / 100.0, true);
@@ -1125,7 +1125,7 @@ public sealed partial class MainWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = "Prism veils", FontSize = 12, Margin = new Thickness(12, 10, 12, 2),
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C)),
+            Foreground = Tokens.Amber,
         });
         var any = false;
         // the windows on the wall only - not the services' hidden work and lookup pages (app:<id>:work / :lookup)
@@ -1137,8 +1137,8 @@ public sealed partial class MainWindow : Window
                 Text = id + (covered ? (peeked ? "  (ad shown)" : "  (veiled)") : ""),
                 Width = 190, VerticalAlignment = VerticalAlignment.Center, FontSize = 13,
                 Foreground = new SolidColorBrush(covered
-                    ? Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C)
-                    : Windows.UI.Color.FromArgb(255, 0xC0, 0xC8, 0xD2)),
+                    ? Tokens.AmberColor
+                    : Tokens.InkColor),
             });
             var fsId = id;
             var slotBtn = new Button { Content = "Fill slot", Padding = new Thickness(10, 4, 10, 4) };
@@ -1162,7 +1162,7 @@ public sealed partial class MainWindow : Window
             Content = "\u2691 Report an ad",
             Margin = new Thickness(12, 6, 12, 0),
             Padding = new Thickness(10, 4, 10, 4),
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C)),
+            Foreground = Tokens.Amber,
         };
         reportBtn.Click += (_, __) => { ToggleControls(); StartReportPick(); };
         panel.Children.Add(reportBtn);
@@ -1325,7 +1325,7 @@ public sealed partial class MainWindow : Window
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(pkg);
             }
             catch { /* clipboard is a bonus; the file is the deliverable */ }
-            SetPill("Prism · wall shot saved: " + System.IO.Path.GetFileName(path) + " (and on the clipboard)");
+            SetPill("Prism · Prism shot saved: " + System.IO.Path.GetFileName(path) + " (and on the clipboard)");
         }
         catch (Exception ex) { SetPill("Prism · capture failed: " + ex.Message); }
     }

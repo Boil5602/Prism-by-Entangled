@@ -33,7 +33,7 @@ public sealed partial class MainWindow
         => _surfaces.RectOf(tileId) is { } r && TileCanvas.ActualWidth > 0 && TileCanvas.ActualHeight > 0 && r.W >= TileCanvas.ActualWidth * 0.9 && r.H >= TileCanvas.ActualHeight * 0.9;
 
     private const string MiniTipLive = "Mini player - this visual and its controls in a small window that stays on top of everything, no title bar. The full player minimizes; sign-in and settings stay there. Esc or a double-click on it brings the full player back";
-    private const string MiniTipShared = "Mini player - not here: this stage shares the scene with other tiles. It is for a stage that fills the wall";
+    private const string MiniTipShared = "Mini player - not here: this stage shares the scene with other tiles. It is for a stage that fills the screen";
 
     /// <summary>The corner button's look: live ink while the stage fills the wall, dim with the reason otherwise (never disabled - a disabled control shows no tooltip).</summary>
     private void ApplyMiniLook(string tileId, VizChromeParts parts)
@@ -47,7 +47,7 @@ public sealed partial class MainWindow
     private void OpenMiniPlayer(string tileId, string source)
     {
         if (_mini is not null) { try { _mini.Activate(); } catch { } return; }
-        if (!StageFillsWall(tileId)) { SetPill("Prism " + (char)0xB7 + " the mini player is for a stage that fills the wall - this one shares the scene with other tiles"); LogLine("mini player: refused - the stage does not fill the wall"); return; }
+        if (!StageFillsWall(tileId)) { SetPill("Prism " + (char)0xB7 + " the mini player is for a stage that fills the screen. This one shares the scene with other tiles"); LogLine("mini player: refused - the stage does not fill the wall"); return; }
         var spec = _surfaces.VisualizationSpec(tileId);
         if (spec is null) { SetPill("Prism " + (char)0xB7 + " no visual on this stage yet"); return; }
         var mini = new MiniPlayer.MiniPlayerWindow { Log = LogLine };
@@ -55,7 +55,17 @@ public sealed partial class MainWindow
         {
             LogLine("mini player: " + cmd);
             if (cmd is "mute" or "unmute") SetWallMutedFromWall(source, cmd == "mute");
-            else _brain.Call(HostCalls.TileCommand, source, cmd);
+            else
+            {
+                // the page's engine died (2026-10-19, "it just spins and eventually nothing happens"): the mini player says what is happening
+                // instead of spinning. Core is making the page again (renderer-failed, a few seconds); one still dead after that was given up.
+                if (_surfaces.DeadFor(source) is { } dead)
+                {
+                    LogLine("mini player: " + cmd + " on a dead page (" + source + ", dead " + (int)dead.TotalSeconds + " s)");
+                    mini.Notice(dead < TimeSpan.FromSeconds(15) ? "The player's page crashed. Prism is loading it again" : "The player's page crashed and could not be loaded again. Restart Prism");
+                }
+                _brain.Call(HostCalls.TileCommand, source, cmd);
+            }
             _ = System.Threading.Tasks.Task.Delay(400).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync()));
         };
         mini.ReturnRequested += () => { LogLine("mini player: back to the full player"); CloseMiniPlayer(); RestoreMainFromMini(); };

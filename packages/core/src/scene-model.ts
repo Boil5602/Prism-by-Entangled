@@ -869,7 +869,7 @@ export const FAMILY_HUB: SceneTemplate = {
 };
 
 /**
- * The whole wall is the music (docs/concept-scenes.md §2.5): a white beam
+ * The whole screen is the music (docs/concept-scenes.md §2.5): a white beam
  * enters a prism and leaves as the brand's four bands, bending with what is
  * playing. The first template whose audio owner is not in a slot —
  * `templateAudioOwner` returns the HIDDEN `source` role, which is new and
@@ -910,7 +910,7 @@ const MUSIC_LOUNGE_SOURCE: TemplateRole = {
 export const MUSIC_LOUNGE: SceneTemplate = {
   id: "music-lounge",
   name: "Music Lounge",
-  blurb: "The whole wall is the music. Sign in to your service and the beams do the rest. Tap to bring up the player, and tap again to send it back.",
+  blurb: "The whole screen is the music. Sign in to your service and the beams do the rest. Tap to bring up the player, and tap again to send it back.",
   canvasAspect: "16:9",
   roles: [MUSIC_LOUNGE_STAGE],
   slots: [
@@ -940,7 +940,7 @@ const MUSIC_LOUNGE_CLOCK_ROLE: TemplateRole = {
 export const MUSIC_LOUNGE_CLOCK: SceneTemplate = {
   id: "music-lounge-clock",
   name: "Music Lounge + Clock",
-  blurb: "The whole wall is the music, with the time in the corner. Sign in to your service and the beams do the rest. Tap to bring up the player, and tap again to send it back.",
+  blurb: "The whole screen is the music, with the time in the corner. Sign in to your service and the beams do the rest. Tap to bring up the player, and tap again to send it back.",
   canvasAspect: "16:9",
   roles: [MUSIC_LOUNGE_STAGE, MUSIC_LOUNGE_CLOCK_ROLE],
   slots: [

@@ -460,7 +460,7 @@ export interface TilePatch {
   focus?: FocusSpec | null;
   /** §8 aspect hint ("W:H"); the solver reflows the wall for it. */
   aspectHint?: string | null;
-  /** §32: "floating" lifts the tile out of the wall (it reflows without it); "slot"/null docks it back. */
+  /** §32: "floating" lifts the tile out of the layout (it reflows without it); "slot"/null docks it back. */
   kind?: "slot" | "floating" | null;
   /** §32 the floating place / face; partial patches merge (a drag end sends x,y; a resize w,h; a flip face). null = core's default. */
   float?: Partial<FloatSpec> | null;
@@ -2116,7 +2116,36 @@ export class Orchestrator {
     // multiview windows, and they were just showing the youtube tv pages" / "if I open the login page, theres no reason all of the videos
     // should lose their focus, right?"): every service shares one browser profile, so a sign-in reaches a playing page without a new window
     const ids = all.filter((id) => !(this.video.isVideoTile(id) && this.video.state([id])[0]?.playing === true));   // video windows; a music page is recycled as before (B-124's heal needs it)
-    // ... and one made again comes back to the title or channel it had up, not the service's front page (as after a restart: bootTitles)
+    await this.recycleTiles(ids);
+    const carry = this.lastClosedPreview;
+    if (carry && (carry.app === key || carry.adapter === key || carry.profile === key) && carry.np?.playing && Date.now() - carry.at < 60_000) {
+      this.lastClosedPreview = null;
+      // the carry goes to the App's OWN music tile, never another service's
+      const tile = this.doc.tiles.find((t) => carry.adapter !== null && t.adapter === carry.adapter && this.music.source(t.id));
+      if (tile) {
+        const ctx = carry.np.context && typeof carry.np.context === "object" ? carry.np.context : null;
+        const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
+        const kind = ctx?.kind && /^(playlist|station|album)$/.test(ctx.kind) ? ctx.kind : null;
+        this.lastInteract.set(tile.id, Date.now());   // the person pressed play in setup: a human's play
+        if (spec?.musicPlay && ctx?.id && kind) {
+          await this.drivers.surface.inject(tile.id, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(ctx.id)})`);
+          this.setMusicPending(tile.id, { kind, id: ctx.id, name: ctx.label ?? carry.np.title ?? kind });
+        } else {
+          const url = ctx?.url && /^https?:\/\//.test(ctx.url) ? normalizeCollectionUrl(ctx.url) : carry.url;
+          if (url) await this.playByAddress(tile.id, url, ctx?.label ?? carry.np.title ?? "the player", kind ?? "page");
+        }
+      }
+    }
+    return ids.length;
+  }
+
+  /**
+   * Document tiles closed and made again through the ordinary apply path (a new engine, the same profile, the remembered page): the
+   * sign-in recycle above, and a page whose engine died (recoverDeadRenderers). A video window made again comes back to the title or
+   * channel it had up, not the service's front page (as after a restart: bootTitles).
+   */
+  private async recycleTiles(ids: readonly string[]): Promise<void> {
+    if (!this.doc) return;
     for (const id of ids) {
       if (!this.video.isVideoTile(id)) continue;
       const v = this.video.state([id])[0]?.video;
@@ -2138,26 +2167,6 @@ export class Orchestrator {
     }
     if (ids.length) await this.applyDocument(this.doc);
     for (const id of ids) { const back = this.bootTitles.get(id); if (back && !back.tune && this.surfaces.has(id)) await this.drivers.surface.navigate(id, back.url); }
-    const carry = this.lastClosedPreview;
-    if (carry && (carry.app === key || carry.adapter === key || carry.profile === key) && carry.np?.playing && Date.now() - carry.at < 60_000) {
-      this.lastClosedPreview = null;
-      // the carry goes to the App's OWN music tile, never another service's
-      const tile = this.doc.tiles.find((t) => carry.adapter !== null && t.adapter === carry.adapter && this.music.source(t.id));
-      if (tile) {
-        const ctx = carry.np.context && typeof carry.np.context === "object" ? carry.np.context : null;
-        const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
-        const kind = ctx?.kind && /^(playlist|station|album)$/.test(ctx.kind) ? ctx.kind : null;
-        this.lastInteract.set(tile.id, Date.now());   // the person pressed play in setup: a human's play
-        if (spec?.musicPlay && ctx?.id && kind) {
-          await this.drivers.surface.inject(tile.id, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(ctx.id)})`);
-          this.setMusicPending(tile.id, { kind, id: ctx.id, name: ctx.label ?? carry.np.title ?? kind });
-        } else {
-          const url = ctx?.url && /^https?:\/\//.test(ctx.url) ? normalizeCollectionUrl(ctx.url) : carry.url;
-          if (url) await this.playByAddress(tile.id, url, ctx?.label ?? carry.np.title ?? "the player", kind ?? "page");
-        }
-      }
-    }
-    return ids.length;
   }
 
   /** The service's library as last reported (playlists, stations), from the cache or the store. */
@@ -2727,7 +2736,7 @@ export class Orchestrator {
     const prev = this.musicLookups.get(tileId);
     if (!song) {
       if (prev && prev.song && (prev.status === "found" || prev.status === "ambiguous" || prev.status === "not-found")) return prev.status;   // a settled answer outlives a blank beat
-      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", null, "", "nothing is playing on the wall"), why: "no-song" });
+      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", null, "", "nothing is playing on Prism"), why: "no-song" });
       return "unavailable";
     }
     const key = normalizeTrackText(song.title) + "|" + normalizeTrackText(song.artist);
@@ -2739,7 +2748,7 @@ export class Orchestrator {
     if (prev && prev.key === key && (prev.status === "found" || prev.status === "ambiguous" || prev.status === "not-found" || prev.status === "searching")) return prev.status;
     const q = { title: song.title, artist: song.artist, album: song.album, artwork: song.artwork, durationMs: song.durationMs };
     if (!spec?.musicLookup) {
-      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", q, key, spec?.musicLookupNote || "this service cannot be searched from the wall yet"), why: "no-lookup" });   // the adapter's own why, when it has one
+      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", q, key, spec?.musicLookupNote || "this service cannot be searched from Prism yet"), why: "no-lookup" });   // the adapter's own why, when it has one
       return "unavailable";
     }
     const carried = prev && prev.key === key ? prev.action : null;
@@ -2776,6 +2785,10 @@ export class Orchestrator {
     setTimeout(() => {
       const tile = this.tile(tileId);
       if (!tile || !this.surfaces.has(tileId) || (this.pickedAt.get(tileId) ?? 0) > at || this.nowPlaying.get(tileId)?.playing) return;
+      // a track held on the page (paused is held too: a reload drops it, and Pandora's station page plays again on load - 2026-10-19,
+      // "I paused the music player but then i think it unpaused without my input"), a pick on its way, or a person's own press on the page
+      // since the search (a sign-in, a pick made on the page itself): theirs, the page stays
+      if (this.nowPlaying.get(tileId)?.title || this.musicPending.has(tileId) || this.actedSince(tileId, at)) return;
       const here = this.currentUrl.get(tileId);
       if (!here || here === before) return;
       // never back to a page the wall itself was only visiting (the service's library page)
@@ -4274,6 +4287,7 @@ export class Orchestrator {
     cmd: string,
   ): Promise<"ok" | "unknown-tile" | "unknown-cmd" | "unavailable"> {
     if (!this.tile(tileId)) return "unknown-tile";
+    if (this.rendererDead.has(tileId)) return "unavailable";   // the page's engine is gone (renderer-failed): nothing is there to press until it is made again
     // a tile the live budget put to sleep (warm) wakes before it is asked anything (2026-09-24: Apple Music's hidden source had been suspended
     // at boot and its Play reached a page with no engine)
     if (this.lifecycle.status(tileId) === "warm") await this.lifecycle.touch(tileId);
@@ -7367,7 +7381,7 @@ export class Orchestrator {
     if (this.inBgPause(now)) why = "paused (quiet hours " + this.bgPause.from + "-" + this.bgPause.to + ")";
     else if (this.lookupNow && !this.lookupNow.done) why = "a search is running";
     else if (this.hiddenWork > 0) why = "a job is running on a service's page";
-    else if (now - Math.max(0, ...this.lastInteract.values()) < Orchestrator.BG_QUIET_MS) why = "a person is using the wall";
+    else if (now - Math.max(0, ...this.lastInteract.values()) < Orchestrator.BG_QUIET_MS) why = "a person is using Prism";
     else if (this.politeIdle(now)) why = "resting (nobody about for hours)";
     else if (now - this.listsRefreshedAt < Orchestrator.BG_LISTS_MS) why = "fresh";
     if (why) { this.bgLast = why; return why; }
@@ -7582,6 +7596,46 @@ export class Orchestrator {
    * video went black while its page went on playing; reloading the page brought it back): each video tile playing a title is loaded again at its
    * own address, a few seconds after the reset - once a reset, at most once a minute. The service carries on from where it was.
    */
+  // ---- a dead engine (2026-10-19, "I've tried several times to renew a song but it just spins and eventually nothing happens"): the
+  // WebView2 browser process holding every music page crashed at 14:58:59 and the host only logged it, so each Play press after that went
+  // into a page that no longer existed. Now the pages whose engine died are made again through the ordinary apply path, as a sign-in
+  // recycle does - bounded, so a page that dies as soon as it is made is not made for ever (a restart is then a person's).
+  private readonly rendererDead = new Set<string>();
+  private rendererRecoverTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly rendererRecoveries = new Map<string, number[]>();
+  static readonly RENDERER_RECOVER_SETTLE_MS = 1_500;
+  static readonly RENDERER_RECOVER_MAX = 3;
+  static readonly RENDERER_RECOVER_WINDOW_MS = 10 * 60_000;
+  /** Pages whose engine is gone and not made again (state / the host's word to a person). */
+  deadRenderers(): string[] { return [...this.rendererDead]; }
+  private noteRendererFailed(event: { id: string; kind: string; fatal?: boolean }): void {
+    if (event.fatal === false) return;   // a helper process (GPU, utility) the engine restarts by itself
+    if (!this.surfaces.has(event.id)) return;
+    this.rendererDead.add(event.id);
+    if (this.rendererRecoverTimer) clearTimeout(this.rendererRecoverTimer);
+    // the whole browser gone reports every page in it, one event each: all of them in one remake
+    this.rendererRecoverTimer = setTimeout(() => { this.rendererRecoverTimer = null; void this.recoverDeadRenderers(); }, Orchestrator.RENDERER_RECOVER_SETTLE_MS);
+  }
+  private async recoverDeadRenderers(): Promise<void> {
+    const now = Date.now();
+    const allowed: string[] = [];
+    for (const id of [...this.rendererDead]) {
+      const times = (this.rendererRecoveries.get(id) ?? []).filter((t) => now - t < Orchestrator.RENDERER_RECOVER_WINDOW_MS);
+      this.rendererRecoveries.set(id, times);
+      if (times.length >= Orchestrator.RENDERER_RECOVER_MAX) continue;   // dies as soon as it is made: left dead, a press there answers unavailable
+      times.push(now); allowed.push(id); this.rendererDead.delete(id);
+    }
+    const tiles = allowed.filter((id) => { const t = this.tile(id); return !!t && !t.visualization && !t.placeholder; });
+    for (const id of allowed) {
+      if (tiles.includes(id)) continue;
+      // a page outside the document (a hidden lookup or work page, a soundscape, a preview): closed; made again when next wanted
+      this.lookups.delete(id); this.previews.delete(id);
+      for (const [k, a] of this.ambient) if (a.surface === id) this.ambient.delete(k);
+      if (this.surfaces.has(id)) { this.surfaces.delete(id); try { await this.drivers.surface.destroy(id); } catch { /* gone already */ } }
+      this.nowPlaying.delete(id); this.currentUrl.delete(id); this.sessionState.delete(id);
+    }
+    if (tiles.length) await this.recycleTiles(tiles);
+  }
   private gpuResetAt = 0;
   static readonly GPU_RESET_SETTLE_MS = 4_000;
   private recoverFromGpuReset(): void {
@@ -8228,6 +8282,8 @@ export class Orchestrator {
   /** Shell pushes surface events here; core answers with driver commands. */
   async onSurfaceEvent(event: SurfaceEvent): Promise<void> {
     if (event.type === "gpu-reset") { this.recoverFromGpuReset(); return; }
+    if (event.type === "renderer-failed") { this.noteRendererFailed(event); return; }
+    if (event.type === "load-finished" && event.ok) this.rendererDead.delete(event.id);   // a page that loads has an engine
     this.refresh.handleEvent(event); // readiness signals (§16)
     if (event.type === "load-finished" && event.ok) {
       // a window's rows count again after a switch once it has loaded a whole page (2026-09-25): a move inside the page kept the last

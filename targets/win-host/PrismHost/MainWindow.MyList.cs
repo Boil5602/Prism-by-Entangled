@@ -30,9 +30,9 @@ public sealed partial class MainWindow
         var (can, name) = await ListInfoAsync(app);
         if (!can) return;
         var it = new MenuFlyoutItem { Text = "Remove from " + service + "'s " + name + "\u2026", Icon = new FontIcon { Glyph = "\uE738" } };
-        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " off " + name + " on " + service + " itself, not only on the wall.");
+        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " off " + name + " on " + service + " itself, not only on Prism.");
         it.Click += (_, __) => ShowAskPanel("Remove from " + service + "'s " + name + "?",
-            "\u201C" + title + "\u201D leaves " + name + " on " + service + " itself: everywhere you use this " + service + " profile, not only on the wall.", null, "Remove",
+            "\u201C" + title + "\u201D leaves " + name + " on " + service + " itself: everywhere you use this " + service + " profile, not only on Prism.", null, "Remove",
             () =>
             {
                 if (card is not null) HideCardForRemoval(card);

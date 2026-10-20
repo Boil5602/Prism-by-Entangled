@@ -297,6 +297,8 @@ export type SurfaceEvent =
   | { type: "intermission-skip"; id: string }
   /** The graphics driver reset itself (the host saw Windows log it): protected video goes black and stays so until its page plays afresh (2026-09-28). */
   | { type: "gpu-reset"; id: string }
+  /** The engine behind the page died (WebView2's ProcessFailed, 2026-10-19): `fatal` when the page is a dead still until it is made again (the browser or render process gone or hung), false for a helper the engine restarts by itself; `reason` and `exitCode` as the engine gave them. */
+  | { type: "renderer-failed"; id: string; kind: string; reason?: string; exitCode?: number; fatal?: boolean }
   /** the host's word on the move of legacy profile folders onto the shared ones (win-channel profile.migrate, 2026-10-03) */
   | { type: "profile-migrated"; id: string; ok: boolean; moves: Array<{ from: string; to: string; cookies?: number; storage?: number; idb?: number; error?: string | null }>; note?: string | null }
   /**

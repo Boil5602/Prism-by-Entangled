@@ -20,9 +20,9 @@ public sealed partial class MainWindow
         if (info?["can"]?.GetValue<bool>() != true) return;
         var warning = info["warning"]?.GetValue<string>();
         var it = new MenuFlyoutItem { Text = "Remove from " + service + "'s library…", Icon = new FontIcon { Glyph = "" } };
-        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " out of your library on " + service + " itself, not only on the wall.");
+        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " out of your library on " + service + " itself, not only on Prism.");
         it.Click += (_, __) => ShowAskPanel("Remove from " + service + "'s library?",
-            "“" + title + "” leaves your library on " + service + " itself: everywhere you use this " + service + " account, not only on the wall." + (warning is { Length: > 0 } ? " " + warning : ""), null, "Remove",
+            "“" + title + "” leaves your library on " + service + " itself: everywhere you use this " + service + " account, not only on Prism." + (warning is { Length: > 0 } ? " " + warning : ""), null, "Remove",
             () =>
             {
                 HideCardForRemoval(card);

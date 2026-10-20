@@ -286,7 +286,7 @@ public sealed partial class MainWindow
             overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var rail = new StackPanel { Spacing = 3, Padding = new Thickness(14, 20, 12, 18), Background = LePanel };
             rail.Children.Add(new TextBlock { Text = "Prism", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Amber, Margin = new Thickness(12, 0, 0, 0), FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
-            rail.Children.Add(new TextBlock { Text = "SET UP THE WALL", FontSize = 9.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeDim, CharacterSpacing = 160, Margin = new Thickness(12, 0, 0, 14) });
+            rail.Children.Add(new TextBlock { Text = "SET UP PRISM", FontSize = 9.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeDim, CharacterSpacing = 160, Margin = new Thickness(12, 0, 0, 14) });
             _railButtons.Clear();
             foreach (var (id, label, glyph) in RailItems)
             {
@@ -328,7 +328,7 @@ public sealed partial class MainWindow
         foreach (var (id, b) in _railButtons)
         {
             var on = id == _railSection;
-            b.Background = new SolidColorBrush(on ? Windows.UI.Color.FromArgb(0x30, 0xF0, 0xA8, 0x3C) : Windows.UI.Color.FromArgb(0, 0, 0, 0));
+            b.Background = new SolidColorBrush(on ? Tokens.AmberColorAt(0x30) : Windows.UI.Color.FromArgb(0, 0, 0, 0));
             b.Foreground = on ? Amber : LeInk;
         }
         _railContent.Children.Clear();
@@ -376,7 +376,7 @@ public sealed partial class MainWindow
     /// <summary>A card: content + click → editor, right-click → the entity's context menu (rename · duplicate · archive …).</summary>
     private static Button Card(UIElement content, double width, Action open, Func<MenuFlyout>? context)
     {
-        var b = new Button { Content = content, Width = width, Padding = new Thickness(12), HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top, Background = LeSlot, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x24, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10) };
+        var b = new Button { Content = content, Width = width, Padding = new Thickness(12), HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top, Background = LeSlot, BorderBrush = Tokens.AmberAt(0x24), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10) };
         OwnHover(b);   // its own hover, never the system's (memory: hover-loss-tooltips)
         b.Click += (_, __) => open();
         if (context is not null)
@@ -396,7 +396,7 @@ public sealed partial class MainWindow
         var c = new Canvas { Width = width, Height = height, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x0B, 0x0D, 0x12)) };
         foreach (var s in l.Slots)
         {
-            var (fill, text) = paint?.Invoke(s) ?? (new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), null);
+            var (fill, text) = paint?.Invoke(s) ?? (Tokens.AmberAt(0x40), null);
             var box = new Border { Width = Math.Max(2, s.W * width - 2), Height = Math.Max(2, s.H * height - 2), Background = fill, BorderBrush = Amber, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(2) };
             if (text is not null && s.H * height > 16) box.Child = new TextBlock { Text = text, FontSize = 9, Foreground = LeInk, TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center };
             Canvas.SetLeft(box, s.X * width + 1); Canvas.SetTop(box, s.Y * height + 1);
@@ -412,7 +412,7 @@ public sealed partial class MainWindow
     {
         return new Border
         {
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0x5C, 0xC8, 0xC0)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 2, 4, 0),
+            Background = new SolidColorBrush(Tokens.TealColorAt(0x30)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 2, 4, 0),
             Child = new TextBlock { Text = cls + (note is null ? "" : "  ·  " + note), FontSize = 10, Foreground = LeTeal, FontFamily = new FontFamily("Consolas") },
         };
     }
@@ -433,7 +433,7 @@ public sealed partial class MainWindow
 
     private static Border BuiltInBadge()
     {
-        var b = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xF0, 0xA8, 0x3C)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Child = new TextBlock { Text = "built in", FontSize = 10, Foreground = LeInk } };
+        var b = new Border { Background = Tokens.AmberAt(0x30), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Child = new TextBlock { Text = "built in", FontSize = 10, Foreground = LeInk } };
         ToolTipService.SetToolTip(b, "Part of Prism: runs on this device, nothing to sign in to.");
         return b;
     }
@@ -442,9 +442,9 @@ public sealed partial class MainWindow
     {
         var (text, color) = status switch
         {
-            "signed-in" => (StatusText(status, evidence), evidence == "probe" || evidence == "asserted" ? Windows.UI.Color.FromArgb(0x30, 0x5C, 0xC8, 0xC0) : Windows.UI.Color.FromArgb(0x30, 0x9A, 0x9C, 0xA8)),
+            "signed-in" => (StatusText(status, evidence), evidence == "probe" || evidence == "asserted" ? Tokens.TealColorAt(0x30) : Tokens.DimColorAt(0x30)),
             "needs-attention" => ("needs attention", Windows.UI.Color.FromArgb(0x50, 0xD0, 0x6A, 0x5A)),
-            _ => ("not verified", Windows.UI.Color.FromArgb(0x30, 0x9A, 0x9C, 0xA8)),
+            _ => ("not verified", Tokens.DimColorAt(0x30)),
         };
         return new Border { Background = new SolidColorBrush(color), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Child = new TextBlock { Text = text, FontSize = 10, Foreground = LeInk } };
     }
@@ -455,7 +455,7 @@ public sealed partial class MainWindow
         var col = new StackPanel();
         var active = _model.ActiveScene is { } aid ? _model.Scene(aid) : null;
         col.Children.Add(RailHeader("Scenes", active is null
-            ? "Nothing is playing from a scene yet. New Scene walks you through it: pick a template, add the apps it needs, and the wall becomes the scene."
+            ? "Nothing is playing from a scene yet. New Scene walks you through it: pick a template, add the apps it needs, and the screen becomes the scene."
             : "Playing now: " + active.Name + ". A scene is a layout with a facet in each slot, plus floating and hidden facets and any visualizations.",
             Primary("＋  New Scene", () => OpenRoute("prism://templates")),
             Small("＋  Blank scene", () => OpenSceneBuilder(null))));
@@ -483,12 +483,12 @@ public sealed partial class MainWindow
 
     private (Brush, string?) SlotPaint(MScene s, MSlot slot)
     {
-        if (!s.Assign.TryGetValue(slot.Id, out var refId)) return (new SolidColorBrush(Windows.UI.Color.FromArgb(0x18, 0xF0, 0xA8, 0x3C)), "tap to assign");
+        if (!s.Assign.TryGetValue(slot.Id, out var refId)) return (Tokens.AmberAt(0x18), "tap to assign");
         var viz = s.Visualizations.FirstOrDefault(v => v["id"]?.GetValue<string>() == refId);
         if (viz is not null) return (new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xC8, 0x6C, 0xF0)), "♪ " + (viz["style"]?.GetValue<string>() ?? "visualization"));
         var f = _model.Facet(refId);
         // a ref with no facet behind it is an empty slot on the wall (the seed's App-poster placeholder): say what the slot is FOR, never the internal ref
-        return (new SolidColorBrush(Windows.UI.Color.FromArgb(0x50, 0x5C, 0xC8, 0xC0)), f is null ? "Empty · " + (slot.Label ?? slot.Id) : (_model.App(f.App)?.Name ?? f.App) + " · " + f.Label);
+        return (new SolidColorBrush(Tokens.TealColorAt(0x50)), f is null ? "Empty · " + (slot.Label ?? slot.Id) : (_model.App(f.App)?.Name ?? f.App) + " · " + f.Label);
     }
 
     // ------------------------------------------------ reset / restore (HostPaths: move, never delete; applied on the next start)
@@ -497,7 +497,7 @@ public sealed partial class MainWindow
         var dlg = new ContentDialog
         {
             Title = "Reset to defaults?",
-            Content = "Everything on this wall (scenes, layouts, facets, Apps and their sign-ins) is moved to a dated backup folder beside the store, and Prism restarts empty with the New scene wizard. Nothing is deleted: Restore a backup… brings it back.",
+            Content = "Everything on this PC (scenes, layouts, facets, Apps and their sign-ins) is moved to a dated backup folder beside the store, and Prism restarts empty with the New scene wizard. Nothing is deleted: Restore a backup… brings it back.",
             PrimaryButtonText = "Reset and restart", CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark,
         };
         try { if (await dlg.ShowAsync() != ContentDialogResult.Primary) return; } catch { return; }
@@ -513,7 +513,7 @@ public sealed partial class MainWindow
         var list = new StackPanel { Spacing = 4 };
         var tcs = new TaskCompletionSource<string?>();
         var dlg = new ContentDialog { Title = "Restore a backup", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
-        list.Children.Add(Meta("The current wall is parked as a new backup first, so a restore can itself be undone."));
+        list.Children.Add(Meta("The current setup is parked as a new backup first, so a restore can itself be undone."));
         foreach (var b in backups) { var path = b; list.Children.Add(AppRow(Path.GetFileName(b), BackupNote(b), () => { tcs.TrySetResult(path); dlg.Hide(); })); }
         dlg.Closed += (_, __) => tcs.TrySetResult(null);
         try { _ = dlg.ShowAsync(); } catch { return; }
@@ -592,7 +592,7 @@ public sealed partial class MainWindow
         foreach (var l in shown)
         {
             var body = new StackPanel { Spacing = 6, Opacity = l.Archived ? 0.55 : 1 };
-            body.Children.Add(LayoutThumb(l, l.Portrait ? 112 : 220, s => (new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), s.Class)));
+            body.Children.Add(LayoutThumb(l, l.Portrait ? 112 : 220, s => (Tokens.AmberAt(0x40), s.Class)));
             body.Children.Add(CardTitle(l.Name + (l.Archived ? "   (archived)" : "")));
             var meta = l.CanvasAspect + (l.Portrait ? " portrait" : "") + " @ " + l.CanvasResolution + "  ·  " + l.Slots.Count + " slot" + (l.Slots.Count == 1 ? "" : "s");
             var uses = _model.Scenes.Count(s => s.Layout == l.Id);
@@ -618,7 +618,7 @@ public sealed partial class MainWindow
             var names = arr.OfType<JsonObject>().Select(o => o["name"]?.GetValue<string>() ?? "?").ToList();
             RootGrid.DispatcherQueue.TryEnqueue(() => host.Children.Add(new Border
             {
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xF0, 0xA8, 0x3C)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Left,
+                Background = Tokens.AmberAt(0x40), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Left,
                 Child = new TextBlock { Text = "possibly duplicates ⟨" + string.Join("⟩, ⟨", names) + "⟩", FontSize = 10, Foreground = Amber, TextWrapping = TextWrapping.Wrap },
             }));
         }
@@ -973,11 +973,11 @@ public sealed partial class MainWindow
         // default here, not the law. With it on, the renderer runs at 10fps with
         // no beat and clamped attack/release, and a lively band feed draws flat.
         var fullMotion = new ToggleButton { Content = "Full motion (ignore system reduced-motion)", IsChecked = PrismHost.Surfaces.Visualization.VisualizationHost.ForceFullMotion, Padding = new Thickness(10, 5, 10, 5) };
-        ToolTipService.SetToolTip(fullMotion, "On by default, since a wall isn't an accessibility surface. Off honours Windows' reduced-motion setting (10 fps, no beat, clamped attack). Remembered on this machine. PRISM_FULL_MOTION=0/1 overrides it.");
+        ToolTipService.SetToolTip(fullMotion, "On by default, since Prism isn't an accessibility surface. Off honours Windows' reduced-motion setting (10 fps, no beat, clamped attack). Remembered on this machine. PRISM_FULL_MOTION=0/1 overrides it.");
         fullMotion.Click += (_, __) => { var on = fullMotion.IsChecked == true; PrismHost.Surfaces.Visualization.VisualizationHost.ForceFullMotion = on; HostPrefs.Set("fullMotion", on); };
 
-        var diagLine = new ToggleButton { Content = "Diagnostics on the wall", IsChecked = StatusLine.Visibility == Visibility.Visible, Padding = new Thickness(10, 5, 10, 5) };
-        ToolTipService.SetToolTip(diagLine, "Show the viewport / brain-state readout along the bottom of the wall. It is written to host.log either way.");
+        var diagLine = new ToggleButton { Content = "Diagnostics on the screen", IsChecked = StatusLine.Visibility == Visibility.Visible, Padding = new Thickness(10, 5, 10, 5) };
+        ToolTipService.SetToolTip(diagLine, "Show the viewport / brain-state readout along the bottom of the screen. It is written to host.log either way.");
         diagLine.Click += (_, __) => StatusLine.Visibility = diagLine.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         audioRow.Children.Add(vizTest);
         audioRow.Children.Add(diagLine);
@@ -985,7 +985,7 @@ public sealed partial class MainWindow
         col.Children.Add(audioRow);
         col.Children.Add(Meta("Boot is silent; the first human play lifts exactly the facet it happened in (§3). The test signal drives visualizations without audio, for development; the WASAPI feed replaces it when the source plays."));
         col.Children.Add(Section("KIOSK"));
-        col.Children.Add(Small(_wallFs ? "Exit full-screen wall  (F11)" : "Full-screen wall  (F11)", ToggleWallFullscreen));
+        col.Children.Add(Small(_wallFs ? "Exit full screen  (F11)" : "Full screen  (F11)", ToggleWallFullscreen));
         // the media hub switch in the options (2026-10-06, "It does need to be available to be turned off in some options screen"): its state as
         // Windows has it (the task's existence), and the same dialog as the Prism menu's item to turn it off or on (docs/features/media-hub.md)
         // the phone's firewall rule beside it (2026-10-06, Services/DeviceSetup): set at first run on Set up services, checked and set again here
@@ -1007,7 +1007,7 @@ public sealed partial class MainWindow
         resetRow.Children.Add(Small("Reset to defaults…", () => _ = ResetToDefaultsAsync()));
         resetRow.Children.Add(Small("Restore a backup…", () => _ = RestoreBackupAsync()));
         col.Children.Add(resetRow);
-        col.Children.Add(Meta("Reset moves everything this wall knows - scenes, layouts, facets, Apps and their sign-ins - into a dated backup folder beside the store and restarts empty, at the New scene wizard. Nothing is deleted (§10); Restore brings a backup back the same way."));
+        col.Children.Add(Meta("Reset moves everything this PC knows - scenes, layouts, facets, Apps and their sign-ins - into a dated backup folder beside the store and restarts empty, at the New scene wizard. Nothing is deleted (§10); Restore brings a backup back the same way."));
         col.Children.Add(Section("UPDATES & ABOUT"));
         var about = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         about.Children.Add(Small("About Prism…", () => _ = ShowAboutAsync()));

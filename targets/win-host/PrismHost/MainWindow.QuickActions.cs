@@ -262,15 +262,15 @@ public sealed partial class MainWindow
             var k = kind;
             var item = Item(label + (name is null ? "" : "  ·  " + Shorten(name, 28)), on ? "" : glyph, null, () => _ = SwitchPlayerAsync(k));
             ToolTipService.SetToolTip(item, kind == "music"
-                ? (name is null ? "No Music player yet. This opens Set up services to make one." : on ? "The wall is your Music player now." : "The wall becomes \"" + name + "\"; music a video paused plays on from where it was.")
-                : (name is null ? "No Video player yet. This opens Set up services to make one." : on ? "The wall is your Video player now." : "The wall becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
+                ? (name is null ? "No Music player yet. This opens Set up services to make one." : on ? "Prism is your Music player now." : "Prism becomes \"" + name + "\". Music that a video paused plays on from where it was.")
+                : (name is null ? "No Video player yet. This opens Set up services to make one." : on ? "Prism is your Video player now." : "Prism becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
             items.Add(item);
         }
         var setup = Item("Set up services" + (char)0x2026, "", null, () => _ = ShowWelcomeAsync());
         ToolTipService.SetToolTip(setup, "Choose your music and video services and sign in to each. Prism sets up both players with them.");
         items.Add(setup);
         var pair = Item("Pair a phone" + (char)0x2026, "", null, PairPhone);
-        ToolTipService.SetToolTip(pair, "A QR code for your phone: the page it opens is a keyboard for the wall and plays the wall's sound on the phone, privately.");
+        ToolTipService.SetToolTip(pair, "A QR code for your phone: the page it opens is a keyboard for Prism and plays Prism's sound on the phone, privately.");
         items.Add(pair);
         return items;
     }
@@ -404,7 +404,7 @@ public sealed partial class MainWindow
                     var pick = new MenuFlyoutSubItem { Text = "Watch as " + pname, Icon = Glyph("") };
                     pick.Items.Add(Item("This time", null, null, () => _ = ModelCallAsync("videoProfile", screenSlot!, pid, false)));
                     var always = Item("Always, on " + name, null, null, () => _ = ModelCallAsync("videoProfile", screenSlot!, pid, true));
-                    ToolTipService.SetToolTip(always, "A standing choice: whenever " + name + " asks who is watching, the wall answers " + pname + ". Forget it from this menu.");
+                    ToolTipService.SetToolTip(always, "A standing choice: whenever " + name + " asks who is watching, Prism answers " + pname + ". Forget it from this menu.");
                     pick.Items.Add(always);
                     svc.Items.Add(pick);
                 }
@@ -482,7 +482,7 @@ public sealed partial class MainWindow
         _ = UpdateWatchGripAsync();
         SyncEmptyWallNote();   // a wall that has a scene now: the "Nothing is set up yet" note goes (2026-09-29 review)
         var name = _model.Scene(sceneId)?.Name ?? sceneId;
-        SetPill("Prism · the wall is now \"" + name + "\"");
+        SetPill("Prism · the screen is now \"" + name + "\"");
         try
         {
             if (JsonNode.Parse(raw!) is JsonObject r && r["notes"] is JsonArray notes) foreach (var n in notes) LogLine("apply note: " + n);
@@ -674,7 +674,7 @@ public sealed partial class MainWindow
         var host = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0, 0, 0)) };
         Canvas.SetZIndex(host, 950);
         host.PointerPressed += (_, e) => { if (ReferenceEquals(e.OriginalSource, host)) { e.Handled = true; CloseContextSheet(); _routeStack.Clear(); } };
-        var panel = new StackPanel { Spacing = 2, Width = 300, Padding = new Thickness(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0x12, 0x13, 0x1A)), CornerRadius = new CornerRadius(10), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        var panel = new StackPanel { Spacing = 2, Width = 300, Padding = new Thickness(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0x12, 0x13, 0x1A)), CornerRadius = new CornerRadius(10), BorderBrush = Tokens.AmberAt(0x3A), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
         var title = item.Kind switch
         {
             "placeholder-slot" => "Empty slot · " + (SlotLabelOf(item.Scene, item.Item) ?? item.Item),
@@ -715,8 +715,8 @@ public sealed partial class MainWindow
                     var gstate = gsession == "signed-in" ? "signed in" : gsession == "signed-out" ? "signed out" : "sign-in unknown";
                     panel.Children.Add(new TextBlock { Text = gname + "  ·  " + gstate, FontSize = 10, Foreground = LeDim, Margin = new Thickness(10, 2, 10, 2) });
                     if (gsession != "signed-in") Entry("Sign in to " + gname + "…", "prism://facet/" + esc(gf) + "/reveal?mode=window&signin=1", null, "\uE77B");   // B-193: the inline window, on the sign-in page
-                    Entry("Open the full app", "prism://facet/" + esc(gf) + "/reveal?mode=window", "in the middle of the wall - Done tucks it away", "\uE8A7");
-                    panel.Children.Add(new Border { Height = 1, Margin = new Thickness(8, 6, 8, 6), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2A, 0xF0, 0xA8, 0x3C)) });
+                    Entry("Open the full app", "prism://facet/" + esc(gf) + "/reveal?mode=window", "in the middle of the screen. Done tucks it away", "\uE8A7");
+                    panel.Children.Add(new Border { Height = 1, Margin = new Thickness(8, 6, 8, 6), Background = Tokens.AmberAt(0x2A) });
                 }
                 // core contextSheetActions: a stage's sheet is about music, not facets (decision 2026-09-06)
                 Entry(item.App is null ? "Choose the music service…" : "Change the music service…", "prism://item/" + esc(item.Item) + "/music/service", null, "");
@@ -747,7 +747,7 @@ public sealed partial class MainWindow
         // no route and the §6a five entries above are unchanged.
         if (_surfaces.VeilAttribution(item.Item) is { } art)
         {
-            panel.Children.Add(new Border { Height = 1, Margin = new Thickness(8, 6, 8, 6), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2A, 0xF0, 0xA8, 0x3C)) });
+            panel.Children.Add(new Border { Height = 1, Margin = new Thickness(8, 6, 8, 6), Background = Tokens.AmberAt(0x2A) });
             panel.Children.Add(new TextBlock { Text = "On the veil now", FontSize = 10, Foreground = LeDim, Margin = new Thickness(10, 0, 10, 2) });
             panel.Children.Add(new TextBlock { Text = art.Line, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 0, 10, 4), IsTextSelectionEnabled = true });
             panel.Children.Add(new TextBlock { Text = art.SourceUrl, FontSize = 10, Foreground = LeDim, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 0, 10, 6), IsTextSelectionEnabled = true });
@@ -782,7 +782,7 @@ public sealed partial class MainWindow
             }
         }
         catch { }
-        if (!wall.Tiles.Any(t => t.Id == tileId)) { SetPill("Prism · " + tileId + " is not on the wall"); return; }
+        if (!wall.Tiles.Any(t => t.Id == tileId)) { SetPill("Prism · " + tileId + " is not on the screen"); return; }
         _brain.Call(HostCalls.TileCommand, tileId, muted ? "unmute" : "mute");
         SetPill("Prism · " + tileId + (muted ? " unmuted" : " muted"));
     }
@@ -850,7 +850,7 @@ public sealed partial class MainWindow
         _pendingAdd = null;
         await RefreshMusicSourcesAsync();
         var src = _musicSources.FirstOrDefault(s => s.tile == pa.facet || s.app == pa.app);
-        if (src.session == "signed-in") { SetPill("Prism · " + pa.name + " is signed in and on this wall. Open Quick play (⟲) to pick something"); return; }
+        if (src.session == "signed-in") { SetPill("Prism · " + pa.name + " is signed in and on this PC. Open Quick play (⟲) to pick something"); return; }
         await ReadModelAsync();
         if (_model.Scene(pa.scene) is not { } scene) return;
         var s = scene.Clone();
@@ -925,7 +925,7 @@ public sealed partial class MainWindow
         {
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 12, 0),
             Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xCC, 0x12, 0x13, 0x1A)), CornerRadius = new CornerRadius(8), Padding = new Thickness(6), Opacity = 0.85,
-            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), Child = row,
+            BorderBrush = Tokens.AmberAt(0x3A), BorderThickness = new Thickness(1), Child = row,
         };
         Canvas.SetZIndex(_corner, 940);
         RootGrid.Children.Add(_corner);
@@ -961,7 +961,7 @@ public sealed partial class MainWindow
         var host = new Grid { IsHitTestVisible = true, Background = null };
         Canvas.SetZIndex(host, 940);
         // the frame: a hairline around the page, no fill - the page's pixels and taps are its own
-        var frame = new Border { Width = w + 2, Height = h + barH + 2, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(x - 1, y - barH - 1, 0, 0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x66, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), IsHitTestVisible = false };
+        var frame = new Border { Width = w + 2, Height = h + barH + 2, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(x - 1, y - barH - 1, 0, 0), BorderBrush = Tokens.AmberAt(0x66), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), IsHitTestVisible = false };
         host.Children.Add(frame);
         // VS-1: the same strip App setup draws (AppBar), in this window's kind
         var bar = AppBar(AppKindOf(item.App), name, tileId, item, null, onHome: null, onDone: () => { LogLine("app window bar: Done clicked (route stack " + _routeStack.Count + ")"); RouteBack(); });
@@ -1153,7 +1153,7 @@ public sealed partial class MainWindow
             chip.Child = label;
             ToolTipService.SetToolTip(chip, paused
                 ? "This phone's stream stopped unexpectedly. The speakers stay muted for the grace period rather than blaring mid-movie (§14)."
-                : "Listening on " + c.Label + " over " + c.Transport + ". §14 streams the wall's own audio, so every phone hears whatever owns the sound.");
+                : "Listening on " + c.Label + " over " + c.Transport + ". §14 streams Prism's own audio, so every phone hears whatever owns the sound.");
             row.Children.Add(chip);
         }
         Canvas.SetZIndex(row, 925);

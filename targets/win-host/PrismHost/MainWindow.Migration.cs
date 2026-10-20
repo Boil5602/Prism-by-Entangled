@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, RenderMigrationReport(status, report, diff, verdict, before.Count, after.Count), new UTF8Encoding(false));
             LogLine("migration: report written to " + path);
-            if (status == "migrated") SetPill("Prism · scene model ready: your wall is now a scene (report in diagnostics)");
+            if (status == "migrated") SetPill("Prism · scene model ready: your screen is now a scene (report in diagnostics)");
         }
         catch (Exception ex)
         {
@@ -171,7 +171,7 @@ public sealed partial class MainWindow
                 sb.AppendLine($"| {row.GetProperty("dashboard").GetString()} | {row.GetProperty("tile").GetString()} | {row.GetProperty("url").GetString()} | {(row.TryGetProperty("orphan", out var o) && o.ValueKind == JsonValueKind.True ? "yes" : "")} |");
         }
         sb.AppendLine();
-        sb.AppendLine("The wall keeps running its `dashboard` document; the migrated Layout, Scene, Facets and Apps appear in the rail. Nothing pre-model was deleted or rewritten (§10).");
+        sb.AppendLine("Prism keeps running its `dashboard` document; the migrated Layout, Scene, Facets and Apps appear in the rail. Nothing pre-model was deleted or rewritten (§10).");
         return sb.ToString();
     }
 }

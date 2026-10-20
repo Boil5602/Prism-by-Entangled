@@ -425,7 +425,7 @@ export class RemoteApi {
       const text = body?.["text"];
       if (typeof text !== "string" || !text) return json(400, { error: 'body must be {"text": "...", "submit"?: true}' });
       const target = this.orchestrator.keyboardTarget();
-      if (!target) return json(409, { error: "nothing on the wall takes typing right now" });
+      if (!target) return json(409, { error: "nothing on Prism takes typing right now" });
       if (!await this.orchestrator.typeIntoSurface(target, text)) return json(501, { error: "this shell cannot type into pages" });
       if (body?.["submit"] === true) await this.orchestrator.sendKeyToSurface(target, "ENTER");
       return json(200, { ok: true, into: target });
@@ -434,7 +434,7 @@ export class RemoteApi {
       const key = this.parseBody(req.body)?.["key"];
       if (typeof key !== "string" || !key) return json(400, { error: 'body must be {"key": "ENTER"|"BACKSPACE"|"TAB"|"ESCAPE"|"DPAD_UP"|...}' });
       const target = this.orchestrator.keyboardTarget();
-      if (!target) return json(409, { error: "nothing on the wall takes keys right now" });
+      if (!target) return json(409, { error: "nothing on Prism takes keys right now" });
       return (await this.orchestrator.sendKeyToSurface(target, key)) ? json(200, { ok: true, into: target }) : json(501, { error: "this shell cannot forward keys" });
     }
     if (req.method === "POST" && req.path === "/apps/type") {

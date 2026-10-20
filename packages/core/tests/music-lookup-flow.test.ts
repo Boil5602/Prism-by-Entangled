@@ -71,7 +71,7 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(o.currentSong()).toMatchObject({ title: "Shame", artist: "Lauren Mayberry", from: "sp" });
     // a service with no lookup script says so, naming the song it would have looked for
     expect(await o.musicLookup("sp")).toBe("unavailable");
-    expect(o.musicLookupState("sp")).toMatchObject({ status: "unavailable", song: { title: "Shame" }, reason: "this service cannot be searched from the wall yet" });
+    expect(o.musicLookupState("sp")).toMatchObject({ status: "unavailable", song: { title: "Shame" }, reason: "this service cannot be searched from Prism yet" });
     // ... and with its own note, that note is the reason (Amazon Music: "Unavailable" with a ? that explains why, 2026-09-16)
     o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" }, musicLookup: "/*lookup*/" } as never, spotify: { id: "spotify", controls: { play: ".play" }, musicLookupNote: "No way in from outside." } as never });
     await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: true, title: "Shame", artist: "Lauren Mayberry", album: "Vicious Creature" } });

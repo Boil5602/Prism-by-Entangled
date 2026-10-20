@@ -247,8 +247,8 @@ public sealed class BarsRenderer : IVisualizationRenderer
     private readonly List<Microsoft.UI.Xaml.Shapes.Rectangle> _bars = new();
     private Canvas? _canvas;
     private TextBlock? _label;
-    private static readonly SolidColorBrush Amber = new(Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C));
-    private static readonly SolidColorBrush Dim = new(Windows.UI.Color.FromArgb(255, 0x9A, 0x9C, 0xA8));
+    private static readonly SolidColorBrush Amber = Tokens.Amber;
+    private static readonly SolidColorBrush Dim = Tokens.Dim;
 
     public void Attach(Panel host)
     {

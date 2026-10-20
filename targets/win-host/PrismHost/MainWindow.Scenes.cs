@@ -27,7 +27,7 @@ public sealed partial class MainWindow
             var aspect = s.Aspect;
             var b = new Button { Content = aspect + (s.Floating ? "  ⤴" : ""), Padding = new Thickness(6, 2, 6, 2), FontSize = 11 };
             ToolTipService.SetToolTip(b, (s.Floating ? "Floating slots of " : "Slots of ") + aspect + " in " + s.Layouts + " saved layout" + (s.Layouts == 1 ? "" : "s")
-                + (s.W > 0 ? $" - largest {s.W:0}×{s.H:0} px on this wall. The box takes this shape; the view is saved for it." : ". The box takes this shape; the view is saved for it."));
+                + (s.W > 0 ? $" - largest {s.W:0}×{s.H:0} px on this screen. The box takes this shape; the view is saved for it." : ". The box takes this shape; the view is saved for it."));
             b.Click += (_, __) => SetViewfinderShape(aspect);
             row.Children.Add(b);
         }

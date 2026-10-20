@@ -483,7 +483,7 @@ public sealed partial class MainWindow
             + bullet + "Search everywhere: one search across your services, and which of them carries each title\n"
             + bullet + "The Episodes list for services that cannot list their own\n"
             + "With your TMDB account linked as well:\n"
-            + bullet + "Rating titles from the wall, under your name\n"
+            + bullet + "Rating titles from Prism, under your name\n"
             + bullet + "Your TMDB watchlist as My List\n"
             + bullet + "Playlists that follow your account to any device\n"
             + "Without a key, everything else in Prism works the same.";
@@ -493,7 +493,7 @@ public sealed partial class MainWindow
             + "What Prism sends TMDB, and only with your key:\n"
             + bullet + "The titles on your rows and the words you search, to find ratings and matches. Your key ties these to your TMDB account. It is the one kind of request Prism makes that carries an identifier.\n"
             + bullet + "With your account linked: the ratings you give, your watchlist and your playlists. They live on your TMDB account. A list can be public or private, and TMDB may show public content to others.\n"
-            + "Nothing else from your services, the wall or this PC goes to TMDB, and nothing passes through Entangled. Clear the key to stop all of it.\n"
+            + "Nothing else from your services, Prism or this PC goes to TMDB, and nothing passes through Entangled. Clear the key to stop all of it.\n"
             + "This product uses the TMDB API but is not endorsed or certified by TMDB.";
         var infoRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var benefitsText = new TextBlock { Text = benefits, FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Left };

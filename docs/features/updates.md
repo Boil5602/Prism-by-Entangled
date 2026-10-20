@@ -165,15 +165,32 @@ which read as "Last check never" right after a check (2026-10-05).
   newest first, each with its GitHub release address. The site renders the Download page, the download count, the changelog and the
   release history from that one file, and links each entry to GitHub.
 
-## Code signing (2026-10-05, SmartScreen's "Unknown publisher" on the first run)
+## Code signing (2026-10-05, SmartScreen's "Unknown publisher" on the first run; Azure Trusted Signing chosen 2026-10-17)
 
 An unsigned download with no reputation gets Windows' "Windows protected your PC" screen; More info, Run anyway gets past it, and the
-README and the website say so with the SHA-256 beside the button. The fix is a code-signing certificate for Entangled Labs LLC: the
-publish script signs PrismHost.exe and Prism's DLLs with signtool (SHA-256, timestamped at DigiCert's authority) when
-`PRISM_SIGN_THUMBPRINT` names a certificate in the user's store. Timestamped signatures stay valid after the certificate expires or the
-subscription lapses; cancelling is not revocation. Choices: Azure Trusted Signing (about $10 a month; a company with three years of record;
-its own signtool dlib, to be added when the account exists), an EV certificate (immediate reputation), an OV certificate (reputation
-builds over weeks). Until then every new file name earns its reputation from zero.
+README and the website say so with the SHA-256 beside the button. The fix is an Authenticode signature on PrismHost.exe and Prism's own
+DLLs, made by the publish script with signtool before the zip is built (SHA-256, timestamped, so the signature outlives the subscription;
+cancelling is not revocation). The publisher shown is Entangled Labs LLC. The manifest's ECDSA signature is a separate thing and stays.
+
+**Azure Trusted Signing** (the route chosen: about $10 a month, no certificate files or token to guard, Microsoft's own trust). The script
+signs through it when `~/.prism/trusted-signing.json` exists (or `PRISM_SIGN_METADATA` names the file):
+
+```json
+{ "Endpoint": "https://eus.codesigning.azure.net", "CodeSigningAccountName": "<account>", "CertificateProfileName": "<profile>" }
+```
+
+signtool loads Microsoft's dlib (`Microsoft.Trusted.Signing.Client` NuGet package unpacked to `~/.prism/trusted-signing`, so the dlib is
+at `bin/x64/Azure.CodeSigning.Dlib.dll`; `PRISM_SIGN_DLIB` for another place), which signs under this PC's Azure sign-in (`az login`;
+the signed-in identity needs the Trusted Signing Certificate Profile Signer role on the account). Timestamps come from
+`timestamp.acs.microsoft.com`. Set up once on the Azure side, by a person: a subscription, a Trusted Signing account (Basic), identity
+validation for Entangled Labs LLC (an organisation needs three years of verifiable record, else validate as an individual), a Public Trust
+certificate profile, the role. The Windows SDK's signtool 10.0.22621 or later is needed; the script finds the newest installed.
+
+**A certificate in the user's store** (an EV or OV certificate) when `PRISM_SIGN_THUMBPRINT` names it; timestamps from DigiCert.
+
+Either way the script verifies every signature with `signtool verify /pa` and refuses to publish when signing was set up but failed, so
+an unsigned build never goes out by mistake (`--unsigned` skips signing on purpose). With no setup at all the build goes out unsigned
+and says so. Reputation with SmartScreen is earned per publisher as downloads accumulate.
 
 ## Not yet
 

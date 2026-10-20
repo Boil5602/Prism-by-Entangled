@@ -3741,7 +3741,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         const g = orchestrator.scores(false).games.find((x) => x.league === String(league ?? "") && x.id === String(id ?? ""));
         if (!g) return json({ ok: false, error: "no such game" });
         const w = scoreWatch(g);
-        if (!w) return json({ ok: false, error: "no service on this wall carries " + g.short });
+        if (!w) return json({ ok: false, error: "no service on this PC carries " + g.short });
         if (w.how === "event") return json({ ...videoPlayOn(w.facet, "live", w.id, w.url, w.title), service: w.service });
         return json({ ...videoTune(w.facet, w.id, w.url, w.title), service: w.service });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }

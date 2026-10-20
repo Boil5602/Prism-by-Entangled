@@ -49,7 +49,7 @@ public sealed partial class MainWindow
             // a service whose site cannot remove it (Fandango - only its phone app can): the card can be hidden on the wall (2026-09-23, "I dont have the
             // option to remove coraline from continue watching")
             var hide = new MenuFlyoutItem { Text = "Hide from Continue Watching", Icon = new FontIcon { Glyph = "\uED1A" } };
-            ToolTipService.SetToolTip(hide, service + "'s website cannot remove a title from its Continue Watching (its phone app can). This hides " + title + " on the wall only; " + service + " still lists it, and it comes back here if you watch more of it.");
+            ToolTipService.SetToolTip(hide, service + "'s website cannot remove a title from its Continue Watching (its phone app can). This hides " + title + " on Prism only. " + service + " still lists it, and it comes back here if you watch more of it.");
             hide.Click += async (_, __) =>
             {
                 HideCardForRemoval(card);
@@ -61,7 +61,7 @@ public sealed partial class MainWindow
         }
         var warning = info["warning"]?.GetValue<string>();
         var it = new MenuFlyoutItem { Text = "Remove from " + service + "'s Continue Watching\u2026", Icon = new FontIcon { Glyph = "\uE738" } };
-        ToolTipService.SetToolTip(it, "Asks first. Removes " + title + " on " + service + " itself, not only on the wall.");
+        ToolTipService.SetToolTip(it, "Asks first. Removes " + title + " on " + service + " itself, not only on Prism.");
         it.Click += (_, __) => ShowRemoveConfirm(app, service, id, title, warning, card);
         fly.Items.Add(it);
     }
@@ -130,7 +130,7 @@ public sealed partial class MainWindow
 
     private void ShowRemoveConfirm(string app, string service, string id, string title, string? warning, Button card) =>
         ShowAskPanel("Remove from " + service + "'s Continue Watching?",
-            "\u201C" + title + "\u201D leaves Continue Watching on " + service + " itself: everywhere you use this " + service + " profile, not only on the wall.", warning, "Remove",
+            "\u201C" + title + "\u201D leaves Continue Watching on " + service + " itself: everywhere you use this " + service + " profile, not only on Prism.", warning, "Remove",
             () =>
             {
                 // the music player's way (2026-09-22, "immediately temp hide it ... throw it up to a disappearing status field ... unhide if the

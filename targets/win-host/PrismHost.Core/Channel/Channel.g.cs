@@ -337,6 +337,7 @@ public static class SurfaceEvents
     public const string AppForeground = "app-foreground";
     public const string IntermissionSkip = "intermission-skip";
     public const string GpuReset = "gpu-reset";
+    public const string RendererFailed = "renderer-failed";
     public const string MediaPosition = "media-position";
     public const string NowPlaying = "now-playing";
     public const string Session = "session";

@@ -76,6 +76,8 @@ public sealed partial class SurfaceManager
         /// <summary>Readers dark (2026-10-03): when a script, a navigation or a pointer last reached this hidden reader, and whether its page is frozen between reads.</summary>
         public DateTime LastTouched = DateTime.UtcNow;
         public bool Dozing;
+        /// <summary>The engine behind the page died (ProcessFailed: the browser or render process gone or hung, 2026-10-19) and when: a dead still until core has the page made again.</summary>
+        public DateTime? DeadAt;
         /// <summary>B-159: the inline app window (presence "window") stays where core put it - the title bar does not drag; the grip may still resize.</summary>
         public bool Pinned;
         /// <summary>§32 visualization surface: the renderer host and its feed.</summary>
@@ -367,10 +369,10 @@ public sealed partial class SurfaceManager
             Text = "Empty slot" + (label.Length > 0 ? "  ·  " + label : ""),
             FontSize = 15,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xEC, 0xEC, 0xF0)),
+            Foreground = Tokens.Ink,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
-        col.Children.Add(new TextBlock { Text = "Click to choose an app", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x9A, 0x9C, 0xA8)), HorizontalAlignment = HorizontalAlignment.Center });
+        col.Children.Add(new TextBlock { Text = "Click to choose an app", FontSize = 12, Foreground = Tokens.Dim, HorizontalAlignment = HorizontalAlignment.Center });
         g.Children.Add(col);
         g.PointerPressed += (s, e) =>
         {
@@ -593,7 +595,18 @@ public sealed partial class SurfaceManager
         // logs the destination host (the ledger + deliberate-open arrive with
         // the Control Center's popup panel); nothing is ever opened silently.
         core.ProcessFailed += (_, e) =>
-            _onStatus($"RENDERER FAILED ({tile.Id}): {e.ProcessFailedKind}");
+        {
+            // 2026-10-19 ("it just spins and eventually nothing happens"): the browser process holding every music page crashed and the host
+            // only logged it; the pages sat as dead stills and every Play press went into a page that no longer existed. Now the kind, the
+            // engine's reason and exit code go to the log, and core hears it (renderer-failed) and has the page made again. A helper
+            // process (GPU, utility, a frame) the engine restarts by itself: logged, nothing more.
+            var fatal = e.ProcessFailedKind is CoreWebView2ProcessFailedKind.BrowserProcessExited or CoreWebView2ProcessFailedKind.RenderProcessExited or CoreWebView2ProcessFailedKind.RenderProcessUnresponsive;
+            string reason; try { reason = e.Reason.ToString(); } catch { reason = ""; }
+            int exitCode; try { exitCode = e.ExitCode; } catch { exitCode = 0; }
+            _onStatus($"RENDERER FAILED ({tile.Id}): {e.ProcessFailedKind} reason={reason} exit={exitCode}" + (fatal ? " - core asked to make the page again" : " - the engine restarts it"));
+            if (fatal) tile.DeadAt = DateTime.UtcNow;
+            try { _forwardEvent(tile.Id, JsonSerializer.Serialize(new { type = SurfaceEvents.RendererFailed, id = tile.Id, kind = e.ProcessFailedKind.ToString(), reason, exitCode, fatal })); } catch { }
+        };
         core.NewWindowRequested += (sender, e) =>
         {
             // Spec 30: a popup is CODE. Core decides (functional sign-in / payment
@@ -948,7 +961,7 @@ public sealed partial class SurfaceManager
     }
     private readonly HashSet<string> _notAdWanted = new();
     private readonly Dictionary<string, Button> _notAdPills = new();
-    private static readonly SolidColorBrush ClearHit = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    private static readonly SolidColorBrush ClearHit = Tokens.Clear;
     private void SyncBreakCard(Tile t)
     {
         if (t.Intermission is null) return;
@@ -979,6 +992,9 @@ public sealed partial class SurfaceManager
 
     public void SetOpacity(string id, double opacity) { if (Get(id) is { } t) t.Container.Opacity = opacity; }
     public void SetZ(string id, double z) { if (_pip.TryGetValue(id, out var pip)) { _pip[id] = (pip.rect, (int)z, pip.viewport); return; } if (Get(id) is { } t) Canvas.SetZIndex(t.Container, (int)z); }
+
+    /// <summary>How long the page's engine has been dead (ProcessFailed), null while it lives; a page made again is a new tile with no such mark.</summary>
+    public TimeSpan? DeadFor(string id) => _tiles.TryGetValue(id, out var t) && t.DeadAt is { } at ? DateTime.UtcNow - at : null;
 
     public void Destroy(string id)
     {
@@ -1107,7 +1123,7 @@ public sealed partial class SurfaceManager
             // corner chips: one centered panel - glyph + title, the promise
             // line, the break clock, then the actions - on a translucent
             // dark rounded ground so it reads over any art (WCAG AA).
-            var amber = Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C);
+            var amber = Tokens.AmberColor;
             var ink = Windows.UI.Color.FromArgb(255, 0x0A, 0x0C, 0x0F);
             var bright = Windows.UI.Color.FromArgb(255, 0xD7, 0xDC, 0xE3);
             var dim = Windows.UI.Color.FromArgb(255, 0x9A, 0xA4, 0xB2);
@@ -2062,8 +2078,8 @@ public sealed partial class SurfaceManager
     private void BuildFloatChrome(Tile t)
     {
         var amber = Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C);
-        var ink = Windows.UI.Color.FromArgb(255, 0xEC, 0xEC, 0xF0);
-        var dim = Windows.UI.Color.FromArgb(255, 0x9A, 0x9C, 0xA8);
+        var ink = Tokens.InkColor;
+        var dim = Tokens.DimColor;
         var barBg = Windows.UI.Color.FromArgb(0xE6, 0x14, 0x15, 0x1C);
         var faceBg = Windows.UI.Color.FromArgb(255, 0x12, 0x13, 0x1A);
         var clear = Windows.UI.Color.FromArgb(0, 0, 0, 0);

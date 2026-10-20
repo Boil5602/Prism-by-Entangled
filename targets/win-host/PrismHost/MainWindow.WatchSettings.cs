@@ -65,7 +65,7 @@ public sealed partial class MainWindow
         var sections = new[]
         {
             ("simple", "Simple Watch", "A calmer Watch page that makes choosing easy."),
-            ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, My Watchlist."),
+            ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, my watchlist."),
             ("ads", "Ads & breaks", "How a window looks while an ad plays, and the covering of YouTube TV's breaks."),
             ("updates", "Updates", "This Prism's own updates and changelog, and when your services' lists are read again."),
             ("services", "Services", "Each service, when its lists were last read, and a Refresh for it."),
@@ -83,7 +83,7 @@ public sealed partial class MainWindow
         heads.Children.Add(new TextBlock { Text = curLine, FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         head.Children.Add(heads);
         var close = Chip(new FontIcon { Glyph = "\uE711", FontSize = 14 }, false);
-        ToolTipService.SetToolTip(close, "Close without changing anything (Esc)");
+        ToolTipService.SetToolTip(close, "Close without saving what you typed (Esc). Switches and choices save as you make them.");
         close.Click += (_, __) => CloseWatchSettings();
         close.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(close, 1);
@@ -91,10 +91,15 @@ public sealed partial class MainWindow
         Grid.SetColumnSpan(head, 2);
         frame.Children.Add(head);
 
-        // the list of sections on the left
-        var nav = new StackPanel { Spacing = 4, Padding = new Thickness(14, 6, 12, 14) };
-        foreach (var (id, label, line) in sections)
+        // the list of sections on the left, in four groups (2026-10-17, the designer's pass, finding 11: the list had been in build order, software
+        // updates between ad covers and services): what the Watch page shows, the services it reads, what happens while a title plays, and Prism itself
+        var nav = new StackPanel { Spacing = 4, Padding = new Thickness(14, 2, 12, 14) };
+        var groups = new[] { ("Watch page", new[] { "simple", "binge", "categories" }), ("Services", new[] { "services", "general" }), ("Playing", new[] { "ads" }), ("Prism", new[] { "updates", "perf" }) };
+        foreach (var (group, ids) in groups)
         {
+            nav.Children.Add(new TextBlock { Text = group, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, Opacity = 0.8, Margin = new Thickness(16, 10, 0, 2) });
+            foreach (var (id, label, line) in sections.Where(x => ids.Contains(x.Item1)))
+            {
             var on = _settingsTab == id;
             var t = Chip(new TextBlock { Text = label, FontSize = 16, Foreground = on ? HubAmber : HubInk, FontWeight = on ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal }, on);
             t.HorizontalAlignment = HorizontalAlignment.Stretch; t.HorizontalContentAlignment = HorizontalAlignment.Left; t.Padding = new Thickness(16, 11, 16, 11);
@@ -102,6 +107,7 @@ public sealed partial class MainWindow
             var id2 = id;
             t.Click += (_, __) => { if (_settingsTab != id2) { _settingsTab = id2; _ = ShowWatchSettingsAsync(); } };
             nav.Children.Add(t);
+            }
         }
         var navHost = new Border { Child = nav, BorderThickness = new Thickness(0, 0, 1, 0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)) };
         Grid.SetRow(navHost, 1);
@@ -136,24 +142,25 @@ public sealed partial class MainWindow
         var footHost = new Border { Child = foot, Padding = new Thickness(26, 12, 22, 16), BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)) };
         Grid.SetRow(footHost, 2); Grid.SetColumnSpan(footHost, 2);
         frame.Children.Add(footHost);
-        var cancel = Chip(new TextBlock { Text = "Cancel", FontSize = 15, Foreground = HubInk }, false);
-        cancel.Click += (_, __) => CloseWatchSettings();
-        var save = Chip(new TextBlock { Text = "Save & exit", FontSize = 15, Foreground = HubAmber }, true);
+        // one verb (2026-10-17, finding 13: Save & exit beside controls that saved at once left no way to tell which): Done saves what is typed and
+        // closes; the X and Esc close without it; switches and choices save as they are made
+        var save = Chip(new TextBlock { Text = "Done", FontSize = 16, Foreground = HubAmber }, true);
+        ToolTipService.SetToolTip(save, "Saves what you typed here and closes. Switches and choices are saved already.");
         save.Click += async (_, __) =>
         {
             var said = await saveTab();
             CloseWatchSettings();
             if (said.Count > 0) SetPill("Prism" + Dot + string.Join(Dot, said));
         };
-        foot.Children.Add(cancel); foot.Children.Add(save);
+        foot.Children.Add(save);
 
         RootGrid.Children.Add(scrim);
         _settingsWin = scrim;
         scrim.Loaded += (_, __) => scrim.Focus(FocusState.Programmatic);
     }
 
-    private static readonly SolidColorBrush SettingsCardBg = new(Windows.UI.Color.FromArgb(255, 0x2A, 0x30, 0x3A));
-    private static readonly SolidColorBrush SettingsCardEdge = new(Windows.UI.Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
+    private static readonly SolidColorBrush SettingsCardBg = Tokens.CardRaised;
+    private static readonly SolidColorBrush SettingsCardEdge = Tokens.Edge;
     /// <summary>A section's children as cards (2026-10-15): each heading (a 17 px line the builders write) starts a card of its own, in a larger,
     /// heavier type, and what follows it sits on the card; anything before the first heading gets a card without one.</summary>
     private static void GroupIntoCards(StackPanel body)
@@ -186,7 +193,7 @@ public sealed partial class MainWindow
         switch (root)
         {
             case TextBlock tb:
-                if (tb.FontSize < 14) tb.FontSize = 14;
+                if (tb.FontSize < 15) tb.FontSize = 15;   // 15 and up (2026-10-17, finding 12: 14 was desk-sized in a room-sized window)
                 if (ReferenceEquals(tb.Foreground, HubDim)) tb.Foreground = HubInk;
                 break;
             case Panel p: foreach (var c in p.Children) ReadableText(c); break;
@@ -271,7 +278,6 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(all, "Every service's lists, profiles page and Continue Watching read again now (not the owned libraries' long walks).");
         all.Click += async (_, __) => { await ModelCallAsync("videoRefreshLists", true); SetPill("Prism" + Dot + "reading every service's lists"); };
         body.Children.Add(all);
-        body.Children.Add(HideOfflineBox(14));   // the Followed channels rows' setting, here too: with every channel offline the row and its box are hidden
         _ = FollowUpdatesAsync(run, new Grid(), new Grid(), schedLine);   // the schedule line alone here; the services grid and the catalog rows are the Services tab's (2026-10-14)
 
         return async () =>
@@ -432,6 +438,7 @@ public sealed partial class MainWindow
         var grid = new Grid { ColumnSpacing = 16, RowSpacing = 8 };
         foreach (var w in new[] { 190.0, 190, 170, 170, 100 }) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
         body.Children.Add(grid);
+        body.Children.Add(HideOfflineBox(14));   // the Followed channels rows' setting, with the services (2026-10-17; it had sat under Updates): with every channel offline the row and its box are hidden
         body.Children.Add(new TextBlock { Text = "Catalog rows and ratings", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 12, 0, 0) });
         var feeds = new Grid { ColumnSpacing = 16, RowSpacing = 8 };
         foreach (var w in new[] { 260.0, 170, 190, 200 }) feeds.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
@@ -441,7 +448,7 @@ public sealed partial class MainWindow
     }
 
     private static readonly string ScheduleScope =
-        "Scheduled content updates: every 20 minutes while the wall is quiet, each service's Continue Watching, My List and profiles page are read again on hidden pages, "
+        "Scheduled content updates: every 20 minutes while Prism is quiet, each service's Continue Watching, My List and profiles page are read again on hidden pages, "
         + "and every 6 hours the owned libraries (Fandango at Home, Movies Anywhere) are walked. A pause holds only these.\n\n"
         + "These still run during a pause, because you or Watch start them: Refresh now; opening Watch (a service not read in 10 minutes); half a minute after a title stops; "
         + "a profile switch; a My List add or remove; opening Library (owned libraries more than 3 hours old). The catalog rows (Most read, New episodes, New movies) "
@@ -470,6 +477,8 @@ public sealed partial class MainWindow
             return mins <= 0 ? "just now" : mins == 1 ? "1 min ago" : mins < 90 ? mins + " min ago" : (mins / 60) + " h ago";
         }
         TextBlock Cell(string text, SolidColorBrush ink, double size = 14) => new() { Text = text, FontSize = size, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        // a column head is a label, not the one thing to notice (2026-10-17, the designer's pass, finding 14): ink, a little heavier than the cells
+        TextBlock Head(string text) => new() { Text = text, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
         void Put(Grid g, FrameworkElement el, int row, int col) { Grid.SetRow(el, row); Grid.SetColumn(el, col); g.Children.Add(el); }
 
         // the schedule line
@@ -477,13 +486,14 @@ public sealed partial class MainWindow
         var paused = sch?["paused"]?.GetValue<bool>() == true;
         var listsAt = sch?["listsAt"];
         var every = sch?["everyMs"] is JsonValue ev && ev.TryGetValue<double>(out var em) ? (int)(em / 60000) : 20;
-        schedLine.Text = (paused ? "Paused now (quiet hours). " : "") + "Last scheduled read: " + Ago(listsAt) + ", then every " + every + " min while the wall is quiet" + Dot + "owned libraries: " + Ago(sch?["ownedAt"]) + ", every 6 h" + ((sch?["last"]?.GetValue<string>() ?? "") is { Length: > 0 } last ? Dot + "last check: " + last : "");
+        // three short lines, not one packed with middots (2026-10-17, finding 16)
+        schedLine.Text = (paused ? "Paused now (quiet hours)." + (char)10 : "") + "Last scheduled read: " + Ago(listsAt) + ", then every " + every + " min while Prism is quiet." + (char)10 + "Owned libraries: " + Ago(sch?["ownedAt"]) + ", every 6 h." + ((sch?["last"]?.GetValue<string>() ?? "") is { Length: > 0 } last ? (char)10 + "Last check: " + last + "." : "");
 
         // services
         grid.Children.Clear(); grid.RowDefinitions.Clear();
         var heads = new[] { "Service", "Continue & My List", "Owned library", "Profiles", "" };
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var c = 0; c < heads.Length; c++) Put(grid, Cell(heads[c], HubAmber, 14), 0, c);
+        for (var c = 0; c < heads.Length; c++) Put(grid, Head(heads[c]), 0, c);
         var r = 1;
         foreach (var s in (st["services"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {
@@ -514,7 +524,7 @@ public sealed partial class MainWindow
         feeds.Children.Clear(); feeds.RowDefinitions.Clear();
         var fheads = new[] { "Row", "Source", "Last read", "Titles" };
         feeds.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var c = 0; c < fheads.Length; c++) Put(feeds, Cell(fheads[c], HubAmber, 14), 0, c);
+        for (var c = 0; c < fheads.Length; c++) Put(feeds, Head(fheads[c]), 0, c);
         r = 1;
         foreach (var f in (st["feeds"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
         {

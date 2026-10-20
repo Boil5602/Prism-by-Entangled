@@ -13,7 +13,7 @@ namespace PrismHost;
 /// config"). A card held (or pulled downward off its row) lifts; a bar of the four places drops in at the top of the Watch page; let go
 /// on a place and the title plays there (multiview comes on if it was off). A filled place in the strip lifts the same way: onto another
 /// place it trades places, anywhere else it leaves multiview. The big window out, the next one backfills it; the last one out leaves
-/// the stage empty - the empty stage is drawn ("show a picture of a movie stage, purple curtains").
+/// the stage empty - the empty stage is drawn (flat since 2026-10-17; it had been "a picture of a movie stage, purple curtains").
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -168,7 +168,7 @@ public sealed partial class MainWindow
         _dropBar = new Border
         {
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 18, 0, 0), Padding = new Thickness(18, 14, 18, 14),
-            CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF4, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x5A, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF4, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x5A), BorderThickness = new Thickness(1),
             Child = new StackPanel { Spacing = 10, Children = { row, hint } },
         };
         Canvas.SetZIndex(_dropBar, 40);
@@ -294,8 +294,8 @@ public sealed partial class MainWindow
 
     // ---------------------------------------------------------------- the empty stage
     private Grid? _emptyStage;
-    /// <summary>Multiview on and no window left: nothing is playing, and the wall says so with a stage - purple curtains drawn in, a
-    /// spot on the boards. Drawn, not a picture: no asset, no network. Gone the moment a window is filled.</summary>
+    /// <summary>Multiview on and no window left: nothing is playing, and Prism says so on a flat ground with its mark (the curtains
+    /// were taken down 2026-10-17). Gone the moment a window is filled.</summary>
     private void SyncEmptyStage()
     {
         // the single big screen too, once nothing is on it (2026-09-25, "I clicked back to video even though I show blank, it took me to the paramount
@@ -308,269 +308,25 @@ public sealed partial class MainWindow
         _emptyStage ??= BuildEmptyStage();
         _emptyStage.Visibility = Visibility.Visible;
     }
-    /// <summary>
-    /// A drape's tie-back as a gold rope (2026-09-25, "The gold ties are pretty low quality, anything you can improve to make them look like ropes"):
-    /// a twisted cord (diagonal strands repeating in light, mid and dark gold), lit from above and shaded below, with a thin dark edge; the drape
-    /// shaded where it is cinched; a knot where the rope wraps it on the screen side, and a tassel of threads hanging from the knot.
-    /// </summary>
-    private static FrameworkElement TieBack(bool leftDrape)
-    {
-        static Windows.UI.Color C(byte r, byte g, byte b, byte a = 0xFF) => Windows.UI.Color.FromArgb(a, r, g, b);
-        var g = new Grid { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 120, 0, 0), Height = 180, HorizontalAlignment = leftDrape ? HorizontalAlignment.Left : HorizontalAlignment.Right };
-        // the drape pulled in: darker above and below the cord
-        g.Children.Add(new Border
-        {
-            Height = 90, VerticalAlignment = VerticalAlignment.Center,
-            Background = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1), GradientStops = {
-                new GradientStop { Color = C(0, 0, 0, 0x00), Offset = 0 }, new GradientStop { Color = C(0, 0, 0, 0x70), Offset = 0.42 },
-                new GradientStop { Color = C(0, 0, 0, 0x70), Offset = 0.58 }, new GradientStop { Color = C(0, 0, 0, 0x00), Offset = 1 } } },
-        });
-        // the cord: twisted strands, then light from above and shade below
-        var twist = new LinearGradientBrush
-        {
-            MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat,
-            StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(12, 12),
-            GradientStops = {
-                new GradientStop { Color = C(0xF3, 0xD7, 0x86), Offset = 0 }, new GradientStop { Color = C(0xD4, 0xA6, 0x48), Offset = 0.35 },
-                new GradientStop { Color = C(0x8C, 0x62, 0x1C), Offset = 0.62 }, new GradientStop { Color = C(0x5E, 0x3F, 0x0E), Offset = 0.78 },
-                new GradientStop { Color = C(0xF3, 0xD7, 0x86), Offset = 1 } },
-        };
-        var cord = new Grid { Height = 26, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(-4, 0, -4, 0) };
-        cord.Children.Add(new Border { Background = twist, CornerRadius = new CornerRadius(13), BorderBrush = new SolidColorBrush(C(0x3A, 0x26, 0x08)), BorderThickness = new Thickness(1) });
-        cord.Children.Add(new Border
-        {
-            CornerRadius = new CornerRadius(13),
-            Background = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1), GradientStops = {
-                new GradientStop { Color = C(0xFF, 0xF4, 0xD0, 0x70), Offset = 0 }, new GradientStop { Color = C(0xFF, 0xF4, 0xD0, 0x00), Offset = 0.4 },
-                new GradientStop { Color = C(0, 0, 0, 0x00), Offset = 0.6 }, new GradientStop { Color = C(0, 0, 0, 0x80), Offset = 1 } } },
-        });
-        g.Children.Add(cord);
-        // the knot on the screen side, and the tassel hanging from it
-        var hang = new StackPanel { HorizontalAlignment = leftDrape ? HorizontalAlignment.Right : HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = leftDrape ? new Thickness(0, 72, -14, 0) : new Thickness(-14, 72, 0, 0) };
-        hang.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
-        {
-            Width = 36, Height = 36, HorizontalAlignment = HorizontalAlignment.Center, Stroke = new SolidColorBrush(C(0x3A, 0x26, 0x08)), StrokeThickness = 1,
-            Fill = new RadialGradientBrush { Center = new Windows.Foundation.Point(0.35, 0.3), GradientOrigin = new Windows.Foundation.Point(0.35, 0.3), RadiusX = 0.7, RadiusY = 0.7, GradientStops = {
-                new GradientStop { Color = C(0xFB, 0xE6, 0xA4), Offset = 0 }, new GradientStop { Color = C(0xC8, 0x96, 0x3A), Offset = 0.55 }, new GradientStop { Color = C(0x6E, 0x4A, 0x12), Offset = 1 } } },
-        });
-        // the tassel's cap, then its threads: fine vertical strands, lit at the top, fading at the tips
-        hang.Children.Add(new Border { Width = 24, Height = 10, HorizontalAlignment = HorizontalAlignment.Center, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, -3, 0, 0), Background = new SolidColorBrush(C(0xB0, 0x80, 0x2A)), BorderBrush = new SolidColorBrush(C(0x3A, 0x26, 0x08)), BorderThickness = new Thickness(1) });
-        var threads = new Grid { Width = 40, Height = 88, HorizontalAlignment = HorizontalAlignment.Center };
-        threads.Children.Add(new Border
-        {
-            CornerRadius = new CornerRadius(4, 4, 20, 20),
-            Background = new LinearGradientBrush { MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat, StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(3, 0), GradientStops = {
-                new GradientStop { Color = C(0xE9, 0xC4, 0x6C), Offset = 0 }, new GradientStop { Color = C(0xA8, 0x78, 0x26), Offset = 0.5 }, new GradientStop { Color = C(0xE9, 0xC4, 0x6C), Offset = 1 } } },
-        });
-        threads.Children.Add(new Border
-        {
-            CornerRadius = new CornerRadius(4, 4, 20, 20),
-            Background = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1), GradientStops = {
-                new GradientStop { Color = C(0, 0, 0, 0x50), Offset = 0 }, new GradientStop { Color = C(0, 0, 0, 0x00), Offset = 0.3 },
-                new GradientStop { Color = C(0x0B, 0x08, 0x10, 0x00), Offset = 0.7 }, new GradientStop { Color = C(0x0B, 0x08, 0x10, 0xB0), Offset = 1 } } },
-        });
-        hang.Children.Add(threads);
-        g.Children.Add(hang);
-        return g;
-    }
-
+    /// <summary>The empty stage, flat (2026-10-17, "I don't like the theatre curtains. I'd rather remove them from the app completely"): the page
+    /// ground, Prism's mark, and the two lines. The purple drapes, the gold ropes, the valance and the spot that stood here since 2026-09-25 are gone.</summary>
     private Grid BuildEmptyStage()
     {
-        var g = StageArt("Nothing is playing", "Drag a title from Watch onto the big window", 34, 17);
-        Canvas.SetZIndex(g, 924);   // under the curtain (925) and the Watch page (930): a pick's own face and the page stand over it
-        RootGrid.Children.Add(g);
-        return g;
-    }
-
-    /// <summary>
-    /// The valance across the top (2026-09-25, "Can we get any texture up top?"): pleated like the drapes and lit from above, its lower edge
-    /// hanging in swags trimmed with gold rope, a tassel where two swags meet, and a twisted gold cord along the top.
-    /// </summary>
-    private static FrameworkElement Valance()
-    {
-        static Windows.UI.Color C(byte r, byte g, byte b, byte a = 0xFF) => Windows.UI.Color.FromArgb(a, r, g, b);
-        const double body = 96, depth = 38;
-        var v = new Grid { VerticalAlignment = VerticalAlignment.Top, Height = body + depth + 40, IsHitTestVisible = false };
-        // the pleats: repeating lit and deep purple across, then light from above and shade toward the hem
-        var pleats = new LinearGradientBrush
+        var g = new Grid { Background = Tokens.Page, IsHitTestVisible = false };
+        var mark = new Image { Width = 112, Height = 112, Opacity = 0.55, HorizontalAlignment = HorizontalAlignment.Center };
+        try { var mp = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png"); if (System.IO.File.Exists(mp)) mark.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(mp)); } catch { }
+        g.Children.Add(new StackPanel
         {
-            MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat,
-            StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(44, 0),
-            GradientStops = {
-                new GradientStop { Color = C(0x5E, 0x24, 0x80), Offset = 0 }, new GradientStop { Color = C(0x7A, 0x36, 0x9E), Offset = 0.3 },
-                new GradientStop { Color = C(0x3A, 0x12, 0x55), Offset = 0.7 }, new GradientStop { Color = C(0x5E, 0x24, 0x80), Offset = 1 } },
-        };
-        var shade = new LinearGradientBrush
-        {
-            StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1),
-            GradientStops = {
-                new GradientStop { Color = C(0xFF, 0xE8, 0xFF, 0x30), Offset = 0 }, new GradientStop { Color = C(0, 0, 0, 0x00), Offset = 0.35 },
-                new GradientStop { Color = C(0x10, 0x04, 0x18, 0x90), Offset = 1 } },
-        };
-        var cloth = new Microsoft.UI.Xaml.Shapes.Path { Fill = pleats, Stretch = Stretch.None };
-        var dim = new Microsoft.UI.Xaml.Shapes.Path { Fill = shade, Stretch = Stretch.None };
-        var gold = new LinearGradientBrush
-        {
-            MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat,
-            StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(9, 9),
-            GradientStops = {
-                new GradientStop { Color = C(0xF3, 0xD7, 0x86), Offset = 0 }, new GradientStop { Color = C(0xC8, 0x96, 0x3A), Offset = 0.45 },
-                new GradientStop { Color = C(0x7A, 0x52, 0x16), Offset = 0.75 }, new GradientStop { Color = C(0xF3, 0xD7, 0x86), Offset = 1 } },
-        };
-        var trimEdge = new Microsoft.UI.Xaml.Shapes.Path { Stroke = new SolidColorBrush(C(0x2A, 0x1A, 0x06)), StrokeThickness = 9, Stretch = Stretch.None };
-        var trim = new Microsoft.UI.Xaml.Shapes.Path { Stroke = gold, StrokeThickness = 7, Stretch = Stretch.None };
-        var tassels = new Canvas();
-        v.Children.Add(cloth); v.Children.Add(dim); v.Children.Add(trimEdge); v.Children.Add(trim);
-        // the cord along the top
-        v.Children.Add(new Border { Height = 12, VerticalAlignment = VerticalAlignment.Top, Background = gold, BorderBrush = new SolidColorBrush(C(0x2A, 0x1A, 0x06)), BorderThickness = new Thickness(0, 0, 0, 1) });
-        v.Children.Add(tassels);
-        v.SizeChanged += (_, e) =>
-        {
-            var W = e.NewSize.Width;
-            if (W < 100) return;
-            var n = Math.Max(4, (int)Math.Round(W / 300));
-            PathGeometry Body()
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 10,
+            Children =
             {
-                var fig = new PathFigure { StartPoint = new Windows.Foundation.Point(0, 0), IsClosed = true, IsFilled = true };
-                fig.Segments.Add(new LineSegment { Point = new Windows.Foundation.Point(W, 0) });
-                fig.Segments.Add(new LineSegment { Point = new Windows.Foundation.Point(W, body) });
-                for (var q = n; q > 0; q--)
-                {
-                    double xa = W * q / n, xb = W * (q - 1) / n;
-                    fig.Segments.Add(new QuadraticBezierSegment { Point1 = new Windows.Foundation.Point((xa + xb) / 2, body + depth * 2), Point2 = new Windows.Foundation.Point(xb, body) });
-                }
-                var geo = new PathGeometry(); geo.Figures.Add(fig); return geo;
-            }
-            cloth.Data = Body(); dim.Data = Body();
-            PathGeometry Edge()
-            {
-                var fig = new PathFigure { StartPoint = new Windows.Foundation.Point(0, body), IsClosed = false, IsFilled = false };
-                for (var q = 0; q < n; q++)
-                {
-                    double xa = W * q / n, xb = W * (q + 1) / n;
-                    fig.Segments.Add(new QuadraticBezierSegment { Point1 = new Windows.Foundation.Point((xa + xb) / 2, body + depth * 2), Point2 = new Windows.Foundation.Point(xb, body) });
-                }
-                var geo = new PathGeometry(); geo.Figures.Add(fig); return geo;
-            }
-            trimEdge.Data = Edge(); trim.Data = Edge();
-            // a tassel where two swags meet
-            tassels.Children.Clear();
-            for (var q = 1; q < n; q++)
-            {
-                var x = W * q / n;
-                var knob = new Microsoft.UI.Xaml.Shapes.Ellipse
-                {
-                    Width = 20, Height = 20, Stroke = new SolidColorBrush(C(0x2A, 0x1A, 0x06)), StrokeThickness = 1,
-                    Fill = new RadialGradientBrush { Center = new Windows.Foundation.Point(0.35, 0.3), GradientOrigin = new Windows.Foundation.Point(0.35, 0.3), RadiusX = 0.7, RadiusY = 0.7, GradientStops = {
-                        new GradientStop { Color = C(0xFB, 0xE6, 0xA4), Offset = 0 }, new GradientStop { Color = C(0xC8, 0x96, 0x3A), Offset = 0.55 }, new GradientStop { Color = C(0x6E, 0x4A, 0x12), Offset = 1 } } },
-                };
-                Canvas.SetLeft(knob, x - 10); Canvas.SetTop(knob, body - 6);
-                var threads = new Border
-                {
-                    Width = 16, Height = 30, CornerRadius = new CornerRadius(2, 2, 8, 8),
-                    Background = new LinearGradientBrush { MappingMode = BrushMappingMode.Absolute, SpreadMethod = GradientSpreadMethod.Repeat, StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(3, 0), GradientStops = {
-                        new GradientStop { Color = C(0xE9, 0xC4, 0x6C), Offset = 0 }, new GradientStop { Color = C(0xA8, 0x78, 0x26), Offset = 0.5 }, new GradientStop { Color = C(0xE9, 0xC4, 0x6C), Offset = 1 } } },
-                };
-                Canvas.SetLeft(threads, x - 8); Canvas.SetTop(threads, body + 12);
-                tassels.Children.Add(threads); tassels.Children.Add(knob);
-            }
-        };
-        return v;
-    }
-
-    /// <summary>The stage itself: boards, a spot, the valance, the drapes gathered by gold ropes, and the screen between them with its two lines.</summary>
-    private static Grid StageArt(string line1, string line2, double size1, double size2)
-    {
-        var g = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0B, 0x08, 0x10)), IsHitTestVisible = false };
-        // the boards and the spot
-        g.Children.Add(new Border
-        {
-            VerticalAlignment = VerticalAlignment.Bottom, Height = 220,
-            Background = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(0, 1), GradientStops = { new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, 0x2A, 0x1A, 0x10), Offset = 0 }, new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, 0x12, 0x0B, 0x07), Offset = 1 } } },
-        });
-        g.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
-        {
-            Width = 900, Height = 170, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 40),
-            Fill = new RadialGradientBrush { GradientStops = { new GradientStop { Color = Windows.UI.Color.FromArgb(0x70, 0xFF, 0xE2, 0xA8), Offset = 0 }, new GradientStop { Color = Windows.UI.Color.FromArgb(0x00, 0xFF, 0xE2, 0xA8), Offset = 1 } } },
-        });
-        // the curtains open on a blank screen (2026-09-25, "Hey you added the curtains to the show video screen. I love those. Can they be open with a
-        // blank screen?"): the drapes gathered to the sides, each held by a gold tie-back, and between them the screen at rest - dimly lit, a dark
-        // room is not glared at. Folds are alternating bands of deep and lit purple, tighter where the drape is gathered
-        var stage = new Grid { Margin = new Thickness(0, 0, 0, 150) };
-        stage.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.16, GridUnitType.Star) });
-        stage.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        stage.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.16, GridUnitType.Star) });
-        var screen = new Border
-        {
-            Margin = new Thickness(18, 150, 18, 44), CornerRadius = new CornerRadius(4),
-            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0A, 0x0A, 0x0E)), BorderThickness = new Thickness(6),
-            Background = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1), GradientStops = {
-                new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, 0x33, 0x35, 0x3D), Offset = 0 },
-                new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, 0x26, 0x28, 0x2F), Offset = 0.6 },
-                new GradientStop { Color = Windows.UI.Color.FromArgb(0xFF, 0x1D, 0x1E, 0x24), Offset = 1 } } },
-            Child = new StackPanel
-            {
-                VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 8,
-                Children =
-                {
-                    new TextBlock { Text = line1, FontSize = size1, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xE8, 0xEC, 0xF2)), HorizontalAlignment = HorizontalAlignment.Center },
-                    new TextBlock { Text = line2, FontSize = size2, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x8A, 0x93, 0xA2)), HorizontalAlignment = HorizontalAlignment.Center },
-                },
+                mark,
+                new TextBlock { Text = "Nothing is playing", FontSize = 34, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) },
+                new TextBlock { Text = "Drag a title from Watch onto the big window", FontSize = 17, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
             },
-        };
-        Grid.SetColumn(screen, 1);
-        stage.Children.Add(screen);
-        for (var side = 0; side < 2; side++)
-        {
-            var folds = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0) };
-            const int n = 7;
-            for (var k = 0; k <= n; k++)
-            {
-                var lit = k % 2 == 0;
-                folds.GradientStops.Add(new GradientStop { Color = lit ? Windows.UI.Color.FromArgb(0xFF, 0x6A, 0x2C, 0x8E) : Windows.UI.Color.FromArgb(0xFF, 0x2E, 0x0F, 0x42), Offset = (double)k / n });
-            }
-            var drape = new Grid();
-            var cloth = new Microsoft.UI.Xaml.Shapes.Path { Fill = folds, Stretch = Stretch.None };
-            var tie = TieBack(side == 0);
-            drape.Children.Add(cloth);
-            drape.Children.Add(tie);
-            var left = side == 0;
-            // gathered as a tied curtain is (2026-09-25, the ropes "pretty low quality"): full at the top, cinched to about half its width at the rope,
-            // flaring out again to the floor; the rope wraps the cinch only
-            drape.SizeChanged += (_, e) =>
-            {
-                double W = e.NewSize.Width, H = e.NewSize.Height;
-                if (W < 20 || H < 100) return;
-                var ropeY = H / 2 + 60; var pinch = W * 0.5;
-                double X(double x) => left ? x : W - x;
-                var fig = new PathFigure { StartPoint = new Windows.Foundation.Point(X(0), 0), IsClosed = true, IsFilled = true };
-                fig.Segments.Add(new LineSegment { Point = new Windows.Foundation.Point(X(W), 0) });
-                fig.Segments.Add(new BezierSegment { Point1 = new Windows.Foundation.Point(X(W), ropeY * 0.45), Point2 = new Windows.Foundation.Point(X(pinch), ropeY * 0.8), Point3 = new Windows.Foundation.Point(X(pinch), ropeY) });
-                fig.Segments.Add(new BezierSegment { Point1 = new Windows.Foundation.Point(X(pinch), ropeY + (H - ropeY) * 0.25), Point2 = new Windows.Foundation.Point(X(W * 0.85), ropeY + (H - ropeY) * 0.55), Point3 = new Windows.Foundation.Point(X(W * 0.9), H) });
-                // the hem and the outer side ruffled like the inner (2026-09-25, "Can the edges of the curtain border be ruffled on the outside like the
-                // inside"): scallops, one per fold, always inside the drape's own width and height so the window's edge cuts none of them
-                var amp = Math.Max(3, W * 0.07);
-                var hemN = 5; double hx0 = W * 0.9;
-                for (var k = 0; k < hemN; k++)
-                {
-                    double xa = hx0 - hx0 * k / hemN, xb = hx0 - hx0 * (k + 1) / hemN;
-                    fig.Segments.Add(new QuadraticBezierSegment { Point1 = new Windows.Foundation.Point(X((xa + xb) / 2), H - amp * 0.8), Point2 = new Windows.Foundation.Point(X(xb), H) });
-                }
-                var sideN = Math.Max(6, (int)Math.Round(H / 70));
-                for (var k = 0; k < sideN; k++)
-                {
-                    double ya = H - H * k / sideN, yb = H - H * (k + 1) / sideN;
-                    fig.Segments.Add(new QuadraticBezierSegment { Point1 = new Windows.Foundation.Point(X(amp), (ya + yb) / 2), Point2 = new Windows.Foundation.Point(X(0), yb) });
-                }
-                var geo = new PathGeometry(); geo.Figures.Add(fig);
-                cloth.Data = geo;
-                tie.Width = pinch + 8;
-            };
-            Grid.SetColumn(drape, side == 0 ? 0 : 2);
-            stage.Children.Add(drape);
-        }
-        g.Children.Add(stage);
-        g.Children.Add(Valance());
+        });
+        Canvas.SetZIndex(g, 924);   // under the stage curtain (925) and the Watch page (930): a pick's own face and the page stand over it
+        RootGrid.Children.Add(g);
         return g;
     }
 }

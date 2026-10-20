@@ -136,7 +136,7 @@ public sealed partial class MainWindow
             Text = "A Layout is a named set of Slots for this canvas class, with no Apps yet. Let the solver arrange them (Hero / Grid) or draw Slots on the preview. Every Slot shows its class (aspect bucket · size tier), which is what Facets are cut for. Esc closes.",
             FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap,
         });
-        _leName = new TextBox { PlaceholderText = "Name this Layout (e.g. Movie night, Morning wall)", Text = _le.Name };
+        _leName = new TextBox { PlaceholderText = "Name this Layout (e.g. Movie night, Morning news)", Text = _le.Name };
         _leName.TextChanged += (_, __) => _le.Name = _leName.Text;
         left.Children.Add(_leName);
         _leCanvas = new TextBlock { FontSize = 12, Foreground = LeTeal };
@@ -218,7 +218,7 @@ public sealed partial class MainWindow
         right.Children.Add(cap);
         _lePreview = new Canvas { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x0B, 0x0D, 0x12)) };
         WireDrawing(_lePreview);
-        _lePreviewHost = new Border { Child = _lePreview, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        _lePreviewHost = new Border { Child = _lePreview, BorderBrush = Tokens.AmberAt(0x60), BorderThickness = new Thickness(1), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var previewHostGrid = new Grid();
         previewHostGrid.Children.Add(_lePreviewHost);
         previewHostGrid.SizeChanged += (_, e) => { FitLePreview(e.NewSize.Width, e.NewSize.Height); DrawLePreview(); };
@@ -362,7 +362,7 @@ public sealed partial class MainWindow
             var row = new Grid { ColumnSpacing = 4, Background = idx == _leSel ? LeSlotSel : LeSlot, Padding = new Thickness(6, 3, 4, 3), CornerRadius = new CornerRadius(6) };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             for (var c = 0; c < 4; c++) row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var badge = new Border { Background = s.Custom ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xD0, 0x6A, 0x5A)) : new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0x5C, 0xC8, 0xC0)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = s.Class, FontSize = 11, Foreground = LeInk } };
+            var badge = new Border { Background = s.Custom ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xD0, 0x6A, 0x5A)) : new SolidColorBrush(Tokens.TealColorAt(0x40)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = s.Class, FontSize = 11, Foreground = LeInk } };
             ToolTipService.SetToolTip(badge, s.Custom ? "custom — limits facet reuse" : "Slot class = aspect bucket · size tier (core's classing at this canvas). Facets are cut for a class.");
             var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             head.Children.Add(badge);
@@ -520,14 +520,14 @@ public sealed partial class MainWindow
             {
                 Width = Math.Max(2, w - 4), Height = Math.Max(2, h - 4),
                 BorderBrush = s.Custom ? Danger : Amber, BorderThickness = new Thickness(selected ? 3 : 1),
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(selected ? (byte)0x40 : (byte)0x22, 0xF0, 0xA8, 0x3C)),
+                Background = Tokens.AmberAt(selected ? (byte)0x40 : (byte)0x22),
                 CornerRadius = new CornerRadius(4),
             };
             var col = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
             col.Children.Add(new TextBlock { Text = (i + 1).ToString() + (s.Hero && _le.Mode == "hero" ? " ★" : ""), FontSize = PreviewGeometry.ClampFont(h / 5, 12, 28), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk, HorizontalAlignment = HorizontalAlignment.Center });
             if (h > 40)
             {
-                var badge = new Border { Background = s.Custom ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0xD0, 0x6A, 0x5A)) : new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0x5C, 0xC8, 0xC0)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Center, Child = new TextBlock { Text = s.Class, FontSize = 11, Foreground = LeInk } };
+                var badge = new Border { Background = s.Custom ? new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0xD0, 0x6A, 0x5A)) : new SolidColorBrush(Tokens.TealColorAt(0x80)), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), HorizontalAlignment = HorizontalAlignment.Center, Child = new TextBlock { Text = s.Class, FontSize = 11, Foreground = LeInk } };
                 col.Children.Add(badge);
             }
             if (h > 64 && s.Custom) col.Children.Add(new TextBlock { Text = "custom — limits facet reuse", FontSize = 10, Foreground = LeDim, HorizontalAlignment = HorizontalAlignment.Center });
@@ -637,7 +637,7 @@ public sealed partial class MainWindow
             if (!pt.Properties.IsLeftButtonPressed) return;
             ev.Handled = true;
             start = pt.Position;
-            rubber = new Border { BorderBrush = LeTeal, BorderThickness = new Thickness(2), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0x5C, 0xC8, 0xC0)), CornerRadius = new CornerRadius(4), IsHitTestVisible = false, Width = 1, Height = 1 };
+            rubber = new Border { BorderBrush = LeTeal, BorderThickness = new Thickness(2), Background = new SolidColorBrush(Tokens.TealColorAt(0x30)), CornerRadius = new CornerRadius(4), IsHitTestVisible = false, Width = 1, Height = 1 };
             Canvas.SetLeft(rubber, start.Value.X); Canvas.SetTop(rubber, start.Value.Y); Canvas.SetZIndex(rubber, 20);
             preview.Children.Add(rubber);
             preview.CapturePointer(ev.Pointer);
@@ -703,7 +703,7 @@ public sealed partial class MainWindow
         if (_le.Slots.Count(s => s.W > 0 && s.H > 0) == 0) { SetPill("Prism · add at least one Slot"); return; }
         if (string.IsNullOrWhiteSpace(_le.Name))
         {
-            var name = await PromptTextAsync("Name this Layout", "", "e.g. Movie night, Morning wall", "Save");
+            var name = await PromptTextAsync("Name this Layout", "", "e.g. Movie night, Morning news", "Save");
             if (string.IsNullOrWhiteSpace(name)) return;
             _le.Name = name.Trim();
             if (_leName is not null) _leName.Text = _le.Name;

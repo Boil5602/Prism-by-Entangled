@@ -30,19 +30,20 @@ public sealed partial class MainWindow
     private static object? s_autoFocused;
     /// <summary>More to watch opened: kept across the page's redraws.</summary>
     private bool _simpleMoreOpen;
+    /// <summary>Each quiet part with its rest opacity: 0 for a card's parts, 0.35 for a row head's controls (2026-10-17, the designer's pass, finding 6:
+    /// hidden entirely, nothing said the order chips existed).</summary>
     private static readonly ConditionalWeakTable<UIElement, object> QuietParts = new();
-    private static readonly object QuietTag = new();
 
-    /// <summary>A part that waits for the pointer: drawn clear (its place kept, so nothing moves when it shows) while Watch is quiet.</summary>
-    private static T QuietPart<T>(T e)
+    /// <summary>A part that waits for the pointer: drawn at its rest opacity (its place kept, so nothing moves when it shows) while Watch is quiet.</summary>
+    private static T QuietPart<T>(T e, double rest = 0)
     {
-        if (s_quiet && e is UIElement u) { QuietParts.AddOrUpdate(u, QuietTag); u.Opacity = 0; }
+        if (s_quiet && e is UIElement u) { QuietParts.AddOrUpdate(u, rest); u.Opacity = rest; }
         return e;
     }
 
-    private static void CollectQuiet(DependencyObject d, List<UIElement> into)
+    private static void CollectQuiet(DependencyObject d, List<(UIElement part, double rest)> into)
     {
-        if (d is UIElement u && QuietParts.TryGetValue(u, out _)) into.Add(u);
+        if (d is UIElement u && QuietParts.TryGetValue(u, out var r)) into.Add((u, r is double rd ? rd : 0));
         switch (d)
         {
             case Panel p: foreach (var c in p.Children) CollectQuiet(c, into); break;
@@ -55,12 +56,12 @@ public sealed partial class MainWindow
     private static void RevealOnHover(FrameworkElement owner)
     {
         if (!s_quiet) return;
-        var parts = new List<UIElement>();
+        var parts = new List<(UIElement part, double rest)>();
         CollectQuiet(owner, parts);
         if (parts.Count == 0) return;
         if (owner is Panel p && p.Background is null) p.Background = HubClear;   // the gaps between its children take the pointer too
         bool over = false, focus = false;
-        void Paint() { var o = over || focus ? 1.0 : 0.0; foreach (var x in parts) x.Opacity = o; }
+        void Paint() { var on = over || focus; foreach (var (x, rest) in parts) x.Opacity = on ? 1.0 : rest; }
         owner.PointerEntered += (_, __) => { over = true; Paint(); };
         owner.PointerExited += (_, __) => { over = false; Paint(); };
         // a card reached by keys or a remote; the focus Watch puts on its first card when it opens shows nothing
@@ -76,7 +77,7 @@ public sealed partial class MainWindow
     private static void QuietHead(Panel head, UIElement name)
     {
         if (!s_quiet) return;
-        foreach (var c in head.Children) if (!ReferenceEquals(c, name) && c is not TextBlock) QuietPart(c);
+        foreach (var c in head.Children) if (!ReferenceEquals(c, name) && c is not TextBlock) QuietPart(c, 0.35);
         RevealOnHover(head);
     }
 
@@ -85,12 +86,21 @@ public sealed partial class MainWindow
     {
         var pick = new StackPanel { Spacing = 18 };
         var more = new StackPanel { Spacing = 18, Visibility = _simpleMoreOpen ? Visibility.Visible : Visibility.Collapsed };
-        var label = new TextBlock { FontSize = 16, Foreground = HubInk };
-        var toggle = Chip(label, false);
-        toggle.HorizontalAlignment = HorizontalAlignment.Left;
-        toggle.Padding = new Thickness(20, 10, 20, 11);
+        // a row head, not a chip (2026-10-17, the designer's pass, finding 3: the one door to six rows was the least visible thing on the page): the
+        // rows' own size with a hairline above it and a chevron, the whole width taking the press
+        var label = new TextBlock { FontSize = Tokens.TextRow, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk };
+        var chevron = new FontIcon { FontSize = 16, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+        var toggle = new Button
+        {
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { label, chevron } },
+            Background = HubClear, BorderBrush = Tokens.Rule, BorderThickness = new Thickness(0, 1, 0, 0), CornerRadius = new CornerRadius(0),
+            Padding = new Thickness(0, 18, 0, 6), Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+        };
+        toggle.Resources["ButtonBorderBrushPointerOver"] = Tokens.Rule;
+        toggle.Resources["ButtonBorderBrushPressed"] = Tokens.Rule;
+        OwnHover(toggle);
         ToolTipService.SetToolTip(toggle, "Every other row: new in your library, channels you follow, your categories, live and your services.");
-        void Paint() => label.Text = _simpleMoreOpen ? "Fewer rows  " + (char)0x25B4 : "More to watch  " + (char)0x25BE;
+        void Paint() { label.Text = _simpleMoreOpen ? "Fewer rows" : "More to watch"; chevron.Glyph = ((char)(_simpleMoreOpen ? 0xE70E : 0xE70D)).ToString(); }
         Paint();
         toggle.Click += (_, __) => { _simpleMoreOpen = !_simpleMoreOpen; more.Visibility = _simpleMoreOpen ? Visibility.Visible : Visibility.Collapsed; Paint(); };
         main.Children.Add(pick);
@@ -130,50 +140,69 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Resume (2026-10-16, "Yeah build only resume"): the title most recently watched - the first card of Continue watching, in that row.s own
-    /// order - as one large bar above the row, a press playing it exactly as the card's press does. One plain rule, said in its tooltip; no pick,
-    /// no ranking of anyone's making (the suggested "Pick for me" was turned down: "this seems like an opaque algorithm").
+    /// Resume (2026-10-16, "Yeah build only resume"; 2026-10-17, the designer's pass, finding 1: "the Resume bar repeats the first Continue card"): the title
+    /// most recently watched - the first card of Continue watching, in that row's own order - IS the Resume. The row's head holds one wide hero: the card
+    /// itself (its menu, its drag, its focus, its removal all as any card's), the words beside it (Resume, the name, the episode and the service, how far
+    /// in) and an amber play; the other cards follow at their size. One plain rule, said in its tooltip; no pick, no ranking of anyone's making (the
+    /// suggested "Pick for me" was turned down: "this seems like an opaque algorithm"). Drawn inside the row's scaled group, so its sizes are the
+    /// row's divided by the scale.
     /// </summary>
-    private Button? ResumeBar(JsonObject card, Button cardButton)
+    private Grid ResumeRow(List<JsonObject> list, bool badge, double now, ref Button? first)
     {
+        var grid = new Grid { ColumnSpacing = 12, Tag = HubRowTag };   // one row for the remote: the hero's buttons, then the cards
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var hero = new Border { CornerRadius = new CornerRadius(Tokens.RadiusPanel / SimpleLeadScale), Background = Tokens.Chip, Padding = new Thickness(6, 6, 12, 6), VerticalAlignment = VerticalAlignment.Top };
+        _resumeHero = hero; _resumeKey = null;
+        ResumeHeroFill(hero, list[0], badge, now, ref first);
+        grid.Children.Add(hero);
+        var strip = CardRow(list.Skip(1), badge, now, ref first);
+        Grid.SetColumn(strip, 1);
+        grid.Children.Add(strip);
+        return grid;
+    }
+    private Border? _resumeHero;
+    private string? _resumeKey;
+
+    /// <summary>The hero drawn (again) for this card: the live refill calls it with the row's first card, and only a changed card redraws it.</summary>
+    private void ResumeHeroFill(Border hero, JsonObject card, bool badge, double now, ref Button? first)
+    {
+        var key = LiveKey(card);
+        if (_resumeKey == key && hero.Child is not null) return;
+        _resumeKey = key;
         string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
-        if (card["item"] is not JsonObject item) return null;
+        card["__hero"] = true;
+        var btn = MenuCardButton(card, badge, now);
+        if (btn is null || card["item"] is not JsonObject item) { hero.Child = null; return; }
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(btn, "row:" + key);
+        first ??= btn;
         var series = S(item, "series");
         var name = series.Length > 0 ? series : S(item, "title");
-        if (name.Length == 0) return null;
         var service = S(card, "service");
-        var art = item["artwork"]?.GetValue<string>();
-        var pic = new Border { Width = 208, Height = 117, CornerRadius = new CornerRadius(8), Background = HubCard };
-        if (art is { Length: > 0 }) { try { pic.Child = new Image { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(Services.ArtCache.UriFor(art)), Stretch = Stretch.UniformToFill }; } catch { } }
-        var words = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        words.Children.Add(new TextBlock { Text = "Resume", FontSize = 16, Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        words.Children.Add(new TextBlock { Text = name, FontSize = 28, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 760 });
+        var k = 1 / SimpleLeadScale;   // the row is drawn 1.5 times its size: these come out at 16, 28, 16 and 30
+        var words = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        words.Children.Add(new TextBlock { Text = "Resume", FontSize = 16 * k, Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        words.Children.Add(new TextBlock { Text = name, FontSize = 28 * k, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 });
         var sub = series.Length > 0 && S(item, "title") is { Length: > 0 } ep && ep != series ? ep + "  " + (char)0x00B7 + "  " + service : service;
-        if (sub.Length > 0) words.Children.Add(new TextBlock { Text = sub, FontSize = 16, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 760 });
+        if (sub.Length > 0) words.Children.Add(new TextBlock { Text = sub, FontSize = 16 * k, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 });
         if (item["progress"] is JsonValue pv && pv.TryGetValue<double>(out var pd) && pd > 0 && pd < 1)
         {
-            var track = new Grid { Width = 280, Height = 4, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 6, 0, 0), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xE8, 0xEC, 0xF2)), CornerRadius = new CornerRadius(2) };
-            track.Children.Add(new Border { Width = 280 * pd, HorizontalAlignment = HorizontalAlignment.Left, Background = HubAmber, CornerRadius = new CornerRadius(2) });
+            var track = new Grid { Width = 190, Height = 3, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0), Background = Tokens.TabRule, CornerRadius = new CornerRadius(1.5) };
+            track.Children.Add(new Border { Width = 190 * pd, HorizontalAlignment = HorizontalAlignment.Left, Background = HubAmber, CornerRadius = new CornerRadius(1.5) });
             words.Children.Add(track);
         }
-        var play = new FontIcon { Glyph = ((char)0xE768).ToString(), FontSize = 30, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(18, 0, 10, 0) };
-        var content = new Grid { ColumnSpacing = 22 };
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(words, 1); Grid.SetColumn(play, 2);
-        content.Children.Add(pic); content.Children.Add(words); content.Children.Add(play);
-        var bar = Chip(content, false);
-        bar.HorizontalAlignment = HorizontalAlignment.Left;
-        bar.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-        bar.Padding = new Thickness(12, 12, 20, 12);
-        bar.CornerRadius = new CornerRadius(12);
-        bar.Margin = new Thickness(0, 4, 0, 6);
-        ToolTipService.SetToolTip(bar, "Plays " + name + " where you left off" + (service.Length > 0 ? " on " + service : "") + ". It is the first title in Continue watching.");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bar, "Resume " + name);
+        var play = new FontIcon { Glyph = ((char)0xE768).ToString(), FontSize = 30 * k, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 4, 0) };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        row.Children.Add(words); row.Children.Add(play);
+        var press = new Button { Content = row, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(10, 4, 10, 4), CornerRadius = new CornerRadius(8 * k), VerticalAlignment = VerticalAlignment.Stretch };
+        OwnHover(press);
+        ToolTipService.SetToolTip(press, "Plays " + name + " where you left off" + (service.Length > 0 ? " on " + service : "") + ". It is the first title in Continue watching.");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(press, "Resume " + name);
         // the card's own press: the same pick, curtain and window as pressing the card itself
-        bar.Click += (_, __) => { if (Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.CreatePeerForElement(cardButton) is Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer peer) peer.Invoke(); };
-        return bar;
+        press.Click += (_, __) => { if (Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.CreatePeerForElement(btn) is Microsoft.UI.Xaml.Automation.Peers.ButtonAutomationPeer peer) peer.Invoke(); };
+        var inner = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        inner.Children.Add(btn); inner.Children.Add(press);
+        hero.Child = inner;
     }
 
     // ---- Simple Watch's three rows drawn larger ----

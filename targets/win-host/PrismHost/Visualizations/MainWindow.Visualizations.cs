@@ -287,12 +287,12 @@ public sealed partial class MainWindow
     private static readonly Microsoft.UI.Xaml.Media.FontFamily VizMono = new("Consolas");
     private static readonly Microsoft.UI.Xaml.Media.FontFamily VizDisplay = new("Segoe UI");
     private static readonly Microsoft.UI.Xaml.Media.FontFamily VizSans = new("Segoe UI");
-    private static readonly SolidColorBrush VizNowInk = new(Windows.UI.Color.FromArgb(255, 0xE8, 0xEC, 0xF2));
-    private static readonly SolidColorBrush VizDimInk = new(Windows.UI.Color.FromArgb(255, 0x8A, 0x93, 0xA2));
+    private static readonly SolidColorBrush VizNowInk = Tokens.Ink;
+    private static readonly SolidColorBrush VizDimInk = Tokens.Dim;
     /// <summary>The amber of the MUTED pill: the thing to notice (CLAUDE.md contrast rule) - the mute button's glyph and border while the wall is muted (B-213).</summary>
-    private static readonly SolidColorBrush VizAmberInk = new(Windows.UI.Color.FromArgb(255, 0xF0, 0xA8, 0x3C));
-    private static readonly SolidColorBrush VizAmberEdge = new(Windows.UI.Color.FromArgb(0xB0, 0xF0, 0xA8, 0x3C));
-    private static readonly SolidColorBrush VizNoEdge = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
+    private static readonly SolidColorBrush VizAmberInk = Tokens.Amber;
+    private static readonly SolidColorBrush VizAmberEdge = Tokens.AmberAt(0xB0);
+    private static readonly SolidColorBrush VizNoEdge = Tokens.Clear;
 
     /// <summary>
     /// The household's request (2026-09-06): another look, right now, from the wall. The next pack in
@@ -541,7 +541,7 @@ public sealed partial class MainWindow
             var (id, name, tip) = AdsSounds[i];
             var isCurrent = id == current || id == LegacySound(current);
             var b = new Button { Content = name, FontSize = 12.5, Padding = new Thickness(10, 6, 10, 6), MinWidth = 68, HorizontalContentAlignment = HorizontalAlignment.Center, CornerRadius = new CornerRadius(16), Opacity = 0 };
-            if (isCurrent) b.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF0, 0xA8, 0x3C));
+            if (isCurrent) b.Background = Tokens.Amber;
             ToolTipService.SetToolTip(b, tip);
             b.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
             var w = Math.Max(b.DesiredSize.Width, 68); var h = Math.Max(b.DesiredSize.Height, 32);
@@ -656,7 +656,7 @@ public sealed partial class MainWindow
         foreach (var f in facets) if (scene.Settings.TryGetValue(f, out var so) && so["intermission"] is System.Text.Json.Nodes.JsonObject io && io["ambient"]?.GetValue<string>() is { Length: > 0 } a) { current = a; break; }
         var options = AdsSounds;
         var col = new StackPanel { Spacing = 10, Width = 440 };
-        col.Children.Add(Meta("When a service plays an ad, the wall mutes it. Instead of silence, a field recording - twelve, all CC0, bundled with Prism, nothing fetched. It follows the mute button like any other sound. Applied as you pick."));
+        col.Children.Add(Meta("When a service plays an ad, Prism mutes it. Instead of silence, a field recording - twelve, all CC0, bundled with Prism, nothing fetched. It follows the mute button like any other sound. Applied as you pick."));
         var list = new StackPanel { Spacing = 3 };
         async Task CommitAsync(string id)
         {
@@ -882,7 +882,7 @@ public sealed partial class MainWindow
             row.Children.Add(play); row.Children.Add(name);
             panel.Children.Add(row);
         }
-        panel.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)), Margin = new Thickness(6, 4, 6, 4) });
+        panel.Children.Add(new Border { Height = 1, Background = Tokens.AmberAt(0x3A), Margin = new Thickness(6, 4, 6, 4) });
         var add = new Button { Content = new TextBlock { Text = "Add a music service\u2026", FontSize = 13 }, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Background = clear, BorderThickness = new Thickness(0) };
         add.Click += (_, __) => { flyout.Hide(); _ = ChangeMusicServiceAsync(source, add: true); };
         panel.Children.Add(add);
@@ -962,7 +962,7 @@ public sealed partial class MainWindow
             "not-found" => songText + " is not on " + service,
             // B-228 (2026-09-17): the wall having no song is not the service lacking a search ("it says No cross-service search
             // exists for Spotify, which is not true, we've been using it")
-            "unavailable" when st["why"]?.GetValue<string>() == "no-song" => "Nothing is playing on the wall to look up",
+            "unavailable" when st["why"]?.GetValue<string>() == "no-song" => "Nothing is playing on Prism to look up",
             "unavailable" => "No cross-service search on " + service,   // 2026-09-16: "shorter, but intuitive"; the why is on the ? badge, the verb rows and the pill
             _ => "Could not search " + service + (reason is { Length: > 0 } ? ": " + reason : ""),
         };
@@ -1087,7 +1087,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private static readonly SolidColorBrush LookupAmber = new(Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C));
+    private static readonly SolidColorBrush LookupAmber = Tokens.Amber;
     private static ControlTemplate? _lookupHeadArt, _lookupHeadText, _lookupHeadHelp;
 
     /// <summary>The lookup head row's template: the words in the row's own Foreground (light ink, amber for a find), never the
@@ -1231,7 +1231,7 @@ public sealed partial class MainWindow
         var st = new Style(typeof(FlyoutPresenter));
         st.Setters.Add(new Setter(Control.RequestedThemeProperty, ElementTheme.Dark));
         st.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0x12, 0x13, 0x1A))));
-        st.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C))));
+        st.Setters.Add(new Setter(Control.BorderBrushProperty, Tokens.AmberAt(0x3A)));
         st.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
         st.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(8)));
         st.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(4, 6, 4, 6)));
@@ -1467,7 +1467,7 @@ public sealed partial class MainWindow
 
         // ---- the artwork card, top-right: the cover itself, clear, framed. Backdrop mode keeps blurring it behind the scene.
         parts.Art = new Image { Stretch = Stretch.UniformToFill };
-        parts.ArtCard = new Border { Width = 200, Height = 200, CornerRadius = new CornerRadius(14), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC0, 0x0B, 0x0D, 0x12)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 22, 22, 0), Visibility = Visibility.Collapsed, IsHitTestVisible = true, Child = parts.Art };
+        parts.ArtCard = new Border { Width = 200, Height = 200, CornerRadius = new CornerRadius(14), BorderBrush = Tokens.AmberAt(0x60), BorderThickness = new Thickness(1), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC0, 0x0B, 0x0D, 0x12)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 22, 22, 0), Visibility = Visibility.Collapsed, IsHitTestVisible = true, Child = parts.Art };
         // B-184 (2026-09-09): a tap on the poster moves it between the top-right corner and the centre, enlarged; the choice is
         // this machine's (host-prefs posterCentred) and holds across services and restarts
         parts.ArtCard.Tapped += (_, e) => { e.Handled = true; TogglePoster(); };
@@ -1479,7 +1479,7 @@ public sealed partial class MainWindow
             artGrid.Children.Add(parts.Art);
             parts.BreakGlyph = new TextBlock
             {
-                Text = GlyphSoundscape, FontFamily = new FontFamily("Segoe UI Symbol"), FontSize = 15, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF0, 0xA8, 0x3C)),
+                Text = GlyphSoundscape, FontFamily = new FontFamily("Segoe UI Symbol"), FontSize = 15, Foreground = Tokens.Amber,
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(8, 6, 0, 0), Padding = new Thickness(6, 3, 6, 3),
                 Visibility = Visibility.Collapsed, IsHitTestVisible = false,
             };
@@ -1545,8 +1545,8 @@ public sealed partial class MainWindow
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xDD, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)) };
             b.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(0xEE, 0x1C, 0x1E, 0x28));
             b.Resources["ButtonBackgroundPressed"] = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF4, 0x26, 0x28, 0x34));
-            b.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0xF0, 0xA8, 0x3C));
-            b.Resources["ButtonBorderBrushPressed"] = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0xF0, 0xA8, 0x3C));
+            b.Resources["ButtonBorderBrushPointerOver"] = Tokens.AmberAt(0x80);
+            b.Resources["ButtonBorderBrushPressed"] = Tokens.AmberAt(0xB0);
             OwnHover(b);   // the fills above, held by the button itself (memory: hover-loss-tooltips)
             ToolTipService.SetToolTip(b, tip);
             return b;
@@ -1574,9 +1574,9 @@ public sealed partial class MainWindow
         stack.Children.Add(miniBtn);
         // B-169 (2026-09-08): "a little thought bubble pointing to the Intermission symbol ... says Crickets... but don't say anything for None"
         parts.SoundBubbleText = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x12, 0x13, 0x1A)) };
-        var bubbleBody = new Border { Child = parts.SoundBubbleText, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0xF0, 0xA8, 0x3C)), CornerRadius = new CornerRadius(12), Padding = new Thickness(12, 5, 12, 5) };
+        var bubbleBody = new Border { Child = parts.SoundBubbleText, Background = Tokens.AmberAt(0xF2), CornerRadius = new CornerRadius(12), Padding = new Thickness(12, 5, 12, 5) };
         // B-185: the half-moon lives at the top-left now, so the bubble sits to its right and points left
-        var pointer = new Microsoft.UI.Xaml.Shapes.Polygon { Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF2, 0xF0, 0xA8, 0x3C)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, -1, 0) };
+        var pointer = new Microsoft.UI.Xaml.Shapes.Polygon { Fill = Tokens.AmberAt(0xF2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, -1, 0) };
         pointer.Points.Add(new Windows.Foundation.Point(7, 0)); pointer.Points.Add(new Windows.Foundation.Point(0, 6)); pointer.Points.Add(new Windows.Foundation.Point(7, 12));
         parts.SoundBubble = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed, IsHitTestVisible = false };
         parts.SoundBubble.Children.Add(pointer); parts.SoundBubble.Children.Add(bubbleBody);
@@ -1604,8 +1604,8 @@ public sealed partial class MainWindow
         parts.Order = Ctl(GlyphOrder, "Play order", () => _ = ShowOrderFlyoutAsync(parts));
         // 2026-09-14: the service's own offer, in its own words (Pandora: "Get more skips" once the skips are spent - watch an ad
         // for more). Hidden until the page shows one; a press goes to the page's own button, and the ad that follows is a break.
-        parts.Offer = new Button { Content = "", Padding = new Thickness(14, 7, 14, 7), Visibility = Visibility.Collapsed, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF0, 0xA8, 0x3C)) };
-        ToolTipService.SetToolTip(parts.Offer, "The service's own offer. It may play an ad, which the wall covers like any break");
+        parts.Offer = new Button { Content = "", Padding = new Thickness(14, 7, 14, 7), Visibility = Visibility.Collapsed, Foreground = Tokens.Amber };
+        ToolTipService.SetToolTip(parts.Offer, "The service's own offer. It may play an ad, which Prism covers like any break");
         parts.Offer.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, parts.Source, "offer"); _ = Task.Delay(900).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync())); };
         // B-155 (2026-09-08): thumbs up / down - the verdict goes to the service (Apple's ratings API, Pandora's thumbs), lit amber when it stands
         parts.UpIcon = new FontIcon { Glyph = GlyphLike, FontSize = 20 }; parts.DownIcon = new FontIcon { Glyph = GlyphDislike, FontSize = 20 };
@@ -1625,17 +1625,17 @@ public sealed partial class MainWindow
         parts.Row = row;
         // B-151 (2026-09-08): "a more prominent label on the screen indicating we're muted right now" - top centre, a tap unmutes
         var mb = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-        mb.Children.Add(new FontIcon { Glyph = GlyphAudioOff, FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF0, 0xA8, 0x3C)) });
-        mb.Children.Add(new TextBlock { Text = "MUTED", FontFamily = VizMono, FontSize = 15, CharacterSpacing = 160, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF0, 0xA8, 0x3C)), VerticalAlignment = VerticalAlignment.Center });
+        mb.Children.Add(new FontIcon { Glyph = GlyphAudioOff, FontSize = 18, Foreground = Tokens.Amber });
+        mb.Children.Add(new TextBlock { Text = "MUTED", FontFamily = VizMono, FontSize = 15, CharacterSpacing = 160, Foreground = Tokens.Amber, VerticalAlignment = VerticalAlignment.Center });
         mb.Children.Add(new TextBlock { Text = "tap to unmute", FontFamily = VizSans, FontSize = 12, Foreground = VizDimInk, VerticalAlignment = VerticalAlignment.Center });
-        parts.MutedBanner = new Border { Child = mb, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(16, 8, 16, 8), CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x66, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed };
+        parts.MutedBanner = new Border { Child = mb, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(16, 8, 16, 8), CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x66), BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed };
         parts.MutedBanner.Tapped += (_, e) => { e.Handled = true; SetWallMutedFromWall(parts.Source, false); };
 
         // A thin progress bar along the very bottom edge: at a glance, from across
         // the room, how far through the track we are. Display only - seeking is a
         // §32 pass-through question and no seek control is offered here.
         parts.BarTrack = new Rectangle { Height = 3, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
-        parts.Bar = new Rectangle { Height = 3, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0xEE, 0xF0, 0xA8, 0x3C)), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false, Width = 0, Visibility = Visibility.Collapsed };
+        parts.Bar = new Rectangle { Height = 3, Fill = Tokens.AmberAt(0xEE), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false, Width = 0, Visibility = Visibility.Collapsed };
         g.Children.Add(meta); g.Children.Add(parts.ArtCard); g.Children.Add(parts.Label); g.Children.Add(parts.BarTrack); g.Children.Add(parts.Bar); g.Children.Add(row); g.Children.Add(stack); g.Children.Add(parts.Time); g.Children.Add(parts.MutedBanner); g.Children.Add(parts.BubbleLayer);
         _vizParts[tileId] = parts;
 

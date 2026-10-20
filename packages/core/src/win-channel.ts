@@ -383,7 +383,7 @@ export const HOST_CALLS: string[] = [
 export const SURFACE_EVENT_TYPES: string[] = [
   "load-finished", "first-paint", "adapter-ready", "playback", "interaction",
   "navigated", "focus-result", "ad-break", "skip-available", "ad-info", "ad-hold", "listener-lost",
-  "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip", "gpu-reset",
+  "app-ad-break", "app-skip-available", "app-foreground", "intermission-skip", "gpu-reset", "renderer-failed",
   "media-position", "now-playing", "session", "fullscreen-element", "popup", "music-result",
   "profile-migrated", "buffering",
 ];

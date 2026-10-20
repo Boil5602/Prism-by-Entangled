@@ -133,6 +133,10 @@ const steps = [
     fn: () => { const r = run("node", ["scripts/audit-button-hover.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
   },
   {
+    id: "tokens", title: "token audit (host colours come from Tokens.cs, the phone's from :root)",
+    fn: () => { const r = run("node", ["scripts/audit-tokens.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
+  },
+  {
     id: "companion-install", title: "companion install nudge fixtures (docs/features/companion-install.md)",
     fn: () => { const r = run("node", ["scripts/verify-companion-install.mjs"], root); return { code: r.code, detail: tail(r.out, 16) }; },
   },

@@ -34,7 +34,7 @@ public sealed partial class MainWindow
         var grip = new Border
         {
             VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 18, 0),
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xCC, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)),
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xCC, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x3A),
             BorderThickness = new Thickness(1, 0, 1, 1), CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(2, 0, 2, 2),
             Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Children = { BuildUpdateButton(), flag } },   // the update, when there is one, beside the flag
         };
@@ -70,7 +70,7 @@ public sealed partial class MainWindow
         var kOther = Radio("Something else", "rk", false);
         body.Children.Add(kAd); body.Children.Add(kBug); body.Children.Add(kIdea); body.Children.Add(kOther);
         // an ad on a page: Veil's own report lets the person point at it and sends what it is made of, so Veil can learn to cover it
-        var pointAt = new HyperlinkButton { Content = "Point at the ad on the wall instead (helps Veil learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
+        var pointAt = new HyperlinkButton { Content = "Point at the ad on the screen instead (helps Veil learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
         body.Children.Add(pointAt);
         kAd.Checked += (_, __) => pointAt.Visibility = Visibility.Visible;
         kBug.Checked += (_, __) => pointAt.Visibility = Visibility.Collapsed;

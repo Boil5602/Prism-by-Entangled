@@ -67,12 +67,12 @@ public sealed partial class MainWindow
         var count = w["count"]?.GetValue<int>() ?? cards.Count;
         var reading = w["reading"]?.GetValue<bool>() == true;
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        var title = RowHead("My Watchlist", HubInk);
+        var title = RowHead("My watchlist", HubInk);
         head.Children.Add(title);
         // the row's words behind an (i), as the other rows have them (2026-10-15, "My WATCHLIST has a tooltip, can you move that to an (i) icon")
         head.Children.Add(InfoMark(InfoTip(new JsonObject
         {
-            ["name"] = "My Watchlist",
+            ["name"] = "My watchlist",
             ["simple"] = "Your TMDB watchlist, the same list on any device signed in to your TMDB account. Adding or removing a title here does the same on your services' own lists, where they can. Each card shows the services that carry the title.",
             ["sourceShort"] = "Your TMDB account, with JustWatch's availability",
             ["editIn"] = "Watch settings, on the PC or the phone, the TMDB panel: link or unlink the account.",
@@ -163,7 +163,7 @@ public sealed partial class MainWindow
         JsonObject? st = null;
         try { st = JsonNode.Parse(await (byId is { } b0 ? ModelCallAsync("watchlistHas", b0.kind, b0.id) : ModelCallAsync("watchlistHasTitle", title, kind)) ?? "null") as JsonObject; } catch { }
         var on = st?["on"]?.GetValue<bool>() == true;
-        var it = new MenuFlyoutItem { Text = on ? "Remove from My Watchlist" : "Add to My Watchlist", Icon = new FontIcon { Glyph = on ? "\uE74D" : "\uE710" } };
+        var it = new MenuFlyoutItem { Text = on ? "Remove from my watchlist" : "Add to my watchlist", Icon = new FontIcon { Glyph = on ? "\uE74D" : "\uE710" } };
         ToolTipService.SetToolTip(it, on ? "Takes " + title + " off your TMDB watchlist." : "Puts " + title + " on your TMDB watchlist, the same list on any device signed in to your TMDB account.");
         it.Click += async (_, __) =>
         {
@@ -184,11 +184,11 @@ public sealed partial class MainWindow
     private Button WatchlistToggle(string kind, long id, string title)
     {
         var icon = new FontIcon { Glyph = "\uE710", FontSize = 13 };
-        var text = new TextBlock { Text = "My Watchlist", FontSize = 14, Foreground = DetInk };
+        var text = new TextBlock { Text = "My watchlist", FontSize = 14, Foreground = DetInk };
         var b = new Button { Background = DetChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(18), Padding = new Thickness(12, 6, 14, 6), Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { icon, text } } };
         OwnHover(b);
         var on = false;
-        void Draw() { icon.Glyph = on ? "\uE73E" : "\uE710"; text.Text = on ? "On My Watchlist" : "My Watchlist"; ToolTipService.SetToolTip(b, on ? "On your TMDB watchlist. Press to take it off." : "Put " + title + " on your TMDB watchlist."); }
+        void Draw() { icon.Glyph = on ? "\uE73E" : "\uE710"; text.Text = on ? "On my watchlist" : "My watchlist"; ToolTipService.SetToolTip(b, on ? "On your TMDB watchlist. Press to take it off." : "Put " + title + " on your TMDB watchlist."); }
         async Task Read() { try { var r = JsonNode.Parse(await ModelCallAsync("watchlistHas", kind, id) ?? "null") as JsonObject; on = r?["on"]?.GetValue<bool>() == true; } catch { } Draw(); }
         b.Click += async (_, __) =>
         {

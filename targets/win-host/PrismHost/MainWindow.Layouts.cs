@@ -18,12 +18,12 @@ namespace PrismHost;
 /// </summary>
 public sealed partial class MainWindow
 {
-    private static readonly SolidColorBrush LeInk = new(Windows.UI.Color.FromArgb(255, 0xEC, 0xEC, 0xF0));
-    private static readonly SolidColorBrush LeDim = new(Windows.UI.Color.FromArgb(255, 0x9A, 0x9C, 0xA8));
-    private static readonly SolidColorBrush LeTeal = new(Windows.UI.Color.FromArgb(255, 0x5C, 0xC8, 0xC0));
-    private static readonly SolidColorBrush LePanel = new(Windows.UI.Color.FromArgb(255, 0x14, 0x15, 0x1C));
-    private static readonly SolidColorBrush LeSlot = new(Windows.UI.Color.FromArgb(255, 0x1E, 0x20, 0x2A));
-    private static readonly SolidColorBrush LeSlotSel = new(Windows.UI.Color.FromArgb(255, 0x2E, 0x2A, 0x1E));
+    private static readonly SolidColorBrush LeInk = Tokens.Ink;
+    private static readonly SolidColorBrush LeDim = Tokens.Dim;
+    private static readonly SolidColorBrush LeTeal = Tokens.Teal;
+    private static readonly SolidColorBrush LePanel = Tokens.Panel;
+    private static readonly SolidColorBrush LeSlot = Tokens.Chip;
+    private static readonly SolidColorBrush LeSlotSel = Tokens.ChipOn;
 
     // ------------------------------------------------ Configure an app: the app list (§33.6)
     private Grid? _appList;
@@ -52,8 +52,8 @@ public sealed partial class MainWindow
         panel.Children.Add(new TextBlock
         {
             Text = mode == "views"
-                ? "Pick the app whose facets you want to make - a facet is a page + region cut for one slot class (the classes come from your saved layouts). An app that is not on the wall yet is added first. Esc closes."
-                : "Pick the app to sign in to, navigate and explore - every catalog app and everything on the wall, not only the slots that happen to be laid out. An app that is not on the wall yet is added first. Esc closes.",
+                ? "Pick the app whose facets you want to make - a facet is a page + region cut for one slot class (the classes come from your saved layouts). An app that is not on Prism yet is added first. Esc closes."
+                : "Pick the app to sign in to, navigate and explore - every catalog app and everything on Prism, not only the slots that happen to be laid out. An app that is not on Prism yet is added first. Esc closes.",
             FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap,
         });
         var list = new StackPanel { Spacing = 4 };
@@ -61,16 +61,16 @@ public sealed partial class MainWindow
         foreach (var entry in _catalog)
         {
             var slots = onWall.Where(t => t.Id == entry.Id || t.Id.StartsWith(entry.Id + "-", StringComparison.Ordinal) || (entry.Adapter.Length > 0 && t.App == entry.Adapter)).Select(t => t.Id).ToList();
-            var status = slots.Count == 0 ? "not on the wall - it will be added first" : slots.Count == 1 ? "on the wall as " + slots[0] : slots.Count + " slots on the wall - the first is configured";
+            var status = slots.Count == 0 ? "not on Prism yet, added first" : slots.Count == 1 ? "on Prism as " + slots[0] : slots.Count + " slots on Prism, the first is configured";
             var e = entry; var f = slots;
             list.Children.Add(AppRow(entry.Name, status, () => { CloseAppList(); _ = ConfigureAppAsync(e, f, mode); }));
         }
         foreach (var t in onWall.Where(t => !_catalog.Any(c => t.Id == c.Id || t.Id.StartsWith(c.Id + "-", StringComparison.Ordinal) || (c.Adapter.Length > 0 && t.App == c.Adapter))))
         {
             var id = t.Id;
-            list.Children.Add(AppRow(t.Name, "custom site on the wall as " + id + (t.Url is { } u ? "  ·  " + u : ""), () => { CloseAppList(); BeginViewfinder(id, mode); }));
+            list.Children.Add(AppRow(t.Name, "custom site on Prism as " + id + (t.Url is { } u ? "  ·  " + u : ""), () => { CloseAppList(); BeginViewfinder(id, mode); }));
         }
-        list.Children.Add(AppRow("Custom website…", "any URL - added to the wall, then configured", () => { CloseAppList(); _ = ConfigureCustomSiteAsync(mode); }));
+        list.Children.Add(AppRow("Custom website…", "any URL, added to Prism, then configured", () => { CloseAppList(); _ = ConfigureCustomSiteAsync(mode); }));
         panel.Children.Add(new ScrollViewer { Content = list, MaxHeight = 540, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         overlay.Children.Add(panel);
         RootGrid.Children.Add(overlay);

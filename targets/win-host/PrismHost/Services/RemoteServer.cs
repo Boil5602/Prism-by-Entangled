@@ -19,7 +19,7 @@ namespace PrismHost.Services;
 /// </summary>
 public sealed class RemoteServer : IDisposable
 {
-    private readonly TcpListener _listener;
+    private TcpListener _listener;   // replaced only by AcceptLoop's bounded recovery (B-385)
     private readonly Action<int, string, string> _dispatch;                 // (requestId, requestJson) → PrismRuntime.http
     private readonly Action<string> _log;
     private readonly ConcurrentDictionary<int, TaskCompletionSource<(int status, string body, string contentType)>> _pending = new();
@@ -47,6 +47,7 @@ public sealed class RemoteServer : IDisposable
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         _ = Task.Run(AcceptLoop);
+        _ = Task.Run(AcceptWatch);
     }
 
     /// <summary>The base URL a phone on the LAN reaches this frame at (first non-loopback IPv4).</summary>
@@ -71,13 +72,68 @@ public sealed class RemoteServer : IDisposable
         if (_pending.TryRemove(requestId, out var tcs)) tcs.TrySetResult((status, body, contentType));
     }
 
+    // B-385 (2026-10-18, "I can't connect with the companion app again"): the accept loop ended on one failed accept (Windows fails an
+    // accept with "connection reset" when the phone drops the connection before Prism takes it) and the listener socket stayed bound, so
+    // every phone connection completed in the kernel's backlog and was never answered - the page spun until Prism was restarted. The
+    // loop now survives a failed accept: it logs, pauses briefly, and after twenty failures in a row rebinds the port (bounded: twenty
+    // tries, then it stops and says so). A watcher restarts the loop should it ever end while the server is not stopped.
+    private int _acceptLoopRuns;
+    private volatile bool _acceptLoopAlive;
+
     private async Task AcceptLoop()
+    {
+        _acceptLoopAlive = true;
+        var runs = Interlocked.Increment(ref _acceptLoopRuns);
+        var failures = 0;
+        try
+        {
+            while (!_stopped)
+            {
+                TcpClient client;
+                try { client = await _listener.AcceptTcpClientAsync(); failures = 0; }
+                catch (Exception ex) when (!_stopped)
+                {
+                    failures++;
+                    _log("remote accept failed (" + failures + "): " + ex.Message);
+                    if (failures >= 20)
+                    {
+                        if (!Rebind()) { _log("remote accept: could not rebind port " + Port + ", the phone page is down until Prism restarts"); return; }
+                        failures = 0;
+                    }
+                    await Task.Delay(Math.Min(100 * failures, 2000));
+                    continue;
+                }
+                catch { break; }   // stopped: the listener was closed by Dispose
+                _ = Task.Run(() => ServeAsync(client));
+            }
+        }
+        finally
+        {
+            _acceptLoopAlive = false;
+            if (!_stopped) _log("remote accept loop ended (run " + runs + ")");
+        }
+    }
+
+    /// <summary>A new listener on the same port, at most twenty times in the server's life; false when the port cannot be bound again.</summary>
+    private int _rebinds;
+    private bool Rebind()
+    {
+        if (Interlocked.Increment(ref _rebinds) > 20) return false;
+        try { _listener.Stop(); } catch { }
+        try { _listener = new TcpListener(IPAddress.Any, Port); _listener.Start(); _log("remote API rebound on port " + Port); return true; }
+        catch (Exception ex) { _log("remote rebind failed: " + ex.Message); return false; }
+    }
+
+    /// <summary>Every ten seconds: an accept loop that has ended while the server lives is started again (at most twenty times).</summary>
+    private async Task AcceptWatch()
     {
         while (!_stopped)
         {
-            TcpClient client;
-            try { client = await _listener.AcceptTcpClientAsync(); } catch { break; }
-            _ = Task.Run(() => ServeAsync(client));
+            await Task.Delay(10000);
+            if (_stopped || _acceptLoopAlive) continue;
+            if (_acceptLoopRuns >= 20) { _log("remote accept loop ended twenty times, not started again"); return; }
+            _log("remote accept loop restarted");
+            _ = Task.Run(AcceptLoop);
         }
     }
 
@@ -89,7 +145,8 @@ public sealed class RemoteServer : IDisposable
             {
                 client.ReceiveTimeout = 10000;
                 using var stream = client.GetStream();
-                var (head, bodyStart) = await ReadHeadAsync(stream);
+                using var readCap = new CancellationTokenSource(10000);   // ReceiveTimeout is for synchronous reads only (B-385)
+                var (head, bodyStart) = await ReadHeadAsync(stream, readCap.Token);
                 if (head is null) return;
                 var lines = head.Split("\r\n");
                 var reqLine = lines[0].Split(' ');
@@ -99,7 +156,7 @@ public sealed class RemoteServer : IDisposable
                 var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var l in lines.Skip(1)) { var i = l.IndexOf(':'); if (i > 0) headers[l[..i].Trim()] = l[(i + 1)..].Trim(); }
                 var len = headers.TryGetValue("Content-Length", out var cl) && int.TryParse(cl, out var n) ? n : 0;
-                var body = await ReadBodyAsync(stream, bodyStart, len);
+                var body = await ReadBodyAsync(stream, bodyStart, len, readCap.Token);
                 var q = target.IndexOf('?');
                 var path = q >= 0 ? target[..q] : target;
                 var query = q >= 0 ? target[(q + 1)..] : "";
@@ -217,13 +274,13 @@ public sealed class RemoteServer : IDisposable
         }
     }
 
-    private static async Task<(string? head, byte[] rest)> ReadHeadAsync(NetworkStream s)
+    private static async Task<(string? head, byte[] rest)> ReadHeadAsync(NetworkStream s, CancellationToken ct)
     {
         var buf = new MemoryStream();
         var tmp = new byte[4096];
         while (buf.Length < 64 * 1024)
         {
-            var n = await s.ReadAsync(tmp);
+            var n = await s.ReadAsync(tmp, ct);
             if (n <= 0) break;
             buf.Write(tmp, 0, n);
             var arr = buf.ToArray();
@@ -233,12 +290,12 @@ public sealed class RemoteServer : IDisposable
         return (null, Array.Empty<byte>());
     }
 
-    private static async Task<string> ReadBodyAsync(NetworkStream s, byte[] have, int len)
+    private static async Task<string> ReadBodyAsync(NetworkStream s, byte[] have, int len, CancellationToken ct)
     {
         if (len <= 0) return "";
         var ms = new MemoryStream(); ms.Write(have);
         var tmp = new byte[4096];
-        while (ms.Length < len) { var n = await s.ReadAsync(tmp); if (n <= 0) break; ms.Write(tmp, 0, n); }
+        while (ms.Length < len) { var n = await s.ReadAsync(tmp, ct); if (n <= 0) break; ms.Write(tmp, 0, n); }
         var arr = ms.ToArray();
         return Encoding.UTF8.GetString(arr, 0, Math.Min(len, arr.Length));
     }

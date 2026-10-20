@@ -16,7 +16,7 @@ namespace PrismHost.Surfaces;
 /// </summary>
 public sealed partial class SurfaceManager
 {
-    private static readonly Windows.UI.Color LoaderGold = Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C);
+    private static readonly Windows.UI.Color LoaderGold = Tokens.AmberColor;
     private readonly Dictionary<string, (Grid Sign, Path Glow, Path Line, Storyboard Run)> _loaders = new();
     private DispatcherTimer? _loaderTimer;
 

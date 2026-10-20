@@ -93,11 +93,11 @@ public sealed partial class MainWindow
         // the addresses: Prism's page is part of Entangled's site, entangled.world/prism (2026-09-26, "I dont see why the page needs to be at
         // prism.entangled.world instead of part of the site at entangled.world"; that name stays the extension's storage), support at entangled.world/support
         var home = new HyperlinkButton { Content = new TextBlock { Text = "entangled.world/prism", FontSize = 14, Foreground = HubAmber }, Padding = new Thickness(0, 2, 0, 2) };
-        ToolTipService.SetToolTip(home, "Prism's home page. It opens on the wall.");
+        ToolTipService.SetToolTip(home, "Prism's home page. It opens on Prism.");
         home.Click += (_, __) => ShowLinkModal("https://entangled.world/prism", "entangled.world/prism");   // a window over Credits, X to come back (2026-09-25)
         support.Children.Add(home);
         var give = new HyperlinkButton { Content = new TextBlock { Text = "entangled.world/support", FontSize = 14, Foreground = HubAmber }, Padding = new Thickness(0, 2, 0, 2) };
-        ToolTipService.SetToolTip(give, "Support Entangled, if you'd like to. It opens on the wall.");
+        ToolTipService.SetToolTip(give, "Support Entangled, if you'd like to. It opens on Prism.");
         give.Click += (_, __) => ShowLinkModal("https://entangled.world/support", "entangled.world/support");
         support.Children.Add(give);
         body.Children.Add(support);

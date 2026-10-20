@@ -199,7 +199,7 @@ export const SLOT_PURPOSES: ReadonlyArray<{ id: string; label: string; aspect: s
   { id: "vertical", label: "Vertical video 9:16", aspect: "9:16", blurb: "Shorts, reels, portrait streams" },
   { id: "web", label: "Web page 16:10", aspect: "16:10", blurb: "Dashboards, news and mail on a laptop-shaped page" },
   { id: "square", label: "Square 1:1", aspect: "1:1", blurb: "Album art, clocks, weather, a camera" },
-  { id: "control", label: "Music control (floating)", aspect: "16:5", blurb: "A floating player over the wall. It's Prism's own control, with the service beneath", floating: true },
+  { id: "control", label: "Music control (floating)", aspect: "16:5", blurb: "A floating player over the screen. It's Prism's own control, with the service beneath", floating: true },
   { id: "custom", label: "Custom W:H", aspect: null, blurb: "Any shape you name" },
 ];
 

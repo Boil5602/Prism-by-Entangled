@@ -56,7 +56,7 @@ public sealed partial class MainWindow
         var words = new TextBlock { FontSize = 15, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
         words.Inlines.Add(new Run { Text = "New", Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         words.Inlines.Add(new Run { Text = "   How Prism works, a short tour of what Prism can do" });
-        var line = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0x12, 0x13, 0x1A)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x3A, 0xF0, 0xA8, 0x3C)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 7, 16, 7), Child = words };
+        var line = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x3A), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 7, 16, 7), Child = words };
         var go = Chip(new TextBlock { Text = "Show me", FontSize = 15, Foreground = HubInk }, true);
         ToolTipService.SetToolTip(go, "A few seconds showing where the tour lives, then the tour itself. It is in the Prism menu any time, under How Prism works.");
         go.Click += (_, __) => { TourNoticeDone(); _ = PlayTourIntroAsync(); };

@@ -138,9 +138,9 @@ public sealed partial class MainWindow
     // pill 950, the grips and the stage bar 1000) stay above the whole canvas as before.
     private const int VideoHubZ = 905;
     private SizeChangedEventHandler? _hubCanvasSize;
-    private static readonly SolidColorBrush HubInk = new(Windows.UI.Color.FromArgb(255, 0xE8, 0xEC, 0xF2));
-    private static readonly SolidColorBrush HubDim = new(Windows.UI.Color.FromArgb(255, 0x8A, 0x93, 0xA2));
-    private static readonly SolidColorBrush HubAmber = new(Windows.UI.Color.FromArgb(255, 0xF2, 0xB1, 0x4C));
+    private static readonly SolidColorBrush HubInk = Tokens.Ink;
+    private static readonly SolidColorBrush HubDim = Tokens.Dim;
+    private static readonly SolidColorBrush HubAmber = Tokens.Amber;
     /// <summary>A channel card's own colour (2026-10-13): a hue from its name, muted and dark enough for light ink and a logo over it, the same
     /// every time the channel is drawn.</summary>
     private static SolidColorBrush ChannelTint(string name)
@@ -151,17 +151,17 @@ public sealed partial class MainWindow
         var (r, g, b) = hue < 60 ? (C, X, 0d) : hue < 120 ? (X, C, 0d) : hue < 180 ? (0d, C, X) : hue < 240 ? (0d, X, C) : hue < 300 ? (X, 0d, C) : (C, 0d, X);
         return new SolidColorBrush(Windows.UI.Color.FromArgb(255, (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255)));
     }
-    private static readonly SolidColorBrush HubCard = new(Windows.UI.Color.FromArgb(255, 0x22, 0x27, 0x30));
-    private static readonly SolidColorBrush HubChip = new(Windows.UI.Color.FromArgb(255, 0x1C, 0x21, 0x29));
-    private static readonly SolidColorBrush HubChipOn = new(Windows.UI.Color.FromArgb(255, 0x3A, 0x2E, 0x14));
-    private static readonly SolidColorBrush HubClear = new(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-    private static readonly SolidColorBrush HubTabRule = new(Windows.UI.Color.FromArgb(0x5A, 0xE8, 0xEC, 0xF2));   // the tab strip's rule and the open tab's edge (2026-10-03)
-    private static readonly SolidColorBrush HubRule = new(Windows.UI.Color.FromArgb(28, 0xE8, 0xEC, 0xF2));   // a faint grid line on the dark surface
+    private static readonly SolidColorBrush HubCard = Tokens.Card;
+    private static readonly SolidColorBrush HubChip = Tokens.Chip;
+    private static readonly SolidColorBrush HubChipOn = Tokens.ChipOn;
+    private static readonly SolidColorBrush HubClear = Tokens.Clear;
+    private static readonly SolidColorBrush HubTabRule = Tokens.TabRule;   // the tab strip's rule and the open tab's edge (2026-10-03)
+    private static readonly SolidColorBrush HubRule = Tokens.Rule;   // a faint grid line on the dark surface
     /// <summary>A pill's hover and press: its own colour lit, never the system's grey (Chip).</summary>
-    private static readonly SolidColorBrush HubChipHover = new(Windows.UI.Color.FromArgb(255, 0x2C, 0x34, 0x42));
-    private static readonly SolidColorBrush HubChipPressed = new(Windows.UI.Color.FromArgb(255, 0x24, 0x2A, 0x35));
-    private static readonly SolidColorBrush HubChipOnHover = new(Windows.UI.Color.FromArgb(255, 0x55, 0x43, 0x1C));
-    private static readonly SolidColorBrush HubChipOnPressed = new(Windows.UI.Color.FromArgb(255, 0x47, 0x38, 0x17));
+    private static readonly SolidColorBrush HubChipHover = Tokens.ChipHover;
+    private static readonly SolidColorBrush HubChipPressed = Tokens.ChipPressed;
+    private static readonly SolidColorBrush HubChipOnHover = Tokens.ChipOnHover;
+    private static readonly SolidColorBrush HubChipOnPressed = Tokens.ChipOnPressed;
     /// <summary>The transparency rule: each service's own rows are shown only when the household turned them on.</summary>
     private const string SuggestionsPref = "video.menu.suggestions";
 
@@ -745,7 +745,7 @@ public sealed partial class MainWindow
             // answers at once; hover raises the wall's volume slider over it (B-176); the bar holds while the slider is up
             var muteIcon = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = 15, Foreground = _wallMuted ? HubAmber : HubInk };
             var mute = Chip(muteIcon, _wallMuted);
-            ToolTipService.SetToolTip(mute, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute the wall. Hover for the volume.");
+            ToolTipService.SetToolTip(mute, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute Prism. Hover for the volume.");
             mute.Click += (_, __) => { SetWallMutedFromWall(screenSlot, !_wallMuted); muteIcon.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon.Foreground = _wallMuted ? HubAmber : HubInk; RestartStageBarTimer(); };
             mute.PointerEntered += (_, __) => { ShowVolumeSlider(mute, screenSlot); _stageBarTimer?.Stop(); };
             mute.PointerExited += (_, __) => { _volumeClose?.Start(); RestartStageBarTimer(); };
@@ -1104,6 +1104,7 @@ public sealed partial class MainWindow
         if (focusScreen && WatchGrip.Visibility == Visibility.Visible && !redraw) _ = FocusScreenAsync();
         _videoHub = null;
         _hubSearch = null;
+        if (!redraw) { if (_reportGrip is not null) _reportGrip.Visibility = Visibility.Visible; _ = UpdatePlayerGripAsync(); }   // the top-right grips back (finding 7)
         // B-295: the windows Watch covered come back as empty frames unless their views present afresh - and the windows that were in Watch's
         // places too (2026-09-28, "The video page wasn't covering, in fact it was Watch that was on the screen": after Show video the big window,
         // grown from Watch's corner to the whole window, came back see-through, a still of Watch showing through it while its page took the
@@ -1354,11 +1355,27 @@ public sealed partial class MainWindow
         // top of watch ... these controls should either be within the big window or removed"): the title is the big window's tooltip and the verbs
         // sit on its bar (WatchScreens.PlaceLabel, ScreenVerbs). The line panel is kept, unattached, for the code that still writes to it.
         var headRight = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0 };
+        // the player switch and the flag, in from the window's top-right grips (2026-10-17, the designer's pass, finding 7: three control clusters
+        // along the top edge, the right one the smallest text on the page): while Watch is up those grips are hidden and these chips stand in
+        if (_playerGripActive is { } activePlayer)
+        {
+            var otherKind = activePlayer == "video" ? "music" : "video";
+            var swap = Chip(new FontIcon { Glyph = otherKind == "music" ? "\uE8D6" : "\uE714", FontSize = 14 }, false);
+            ToolTipService.SetToolTip(swap, otherKind == "music" ? "Music player: switch the screen to it." : "Video player: switch the screen to it.");
+            swap.Margin = new Thickness(8, 0, 0, 0);
+            swap.Click += (_, __) => _ = SwitchPlayerAsync(otherKind);
+            headRight.Children.Add(swap);
+        }
+        var flagChip = Chip(new FontIcon { Glyph = ((char)0xE7C1).ToString(), FontSize = 14 }, false);
+        ToolTipService.SetToolTip(flagChip, "Report a problem or suggest something, or turn on Ad debug");
+        flagChip.Margin = new Thickness(8, 0, 0, 0);
+        flagChip.Click += (_, __) => ShowFlagMenu(flagChip);
+        headRight.Children.Add(flagChip);
         // core reads each service's home page for its rows (hidden pages, every few hours): always, since a service's poster shows them on a press
         // (2026-10-14, "Lets remove the service suggestions button"); the switch and its jump are gone from the header
         if (!_suggTold) { _suggTold = true; _ = ModelCallAsync("videoSetSuggestions", true); }
         var gear = Chip(new FontIcon { Glyph = "\uE713", FontSize = 14 }, false);
-        ToolTipService.SetToolTip(gear, "Watch settings: the TMDB key, background updates.");
+        ToolTipService.SetToolTip(gear, "Watch settings: Simple Watch, The Binge, categories, your services and TMDB, ads, updates.");
         gear.Margin = new Thickness(8, 0, 0, 0);
         gear.Click += (_, __) => _ = ShowWatchSettingsAsync();
         headRight.Children.Add(gear);
@@ -1372,6 +1389,8 @@ public sealed partial class MainWindow
         Grid.SetColumn(headRight, 2);
         head.Children.Add(headRight);
         page.Children.Add(head);
+        PlayerGrip.Visibility = Visibility.Collapsed;   // their verbs are in the head while Watch is up (finding 7); CloseVideoHub brings the grips back
+        if (_reportGrip is not null) _reportGrip.Visibility = Visibility.Collapsed;
 
         // ---- "Who's watching?" while the service on the screen asks
         var gateRow = new StackPanel { Spacing = 8, Margin = new Thickness(0, 14, 0, 0) };
@@ -1426,7 +1445,8 @@ public sealed partial class MainWindow
             var host = new StackPanel { Background = HubClear, Tag = string.Join("|", list.Select(LiveKey)) };
             host.PointerEntered += (_, __) => _liveOver.Add(live);
             host.PointerExited += (_, __) => _liveOver.Remove(live);
-            if (list.Count > 0) host.Children.Add(CardRow(list, badge, now, ref first));
+            // Simple Watch's Continue watching: its first card is the Resume hero (MainWindow.SimpleWatch.cs ResumeRow)
+            if (list.Count > 0) host.Children.Add(live == "continue" && s_quiet ? ResumeRow(list, badge, now, ref first) : CardRow(list, badge, now, ref first));
             into.Children.Add(host);
             if (!ReferenceEquals(into, rows)) rows.Children.Add(ScaledRow(into, scale));
             _liveRows[live] = (headEl, host, badge);
@@ -1474,11 +1494,7 @@ public sealed partial class MainWindow
         else
         {
         if (!s_quiet) Cards("New in your library", LiveCards(menu, "newOwned"), true, HubAmber);   // with the service's mark on each card, as every row has (2026-10-12)   // the titles that joined a service's library this week, a purchase made on the phone among them (2026-10-11)
-        var resumeAt = rows.Children.Count; var firstBeforeContinue = first;
-        Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue", s_quiet ? SimpleLeadScale : 1);
-        // Simple Watch's one clear next step: Resume, the first card of Continue watching as its own bar above the row (MainWindow.SimpleWatch.cs)
-        if (s_quiet && firstBeforeContinue is null && first is not null && LiveCards(menu, "continue").FirstOrDefault() is { } resumeCard && ResumeBar(resumeCard, first) is { } resumeBar)
-            rows.Children.Insert(resumeAt, resumeBar);   // its cards offer Remove on the service (2026-09-22)
+        Cards("Continue watching", LiveCards(menu, "continue"), true, HubInk, "continue", s_quiet ? SimpleLeadScale : 1);   // its cards offer Remove on the service (2026-09-22); in Simple Watch the first card is the Resume (MainWindow.SimpleWatch.cs)
         // My list is the TMDB watchlist while an account is linked (MainWindow.Watchlist.cs, 2026-10-03); the services' own lists otherwise
         _watchActive = menu["watchlist"] is JsonObject wl0 && wl0["active"]?.GetValue<bool>() == true;
         if (_watchActive && s_quiet) { var wlGroup = new StackPanel { Spacing = rows.Spacing }; DrawWatchlistRow(wlGroup, overlay, (JsonObject)menu["watchlist"]!); rows.Children.Add(ScaledRow(wlGroup, SimpleRowScale)); }
@@ -1575,12 +1591,7 @@ public sealed partial class MainWindow
             }
         }
         // what the person owns lives on the Library tab (2026-09-22): a line here says how much, and takes the person there
-        if (menu["owned"] is JsonArray ownedCards && ownedCards.Count > 0)
-        {
-            var toLib = Chip(new TextBlock { Text = "Library  ·  " + ownedCards.Count + " titles you own, by genre  →", FontSize = 13, Foreground = HubAmber }, false);
-            toLib.Click += (_, __) => { _hubTab = "library"; _ = ShowVideoHubAsync(); };
-            rows.Children.Add(toLib);
-        }
+        // (the "Library - N titles you own, by genre" chip that stood here, and the "Live - N channels" one below, are gone: the tabs are the way there, 2026-10-17, finding 9)
         // section 4a as rows (2026-09-21, "make those rows of carousels to look through below continue watching and my list"): the two
         // rows above keep the person's own order always; each lens is a row of its own here, the household's titles in the lens's
         // order, its three-layer disclosure, source, formula and data date on the row - never in a settings page
@@ -1700,12 +1711,6 @@ public sealed partial class MainWindow
         if (menu["live"] is JsonArray live)
         {
             var nLive = live.OfType<JsonObject>().Sum(l => (l["channels"] as JsonArray)?.Count ?? 0);
-            if (nLive > 0)
-            {
-                var toLive = Chip(new TextBlock { Text = "Live" + Mid + nLive + " channels, as a schedule  " + (char)0x2192, FontSize = 13, Foreground = HubAmber }, false);
-                toLive.Click += (_, __) => { _hubTab = "live"; _ = ShowVideoHubAsync(); };
-                rows.Children.Add(toLive);
-            }
         }
         // Services: every service the household has, as posters - tap enters it natively (sign in where needed); on its own shaded band (Band)
         _svcSuggLabels.Clear(); _svcSuggBase.Clear();
@@ -2020,7 +2025,7 @@ public sealed partial class MainWindow
             searchSlot.Content = expander;
             modalPanel.Children.Add(svcCar);
             if (!typeKey)
-                modalPanel.Children.Add(new TextBlock { Text = "A free TMDB key makes search exact: titles matched to your services as you type, people's films and shows, ratings and two more rows · themoviedb.org → Settings → API, then 'TMDB key…' below the rows.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap, MaxWidth = 1100 });
+                modalPanel.Children.Add(new TextBlock { Text = "A free TMDB key makes search exact: titles matched to your services as you type, people's films and shows, ratings and two more rows. Get one in Watch settings, under TMDB.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 1100 });
             modalPanel.Children.Add(results);
             // any search that starts shows the strip and the results (a dev search sets the words in code, and the box's TextChanged does not always follow)
             results.Tag = new Action(() => { modal.Visibility = Visibility.Visible; Slide(true); });
@@ -2145,11 +2150,13 @@ public sealed partial class MainWindow
         _ = WarmTabsAsync();
     }
 
-    private static TextBlock RowHead(string text, SolidColorBrush ink) => new() { Text = text, FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ink };
+    /// <summary>A row's name: the page's wayfinding, larger than the names on its cards (2026-10-17, the designer's pass, finding 4: heads were 16 px under
+    /// 17 px card names), with more air above it than below.</summary>
+    private static TextBlock RowHead(string text, SolidColorBrush ink) => new() { Text = text, FontSize = Tokens.TextRow, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ink, Margin = new Thickness(0, 6, 0, 0) };
     /// <summary>A row on its own shaded band, a natural separator down the Watch page (2026-10-14, "change the background shading for the Services line
     /// and the channels you follow line ... natural separators"): the band runs through the page's side margins, edge to edge ("go through
     /// the side margins as well"), its cards staying aligned with the other rows'.</summary>
-    private static readonly SolidColorBrush HubBand = new(Windows.UI.Color.FromArgb(0x14, 0xE8, 0xEC, 0xF2));
+    private static readonly SolidColorBrush HubBand = Tokens.Band;
     /// <summary>The Watch page's side margin (the rows' own padding, see the rows panel).</summary>
     private const double HubSide = 48;
     private static Border Band(params FrameworkElement[] parts)
@@ -2229,9 +2236,14 @@ public sealed partial class MainWindow
         }
         catch (Exception e) { return "? " + e.Message; }
     }
-    /// <summary>The row a stop belongs to: the nearest horizontal StackPanel above it, short of the page; a stop with none is on its own.</summary>
+    /// <summary>A panel tagged so is the row for everything in it, whatever panels lie between (2026-10-17: the Resume hero's two buttons and the
+    /// Continue watching cards after it walk as one row with Left and Right).</summary>
+    internal const string HubRowTag = "hub-row";
+    /// <summary>The row a stop belongs to: a panel tagged HubRowTag above it, else the nearest horizontal StackPanel above it, short of the page; a stop with none is on its own.</summary>
     private static Panel? RowOf(DependencyObject c, DependencyObject root)
     {
+        for (var t = VisualTreeHelper.GetParent(c); t is not null && !ReferenceEquals(t, root); t = VisualTreeHelper.GetParent(t))
+            if (t is Panel tp && tp.Tag as string == HubRowTag) return tp;
         var d = VisualTreeHelper.GetParent(c);
         while (d is not null && !ReferenceEquals(d, root))
         {
@@ -2426,7 +2438,7 @@ public sealed partial class MainWindow
         // the wall's mute and volume here too, the same look and the same switch as on the stage bar and the music player
         var muteIcon2 = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = size, Foreground = _wallMuted ? HubAmber : HubInk };
         var mute2 = Chip(muteIcon2, _wallMuted);
-        ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute the wall. Hover for the volume.");
+        ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute Prism. Hover for the volume.");
         mute2.Click += (_, __) => { SetWallMutedFromWall(screenSlot, !_wallMuted); muteIcon2.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon2.Foreground = _wallMuted ? HubAmber : HubInk; };
         mute2.PointerEntered += (_, __) => ShowVolumeSlider(mute2, screenSlot);
         mute2.PointerExited += (_, __) => _volumeClose?.Start();
@@ -2434,12 +2446,14 @@ public sealed partial class MainWindow
     }
     private static Button Chip(UIElement content, bool on)
     {
-        var b = new Button { Content = content, Background = on ? HubChipOn : HubChip, BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(14), Padding = new Thickness(12, 6, 12, 6), VerticalAlignment = VerticalAlignment.Center };
+        // a lit chip carries an amber edge (2026-10-17, the designer's pass, finding 15: the lit fill #3A2E14 against #1C2129 vanished at 16 px from a sofa)
+        var b = new Button { Content = content, Background = on ? HubChipOn : HubChip, BorderBrush = on ? Tokens.AmberAt(0xA0) : HubClear, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(11, 5, 11, 5), VerticalAlignment = VerticalAlignment.Center };
+        b.Resources["ButtonBorderBrushPointerOver"] = b.Resources["ButtonBorderBrushPressed"] = on ? Tokens.AmberAt(0xA0) : HubClear;   // the edge stays lit
+        OwnHover(b);
         // the tooltip under the button, never under the pointer (2026-09-25, "When I put my mouse over show video, it often shows and loses focus. Why
         // do so many of your buttons do this?"): at the top of the wall a pointer-placed tip had no room above and opened on the pointer itself,
         // the button saw the pointer leave, and its hover went out about half a second in
         ToolTipService.SetPlacement(b, Microsoft.UI.Xaml.Controls.Primitives.PlacementMode.Bottom);
-        OwnHover(b);
         if (s_devLog is { } log)   // dev only: the hover that comes and goes (2026-09-25)
         {
             string Name() => content is TextBlock t ? t.Text : content is Panel p ? string.Join(" ", p.Children.OfType<TextBlock>().Select(x => x.Text)) : content.GetType().Name;
@@ -2572,7 +2586,9 @@ public sealed partial class MainWindow
                 var marks = new List<(string, string)> { (S(card, "app"), service) };
                 if (card["also"] is JsonArray alsoMarks) marks.AddRange(alsoMarks.OfType<JsonObject>().Select(x => (S(x, "app"), S(x, "service"))));
                 if (card["streams"] is JsonArray stMarks) marks.AddRange(stMarks.OfType<JsonObject>().Select(x => (S(x, "app"), S(x, "service"))));   // where else it streams, as TMDB lists it (2026-10-12)
-                poster.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = MarkStack(marks) });
+                // Simple Watch: one mark, the service the card plays on (2026-10-17, the designer's pass, finding 5: the stack of four logos was the busiest
+                // thing left on a calm card); the others are in the card's menu as Play on X
+                poster.Children.Add(new Border { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(6), Child = s_quiet ? MarkStack(marks.Take(1), 24) : MarkStack(marks) });
             }
             // the service's own banner on its card ("New Season", "Leaving Soon", 2026-09-23), in its words - it is also why
             // the title stands at the front of My List (core's orderAlphabetical)
@@ -2623,9 +2639,10 @@ public sealed partial class MainWindow
             }
             // TMDB's picture carries no name: the series' (or the title's) goes over it, and the line under keeps the episode alone (2026-10-13)
             var named = !logoCard && art is { Length: > 0 };
+            var heroCard = card["__hero"]?.GetValue<bool>() == true;   // the Resume hero's card: its name is written beside it, not over its picture (MainWindow.SimpleWatch.cs)
             // a Continue watching card always: a service's continue picture is a still of the episode, not its box art with the name (2026-10-13, "All the items in the
             // continue watching line are missing titles")
-            if (named && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")) || card["__continue"]?.GetValue<bool>() == true)) TitleOverlay(poster, series.Length > 0 ? series : title);
+            if (named && !heroCard && (S(item, "artFrom") == "tmdb" || _plainArtApps.Contains(S(card, "app")) || card["__continue"]?.GetValue<bool>() == true)) TitleOverlay(poster, series.Length > 0 ? series : title);
             if (removing) poster.Children.Add(PendingRemovalMark());
             var cell = new StackPanel { Spacing = 4, Width = CardCellW };
             cell.Children.Add(StackBehind(poster, card["also"] is JsonArray alsoN ? alsoN.Count + 1 : 1));
@@ -3228,7 +3245,7 @@ public sealed partial class MainWindow
             var summary = total == 0 ? "Nothing owned is known yet. A service's library (Fandango at Home's My Movies, Movies Anywhere's) is read in the background after sign-in."
                 : total + " titles owned on " + libFrom + (twice > 0 ? "  ·  " + twice + " on more than one service (press one to choose)" : "")
                 + (lib?["tmdbKey"]?.GetValue<bool>() == true ? "  ·  " + rated + " rated" + (libPending > 0 ? ", reading " + libPending + " title" + (libPending == 1 ? "" : "s") + "…" : "") : "  ·  a TMDB key sorts them by genre and rates them");
-            built.Children.Add(new TextBlock { Text = summary, FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+            built.Children.Add(new TextBlock { Text = summary, FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
             if (total > 0)
             {
                 // Group by (2026-09-23, "add a group by buttons, default is genre ... Add an option for None ... responsive and easy to understand"):

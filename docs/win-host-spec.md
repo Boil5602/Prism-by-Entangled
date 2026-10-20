@@ -90,7 +90,11 @@ rendering it in a control's *disabled* state - that state's grey on the menu sur
 4.5:1 or better: light ink #E8ECF2 for information, amber #F2B14C for the one thing to notice, #8A93A2 only for a
 genuinely secondary line under a primary one, never for a row's only text. (3) A verb that cannot act right now MAY
 be disabled - it is a control, its grey means "not now" - and the reason goes in its tooltip. (4) Where the eye
-should land, put a picture there (artwork above a find), not only a brighter word.
+should land, put a picture there (artwork above a find), not only a brighter word. (5) Every colour the host
+draws is a token (2026-10-17): `targets/win-host/PrismHost/Tokens.cs` holds the ink, the amber, the grounds, the chip
+states and the alphas (`AmberAt`), each surface's own brushes are aliases of them, the phone page carries the same
+names as CSS custom properties in its `:root`, and `scripts/audit-tokens.mjs` (a verify step) fails on a colour
+outside the sheet. The visualizations' art palettes are pictures and keep their own.
 
 ## 6. Audio
 

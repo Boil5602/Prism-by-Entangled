@@ -92,11 +92,13 @@ public sealed partial class MainWindow
     {
         // a pill, not a star (2026-10-13, "I don't think those numbers in the stars are easily read. Might need to change the shape"): the score
         // large and dark on a ground coloured by the scale, a small star before it; the person's own number on an amber pill beside, marked You
+        // one pill colour (2026-10-17, the designer's pass, finding 8: five pill colours on every card drowned the amber): the pill is dark with light
+        // ink, and the scale's colour lives on its small star alone, so a row reads as a row and a glance still finds the greens and the reds
         var ink = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0F, 0x12, 0x16));
-        var dim = new TextBlock { Text = RatingStar, FontSize = 12, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 3, 0) };
-        var fill = new TextBlock { Text = RatingStar, FontSize = 12, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
-        var score = new TextBlock { FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = ink, VerticalAlignment = VerticalAlignment.Center };
-        var pill = new Border { CornerRadius = new CornerRadius(11), Padding = new Thickness(8, 1, 9, 2), Background = StarTint(null), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0x0B, 0x0E, 0x12)), BorderThickness = new Thickness(1.5),
+        var dim = new TextBlock { Text = RatingStar, FontSize = 13, Foreground = StarTint(null), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) };
+        var fill = new TextBlock { Text = RatingStar, FontSize = 13, Foreground = ink, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+        var score = new TextBlock { FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
+        var pill = new Border { CornerRadius = new CornerRadius(11), Padding = new Thickness(8, 1, 9, 2), Background = Tokens.PanelAt(0xE0), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x60, 0xE8, 0xEC, 0xF2)), BorderThickness = new Thickness(1),
             Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { dim, score } } };
         var mineScore = new TextBlock { FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = ink, VerticalAlignment = VerticalAlignment.Center };
         var mineBox = new Grid { Visibility = Visibility.Collapsed, Children = { new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 1, 7, 2), Background = HubAmber, BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xB0, 0x0B, 0x0E, 0x12)), BorderThickness = new Thickness(1.5),
@@ -122,7 +124,7 @@ public sealed partial class MainWindow
             var m = ScoreRx.Match(words);
             ui.Score.Text = m.Success ? m.Groups[1].Value : "";
             ui.Badge.Visibility = m.Success ? Visibility.Visible : Visibility.Collapsed;
-            if (ui.BadgePill is not null) ui.BadgePill.Background = StarTint(m.Success && double.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : null);
+            if (ui.BadgeDim is not null) ui.BadgeDim.Foreground = StarTint(m.Success && double.TryParse(m.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : null);   // the scale on the star (2026-10-17)
             if (ui.Explain is not null) ui.Explain.Text = ExplainWords(words);
             if (ui.Yours is not null) { ui.Yours.Text = mine is { } mv ? "Your rating: " + mv.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " of 10." : ""; ui.Yours.Visibility = mine is not null ? Visibility.Visible : Visibility.Collapsed; }
         }

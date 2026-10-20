@@ -30,7 +30,7 @@ phones. The app should also enable the private listening feature through the pho
    (the ⋯ menu): *keeps playing in the background*, a live MP3 the phone's own player fetches, which goes on with the page put away
    or the screen locked, a few seconds behind the wall (the default on an iPhone); or *low delay*, a tenth of a second behind, which
    a phone stops when the page is hidden (the default elsewhere). The page's own volume is under the options too, 100% unless moved;
-   an iPhone ignores a page's volume and keeps its own on the buttons, and the page says so there. The tab is *Remote Listening*. In
+   an iPhone ignores a page's volume and keeps its own on the buttons, and the page says so there. The tab is *Private Listening*. In
    the background mode the status line says how many seconds the phone holds (that is how far behind the PC it hears) and, while
    filling, a share of what it needed last time before it played; a pause from the Music tab pauses the phone's player at the same
    moment, and Play fetches the stream fresh, since the PC's pause alone would play on here until the buffer ran dry.
@@ -79,7 +79,7 @@ phones. The app should also enable the private listening feature through the pho
    (2026-10-05, "Isn't Live supposed to show the Formula 1 stuff from Apple?": the list had come from the channel guides alone). A press
    plays on the PC through the same calls the PC's own cards make (`GET /video`, `POST /video/play`, `/video/tune`, `/video/seek`,
    `/video/start-over`, and `/tiles/{id}/command` for the verbs). Never a picture: the services' video is DRM and Prism does not
-   touch it (docs/third-party-services-policy.md); the sound comes by Remote Listening.
+   touch it (docs/third-party-services-policy.md); the sound comes by Private Listening.
 4c. **Playlists** (2026-10-12, "Make sure I can manage playlists through the companion app"). An accordion under the Video tab's rows,
    shown when the PC shows its Playlists tab (a TMDB account with lists linked, or lists already on the PC), its line saying how many playlists there are or which one plays. The lists with their completion ("3 of 12 completed · next: …") and a
    bar; New playlist asks a name. A tap opens one (on the PC too: the open list is the PC's open list) with Play (the resume point),
@@ -201,7 +201,7 @@ phones. The app should also enable the private listening feature through the pho
 
 "Remote listening for video should allow the user to select which window they're listening to. In the main app, we normally only
 let the big window play sound. But with remote listening, we should allow any 1 (big or mini) window to be selected." With multiview
-on, the Remote Listening tab shows a chip a window, big first, each with what it plays; the chosen one takes the audio the stream
+on, the Private Listening tab shows a chip a window, big first, each with what it plays; the chosen one takes the audio the stream
 carries (`GET /audio/windows`, `POST /audio/listen-window {tile|null}`; core's `setListenWindow`). The PC's speakers are muted while
 a phone listens unless the phone's switch says otherwise, so the room keeps hearing nothing or, with the switch off, hears the chosen
 window too - the person's choice. A swap keeps the choice; the last phone leaving gives the sound back to the big window (the host
