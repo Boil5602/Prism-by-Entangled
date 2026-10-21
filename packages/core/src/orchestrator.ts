@@ -2128,7 +2128,7 @@ export class Orchestrator {
         const kind = ctx?.kind && /^(playlist|station|album)$/.test(ctx.kind) ? ctx.kind : null;
         this.lastInteract.set(tile.id, Date.now());   // the person pressed play in setup: a human's play
         if (spec?.musicPlay && ctx?.id && kind) {
-          await this.drivers.surface.inject(tile.id, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(ctx.id)})`);
+          await this.drivers.surface.inject(tile.id, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(ctx.id)}, ${JSON.stringify(ctx.label ?? carry.np.title ?? "")})`);
           this.setMusicPending(tile.id, { kind, id: ctx.id, name: ctx.label ?? carry.np.title ?? kind });
         } else {
           const url = ctx?.url && /^https?:\/\//.test(ctx.url) ? normalizeCollectionUrl(ctx.url) : carry.url;
@@ -2351,7 +2351,7 @@ export class Orchestrator {
     await this.claimAudio(tileId);   // B-137: the quick jump - the other source goes quiet now; this one sounds the moment its queue starts
     if (shuffleJs) await this.drivers.surface.inject(tileId, null, shuffleJs);
     await this.applyServiceRepeat(tileId, this.musicRepeatOf(tileId));   // the standing repeat, on the service's own switch
-    const playJs = `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(id)})`;
+    const playJs = `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(kind)}, ${JSON.stringify(id)}, ${JSON.stringify(item.name)})`;
     await this.drivers.surface.inject(tileId, null, playJs);
     this.setMusicPending(tileId, { kind, id, name: item.name });
     // one more send when the page has not said it plays within MUSIC_PLAY_RETRY_MS (2026-10-04, "Keep trying to start vibes in the companion
@@ -2976,7 +2976,7 @@ export class Orchestrator {
     if (byId && spec?.musicPlay) {
       if (this.holdsCollection(tileId, byId.kind, byId.id)) { await this.resumeHeld(tileId); return "ok"; }   // B-140
       await this.claimAudio(tileId);   // B-137: the quick jump
-      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(byId.kind)}, ${JSON.stringify(byId.id)})`);
+      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(byId.kind)}, ${JSON.stringify(byId.id)}, ${JSON.stringify(entry.label ?? "")})`);
       this.setMusicPending(tileId, { kind: byId.kind, id: byId.id, name: entry.label });
       return "ok";
     }
@@ -3111,7 +3111,7 @@ export class Orchestrator {
     this.arm(tileId);
     if (spec?.musicPlay && /^(playlist|station|album)$/.test(held.kind)) {
       await this.claimAudio(tileId);
-      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(held.kind)}, ${JSON.stringify(held.id)})`);
+      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(held.kind)}, ${JSON.stringify(held.id)}, ${JSON.stringify(held.label ?? "")})`);
       this.setMusicPending(tileId, { kind: held.kind, id: held.id, name: held.label ?? held.id });
       return "ok";
     }
@@ -3183,7 +3183,7 @@ export class Orchestrator {
     if (byId && spec?.musicPlay) {
       this.arm(tileId);
       await this.claimAudio(tileId);
-      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(byId.kind)}, ${JSON.stringify(byId.id)})`);
+      await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(byId.kind)}, ${JSON.stringify(byId.id)}, ${JSON.stringify(point.label ?? point.title ?? "")})`);
       this.setMusicPending(tileId, { kind: byId.kind, id: byId.id, name: point.label ?? point.title });
       return "ok";
     }
@@ -9397,7 +9397,18 @@ export class Orchestrator {
   private setMusicPending(tileId: string, p: { kind: string; id: string; name: string; url?: string; title?: string }): void {
     const at = Date.now();
     this.musicPending.set(tileId, { ...p, at });
-    setTimeout(() => { const q = this.musicPending.get(tileId); if (q && q.at === at && !q.failed) q.failed = "timeout"; }, Orchestrator.MUSIC_PICK_TIMEOUT_MS);
+    setTimeout(() => {
+      const q = this.musicPending.get(tileId);
+      if (!q || q.at !== at || q.failed) return;
+      q.failed = "timeout";
+      // 2026-10-20 ("I just tried to start an amazon music station but nothing happened"): the pick was marked failed here and nothing said
+      // so - the person saw a press do nothing. Now the feed says it, the way a failed track-list read is said (musicWork with an error).
+      if (!this.musicWork.has(tileId) && !this.nowPlaying.get(tileId)?.playing) {
+        const note = { what: "Play: did not start", name: p.name, at: Date.now(), error: "the service's page did not start it in 30 seconds" };
+        this.musicWork.set(tileId, note);
+        setTimeout(() => { if (this.musicWork.get(tileId) === note) this.musicWork.delete(tileId); }, Orchestrator.MUSIC_PICK_FAILED_LINGER_MS);
+      }
+    }, Orchestrator.MUSIC_PICK_TIMEOUT_MS);
     setTimeout(() => { const q = this.musicPending.get(tileId); if (q && q.at === at) this.musicPending.delete(tileId); }, Orchestrator.MUSIC_PICK_TIMEOUT_MS + Orchestrator.MUSIC_PICK_FAILED_LINGER_MS);
   }
   /** How many collections quick play remembers per music tile (the maintainer's ask: five). */

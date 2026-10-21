@@ -56,7 +56,8 @@ var PrismPopups = (() => {
   var FUNCTIONAL_POPUPS = [
     { name: "sign-in (Google)", test: /(^|\.)accounts\.google\.com$/i },
     { name: "sign-in (Microsoft)", test: /(^|\.)(login\.microsoftonline\.com|login\.live\.com)$/i },
-    { name: "sign-in (Apple)", test: /(^|\.)appleid\.apple\.com$/i },
+    { name: "sign-in (Apple)", test: /(^|\.)(appleid|idmsa)\.apple\.com$/i },
+    // idmsa: the Apple ID popup music.apple.com opens
     { name: "sign-in (GitHub)", test: /^github\.com$/i },
     { name: "sign-in (Facebook)", test: /^(www\.)?facebook\.com$/i },
     { name: "sign-in (Auth0/Okta)", test: /(^|\.)(auth0\.com|okta\.com)$/i },

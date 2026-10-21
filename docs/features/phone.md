@@ -113,7 +113,9 @@ phones. The app should also enable the private listening feature through the pho
 5. **Options (⋯).** *Prism on PC: Music lounge | Video* switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
    dispatched through the PC's own player switch; `GET /players` says which exist and which is on). The Music tab is only shown while
    the Music lounge is on. Add to home screen (the phone's own instructions; the icon opens the wall already paired through the manifest's
-   start address), the sound mode, the page's volume, Refresh this page, Forget this PC. *Watch settings* (2026-10-14, "Let me edit as
+   start address), the sound mode, the page's volume, Refresh this page, Forget this PC. A support line (2026-10-21, donations live: "we should make sure the link opens to a
+   mobile browser not within the prism companion app"): one sentence that Prism is free, and entangled.world/support as a link that
+   opens in the phone's own browser, never inside the companion page, so the Ko-fi button runs there too. *Watch settings* (2026-10-14, "Let me edit as
    many of the watch settings as possible from the companion app") opens a full sheet of what core keeps, read in one (`GET /video/settings`)
    and saved a piece at a time (`POST /video/settings/<what>`, through the same core calls the PC's Watch settings make): the rows' orders
    and reverses, the ads look, the suggestion rows, the update pause and a refresh, The Binge's limits, animation and Kids mode, every

@@ -2,6 +2,22 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.37.0 - 2026-10-21 (alpha, af99fac0)
+
+Amazon Music works again. Amazon replaced its web player, so Prism could not start a station, read what was playing, list your playlists or search on it. All of that works on the new player, and its ads are muted and covered. A pick that a service never starts now says so in the feed after thirty seconds instead of nothing happening. The phone's Options menu has a line for supporting Entangled that opens in the phone's browser.
+
+- download: https://prism.entangled.world/windows/Prism-0.37.0-af99fac0.zip
+- sha256: be4862413308ed1ef00c811b4ab3e026cb87dfc3f6f2617638809f9725e9678b
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.37.0
+
+## 0.36.0 - 2026-10-19 (alpha, 57db4b90)
+
+Music that stays paused, and pages that come back. A station you paused no longer starts playing again a few minutes after a song search. When the browser engine behind the music pages crashes, Prism loads the pages again by itself and the mini player says so instead of spinning. The phone page no longer goes dead while Prism runs. The Watch page had a design pass: the first Continue watching title is a wide Resume card at the head of its row, the empty big window shrinks to a small box so the rows run full width, settings come in four groups with one Done button and larger text, lit chips carry an amber edge, and the theatre curtains are gone from the empty stage. On the phone, rating is ten chips instead of tiny stars, the options menu puts Forget this PC last, and Private Listening is explained in plain words. Prism no longer says the wall anywhere on screen.
+
+- download: https://prism.entangled.world/windows/Prism-0.36.0-57db4b90.zip
+- sha256: 4586e72b5b2c4e7d6350a3fb036a88b4d27894a0b9592e6bdab7aa3fafe2261f
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.36.0
+
 ## 0.35.1 - 2026-10-17 (alpha, deb98fc3)
 
 Fixes a crash in Watch. Pressing More to watch at the foot of the Watch page could put one row's clearance from the corner screens into a loop that closed Prism. The clearance now stops after a few flips and holds the corner clear.

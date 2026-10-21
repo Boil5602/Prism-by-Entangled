@@ -164,7 +164,8 @@ export interface AdapterSpec {
    * Music: MusicKit) because the Media Session never says which playlist or station a track came from.
    *  - musicContext: window.__prismMusicContext() -> {url, label, kind} | null - the collection playing now
    *  - musicLibrary: fills window.__prismMusicLibrary.cache = {playlists:[{id,name,kind,url}], stations:[...]}
-   *  - musicPlay:    window.__prismMusicPlay(kind, id) - queue that collection and play (a human's tap on the wall)
+   *  - musicPlay:    window.__prismMusicPlay(kind, id, name) - queue that collection and play (a human's tap on the wall); the name travels
+   *    with the id since 2026-10-20, for a player that names its cards and carries no ids (Amazon Music's rebuilt page)
    */
   musicContext?: string;
   musicLibrary?: string;

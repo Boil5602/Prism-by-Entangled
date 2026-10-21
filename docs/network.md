@@ -22,6 +22,9 @@ not listed here.
   title. The PC makes no request for it, and nothing about the PC or the person is in the address.
 - **The phone opens a title's own address when asked.** With the Video tab's switch on On this phone, a tapped title is a link to the
   service's own page for it, opened by the phone (its app or its browser) with no referrer. The PC makes no request for it.
+- **The phone opens the support page in its own browser.** The Options menu's support line (2026-10-21, donations live) is a plain
+  link to entangled.world/support, opened by the phone's browser outside the companion page, so the page and Ko-fi's run there and
+  never inside Prism. The PC makes no request for it.
 - **The phone's page fetches artwork itself.** The Music and Video tabs show the services' own artwork addresses (the album art,
   a title's poster) and TMDB posters the PC already uses; the phone's browser fetches those from the services' and TMDB's image
   hosts directly, as the PC does. No identifier of the person goes with them beyond what any image fetch carries.

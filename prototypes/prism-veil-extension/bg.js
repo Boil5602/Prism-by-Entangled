@@ -332,10 +332,17 @@ function evaluateNewTab(opener, tabId, url) {
     });
   } catch (e) {}
 }
+// A bounce starts EMPTY: a page's popup is born on about:blank (or nothing yet) and its opener navigates it a moment later. A tab born on
+// the browser's own pages (edge://newtab, chrome://downloads, an extension page) is the browser's - no web page can open one - and must not
+// wait for a "real URL": Edge's Ctrl+T / + tab is born on edge://newtab with the tab you were on as its opener, and its New Tab page then
+// loads from https://ntp.msn.com within the bounce window, so the page you were on was asked, saw no click, and the new tab closed as it
+// opened (2026-10-20, "blocking me from opening another tab, and mistakenly thinks the site is launching it").
+function isEmptyStart(url) { return !url || /^about:blank$/i.test(url); }
 chrome.tabs.onCreated.addListener(function (tab) {
   if (tab.openerTabId == null || tab.id == null) return;
   var url = tab.pendingUrl || tab.url || "";
   if (isReal(url)) { evaluateNewTab(tab.openerTabId, tab.id, url); return; }
+  if (!isEmptyStart(url)) return;   // the browser's own page: never a popup
   // about:blank now, navigated by the opener a moment later (a bounce): wait for the real URL
   (pendingByOpener[tab.openerTabId] = pendingByOpener[tab.openerTabId] || []).push({ tabId: tab.id, opener: tab.openerTabId, at: Date.now(), activeAtCreate: !!tab.active });
 });

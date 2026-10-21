@@ -114,12 +114,12 @@ describe("quick play: the last five collections a music tile played from", () =>
     expect(o.musicState().sources.am?.state ?? "gone").toBe("gone");   // a library-only report while idle paints no face
     calls.length = 0;
     expect(await o.playCollection("am", "station", "ra.u-1")).toBe("ok");
-    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"station\", \"ra.u-1\")"))).toBe(true);
+    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"station\", \"ra.u-1\","))).toBe(true);
     expect(await o.playCollection("am", "station", "ra.evil")).toBe("unknown");
     calls.length = 0;
     expect(await o.playRecent("am", "https://music.apple.com/us/album/a4/4")).toBe("ok");
     // B-125: an Apple Music address carries its id, so even this older entry plays by id - no navigation
-    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"album\", \"4\")"))).toBe(true);
+    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"album\", \"4\","))).toBe(true);
     expect(calls.find((c) => c.op === "navigate" && c.id === "am")).toBeUndefined();
     expect(await o.playRecent("am", "https://evil.example/")).toBe("unknown");          // never an arbitrary page
     // the loading signal: the pick is pending until the page reports that collection playing
@@ -151,7 +151,7 @@ describe("quick play: the last five collections a music tile played from", () =>
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "Nine", context: { url: "https://music.apple.com/us/album/a9/9", label: "Album 9", kind: "album", id: "9" } } });
     calls.length = 0;
     expect(await o.playRecent("am", healed[0]!.url)).toBe("ok");
-    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"playlist\", \"p.9\")"))).toBe(true);
+    expect(calls.some((c) => c.op === "inject" && String(c.js).includes("__prismMusicPlay(\"playlist\", \"p.9\","))).toBe(true);
     expect(calls.some((c) => c.op === "navigate" && c.id === "am")).toBe(false);
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicPending).toMatchObject({ name: "Vibes", id: "p.9" });
     // B-126: the playback a pick starts is a human's - the tile takes the audio and is NOT paused as autoplay, even under the boot hold
@@ -284,7 +284,7 @@ describe("multi-service lounge (2026-09-07)", () => {
     // B-141: Start over queues the same collection again on purpose
     calls.length = 0;
     expect(await o.tileCommand("am", "restart")).toBe("ok");
-    expect(calls.some((c) => c.op === "inject" && c.id === "am" && String(c.js).includes('__prismMusicPlay("playlist", "p1")'))).toBe(true);
+    expect(calls.some((c) => c.op === "inject" && c.id === "am" && String(c.js).includes('__prismMusicPlay("playlist", "p1",'))).toBe(true);
     expect(await o.tileCommand("stage", "restart")).toBe("unavailable");
     // B-155: a thumbs up goes to the service - Apple through its player API, a service without one is "unavailable"
     calls.length = 0;
@@ -851,7 +851,7 @@ describe("§3 rule 5 — human attribution survives a slow service", () => {
     calls.length = 0;
     expect(await o.tileCommand("am", "play")).toBe("ok");
     const inj = calls.filter((c) => c.op === "inject" && c.id === "am").map((c) => String(c.js));
-    expect(inj.some((j) => j.includes('__prismMusicPlay("station", "ra.u-1")'))).toBe(true);   // the station by id - never the page's Play control (which hit "Play Vibes")
+    expect(inj.some((j) => j.includes('__prismMusicPlay("station", "ra.u-1",'))).toBe(true);   // the station by id - never the page's Play control (which hit "Play Vibes")
     expect(inj.some((j) => j.includes(".play"))).toBe(false);
     expect(calls.some((c) => c.op === "navigate" && c.id === "am")).toBe(false);
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicPending).toMatchObject({ kind: "station", id: "ra.u-1", name: "Alex Parker's Station" });

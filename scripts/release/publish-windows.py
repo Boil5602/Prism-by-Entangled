@@ -291,7 +291,10 @@ target = None
 if not a.dry_run and not a.no_github:
     # the source of this release on the public repo first, and the release's tag on it - before the changelog below is written, since the
     # snapshot is of committed files only (0.26.28's snapshot failed on the script's own changelog, 2026-10-07)
-    snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True)
+    # the snapshot script has the same after-hours gate; --daytime here reaches it as PRISM_DAYTIME (0.37.0 at 17:49 published its zip
+    # and GitHub release but the snapshot refused, 2026-10-21)
+    snap_env = dict(os.environ, PRISM_DAYTIME="1") if a.daytime else None
+    snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True, env=snap_env)
     target = snap.stdout.strip().splitlines()[-1] if snap.returncode == 0 and snap.stdout.strip() else None
     print("public snapshot:", target[:8] if target else "FAILED " + (snap.stdout + snap.stderr).strip())
 if not a.dry_run:
