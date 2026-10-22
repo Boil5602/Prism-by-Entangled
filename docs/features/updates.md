@@ -82,6 +82,12 @@ website's `src/data/releases.json` and `public/_redirects` (then `npm run deploy
 ## On the PC
 
 - Once a day core fetches the manifest at the configured address: no query string, no identifying header (the UA is "Prism/<version>").
+  Entangled's address is a counter at reports.entangled.world (2026-10-21, "can we tell how many distinct endpoints are receiving updates
+  daily ... without violating the privacy rules"): it adds one to the day's number and sends the fetch on to the signed manifest in the
+  bucket, keeping no address, version or time. It counts checks, not machines, and a PC checks once a day, so a day's count stands in
+  for the PCs running Prism that day; the website's download page shows yesterday's under the current release ("N PCs checked for
+  updates yesterday"). When the counter fails the host reads the bucket address directly (`Updates.BucketUrl`), so a counter can never
+  hold an update back. A fork's address is whatever it sets. PCs on 0.37.0 and earlier still read the bucket and are not counted.
   The host reads `manifest.sig` beside it and verifies against the configured key; a manifest that does not verify is refused and the
   status says "the server's answer did not verify". An empty key skips the check (a fork testing locally), said in the log.
 - A newer version for the channel is `available`. The Prism menu's **Updates** line says so ("0.23.0 is ready to install"), as does the

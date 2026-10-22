@@ -22,7 +22,12 @@ namespace PrismHost.Services;
 /// </summary>
 public static class Updates
 {
-    public const string DefaultUrl = "https://prism.entangled.world/windows/manifest.json";
+    /// <summary>The daily check goes to a counter at reports.entangled.world that adds one to the day's number and sends the fetch on to the
+    /// signed manifest in the bucket (2026-10-21, "how many distinct endpoints are receiving updates daily ... without violating the privacy
+    /// rules"): it counts checks, not machines, and keeps nothing else. The signature beside it is sent on the same way, uncounted.</summary>
+    public const string DefaultUrl = "https://reports.entangled.world/v1/update/windows/manifest.json";
+    /// <summary>The manifest itself: where the counter sends the check on to, and read directly when the counter fails, so it can never hold an update back.</summary>
+    public const string BucketUrl = "https://prism.entangled.world/windows/manifest.json";
     public const string DefaultKey = "{\"kty\":\"EC\",\"x\":\"4-m00p3jr4DQgOOqAz_uwcW8uU--yV8T0y9zIJaruLY\",\"y\":\"eDH7lZDLov5b19QF0gXePCP67zmnpqZN9HKE_2nEoek\",\"crv\":\"P-256\"}";
 
     public static string Url { get => HostPrefs.GetString("update.url", DefaultUrl); set => HostPrefs.Set("update.url", value.Trim()); }
@@ -36,7 +41,7 @@ public static class Updates
     /// <summary>The track's name as a person reads it: Alpha, Beta, Full.</summary>
     public static string TrackLabel(string ch) => ch == "alpha" ? "Alpha" : ch == "beta" ? "Beta" : "Full";
     /// <summary>True when the address or the key is not Entangled's: a fork's Prism, or one someone pointed elsewhere.</summary>
-    public static bool ServerIsCustom => Url != DefaultUrl || Key != DefaultKey;
+    public static bool ServerIsCustom => (Url != DefaultUrl && Url != BucketUrl) || Key != DefaultKey;
     public static bool Enabled { get => HostPrefs.GetBool("update.enabled", true); set => HostPrefs.Set("update.enabled", value); }
     /// <summary>When the check runs (2026-10-06, "Let the user check for updates at a scheduled time"): a time of day on the PC's clock, "HH:MM"
     /// (04:00 unless chosen), and for a weekly check the day (0 Sunday to 6 Saturday; -1 every day).</summary>
@@ -69,6 +74,16 @@ public static class Updates
 
     /// <summary>core's update.fetchManifest: the text at the address, verified against the key beside it; throws with the reason.</summary>
     public static async Task<string> FetchManifestAsync(string url, Action<string> log)
+    {
+        try { return await FetchManifestAtAsync(url, log); }
+        catch (Exception ex) when (url == DefaultUrl)
+        {
+            log("updates: the counting address failed (" + ex.Message + "), reading the manifest from the bucket directly");
+            return await FetchManifestAtAsync(BucketUrl, log);
+        }
+    }
+
+    private static async Task<string> FetchManifestAtAsync(string url, Action<string> log)
     {
         if (url.Contains('?') || url.Contains('#')) throw new InvalidOperationException("the update address carries a query, which §28 forbids");
         if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase))

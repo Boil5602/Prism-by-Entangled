@@ -274,7 +274,38 @@ async function downloads(req, res, url) {
   res.writeHead(302, { Location: e.url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); return res.end();
 }
 
+// The update-check counter (2026-10-21, "can we tell how many distinct endpoints are receiving updates daily ... without violating the
+// privacy rules"): Prism's daily manifest fetch comes here and is sent on to the signed manifest in the public bucket; one is added to
+// the day's count and nothing else is kept - no address, no version, no time of day. It counts checks, not machines: a PC checks once a
+// day, so a day's count stands in for the PCs running Prism that day. The signature beside the manifest is sent on uncounted.
+// counters/checks.json holds the last 90 days by UTC date; /v1/checks is public and feeds the website's download page.
+const CHECKS_KEY = "counters/checks.json";
+let checks = null, checksDirty = false;
+async function checksNow() { if (!checks) checks = await bucketJson(CHECKS_KEY, { days: {} }); if (!checks.days) checks.days = {}; return checks; }
+async function flushChecks() { if (!checksDirty || !checks) return; checksDirty = false; try { await bucketPut(CHECKS_KEY, checks); } catch (e) { checksDirty = true; console.error("checks:", e.message); } }
+setInterval(flushChecks, 15000).unref();
+function utcDay(daysAgo) { return new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10); }
+async function updateChecks(req, res, url) {
+  if (url.pathname === "/v1/checks") {
+    const c = await checksNow();
+    const days = {}; for (let i = 29; i >= 0; i--) { const k = utcDay(i); days[k] = c.days[k] || 0; }
+    const week = [1, 2, 3, 4, 5, 6, 7].map((i) => c.days[utcDay(i)] || 0);
+    const average7 = Math.round(week.reduce((a, b) => a + b, 0) / 7);
+    res.writeHead(200, { ...CORS, "Content-Type": "application/json", "Cache-Control": "public, max-age=300" });
+    return res.end(JSON.stringify({ today: c.days[utcDay(0)] || 0, yesterday: c.days[utcDay(1)] || 0, average7, days }));
+  }
+  if (url.pathname === "/v1/update/windows/manifest.sig") { res.writeHead(302, { Location: MANIFEST_URL.slice(0, -5) + ".sig", "Cache-Control": "no-store" }); return res.end(); }
+  if (url.pathname !== "/v1/update/windows/manifest.json") return reply(res, 404, "not found");
+  if (req.method === "GET") {
+    const c = await checksNow(); const k = utcDay(0); c.days[k] = (c.days[k] || 0) + 1;
+    const floor = utcDay(90); for (const d of Object.keys(c.days)) if (d < floor) delete c.days[d];
+    checksDirty = true;
+  }
+  res.writeHead(302, { Location: MANIFEST_URL, "Cache-Control": "no-store" }); return res.end();
+}
+
 createServer(async (req, res) => {
+  if ((req.method === "GET" || req.method === "HEAD") && (req.url.startsWith("/v1/update/") || req.url === "/v1/checks")) { try { return await updateChecks(req, res, new URL(req.url, "http://x")); } catch (e) { console.error("checks:", e.message); return reply(res, 503, "try later"); } }
   CORS = corsFor(req.headers.origin);
   if (req.method === "GET" && req.url === "/healthz") return reply(res, 200, "ok");
   if (req.method === "OPTIONS") return reply(res, 204);

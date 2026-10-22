@@ -330,7 +330,8 @@ if a.site:
              "downloadUrl": "https://reports.entangled.world/v1/download/windows" if a.channel == HEADLINE else BASE_URL + name,
              "fileUrl": BASE_URL + name, "releaseUrl": gh_url, "releaseNotesUrl": "/prism/changelog", "notes": a.notes, "commit": commit, "channel": a.channel,
              "track": TRACK_LABEL[a.channel],
-             "manifestUrl": BASE_URL + "manifest.json", "downloadsApi": "https://reports.entangled.world/v1/downloads"}
+             "manifestUrl": BASE_URL + "manifest.json", "downloadsApi": "https://reports.entangled.world/v1/downloads",
+             "checksApi": "https://reports.entangled.world/v1/checks"}
     if a.channel == HEADLINE:
         # what the download is made of, part by part, adding up to its size (size_breakdown.py; the download page shows it under Size)
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
