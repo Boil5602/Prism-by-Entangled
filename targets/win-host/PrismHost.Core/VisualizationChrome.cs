@@ -273,4 +273,18 @@ public static class VisualizationChrome
         }
         return o;
     }
+
+    // ---- the player's sleep (2026-10-22, "lets let the music player go to sleep, where it still shows the visual, poster art, and the
+    // song/service/album/station/playlist details in the bottom left. Let everything else hide when the mouse isnt actively over the window
+    // after a few seconds" / "hide the mouse cursor after 10 seconds (lets just make the rest time 10 seconds)")
+
+    /// <summary>How long the pointer must be still before the player sleeps.</summary>
+    public const double SleepAfterSeconds = 10;
+
+    /// <summary>Asleep: the pointer still (or away) for the rest time while the chrome is up and nothing of it is open
+    /// (the soundscape wheel, the volume slider, Quick play, the order). A chrome stepped aside for a revealed player has nothing to sleep.</summary>
+    public static bool Asleep(double stillSeconds, bool chromeUp, bool somethingOpen) => chromeUp && !somethingOpen && stillSeconds >= SleepAfterSeconds;
+
+    /// <summary>The cursor hides only while it rests over a sleeping stage; anywhere else it is someone else's.</summary>
+    public static bool CursorHidden(bool asleep, bool pointerOverStage) => asleep && pointerOverStage;
 }

@@ -55,6 +55,29 @@ internal static class ArtCache
         return new Uri(url);
     }
 
+    /// <summary>The kept file's address once the picture is on the disk, fetched now if it is not (B-392, 2026-10-22: the stage's cover card took
+    /// twenty seconds drawing an https address through XAML's own loader while this fetch takes a third of a second); the address itself when the
+    /// fetch fails, so the card still draws. A fetch already in flight for the same picture is waited for, not repeated.</summary>
+    public static async Task<Uri> FetchAsync(string url)
+    {
+        if (StandInDir is not null) return UriFor(url);
+        if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) return new Uri(url);
+        try
+        {
+            var p = PathFor(url);
+            if (File.Exists(p)) return new Uri(p);
+            await KeepAsync(url, p);
+            for (var i = 0; i < 100 && !File.Exists(p); i++)   // another caller's fetch of the same picture: wait for it, ten seconds at most
+            {
+                bool inFlight; lock (Fetching) inFlight = Fetching.Contains(p);
+                if (!inFlight) break;
+                await Task.Delay(100);
+            }
+            return File.Exists(p) ? new Uri(p) : new Uri(url);
+        }
+        catch { return new Uri(url); }
+    }
+
     private static async Task KeepAsync(string url, string p)
     {
         lock (Fetching) { if (!Fetching.Add(p)) return; }

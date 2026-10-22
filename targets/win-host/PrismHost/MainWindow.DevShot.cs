@@ -231,6 +231,7 @@ public sealed partial class MainWindow
             if (text.StartsWith("report ", StringComparison.Ordinal)) { ShowReportPanel(text.Substring(7).Trim()); return; }   // the report panel for a window, nothing sent (2026-09-26)
             if (text == "group none" || text == "group genre") { _hubGroup = text.Substring(6); _hubTab = "library"; _ = ShowVideoHubAsync(); return; }   // the Library grouped (2026-09-25)   // the removal effect on a card, nothing removed (2026-09-25)
             if (text.StartsWith("link ", StringComparison.Ordinal)) { ShowLinkModal(text.Substring(5).Trim(), text.Substring(5).Trim()); return; }
+            if (text.StartsWith("name:", StringComparison.Ordinal)) { SetMachineName(text.Substring(5)); return; }   // this PC's name for a shot, "name:" clears it (2026-10-21, docs/features/this-pc-name.md)
             if (text == "binge") { _hubTab = "watch"; _bingeOpen = true; _ = ShowVideoHubAsync(); return; }   // The Binge in full (2026-09-24)
             // "scroll <px>": the open page's rows scrolled to that offset (a dev shot of a row below the fold, 2026-09-22)
             if (text.StartsWith("scroll ", StringComparison.Ordinal) && double.TryParse(text.Substring(7), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var px)) { _hubScroller?.ChangeView(null, px, null, true); return; }

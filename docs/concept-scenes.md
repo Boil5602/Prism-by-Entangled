@@ -413,6 +413,21 @@ so it now rests at 0.85 and settles back there. §2.5.2 point 4's rule is
 unchanged — disabled, never hidden — this is about the resting state of the row
 itself.
 
+*Decision (2026-10-22) — the player sleeps.* "Lets let the music player go to sleep, where it still shows the
+visual, poster art, and the song/service/album/station/playlist details in the bottom left. Let everything else
+hide when the mouse isnt actively over the window after a few seconds ... and hide the mouse cursor after 10
+seconds." Ten seconds after the pointer last moved (read from the system every half second, so a pointer that
+left the window counts as still), the transport, the clock, the top-left column (Intermission, Next visual,
+Quick play, Mini player), the progress bar, the top-centre block (this PC's name, MUTED), the Prism grip and the
+top-right corner (the Music / Video switch, the report flag) fade out, and the cursor hides while it rests over the
+stage. A move counts only inside the Prism window: a mouse at work in another window lets the player rest. The visual, the poster and the track block stay: they are what the
+screen is for. The first move of the mouse brings everything back at once. The player never sleeps while the
+soundscape wheel, the volume slider, Quick play or the order is open, nor while the chrome has stepped aside
+for a revealed player. Point 4's rule (disabled, never hidden) is about a control the page did not register;
+sleep is the whole row resting with the room, and `music.sleep` (host-prefs.json, on; Prism menu → Music
+player sleep, full menu) turns it off. `VisualizationChrome.Asleep` / `CursorHidden` hold the rule, tested;
+MainWindow.VizSleep.cs does the fading.
+
 *Decision (2026-09-05) — `spill`, per visualization, off by default.* A
 visualization is drawn **inside its tile**: the host clips it, so beams never
 paint over a neighbouring slot on a shared wall. The maintainer saw the beams

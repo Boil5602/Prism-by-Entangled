@@ -105,3 +105,8 @@ decided, and what it would take. The build order itself is in the spec (dashboar
 - **PrismOS daemon and image** (Pi, mini PC): build order 4, after the Windows host is proven.
 - **Android shell**: parked, a dead end (WebView DRM); no feature owes it anything (decision 2026-09-09).
 - **Prism Photos**: phase two/three (docs/prism-photos-concept.md).
+- **Prisms that know each other on the home network** (2026-10-21, "later it will be a way multiple prism devices recognize each other on a
+  network"): the PC's name (docs/features/this-pc-name.md) is the first piece, the name a household gives each Prism. Later each Prism announces
+  that name on the home network and lists the others by it, so the phone remote and a scene can pick a Prism by name and a household's sign-ins,
+  scenes or playlists can move between them. Box work (memory: app features parked until the box): nothing is built from this note alone, and
+  any announcement stays on the local network and carries the name and nothing else.

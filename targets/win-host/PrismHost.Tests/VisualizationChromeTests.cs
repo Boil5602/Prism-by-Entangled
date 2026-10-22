@@ -291,4 +291,18 @@ public sealed class VisualizationChromeTests
         Assert.Equal("Switch to Amazon Music", VisualizationChrome.SwitchToLabel("Amazon Music", null));
         Assert.Equal("Switch to Amazon Music", VisualizationChrome.SwitchToLabel("Amazon Music", "  "));
     }
+
+    [Fact]
+    public void Sleep_TenStillSeconds_WhileTheChromeIsUpAndNothingOfItIsOpen()
+    {
+        // 2026-10-22: "lets let the music player go to sleep ... hide the mouse cursor after 10 seconds (lets just make the rest time 10 seconds)"
+        Assert.Equal(10, VisualizationChrome.SleepAfterSeconds);
+        Assert.False(VisualizationChrome.Asleep(9.5, chromeUp: true, somethingOpen: false));
+        Assert.True(VisualizationChrome.Asleep(10, chromeUp: true, somethingOpen: false));
+        Assert.False(VisualizationChrome.Asleep(60, chromeUp: false, somethingOpen: false));   // stepped aside for a revealed player: nothing to sleep
+        Assert.False(VisualizationChrome.Asleep(60, chromeUp: true, somethingOpen: true));     // the soundscape wheel, the slider, Quick play or the order open
+        Assert.True(VisualizationChrome.CursorHidden(asleep: true, pointerOverStage: true));
+        Assert.False(VisualizationChrome.CursorHidden(asleep: true, pointerOverStage: false));  // away from the stage the cursor is someone else's
+        Assert.False(VisualizationChrome.CursorHidden(asleep: false, pointerOverStage: true));
+    }
 }

@@ -1103,6 +1103,7 @@ public sealed partial class MainWindow
         // had taken focus with it - after Esc out of it, Space did nothing until the picture was clicked
         if (focusScreen && WatchGrip.Visibility == Visibility.Visible && !redraw) _ = FocusScreenAsync();
         _videoHub = null;
+        SyncChromeNames();
         _hubSearch = null;
         if (!redraw) { if (_reportGrip is not null) _reportGrip.Visibility = Visibility.Visible; _ = UpdatePlayerGripAsync(); }   // the top-right grips back (finding 7)
         // B-295: the windows Watch covered come back as empty frames unless their views present afresh - and the windows that were in Watch's
@@ -1388,6 +1389,19 @@ public sealed partial class MainWindow
         // Show video lives on the control bar under the screens (2026-09-25, "Move <> Show Video under the video window cards on Watch")
         Grid.SetColumn(headRight, 2);
         head.Children.Add(headRight);
+        // this PC's name, top and centre of the screen (2026-10-21, MainWindow.MachineName.cs): the same block in the same place as the music
+        // player's chrome draws it, under the Prism grip, and the header starts lower to leave it the room. It was first placed beside the tabs,
+        // but on a 1273-wide screen the tabs and the chips fill the header and left it none (2026-10-22)
+        if (MachineName.Length > 0)
+        {
+            head.RowDefinitions.Add(new RowDefinition { Height = new GridLength(48) });
+            head.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            foreach (var child in head.Children.OfType<FrameworkElement>()) Grid.SetRow(child, 1);
+            var nameBlock = MachineNameBlock();
+            nameBlock.VerticalAlignment = VerticalAlignment.Top; nameBlock.Margin = new Thickness(0, 36, 0, 0);
+            Canvas.SetZIndex(nameBlock, 5);
+            overlay.Children.Add(nameBlock);
+        }
         page.Children.Add(head);
         PlayerGrip.Visibility = Visibility.Collapsed;   // their verbs are in the head while Watch is up (finding 7); CloseVideoHub brings the grips back
         if (_reportGrip is not null) _reportGrip.Visibility = Visibility.Collapsed;
@@ -2125,6 +2139,7 @@ public sealed partial class MainWindow
         TileCanvas.SizeChanged += _hubCanvasSize;
         TileCanvas.Children.Add(overlay);
         _videoHub = overlay;
+        SyncChromeNames();   // the chrome's copy of this PC's name steps aside while Watch draws its own (2026-10-22)
         _stayOnVideo = false;   // Watch is open again: its home rule stands
         SyncEmptyStage();   // the stage stands above the canvas: down while Watch is up
         _hubCur = first;

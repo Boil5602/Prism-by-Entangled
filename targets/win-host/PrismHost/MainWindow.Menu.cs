@@ -239,6 +239,8 @@ public sealed partial class MainWindow
         keep.Add(rds);
         _ = Services.MediaHub.RefreshAsync();
         { var it = Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()); menu.Items.Add(it); keep.Add(it); }   // section 28 (2026-10-05)
+        { var it = Item("Name this PC" + (char)0x2026, "", null, () => _ = PromptMachineNameAsync()); ToolTipService.SetToolTip(it, MachineNameTip()); menu.Items.Add(it); keep.Add(it); }   // for both players (2026-10-21, MainWindow.MachineName.cs)
+        if (FullMenu) { var it = Item("Music player sleep: " + (MusicSleepOn ? "On" : "Off"), "", null, ToggleMusicSleep); ToolTipService.SetToolTip(it, MusicSleepTip()); menu.Items.Add(it); }   // 2026-10-22, MainWindow.VizSleep.cs
         { var it = Item("How Prism works", "", null, () => ShowTutorial()); _tourMenuItem = it; menu.Items.Add(it); keep.Add(it); }   // the tutorial (MainWindow.Tutorial.cs, 2026-10-10)
         { var it = Item("About Prism", "", null, () => _ = ShowAboutAsync()); menu.Items.Add(it); keep.Add(it); }
         { var it = Item("Quit Prism", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass

@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.37.1 - 2026-10-21 (alpha, 1a602994)
+
+The daily update check now goes through a counter that keeps only the day's number, so the website can show how many PCs checked for updates yesterday. It counts checks, not PCs, and nothing identifies yours. If the counter is ever down, Prism reads the update list directly, as before.
+
+- download: https://prism.entangled.world/windows/Prism-0.37.1-1a602994.zip
+- sha256: 41c6a5d4284041469b64398b43aea8dcb3b9bd78fb5479304a3c6cc32e6766e1
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.37.1
+
 ## 0.37.0 - 2026-10-21 (alpha, af99fac0)
 
 Amazon Music works again. Amazon replaced its web player, so Prism could not start a station, read what was playing, list your playlists or search on it. All of that works on the new player, and its ads are muted and covered. A pick that a service never starts now says so in the feed after thirty seconds instead of nothing happening. The phone's Options menu has a line for supporting Entangled that opens in the phone's browser.

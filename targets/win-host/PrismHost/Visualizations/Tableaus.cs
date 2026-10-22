@@ -669,17 +669,45 @@ public sealed class SunriseMeadow : Tableau
     private readonly List<(Ellipse fl, double x, double y)> _flowers = new();
     private Ellipse[] _stars = Array.Empty<Ellipse>();
     private double _rise;
+    // birds and clouds (2026-10-22, "add some periodic bird and cloud flybies to Sunrise Meadow ... make sure they're part of the scene changes
+    // when musical notes are visualized"): five clouds drift across the sky and wrap, hurried by the mids, swelling with the lows and lit by
+    // the dawn; a flock of seven crosses every half minute or so, sooner on a loud mix, wings beating with the mids and the beat, riding
+    // higher on the highs. No flock under reduced motion; the clouds still drift at the reduced speed.
+    private readonly List<(Ellipse puff, double x, double y, double d, double ph)> _clouds = new();
+    private readonly List<(Polyline bird, double dx, double dy, double ph, double size)> _flock = new();
+    private double _flockAt = -1, _nextFlock = double.NaN, _flockDir = 1, _flockY = 0.3, _cloudDrift;
+    private const int SparkCount = 48;   // the flock's wake (2026-10-22, "and drop sparks?" then "the birds kind of look like they're pooping"): a fixed pool of motes of light that leave the wingtips, stream back behind the flock, lift a little and twinkle out; most on the beat, a few on the highs
+    private readonly List<Ellipse> _sparks = new();
+    private readonly double[] _spX = new double[SparkCount], _spY = new double[SparkCount], _spVx = new double[SparkCount], _spVy = new double[SparkCount], _spLife = new double[SparkCount];
+    private int _spNext;
+    private int _flockHue;   // each flock flies in a colour of the pack (2026-10-22, "can the birds change colors?"): dark silhouettes that glow into it on the highs and the beat
     protected override void OnBuild()
     {
         Sky(0, 1, (Color.FromArgb(255, 0x08, 0x0A, 0x1E), 0), (Color.FromArgb(255, 0x1A, 0x14, 0x30), 0.6), (Color.FromArgb(255, 0x2A, 0x1C, 0x2C), 1));
         _stars = Stars(60, 0.5, White);
         _dawn = Sky(0, 0.78, (A(P(2), 0.15), 0), (A(P(1), 0.6), 0.5), (A(P(0), 0.95), 1));
+        _clouds.Clear();
+        var crng = new Random(77);
+        for (var i = 0; i < 5; i++)
+        {
+            var cx = crng.NextDouble(); var cy = 0.1 + crng.NextDouble() * 0.32; var d = 0.14 + crng.NextDouble() * 0.16;
+            for (var k = 0; k < 4; k++)   // four soft puffs make one cloud
+                _clouds.Add((Glow(0, 0, S(d), Mix(P(1), White, 0.55), 0.8, 0), cx + (k - 1.5) * d * 0.3 * (H / W), cy + (k % 2 == 0 ? -0.015 : 0.012), d * (0.7 + 0.3 * crng.NextDouble()), crng.NextDouble() * 6));
+        }
         _rays.Clear();
         for (var i = 0; i < 18; i++) _rays.Add(GB(Vertical((A(P(2), 0.35), 0), (A(P(2), 0), 1)), 0.3, 0, 0, 0, 0, 0, 0));
         _corona2 = Glow(X(0.5), Y(0.75), S(1.4), P(0), 0.25);
         _corona = Glow(X(0.5), Y(0.75), S(0.6), P(2), 0.5);
         _sun = Glow(X(0.5), Y(0.75), S(0.22), P(2), 1, 1);
         _sun.Fill = Radial(Mix(P(2), White, 0.5), 1, 1, 0.7, 1);
+        _flock.Clear();
+        var brng = new Random(79);
+        for (var i = 0; i < 7; i++)   // a V: the leader, then pairs behind it above and below
+            _flock.Add((PL(B(Ink), S(0.0025), 0), -((i + 1) / 2) * 0.032, (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.02, brng.NextDouble() * 6, 0.011 + brng.NextDouble() * 0.006));
+        _flockAt = -1; _nextFlock = double.NaN;
+        _sparks.Clear();
+        for (var i = 0; i < SparkCount; i++) { _sparks.Add(E(0, 0, S(0.006), P(0), 0)); _spLife[i] = 0; }
+        _spNext = 0;
         Ridge(Mix(Ink2, P(1), 0.15), Ink2, 0.74, 0.01, 0.07, 10, 71, 0.6);
         Ridge(Color.FromArgb(255, 0x12, 0x22, 0x16), Color.FromArgb(255, 0x0A, 0x14, 0x0E), 0.8, 0.0, 0.04, 8, 73, 0.6);
         RB(0, Y(0.8), W, S(0.2), Vertical((Color.FromArgb(255, 0x10, 0x1E, 0x12), 0), (Color.FromArgb(255, 0x08, 0x10, 0x0A), 1)));
@@ -704,6 +732,15 @@ public sealed class SunriseMeadow : Tableau
         Op(_corona, 0.5 + 0.5 * f.Loud); Op(_corona2, 0.3 + 0.6 * _rise);
         Op(_dawn, 0.45 + 0.55 * _rise);
         for (var i = 0; i < _stars.Length; i++) Op(_stars[i], (1 - _rise) * (0.3 + 0.3 * Osc(f.T, 1.1, i)));
+        // clouds: a slow drift the mids hurry, each cloud at its own pace, swelling a little with the lows, lit by the dawn
+        _cloudDrift += f.Dt * f.Speed * (0.006 + 0.014 * f.Mid);
+        for (var i = 0; i < _clouds.Count; i++)
+        {
+            var (puff, x, y, d, ph) = _clouds[i];
+            var fx = (x + _cloudDrift * (0.6 + 0.2 * (i / 4 % 3)) + 0.3) % 1.3 - 0.15;   // wraps with room past both edges
+            Size(puff, X(fx), Y(y) + Math.Sin(f.T * 0.3 + ph) * S(0.004), S(d) * (1 + 0.1 * f.Low), S(d) * 0.5);
+            Op(puff, (0.1 + 0.45 * _rise) * (0.8 + 0.2 * Osc(f.T, 0.5, ph)));
+        }
         for (var i = 0; i < _rays.Count; i++)
         {
             var a = f.T * 0.06 * f.Speed + i * Math.PI * 2 / _rays.Count;
@@ -725,6 +762,49 @@ public sealed class SunriseMeadow : Tableau
             var (fl, x, y) = _flowers[i];
             Size(fl, X(x) + Math.Sin(f.T * 1.1 * f.Speed + i) * S(0.006), Y(y), S(0.012 + 0.02 * _rise));
             Op(fl, 0.2 + 0.8 * _rise);
+        }
+        // birds: a flock every so often (sooner on a loud mix), twenty seconds across at rest and quicker on a busy one, wings beating
+        // with the mids and the beat, the whole flock lifting on the highs; none under reduced motion
+        if (double.IsNaN(_nextFlock)) _nextFlock = f.T + 8;   // the renderer's clock runs on across rebuilds
+        if (_flockAt < 0)
+        {
+            if (!f.Reduced && f.T >= _nextFlock) { _flockAt = 0; _flockDir = Rng.NextDouble() < 0.5 ? 1 : -1; _flockY = 0.16 + Rng.NextDouble() * 0.3; _flockHue = Rng.Next(Pal.Length); }
+        }
+        else
+        {
+            _flockAt += f.Dt * f.Speed * (0.05 + 0.04 * f.Mid);
+            if (_flockAt >= 1) { _flockAt = -1; _nextFlock = f.T + 18 + Rng.NextDouble() * 30 * (1 - 0.5 * f.Loud); }
+        }
+        for (var i = 0; i < _flock.Count; i++)
+        {
+            var (bird, dx, dy, ph, size) = _flock[i];
+            if (_flockAt < 0) { Op(bird, 0); continue; }
+            var fx = _flockDir > 0 ? -0.12 + 1.24 * _flockAt : 1.12 - 1.24 * _flockAt;
+            var bx = X(fx + _flockDir * dx); var by = Y(_flockY + dy + Math.Sin(f.T * 0.7 + ph) * 0.01 - 0.03 * f.High);
+            var span = S(size); var wing = span * 0.6 * Math.Sin(f.T * (5 + 7 * f.Mid) + ph) * (0.7 + 0.6 * f.Beat);
+            bird.Points.Clear();
+            bird.Points.Add(new Windows.Foundation.Point(bx - span, by - wing));
+            bird.Points.Add(new Windows.Foundation.Point(bx, by + span * 0.15));
+            bird.Points.Add(new Windows.Foundation.Point(bx + span, by - wing));
+            // the colour: silhouette at rest, the flock's colour (two neighbouring palette hues, alternating) as the highs rise, a flash on the beat
+            var glow = Clamp01(0.15 + 0.85 * f.High * (0.7 + 0.3 * Osc(f.T * 2, 1, ph)) + 0.35 * f.Beat);
+            if (bird.Stroke is SolidColorBrush sc) sc.Color = Mix(Ink, P(_flockHue + i % 2), glow);
+            if (Rng.NextDouble() < 0.4 * f.Beat + 0.04 * f.High)   // a mote leaves a wingtip: most on the beat, a few on the highs
+            {
+                var k = _spNext++ % SparkCount; var tip = Rng.NextDouble() < 0.5 ? -1 : 1;
+                _spX[k] = (bx + tip * span) / W; _spY[k] = (by - wing) / H;
+                _spVx[k] = -_flockDir * (0.04 + 0.05 * Rng.NextDouble()) + (Rng.NextDouble() - 0.5) * 0.01; _spVy[k] = -(0.004 + 0.016 * Rng.NextDouble()); _spLife[k] = 1;
+                if (_sparks[k].Fill is SolidColorBrush sf) sf.Color = Mix(P(_flockHue + i % 2), White, 0.3);
+            }
+            Op(bird, 0.4 + 0.5 * _rise);
+        }
+        for (var k = 0; k < SparkCount; k++)   // the wake streams back behind the flock, lifts a little, twinkles and is gone in about a second
+        {
+            if (_spLife[k] <= 0) { Op(_sparks[k], 0); continue; }
+            _spLife[k] -= f.Dt * 0.9; _spX[k] += _spVx[k] * f.Dt; _spY[k] += _spVy[k] * f.Dt;
+            var life = Clamp01(_spLife[k]);
+            Size(_sparks[k], X(_spX[k]), Y(_spY[k]), S(0.0015 + 0.004 * life));
+            Op(_sparks[k], life * (0.45 + 0.55 * Osc(f.T * 7, 1, k)));
         }
     }
 }

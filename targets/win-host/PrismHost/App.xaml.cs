@@ -65,7 +65,12 @@ public partial class App : Application
         // the fixed install folder (2026-10-06, Services/Updates.AtStart): a staged update installs itself, a copy run from elsewhere installs
         // itself or hands off to the installed one - before anything opens
         if (Services.Updates.AtStart(line => { try { File.AppendAllText(Path.Combine(HostPaths.DataDir, "diagnostics", "host.log"), PrismHost.Diagnostics.Redact.Line(DateTime.Now.ToString("HH:mm:ss.fff") + " " + line) + "\n"); } catch { } })) { Exit(); return; }   // B-91: every log write is redacted
-        _ = Task.Run(Services.ArtCache.Prune);   // the kept card pictures stay within their size (Services/ArtCache)   // B-268: a log past 64 MB kept once as host.log.prev, before this run's first line
+        _ = Task.Run(Services.ArtCache.Prune);   // the kept card pictures stay within their size (Services/ArtCache)
+        // B-392 (2026-10-22): the process's first web fetch paid Windows' automatic proxy detection (WPAD, on by default; twenty seconds when
+        // there is none to find) - a cover card waited that long on the first track after a start. Asking the proxy question once here, off
+        // the UI thread, pays it before anyone is waiting; every later fetch reads the cached answer. Nothing is sent but the discovery
+        // Windows makes for every program.
+        _ = Task.Run(() => { try { _ = HttpClient.DefaultProxy.GetProxy(new Uri("https://prism.entangled.world/")); } catch { } });   // B-268: a log past 64 MB kept once as host.log.prev, before this run's first line
         // Evergreen-only (win-host-spec §2/§11 — Fixed lacks PlayReady): the
         // check asks for the machine-wide Evergreen runtime and FAILS LOUDLY
         // when it is absent. We never point at a Fixed folder, so a Fixed-only

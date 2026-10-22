@@ -67,7 +67,7 @@ public sealed partial class MainWindow
             ("simple", "Simple Watch", "A calmer Watch page that makes choosing easy."),
             ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, my watchlist."),
             ("ads", "Ads & breaks", "How a window looks while an ad plays, and the covering of YouTube TV's breaks."),
-            ("updates", "Updates", "This Prism's own updates and changelog, and when your services' lists are read again."),
+            ("updates", "This Prism", "This PC's name, Prism's own updates and changelog, and when your services' lists are read again."),
             ("services", "Services", "Each service, when its lists were last read, and a Refresh for it."),
             ("binge", "The Binge", "The Binge's limits, animation, Kids mode, and the titles you hid from it."),
             ("categories", "Categories", "Rows of titles from your services, chosen by hashtags or words."),
@@ -121,7 +121,13 @@ public sealed partial class MainWindow
         Func<Task<List<string>>> saveTab;
         // one subject a section: TMDB, Ads & breaks, Updates (This Prism first), Services, The Binge with its hidden titles, Categories, Performance
         if (_settingsTab == "ads") saveTab = BuildAdsTab(body, v);
-        else if (_settingsTab == "updates") { BuildSoftwareSection(body, run); saveTab = BuildUpdatesTab(body, v, run); }
+        else if (_settingsTab == "updates")
+        {
+            var nameSave = BuildMachineNameSection(body);   // the PC's name first (2026-10-21)
+            BuildSoftwareSection(body, run);
+            var updates = BuildUpdatesTab(body, v, run);
+            saveTab = async () => { var said = nameSave(); said.AddRange(await updates()); return said; };
+        }
         else if (_settingsTab == "services") saveTab = BuildServicesTab(body, run);
         else if (_settingsTab == "binge")
         {

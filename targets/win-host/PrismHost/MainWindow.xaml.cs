@@ -59,6 +59,7 @@ public sealed partial class MainWindow : Window
         }
         catch { /* a missing mark is a plain grip, never a failed start */ }
         Title = HostPaths.IsOverridden ? "Prism — fresh run (" + HostPaths.DataDir + ")" : "Prism — M1";
+        ApplyTitleBarColours();   // the window's own title bar in the host's dark ground (2026-10-22, MainWindow.TitleBar.cs)
 
         _store = new StoreService(HostPaths.DataDir, saveDelayMs: 4_000);   // saves coalesced off the UI thread (2026-09-28: a burst of lookups froze the window); four seconds since 2026-10-03 (perf.log: the whole store written 20 times a minute)
         // ... and written before a crash takes them (2026-09-28 review: the fail-fast the host has died of never runs ProcessExit)

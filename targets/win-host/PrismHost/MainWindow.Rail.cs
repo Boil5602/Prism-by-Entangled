@@ -950,6 +950,10 @@ public sealed partial class MainWindow
         var col = new StackPanel { Spacing = 8 };
         var (cw, ch) = WallSize();
         col.Children.Add(RailHeader("Device", "This frame: its canvas class, schedules, remotes, audio, kiosk and updates. Nothing here leaves the device."));
+        col.Children.Add(Section("THIS PC"));
+        col.Children.Add(new TextBlock { Text = MachineName is { Length: > 0 } pc ? pc : "No name yet.", Foreground = LeInk, FontSize = 14 });
+        col.Children.Add(Small("Name this PC" + (char)0x2026, async () => { await PromptMachineNameAsync(); if (_railSection == "device") await RenderRailAsync(); }));
+        col.Children.Add(Meta("Shown at the top of the music player and of Watch, so a household with more than one Prism can tell them apart. It stays on this PC."));
         col.Children.Add(Section("CANVAS"));
         col.Children.Add(new TextBlock { Text = CanvasClassLabel(cw, ch) + $"   ·   {cw:0} × {ch:0} logical px", Foreground = LeInk, FontSize = 14 });
         col.Children.Add(Meta("Layouts authored for this class run here exactly; the Layouts picker filters to it by default."));

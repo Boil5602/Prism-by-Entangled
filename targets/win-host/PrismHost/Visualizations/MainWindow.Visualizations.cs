@@ -228,6 +228,10 @@ public sealed partial class MainWindow
         public Button Mini = null!;
         /// <summary>B-151: the prominent MUTED label, top centre, while the wall's one switch is on (B-150) - whoever owns the audio, loaded or not.</summary>
         public Border MutedBanner = null!;
+        /// <summary>This PC's name, top and centre, when the household gave it one (2026-10-21, MainWindow.MachineName.cs).</summary>
+        public TextBlock Name = null!;
+        /// <summary>What sleeps ten seconds after the pointer's last move, each with its resting opacity and hit-test state (2026-10-22, MainWindow.VizSleep.cs).</summary>
+        public List<(UIElement el, double rest, bool hit)> Sleepers = new();
         public Button SeekBack = null!, SeekFwd = null!;
         public Button Order = null!;
         public string? OrderKind, OrderId, OrderName, OrderLabel, OrderSpot;   // the collection the order button acts on, from the last transport read
@@ -760,7 +764,7 @@ public sealed partial class MainWindow
             var add0 = new MenuFlyoutItem { Text = "Add a music service\u2026" };
             add0.Click += (_, __) => _ = ChangeMusicServiceAsync(source, add: true);
             menu0.Items.Add(add0);
-            menu0.ShowAt(anchor);
+            _vizFlyout = menu0; menu0.ShowAt(anchor);
             return;
         }
         // B-206 (2026-09-15): "give me a little play button next to each service name in the menu" - one row per service at the
@@ -892,7 +896,7 @@ public sealed partial class MainWindow
                 try { reopenBtn.Flyout?.ShowAt(reopenBtn); LogLine("quick play reopen: " + openService + " submenu shown"); }
                 catch (Exception ex) { LogLine("quick play reopen failed: " + ex.Message); }
             });
-        flyout.ShowAt(anchor);
+        _vizFlyout = flyout; flyout.ShowAt(anchor);
     }
 
     /// <summary>B-215: resolves once the flyout is closed - at once when it already is; after its Closed event otherwise, with a Hide of its own if the close never comes.</summary>
@@ -1222,7 +1226,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(rep, repeatCannot is not null ? Cap(repeatCannot) : "Play the list again when it ends, in the order chosen above. True shuffle draws afresh each pass");
         rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("order: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("Prism · " + name + (on ? " repeats" : " plays once")); };
         menu.Items.Add(rep);
-        menu.ShowAt(parts.Order);
+        _vizFlyout = menu; menu.ShowAt(parts.Order);
     }
 
     /// <summary>The Quick play flyout's presenter, styled like the app menu (PrismMenuPresenter) - a plain Flyout has no menu presenter style to borrow.</summary>
@@ -1628,16 +1632,27 @@ public sealed partial class MainWindow
         mb.Children.Add(new FontIcon { Glyph = GlyphAudioOff, FontSize = 18, Foreground = Tokens.Amber });
         mb.Children.Add(new TextBlock { Text = "MUTED", FontFamily = VizMono, FontSize = 15, CharacterSpacing = 160, Foreground = Tokens.Amber, VerticalAlignment = VerticalAlignment.Center });
         mb.Children.Add(new TextBlock { Text = "tap to unmute", FontFamily = VizSans, FontSize = 12, Foreground = VizDimInk, VerticalAlignment = VerticalAlignment.Center });
-        parts.MutedBanner = new Border { Child = mb, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 14, 0, 0), Padding = new Thickness(16, 8, 16, 8), CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x66), BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed };
+        parts.MutedBanner = new Border { Child = mb, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Padding = new Thickness(16, 8, 16, 8), CornerRadius = new CornerRadius(20), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD0, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x66), BorderThickness = new Thickness(1), Visibility = Visibility.Collapsed };
         parts.MutedBanner.Tapped += (_, e) => { e.Handled = true; SetWallMutedFromWall(parts.Source, false); };
+        // this PC's name over the banner, top and centre (2026-10-21, "let the user name their machine, which we'll show top and center when
+        // the chrome or watch is up"): the two stack, so a muted banner sits under the name instead of on it
+        parts.Name = MachineNameBlock();
+        // under the Prism grip at the top centre, which the banner's old 14 px margin had sat on (2026-10-22)
+        var top = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 36, 0, 0) };
+        top.Children.Add(parts.Name); top.Children.Add(parts.MutedBanner);
 
         // A thin progress bar along the very bottom edge: at a glance, from across
         // the room, how far through the track we are. Display only - seeking is a
         // §32 pass-through question and no seek control is offered here.
         parts.BarTrack = new Rectangle { Height = 3, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Stretch, IsHitTestVisible = false, Visibility = Visibility.Collapsed };
         parts.Bar = new Rectangle { Height = 3, Fill = Tokens.AmberAt(0xEE), VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left, IsHitTestVisible = false, Width = 0, Visibility = Visibility.Collapsed };
-        g.Children.Add(meta); g.Children.Add(parts.ArtCard); g.Children.Add(parts.Label); g.Children.Add(parts.BarTrack); g.Children.Add(parts.Bar); g.Children.Add(row); g.Children.Add(stack); g.Children.Add(parts.Time); g.Children.Add(parts.MutedBanner); g.Children.Add(parts.BubbleLayer);
+        g.Children.Add(meta); g.Children.Add(parts.ArtCard); g.Children.Add(parts.Label); g.Children.Add(parts.BarTrack); g.Children.Add(parts.Bar); g.Children.Add(row); g.Children.Add(stack); g.Children.Add(parts.Time); g.Children.Add(top); g.Children.Add(parts.BubbleLayer);
         _vizParts[tileId] = parts;
+        // the player's sleep (2026-10-22, MainWindow.VizSleep.cs): these fade out ten seconds after the pointer's last move and the first
+        // move brings them back; the visual, the poster card and the track block stay. A chrome built while the player sleeps starts asleep.
+        foreach (var el in new UIElement[] { row, stack, top, parts.Time, parts.Bar, parts.BarTrack, parts.BubbleLayer }) parts.Sleepers.Add((el, el.Opacity, el.IsHitTestVisible));
+        if (_vizAsleep) foreach (var (el, _, _) in parts.Sleepers) { el.Opacity = 0; el.IsHitTestVisible = false; }
+        EnsureVizSleepTimer();
 
         // the transport brightens under the pointer and settles back; it is never removed (point 4).
         DispatcherTimer? dim = null;
@@ -1649,14 +1664,14 @@ public sealed partial class MainWindow
             dim.Tick -= OnDim; dim.Tick += OnDim;
             dim.Start();
         }
-        void OnDim(object? s, object e) { dim?.Stop(); row.Opacity = 0.85; }   // settles back to visible, never to near-nothing
-        g.PointerEntered += (_, __) => Show();
-        g.PointerMoved += (_, __) => Show();
+        void OnDim(object? s, object e) { dim?.Stop(); row.Opacity = _vizAsleep ? 0 : 0.85; }   // settles back to visible, never to near-nothing
+        g.PointerEntered += (_, __) => { WakeViz(); Show(); };
+        g.PointerMoved += (_, __) => { WakeViz(); Show(); };
         g.Tapped += (_, e) =>
         {
             if (e.OriginalSource is DependencyObject d && IsInside(d, row)) return;      // a transport press is not a reveal
             e.Handled = true;
-            Show();
+            WakeViz(); Show();
         };
         g.RightTapped += (_, e) => { e.Handled = true; var item = SceneItemOf(tileId, null); if (item is not null) ShowContextSheet(item, e.GetPosition(RootGrid)); };
         g.Holding += (_, e) => { if (e.HoldingState == Microsoft.UI.Input.HoldingState.Started) { e.Handled = true; var item = SceneItemOf(tileId, null); if (item is not null) ShowContextSheet(item, e.GetPosition(RootGrid)); } };
@@ -1762,6 +1777,19 @@ public sealed partial class MainWindow
             g.Opacity = stepAside ? 0 : 1;
             g.IsHitTestVisible = !stepAside;
         }
+    }
+
+    /// <summary>B-392: the cover card's picture, kept on the disk by the host's own fetch and drawn from the file; the card moves on if the
+    /// track changed meanwhile. The log says where it came from and how long it took.</summary>
+    private async Task LoadArtCardAsync(VizChromeParts parts, string artUrl)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Uri uri;
+        try { uri = await Services.ArtCache.FetchAsync(artUrl); } catch { uri = new Uri(artUrl); }
+        if (parts.ArtUrl != artUrl) return;
+        try { parts.Art.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(uri) { DecodePixelWidth = 400 }; parts.ArtCard.Visibility = Visibility.Visible; }
+        catch { parts.ArtCard.Visibility = Visibility.Collapsed; }
+        LogLine("art card: " + (uri.IsFile ? "kept" : "address") + " in " + sw.ElapsedMilliseconds + " ms");
     }
 
     private static bool IsInside(DependencyObject d, DependencyObject ancestor)
@@ -1919,11 +1947,10 @@ public sealed partial class MainWindow
             if (artUrl != parts.ArtUrl)
             {
                 parts.ArtUrl = artUrl;
-                if (artUrl.Length > 0 && Uri.TryCreate(artUrl, UriKind.Absolute, out var artUri))
-                {
-                    try { parts.Art.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(artUri) { DecodePixelWidth = 400 }; parts.ArtCard.Visibility = Visibility.Visible; }
-                    catch { parts.ArtCard.Visibility = Visibility.Collapsed; }
-                }
+                // B-392 (2026-10-22, "seeing it take 20 seconds to load album posters"): the cover is fetched by the host and kept on the disk
+                // (Services/ArtCache.cs, as the Watch cards are), then drawn from the file - XAML's own loader took twenty seconds on the same
+                // https address. The card keeps the last cover up until the new one is in.
+                if (artUrl.Length > 0 && Uri.TryCreate(artUrl, UriKind.Absolute, out _)) _ = LoadArtCardAsync(parts, artUrl);
                 else { parts.Art.Source = null; parts.ArtCard.Visibility = Visibility.Collapsed; }
             }
             parts.State.Text = block.Artist.Length > 0 && block.State.Length > 0 ? VisualizationChrome.MetaSeparator + block.State : block.State;
