@@ -33,7 +33,9 @@ phones. The app should also enable the private listening feature through the pho
    an iPhone ignores a page's volume and keeps its own on the buttons, and the page says so there. The tab is *Private Listening*. In
    the background mode the status line says how many seconds the phone holds (that is how far behind the PC it hears) and, while
    filling, a share of what it needed last time before it played; a pause from the Music tab pauses the phone's player at the same
-   moment, and Play fetches the stream fresh, since the PC's pause alone would play on here until the buffer ran dry.
+   moment, and Play fetches the stream fresh, since the PC's pause alone would play on here until the buffer ran dry. When listening starts the page asks *Mute Prism on the PC while this phone listens?* under the button, with *Mute the PC* and
+   *Keep it playing* (2026-10-23; it had muted by itself with a checkbox to turn that off). The sound starts first and the PC plays on
+   until the answer; a mute the phone asked for goes back when the listen ends (`POST /audio/private-mute`).
 4. **Music.** While the Music lounge is on: the card (the service and the collection it holds, the track with its art from the service's
    own artwork address, "0:20 of 1:40" with what is left and a thin bar advanced each second between polls), the transport (previous,
    play/pause, next, thumbs, Mute Prism on PC - the buttons read the PC's real mute), the order chips (In order / True shuffle / Reverse

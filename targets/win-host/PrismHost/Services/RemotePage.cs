@@ -123,7 +123,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div id="lwin" class="lwin"><p class="note">Listening to</p><div class="row order" id="lwinRow"></div><p class="note" id="lwinNote"></p></div>
 <audio id="out" playsinline preload="none"></audio>
 <p class="err" id="lerr"></p><p class="work" id="netNote"></p>
-<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><label class="chk"><input type="checkbox" id="muteWhile"> Mute Prism on the PC while this phone listens</label></div>
+<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute the PC</button><button id="muteNo">Keep it playing</button></div></div>
 </section>
 <div id="install" class="install" role="dialog" aria-label="Add Prism to your Home Screen">
 <p>Add Prism to your Home Screen. It opens full-screen and stays signed in.</p>
@@ -2011,28 +2011,31 @@ async function readyTicket() {
   try { const t = await api('/audio/stream-ticket', {}); ticket = t.ticket; ticketAt = Date.now(); } catch {}
 }
 setInterval(readyTicket, 5000);
-// Prism on the PC muted while this phone listens (2026-10-05, "pop up a temporary dialog informing that is occurring, with a checkbox that
-// turns that off"): the phone's own choice, kept on the phone, on unless unticked; the PC's mute goes back where it was when the listen ends
-let muteWhile = true, mutedByMe = false;
-try { muteWhile = localStorage.getItem('prism.muteWhileListening') !== 'off'; } catch {}
-q('#muteWhile').checked = muteWhile;
-q('#muteWhile').onchange = async () => {
-  muteWhile = q('#muteWhile').checked;
-  try { localStorage.setItem('prism.muteWhileListening', muteWhile ? 'on' : 'off'); } catch {}
-  if (!muteWhile && mutedByMe) { mutedByMe = false; try { await api('/audio/private-mute', { on: false }); } catch {} q('#muteNoteText').textContent = 'Prism on the PC plays along with this phone. Turn its volume down there if you want the room quiet.'; }
-  else if (muteWhile && listening && !mutedByMe) { try { await api('/audio/private-mute', { on: true }); mutedByMe = true; } catch {} q('#muteNoteText').textContent = 'Prism on the PC is muted while this phone listens. It comes back when you stop.'; }
+// Prism on the PC muted while this phone listens: asked each time listening starts (2026-10-23, "make private listening automatically ask
+// the user in the companion app when enabling if they would like to mute the external volume on the Prism device at the same time"; it
+// had muted by itself since 2026-10-05, with a checkbox to turn that off). The sound starts first, so the tap that opens the audio is
+// untouched; the question waits under the button until answered, and the PC plays on meanwhile. A mute the phone asked for goes back
+// when the listen ends.
+let mutedByMe = false;
+function muteSay(text, hideAfterMs) {
+  q('#muteNoteText').textContent = text; q('#muteAsk').style.display = 'none';
+  clearTimeout(muteSay.t); if (hideAfterMs) muteSay.t = setTimeout(() => { q('#muteNote').className = 'work muteNote'; }, hideAfterMs);
+}
+q('#muteYes').onclick = async () => {
+  if (!listening) { q('#muteNote').className = 'work muteNote'; return; }
+  try { await api('/audio/private-mute', { on: true }); mutedByMe = true; muteSay('Prism on the PC is muted while this phone listens. It comes back when you stop.', 8000); }
+  catch { muteSay('Could not mute Prism on the PC. Use its mute button instead.', 8000); }
 };
+q('#muteNo').onclick = () => { muteSay('Prism on the PC keeps playing.', 5000); };
 async function muteForListen() {
-  const note = q('#muteNote');
-  if (!muteWhile) { note.className = 'work muteNote'; return; }
-  try {
-    await api('/audio/private-mute', { on: true }); mutedByMe = true; q('#muteNoteText').textContent = 'Prism on the PC is muted while this phone listens. It comes back when you stop.';
-    note.className = 'work muteNote on';
-    clearTimeout(muteForListen.t); muteForListen.t = setTimeout(() => { note.className = 'work muteNote'; }, 20000);
-  } catch {}
+  if (mutedByMe) return;   // already muted for this listen (a mode switch starts again)
+  clearTimeout(muteSay.t);
+  q('#muteNoteText').textContent = 'Mute Prism on the PC while this phone listens?';
+  q('#muteAsk').style.display = 'flex';
+  q('#muteNote').className = 'work muteNote on';
 }
 async function unmuteAfterListen() {
-  q('#muteNote').className = 'work muteNote';
+  clearTimeout(muteSay.t); q('#muteNote').className = 'work muteNote';
   if (!mutedByMe) return; mutedByMe = false;
   try { await api('/audio/private-mute', { on: false }); } catch {}
 }

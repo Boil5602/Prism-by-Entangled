@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.38.0 - 2026-10-22 (alpha, e5dad337)
+
+This PC can have a name, shown at the top of the music player and of Watch. The music player goes to sleep ten seconds after the mouse stops: everything but the visual, the cover and the song fades and the cursor hides, and a move brings it all back. The window's title bar is dark now. Sunrise Meadow has drifting clouds and a flock that crosses in the music's colours with a wake of light behind it. Covers load at once after a start instead of twenty seconds later. On Paramount+ the ad cover lifts the moment the pod ends, and the site's menu stays out of the picture.
+
+- download: https://prism.entangled.world/windows/Prism-0.38.0-e5dad337.zip
+- sha256: 0e47766f72bd57fee2883a1ab6379ccd1a7ee665ba35bb5eb688a3e4394f5021
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.38.0
+
 ## 0.37.1 - 2026-10-21 (alpha, 1a602994)
 
 The daily update check now goes through a counter that keeps only the day's number, so the website can show how many PCs checked for updates yesterday. It counts checks, not PCs, and nothing identifies yours. If the counter is ever down, Prism reads the update list directly, as before.

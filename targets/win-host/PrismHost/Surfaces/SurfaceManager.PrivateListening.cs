@@ -6,7 +6,8 @@ namespace PrismHost.Surfaces;
 /// Private listening's sound rules (2026-10-04, "When I mute it on the PC, it also mutes it on the phone. That won't work. We should have
 /// volume separation between the two"): the phone hears the shared browser through a process loopback that taps AFTER a page's own
 /// mute and a session's volume, so while a phone listens the pages are left audible and at full session level, and the wall's own
-/// mute and volume act on the playback device instead - the TV or soundbar - which the loopback does not pass through. The phone has
+/// mute and volume act on the playback device instead - the TV or soundbar - which the loopback does not pass through (its volume as
+/// a share of the device's own level, so the room stays as loud as it was). The phone has
 /// its own volume on its page. When the last phone leaves, the pages' mutes and the wall's volume go back where they were.
 /// </summary>
 public sealed partial class SurfaceManager
@@ -45,7 +46,10 @@ public sealed partial class SurfaceManager
                         if (t.Id == _soundTile && Audible(t) && t.Muted && t.View?.CoreWebView2 is { } c) { c.IsMuted = false; _wallMutedWhilePrivate = true; }
                     SessionMute.Private = true;   // the sessions at full level under the wall's volume
                     dev.AudioEndpointVolume.Mute = _wallMutedWhilePrivate || _deviceMuteWanted;   // the phone's switch (PrivateDeviceMute) counts from the start
-                    dev.AudioEndpointVolume.MasterVolumeLevelScalar = (float)Math.Clamp(SessionMute.Volume, 0, 1);
+                    // the room keeps its loudness (2026-10-23, "when I enabled private listening, the computer volume jumped up very noticeably"):
+                    // the room heard the device's level times Prism's own; with Prism's sessions now at full for the loopback, the device takes that
+                    // product. Writing Prism's volume straight onto the device took a device at 30% to 100% under a slider at 100%.
+                    dev.AudioEndpointVolume.MasterVolumeLevelScalar = RoomLevel(SessionMute.Volume);
                     _onStatus("private listening: Prism's mute and volume are the device's for now");
                 }
                 else
@@ -89,11 +93,14 @@ public sealed partial class SurfaceManager
         try { using var en = new MMDeviceEnumerator(); using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); dev.AudioEndpointVolume.Mute = on || _wallMutedWhilePrivate; _onStatus("private listening: device mute " + (on ? "on" : "off") + " (the phone's switch)"); }
         catch (Exception ex) { _onStatus("private listening: device mute " + ex.Message); }
     }
-    /// <summary>While a phone listens, the wall's volume is the device's.</summary>
+    /// <summary>The device level that keeps the room as loud as it was: the device's own level before the listen times Prism's volume.</summary>
+    private float RoomLevel(double prismVolume) => (float)Math.Clamp((_deviceWasVolume >= 0 ? _deviceWasVolume : 1f) * Math.Clamp(prismVolume, 0, 1), 0, 1);
+
+    /// <summary>While a phone listens, the wall's volume moves the device, scaled from the device's own level before the listen.</summary>
     private bool PrivateVolume(double v)
     {
         if (!_private) return false;
-        try { using var en = new MMDeviceEnumerator(); using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); dev.AudioEndpointVolume.MasterVolumeLevelScalar = (float)Math.Clamp(v, 0, 1); }
+        try { using var en = new MMDeviceEnumerator(); using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); dev.AudioEndpointVolume.MasterVolumeLevelScalar = RoomLevel(v); }
         catch (Exception ex) { _onStatus("private listening: volume " + ex.Message); }
         return true;
     }

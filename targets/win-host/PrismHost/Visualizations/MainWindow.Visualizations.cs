@@ -751,8 +751,11 @@ public sealed partial class MainWindow
     /// the stage and any signed-out one marked, and "Add a music service…" at the foot. A pick on another service
     /// plays there and core moves the visual to it (the visual follows the music).
     /// </summary>
-    private async Task ShowQuickPlayAsync(Button anchor, string source, string? openService = null)
+    /// <summary>Quick play over its button, or at a point on the anchor (the music player's right-click, 2026-10-23); a flyout stays inside the window.</summary>
+    private async Task ShowQuickPlayAsync(FrameworkElement anchor, string source, string? openService = null, Windows.Foundation.Point? at = null)
     {
+        _rowAdds.Clear();   // the playlist rows' Add items belong to the panel being built
+        void ShowFlyout(FlyoutBase f) { if (at is { } pt) f.ShowAt(anchor, new FlyoutShowOptions { Position = pt, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft }); else f.ShowAt(anchor); }
         await RefreshMusicSourcesAsync();
         var sources = _musicSources;
         var presenter = (Style)RootGrid.Resources["PrismMenuPresenter"];
@@ -764,7 +767,7 @@ public sealed partial class MainWindow
             var add0 = new MenuFlyoutItem { Text = "Add a music service\u2026" };
             add0.Click += (_, __) => _ = ChangeMusicServiceAsync(source, add: true);
             menu0.Items.Add(add0);
-            _vizFlyout = menu0; menu0.ShowAt(anchor);
+            _vizFlyout = menu0; ShowFlyout(menu0);
             return;
         }
         // B-206 (2026-09-15): "give me a little play button next to each service name in the menu" - one row per service at the
@@ -860,7 +863,7 @@ public sealed partial class MainWindow
                 LogLine("lookup reopen: " + nameL + " (panel closed - opening Quick play again)");
                 await WhenFlyoutClosedAsync(flyout);
                 await Task.Delay(150);
-                await ShowQuickPlayAsync(anchor, source, tileL);
+                await ShowQuickPlayAsync(anchor, source, tileL, at);
             };
             sub.Opening += (_, __) => _ = RunLookupAsync(tileL, nameL, sub, lookupHead, lookupPick, lookupAdd, lookupStation, reopen);
             // the station row's target (the found song) is painted into its Tag; the handler is wired once, here
@@ -896,7 +899,7 @@ public sealed partial class MainWindow
                 try { reopenBtn.Flyout?.ShowAt(reopenBtn); LogLine("quick play reopen: " + openService + " submenu shown"); }
                 catch (Exception ex) { LogLine("quick play reopen failed: " + ex.Message); }
             });
-        _vizFlyout = flyout; flyout.ShowAt(anchor);
+        _vizFlyout = flyout; ShowFlyout(flyout);
     }
 
     /// <summary>B-215: resolves once the flyout is closed - at once when it already is; after its Closed event otherwise, with a Hide of its own if the close never comes.</summary>
@@ -1062,6 +1065,7 @@ public sealed partial class MainWindow
         add.IsEnabled = true;
         add.Foreground = addWhy is null ? VizNowInk : VizDimInk;
         ToolTipService.SetToolTip(add, addWhy ?? ("Add " + matchTitle + " to one of your " + service + " playlists"));
+        PaintRowAdds(tile, st, addWhy, found ? matchId : null, matchTitle);   // the playlist rows' own Add (2026-10-23), from the same answer
         // a station seeded from the song: a human's pick, so it takes the audio and the stage follows
         var cannotStation = (st["cannot"] as System.Text.Json.Nodes.JsonObject)?["station"]?.GetValue<string>();   // B-218: Spotify's Web API cannot start a song radio
         var stationWhy = cannotStation is { Length: > 0 } ? cannotStation : !found ? notHere : null;
@@ -1398,8 +1402,65 @@ public sealed partial class MainWindow
         rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("quick play: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("Prism" + Mid + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "the service") + (on ? " repeats" : " plays through once")); };
         row.Items.Add(rep);
         if (kind == "playlist" && c.PlayingTitle is { Length: > 0 } pt && c.PlayingIn.Contains(id) && c.Editable.Contains(id)) { row.Items.Add(new MenuFlyoutSeparator()); row.Items.Add(RemovePlayingItem(c, id, name, pt)); }
+        else if (kind == "playlist") { row.Items.Add(new MenuFlyoutSeparator()); row.Items.Add(AddPlayingItem(c, id, name)); }
         ToolTipService.SetToolTip(row, "Play now, after this track, true shuffle, in reverse, repeat" + (continues ? ", or carry on the " + c.StandingLabel + " where it left off (" + c.StandingSpot + " of " + c.StandingCount + ")" : "") + ".");
         return row;
+    }
+
+    /// <summary>The playlist rows' Add items, per service tile, filled by the lookup as it lands (PaintRowAdds).</summary>
+    private readonly Dictionary<string, List<(MenuFlyoutItem item, string playlistId, string playlistName, string service)>> _rowAdds = new();
+
+    /// <summary>
+    /// Add the song playing now to this playlist, from the playlist's own row (2026-10-23, "when I go in and it shows the Vibes playlist
+    /// immediately under apple, lets add the option to add a song to the playlist, same as is already done using the button under Add to a
+    /// Playlist > Vibes"). Built waiting, in dim ink; the service's lookup (RunLookupAsync, started as its menu opens) fills it from the same
+    /// answer and the same playlist list as Add to a playlist, and the press is the same musicAddToPlaylist. A verb that cannot act stays in
+    /// dim ink with its reason on the tooltip and in the pill, never hidden.
+    /// </summary>
+    private MenuFlyoutItem AddPlayingItem(QuickRowContext c, string playlistId, string playlistName)
+    {
+        var service = c.Prefix.TrimEnd(':', ' ');
+        var item = new MenuFlyoutItem { Text = "Add the song playing now", Icon = new FontIcon { Glyph = ((char)0xE710).ToString(), Foreground = VizDimInk }, Foreground = VizDimInk };
+        ToolTipService.SetToolTip(item, "Looking for the song on " + (service.Length > 0 ? service : "this service") + (char)0x2026);
+        var source = c.Source;
+        item.Click += (_, __) =>
+        {
+            if (item.Tag is not ValueTuple<string, string> hit) { if (ToolTipService.GetToolTip(item) is string why) SetPill("Prism" + Mid + why); return; }
+            LogLine("row add: " + source + " " + hit.Item1 + " -> " + playlistId);
+            _ = RuntimeEvalAsync("PrismRuntime.musicAddToPlaylist(" + Q(source) + ", " + Q(playlistId) + ", " + Q(hit.Item1) + ")");
+            SetPill("Prism" + Mid + "adding " + hit.Item2 + " to " + playlistName + (char)0x2026);
+            _ = ReportLookupActionAsync(source, service);
+        };
+        if (!_rowAdds.TryGetValue(source, out var list)) _rowAdds[source] = list = new();
+        list.Add((item, playlistId, playlistName, service));
+        return item;
+    }
+
+    /// <summary>The lookup's answer painted into the playlist rows' Add items: the same rule as Add to a playlist's submenu.</summary>
+    private void PaintRowAdds(string tile, System.Text.Json.Nodes.JsonObject st, string? addWhy, string? matchId, string matchTitle)
+    {
+        if (!_rowAdds.TryGetValue(tile, out var list)) return;
+        var q1 = (char)0x201C; var q2 = (char)0x201D;
+        foreach (var (item, pid, pname, service) in list)
+        {
+            System.Text.Json.Nodes.JsonObject? pl = null;
+            if (st["playlists"] is System.Text.Json.Nodes.JsonArray pls) pl = pls.OfType<System.Text.Json.Nodes.JsonObject>().FirstOrDefault(p => p["id"]?.GetValue<string>() == pid);
+            var why = addWhy
+                ?? (pl is null ? pname + " is not among the playlists " + service + " listed as yours" : null)
+                ?? (pl["edit"]?.GetValue<bool>() == false ? pname + " is " + service + "'s own playlist, so it can't be added to" : null);
+            if (why is null && matchId is { Length: > 0 })
+            {
+                item.Text = "Add " + q1 + Shorten(matchTitle, 34) + q2 + " to " + pname;
+                item.Foreground = VizNowInk; item.Tag = (matchId, matchTitle);
+                ToolTipService.SetToolTip(item, "Add " + matchTitle + " to " + pname);
+            }
+            else
+            {
+                item.Text = "Add the song playing now";
+                item.Foreground = VizDimInk; item.Tag = null;
+                ToolTipService.SetToolTip(item, why ?? "Looking for the song on " + service + (char)0x2026);
+            }
+        }
     }
 
     /// <summary>
@@ -1673,8 +1734,11 @@ public sealed partial class MainWindow
             e.Handled = true;
             WakeViz(); Show();
         };
-        g.RightTapped += (_, e) => { e.Handled = true; var item = SceneItemOf(tileId, null); if (item is not null) ShowContextSheet(item, e.GetPosition(RootGrid)); };
-        g.Holding += (_, e) => { if (e.HoldingState == Microsoft.UI.Input.HoldingState.Started) { e.Handled = true; var item = SceneItemOf(tileId, null); if (item is not null) ShowContextSheet(item, e.GetPosition(RootGrid)); } };
+        // a right-click (or a long press) on the music player opens Quick play at the pointer (2026-10-23, "there is a right click menu. I dont think
+        // there is anything in there that I want. Can we just have it open the quick play menu for music instead? Just open it by the cursor (make
+        // sure it doesnt run outside the window)"); it was the scene item's sheet. The flyout keeps itself inside the window.
+        g.RightTapped += (_, e) => { e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetPosition(g)); };
+        g.Holding += (_, e) => { if (e.HoldingState == Microsoft.UI.Input.HoldingState.Started) { e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetPosition(g)); } };
         return g;
     }
 
