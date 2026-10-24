@@ -174,6 +174,8 @@ export const SKIP_PRESS_JS = SKIP_JS.replace("__PRESS__", "true").replace("__AD_
  */
 export const SKIP_AD_OFFER_JS = SKIP_JS.replace("__PRESS__", "false").replace("__AD__", "true");
 export const SKIP_AD_PRESS_JS = SKIP_JS.replace("__PRESS__", "true").replace("__AD__", "true");
+/** How long a page's controls take to draw once woken, before the skip offer is read again. */
+export const SHOW_CONTROLS_READ_MS = 500;
 /** How often a playing title's page is asked for its skip offer. */
 export const SKIP_OFFER_MS = 2_000;
 /** Page-side, read-only: the largest video's MediaError, else a small visible box whose text is a playback error. Returns the words or "". */
@@ -194,7 +196,7 @@ export const AV_SAMPLE_MS = 15_000;
 export const AV_NUDGE_GAP_MS = 10 * 60_000;
 export const AV_PROBE_JS = `(function(){try{var vs=[].slice.call(document.querySelectorAll('video')),v=null,a=0;vs.forEach(function(x){var r=x.getBoundingClientRect();if(r.width*r.height>a){a=r.width*r.height;v=x;}});if(!v||!v.getVideoPlaybackQuality)return '';var q=v.getVideoPlaybackQuality();return JSON.stringify({f:q.totalVideoFrames,d:q.droppedVideoFrames,c:v.currentTime,p:v.paused});}catch(e){return '';}})()`;
 interface AvWatch { last: { f: number; d: number; c: number; at: number } | null; nominal: number; bad: number; nudgedAt: number; probing: boolean; sampledAt: number; rates?: number[] }
-interface DoctorWatch { url: string; attempts: number[]; lastPos: number | null; lastPosAt: number; playingSince: number; lastPlayAt: number; lostAt: number; healing: boolean; probing: boolean; wasStage: boolean; gaveUp: boolean; bufferingSince?: number; resumeAt?: number | undefined }
+interface DoctorWatch { url: string; attempts: number[]; lastPos: number | null; lastPosAt: number; playingSince: number; lastPlayAt: number; lostAt: number; healing: boolean; probing: boolean; wasStage: boolean; gaveUp: boolean; bufferingSince?: number; resumeAt?: number | undefined; nearEnd?: boolean }
 /** a play that begins within this of the ask is the ask's; later, the person is somewhere else */
 const STAGE_ASK_MS = 180_000;
 /** The stage ask waits out an ad or a start that has not come, but not past this from the ask itself. */
@@ -1299,6 +1301,10 @@ export class VideoController {
     const dur = typeof v?.duration === "number" && isFinite(v.duration) ? v.duration : null;
     if (this.host.onStage(tileId)) d.wasStage = true;
     if (playing) d.lastPlayAt = now;
+    // within its last three minutes the title is ending, and a player gone after that has ended, not stopped (2026-10-23, "now it started back
+    // up into that last episode at the very beginning": Haunted Hotel's last episode ended onto Netflix's trailer for Below on the same address,
+    // the trailer ran out two minutes on, and the doctor reopened the episode from its start)
+    if (playing && !ad && pos !== null && dur !== null && dur > 60) d.nearEnd = pos >= dur - 180;
     // clean play - the clock moving, not merely "playing" (a frozen picture says it plays too) - for a minute resets the tries
     const moving = pos !== null && d.lastPos !== null && Math.abs(pos - d.lastPos) > 0.25;
     if (playing && !ad && (moving || (pos !== null && now - d.lastPosAt < 5_000))) { d.playingSince ||= now; if (now - d.playingSince > DOCTOR_CLEAN_MS && (d.attempts.length || d.gaveUp)) { d.attempts = []; d.gaveUp = false; this.healNote.delete(tileId); } } else d.playingSince = 0;
@@ -1333,7 +1339,7 @@ export class VideoController {
     if (d.lastPlayAt < since && now - since > startMs) { this.probeThenHeal(tileId, d, "it did not start"); return; }
     // it had played, and the player is gone - no clock at all, not a pause (a paused player keeps its place and length)
     const gone = dur === null && (pos === null || pos === 0);
-    if (d.lastPlayAt >= since && gone) {
+    if (d.lastPlayAt >= since && gone && !d.nearEnd) {
       d.lostAt ||= now;
       if (now - d.lostAt > DOCTOR_LOST_MS) this.probeThenHeal(tileId, d, "the player stopped");
     } else d.lostAt = 0;
@@ -1496,6 +1502,24 @@ export class VideoController {
     }, 2500);
   }
 
+  /**
+   * The page's own controls woken with the wall's (2026-10-23, "when the skip intro button disappears from the cutout on the screen, it usually
+   * appears with the chrome controls when you open them. But in Prism, it just disappears super quick and no alternative can be found"). A service
+   * offers its Skip Intro for a few seconds and then again whenever its controls show; Prism hides those controls behind its own bar, so the
+   * offer never came back. When the person opens the wall's bar, the adapter's videoCmd "controls" shows the page's (Netflix: a Shift key on the
+   * player), and the skip offer is asked again at once, so a Skip the page offers with its controls is the wall's Skip too. An adapter with no
+   * such verb answers false and nothing changes.
+   */
+  async showControls(tileId: string): Promise<"ok" | "unavailable" | "unknown-tile"> {
+    if (!this.host.tileExists(tileId)) return "unknown-tile";
+    const own = this.cmdJs(this.host.adapterOf(tileId), "controls");
+    if (!own || !this.host.evaluate) return "unavailable";
+    let woke = false;
+    try { woke = (await this.host.evaluate(tileId, own)) === "true"; } catch { woke = false; }
+    if (!woke) return "unavailable";
+    setTimeout(() => { this.skipAskedAt.delete(tileId); }, SHOW_CONTROLS_READ_MS);   // the next look reads the offer the controls brought back
+    return "ok";
+  }
   /** Retry (2026-09-21): the person's second try after the page's error - the title's own address opened again, the pick and the stage asked afresh. */
   /** The person's press on the service's own gate (2026-10-13): the adapter's videoCmd presses the gate's button, nothing else. */
   async gate(tileId: string): Promise<"ok" | "unavailable" | "unknown-tile"> {

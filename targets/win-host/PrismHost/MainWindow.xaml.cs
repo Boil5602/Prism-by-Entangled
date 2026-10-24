@@ -168,6 +168,7 @@ public sealed partial class MainWindow : Window
             // than called from inside the handled Closed (a Close() from inside was ignored and the wall lived on headless)
             try { _surfaces.StopTimers(); _stallWatch?.Stop(); _breakWatch?.Stop(); SaveBreakWatches(); } catch { }
             try { _remote?.Dispose(); _fft.Dispose(); _surfaces.SessionMute.Dispose(); } catch { }
+            Services.PhoneLauncher.HostClosing();   // a close, not a crash: the phone launcher takes the port and leaves Prism closed
             DispatcherQueue.TryEnqueue(Close);
         };
 

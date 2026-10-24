@@ -17,7 +17,7 @@
 
 import { followedRow, isChannelRow, isLiveCard, latestRow } from "./followed.js";
 import { asUpdateChannel } from "./updates.js";
-import { BOILER_TAGS, CATEGORY_EDIT_IN, CATEGORY_RULES, cleanCategory, creatorTags, matches, orderCategory, poolWords, popularTags, withinDays, type Category, type CategoryCard, POOL_LIVE_MS } from "./categories.js";
+import { BOILER_TAGS, CATEGORY_EDIT_IN, CATEGORY_RULES, cleanCategory, creatorTags, matches, orderCategory, poolWords, popularTags, recordingAsLive, withinDays, type Category, type CategoryCard, POOL_LIVE_MS } from "./categories.js";
 import { FRESH_EPISODES, FRESH_MOVIES } from "./fresh-rows.js";
 import { BINGE_DEFAULTS, KIDS_AGES, THE_BINGE, bingeDay, bingeGenreRows, bingeSettingsOf, bingeWords, selectBinge, type BingeThresholds, type KidsMode } from "./binge.js";
 import { libraryForWorks, libraryHits, libraryLine, searchLayout, searchWorks, workCard, type LibraryEntry, type LibraryHit, type SearchRowIn } from "./search-view.js";
@@ -2264,6 +2264,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   };
   const categoryRows = (): Array<Record<string, unknown>> => {
     const cats = categoriesNow(); if (!cats.length) return [];
+    const liveMark = (app: string) => { const s = videoServices().services.find((x) => x.app === app); return s ? orchestrator.adapterSpec(s.adapter)?.videoLiveArtwork : undefined; };
     const all = categoryItems(); const log = orchestrator.videoMenuLog(); const now = Date.now();
     const rows: Array<Record<string, unknown>> = [];
     for (const c of cats) {
@@ -2289,7 +2290,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       }
       // the live streams apart (2026-10-13, "Live stuff should just be on the Live tab"): the Watch row keeps its sixty videos and titles, the Live
       // page takes the streams - Comedy's sixty slots had all been live streams, and the Watch row came out empty once they were filtered after
-      const ordered = orderCategory(c.rule, items, log, now);
+      // a past video still being recorded is the channel live now (2026-10-23, a Twitch #comedy result with no picture): it joins the streams
+      const ordered = orderCategory(c.rule, items.map((x) => recordingAsLive(x, liveMark(x.app))), log, now);
       const live = ordered.filter((x) => isLiveCard(x.item));
       const cards = ordered.filter((x) => !isLiveCard(x.item));
       rows.push({ id: "cat:" + c.id, name: c.name, simple: rule.simple.replace("one of the hashtags", tagsSaid) + (pools.length ? " Also what the services' own pages list for them." : ""), sourceShort: rule.sourceShort, editIn: CATEGORY_EDIT_IN, counted: [rule.counted, ...counted].join(" "), who: rule.who, decides: [rule.decides, ...deciders].join(" "), source: [rule.source, ...sources].join(" "), sourceUrl: "",

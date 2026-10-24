@@ -277,6 +277,7 @@ public static class Updates
             {
                 try { using var old = System.Diagnostics.Process.GetProcessById(pid); old.WaitForExit(60_000); } catch { /* already gone */ }
             }
+            PhoneLauncher.StopRunning(log);   // it runs from the install folder's exe: its files are replaced next
             try { inst.Promote(myDir, CurrentVersion); WriteLegacyPointer(log); EnsureShortcut(log); }
             catch (Exception ex) { log("updates: the staged copy could not install itself (" + ex.Message + "); the installed Prism starts as it was"); }
             Launch(InstallExe, rest, log);
@@ -294,6 +295,7 @@ public static class Updates
                 log("updates: handing off to the installed Prism at " + InstallExe);
                 return Launch(InstallExe, args, log);
             case Updating.UpdateInstaller.StartAction.InstallSelfThenLaunch:
+                PhoneLauncher.StopRunning(log);   // the phone launcher is a PrismHost from the install folder too, and holds its files
                 if (RunningFromInstall()) { log("updates: Prism is already running from " + InstallDir + "; this copy runs as it is"); return false; }
                 try
                 {

@@ -94,6 +94,11 @@ public partial class App : Application
             return;
         }
 
+        // the phone launcher (Services/PhoneLauncher, 2026-10-23): Prism says it is running, and the launcher that answers the phone while
+        // Prism is closed is started if it is not running
+        Services.PhoneLauncher.HostStarted(HostPrefs.GetBool("phone.launcher", true), HostPaths.IsOverridden,
+            line => { try { File.AppendAllText(Path.Combine(HostPaths.Diagnostics, "host.log"), PrismHost.Diagnostics.Redact.Line(DateTime.Now.ToString("HH:mm:ss.fff") + " " + line) + "\n"); } catch { } });
+
         _window = new MainWindow();
         _window.Activate();
     }

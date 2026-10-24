@@ -14,6 +14,10 @@ not listed here.
   home LAN, §6); reachable from the internet only if a router is told to forward it. Nothing else listens. Private listening is a
   WebSocket on the same port (`/audio/stream`, a ticket from core) or a live MP3 (`/audio/live.mp3`, the same ticket), the wall's
   sound to the phone, outbound from the wall's point of view once the phone has connected (docs/features/phone.md).
+- **The same port while Prism is closed (2026-10-23).** The phone launcher (Services/PhoneLauncher.cs) is Prism's own exe run with
+  `--launcher`; it listens on 8471 only while Prism is not running, and gives the port back the moment Prism starts. It answers a
+  "Prism is closed" page, the page's icons and manifest, `GET /launcher/state` and `POST /launcher/open` (a paired phone's token,
+  checked against core's stored pairings read from disk), and "closed" on every other route. It makes no outbound connection.
   A paired phone can also send the person's TMDB key to the PC on this listener (`POST /tmdb/key`, the TMDB guide, 2026-10-10):
   inbound, home network only, the body never logged. The guide's check of a key is one more request to api.themoviedb.org under
   that key (`GET /3/authentication`), in the TMDB row below.

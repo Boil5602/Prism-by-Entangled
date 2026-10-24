@@ -33,8 +33,10 @@ phones. The app should also enable the private listening feature through the pho
    an iPhone ignores a page's volume and keeps its own on the buttons, and the page says so there. The tab is *Private Listening*. In
    the background mode the status line says how many seconds the phone holds (that is how far behind the PC it hears) and, while
    filling, a share of what it needed last time before it played; a pause from the Music tab pauses the phone's player at the same
-   moment, and Play fetches the stream fresh, since the PC's pause alone would play on here until the buffer ran dry. When listening starts the page asks *Mute Prism on the PC while this phone listens?* under the button, with *Mute the PC* and
-   *Keep it playing* (2026-10-23; it had muted by itself with a checkbox to turn that off). The sound starts first and the PC plays on
+   moment, and Play fetches the stream fresh, since the PC's pause alone would play on here until the buffer ran dry. When listening starts the page asks *Mute this PC's speakers while this phone listens? Other apps on the PC go quiet too until
+   you stop.* under the button, with *Mute the speakers* and *Keep them on* (2026-10-23; it had muted by itself with a checkbox to turn
+   that off). It is the playback device that is muted, so every app on the PC: Prism alone cannot be muted, since the phone hears
+   Prism's audio after its own mute and session volume. The sound starts first and the PC plays on
    until the answer; a mute the phone asked for goes back when the listen ends (`POST /audio/private-mute`).
 4. **Music.** While the Music lounge is on: the card (the service and the collection it holds, the track with its art from the service's
    own artwork address, "0:20 of 1:40" with what is left and a thin bar advanced each second between polls), the transport (previous,
@@ -194,6 +196,21 @@ phones. The app should also enable the private listening feature through the pho
   the last. Heard on the user's iPhone the same day after the audio context moved inside the tap (iOS unlocks only sound made in a
   gesture). The MP3 route: 80 KB in six seconds, valid frames from the first byte. Still to hear on the phone: the MP3 mode with the
   page minimized and the screen locked, and the mute separation.
+
+## When Prism is closed (2026-10-23)
+
+The phone's page lives on Prism, so a closed Prism used to leave the phone with nothing to load. The phone launcher answers in its
+place: Prism's own exe run with `--launcher`, started by Prism each time it opens and still running after it closes. With Prism closed,
+the phone's address (and its home-screen icon) shows **Prism is closed** and, for a paired phone, an **Open Prism** button. A tap starts
+Prism on the PC; the page waits and loads Prism's own page once it answers. A phone page left open when Prism closes reloads into the
+closed page at its next version check (each minute, and whenever it comes back to the front).
+
+- A Prism that stops without closing (a crash) is started again after fifteen seconds, at most three times an hour. One a person
+  closed stays closed until someone opens it.
+- It cannot help a PC that is asleep or off, and it is home-network only, like the rest of the phone remote.
+- Starting the launcher at Windows sign-in as well (so it is there before Prism has opened once) is not done yet: it is an entry in
+  Windows' startup list and waits on a yes.
+- Host pref `phone.launcher` (default on) turns it off; Prism then stops a running one at its next start.
 
 ## Decisions
 

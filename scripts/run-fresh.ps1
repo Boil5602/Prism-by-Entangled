@@ -23,7 +23,8 @@ if (-not $Dir) {
   }
 }
 New-Item -ItemType Directory -Force $Dir | Out-Null
-if (Get-Process PrismHost -ErrorAction SilentlyContinue) { throw "PrismHost is already running - close it first (two hosts would fight over the audio and the window)" }
+# Prism itself; the phone launcher (the same exe with --launcher) gives way to any Prism that starts
+if (Get-CimInstance Win32_Process -Filter "Name='PrismHost.exe'" | Where-Object { $_.CommandLine -notmatch '--launcher' }) { throw "PrismHost is already running - close it first (two hosts would fight over the audio and the window)" }
 $envs = @{ PRISM_DATA_DIR = $Dir }
 if ($Capture) { $envs.PRISM_DEV_SHOT = "1" }
 Start-Process $exe -Environment $envs

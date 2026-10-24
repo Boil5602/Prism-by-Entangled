@@ -90,6 +90,8 @@ export const UNMUTE_PLAYER_JS = "(function(){var vs=[].slice.call(document.query
 /** Multiview: the windows at most - the big one and four small ones (2026-09-23, "time to add a 4th multiview window (so 1 big and 0-4 multi windows)"). */
 /** An adapter field that is a page address (some carry a note in its place). */
 function isPageUrl(u: unknown): u is string { return typeof u === "string" && /^https?:\/\//i.test(u); }
+/** A page address's host, lower-cased ("" when it is no address). */
+function hostOf(u: string): string { try { return new URL(u).hostname.toLowerCase(); } catch { return ""; } }
 export const MV_MAX = 5;
 /** A small window's place in multiview: stacked down the right edge of the big window, 16:9, a quarter of its width. Pure. */
 export function mvPipRect(base: { x: number; y: number; w: number; h: number }, index: number): { x: number; y: number; w: number; h: number } {
@@ -4469,6 +4471,11 @@ export class Orchestrator {
         if (!this.video.isVideoTile(tileId)) return "unavailable";
         return this.video.retry(tileId);
       }
+      case "showcontrols": {
+        // the wall's bar opened by the person: the page's own controls with it, for the offers they carry (2026-10-23, Netflix's Skip Intro)
+        if (!this.video.isVideoTile(tileId)) return "unavailable";
+        return this.video.showControls(tileId);
+      }
       case "gate": {
         // the person's press on the service's own gate (2026-10-13, Twitch's content disclaimer)
         if (!this.video.isVideoTile(tileId)) return "unavailable";
@@ -5191,6 +5198,7 @@ export class Orchestrator {
   /** A title brought back paused (2026-10-06, "If a show is paused when Prism is closed, it should be auto-paused upon resume when Prism starts
    *  again"): until this time, a play the page starts by itself is paused once. */
   private readonly restorePaused = new Map<string, number>();
+  static readonly RESTORE_PAUSED_MS = 45_000;
   /** When each tile last loaded a page: a page still loading names no title yet, which is not the title closing. */
   private readonly navAt = new Map<string, number>();
   static readonly VIDEO_UP_SETTLE_MS = 30_000;
@@ -5217,7 +5225,10 @@ export class Orchestrator {
    * title that played to 90% of itself gives way - within three minutes - to a title of another show (or another movie) that nobody picked (no
    * pick of the wall's open, no press on the page since), the new one is paused and muted and marked stoppedAutoplay, so the host brings Watch back.
    */
-  private readonly lastTitleSeen = new Map<string, { key: string; series: string; reach: number; endedAt?: number }>();
+  private readonly lastTitleSeen = new Map<string, { key: string; series: string; reach: number; endedAt?: number; dur?: number; otherSince?: number }>();
+  /** Each video tile's media clock as its page last reported it, named or not: a video that follows a title's end is told from the title's own
+   *  credits by its length. */
+  private readonly mediaClock = new Map<string, { pos: number | null; dur: number | null }>();
   /**
    * A title stuck at its end is over, on every service (2026-09-28, "Let's merge rules for multiple services wherever we can": Netflix's end-of-series
    * promo was caught by its adapter alone - any service whose page stops at the last seconds of a title and keeps naming it, an end card or an "up
@@ -5226,6 +5237,7 @@ export class Orchestrator {
    */
   private readonly atEndSince = new Map<string, number>();
   static readonly AT_END_MS = 15_000;
+  static readonly UNNAMED_AUTOPLAY_MS = 8_000;
   /** When a tile's title was last playing near its end (within three minutes), and at what address: a player that then closes onto the title's page
    *  (Apple TV after a series' last episode, 2026-10-12: no up-next, the page with no player, the clock at nought) has ended too. */
   private readonly nearEndAt = new Map<string, { at: number; url: string }>();
@@ -5252,6 +5264,18 @@ export class Orchestrator {
     const prev = this.lastTitleSeen.get(tileId);
     if (!titled || !v) {
       if (prev && prev.reach >= 0.9 && !prev.endedAt) prev.endedAt = Date.now();
+      // ... and a video the page does not name, playing after the end (2026-10-23, "after my episode was over, which was the last episode of the
+      // last season of Haunted Hotel on Netflix, it dropped the video player onto the page for Below"): Netflix played a two-minute trailer on
+      // the episode's own address and named nothing, so the sound rule muted it and its picture stayed up. A video of another length than the
+      // title's (the title's own credits are the same length), within three minutes of the end, that nobody picked, is stopped the same way, once
+      // it has played for UNNAMED_AUTOPLAY_MS (the next episode names itself within a report or two)
+      if (prev?.endedAt && st?.playing && !this.autoplayStopped.has(tileId) && Date.now() - prev.endedAt < 180_000) {
+        const clock = this.mediaClock.get(tileId);
+        const other = typeof clock?.dur === "number" && typeof prev.dur === "number" && Math.abs(clock.dur - prev.dur) > 5;
+        const chosen = (!!st.pending && !st.pending.failed) || this.actedSince(tileId, prev.endedAt - 5_000);
+        if (!other || chosen) delete prev.otherSince;
+        else if ((prev.otherSince ??= Date.now()) <= Date.now() - Orchestrator.UNNAMED_AUTOPLAY_MS) this.stopAutoplay(tileId);
+      }
       return;
     }
     // a first report naming only the episode, right after a show (Netflix's "E2" face before its series shows): not known yet - the next report says
@@ -5262,14 +5286,16 @@ export class Orchestrator {
       const endedAt = prev.endedAt ?? (prev.reach >= 0.9 ? Date.now() : null);
       const nextEpisode = !!v.series && !!prev.series && showsMatch(v.series, prev.series);
       const chosen = (!!st?.pending && !st.pending.failed) || (endedAt !== null && this.actedSince(tileId, endedAt - 5_000));
-      if (endedAt !== null && Date.now() - endedAt < 180_000 && !nextEpisode && !chosen) {
-        this.autoplayStopped.add(tileId);
-        this.previewMuted.add(tileId);
-        void this.drivers.surface.setMuted(tileId, true);
-        void this.tileCommand(tileId, "pause");
-      }
+      if (endedAt !== null && Date.now() - endedAt < 180_000 && !nextEpisode && !chosen) this.stopAutoplay(tileId);
     }
-    if (!prev || titleKey(prev.key) !== titleKey(key) || reach !== prev.reach) this.lastTitleSeen.set(tileId, { key, series: v.series ?? "", reach });
+    const dur = typeof v.duration === "number" && v.duration > 0 ? v.duration : prev && titleKey(prev.key) === titleKey(key) ? prev.dur : undefined;
+    if (!prev || titleKey(prev.key) !== titleKey(key) || reach !== prev.reach) this.lastTitleSeen.set(tileId, { key, series: v.series ?? "", reach, ...(dur !== undefined ? { dur } : {}) });
+  }
+  private stopAutoplay(tileId: string): void {
+    this.autoplayStopped.add(tileId);
+    this.previewMuted.add(tileId);
+    void this.drivers.surface.setMuted(tileId, true);
+    void this.tileCommand(tileId, "pause");
   }
   /** A stopped autoplay or a muted preview let go: the tile's sound goes back to what the wall would give it (never over an ad's cover). */
   private releaseStop(tileId: string): void {
@@ -5282,7 +5308,7 @@ export class Orchestrator {
   /** Everything the video rules kept about a tile, for a tile cleared or given to another service. */
   private forgetVideoRules(tileId: string): void {
     this.releaseStop(tileId);
-    this.lastTitleSeen.delete(tileId); this.atEndSince.delete(tileId); this.upReach.delete(tileId); this.freshFor.delete(tileId); this.pickedAt.delete(tileId); this.personAt.delete(tileId); this.staleEpisode.delete(tileId);
+    this.lastTitleSeen.delete(tileId); this.mediaClock.delete(tileId); this.atEndSince.delete(tileId); this.upReach.delete(tileId); this.freshFor.delete(tileId); this.pickedAt.delete(tileId); this.personAt.delete(tileId); this.staleEpisode.delete(tileId);
   }
   private previewMuteCheck(tileId: string): void {
     const tile = (this.doc?.tiles ?? []).find((t) => t.id === tileId);
@@ -8315,7 +8341,7 @@ export class Orchestrator {
         await this.video.restoreTitle(event.id, back.url, back.name, claim);
         if (back.pos && back.pos > 60) this.resumeRestored(event.id, back.pos, back.name, Date.now());
         // left paused: the player comes up at its place (a page that waits for Play still gets the press) and is paused once as it starts
-        if (back.paused) this.restorePaused.set(event.id, Date.now() + 45_000);
+        if (back.paused) this.restorePaused.set(event.id, Date.now() + Orchestrator.RESTORE_PAUSED_MS);
         // a title that came back and never started - Paramount+'s ad loader sat on "Advertisement is loading..." for good after a restart
         // (2026-09-23, "The bottom right video in multiview is gray"): once, the title's own address again, unless a person has acted there
         const id = event.id, at = Date.now();
@@ -8374,6 +8400,10 @@ export class Orchestrator {
       if (event.url) { this.currentUrl.set(event.id, event.url); this.navAt.set(event.id, Date.now()); }
       if (event.url) this.freshPageOnNextTitle(event.id, before, event.url);
       if (event.url) this.video.noteNavigated(event.id, event.url);   // where an address asked for arrived (the doctor keeps watching it)
+      // a break belongs to its page: one that moved to another site has ended it (2026-10-23, "not getting any sound in prism right now":
+      // Netflix's pause ad was covered, Silo was picked on Apple TV in the same window, the cover's backstop fell two minutes on and held the
+      // mute for the page's own end signal - which the Apple TV page, never in that break, would not send)
+      if (event.url && before && hostOf(before) !== hostOf(event.url)) this.intermission.onAdBreak(event.id, false);
       await this.applyVeil(event.id); // §27 — SPA moved; the installer updates in place
       this.rememberLocation(event.id, event.url);
     }
@@ -8418,6 +8448,10 @@ export class Orchestrator {
       return;
     }
     if (event.type === "now-playing") {
+      if (!event.id.startsWith("app:")) {
+        const np = event.info as { position?: unknown; duration?: unknown } | null | undefined;
+        this.mediaClock.set(event.id, { pos: typeof np?.position === "number" ? np.position : null, dur: typeof np?.duration === "number" ? np.duration : null });
+      }
       if (!event.id.startsWith("app:") && this.tile(event.id)?.adapter) queueMicrotask(() => this.noteWatchState(event.id));   // a title that stopped: its service read again soon
       // a pick called off before it played (videoCancelPick): the page it had already loaded may begin anyway - paused once, within the window
       const off = this.pickCancelledAt.get(event.id);
@@ -8633,10 +8667,12 @@ export class Orchestrator {
     // a title brought back paused that starts by itself (or by the restore's own Play press): paused once, as it was left (2026-10-06)
     if (event.type === "playback" && event.playing && this.restorePaused.has(event.id)) {
       const until = this.restorePaused.get(event.id)!;
+      // only a PERSON's press, pick or seek since the restore lets it play (2026-10-23, "prism auto started silo, shouldn't have": Silo, paused
+      // when Prism closed, came back playing - Apple TV's episode page waits for Play, the restore pressed it eight seconds on, and that press's
+      // arm() set lastInteract after the mark, so the wall's own Play read as a person's). The pause is the wall's, so the pause hold
+      // (pauseHeld) pauses the player once more should the restore's seek to the kept spot start it again.
       this.restorePaused.delete(event.id);
-      // the restore's own arm() set lastInteract at that moment: only a press after it is a person's (2026-10-06: Animal Control came back playing
-      // twice - the arm and the mark fell in the same millisecond and the strict test read the restore as a person)
-      if (Date.now() < until && (this.lastInteract.get(event.id) ?? 0) <= until - 45_000) setTimeout(() => void this.tileCommand(event.id, "pause"), 600);
+      if (Date.now() < until && !this.personActedSince(event.id, until - Orchestrator.RESTORE_PAUSED_MS)) setTimeout(() => { if (!this.personActedSince(event.id, until - Orchestrator.RESTORE_PAUSED_MS)) void this.tileCommand(event.id, "pause"); }, 600);
     }   // the wall's play / pause toggle reads it at once
     if (event.type === "playback" && event.playing) {
       await this.lifecycle.touch(event.id);

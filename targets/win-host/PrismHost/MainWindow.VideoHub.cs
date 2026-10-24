@@ -377,6 +377,7 @@ public sealed partial class MainWindow
     private DispatcherTimer? _stageBarTimer;
     private DispatcherTimer? _stageTick;
     private bool _stageHasTime;
+    private bool _stageHasSeries;   // the bar was drawn knowing the series, so with its Episodes button
     private (Grid line, TextBlock times, TextBlock quality)? _stageProgress;
     /// <summary>The bar's title line and its service's name: the tick keeps the words current (2026-09-25, the previous episode's name came late).</summary>
     private (TextBlock text, string service)? _stageFace;
@@ -548,6 +549,10 @@ public sealed partial class MainWindow
             // a bar drawn before the page knew its clock has no slider; the clock known now, the bar is drawn once more with it (2026-10-05,
             // "The time scan slider didn't appear with the rest of the controls when I brought the mouse up")
             if (!_stageHasTime && pos >= 0 && !_stageBarBuilding) { _ = ShowStageBarAsync(force: true); return; }
+            // the same for the series (2026-10-23, "why cant I find the episodes button on this episode of haunted hotel on netflix? ... it took a
+            // good > minute"): Netflix names the title a movie with no series while its opening ad plays, so a bar drawn then had no Episodes
+            // button, and the tick put the series in the title line but never added the button. Once the series is known, the bar is drawn again
+            if (!_stageHasSeries && (video?["series"]?.GetValue<string>() ?? "").Length > 0 && !_stageBarBuilding) { _ = ShowStageBarAsync(force: true); return; }
             if (pos < 0 || _stageProgress is null || _seekDragging || DateTime.Now < _seekHoldUntil) return;   // a drag, or a seek on its way: the line is the person's
             var (line, times, quality) = _stageProgress.Value;
             if (slot is not null) { var qt = await ReadQualityAsync(slot); if (qt.Length > 0) quality.Text = qt; }
@@ -575,6 +580,8 @@ public sealed partial class MainWindow
             try { menu = JsonNode.Parse(await ModelCallAsync("videoServices") ?? "null") as JsonObject; vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray; } catch { }
             var screenSlot = (menu?["screen"] as JsonObject)?["slot"]?.GetValue<string>();
             if (screenSlot is null) return;
+            // the bar opening: the page's own controls wake with it, for the Skip Intro they bring (2026-10-23; core's showcontrols)
+            if (StageBar.Visibility != Visibility.Visible) _brain.Call(HostCalls.TileCommand, screenSlot, "showcontrols");
             JsonObject? tile = null;
             if (vs is not null) foreach (var t in vs) if (t is JsonObject o && o["id"]?.GetValue<string>() == screenSlot) tile = o;
             string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
@@ -661,6 +668,7 @@ public sealed partial class MainWindow
             // on the control bar like others?"): the size alone under the title
             else { timeRow.Children.Remove(quality); quality.Margin = new Thickness(0); faceCol.Children.Add(quality); }
             _stageHasTime = pos >= 0;
+            _stageHasSeries = S(video, "series").Length > 0;
             StageBarBody.Children.Add(faceCol);
             _ = StageNextAsync(screenSlot, video);   // the next episode's card under the bar, for a series (2026-09-22)
             _stageProgress = (line, times, quality);
@@ -864,7 +872,7 @@ public sealed partial class MainWindow
             sb.Children.Add(anim); sb.Begin();
         }
     }
-    public void HideStageBar() { _stageBarTimer?.Stop(); _stageTick?.Stop(); StageBar.Visibility = Visibility.Collapsed; CloseVolumeSlider(); CloseEpisodes(); SyncMvBars(); FadeGrips(false); }   // the grips back with any hide (2026-10-05 review: a switch to the Music player or a title's end left them at opacity 0)
+    public void HideStageBar() { _stageBarTimer?.Stop(); _stageTick?.Stop(); _skipHeld = null; StageBar.Visibility = Visibility.Collapsed; CloseVolumeSlider(); CloseEpisodes(); SyncMvBars(); FadeGrips(false); }   // the grips back with any hide (2026-10-05 review: a switch to the Music player or a title's end left them at opacity 0)
     /// <summary>The next episode's card under the stage bar ("if a tv series, can we show below them a clickable link with image for the next episode on
     /// that service?", 2026-09-22): TMDB's word on the episode after the one playing (its still, name and air date; under the household's key,
     /// read in the background - asked again while it reads), and a press is the service's own Next episode, the verb the bar already has.</summary>

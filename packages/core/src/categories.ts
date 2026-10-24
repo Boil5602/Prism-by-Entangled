@@ -128,6 +128,20 @@ export const POOL_LIVE_MS = 2 * 3_600_000;
 /** The service said live, and the read is fresh enough to believe it. */
 export const liveNow = (c: CategoryCard, now: number): boolean => (c.item.kind === "live" || c.item.badge === "LIVE") && (c.readAt === undefined || now - c.readAt < POOL_LIVE_MS);
 
+/**
+ * A past video whose picture is the service's own mark of a broadcast still being recorded (the adapter's videoLiveArtwork, Twitch's
+ * "processing" picture) is the channel live now (2026-10-23, "I see a twitch item on the comedy line with no image": a Twitch search result
+ * for #comedy was the recording of a stream still on air, and its picture did not load). It becomes a stream at the channel's own address,
+ * which the row sets apart for the Live page, never a card without a picture on Watch. A pool read is believed for POOL_LIVE_MS as any
+ * stream is; a household card only when the service's rows say it is still on (video.ts markLive, which knows a broadcast that ended).
+ */
+export function recordingAsLive(c: CategoryCard, mark: string | null | undefined): CategoryCard {
+  const it = c.item;
+  if (!mark || it.kind === "live" || it.badge === "LIVE" || !(it.artwork ?? "").includes(mark)) return c;
+  if (c.readAt === undefined && it.live !== true) return c;
+  return { ...c, item: { ...it, kind: "live", badge: "LIVE", title: it.channel || it.title, subtitle: it.title, url: it.channelUrl || it.url || null, artwork: null } };
+}
+
 function lastPlayed(c: CategoryCard, log: readonly MenuLogEntry[]): number | null {
   let best: number | null = null;
   for (const e of log) {

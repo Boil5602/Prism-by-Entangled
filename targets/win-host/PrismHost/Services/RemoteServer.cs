@@ -214,33 +214,14 @@ public sealed class RemoteServer : IDisposable
                     if (mk.bytes is { Length: > 0 } mb) { await WriteBytesAsync(stream, 200, mb, mk.mime ?? "image/png"); return; }
                     await WriteAsync(stream, 404, "{}", "application/json"); return;
                 }
-                if (method == "GET" && path == "/remote/icon.png")
-                {
-                    var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png");
-                    if (File.Exists(icon)) { await WriteBytesAsync(stream, 200, await File.ReadAllBytesAsync(icon), "image/png"); return; }
-                    await WriteAsync(stream, 404, "{}", "application/json"); return;
-                }
                 // the home-screen icons (docs/features/companion-install.md, 2026-10-05): 180 for iOS's touch icon, 192 and 512 for the manifest,
                 // the maskable 512 on the page's dark surface; all derived from the brand mark by scripts/brand-icons.py
-                if (method == "GET" && (path == "/remote/icon-180.png" || path == "/remote/icon-192.png" || path == "/remote/icon-512.png" || path == "/remote/icon-512-maskable.png"))
+                if (method == "GET" && IconFile(path) is { } file)
                 {
-                    var file = Path.Combine(AppContext.BaseDirectory, "Assets", "prism-" + path["/remote/".Length..]);
                     if (File.Exists(file)) { await WriteBytesAsync(stream, 200, await File.ReadAllBytesAsync(file), "image/png"); return; }
                     await WriteAsync(stream, 404, "{}", "application/json"); return;
                 }
-                if (method == "GET" && path == "/remote/manifest.json")
-                {
-                    var start = "/remote" + (token is { Length: > 0 } ? "?token=" + WebUtility.UrlEncode(token) : "");
-                    var classic = query.Contains("classic=1");
-                    var manifest = classic
-                        ? JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
-                        : JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
-                        new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" },
-                        new { src = "/remote/icon-192.png", sizes = "192x192", type = "image/png" },
-                        new { src = "/remote/icon-512.png", sizes = "512x512", type = "image/png" },
-                        new { src = "/remote/icon-512-maskable.png", sizes = "512x512", type = "image/png", purpose = "maskable" } } });
-                    await WriteAsync(stream, 200, manifest, "application/manifest+json"); return;
-                }
+                if (method == "GET" && path == "/remote/manifest.json") { await WriteAsync(stream, 200, ManifestJson(token, query.Contains("classic=1")), "application/manifest+json"); return; }
                 if (path == "/audio/live.mp3")
                 {
                     // the live MP3 (ListenStream.ServeMp3Async): a phone's own player fetches it and keeps playing in the background
@@ -274,7 +255,29 @@ public sealed class RemoteServer : IDisposable
         }
     }
 
-    private static async Task<(string? head, byte[] rest)> ReadHeadAsync(NetworkStream s, CancellationToken ct)
+    /// <summary>The home-screen manifest: its start address keeps the phone's token, so the icon opens Prism already paired. Shared with
+    /// the phone launcher (PhoneLauncher), which answers at the same address while Prism is closed.</summary>
+    internal static string ManifestJson(string? token, bool classic)
+    {
+        var start = "/remote" + (token is { Length: > 0 } ? "?token=" + WebUtility.UrlEncode(token) : "");
+        return classic
+            ? JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
+            : JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
+            new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" },
+            new { src = "/remote/icon-192.png", sizes = "192x192", type = "image/png" },
+            new { src = "/remote/icon-512.png", sizes = "512x512", type = "image/png" },
+            new { src = "/remote/icon-512-maskable.png", sizes = "512x512", type = "image/png", purpose = "maskable" } } });
+    }
+
+    /// <summary>The file behind one of the page's icon addresses, or null for any other path.</summary>
+    internal static string? IconFile(string path) => path switch
+    {
+        "/remote/icon.png" => Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png"),
+        "/remote/icon-180.png" or "/remote/icon-192.png" or "/remote/icon-512.png" or "/remote/icon-512-maskable.png" => Path.Combine(AppContext.BaseDirectory, "Assets", "prism-" + path["/remote/".Length..]),
+        _ => null,
+    };
+
+    internal static async Task<(string? head, byte[] rest)> ReadHeadAsync(NetworkStream s, CancellationToken ct)
     {
         var buf = new MemoryStream();
         var tmp = new byte[4096];
@@ -290,7 +293,7 @@ public sealed class RemoteServer : IDisposable
         return (null, Array.Empty<byte>());
     }
 
-    private static async Task<string> ReadBodyAsync(NetworkStream s, byte[] have, int len, CancellationToken ct)
+    internal static async Task<string> ReadBodyAsync(NetworkStream s, byte[] have, int len, CancellationToken ct)
     {
         if (len <= 0) return "";
         var ms = new MemoryStream(); ms.Write(have);
@@ -311,8 +314,8 @@ public sealed class RemoteServer : IDisposable
         return -1;
     }
 
-    private static Task WriteAsync(NetworkStream s, int status, string body, string contentType) => WriteBytesAsync(s, status, Encoding.UTF8.GetBytes(body), contentType);
-    private static async Task WriteBytesAsync(NetworkStream s, int status, byte[] bytes, string contentType)
+    internal static Task WriteAsync(NetworkStream s, int status, string body, string contentType) => WriteBytesAsync(s, status, Encoding.UTF8.GetBytes(body), contentType);
+    internal static async Task WriteBytesAsync(NetworkStream s, int status, byte[] bytes, string contentType)
     {
         var reason = status switch { 200 => "OK", 204 => "No Content", 400 => "Bad Request", 401 => "Unauthorized", 404 => "Not Found", 409 => "Conflict", 501 => "Not Implemented", 504 => "Gateway Timeout", _ => "Status" };
         var head = $"HTTP/1.1 {status} {reason}\r\nContent-Type: {contentType}\r\nContent-Length: {bytes.Length}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Authorization, Content-Type\r\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";

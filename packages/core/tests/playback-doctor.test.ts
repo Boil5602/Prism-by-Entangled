@@ -115,6 +115,22 @@ describe("the playback doctor", () => {
     expect(navigated).toEqual([]);
   });
 
+  it("a title gone after its last three minutes has ended, not stopped: never reopened; gone earlier, it is (2026-10-23, Netflix's trailer after a series' last episode)", async () => {
+    const { v, navigated, report } = rig();
+    await v.restoreTitle("screen", URL, "Paradise", true);
+    report(face({ playing: true, position: 1480, duration: 1565 }), true);
+    await vi.advanceTimersByTimeAsync(1000);
+    for (let t = 0; t < 30; t++) { report(null, true); await vi.advanceTimersByTimeAsync(1000); }   // the service's trailer on the same address, unnamed
+    for (let t = 0; t < DOCTOR_LOST_MS / 1000 + 5; t++) { report(null); await vi.advanceTimersByTimeAsync(1000); }   // the trailer over: nothing plays
+    expect(navigated).toEqual([]);
+    const early = rig();
+    await early.v.restoreTitle("screen", URL, "Paradise", true);
+    early.report(face({ playing: true, position: 600, duration: 1565 }), true);
+    await vi.advanceTimersByTimeAsync(1000);
+    for (let t = 0; t < DOCTOR_LOST_MS / 1000 + 5; t++) { early.report(null); await vi.advanceTimersByTimeAsync(1000); }
+    expect(early.navigated).toEqual([URL]);
+  });
+
   it("a person's seek: a stall in the minute after it is never healed (Peacock, 2026-09-23)", async () => {
     let touchedAt = 0;
     const { v, navigated, report } = rig({ person: () => touchedAt > 0 });

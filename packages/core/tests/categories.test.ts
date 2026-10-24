@@ -1,11 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORY_RULES, cleanCategory, cleanTag, creatorTags, keywordsOf, matches, orderCategory, pageInfoOf, poolWords, popularTags, publishedAt, withinDays, wordsOf, type CategoryCard } from "../src/categories.js";
+import { CATEGORY_RULES, cleanCategory, cleanTag, creatorTags, keywordsOf, matches, orderCategory, pageInfoOf, poolWords, popularTags, publishedAt, recordingAsLive, withinDays, wordsOf, type CategoryCard } from "../src/categories.js";
 import { topArticles } from "../src/most-read.js";
 
 // Categories of the person's own (2026-10-11): hashtags and one clear rule, across services, from what Prism already lists.
 describe("categories by hashtags, with a clear rule (categories.ts)", () => {
   const item = (title: string, subtitle: string | null = null, extra: Partial<CategoryCard["item"]> = {}) => ({ id: title, title, kind: "video", url: null, artwork: null, subtitle, progress: null, ...extra });
   const card = (app: string, title: string, subtitle: string | null = null): CategoryCard => ({ app, service: app, facet: app + "-f", item: item(title, subtitle) });
+
+  it("a past video still being recorded (the service's processing picture) is the channel live now, not a card without a picture", () => {
+    const mark = "/_404/404_processing";
+    const rec: CategoryCard = { app: "twitch", service: "Twitch", facet: "twitch-f", readAt: 1, item: item("Ship Happens!", "k1ng", { id: "29", kind: "video", url: "https://www.twitch.tv/k1ng/video/29", artwork: "https://vod-secure.twitch.tv/_404/404_processing_214x120.png", channel: "k1ng", channelUrl: "https://www.twitch.tv/k1ng" }) };
+    const live = recordingAsLive(rec, mark);
+    expect(live.item).toMatchObject({ kind: "live", badge: "LIVE", title: "k1ng", subtitle: "Ship Happens!", url: "https://www.twitch.tv/k1ng", artwork: null });
+    expect(live.readAt).toBe(1);
+    // a finished video keeps its card; a service with no mark changes nothing
+    const done: CategoryCard = { ...rec, item: { ...rec.item, artwork: "https://static-cdn.jtvnw.net/cf_vods/x/thumb/thumb0-214x120.jpg" } };
+    expect(recordingAsLive(done, mark)).toBe(done);
+    expect(recordingAsLive(rec, undefined)).toBe(rec);
+    // a household card only when the service's rows say it is still on (a broadcast that ended keeps the picture on Twitch)
+    const own: CategoryCard = { ...rec, readAt: undefined };
+    expect(recordingAsLive(own, mark)).toBe(own);
+    expect(recordingAsLive({ ...own, item: { ...own.item, live: true } }, mark).item.kind).toBe("live");
+  });
 
   it("a #tag keeps its # and a plain word has none, lowercase; a category needs at least one; one saved before 2026-10-12 is read as #tags", () => {
     expect(cleanTag(" #Space ")).toBe("#space");

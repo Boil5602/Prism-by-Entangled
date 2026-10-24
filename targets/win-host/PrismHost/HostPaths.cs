@@ -97,6 +97,8 @@ internal static class HostPaths
         var wantRestore = File.Exists(restore) ? File.ReadAllText(restore).Trim() : null;
         if (!wantReset && wantRestore is null) return;
 
+        // the phone launcher runs this exe and writes its log in the folder about to move: it leaves first (it starts again with Prism)
+        Services.PhoneLauncher.StopRunning(_ => { });
         // the previous instance may still be closing its WebViews: give it a moment, never fight it
         var me = Environment.ProcessId;
         for (var i = 0; i < 40; i++)

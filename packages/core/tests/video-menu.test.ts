@@ -300,6 +300,24 @@ describe("the universal video menu (video-menu-spec §2-§4)", () => {
     expect(ops.filter((o) => o.op === "mute" && o.id === "screen").at(-1)?.muted).toBe(true);
   });
 
+  it("an unnamed video of another length after a title's end is an unrelated autoplay once it has played eight seconds; the title's own credits are not (2026-10-23)", async () => {
+    const { rt } = await setup();
+    const st = () => JSON.parse(rt.videoState()).find((t: { id: string }) => t.id === "screen");
+    const ep = (pos: number) => report(rt, "screen", { playing: true, position: pos, duration: 1565, video: { kind: "episode", title: "The Visit", series: "A Show", id: "8", url: "https://www.netflix.com/watch/8", playing: true, position: pos, duration: 1565 } });
+    const unnamed = (pos: number, duration: number) => report(rt, "screen", { playing: true, position: pos, duration, video: null });
+    ep(1480); await vi.advanceTimersByTimeAsync(50);
+    unnamed(1490, 1565); await vi.advanceTimersByTimeAsync(4_000);   // the credits, unnamed: the title's own length
+    unnamed(1494, 1565); await vi.advanceTimersByTimeAsync(6_000);
+    unnamed(1500, 1565); await vi.advanceTimersByTimeAsync(50);
+    expect(st().stoppedAutoplay).toBeUndefined();
+    unnamed(1, 125); await vi.advanceTimersByTimeAsync(4_000);   // another video on the same page: a trailer
+    unnamed(5, 125); await vi.advanceTimersByTimeAsync(50);
+    expect(st().stoppedAutoplay).toBeUndefined();   // not yet: the next episode names itself within a report or two
+    await vi.advanceTimersByTimeAsync(4_000);
+    unnamed(9, 125); await vi.advanceTimersByTimeAsync(50);
+    expect(st().stoppedAutoplay).toBe(true);
+  });
+
   it("a title the person picks after one ends is theirs, not an unrelated autoplay; a first report naming only the episode waits for the next (2026-09-28 review)", async () => {
     const { rt } = await setup();
     const ep = (series: string, title: string, pos: number) => report(rt, "screen", { playing: true, video: { kind: "episode", title, ...(series ? { series } : {}), id: series + title, url: "https://www.netflix.com/watch/" + (series.length + title.length), playing: true, position: pos, duration: 1300 } });

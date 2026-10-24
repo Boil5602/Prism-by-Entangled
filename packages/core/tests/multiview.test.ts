@@ -600,6 +600,33 @@ describe("multiview", () => {
     expect(String(presses[0]!.js)).toContain("https://www.hulu.com/watch/abc");
   });
 
+  it("a title left paused comes back paused even when its page waits for the restore's Play press; a person's press lets it play (2026-10-23, Silo)", async () => {
+    for (const person of [false, true]) {
+      const kv = new Map<string, string>();
+      const { rt } = await setup(kv);
+      rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+      rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: true, position: 1980, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: false, position: 1990, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      expect(Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"))).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Silo", pos: 1990, paused: true }]);
+      const b = rig(kv);
+      const rt2 = createRuntime(b.drivers);
+      rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoPlay: "/*p*/", videoCmd: "/*cmd*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+      await vi.advanceTimersByTimeAsync(9_000);   // the page waits for Play: the restore presses it
+      expect(b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes("__prismVideoPlay("))).toBe(true);
+      if (person) rt2.event(JSON.stringify({ type: "interaction", id: "screen" }));
+      rt2.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: true, position: 1990, duration: 3600 } } }));
+      b.ops.length = 0;
+      rt2.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const paused = b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('"pause"'));
+      expect(paused).toBe(!person);
+    }
+  });
+
   it("a video service's page draws no browser controls: the wall's rule rides its adapter's css (2026-09-25, Apple TV's fullscreen <video>)", async () => {
     const { rt, ops } = await setup();
     ops.length = 0;

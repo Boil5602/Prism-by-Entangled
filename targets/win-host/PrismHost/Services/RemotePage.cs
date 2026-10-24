@@ -123,7 +123,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div id="lwin" class="lwin"><p class="note">Listening to</p><div class="row order" id="lwinRow"></div><p class="note" id="lwinNote"></p></div>
 <audio id="out" playsinline preload="none"></audio>
 <p class="err" id="lerr"></p><p class="work" id="netNote"></p>
-<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute the PC</button><button id="muteNo">Keep it playing</button></div></div>
+<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute the speakers</button><button id="muteNo">Keep them on</button></div></div>
 </section>
 <div id="install" class="install" role="dialog" aria-label="Add Prism to your Home Screen">
 <p>Add Prism to your Home Screen. It opens full-screen and stays signed in.</p>
@@ -478,6 +478,7 @@ let pageVersion = '__VERSION__', refreshAt = 0;
 async function checkVersion() {
   try {
     const r = await fetch('/remote/version', { cache: 'no-store' }); const v = (await r.json()).v;
+    if (v === 'closed') { location.reload(); return; }   // Prism closed on the PC: the phone launcher's page, with its Open Prism button
     if (!pageVersion || pageVersion.indexOf('__') === 0) { pageVersion = v; return; }
     if (v !== pageVersion && !refreshAt) { refreshAt = Date.now() + 5 * 60 * 1000; q('#banner').classList.add('on'); tickBanner(); }
   } catch {}
@@ -2023,14 +2024,14 @@ function muteSay(text, hideAfterMs) {
 }
 q('#muteYes').onclick = async () => {
   if (!listening) { q('#muteNote').className = 'work muteNote'; return; }
-  try { await api('/audio/private-mute', { on: true }); mutedByMe = true; muteSay('Prism on the PC is muted while this phone listens. It comes back when you stop.', 8000); }
-  catch { muteSay('Could not mute Prism on the PC. Use its mute button instead.', 8000); }
+  try { await api('/audio/private-mute', { on: true }); mutedByMe = true; muteSay('This PC\'s speakers are muted while this phone listens. They come back when you stop.', 8000); }
+  catch { muteSay('Could not mute this PC\'s speakers. Turn them down on the PC instead.', 8000); }
 };
-q('#muteNo').onclick = () => { muteSay('Prism on the PC keeps playing.', 5000); };
+q('#muteNo').onclick = () => { muteSay('This PC\'s speakers stay on.', 5000); };
 async function muteForListen() {
   if (mutedByMe) return;   // already muted for this listen (a mode switch starts again)
   clearTimeout(muteSay.t);
-  q('#muteNoteText').textContent = 'Mute Prism on the PC while this phone listens?';
+  q('#muteNoteText').textContent = 'Mute this PC\'s speakers while this phone listens? Other apps on the PC go quiet too until you stop.';   // the speakers, so every app (2026-10-23, "It muted the whole PC"): Prism alone cannot be muted, the phone hears Prism after its own mute
   q('#muteAsk').style.display = 'flex';
   q('#muteNote').className = 'work muteNote on';
 }

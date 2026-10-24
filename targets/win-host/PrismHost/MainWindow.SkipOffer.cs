@@ -16,11 +16,18 @@ public sealed partial class MainWindow
     private Button? _skipChip;
     private TextBlock? _skipText;
     private string? _skipSlot;
+    private string? _skipHeld;   // the offer seen while the stage bar is up, kept until the bar goes
 
     /// <summary>Show, rename or hide the button from the screen tile's state (null: hide).</summary>
     private void SyncSkipOffer(string? slot, JsonObject? tile)
     {
         var offer = tile?["skip"]?.GetValue<string>();
+        // the page's Skip Intro comes and goes with its own controls, which hide again after a few seconds; the wall's stays for as long as
+        // the wall's bar is up (2026-10-23, "it usually appears with the chrome controls when you open them. But in Prism, it just disappears
+        // super quick"). A press while the page's button is away goes by the adapter's own way to it (Netflix wakes its controls first)
+        var barUp = StageBar.Visibility == Visibility.Visible;
+        if (offer is { Length: > 0 } && offer != "Skip Ad") { if (barUp) _skipHeld = offer; }
+        else if (offer is not { Length: > 0 } && barUp && _skipHeld is { Length: > 0 } && slot is not null && slot == _skipSlot) offer = _skipHeld;
         // multiview too (2026-09-29, "make sure I can hit skip with any service"): the button stands in the big window's own corner
         var show = slot is not null && offer is { Length: > 0 } && !VideoHubOpen && StageCurtain.Visibility != Visibility.Visible;
         // an ad's Skip under a break's cover is on the cover itself (its own Skip chip): one button, not two
@@ -42,6 +49,7 @@ public sealed partial class MainWindow
             _skipChip.Click += (_, __) =>
             {
                 if (_skipSlot is { } s) _brain.Call(PrismHost.Channel.HostCalls.TileCommand, s, "skipintro");
+                _skipHeld = null;
                 if (_skipChip is not null) _skipChip.Visibility = Visibility.Collapsed;   // pressed: gone until the page offers one again
             };
             RootGrid.Children.Add(_skipChip);

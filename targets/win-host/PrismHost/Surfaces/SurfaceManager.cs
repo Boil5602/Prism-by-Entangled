@@ -1353,7 +1353,9 @@ public sealed partial class SurfaceManager
         // broken veil (spec 26).
         var pick = _art.Pick(source);
         tile.ArtInfo = pick?.Attribution;
-        if (pick is not null) TrySetImage(tile.IntermissionArt!, pick.Path);
+        // all four slabs take the decoded picture together (2026-10-23, "the veil is actually 2 images, one along the top, and one covering the rest of
+        // the screen"): the copy below ran before the decode finished, so the slabs around an opening kept the last break's picture)
+        if (pick is not null) TrySetImage(tile.IntermissionArt!, pick.Path, tile.ArtSlabs);
         ApplyArtAttribution(tile);
         for (var si = 1; si < tile.ArtSlabs.Length; si++) tile.ArtSlabs[si].Source = tile.ArtSlabs[0].Source;
         StartArtDrift(tile);
@@ -3387,7 +3389,7 @@ public sealed partial class SurfaceManager
     // pool thread that calls back into the UI thread; the second in a row failed. The file is read whole here and decoded by the
     // async call from native memory; the latest request for an image wins if an older decode finishes after it.
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Image, string> _imageWanted = new();
-    private static async void TrySetImage(Image img, string path)
+    private static async void TrySetImage(Image img, string path, Image[]? alsoTo = null)
     {
         try
         {
@@ -3399,7 +3401,7 @@ public sealed partial class SurfaceManager
             ms.Seek(0);
             var bmp = new BitmapImage();
             await bmp.SetSourceAsync(ms);
-            if (_imageWanted.TryGetValue(img, out var want) && want == path) img.Source = bmp;
+            if (_imageWanted.TryGetValue(img, out var want) && want == path) { img.Source = bmp; if (alsoTo is not null) foreach (var o in alsoTo) if (!ReferenceEquals(o, img)) o.Source = bmp; }
         }
         catch { }
     }

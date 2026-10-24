@@ -192,6 +192,43 @@ public sealed class StoreService
         _lastFullAt = Environment.TickCount64;
     }
 
+    /// <summary>
+    /// One key as the store holds it on disk, read by another process without loading the store (the phone launcher, 2026-10-23: it
+    /// checks a phone's pairing while Prism is closed). The same precedence as Load: the key's own file when it is at least as new as
+    /// the snapshot, else the snapshot's value. Read only: a file that does not parse is skipped, never set aside, so nothing here
+    /// moves or writes anything of the household's.
+    /// </summary>
+    public static string? ReadKeyOnly(string root, string key)
+    {
+        var snapshot = Path.Combine(root, "store.json");
+        var keyFile = Path.Combine(root, "store", KeyFileName(key));
+        long snapshotAt = 0;
+        try { if (File.Exists(snapshot)) snapshotAt = new FileInfo(snapshot).LastWriteTimeUtc.Ticks; } catch { }
+        string? fromKeyFile = null;
+        try
+        {
+            if (File.Exists(keyFile))
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(keyFile));
+                if (doc.RootElement.TryGetProperty("key", out var kp) && kp.GetString() == key && doc.RootElement.TryGetProperty("value", out var vp) && vp.ValueKind == JsonValueKind.String)
+                    fromKeyFile = vp.GetString();
+                if (fromKeyFile is not null && new FileInfo(keyFile).LastWriteTimeUtc.Ticks >= snapshotAt) return fromKeyFile;
+            }
+        }
+        catch { }
+        try
+        {
+            if (snapshotAt > 0)
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(snapshot));
+                if (doc.RootElement.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Object && d.TryGetProperty(key, out var v))
+                    return v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText();
+            }
+        }
+        catch { }
+        return fromKeyFile;   // an older key file is still the value when the snapshot does not have the key
+    }
+
     /// <summary>One key's file: {"key","value"}, written whole and swapped in; the name is the key made safe plus a short hash, so two keys never share one.</summary>
     private void SaveKey(string key, string value)
     {
