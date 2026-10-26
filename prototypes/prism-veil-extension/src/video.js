@@ -1073,6 +1073,8 @@
           // the rounded mask hole so the human's own click reaches the button.
           var ix = Math.min(rr * 0.3, 6) + 1, cx0 = hx + ix, cy0 = hy + ix, cx1 = hx + hw - ix, cy1 = hy + hh - ix;
           c.style.clipPath = "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 " + cy0 + "px, " + cx0 + "px " + cy0 + "px, " + cx0 + "px " + cy1 + "px, " + cx1 + "px " + cy1 + "px, " + cx1 + "px " + cy0 + "px, 0 " + cy0 + "px)";
+          // and a glowing ring around it, so the opening is seen (2026-10-25)
+          if (PV.ringHoles) PV.ringHoles(c, [{ x: hx, y: hy, w: hw, h: hh, r: rr }]);
         }
         return;
       }
@@ -1084,6 +1086,7 @@
     if (c.__holeKey !== undefined) trace("hole close");
     c.__holeKey = undefined; c.__hole = null; c.__holeEl = null;
     c.style.webkitMaskImage = ""; c.style.maskImage = ""; c.style.clipPath = "";
+    if (PV.ringHoles) PV.ringHoles(c, []);
   }
 
   // ---------------------------------------------------------------- state

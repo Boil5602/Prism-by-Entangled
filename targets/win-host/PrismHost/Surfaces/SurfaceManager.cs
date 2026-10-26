@@ -140,7 +140,10 @@ public sealed partial class SurfaceManager
         /// <summary>Each slab's frame: it holds the clip, so the picture inside can drift while the cover's shape (and the skip hole) stays put.</summary>
         public Grid[] ArtFrames = Array.Empty<Grid>();
         public Microsoft.UI.Xaml.Media.Animation.Storyboard? ArtDrift;
-        public Border? SkipRing;
+        /// <summary>The ring around the Skip opening: an amber line with a glow outside it that pulses (2026-10-25, "put a glowing box
+        /// around the cutout ... It's not always obvious they've occured"). SkipRingPulse runs while it shows.</summary>
+        public Grid? SkipRing;
+        public Microsoft.UI.Xaml.Media.Animation.Storyboard? SkipRingPulse;
         public string? SkipTarget;
         /// <summary>The veil's opening over the player's own Skip, in the tile's own coordinates (2026-10-12): a press on the stage shield
         /// inside it is the person pressing that control.</summary>
@@ -1288,16 +1291,20 @@ public sealed partial class SurfaceManager
             artHost.SizeChanged += (_, e) => artHost.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, e.NewSize.Width, e.NewSize.Height) };
             foreach (var fr in artFrames) artHost.Children.Add(fr);
             g.Children.Add(artHost);
-            var ring = new Border
+            // the opening's ring: the amber line, and a glow of fainter rings outside it that pulses, so an opening is seen (2026-10-25)
+            var ring = new Grid
             {
-                BorderBrush = new SolidColorBrush(amber),
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(8),
                 IsHitTestVisible = false,
                 Visibility = Visibility.Collapsed,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Top,
             };
+            var glow = new Grid { IsHitTestVisible = false };
+            byte[] glowAlpha = { 0x14, 0x26, 0x3C, 0x58, 0x80 };   // outermost first
+            for (var k = 0; k < glowAlpha.Length; k++)
+                glow.Children.Add(new Border { BorderBrush = Tokens.AmberAt(glowAlpha[k]), BorderThickness = new Thickness(SkipGlowStep), CornerRadius = new CornerRadius(8 + SkipGlow - k * SkipGlowStep), Margin = new Thickness(k * SkipGlowStep) });
+            ring.Children.Add(glow);
+            ring.Children.Add(new Border { BorderBrush = new SolidColorBrush(amber), BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(8), Margin = new Thickness(SkipGlow) });
             g.Children.Add(ring);
             g.Children.Add(card);
             // The minimal-mode corner chip: the credit alone, and a tap to bring
@@ -1337,6 +1344,7 @@ public sealed partial class SurfaceManager
             tile.ArtSlabs = artSlabs;
             tile.ArtFrames = artFrames;
             tile.SkipRing = ring;
+            tile.SkipRingPulse = SkipPulse(glow);
             tile.ArtLine = artLine;
             tile.ArtChip = artChip;
             tile.MinimalChip = minimal;
@@ -2892,10 +2900,27 @@ public sealed partial class SurfaceManager
         }
         if (tile.SkipRing is { } ring)
         {
-            ring.Margin = new Thickness(x - 2, y - 2, 0, 0);
-            ring.Width = w + 4; ring.Height = h + 4;
-            ring.Visibility = Visibility.Visible;
+            ring.Margin = new Thickness(x - 2 - SkipGlow, y - 2 - SkipGlow, 0, 0);
+            ring.Width = w + 4 + SkipGlow * 2; ring.Height = h + 4 + SkipGlow * 2;
+            if (ring.Visibility != Visibility.Visible) { ring.Visibility = Visibility.Visible; tile.SkipRingPulse?.Begin(); }
         }
+    }
+
+    /// <summary>How far the Skip ring's glow reaches past its line, in steps of SkipGlowStep.</summary>
+    private const double SkipGlowStep = 2, SkipGlow = 10;
+
+    /// <summary>The glow breathes once a second while the opening shows; held at full under Windows' own animations off (unless Prism's
+    /// Full motion is on, as the splash).</summary>
+    private static Microsoft.UI.Xaml.Media.Animation.Storyboard? SkipPulse(UIElement glow)
+    {
+        bool motion; try { motion = Visualization.VisualizationHost.ForceFullMotion || new Windows.UI.ViewManagement.UISettings().AnimationsEnabled; } catch { motion = true; }
+        if (!motion) return null;
+        var a = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation { From = 0.35, To = 1, Duration = new Duration(TimeSpan.FromMilliseconds(1100)), AutoReverse = true, RepeatBehavior = Microsoft.UI.Xaml.Media.Animation.RepeatBehavior.Forever, EasingFunction = new Microsoft.UI.Xaml.Media.Animation.SineEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut } };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(a, glow);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(a, "Opacity");
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(a);
+        return sb;
     }
 
     /// <summary>
@@ -2949,7 +2974,7 @@ public sealed partial class SurfaceManager
             tile.SubSlabs[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
             tile.ArtFrames[i].Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, 0) };
         }
-        if (tile.SkipRing is { } ring) ring.Visibility = Visibility.Collapsed;
+        if (tile.SkipRing is { } ring) { ring.Visibility = Visibility.Collapsed; tile.SkipRingPulse?.Stop(); }
     }
 
     // ------------------------------------------------------- wall shot

@@ -123,8 +123,8 @@ opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);ba
 .pill.dissolve .lbl{opacity:0}\
 .pill.collapsed{right:0;padding:0;width:10px;height:44px;border-radius:8px 0 0 8px;justify-content:center;border-right:0;opacity:.35}\
 .pill.collapsed .lbl,.pill.collapsed .x{display:none}\
-.pill .x{opacity:.5;font-size:11px;margin-left:2px}\
-.pill .x:hover{opacity:1}\
+.pill .x{opacity:.7;font-size:33px;line-height:1;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;width:36px;margin:0 -12px 0 -6px;padding-bottom:7px;border-radius:0 14px 14px 0}\
+.pill .x:hover{opacity:1;background:rgba(255,255,255,.14)}\
 .pill.hidden{display:none}\
 .pill .mk{display:none;line-height:0;flex:none;filter:drop-shadow(0 0 1px rgba(255,255,255,.7))}\
 .srcrow{display:flex;align-items:center;gap:8px;padding:5px 0}\

@@ -154,3 +154,26 @@ describe("after-the-break choice does not persist", () => {
     expect(PV.pauseAfterPref()).toBe(false);
   });
 });
+
+// The glowing ring around a hole (2026-10-25, "put a glowing box around the
+// cutout"): on the cover, just outside the hole, never taking a click, and gone
+// with the hole.
+describe("hole ring", () => {
+  it("rings each hole a little outside its edge, follows it, and clears", () => {
+    const PV = loadVeil({ host: "www.youtube.com" });
+    const cover = document.createElement("div"); document.body.appendChild(cover);
+    PV.ringHoles(cover, [{ x: 100, y: 50, w: 120, h: 40, r: 20 }, { x: 10, y: 10, w: 20, h: 20, r: 0 }]);
+    const rings = cover.querySelectorAll("[data-prism-veil]");
+    expect(rings.length).toBe(2);
+    expect(rings[0].style.left).toBe("97px"); expect(rings[0].style.top).toBe("47px");
+    expect(rings[0].style.width).toBe("126px"); expect(rings[0].style.height).toBe("46px");
+    expect(rings[0].style.borderRadius).toBe("23px"); expect(rings[1].style.borderRadius).toBe("4px");
+    expect(rings[0].style.pointerEvents).toBe("none");
+    PV.ringHoles(cover, [{ x: 200, y: 50, w: 120, h: 40, r: 20 }]);
+    expect(cover.querySelectorAll("[data-prism-veil]").length).toBe(1);
+    expect(cover.querySelector("[data-prism-veil]")).toBe(rings[0]);
+    expect(rings[0].style.left).toBe("197px");
+    PV.ringHoles(cover, []);
+    expect(cover.querySelectorAll("[data-prism-veil]").length).toBe(0);
+  });
+});

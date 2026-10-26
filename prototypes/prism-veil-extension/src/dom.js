@@ -146,6 +146,38 @@
     return best;
   }
 
+  // A glowing ring around each hole cut in a cover (2026-10-25, "when there is
+  // a cutout skip or other button, can you put a glowing box around the
+  // cutout? It's not always obvious they've occured"). Drawn ON the cover,
+  // just outside the hole's edge: it is clipped with the cover, moves with it
+  // and goes when it goes, and it never takes a click. boxes are
+  // cover-relative {x, y, w, h, r} (r: the hole's corner radius); [] clears.
+  var RING_GAP = 3;
+  function ringHoles(cover, boxes) {
+    if (!cover) return;
+    var rings = cover.__rings || (cover.__rings = []);
+    while (rings.length > boxes.length) { var old = rings.pop(); try { old.remove(); } catch (e) {} }
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i], el = rings[i];
+      if (!el) {
+        el = document.createElement("div");
+        el.setAttribute("data-prism-veil", "1"); el.setAttribute("aria-hidden", "true");
+        el.style.cssText = "position:absolute;box-sizing:border-box;pointer-events:none;z-index:2147483647;margin:0;padding:0;border:2px solid #F0A83C;box-shadow:0 0 12px 3px rgba(240,168,60,.75)";
+        var still = false;
+        try { still = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+        if (!still && el.animate) {
+          try { el.animate([{ boxShadow: "0 0 6px 1px rgba(240,168,60,.45)" }, { boxShadow: "0 0 18px 5px rgba(240,168,60,.95)" }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e) {}
+        }
+        rings[i] = el;
+      }
+      if (el.parentNode !== cover) { try { cover.appendChild(el); } catch (e) {} }
+      el.style.left = (b.x - RING_GAP) + "px"; el.style.top = (b.y - RING_GAP) + "px";
+      el.style.width = (b.w + 2 * RING_GAP) + "px"; el.style.height = (b.h + 2 * RING_GAP) + "px";
+      el.style.borderRadius = Math.max(4, (b.r || 0) + RING_GAP) + "px";
+    }
+  }
+
+  PV.ringHoles = ringHoles;
   PV.isVisible = isVisible;
   PV.elVisible = elVisible;
   PV.parentAcross = parentAcross;

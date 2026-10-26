@@ -543,7 +543,7 @@
         // clamp to the cover (Jetpack's stage runs a few px past its masthead)
         var py = x.__prismNav === "dots" ? 10 : pad;
         var x0 = Math.max(0, r.left - pad - cr.left), y0 = Math.max(0, r.top - py - cr.top), x1 = Math.min(cr.width, r.right + pad - cr.left), y1 = Math.min(cr.height, r.bottom + py - cr.top);
-        if (x1 - x0 >= 6 && y1 - y0 >= 6) boxes.push({ x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1), el: x });
+        if (x1 - x0 >= 6 && y1 - y0 >= 6) boxes.push({ x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1), el: x, py: py });
       });
     }
     var key = boxes.map(function (b) { return [b.x0, b.y0, b.x1, b.y1].join(","); }).join(";");
@@ -553,6 +553,14 @@
         cover.__holeLogged = true;
         PV.recordError("cover holes " + boxes.map(function (b) { return b.el.tagName + "." + PV.classStr(b.el).slice(0, 30) + " " + (b.x1 - b.x0) + "x" + (b.y1 - b.y0); }).join(" | "));
       }
+      // a glowing ring around each opening, so it is seen (2026-10-25, "It's
+      // not always obvious they've occured"); its corners follow the
+      // control's own, plus the margin
+      if (PV.ringHoles) PV.ringHoles(cover, boxes.map(function (b) {
+        var r = 0;
+        try { var cs = getComputedStyle(b.el), br = parseFloat(cs.borderTopLeftRadius); if (isFinite(br)) r = /%$/.test(cs.borderTopLeftRadius) ? br / 100 * Math.min(b.x1 - b.x0, b.y1 - b.y0) : br + b.py; } catch (e) {}
+        return { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0, r: Math.min((b.y1 - b.y0) / 2, (b.x1 - b.x0) / 2, r) };
+      }));
     }
     paintClip(cover);
   }

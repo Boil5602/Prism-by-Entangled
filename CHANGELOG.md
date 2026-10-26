@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.39.0 - 2026-10-24 (alpha, 0e4852e1)
+
+The phone can open Prism. While Prism is closed the companion app says so and offers an Open Prism button, and after a crash Prism starts again by itself, at most three times an hour. Private Listening asks whether to mute this PC's speakers and no longer turns the Windows volume up to full. A show left paused comes back paused after a restart. Netflix's Skip Intro comes back with Prism's control bar, and the bar gains its Episodes button once the series is known. Quick play opens at the pointer on a right-click, and a playlist's own row can add the song playing now. The taskbar shows the Prism mark again. A Twitch video still being recorded moves to the Live tab instead of sitting on Watch without a picture.
+
+- download: https://prism.entangled.world/windows/Prism-0.39.0-0e4852e1.zip
+- sha256: 63e14085aee855d947991276fae85e217cc26b0b889bea7f0e1a0e92520e5a24
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.39.0
+
 ## 0.38.0 - 2026-10-22 (alpha, e5dad337)
 
 This PC can have a name, shown at the top of the music player and of Watch. The music player goes to sleep ten seconds after the mouse stops: everything but the visual, the cover and the song fades and the cursor hides, and a move brings it all back. The window's title bar is dark now. Sunrise Meadow has drifting clouds and a flock that crosses in the music's colours with a wake of light behind it. Covers load at once after a start instead of twenty seconds later. On Paramount+ the ad cover lifts the moment the pod ends, and the site's menu stays out of the picture.
