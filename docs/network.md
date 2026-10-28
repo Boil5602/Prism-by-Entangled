@@ -13,7 +13,9 @@ not listed here.
   core's record of the pairings too (2026-10-05); the page's version hash alone is answered to anyone, as the page itself is. Plain HTTP (a trusted
   home LAN, §6); reachable from the internet only if a router is told to forward it. Nothing else listens. Private listening is a
   WebSocket on the same port (`/audio/stream`, a ticket from core) or a live MP3 (`/audio/live.mp3`, the same ticket), the wall's
-  sound to the phone, outbound from the wall's point of view once the phone has connected (docs/features/phone.md).
+  sound to the phone, outbound from the wall's point of view once the phone has connected (docs/features/phone.md). The lounge visual's
+  bands go the same way (`/viz/bands`, a WebSocket on the same port, the pairing token; 48 bytes a frame, 30 a second, nothing else;
+  2026-10-27).
 - **The same port while Prism is closed (2026-10-23).** The phone launcher (Services/PhoneLauncher.cs) is Prism's own exe run with
   `--launcher`; it listens on 8471 only while Prism is not running, and gives the port back the moment Prism starts. It answers a
   "Prism is closed" page, the page's icons and manifest, `GET /launcher/state` and `POST /launcher/open` (a paired phone's token,

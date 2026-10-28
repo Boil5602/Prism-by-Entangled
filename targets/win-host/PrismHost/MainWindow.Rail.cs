@@ -997,6 +997,13 @@ public sealed partial class MainWindow
         var fwIn = Services.DeviceSetup.FirewallRuleInPlace();
         col.Children.Add(new TextBlock { Text = fwIn ? "Windows Firewall lets phones on your home network reach Prism (port " + Services.DeviceSetup.RemotePort + ", the installed Prism only)." : "Windows Firewall has no rule for Prism's phone remote yet, so Windows may ask the first time a phone connects.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
         if (!fwIn) col.Children.Add(Small("Allow phones through Windows Firewall" + (char)0x2026, async () => { var ok = await Services.DeviceSetup.SetUpAsync(true, false, LogLine); SetPill("Prism" + Mid + (ok ? "phones can reach Prism" : "Windows did not allow it. Nothing changed.")); if (_railSection == "device") await RenderRailAsync(); }));
+        // starting with Windows (2026-10-26, "when my PC restarted, prism wasn't launched so I couldn't reach it remotely"): this account's Run
+        // value, read from Windows each draw; the honest note that a restart brings Prism back only once the account is signed in
+        col.Children.Add(Section("START WITH WINDOWS"));
+        var startIn = Services.DeviceSetup.StartsAtSignIn();
+        col.Children.Add(new TextBlock { Text = startIn ? "Prism starts when this account signs in to Windows." : "Prism does not start by itself. After a restart it is off until someone opens it, and phones cannot reach it.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+        col.Children.Add(Meta("Windows starts Prism with this sign-in, so after a restart Prism is back once this account is signed in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off)."));
+        col.Children.Add(Small(startIn ? "Stop starting with Windows" : "Start with Windows", async () => { if (!Services.DeviceSetup.SetStartAtSignIn(!startIn, LogLine)) SetPill("Prism" + Mid + "Windows did not allow it. Nothing changed."); if (_railSection == "device") await RenderRailAsync(); }));
         col.Children.Add(Section("REMOTE DESKTOP SUPPORT"));
         var hubState = new TextBlock { Text = MediaHubStateLine(Services.MediaHub.On), Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap };
         col.Children.Add(hubState);

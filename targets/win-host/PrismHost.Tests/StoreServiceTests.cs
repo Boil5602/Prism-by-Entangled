@@ -167,6 +167,31 @@ public sealed class StoreServiceTests : IDisposable
         finally { try { Directory.Delete(root, true); } catch { } }
     }
 
+    // B-406 (2026-10-27): a whole-store write folds the per-key files in and removes them, so a start reads the snapshot and only the
+    // files written since; a file written after the write stays and still wins at the next start
+    [Fact]
+    public void A_whole_store_write_folds_the_key_files_in_and_removes_them()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "prism-store-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new StoreService(root, saveDelayMs: 50);
+            a.Set("alpha", "1"); a.Set("beta", "2");
+            Thread.Sleep(400);
+            Assert.Equal(2, Directory.GetFiles(a.KeysDir, "*.json").Length);
+            a.Flush();
+            Assert.Empty(Directory.GetFiles(a.KeysDir, "*.json"));
+            Assert.Equal(2, a.CompactedKeyFiles);
+            a.Set("gamma", "3");
+            Thread.Sleep(400);
+            Assert.Single(Directory.GetFiles(a.KeysDir, "*.json"));   // only what changed since
+            var b = new StoreService(root, saveDelayMs: 50);
+            Assert.Equal("1", b.Get("alpha")); Assert.Equal("2", b.Get("beta")); Assert.Equal("3", b.Get("gamma"));
+            Assert.Equal(1, b.LoadedKeyFiles);
+        }
+        finally { try { Directory.Delete(root, true); } catch { } }
+    }
+
     // per-key files (2026-10-03): with a save delay, a change writes its own file and the whole store only at Flush; a restart takes the
     // per-key files over the snapshot when they are newer, and the snapshot alone when a later run wrote it without them
     [Fact]

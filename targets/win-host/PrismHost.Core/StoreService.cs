@@ -44,6 +44,11 @@ public sealed class StoreService
     private long _dirtySince;   // Environment.TickCount64 of the first change not yet written
     private readonly HashSet<string> _dirtyKeys = new();   // the keys changed since the last write (the per-key files)
     private long _lastFullAt;                               // TickCount64 of the last full snapshot
+    private bool _compactSoon;                              // a store that came back from thousands of per-key files: written whole soon, the files folded in (B-406)
+    /// <summary>How many per-key files the last Load read (B-406: 15,131 of them took a start 96 s).</summary>
+    public int LoadedKeyFiles { get; private set; }
+    /// <summary>Per-key files removed after whole-store writes that folded them in.</summary>
+    public long CompactedKeyFiles { get; private set; }
     private const int FullSnapshotMs = 30 * 60_000;
     public string KeysDir => Path.Combine(Root, "store");
 
@@ -66,6 +71,10 @@ public sealed class StoreService
         Directory.CreateDirectory(ProfilesDir);
         Directory.CreateDirectory(SnapshotsDir);
         Load();
+        // B-406 (2026-10-27, "Prism takes about two minutes from launch to its window": the boot marks named the store load, 96 s over 15,131
+        // per-key files, 14,916 of them lens caches): a store that came back from thousands of files is written whole soon after start, and
+        // the files it folds in are removed, so the next start reads one file and the few written since
+        if (_saveTimer is not null && LoadedKeyFiles > 2000) { _compactSoon = true; _saveTimer.Change(15_000, Timeout.Infinite); }
     }
 
     /// <summary>Per-profile user-data folder; created on demand, never deleted here.</summary>
@@ -113,14 +122,17 @@ public sealed class StoreService
                 List<string> keys;
                 lock (_lock)
                 {
-                    if (!_dirty && !full) return;
+                    if (!_dirty && !full && !_compactSoon) return;
                     _dirty = false;
                     keys = _dirtyKeys.ToList(); _dirtyKeys.Clear();
                     copy = new Dictionary<string, string>(_data);   // serialized outside the data lock: a Set never waits on the write
                 }
                 // the changed keys, each its own file; the whole store only now and then (or at exit)
                 foreach (var k in keys) if (copy.TryGetValue(k, out var v)) SaveKey(k, v);
-                if (full || Environment.TickCount64 - _lastFullAt >= FullSnapshotMs) { Save(copy); _lastFullAt = Environment.TickCount64; }
+                // every per-key file older than this moment holds a value the copy has (set before the copy was taken, or written just above
+                // from the copy itself); the whole-store write folds them in and removes them (B-406)
+                var cutoff = DateTime.UtcNow;
+                if (full || _compactSoon || Environment.TickCount64 - _lastFullAt >= FullSnapshotMs) { _compactSoon = false; Save(copy, cutoff); _lastFullAt = Environment.TickCount64; }
             }
         }
         catch
@@ -169,22 +181,28 @@ public sealed class StoreService
         // older one (a snapshot written by a later run with no per-key files, as tests and tools do) is left as it is
         if (Directory.Exists(KeysDir))
         {
-            foreach (var f in Directory.GetFiles(KeysDir, "*.json"))
+            var files = Directory.GetFiles(KeysDir, "*.json");
+            LoadedKeyFiles = files.Length;
+            // read in parallel: each is one small file, and the antivirus's look at every open is what made 15,000 of them a minute and a
+            // half in a row (B-406); one file per key, so the order of reading changes nothing
+            var read = new System.Collections.Concurrent.ConcurrentBag<(string key, long at, string value)>();
+            Parallel.ForEach(files, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(4, Environment.ProcessorCount) }, f =>
             {
                 try
                 {
                     var at = new FileInfo(f).LastWriteTimeUtc.Ticks;
                     using var doc = JsonDocument.Parse(File.ReadAllText(f));
                     var k = doc.RootElement.TryGetProperty("key", out var kp) ? kp.GetString() : null;
-                    if (k is null || !doc.RootElement.TryGetProperty("value", out var vp) || vp.ValueKind != JsonValueKind.String) continue;
-                    if (at >= snapshotAt || !data.ContainsKey(k)) data[k] = vp.GetString()!;
+                    if (k is null || !doc.RootElement.TryGetProperty("value", out var vp) || vp.ValueKind != JsonValueKind.String) return;
+                    read.Add((k, at, vp.GetString()!));
                 }
                 catch (Exception)
                 {
                     var aside = f + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
                     try { File.Move(f, aside); } catch { }
                 }
-            }
+            });
+            foreach (var (k, at, v) in read) if (at >= snapshotAt || !data.ContainsKey(k)) data[k] = v;
         }
         // Migration stub (§28): version bumps transform IN PLACE and never
         // drop a key. Data from a NEWER version loads as-is (rollback path).
@@ -229,6 +247,17 @@ public sealed class StoreService
         return fromKeyFile;   // an older key file is still the value when the snapshot does not have the key
     }
 
+    /// <summary>After a whole-store write: the per-key files it folded in (older than the copy it was written from) are removed, so a start reads
+    /// the snapshot and only the files written since (B-406, 2026-10-27). Never a file newer than the copy: that one is the truth at the next
+    /// start, as Load reads it.</summary>
+    private void CompactKeys(DateTime cutoff)
+    {
+        if (!Directory.Exists(KeysDir)) return;
+        foreach (var f in Directory.EnumerateFiles(KeysDir, "*.json"))
+        {
+            try { if (File.GetLastWriteTimeUtc(f) < cutoff) { File.Delete(f); CompactedKeyFiles++; } } catch { }
+        }
+    }
     /// <summary>One key's file: {"key","value"}, written whole and swapped in; the name is the key made safe plus a short hash, so two keys never share one.</summary>
     private void SaveKey(string key, string value)
     {
@@ -267,7 +296,7 @@ public sealed class StoreService
     /// <summary>The wall's cost (perf.log, 2026-10-03): how many times the store was written and how many bytes, since the start.</summary>
     public long Saves { get; private set; }
     public long SavedBytes { get; private set; }
-    private void Save(Dictionary<string, string> data)
+    private void Save(Dictionary<string, string> data, DateTime? compactBefore = null)
     {
         lock (_writeLock)   // one writer at a time: the timer's write and a Flush never share the temp file
         {
@@ -294,6 +323,7 @@ public sealed class StoreService
             Saves++; SavedBytes += length;
             if (File.Exists(StorePath)) File.Replace(tmp, StorePath, null);
             else File.Move(tmp, StorePath);
+            if (compactBefore is { } cutoff) CompactKeys(cutoff);
         }
     }
 

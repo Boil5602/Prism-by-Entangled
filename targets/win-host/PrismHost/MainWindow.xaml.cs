@@ -43,7 +43,9 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        BootTrace.Note("window: constructor entered");
         InitializeComponent();
+        BootTrace.Note("window: xaml loaded");
         InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   InitBigWindowFirst();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
         ShowInstalledNoteIfAny();   // the first-run note: where Prism now lives, and that the downloaded folder can go (2026-10-06)
         InitReportFlag();   // the report flag in the top-right corner, on both players (docs/features/report-flag.md, 2026-10-06)
@@ -61,6 +63,7 @@ public sealed partial class MainWindow : Window
         Title = HostPaths.IsOverridden ? "Prism — fresh run (" + HostPaths.DataDir + ")" : "Prism — M1";
         ApplyTitleBarColours();   // the window's own title bar in the host's dark ground (2026-10-22, MainWindow.TitleBar.cs)
 
+        BootTrace.Note("window: first-run note, report flag, boot cover, doctor, icon, title bar");
         _store = new StoreService(HostPaths.DataDir, saveDelayMs: 4_000);   // saves coalesced off the UI thread (2026-09-28: a burst of lookups froze the window); four seconds since 2026-10-03 (perf.log: the whole store written 20 times a minute)
         // ... and written before a crash takes them (2026-09-28 review: the fail-fast the host has died of never runs ProcessExit)
         Application.Current.UnhandledException += (_, __) => { try { _store.Flush(); } catch { } };   // PRISM_DATA_DIR moves the whole host (store, profiles, prefs, log) for a from-scratch run
@@ -69,6 +72,7 @@ public sealed partial class MainWindow : Window
             // the event is redacted before the cut too: a cut could strand part of a secret past the redactor's shapes (2026-09-30 review)
             forwardEvent: (_, eventJson) => { PerfNoteEvent(eventJson); LogRaw("-> " + PrismHost.Diagnostics.LogCompact.Event(PrismHost.Diagnostics.Redact.Line(eventJson))); NoteAmbientEvent(eventJson); NoteNavigated(eventJson); _brain?.Call(HostCalls.Event, eventJson); NoteSessionEvent(eventJson); },
             onStatus: SetStatus);
+        BootTrace.Note("window: store loaded, surfaces and art ready");
         _surfaces.EmeResult += OnEmeResult;
         _surfaces.MediaNote += OnMediaNote;
         _surfaces.CueNote += OnCueNote;
@@ -135,8 +139,10 @@ public sealed partial class MainWindow : Window
                 default: if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, tid, cmd); break;   // play | pause | next | prev | mute | unmute - the §6 path; Shift on a multiview window's play: all of them
             }
         };
+        BootTrace.Note("window: loopback fft, tiles wired");
         RestoreWindowBounds();                            // furniture remembers where it stood
         _brain = new BrainHost(TileCanvas, _store, OnCommand, SetStatus);
+        BootTrace.Note("window: bounds restored, brain host created");
         StartGpuWatch();   // a graphics driver reset: playing video pages load again (2026-09-28)
         StartPerfWatch();  // the wall's cost once a minute to diagnostics/perf.log (2026-10-03)
         StartStallWatch();   // host.log names every moment the window stopped taking clicks (2026-09-28)
@@ -304,6 +310,7 @@ public sealed partial class MainWindow : Window
                 return false;
             };
             // private listening (Services/ListenStream.cs, 2026-10-03): the ticket redeemed with core, the shared browser's sound, the wall quiet
+            _remote.Bands = n => _fft.Bands(n); _remote.BandsDemand = on => _fft.SetDemand(on);   // the phone's own lounge visual (B-428)
             _remote.Listen = new Services.ListenStream(
                 redeem: t =>
                 {

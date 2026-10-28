@@ -60,6 +60,7 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         HostPaths.RotateHostLog();
+        BootTrace.Note("launched, log rotated");
         // §28 (Services/Updates.cs, 2026-10-05): a newer version staged under the data folder runs instead of this one - the person's
         // shortcut keeps pointing at the first unpacked folder, and that exe hands off
         // the fixed install folder (2026-10-06, Services/Updates.AtStart): a staged update installs itself, a copy run from elsewhere installs
@@ -75,6 +76,7 @@ public partial class App : Application
         // check asks for the machine-wide Evergreen runtime and FAILS LOUDLY
         // when it is absent. We never point at a Fixed folder, so a Fixed-only
         // machine fails here by construction.
+        BootTrace.Note("update check done");
         string version;
         try
         {
@@ -99,8 +101,10 @@ public partial class App : Application
         Services.PhoneLauncher.HostStarted(HostPrefs.GetBool("phone.launcher", true), HostPaths.IsOverridden,
             line => { try { File.AppendAllText(Path.Combine(HostPaths.Diagnostics, "host.log"), PrismHost.Diagnostics.Redact.Line(DateTime.Now.ToString("HH:mm:ss.fff") + " " + line) + "\n"); } catch { } });
 
+        BootTrace.Note("webview2 runtime " + version + ", phone launcher asked");
         _window = new MainWindow();
         _window.Activate();
+        BootTrace.Note("window activated");
     }
 
     private static void Fail(string message)

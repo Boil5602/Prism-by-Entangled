@@ -81,7 +81,8 @@ const steps = [
     fn: () => {
       const r = run(NPX, ["vitest", "run"], core);
       const m = r.out.match(/Tests\s+(\d+) passed/);
-      const failed = /\bfailed\b/i.test(r.out) && !/0 failed/.test(r.out);
+      // a count on the summary line ("2 failed"), never a test file named *-failed.test.ts (a false FAIL since 2026-10-19's renderer-failed.test.ts)
+      const failed = /\b[1-9]\d* failed\b/.test(r.out);
       const ok = r.code === 0 && !failed;
       return { code: ok ? 0 : 1, detail: ok ? `${m ? m[1] : "?"} tests passed` : tail(r.out, 30) };
     },

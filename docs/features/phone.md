@@ -38,11 +38,57 @@ phones. The app should also enable the private listening feature through the pho
    that off). It is the playback device that is muted, so every app on the PC: Prism alone cannot be muted, since the phone hears
    Prism's audio after its own mute and session volume. The sound starts first and the PC plays on
    until the answer; a mute the phone asked for goes back when the listen ends (`POST /audio/private-mute`).
+   While the phone listens, its lock screen and Control Center show the song playing in Prism, with its art from the service's own
+   artwork address, and their play, pause, previous and next act on that song as the Music tab's buttons do (2026-10-27, "it is able
+   to show the song title, album art, etc in the iOS now playing areas"). With the Video player on the PC the entry carries the title on
+   screen, its episode and poster, with play, pause and the 15-second skips ("If we're listening to video, can we do something similar?").
+   With nothing playing in Prism the entry reads Prism, and its pause ends the listen. The entry's buttons act on the PC only in the
+   background sound mode: iOS fires the pause for its own interruptions too (the page put away in low delay, a call, another app's
+   sound), and in low delay any of those ends what the phone hears, so there the lock screen's pause ends the listen, as before,
+   and never touches the PC (2026-10-27, "why does it automatically pause the video I'm playing"). The picture on the lock screen carries a
+   Prism mark in its bottom-right corner, an eighth of its area, about a third of its width (2026-10-27, "there is no indication that
+   prism is the player", "I meant for it to cover about 1/8 of the total image"); it is
+   composed on the phone from the service's picture, and a picture whose host will not share it with a page stays plain. Android's
+   notification reads the same data (Chrome's Media Session), with the picture's size and type declared as it asks. The entry's
+   clock is the PC's elapsed and total each poll, run on by the phone between polls (2026-10-27, "show the elapsed/total time").
+   *Mute the PC* on the Music and Video tabs is one switch for the PC's speakers (2026-10-27, "When I mute the pc from the private
+   listening tab option, it still shows unmuted on the main music tab"): it reads muted when either the person's wall mute or the
+   device mute a listening phone asked for is on; while this phone listens it mutes the device, since the wall mute would silence the
+   pages the stream carries; Unmute lifts whichever is on (`/now-playing` carries `privateMuted` beside `wallMuted`). While a phone
+   listens the PC reads the speakers' mute every 1.5 s and tells core on a change (the `device-mute` event), so a mute key pressed at
+   the PC, or the mixer, shows on the phones within a poll ("If the user unmutes the PC locally, will the app realize").
 4. **Music.** While the Music lounge is on: the card (the service and the collection it holds, the track with its art from the service's
    own artwork address, "0:20 of 1:40" with what is left and a thin bar advanced each second between polls), the transport (previous,
    play/pause, next, thumbs, Mute Prism on PC - the buttons read the PC's real mute), the order chips (In order / True shuffle / Reverse
    and a standing Repeat, the PC's own choices and limits: a station has no order, a service without track lists has no true shuffle)
    and the services' Quick play as an accordion (`GET /music/quick`, `POST /music/play`, `POST /music/repeat`; 2026-10-04).
+   A tap on the card's picture opens the lounge visual on the phone (2026-10-27, "Can I tap the album art ... and get the music lounge
+   visual streamed to that area instead? Let the user full screen it without interrupting the music"): the PC's own bands (its loopback
+   FFT, 48 a frame at 30 a second over the `/viz/bands` WebSocket, the pairing token) drawn on the phone: Sunrise Meadow first (the
+   lounge's own scene, Tableaus.cs SunriseMeadow redrawn move for move from the same 24 levels; "What about trying the sunrise one, with
+   the sun, birds, clouds, grass"), then Bars, Ribbon and Particles; the first choice, *Like the PC*, follows the stage's style where
+   one is ported and takes the stage's palette (core's, tinted toward the art) and its artwork mode (2026-10-28, "Can we apply the album
+   art over the visual like we do in the windows app?"): *backdrop* draws the art blurred and dimmed behind the scene with the PC's slow
+   drift (the scene's sky becomes a wash so the picture shows through), *focal* draws it sharp and centred over the scene at the PC's
+   size; the details sit at the bottom left as the PC's chrome has them (the service and collection, the title, the artist with the
+   state, the album, the clock run on between polls; "Should show the details normally at the bottom left"), rising above the buttons
+   while they show; there is no Full screen button, since an iPhone puts only a video full screen and from the home-screen icon the
+   page already fills the screen; Full screen, Close and the style under the picture, fading after a few
+   seconds (a touch brings them back); the screen stays awake while it is open; the music, the listen and the PC are untouched.
+   A music ad break (the adapter's signal, core's audio intermission) reads *an ad is playing* on the card, *Ad break* for the title
+   when the service names none, and the same on the lock screen; while this phone listens the PC silences that page itself for the
+   stream, so the ad is not heard here, and the speakers keep whatever mute they had (2026-10-27, "I just listened to a Pandora ad.
+   Reason they're not muted and identified on companion app?"; `/now-playing` carries `ad` per source).
+   A service's entry opens on its actions (2026-10-27, "We should add an actions menu, to the quick play services"): *Play <service>* or
+   *Start over*, *Play a playlist*, *Play a station*, and while a song plays, *Add <song> to a playlist* (the one playing included) and
+   *Create station from <song>*. The list an action asks for takes the entry's place with *‹ Actions* above it; a pick folds the entry
+   as before, and a done add says *Added <song> to <playlist> on <service>* on the work line and folds it. The add and the station are
+   the PC's own lookup (docs/concept-scenes.md, Decision 2026-09-16; "add songs to a playlist cross service like I can do in the pc player"):
+   the service's page searches for the song in the person's own session, core decides the match strictly, and the line reads
+   *Found on <service>: <title> · <artist>* (with the percent and its reasons when it is a lone partial hit), *<service> has
+   something like <song>. Which one is it?* with the candidates to pick from, or *<song> is not on <service>*. Then the service's
+   playlists as *Add to <name>* (the service's own curated lists greyed) and *Create station from this song*; the result is said
+   under them. `POST /music/lookup`, `/music/lookup-state`, `/music/lookup-pick`, `/music/add`, `/music/station`, each `{tile, ...}`.
    - A tap on a collection while something plays offers *Play now* or *Play after this track*. Play now cuts the sound at once (every
      other playing source is paused), folds the list, and the card becomes the new service and collection with "Loading…" and a blank
      poster until the PC's pending pick clears and the page names the track; the work line pulses with the PC's own words and counts

@@ -129,3 +129,24 @@ describe("a title on several services: which comes first", () => {
       .toEqual(["YouTube TV", "Paramount+", "Netflix", "Prime Video", "Tubi", "Apple TV", "Fandango at Home"]);
   });
 });
+
+// one word typed where the title has two (2026-10-26, "supercrooks" is "Super Crooks")
+import { wordSplits, sameTitle } from "../src/catalog-search.js";
+describe("wordSplits", () => {
+  it("splits one word of six or more letters at every letter, both parts at least two letters", () => {
+    expect(wordSplits("supercrooks")).toEqual(["su percrooks", "sup ercrooks", "supe rcrooks", "super crooks", "superc rooks", "supercr ooks", "supercro oks", "supercroo ks"]);
+  });
+  it("gives no splits for two words, a short word, or a word with other characters", () => {
+    expect(wordSplits("super crooks")).toEqual([]);
+    expect(wordSplits("crook")).toEqual([]);
+    expect(wordSplits("super-crooks")).toEqual([]);
+  });
+});
+describe("sameTitle", () => {
+  it("is the same title with or without its spaces, never for empty words", () => {
+    expect(sameTitle("super crooks", "supercrooks")).toBe(true);
+    expect(sameTitle("super crooks", "super crooks")).toBe(true);
+    expect(sameTitle("super crooks", "super crook")).toBe(false);
+    expect(sameTitle("", "")).toBe(false);
+  });
+});

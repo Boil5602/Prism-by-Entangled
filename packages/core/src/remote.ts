@@ -92,6 +92,8 @@ export class RemoteApi {
   musicNext: { get: () => unknown; set: (tile: string, kind: string, id: string, order?: string) => { ok: boolean; error?: string; started?: boolean }; clear: () => void } | null = null;
   /** The previous session (2026-10-04, "a temporary restore previous session button"): what played before the last stop, offered while nothing plays. */
   musicRestore: { offer: () => unknown; restore: () => { ok: boolean; error?: string }; dismiss: () => void } | null = null;
+  /** The playback-device mute a listening phone asked for (POST /audio/private-mute), as last set from any phone; the wall mute is core's own. */
+  privateMuted = false;
   /** The two players as the shell's corner toggle sees them: which exist, which is on (runtime players()); absent in bare tests. */
   players: (() => unknown) | null = null;
   /** The phone's Video tab (2026-10-04, "a full watch (with no video) page for video"): the Watch screen's rows and the big window's
@@ -544,7 +546,9 @@ export class RemoteApi {
       const b = this.parseBody(req.body);
       const on = b?.["on"];
       if (typeof on !== "boolean") return json(400, { error: 'body must be {"on": true|false}' });
-      return json(200, this.video.privateMute(on));
+      const r = this.video.privateMute(on) as { ok?: boolean } | undefined;
+      if (r?.ok !== false) this.privateMuted = on;   // the phones' Mute the PC reads it beside the wall mute (2026-10-27, "it still shows unmuted on the main music tab")
+      return json(200, r);
     }
     // POST /audio/wall-mute {on} - the person's mute of everything on the PC (B-175), from the phone (2026-10-05: muted while a phone listens,
     // by the phone's own choice, with the notice and the checkbox there)
@@ -792,6 +796,7 @@ export class RemoteApi {
       const cards = Object.values(m.sources).map((src) => ({
         tile: src.facet, playbackState: src.playbackState, metadata: src.metadata, position: src.position, duration: src.duration,
         transport: transportAvailability(src),
+        ad: this.orchestrator.inAdBreak(src.facet),   // a music ad break (the adapter's signal, core's audio intermission), for the card and the lock screen (2026-10-27, B-427)
         service: names.get(src.facet) ?? null,
         session: sessions.get(src.facet) ?? null,
         onStage: onStage.has(src.facet),
@@ -816,7 +821,7 @@ export class RemoteApi {
       // source that plays, else nothing - the stage's own name goes with it
       const playing = cards.find((c) => c.onStage && c.playbackState !== "none") ?? cards.find((c) => c.playbackState === "playing") ?? null;
       const stage = cards.find((c) => c.onStage) ?? null;
-      return json(200, { now: playing, stage: stage ? { tile: stage.tile, service: stage.service, session: stage.session } : null, sources: cards, wallMuted: this.orchestrator.wallMutedNow, next: this.musicNext?.get() ?? null, restore: this.musicRestore?.offer() ?? null });
+      return json(200, { now: playing, stage: stage ? { tile: stage.tile, service: stage.service, session: stage.session } : null, sources: cards, wallMuted: this.orchestrator.wallMutedNow, privateMuted: this.privateMuted, next: this.musicNext?.get() ?? null, restore: this.musicRestore?.offer() ?? null });
     }
     // GET /players - {active: "music"|"video"|null, music: {id,name}|null, video: {id,name}|null}; a switch is POST /ui/route
     // {"route":"prism://player/music"}, which the shell dispatches through its own player switch
@@ -1033,7 +1038,7 @@ export class RemoteApi {
       const out = sources.map((s) => {
         const lib = this.orchestrator.musicLibraryNow(s.tile);
         const src = m.sources[s.tile];
-        return { ...s, playbackState: src?.playbackState ?? null, playlists: lib.playlists.map((p) => ({ id: p.id, name: p.name })), stations: lib.stations.map((p) => ({ id: p.id, name: p.name })) };
+        return { ...s, playbackState: src?.playbackState ?? null, playlists: lib.playlists.map((p) => ({ id: p.id, name: p.name })), stations: lib.stations.map((p) => ({ id: p.id, name: p.name })), cannot: this.orchestrator.musicLookupCannot(s.tile) };
       });
       return json(200, { sources: out });
     }
@@ -1050,6 +1055,34 @@ export class RemoteApi {
       if (!this.playCollection) return json(501, { error: "this shell cannot play collections from the phone" });
       this.playCollection(tile, kind, id, typeof order === "string" ? order : undefined);
       return json(200, { ok: true });
+    }
+    // ---- the song playing now, on another service (2026-10-27, "add songs to a playlist cross service like I can do in the pc player"):
+    // the PC's own lookup and verbs (concept-scenes, Decision 2026-09-16), from the phone. POST /music/lookup {tile} starts the lookup
+    // (or re-reads a settled one) and answers its state with the service's playlists; POST /music/lookup-state {tile} reads it;
+    // POST /music/lookup-pick {tile, song} settles an ambiguous answer; POST /music/add {tile, playlist} adds the found song;
+    // POST /music/station {tile} makes a station from it. Every id is one the service's page returned or listed (core checks).
+    if (req.method === "POST" && (req.path === "/music/lookup" || req.path === "/music/lookup-state" || req.path === "/music/lookup-pick" || req.path === "/music/add" || req.path === "/music/station")) {
+      const b = this.parseBody(req.body);
+      const tile = b?.["tile"];
+      if (typeof tile !== "string" || !tile) return json(400, { error: 'body must be {"tile", ...}' });
+      const state = () => { try { return json(200, this.orchestrator.musicLookupState(tile)); } catch { return json(404, { error: "no such music source" }); } };
+      if (req.path === "/music/lookup") { void this.orchestrator.musicLookup(tile); return state(); }
+      if (req.path === "/music/lookup-state") return state();
+      if (req.path === "/music/lookup-pick") {
+        const song = b?.["song"];
+        if (typeof song !== "string") return json(400, { error: 'body must be {"tile","song"}' });
+        return this.orchestrator.musicLookupPick(tile, song) ? state() : json(409, { error: "not one of the candidates" });
+      }
+      const match = this.orchestrator.musicLookupState(tile).match;
+      if (!match) return json(409, { error: "the song has not been found on this service yet" });
+      if (req.path === "/music/add") {
+        const playlist = b?.["playlist"];
+        if (typeof playlist !== "string") return json(400, { error: 'body must be {"tile","playlist"}' });
+        void this.orchestrator.musicAddToPlaylist(tile, playlist, match.id);
+        return state();
+      }
+      void this.orchestrator.musicStationFromSong(tile, match.id);
+      return state();
     }
     // POST /music/restore - the previous session back: its collection in its order, the track and the spot for a playlist; DELETE dismisses the offer
     if (req.method === "POST" && req.path === "/music/restore") {

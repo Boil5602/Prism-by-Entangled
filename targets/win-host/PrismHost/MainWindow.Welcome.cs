@@ -441,6 +441,12 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(rd, Services.MediaHub.Explain);
         block.Children.Add(fwIn ? Ink((char)0x2713 + "  Phones on your home network can reach Prism (Windows Firewall)") : fw);
         block.Children.Add(rdIn ? Ink((char)0x2713 + "  " + Services.MediaHub.MenuLabel + " is on") : rd);
+        // starting with Windows (2026-10-26, "when my PC restarted, prism wasn't launched so I couldn't reach it remotely"): no Windows prompt,
+        // so its own switch, applied as it is pressed; the tooltip says a restart brings Prism back only once this account is signed in
+        var st = new CheckBox { IsChecked = Services.DeviceSetup.StartsAtSignIn(), Content = Ink("Start Prism when I sign in to Windows") };
+        ToolTipService.SetToolTip(st, "Windows starts Prism each time this account signs in, so after a restart Prism is back once you sign in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off).");
+        st.Click += (_, __) => { if (!Services.DeviceSetup.SetStartAtSignIn(st.IsChecked == true, LogLine)) { st.IsChecked = Services.DeviceSetup.StartsAtSignIn(); SetPill("Prism" + Mid + "Windows did not allow it. Nothing changed."); } };
+        block.Children.Add(st);
         if (fwIn && rdIn) return;
         var note = new TextBlock { FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         var go = Chip(new TextBlock { Text = "Set up (Windows asks once)", FontSize = 16, Foreground = HubInk }, true);

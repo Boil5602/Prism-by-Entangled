@@ -71,8 +71,11 @@ export function foldSameTitle(cards: readonly MenuCard[]): MenuCard[] {
 /** "Recent" by inference means within this window of first sight or of a move to the top (§4.2: recent vs not, no date). */
 export const INFERRED_RECENT_MS = 7 * 24 * 3600_000;
 
-const sameTitle = (e: { id?: string; url?: string | null; title: string }, x: VideoItem): boolean =>
-  (e.id && x.id ? e.id === x.id : false) || (!!e.url && !!x.url && e.url === x.url) || (!e.id && !e.url && e.title === x.title);
+const sameTitle = (e: { id?: string; url?: string | null; title: string; series?: string }, x: VideoItem): boolean =>
+  (e.id && x.id ? e.id === x.id : false) || (!!e.url && !!x.url && e.url === x.url) || (!e.id && !e.url && e.title === x.title)
+  // a series' card once its episode moved on (Apple TV's Up Next names the NEXT episode when one ends, 2026-10-26: "I've been watching Silo
+  // but my continue watching doesn't show it up front"): the log's entry for any episode of that series on that service counts for the card
+  || (!!e.series && x.kind === "episode" && dedupeKey(e.series) === dedupeKey(x.title));
 
 /**
  * Merge one kind of row across services by §4. Deterministic: ties inside a recency class keep the services' own order

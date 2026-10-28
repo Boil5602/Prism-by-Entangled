@@ -282,6 +282,9 @@ export type SurfaceEvent =
   | { type: "ad-hold"; id: string; remaining?: number }
   /** §14 a listener's stream ended without the listener asking (peer gone, stream closed). */
   | { type: "listener-lost"; id: string; listener: string }
+  /** The playback device's mute as it stands while a phone listens (the shell reads it; a mute key at the PC counts), for the phones'
+   *  Mute the PC (2026-10-27, "If the user unmutes the PC locally, will the app realize"). No tile: id is "". */
+  | { type: "device-mute"; id: string; on: boolean }
   /**
    * §26 for NATIVE apps (§12 launch tiles): the shell's accessibility
    * observer saw the app's own ad markers / skip affordance in its UI tree.

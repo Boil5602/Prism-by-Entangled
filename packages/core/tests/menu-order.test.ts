@@ -143,3 +143,23 @@ describe("the My list row is alphabetical (2026-09-20)", () => {
     expect(out.map((c) => c.item.title)).toEqual(["Paradise", "Wednesday", "Abbott Elementary", "Beef", "The Rookie"]);
   });
 });
+
+// a series card whose episode moved on (2026-10-26, "I've been watching Silo but my continue watching doesn't show it up front")
+describe("a played episode counts for its series' card", () => {
+  it("matches the log's entry by its series when the card names the next episode, by id first where the ids agree", () => {
+    const appletv: MenuServiceRow[] = [{ app: "appletv", name: "Apple TV", facet: "atv", items: [
+      { id: "ep-invasion-7", title: "Invasion", kind: "episode", url: "https://tv.apple.com/us/episode/x/ep-invasion-7", artwork: null, subtitle: null, progress: null },
+      { id: "ep-silo-next", title: "Silo", kind: "episode", url: "https://tv.apple.com/us/episode/y/ep-silo-next", artwork: null, subtitle: null, progress: null },
+    ] }];
+    const log: MenuLogEntry[] = [
+      { app: "appletv", id: "ep-invasion-7", title: "Life in the Dead Zone", series: "Invasion", at: NOW - 9 * DAY },
+      { app: "appletv", id: "ep-silo-played", title: "It’s All Good", series: "Silo", at: NOW - 3 * DAY },
+    ];
+    const out = orderByWatched(appletv, log, {}, NOW);
+    expect(out.map((c) => c.item.title)).toEqual(["Silo", "Invasion"]);
+    expect(out[0]!.lastWatched).toBe(NOW - 3 * DAY);
+    // a movie card of the same name as a series is not that series' episode
+    const movie: MenuServiceRow[] = [{ app: "appletv", name: "Apple TV", facet: "atv", items: [{ id: "m-silo", title: "Silo", kind: "movie", url: null, artwork: null, subtitle: null, progress: null }] }];
+    expect(orderByWatched(movie, log, {}, NOW)[0]!.lastWatched).toBeUndefined();
+  });
+});

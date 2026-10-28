@@ -1097,6 +1097,10 @@ public sealed partial class SurfaceManager
             // already muted the surface page-invisibly on the break signal (cover-slow) and unmutes on the end
             // signal (uncover-fast); ambient soundscapes are opt-in and ship with the §26 packs (none bundled yet).
             tile.Covered = true;
+            // a phone listening: core's mute of this page arrived a beat earlier and was carried onto the speakers (the wall's way), so the
+            // phone would hear the ad (2026-10-27, "I just listened to a Pandora ad", B-427). Under an audio intermission the page itself
+            // goes silent for the loopback; the speakers keep the mute they had.
+            if (_private && tile.Id == _soundTile && tile.View?.CoreWebView2 is { } bc) { bc.IsMuted = true; _onStatus($"audio intermission: {id} silent for the phone"); }
             _onStatus($"audio intermission: {id} (muted by core; no scenery on a hidden surface)");
             CoverageChanged?.Invoke();
             return;
@@ -2308,6 +2312,7 @@ public sealed partial class SurfaceManager
                 return;
             }
             t.NpPlaying = r.TryGetProperty("playing", out var p) && p.ValueKind == JsonValueKind.True;
+            if (t.NpPlaying && _soundTile is null && Audible(t)) _soundTile = id;   // before core's audio owner has been read: the page that says it plays (B-426)
             var title = NpStr(r, "title"); var artist = NpStr(r, "artist"); var art = NpStr(r, "artwork");
             if (!string.IsNullOrWhiteSpace(title)) { t.NpCoverTitle = title; t.NpCoverSub = artist; }
             if (!string.IsNullOrEmpty(art) && art.StartsWith("http", StringComparison.OrdinalIgnoreCase)) t.NpCoverArt = art;
@@ -2780,7 +2785,12 @@ public sealed partial class SurfaceManager
     public void HideIntermission(string id)
     {
         var tile = Get(id);
-        if (tile is { Kind: SurfaceKind.Hidden }) { tile.Covered = false; _onStatus($"audio intermission down: {id}"); CoverageChanged?.Invoke(); return; }
+        if (tile is { Kind: SurfaceKind.Hidden })
+        {
+            tile.Covered = false;
+            if (_private && tile.Id == _soundTile && tile.View?.CoreWebView2 is { } bc) bc.IsMuted = false;   // the phone hears the page again (B-427); the wall's mute stays on the speakers
+            _onStatus($"audio intermission down: {id}"); CoverageChanged?.Invoke(); return;
+        }
         if (tile?.Intermission is not { } g) return;
         if (tile.SkipChip is { } chip) chip.Visibility = Visibility.Collapsed;
         tile.Covered = false;

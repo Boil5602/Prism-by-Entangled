@@ -33,7 +33,7 @@ import { type BingeCandidate, type BingeThresholds } from "./binge.js";
 export interface BingeEntry { at: number; done: boolean; cands: BingeCandidate[]; through: string | null }
 /** One fresh row as it stands (fresh-rows.ts). */
 export interface FreshEntry { at: number; done: boolean; cards: Array<import("./browse.js").BrowseCard & { date: string }>; through: string | null }
-import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, type CatalogTitle } from "./catalog-search.js";
+import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, offersFromProviders, ownedIsThis, providersOf, titlesFromSearch, wordSplits, type CatalogTitle } from "./catalog-search.js";
 import { purchaseOffer, storeProvidersOf, type PurchaseOffer } from "./purchase.js";
 import { pageInfoOf, type PageInfo } from "./categories.js";
 import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
@@ -2719,6 +2719,14 @@ export class Orchestrator {
     return { status, song, key, match: null, candidates: [], ...(reason ? { reason } : {}), action, at: Date.now() };
   }
 
+  /** The verbs this service's page cannot do from the wall, with the reasons (the adapter's musicLookupCannot), known before any lookup:
+   *  the phone greys them up front (2026-10-27, "I have the option on mobile companion to add a song to a playlist in Pandora but I don't
+   *  have that option with the free tier"). */
+  musicLookupCannot(tileId: string): { add?: string; station?: string } {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    return spec?.musicLookupCannot ?? {};
+  }
   /** The lookup as it stands for this service, with the playlists it may add to (its library as the page reported it). */
   musicLookupState(tileId: string): MusicLookupState & { playlists: Array<{ id: string; name: string; edit?: boolean }> } {
     const st = this.musicLookups.get(tileId) ?? this.lookupBlank("idle", null, "");
@@ -5531,6 +5539,21 @@ export class Orchestrator {
   private async catalogLookup(state: LookupState, services: ReadonlyArray<{ app: string; name: string; facet: string; adapter: string; status: string }>): Promise<boolean> {
     const search = await this.lenses.tmdbGet("/search/multi", `query=${encodeURIComponent(state.q)}&include_adult=false`);
     if (!search || !Array.isArray(search.results)) return false;
+    // one word that found no title is tried split in two at every letter (catalog-search wordSplits, 2026-10-26: "supercrooks" is
+    // "Super Crooks"); the titles the splits find stand in for the empty answer, the one that IS the word first (catalogRows)
+    if (!titlesFromSearch(search.results, 1).length) {
+      const splits = wordSplits(state.q);
+      if (splits.length) {
+        const answers = await Promise.all(splits.map((s) => this.lenses.tmdbGet("/search/multi", `query=${encodeURIComponent(s)}&include_adult=false`)));
+        if (this.lookupNow !== state) return true;
+        const seen = new Set<string>(); const found: unknown[] = [];
+        for (const a of answers) {
+          if (!a || !Array.isArray(a.results)) continue;
+          for (const r of a.results as Array<Record<string, unknown>>) { const k = `${r.media_type}:${r.id}`; if (!seen.has(k)) { seen.add(k); found.push(r); } }
+        }
+        if (found.length) search.results = found;
+      }
+    }
     // the people the words matched, as TMDB names them (2026-09-23 search upgrade): a press lists their work on the household's services
     state.people = peopleFromSearch(search.results);
     // the words ARE a person's name: their whole filmography, not TMDB's three "known for" titles (2026-09-23, "it only found him in 3 series. Does

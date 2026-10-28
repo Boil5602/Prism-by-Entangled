@@ -16,6 +16,45 @@ public static class DeviceSetup
     public const string FirewallRuleName = "Prism phone remote";
     public const int RemotePort = 8471;
 
+    /// <summary>Starting with Windows (2026-10-26, "when my PC restarted, prism wasn't launched so I couldn't reach it remotely"): a value under
+    /// this account's Run key naming the installed exe, so Windows starts Prism each time the account signs in. No administrator rights, so it
+    /// is its own switch, apart from the one prompt above. A restart brings Prism back only once the account is signed in: a PC nobody touches
+    /// also needs Windows set to sign in by itself (said on the page).</summary>
+    public const string RunValueName = "Prism";
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+
+    /// <summary>The exe the Run value names: the Prism running now. For everyone but a developer that is the installed copy (the copy that
+    /// installed it hands off to it, Services.Updates), and a developer's own build folder is swapped in place across restarts, so the path
+    /// holds. A value naming another exe (an older install, a folder since gone) reads as off, and pressing the switch names this one.</summary>
+    public static string StartExe => Environment.ProcessPath ?? Updates.InstallExe;
+
+    /// <summary>Whether Windows starts Prism with this account's sign-in: the Run value is there and names the exe Prism would name today.</summary>
+    public static bool StartsAtSignIn()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey);
+            var v = key?.GetValue(RunValueName) as string;
+            return !string.IsNullOrWhiteSpace(v) && string.Equals(v.Trim().Trim('"'), StartExe, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    /// <summary>Puts the Run value in place or takes it away. True when Windows has it the way it was asked after.</summary>
+    public static bool SetStartAtSignIn(bool on, Action<string> log)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
+            if (key is null) return false;
+            if (on) key.SetValue(RunValueName, "\"" + StartExe + "\"", Microsoft.Win32.RegistryValueKind.String);
+            else key.DeleteValue(RunValueName, throwOnMissingValue: false);
+            log("setup: start at sign-in " + (on ? "on (" + StartExe + ")" : "off"));
+            return StartsAtSignIn() == on;
+        }
+        catch (Exception e) { log("setup: start at sign-in " + e.Message); return false; }
+    }
+
     /// <summary>Whether Windows Firewall has Prism's rule for the installed exe (read without administrator rights).</summary>
     public static bool FirewallRuleInPlace()
     {

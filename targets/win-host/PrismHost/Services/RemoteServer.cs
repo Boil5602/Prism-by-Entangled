@@ -31,6 +31,11 @@ public sealed class RemoteServer : IDisposable
     /// <summary>Private listening (ListenStream, 2026-10-03): set by the host once the brain is up; a stream request before that is refused.</summary>
     public ListenStream? Listen { get; set; }
 
+    /// <summary>The lounge's bands for the phone's own visual (2026-10-27, "get the music lounge visual streamed to that area"): the host's
+    /// loopback FFT (WasapiLoopbackFft.Bands) and its demand switch, so the capture runs while a phone's visual is open. Set by the host.</summary>
+    public Func<int, float[]>? Bands { get; set; }
+    public Action<bool>? BandsDemand { get; set; }
+
     /// <summary>Whether a token is a paired phone's (the routes the host answers itself ask this; every other route is core's, which checks
     /// the pairing itself). Unset, those routes refuse every token (2026-10-05 review: they had taken any non-empty string).</summary>
     public Func<string, bool>? TokenOk { get; set; }
@@ -230,6 +235,16 @@ public sealed class RemoteServer : IDisposable
                     await Listen.ServeMp3Async(stream, query);
                     return;
                 }
+                if (path == "/viz/bands")
+                {
+                    // the WebSocket of the lounge's bands (48 a frame as bytes, 30 a second) to a paired phone, for as long as its visual is open
+                    if (Bands is null || !headers.TryGetValue("Upgrade", out var upb) || !upb.Equals("websocket", StringComparison.OrdinalIgnoreCase)) { await WriteAsync(stream, 501, "{\"error\":\"no visual bands on this host\"}", "application/json"); return; }
+                    var btok = ""; foreach (var kv in query.Split('&', StringSplitOptions.RemoveEmptyEntries)) if (kv.StartsWith("token=", StringComparison.Ordinal)) btok = WebUtility.UrlDecode(kv[6..]);
+                    if (!Paired(btok) || !headers.TryGetValue("Sec-WebSocket-Key", out var bkey)) { await WriteAsync(stream, 401, "{\"error\":\"not a paired phone\"}", "application/json"); return; }
+                    client.ReceiveTimeout = 0;
+                    await ServeBandsAsync(stream, bkey);
+                    return;
+                }
                 if (path == "/audio/stream")
                 {
                     // the WebSocket of the wall's sound (ListenStream): the socket is held for as long as the phone listens
@@ -253,6 +268,37 @@ public sealed class RemoteServer : IDisposable
             }
             catch (Exception ex) { _log("remote request failed: " + ex.Message); }
         }
+    }
+
+    /// <summary>The bands socket (see Bands): one binary frame every 33 ms until the phone closes it or the connection drops; the FFT's
+    /// capture is held for the socket's life. Read only to see it close, like the listen socket.</summary>
+    private async Task ServeBandsAsync(NetworkStream stream, string key)
+    {
+        var accept = Convert.ToBase64String(System.Security.Cryptography.SHA1.HashData(Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+        await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept + "\r\n\r\n"));
+        var closed = false;
+        _ = Task.Run(async () =>
+        {
+            var buf = new byte[256];
+            try { while (!closed) { var n = await stream.ReadAsync(buf); if (n <= 0 || (buf[0] & 0x0F) == 0x8) break; } } catch { }
+            closed = true;
+        });
+        BandsDemand?.Invoke(true);
+        _log("viz bands: a phone's visual opened");
+        try
+        {
+            while (!closed)
+            {
+                var bands = Bands?.Invoke(48) ?? Array.Empty<float>();
+                var frame = new byte[2 + bands.Length];
+                frame[0] = 0x82; frame[1] = (byte)bands.Length;   // one final binary frame, its payload under 126 bytes
+                for (var i = 0; i < bands.Length; i++) frame[2 + i] = (byte)Math.Clamp((int)Math.Round(bands[i] * 255f), 0, 255);
+                await stream.WriteAsync(frame);
+                await Task.Delay(33);
+            }
+        }
+        catch { }
+        finally { closed = true; BandsDemand?.Invoke(false); _log("viz bands: a phone's visual closed"); }
     }
 
     /// <summary>The home-screen manifest: its start address keeps the phone's token, so the icon opens Prism already paired. Shared with

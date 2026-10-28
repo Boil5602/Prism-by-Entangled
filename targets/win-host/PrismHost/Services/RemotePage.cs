@@ -57,6 +57,14 @@ textarea{width:100%;min-height:96px;background:var(--panel);color:var(--ink);bor
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.pad button{background:var(--panel);color:var(--ink);border:0;border-radius:12px;padding:16px;font:20px system-ui}.pad .e{grid-column:2}.pad .e+button{grid-column:1}
 .big{width:100%;background:var(--amber);color:var(--amber-ink);border:0;border-radius:14px;padding:18px;font:600 18px system-ui;margin-top:12px}.big.off{background:var(--panel);color:var(--ink)}
 p.note{color:var(--ink);font-size:14px;line-height:1.4}
+#npArt[src]{cursor:pointer}
+#vizView{display:none;position:fixed;inset:0;background:#000;z-index:60}#vizView.on{display:block}#vizCanvas{position:absolute;inset:0;width:100%;height:100%}
+.vizBar{position:absolute;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:8px;transition:opacity .4s}#vizView.rest .vizBar,#vizView.rest #vizNote{opacity:0}
+.vizBar button{flex:1;padding:12px;border-radius:12px;border:0;background:rgba(28,33,41,.85);color:var(--ink);font:14px system-ui}
+#vizNote{position:absolute;left:16px;right:16px;top:calc(14px + env(safe-area-inset-top));color:var(--dim);font-size:13px;transition:opacity .4s}
+.vizInfo{position:absolute;left:16px;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px;color:var(--ink);text-shadow:0 1px 6px rgba(0,0,0,.7);transition:bottom .4s}#vizView.rest .vizInfo{bottom:calc(18px + env(safe-area-inset-bottom))}
+.vizInfo .svc{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#D8DEE8;opacity:.85}.vizInfo b{font-size:20px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo span{font-size:14px;color:#D8DEE8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo .clk{font-variant-numeric:tabular-nums;color:var(--amber)}
+.svc .lk{margin:8px 6px 0;font-size:14px;line-height:1.4;color:var(--ink)}.svc .lk .st{color:var(--amber);margin:0 0 4px}.svc .lk .item.dim{opacity:.55}
 .verr{display:none;margin-top:10px;padding:12px;border-radius:12px;background:var(--panel);color:var(--amber);font-size:15px;line-height:1.4;flex-direction:column;gap:10px}.verr.on{display:flex}.verr button{align-self:flex-start;background:var(--amber);color:var(--amber-ink);border:0;border-radius:12px;padding:12px 18px;font:600 15px system-ui}
 .target{display:flex;flex-direction:column;gap:3px;background:var(--panel);border-left:4px solid var(--dim);border-radius:10px;padding:10px 12px;margin-bottom:10px}.target.on{border-left-color:var(--amber)}
 .target .tl{font-size:16px;font-weight:600;color:var(--ink)}.target.on .tl{color:var(--amber)}.target .ts{font-size:13px;color:var(--ink)}p.err{color:var(--amber);font-size:14px;min-height:1.4em}
@@ -79,6 +87,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="row vrow"><button data-c="thumbup" id="trUp"><svg class="ic"><use href="#i-up"/></svg><span>Like</span></button><button data-c="thumbdown" id="trDown"><svg class="ic"><use href="#i-down"/></svg><span>Dislike</span></button><button data-c="mute" id="trMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute the PC</span></button></div>
 <div class="row vrow order" id="orderRow"><button data-o="normal"><svg class="ic"><use href="#i-order"/></svg><span>In order</span></button><button data-o="true-shuffle"><svg class="ic"><use href="#i-shuffle"/></svg><span>True shuffle</span></button><button data-o="reverse"><svg class="ic"><use href="#i-reverse"/></svg><span>Reverse</span></button><button id="repeatBtn"><svg class="ic"><use href="#i-repeat"/></svg><span>Repeat</span></button></div>
 <p class="work" id="mwork"></p><p class="work" id="nextLine"></p>
+<div id="vizView"><canvas id="vizCanvas"></canvas><span id="vizNote"></span><div class="vizInfo"><span class="svc" id="vizSvc"></span><b id="vizTitle"></b><span id="vizLine2"></span><span id="vizAlbum"></span><span class="clk" id="vizClock"></span></div><div class="vizBar"><button id="vizStyle" type="button">Like the PC</button><button id="vizClose" type="button">Close</button></div></div>
 <div id="pickSheet" class="sheet"><b id="pickWhat"></b><button id="pickNow" class="go">Play now</button><button id="pickNext">Play after this track</button><button id="pickCancel">Cancel</button></div>
 <h3 class="qh">Quick play</h3>
 <div id="quick" class="quick"><p class="note">Reading your services' lists&hellip;</p></div>
@@ -497,14 +506,14 @@ checkVersion(); setInterval(checkVersion, 20000);
 const mmss = (t) => { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0'); };
 let npPos = null, npDur = null, npPlaying = false, npAt = 0;
 let npCol = null, npSupport = null, nextOrder = null, work = null, lastNow = null;   // nextOrder null: the PC's plain press (carry on where it left off)   // work: {name, service, at, tile} while a pick is on its way
-let npTile = null, npSession = null, npService = '', wallMuted = false;
+let npTile = null, npSession = null, npService = '', wallMuted = false, privateMuted = false;   // the person's wall mute, and the device mute a listening phone asked for
 async function pollNow() {
-  if (tabNow !== 'M') return;
+  if (tabNow !== 'M' && !(listening && playerNow !== 'video')) return;   // while this phone listens the poll goes on under any tab: the lock screen reads it
   try {
     const n = await api('/now-playing');
     const now = n.now;
     npTile = now ? now.tile : null; npSession = now ? now.session : null; npService = now && now.service ? now.service : 'the service';
-    wallMuted = !!n.wallMuted; for (const b of document.querySelectorAll('#trMute, #vMute')) { muteLabel(b, wallMuted); b.classList.toggle('on', wallMuted); }
+    wallMuted = !!n.wallMuted; privateMuted = !!n.privateMuted; paintMute(wallMuted || privateMuted);
     lastNow = now; drawWork(n); drawNext(n.next); drawRestore(n.restore);
     const md = now && now.metadata ? now.metadata : {};
     if (work) {
@@ -515,8 +524,10 @@ async function pollNow() {
       q('#npArt').removeAttribute('src'); q('#np').classList.add('loading');
     } else {
     q('#np').classList.remove('loading');
-    q('#npTitle').textContent = now ? (md.title || 'Playing') : 'Nothing playing';
-    q('#npArtist').textContent = now ? [md.artist, md.album].filter(Boolean).join(' \u00b7 ') : (n.stage && n.stage.service ? n.stage.service + ' is on the stage. Pick something under Quick play' : 'Pick something under Quick play');
+    q('#npTitle').textContent = now ? (md.title || (now.ad ? 'Ad break' : 'Playing')) : 'Nothing playing';
+    // a music ad break (2026-10-27, "I just listened to a Pandora ad. Reason they're not muted and identified on companion app?"): said on the
+    // card, and the PC keeps the page silent for this phone's stream meanwhile
+    q('#npArtist').textContent = now ? [md.artist, md.album, now.ad ? 'an ad is playing' + (listening ? ', silent on this phone' : '') : ''].filter(Boolean).join(' \u00b7 ') : (n.stage && n.stage.service ? n.stage.service + ' is on the stage. Pick something under Quick play' : 'Pick something under Quick play');
     // the service and what it holds: "Pandora \u00b7 Pop Coast Hits Radio station" (2026-10-04)
     const col = now && now.collection, kindWord = col && col.kind ? { station: 'station', playlist: 'playlist', album: 'album', artist: 'artist' }[col.kind] || col.kind : '';
     q('#npSvc').textContent = now ? [now.service, col && col.label ? col.label + (kindWord ? ' ' + kindWord : '') : '', now.onStage ? '' : 'not on the stage'].filter(Boolean).join(' \u00b7 ') : '';
@@ -533,6 +544,9 @@ async function pollNow() {
     npSupport = now ? now.orderSupport : null;
     drawOrder(now);
     const tr = now && now.transport ? now.transport : {};
+    if (listening && !work) syncMediaSession();
+    // a new song, or a different service playing: the lookup boxes under Quick play name the song to add
+    if ((md.title || '') !== lkTitle || (now ? now.tile : null) !== lkTile) { lkTitle = md.title || ''; lkTile = now ? now.tile : null; for (const s of quickSrcs) { const m = svcMode.get(s.tile) || 'actions'; if (m === 'actions' || m === 'add') drawSvcBody(s, svcBody(s.tile)); } }
     q('#trPrev').disabled = !now || tr.previoustrack === false; q('#trNext').disabled = !now || tr.nexttrack === false; q('#trPlay').disabled = !now;
     q('#trUp').disabled = q('#trDown').disabled = !now;
   } catch (e) { say('#merr', e.message); }
@@ -573,6 +587,272 @@ q('#repeatBtn').onclick = async () => {
   try { await api('/music/repeat', { tile: npTile, on }); say('#merr', on ? 'Repeat is on.' : 'Repeat is off.'); setTimeout(pollNow, 800); } catch (e) { say('#merr', e.message); }
 };
 // ---- the choice on a tap while something plays: now, or after this track
+// ---- the lounge visual on this phone (2026-10-27, "Can I tap the album art like in the companion app and get the music lounge visual
+// streamed to that area instead? Let the user full screen it without interrupting the music. Could be fun to zone out to"): a tap on the
+// picture opens it over the page. The PC's own bands (its loopback FFT, 48 a frame at 30 a second over the /viz/bands socket) are drawn
+// here in the lounge's three styles, in the picture's own colours; the music and the listen are untouched, and the screen stays awake.
+const viz = { on: false, ws: null, bands: new Float32Array(48), smooth: new Float32Array(48), style: 'pc', raf: 0, t: 0, lastAt: 0, parts: [], colors: ['#F2B14C', '#E8ECF2'], lock: null, restT: 0, reduced: false, sun: null,
+  feed: null, feedT: 0, pal: null, artUrl: '', art: null, artBlur: null };
+const VIZ_STYLES = ['pc', 'sunrise', 'bars', 'ribbon', 'particles'], VIZ_NAMES = { pc: 'Like the PC', sunrise: 'Sunrise Meadow', bars: 'Bars', ribbon: 'Ribbon', particles: 'Particles' };
+// the PC's styles as the phone draws them: its scenes by name where one is ported, the plain programs by their family
+function vizStyleOf(pcStyle) { const m = { 'sunrise-meadow': 'sunrise', spectrum: 'bars', ribbon: 'ribbon', bloom: 'particles', particles: 'particles', 'prism-beams': 'particles' }; return m[pcStyle] || 'bars'; }
+function vizStyleNow() { return viz.style === 'pc' ? (viz.feed ? vizStyleOf(viz.feed.style) : 'sunrise') : viz.style; }
+// ---- the stage's feed (2026-10-28, "Can we apply the album art over the visual like we do in the windows app?"): the visualization on the
+// PC's stage - its style, its artwork mode (off, backdrop, focal: spec section 32), the art and core's palette tinted toward it - read
+// every few seconds while the view is open, so the phone shows what the stage shows: the art blurred and dimmed behind the scene with a
+// slow drift (backdrop), or sharp and centred over it (focal), in the stage's colours
+async function vizFeedPoll() {
+  if (!viz.on) return;
+  try {
+    const m = await api('/music'); const feeds = (m && m.feeds) || [];
+    const f = feeds.find((x) => x.source === npTile && x.active) || feeds.find((x) => x.active) || feeds[0] || null;
+    viz.feed = f ? { style: f.style, artworkMode: f.artworkMode || 'off', artwork: f.artwork || '', palette: Array.isArray(f.palette) ? f.palette : [] } : null;
+    viz.pal = viz.feed && viz.feed.palette.length >= 3 ? viz.feed.palette.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]).filter((c) => c.every((v) => !isNaN(v))) : null;
+    if (viz.pal && viz.pal.length < 3) viz.pal = null;
+    const url = viz.feed && viz.feed.artworkMode !== 'off' ? viz.feed.artwork : '';
+    if (url !== viz.artUrl) { viz.artUrl = url; viz.art = null; viz.artBlur = null; if (url) vizArtLoad(url); }
+    if (viz.style === 'pc') q('#vizStyle').textContent = vizStyleWord();
+  } catch (e) {}
+  viz.feedT = setTimeout(vizFeedPoll, 3000);
+}
+function vizArtLoad(url) {
+  const im = new Image(); im.crossOrigin = 'anonymous';
+  im.onload = () => {
+    if (viz.artUrl !== url) return;
+    viz.art = im;
+    // the PC's backdrop "blur": the picture decoded 24 pixels wide and smoothed back up; the same here through a tiny canvas
+    try { const c = document.createElement('canvas'); const w = 24, h = Math.max(1, Math.round(24 * im.naturalHeight / im.naturalWidth)); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); viz.artBlur = c; } catch (x) { viz.artBlur = null; }
+  };
+  im.onerror = () => { const plain = new Image(); plain.onload = () => { if (viz.artUrl === url) { viz.art = plain; viz.artBlur = null; } }; plain.src = url; };   // a host that refuses the cross-origin ask: the picture plain, drawn but never sampled
+  im.src = url;
+}
+function vizArtBackdrop(g, W, H) {
+  const src = viz.artBlur || viz.art; if (!src) return false;
+  const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight, r = Math.max(W / sw, H / sh), w = sw * r, h = sh * r;
+  const dx = viz.reduced ? 0 : Math.sin(viz.t * 0.05) * W * 0.02, dy = viz.reduced ? 0 : Math.cos(viz.t * 0.04) * H * 0.02;
+  g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.globalAlpha = 1;
+  g.drawImage(src, (W - w) / 2 + dx, (H - h) / 2 + dy, w * 1.04, h * 1.04);   // a little larger than the view, so the drift never shows an edge
+  g.fillStyle = 'rgba(11,13,18,0.55)'; g.fillRect(0, 0, W, H); g.restore();
+  return true;
+}
+function vizArtFocal(g, W, H) {
+  if (!viz.art) return;
+  const side = Math.max(200, Math.round(Math.min(W, H) * 0.6)), sw = viz.art.naturalWidth, sh = viz.art.naturalHeight, r = Math.min(side / sw, side / sh), w = sw * r, h = sh * r;
+  g.save(); g.globalAlpha = 1; g.fillStyle = 'rgba(11,13,18,0.1)'; g.fillRect(0, 0, W, H);
+  g.drawImage(viz.art, (W - w) / 2, (H - h) / 2 - 20, w, h); g.restore();   // the PC's square, set a little above centre as its poster is
+}
+try { if (VIZ_STYLES.includes(localStorage.getItem('prism.viz.style'))) viz.style = localStorage.getItem('prism.viz.style'); } catch {}
+try { viz.reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {}
+function vizStyleWord() { return VIZ_NAMES[viz.style] || viz.style; }
+// ---- Sunrise Meadow, the lounge's own scene redrawn here (2026-10-27, "What about trying the sunrise one, with the sun, birds, clouds,
+// grass. I like that one"): the PC's Tableaus.cs SunriseMeadow and its pack (visualization-styles/sunrise-meadow.json), move for move -
+// the sun climbing with the loudness, rays turning, grass swaying with the mids, clouds drifting, a flock now and then with a wake of
+// light on the beat - from the same 24 levels (attack .6, release .12, each summary riding its own recent range) off the PC's bands.
+const SUN_P = [[0xF0, 0xA8, 0x3C], [0xF0, 0x5C, 0x7A], [0xF0, 0xD0, 0x8F], [0xA8, 0xD8, 0x6C]], SUN_INK = [0x0B, 0x0D, 0x12], SUN_INK2 = [0x14, 0x18, 0x21], SUN_WHITE = [0xEC, 0xEC, 0xF0], SUN_LIFT = [0x2A, 0x38, 0x62];
+function sP(i) { const pal = viz.pal || SUN_P; return pal[Math.abs(i) % pal.length]; }
+function sMix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function sCss(c, a) { return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + (a === undefined ? 1 : Math.min(1, Math.max(0, a))) + ')'; }
+function sOsc(t, rate, ph) { return 0.5 + 0.5 * Math.sin(t * rate + (ph || 0)); }
+function sRng(seed) { let x = seed >>> 0; return () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function sGlow(g, x, y, w, h, c, innerA, alpha) {   // a soft light: a radial falloff over an ellipse, as the PC's Glow
+  if (w < 0.5 || h < 0.5 || alpha <= 0) return;
+  g.save(); g.globalAlpha = Math.min(1, alpha); g.translate(x, y); g.scale(w / 2, h / 2);
+  const rg = g.createRadialGradient(0, 0, 0, 0, 0, 1); rg.addColorStop(0, sCss(c, innerA)); rg.addColorStop(0.45, sCss(c, innerA * 0.6)); rg.addColorStop(1, sCss(c, 0));
+  g.fillStyle = rg; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill(); g.restore();
+}
+function sunBuild(W, H) {
+  const S = (f) => f * H, X = (f) => f * W, Y = (f) => f * H, b = { W, H, stars: [], clouds: [], ridges: [], grass: [], flowers: [], flock: [] };
+  let r = sRng(5);
+  for (let i = 0; i < 60; i++) { const big = r() < 0.12, d = S(big ? 0.006 + r() * 0.004 : 0.002 + r() * 0.003); b.stars.push({ x: X(r()), y: Y(r() * 0.5), d: big ? d * 2.5 : d, big }); }
+  r = sRng(77);
+  for (let i = 0; i < 5; i++) { const cx = r(), cy = 0.1 + r() * 0.32, d = 0.14 + r() * 0.16; for (let k = 0; k < 4; k++) b.clouds.push({ x: cx + (k - 1.5) * d * 0.3 * (H / W), y: cy + (k % 2 === 0 ? -0.015 : 0.012), d: d * (0.7 + 0.3 * r()), ph: r() * 6 }); }
+  const ridge = (top, bottom, baseY, minH, maxH, steps, seed, jag) => { const q = sRng(seed), pts = [[0, H]]; let prev = minH + q() * (maxH - minH); for (let i = 0; i <= steps; i++) { const target = minH + q() * (maxH - minH), h = prev + (target - prev) * jag; prev = h; pts.push([X(i / steps), Y(baseY) - S(h)]); } pts.push([W, H]); return { top, bottom, pts, y0: Y(baseY) - S(maxH) }; };
+  b.ridges.push(ridge(sMix(SUN_INK2, sP(1), 0.15), SUN_INK2, 0.74, 0.01, 0.07, 10, 71, 0.6));
+  b.ridges.push(ridge([0x12, 0x22, 0x16], [0x0A, 0x14, 0x0E], 0.8, 0, 0.04, 8, 73, 0.6));
+  r = sRng(75);
+  for (let i = 0; i < 140; i++) b.grass.push({ c: sMix([0x1E, 0x38, 0x22], [0x3A, 0x5C, 0x30], r()), w: S(0.002 + r() * 0.003), x: r(), h: 0.06 + r() * 0.16, ph: r() * 6 });
+  for (let i = 0; i < 24; i++) b.flowers.push({ c: sP(i % 2 === 0 ? 3 : 0), x: r(), y: 0.84 + r() * 0.14 });
+  r = sRng(79);
+  for (let i = 0; i < 7; i++) b.flock.push({ dx: -Math.floor((i + 1) / 2) * 0.032, dy: (i % 2 === 0 ? 1 : -1) * Math.floor((i + 1) / 2) * 0.02, ph: r() * 6, size: 0.011 + r() * 0.006 });
+  return b;
+}
+function sunDraw(g, W, H, dt, overArt) {
+  if (!viz.sun) viz.sun = { b: null, lv: new Float32Array(24), hi: [0, 0, 0, 0], lo: [0, 0, 0, 0], beatE: 0, rise: 0, drift: 0, flockAt: -1, nextFlock: NaN, flockDir: 1, flockY: 0.3, hue: 0, sp: [], spNext: 0, t: 0, rng: sRng(11) };
+  const st = viz.sun; if (!st.b || st.b.W !== W || st.b.H !== H) st.b = sunBuild(W, H);
+  const b = st.b, S = (f) => f * H, X = (f) => f * W, Y = (f) => f * H, reduced = viz.reduced, R = st.rng;
+  // the PC's renderer takes its steps 30 times a second; a phone draws 60 or 120 frames, so every per-step amount is scaled to the
+  // frame's length (2026-10-27, "The sun pops up and down so frantically. Is that how the pc one behaves?" - no: the same amounts per
+  // frame ran the scene two to four times faster than the wall)
+  const k = (c) => 1 - Math.pow(1 - c, dt * 30);
+  const lv = st.lv, kA = k(0.6), kR = k(0.12), kB = k(0.15), kRange = k(0.012), kRise = k(0.025);
+  for (let i = 0; i < 24; i++) { const l = Math.min(1, Math.max(0, (viz.bands[i * 2] + viz.bands[i * 2 + 1]) / 2)); lv[i] = l > lv[i] ? lv[i] + (l - lv[i]) * kA : lv[i] + (l - lv[i]) * kR; }
+  let lowB = 0; for (let i = 0; i < 4; i++) lowB += lv[i]; lowB /= 4;
+  const beatRaw = Math.max(0, lowB - st.beatE) * (reduced ? 0.2 : 1); st.beatE += (lowB - st.beatE) * kB;
+  let low = 0, mid = 0, high = 0, loud = 0;
+  for (let i = 0; i < 24; i++) { loud += lv[i]; if (i < 6) low += lv[i]; else if (i < 14) mid += lv[i]; else high += lv[i]; }
+  const range = (j, raw) => { st.hi[j] = Math.max(raw, st.hi[j] - (st.hi[j] - raw) * kRange); st.lo[j] = Math.min(raw, st.lo[j] + (raw - st.lo[j]) * kRange); return Math.min(1, Math.max(0, (raw - st.lo[j]) / Math.max(0.04, st.hi[j] - st.lo[j]))); };
+  const f = { low: range(0, low / 6), mid: range(1, mid / 8), high: range(2, high / 10), loud: range(3, loud / 24), beat: Math.min(1, beatRaw), t: (st.t += dt), dt, speed: reduced ? 0.15 : 1 };
+  const Lv = (frac) => lv[Math.min(23, Math.max(0, Math.round(frac * 23)))];
+  st.rise += ((0.3 + 0.7 * f.loud) - st.rise) * kRise;   // never a sun below the hills: a resting dawn, a full one on a loud mix
+  const rise = st.rise, cx = X(0.5), cy = Y(0.8 - 0.36 * rise);
+  g.globalAlpha = 1;
+  // the sky, its night colours lifted toward a deep blue as on the PC
+  const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, sCss(sMix([0x08, 0x0A, 0x1E], SUN_LIFT, 0.35))); sky.addColorStop(0.6, sCss(sMix([0x1A, 0x14, 0x30], SUN_LIFT, 0.35))); sky.addColorStop(1, sCss(sMix([0x2A, 0x1C, 0x2C], SUN_LIFT, 0.35)));
+  g.globalAlpha = overArt ? 0.55 : 1; g.fillStyle = sky; g.fillRect(0, 0, W, H); g.globalAlpha = 1;   // over the art the sky is a wash, so the picture shows through
+  for (let i = 0; i < b.stars.length; i++) { const s0 = b.stars[i], a = (1 - rise) * (0.3 + 0.3 * sOsc(f.t, 1.1, i)); if (s0.big) sGlow(g, s0.x, s0.y, s0.d, s0.d, SUN_WHITE, 1, a); else { g.globalAlpha = a * 0.5; g.fillStyle = sCss(SUN_WHITE); g.beginPath(); g.arc(s0.x, s0.y, s0.d / 2, 0, Math.PI * 2); g.fill(); } }
+  const dawn = g.createLinearGradient(0, 0, 0, Y(0.78)); dawn.addColorStop(0, sCss(sP(2), 0.15)); dawn.addColorStop(0.5, sCss(sP(1), 0.6)); dawn.addColorStop(1, sCss(sP(0), 0.95));
+  g.globalAlpha = 0.45 + 0.55 * rise; g.fillStyle = dawn; g.fillRect(0, 0, W, Y(0.78));
+  // clouds: a slow drift the mids hurry, swelling a little with the lows, lit by the dawn
+  st.drift += f.dt * f.speed * (0.006 + 0.014 * f.mid);
+  for (let i = 0; i < b.clouds.length; i++) { const c = b.clouds[i], fx = (c.x + st.drift * (0.6 + 0.2 * (Math.floor(i / 4) % 3)) + 0.3) % 1.3 - 0.15; sGlow(g, X(fx), Y(c.y) + Math.sin(f.t * 0.3 + c.ph) * S(0.004), S(c.d) * (1 + 0.1 * f.low), S(c.d) * 0.5, sMix(sP(1), SUN_WHITE, 0.55), 0.8, (0.1 + 0.45 * rise) * (0.8 + 0.2 * sOsc(f.t, 0.5, c.ph))); }
+  for (let i = 0; i < 18; i++) {   // rays turning slowly, each as long as its band
+    const a = f.t * 0.06 * f.speed + i * Math.PI * 2 / 18, l = Lv(i / 18), len = S(0.5 + 0.5 * l), half = 0.045;
+    const rg = g.createRadialGradient(cx, cy, 0, cx, cy, len); rg.addColorStop(0, sCss(sP(2), 0.35)); rg.addColorStop(1, sCss(sP(2), 0));
+    g.globalAlpha = Math.min(1, 0.15 + 0.4 * l * rise); g.fillStyle = rg; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a - half) * len, cy + Math.sin(a - half) * len); g.lineTo(cx + Math.cos(a + half) * len, cy + Math.sin(a + half) * len); g.closePath(); g.fill();
+  }
+  sGlow(g, cx, cy, S(1.2 + 0.6 * f.loud), S(1.2 + 0.6 * f.loud), sP(0), 0.25, 0.3 + 0.6 * rise);
+  sGlow(g, cx, cy, S(0.5 + 0.3 * f.loud + 0.15 * f.beat), S(0.5 + 0.3 * f.loud + 0.15 * f.beat), sP(2), 0.5, 0.5 + 0.5 * f.loud);
+  g.globalAlpha = 1; g.fillStyle = sCss(sMix(sP(2), SUN_WHITE, 0.5)); g.beginPath(); g.arc(cx, cy, S(0.2 + 0.06 * f.low) / 2, 0, Math.PI * 2); g.fill();
+  // birds: a flock every so often, sooner on a loud mix, wings beating with the mids and the beat, lifting on the highs; none under reduced motion
+  if (isNaN(st.nextFlock)) st.nextFlock = f.t + 8;
+  if (st.flockAt < 0) { if (!reduced && f.t >= st.nextFlock) { st.flockAt = 0; st.flockDir = R() < 0.5 ? 1 : -1; st.flockY = 0.16 + R() * 0.3; st.hue = Math.floor(R() * SUN_P.length); } }
+  else { st.flockAt += f.dt * f.speed * (0.05 + 0.04 * f.mid); if (st.flockAt >= 1) { st.flockAt = -1; st.nextFlock = f.t + 18 + R() * 30 * (1 - 0.5 * f.loud); } }
+  if (st.flockAt >= 0) {
+    g.lineWidth = Math.max(0.5, S(0.0025)); g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let i = 0; i < b.flock.length; i++) {
+      const bd = b.flock[i], fx = st.flockDir > 0 ? -0.12 + 1.24 * st.flockAt : 1.12 - 1.24 * st.flockAt;
+      const bx = X(fx + st.flockDir * bd.dx), by = Y(st.flockY + bd.dy + Math.sin(f.t * 0.7 + bd.ph) * 0.01 - 0.03 * f.high);
+      const span = S(bd.size), wing = span * 0.6 * Math.sin(f.t * (5 + 7 * f.mid) + bd.ph) * (0.7 + 0.6 * f.beat);
+      const glow = Math.min(1, Math.max(0, 0.15 + 0.85 * f.high * (0.7 + 0.3 * sOsc(f.t * 2, 1, bd.ph)) + 0.35 * f.beat));
+      g.globalAlpha = Math.min(1, 0.4 + 0.5 * rise); g.strokeStyle = sCss(sMix(SUN_INK, sP(st.hue + i % 2), glow));
+      g.beginPath(); g.moveTo(bx - span, by - wing); g.lineTo(bx, by + span * 0.15); g.lineTo(bx + span, by - wing); g.stroke();
+      if (R() < 0.4 * f.beat + 0.04 * f.high) {   // a mote leaves a wingtip: most on the beat, a few on the highs
+        const k = st.spNext++ % 48, tip = R() < 0.5 ? -1 : 1;
+        st.sp[k] = { x: (bx + tip * span) / W, y: (by - wing) / H, vx: -st.flockDir * (0.04 + 0.05 * R()) + (R() - 0.5) * 0.01, vy: -(0.004 + 0.016 * R()), life: 1, c: sMix(sP(st.hue + i % 2), SUN_WHITE, 0.3) };
+      }
+    }
+  }
+  for (let k = 0; k < st.sp.length; k++) {   // the wake streams back behind the flock, lifts a little, twinkles and is gone in about a second
+    const p = st.sp[k]; if (!p || p.life <= 0) continue;
+    p.life -= f.dt * 0.9; p.x += p.vx * f.dt; p.y += p.vy * f.dt;
+    const life = Math.min(1, Math.max(0, p.life)); g.globalAlpha = life * (0.45 + 0.55 * sOsc(f.t * 7, 1, k)); g.fillStyle = sCss(p.c);
+    g.beginPath(); g.arc(X(p.x), Y(p.y), S(0.0015 + 0.004 * life) / 2, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+  for (const rd of b.ridges) { const rg = g.createLinearGradient(0, rd.y0, 0, H); rg.addColorStop(0, sCss(rd.top)); rg.addColorStop(1, sCss(rd.bottom)); g.fillStyle = rg; g.beginPath(); g.moveTo(rd.pts[0][0], rd.pts[0][1]); for (let i = 1; i < rd.pts.length; i++) g.lineTo(rd.pts[i][0], rd.pts[i][1]); g.closePath(); g.fill(); }
+  const ground = g.createLinearGradient(0, Y(0.8), 0, H); ground.addColorStop(0, sCss([0x10, 0x1E, 0x12])); ground.addColorStop(1, sCss([0x08, 0x10, 0x0A])); g.fillStyle = ground; g.fillRect(0, Y(0.8), W, S(0.2));
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (let i = 0; i < b.grass.length; i++) {   // the grass sways with the mids
+    const gr = b.grass[i], baseX = X(gr.x), top = Y(1 - gr.h), lean = Math.sin(f.t * 1.1 * f.speed + gr.ph) * S(0.01 + 0.035 * f.mid) + S(0.01);
+    g.lineWidth = Math.max(0.5, gr.w); g.strokeStyle = sCss(gr.c); g.beginPath(); g.moveTo(baseX, H); g.quadraticCurveTo(baseX + lean * 0.35, (H + top) / 2, baseX + lean, top); g.stroke();
+  }
+  for (let i = 0; i < b.flowers.length; i++) { const fl = b.flowers[i], d = S(0.012 + 0.02 * rise); sGlow(g, X(fl.x) + Math.sin(f.t * 1.1 * f.speed + i) * S(0.006), Y(fl.y), d, d, fl.c, 1, 0.2 + 0.8 * rise); }
+  g.save(); g.translate(W / 2, H / 2); g.scale(W * 0.78, H * 0.85);   // the cinematic edge
+  const vg = g.createRadialGradient(0, 0, 0, 0, 0, 1); vg.addColorStop(0.45, sCss(SUN_INK, 0)); vg.addColorStop(1, sCss(SUN_INK, 0.28)); g.fillStyle = vg; g.fillRect(-2, -2, 4, 4); g.restore();
+}
+function vizOpen() {
+  if (viz.on) return; viz.on = true;
+  q('#vizView').classList.add('on'); vizRest();
+  q('#vizStyle').textContent = vizStyleWord();
+  vizColors(q('#npArt').getAttribute('src'));
+  vizConnect(); vizFeedPoll();
+  viz.lastAt = performance.now(); viz.raf = requestAnimationFrame(vizDraw);
+  vizInfo(); viz.infoT = setInterval(vizInfo, 1000);
+  try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then((l) => { viz.lock = l; }).catch(() => {}); } catch {}
+}
+function vizClose() {
+  if (!viz.on) return; viz.on = false;
+  q('#vizView').classList.remove('on');
+  if (viz.ws) { try { viz.ws.close(); } catch {} viz.ws = null; }
+  clearTimeout(viz.feedT); viz.feedT = 0; clearInterval(viz.infoT); viz.infoT = 0;
+  cancelAnimationFrame(viz.raf); viz.raf = 0; viz.parts = [];
+  try { if (viz.lock) { viz.lock.release(); viz.lock = null; } } catch {}
+}
+function vizRest() { const v = q('#vizView'); v.classList.remove('rest'); clearTimeout(viz.restT); viz.restT = setTimeout(() => v.classList.add('rest'), 3500); }   // the buttons fade; a touch brings them back
+// the details at the bottom left, as the PC's chrome has them (2026-10-28, "Shouldn't just show the album art. Should show the details
+// normally at the bottom left"): the service, the title, the artist with the state, the album, and the clock, run on between polls
+function vizInfo() {
+  if (!viz.on) return;
+  const now = lastNow, md = now && now.metadata ? now.metadata : {};
+  const col = now && now.collection, kindWord = col && col.kind ? { station: 'station', playlist: 'playlist', album: 'album', artist: 'artist' }[col.kind] || col.kind : '';
+  q('#vizSvc').textContent = now ? [now.service, col && col.label ? col.label + (kindWord ? ' ' + kindWord : '') : ''].filter(Boolean).join(' \u00b7 ') : '';
+  q('#vizTitle').textContent = now ? (md.title || (now.ad ? 'Ad break' : 'Playing')) : 'Nothing playing';
+  const state = now ? (now.ad ? 'an ad is playing' : now.playbackState === 'playing' ? 'playing' : now.playbackState === 'paused' ? 'paused' : '') : '';
+  q('#vizLine2').textContent = [md.artist, state].filter(Boolean).join(' \u00b7 ');
+  q('#vizAlbum').textContent = md.album && md.album !== md.title ? md.album : '';
+  let pos = npPos; if (pos !== null && npPlaying) pos += (Date.now() - npAt) / 1000; if (pos !== null && npDur) pos = Math.min(pos, npDur);
+  q('#vizClock').textContent = pos !== null ? mmss(pos) + (npDur ? ' / ' + mmss(npDur) : '') : '';
+}
+function vizConnect() {
+  if (!viz.on) return;
+  try {
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/viz/bands?token=' + encodeURIComponent(token));
+    ws.binaryType = 'arraybuffer'; viz.ws = ws;
+    ws.onmessage = (e) => { if (!(e.data instanceof ArrayBuffer)) return; const b = new Uint8Array(e.data), n = Math.min(b.length, viz.bands.length); for (let i = 0; i < n; i++) viz.bands[i] = b[i] / 255; if (q('#vizNote').textContent) q('#vizNote').textContent = ''; };
+    ws.onclose = () => { if (viz.ws === ws) { viz.ws = null; if (viz.on) { q('#vizNote').textContent = 'Reconnecting to the PC' + '\u2026'; setTimeout(vizConnect, 1500); } } };
+    ws.onerror = () => { try { ws.close(); } catch {} };
+  } catch (e) { q('#vizNote').textContent = 'No bands from the PC: ' + e.message; }
+}
+function vizColors(src) {   // two colours from the picture: the most saturated, and a middling one; a picture its host will not share keeps the amber
+  viz.colors = ['#F2B14C', '#E8ECF2'];
+  if (!src) return;
+  const im = new Image(); im.crossOrigin = 'anonymous';
+  im.onload = () => { try {
+    const c = document.createElement('canvas'); c.width = 24; c.height = 24; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data, picks = [];
+    for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b); if (mx - mn > 40 && mx > 70) picks.push([r, gg, b, mx - mn]); }
+    picks.sort((a, b) => b[3] - a[3]);
+    if (picks.length) { const a = picks[0], z = picks[Math.floor(picks.length / 2)]; viz.colors = ['rgb(' + a[0] + ',' + a[1] + ',' + a[2] + ')', 'rgb(' + z[0] + ',' + z[1] + ',' + z[2] + ')']; }
+  } catch (x) {} };
+  im.src = src;
+}
+function vizDraw(now) {
+  if (!viz.on) return;
+  viz.raf = requestAnimationFrame(vizDraw);
+  const c = q('#vizCanvas'), dpr = Math.min(2, window.devicePixelRatio || 1), W = c.clientWidth, H = c.clientHeight;
+  if (!W || !H) return;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const dt = Math.min(0.1, (now - viz.lastAt) / 1000); viz.lastAt = now; viz.t += dt;
+  const sm = viz.smooth, bd = viz.bands; let energy = 0;
+  for (let i = 0; i < sm.length; i++) { sm[i] = bd[i] > sm[i] ? sm[i] + (bd[i] - sm[i]) * 0.5 : sm[i] * 0.88 + bd[i] * 0.12; if (i < 6) energy += sm[i]; }
+  energy /= 6;
+  const style = vizStyleNow(), mode = viz.feed ? viz.feed.artworkMode : 'off';
+  const backdrop = mode === 'backdrop' && vizArtBackdrop(g, W, H);
+  if (style === 'sunrise') { sunDraw(g, W, H, dt, backdrop); if (mode === 'focal') vizArtFocal(g, W, H); return; }
+  g.globalAlpha = 1; g.fillStyle = style === 'particles' ? 'rgba(0,0,0,.18)' : backdrop ? 'rgba(0,0,0,0)' : '#000'; if (!backdrop || style === 'particles') g.fillRect(0, 0, W, H);
+  const c1 = viz.pal ? sCss(viz.pal[0]) : viz.colors[0], c2 = viz.pal ? sCss(viz.pal[1]) : viz.colors[1];
+  if (style === 'bars') {
+    const n = sm.length, gap = 2, bw = (W - gap * (n - 1)) / n;
+    for (let i = 0; i < n; i++) {
+      const h = Math.max(2, sm[i] * H * 0.8), x = i * (bw + gap);
+      const grad = g.createLinearGradient(0, H / 2 + h / 2, 0, H / 2 - h / 2); grad.addColorStop(0, c2); grad.addColorStop(1, c1);
+      g.fillStyle = grad; g.fillRect(x, H / 2 - h / 2, bw, h);
+    }
+  } else if (style === 'ribbon') {
+    g.lineWidth = 3 + energy * 6; g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let k = 0; k < 3; k++) {
+      g.beginPath(); g.strokeStyle = k === 0 ? c1 : k === 1 ? c2 : 'rgba(255,255,255,.35)'; g.globalAlpha = 1 - k * 0.3;
+      for (let i = 0; i < sm.length; i++) {
+        const x = (i / (sm.length - 1)) * W, y = H / 2 + Math.sin(viz.t * (1.2 + k * 0.4) + i * 0.35) * 20 * (k + 1) - (sm[i] - 0.3) * H * 0.5 * (k === 0 ? 1 : 0.6);
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  } else {
+    const born = Math.round(energy * energy * 14);
+    for (let i = 0; i < born && viz.parts.length < 400; i++) viz.parts.push({ x: Math.random() * W, y: H + 10, vx: (Math.random() - 0.5) * 40, vy: -(60 + Math.random() * 220 * energy), r: 2 + Math.random() * 5, c: Math.random() < 0.6 ? c1 : c2, life: 1 });
+    for (const p of viz.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 25 * dt; p.life -= dt * 0.25; g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.fill(); }
+    g.globalAlpha = 1; viz.parts = viz.parts.filter((p) => p.life > 0 && p.y > -20);
+    const R = 40 + energy * 90, rg = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R); rg.addColorStop(0, c1); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(W / 2 - R, H / 2 - R, R * 2, R * 2);
+  }
+  if (mode === 'focal') vizArtFocal(g, W, H);
+}
+q('#npArt').onclick = () => { if (q('#npArt').getAttribute('src') || npTile) vizOpen(); };
+q('#vizClose').onclick = vizClose;
+q('#vizStyle').onclick = () => { viz.style = VIZ_STYLES[(VIZ_STYLES.indexOf(viz.style) + 1) % VIZ_STYLES.length]; q('#vizStyle').textContent = vizStyleWord(); try { localStorage.setItem('prism.viz.style', viz.style); } catch {} vizRest(); };
+q('#vizView').addEventListener('pointerdown', vizRest);
 function pickSheet(what, go) {
   const sh = q('#pickSheet'); q('#pickWhat').textContent = what; sh.classList.add('on');
   q('#pickNow').onclick = () => { sh.classList.remove('on'); go('now'); };
@@ -657,13 +937,13 @@ function drawTime() {
   q('#npBar').style.width = npDur ? Math.round(pos / npDur * 100) + '%' : '0';
 }
 setInterval(drawTime, 1000);
-for (const b of document.querySelectorAll('[data-c]')) b.onclick = async () => {
+for (const b of document.querySelectorAll('[data-c]')) b.onclick = () => press(b.dataset.c);
+async function press(c) {   // a transport press, from the Music tab's buttons or the phone's lock screen
   if (!npTile) { say('#merr', 'Nothing is playing in Prism'); return; }
-  let c = b.dataset.c;
   // a service that has signed the household out (or never let them in) will not take a press: say so, as the PC's own bar would
   if (npSession === 'signed-out' && c !== 'mute') { say('#merr', npService + ' asks for a sign-in before it plays. Sign in on the PC (Prism menu, Set up services), then press again.'); return; }
   if (c === 'play') c = npPlaying ? 'pause' : 'play';
-  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }
+  if (c === 'mute') { toggleMute(npTile, pollNow); return; }
   // in the background sound mode the phone holds seconds of the stream, so a pause on the PC alone would play on here until the buffer
   // ran dry (2026-10-04, "pressed pause, and the audible music never paused"): the phone's player pauses with it, and Play fetches
   // the stream fresh so the stale seconds are dropped
@@ -671,7 +951,7 @@ for (const b of document.querySelectorAll('[data-c]')) b.onclick = async () => {
   try { await api('/tiles/' + encodeURIComponent(npTile) + '/command', { cmd: c }); setTimeout(pollNow, 600); } catch (e) { say('#merr', e.message); }
 };
 // ---- video: the big window's state and the bar's verbs, Continue watching, My list, Live (2026-10-04)
-let vTile = null, vPlaying = false, vSig = '', vSeeking = false, vwork = null;
+let vTile = null, vPlaying = false, vSig = '', vSeeking = false, vwork = null, lastVideo = null;   // lastVideo: the poll's last read, for the lock screen
 // the Video tab's work line (2026-10-05, Animal Control tapped three times with no sign the first landed): a tap says what is opening,
 // pulses until the page names the title, then says what plays - or why it did not
 function startVWork(name, service) {
@@ -695,7 +975,7 @@ function drawVWork(now, svc) {
   if (Date.now() - vwork.at > 60000) endVWork(vwork.name + ' has not started on ' + vwork.service + ' yet. The PC may still be opening it.', false);
 }
 async function pollVideo() {
-  if (tabNow !== 'V') return;
+  if (tabNow !== 'V' && !(listening && playerNow === 'video')) return;   // while this phone listens to the Video player the poll goes on under any tab: the lock screen reads it
   try {
     const v = await api('/video');
     const now = v.now, vid = now && now.video;
@@ -718,9 +998,10 @@ async function pollVideo() {
     q('#vRetry').textContent = gate ? (gate.verb || 'Start watching') : 'Retry'; q('#vRetry').dataset.cmd = gate ? 'gate' : 'retry';
     q('#vErr').classList.toggle('on', !!(gate || (now && now.error)));
     const art = now && now.art; if (art) q('#vArt').src = art; else q('#vArt').removeAttribute('src');
+    lastVideo = { now: now, vid: vid, svc: svc, art: art || '' }; if (listening) syncMediaSession();
     }
     q('#vPlay').innerHTML = '<svg class="ic"><use href="#i-' + (vPlaying ? 'pause' : 'play') + '"/></svg>';
-    if (tabNow === 'V' && !window.__npPolled) { api('/now-playing').then((n) => { wallMuted = !!n.wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }).catch(() => {}); }
+    if (tabNow === 'V' && !window.__npPolled) { api('/now-playing').then((n) => { wallMuted = !!n.wallMuted; privateMuted = !!n.privateMuted; paintMute(wallMuted || privateMuted); }).catch(() => {}); }
     const can = now ? now.can : null;
     for (const b of document.querySelectorAll('[data-v]')) b.disabled = !now || (b.dataset.v !== 'mute' && b.dataset.v !== 'play' && b.dataset.v !== 'restart' && can && !can.cmd && !/seek/.test(b.dataset.v));
     // the skip button only while the service offers a skip (2026-10-05, "the skip button should only appear when skip is available")
@@ -1795,12 +2076,12 @@ q('#tkeySend').onclick = async () => {
   catch (e) { said.classList.add('bad'); said.textContent = String((e && e.message) || e); }
   q('#tkeySend').disabled = false;
 };
-for (const b of document.querySelectorAll('[data-v]')) b.onclick = async () => {
+for (const b of document.querySelectorAll('[data-v]')) b.onclick = () => pressV(b.dataset.v);
+async function pressV(c) {   // a Video press, from the tab's buttons or the phone's lock screen
   if (!vTile) { say('#verr', 'Nothing is playing in Prism'); return; }
-  let c = b.dataset.v;
   if (c === 'captions' && vCanTracks) { openTracks(); return; }
   if (c === 'play') c = vPlaying ? 'pause' : 'play';
-  if (c === 'mute') { c = wallMuted ? 'unmute' : 'mute'; wallMuted = !wallMuted; for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, wallMuted); m.classList.toggle('on', wallMuted); } }
+  if (c === 'mute') { toggleMute(vTile, pollVideo); return; }
   if (c === 'pause') streamHold(true); else if (c === 'play') streamHold(false);
   try {
     if (c === 'restart') { const r = await api('/video/start-over', {}); if (r && r.ok === false) say('#verr', r.error || 'Could not start over'); }
@@ -1820,6 +2101,7 @@ q('#vSeek').onchange = async () => {
     setTimeout(pollVideo, 800);
   } catch (e) { say('#verr', e.message); }
 };
+let quickSrcs = [], lkTitle = '', lkTile = null;   // the sources as last read, and the song the lookup boxes were drawn for
 let quickSig = '', openSvcs = null;   // which services' sections are open: the person's own folds, kept across redraws (2026-10-04, "the collection menu pops open for no reason")
 async function loadQuick() {
   try {
@@ -1830,7 +2112,7 @@ async function loadQuick() {
       for (const s of r.sources || []) { const st = q('#quick .svc[data-tile="' + s.tile + '"] .st'); if (st) st.textContent = s.session === 'signed-out' ? 'signed out' : s.playbackState === 'playing' ? 'playing' : s.active ? 'on the stage' : ''; }
       return;
     }
-    quickSig = sig;
+    quickSig = sig; quickSrcs = r.sources || [];
     const box = q('#quick'); box.innerHTML = '';
     if (!r.sources || !r.sources.length) { box.innerHTML = '<p class="note">No music service is set up in Prism yet.</p>'; return; }
     for (const s of r.sources) {
@@ -1842,41 +2124,136 @@ async function loadQuick() {
       head.children[2].textContent = s.session === 'signed-out' ? 'signed out' : s.playbackState === 'playing' ? 'playing' : s.active ? 'on the stage' : '';
       head.onclick = () => { d.classList.toggle('open'); if (d.classList.contains('open')) openSvcs.add(s.tile); else openSvcs.delete(s.tile); };
       d.appendChild(head);
-      const body = document.createElement('div'); body.className = 'body';
-      const out = s.session === 'signed-out';
-      const resume = document.createElement('button'); resume.className = 'item go'; resume.textContent = out ? 'Signed out. Open the sign-in on the PC' : s.active ? 'Start over' : 'Play ' + s.name;
-      // signed out: the press opens the service's sign-in on the PC (the same route as Set up services) and brings the Keyboard tab up here
-      resume.onclick = async () => { if (out) { try { await api('/ui/route', { route: 'prism://app/' + encodeURIComponent(s.app) + '/setup' }); say('#merr', s.name + "'s sign-in is open on the PC. Type into its fields from the Keyboard tab."); showTab('K'); } catch (e) { say('#merr', e.message); } return; } try { await api('/tiles/' + encodeURIComponent(s.tile) + '/command', { cmd: s.active ? 'restart' : 'play' }); setTimeout(pollNow, 800); } catch (e) { say('#merr', e.message); } };
-      body.appendChild(resume);
-      for (const [grp, items] of [['Playlists', s.playlists], ['Stations', s.stations]]) {
-        if (!items || !items.length) continue;
-        const g = document.createElement('div'); g.className = 'grp'; g.textContent = grp; body.appendChild(g);
-        for (const it of items.slice(0, 60)) {
-          const b = document.createElement('button'); b.className = 'item'; b.textContent = it.name;
-          b.onclick = async () => {
-            if (s.session === 'signed-out') { say('#merr', s.name + ' asks for a sign-in before it plays. Sign in on the PC first.'); return; }
-            const kind = grp === 'Playlists' ? 'playlist' : 'station';
-            const go = async (when) => {
-              if (when === 'now') startWork(it.name, s.name, s.tile, it.name, kind, it.id);
-              else { say('#merr', ''); for (const d of document.querySelectorAll('#quick .svc.open')) d.classList.remove('open'); if (openSvcs) openSvcs.clear(); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // the list folds for a queued pick too (2026-10-04)
-              try {
-                const r = await api('/music/play', { tile: s.tile, kind, id: it.id, order: kind === 'station' || !nextOrder ? 'auto' : nextOrder, when });
-                if (when === 'next' && r && r.started) startWork(it.name, s.name, s.tile, it.name, kind, it.id);
-                setTimeout(pollNow, 1200);
-              } catch (e) { endWork(e.message, false); }
-            };
-            // something plays: now, or after this track (2026-10-04, "choose to play after the current track"); nothing plays: now
-            if (npPlaying || work || npTile) pickSheet(it.name + ' on ' + s.name, go); else go('now');   // anything held (playing, paused, or a pick on its way) gets the choice
-          };
-          body.appendChild(b);
-        }
-      }
-      if ((!s.playlists || !s.playlists.length) && (!s.stations || !s.stations.length)) { const n = document.createElement('p'); n.className = 'note'; n.textContent = s.session === 'signed-out' ? 'Sign in on the PC first.' : 'Its lists are being read. Pull again in a moment.'; body.appendChild(n); }
+      const body = document.createElement('div'); body.className = 'body'; drawSvcBody(s, body);
       d.appendChild(body); box.appendChild(d);
     }
   } catch (e) { say('#merr', e.message); }
 }
 loadQuick(); setInterval(loadQuick, 15000);
+// ---- the song playing now, on another service (2026-10-27, "add songs to a playlist cross service like I can do in the pc player"):
+// the PC's own lookup and its verbs (concept-scenes, Decision 2026-09-16) under every service's Quick play entry, the one
+// playing the song included, as the PC's playlist rows offer it ("What if I want to add on the same service"). The service's
+// page looks the song up in the person's own session; core decides the match, strictly, and offers a pick when it will not guess.
+const lkState = new Map();   // tile -> {st: the lookup as the PC reports it, busy, prevAt: the action before this phone's press}
+// A service's entry opens on its actions (2026-10-27, "We should add an actions menu, to the quick play services. And if the action chosen
+// is Add to Playlist, then expand the service and show the playlists and let the user make a choice. Then confirm it was added and close
+// it. Same goes for Play a Playlist"): Play <service> / Start over, Play a playlist, Play a station, and with a song playing, Add <song>
+// to a playlist and Create station from <song>. The list the action asks for takes the entry's place with a way back; a pick folds the
+// entry, and an add says it was added, then folds it.
+const svcMode = new Map();   // tile -> 'actions' | 'playlists' | 'stations' | 'add'
+function svcBody(tile) { return q('#quick .svc[data-tile="' + tile + '"] > .body'); }
+function svcFold(tile) {
+  const d = q('#quick .svc[data-tile="' + tile + '"]'); if (d) d.classList.remove('open'); if (openSvcs) openSvcs.delete(tile);
+  svcMode.set(tile, 'actions'); const b = svcBody(tile); if (b) drawSvcBody(quickSrcs.find((x) => x.tile === tile) || null, b);
+}
+function drawSvcBody(s, body) {
+  if (!s || !body) return;
+  body.innerHTML = '';
+  const mode = svcMode.get(s.tile) || 'actions', out = s.session === 'signed-out';
+  const row = (text, go, cls) => { const b = document.createElement('button'); b.className = 'item' + (cls ? ' ' + cls : ''); b.textContent = text; b.onclick = go; body.appendChild(b); return b; };
+  const note = (text) => { const n = document.createElement('p'); n.className = 'note'; n.textContent = text; body.appendChild(n); };
+  // signed out: the press opens the service's sign-in on the PC (the same route as Set up services) and brings the Keyboard tab up here
+  if (out) { row('Signed out. Open the sign-in on the PC', async () => { try { await api('/ui/route', { route: 'prism://app/' + encodeURIComponent(s.app) + '/setup' }); say('#merr', s.name + "'s sign-in is open on the PC. Type into its fields from the Keyboard tab."); showTab('K'); } catch (e) { say('#merr', e.message); } }, 'go'); note('Sign in on the PC first.'); return; }
+  const md = lastNow && lastNow.metadata && lastNow.metadata.title ? lastNow.metadata : null;
+  if (mode === 'actions') {
+    row(s.active ? 'Start over' : 'Play ' + s.name, async () => { try { await api('/tiles/' + encodeURIComponent(s.tile) + '/command', { cmd: s.active ? 'restart' : 'play' }); setTimeout(pollNow, 800); } catch (e) { say('#merr', e.message); } }, 'go');
+    if (s.playlists && s.playlists.length) row('Play a playlist', () => { svcMode.set(s.tile, 'playlists'); drawSvcBody(s, body); });
+    if (s.stations && s.stations.length) row('Play a station', () => { svcMode.set(s.tile, 'stations'); drawSvcBody(s, body); });
+    if (md) {
+      // a verb the service's page cannot do from Prism stays out, with the adapter's reason (2026-10-27, Pandora's free tier: "I have the
+      // option ... to add a song to a playlist in Pandora but I don't have that option with the free tier")
+      const cannot = s.cannot || {};
+      const look = () => { svcMode.set(s.tile, 'add'); drawSvcBody(s, body); if (!lkState.get(s.tile)) lkStart(s); };
+      if (cannot.add) note(cannot.add); else row('Add ' + md.title + ' to a playlist' + (s.tile === npTile ? '' : ' on ' + s.name), look);
+      if (cannot.station) note(cannot.station); else row('Create station from ' + md.title, look);
+    }
+    if ((!s.playlists || !s.playlists.length) && (!s.stations || !s.stations.length)) note('Its lists are being read. Pull again in a moment.');
+    return;
+  }
+  row('\u2039 Actions', () => { svcMode.set(s.tile, 'actions'); drawSvcBody(s, body); });
+  if (mode === 'add') { const lk = document.createElement('div'); lk.className = 'lk'; body.appendChild(lk); drawLookup(s, lk); return; }
+  const kind = mode === 'playlists' ? 'playlist' : 'station', items = (mode === 'playlists' ? s.playlists : s.stations) || [];
+  for (const it of items.slice(0, 60)) {
+    row(it.name, () => {
+      const go = async (when) => {
+        svcMode.set(s.tile, 'actions');
+        if (when === 'now') startWork(it.name, s.name, s.tile, it.name, kind, it.id);
+        else { say('#merr', ''); for (const d of document.querySelectorAll('#quick .svc.open')) d.classList.remove('open'); if (openSvcs) openSvcs.clear(); window.scrollTo({ top: 0, behavior: 'smooth' }); }   // the list folds for a queued pick too (2026-10-04)
+        try {
+          const r = await api('/music/play', { tile: s.tile, kind, id: it.id, order: kind === 'station' || !nextOrder ? 'auto' : nextOrder, when });
+          if (when === 'next' && r && r.started) startWork(it.name, s.name, s.tile, it.name, kind, it.id);
+          setTimeout(pollNow, 1200);
+        } catch (e) { endWork(e.message, false); }
+      };
+      // something plays: now, or after this track (2026-10-04, "choose to play after the current track"); nothing plays: now
+      if (npPlaying || work || npTile) pickSheet(it.name + ' on ' + s.name, go); else go('now');   // anything held (playing, paused, or a pick on its way) gets the choice
+    });
+  }
+}
+function lkBox(tile) { return q('#quick .svc[data-tile="' + tile + '"] .lk'); }
+function lkSong(md) { return md.title + (md.artist ? ' ' + '\u00b7' + ' ' + md.artist : ''); }
+function drawLookup(s, box) {
+  if (!box) return;
+  box.innerHTML = '';
+  const now = lastNow, md = now && now.metadata ? now.metadata : null;
+  if (!md || !md.title || s.session === 'signed-out') return;   // nothing playing: nothing to add
+  const e = lkState.get(s.tile) || {}; let st = e.st;
+  if (st && st.song && st.song.title !== md.title) { lkState.delete(s.tile); st = null; }   // a new song: the old answer is not its
+  const btn = (text, go, dim) => { const b = document.createElement('button'); b.className = 'item' + (dim ? ' dim' : ''); b.textContent = text; b.disabled = !!dim; if (go) b.onclick = go; return b; };
+  const line = (text, amber) => { const d = document.createElement('div'); if (amber) d.className = 'st'; d.textContent = text; box.appendChild(d); };
+  if (!st) { line('Looking for ' + lkSong(md) + ' on ' + s.name + '\u2026', true); return; }
+  const song = lkSong(md), m = st.match, pct = st.confidence && typeof st.confidence.percent === 'number' ? st.confidence.percent : 100;
+  const why = st.confidence && st.confidence.because && st.confidence.because.length ? ' (' + pct + '% likely the same song: ' + st.confidence.because.join(', ') + ')' : '';
+  const heads = {
+    searching: 'Looking for ' + song + ' on ' + s.name + '\u2026', idle: 'Looking for ' + song + ' on ' + s.name + '\u2026',
+    found: m ? (pct < 90 ? s.name + ' has ' : 'Found on ' + s.name + ': ') + lkSong(m) + (pct < 90 ? why : '') : 'Found on ' + s.name,
+    ambiguous: s.name + ' has something like ' + song + '. Which one is it?', 'not-found': song + ' is not on ' + s.name,
+    unavailable: st.why === 'no-song' ? 'Nothing is playing on Prism to look up' : 'No cross-service search on ' + s.name + (st.reason ? ' (' + st.reason + ')' : ''),
+    error: 'Could not search ' + s.name + (st.reason ? ': ' + st.reason : '') };
+  line(heads[st.status] || st.status, st.status === 'searching');
+  if (st.status === 'ambiguous' || (st.status === 'found' && st.picked)) {
+    for (const c of st.candidates || []) box.appendChild(btn((m && c.id === m.id ? '\u2713 ' : '') + lkSong(c), async () => { try { const r = await api('/music/lookup-pick', { tile: s.tile, song: c.id }); lkState.set(s.tile, { st: r }); drawLookup(s, lkBox(s.tile)); } catch (x) { say('#merr', x.message); } }));
+  }
+  const a = st.action;
+  if (a && (e.busy || a.at !== e.prevAt) && e.prevAt !== undefined) {
+    line(a.status === 'pending' ? (a.op === 'add' ? 'Adding ' + a.song + ' to ' + a.playlist + '\u2026' : 'Making a station from ' + a.song + '\u2026')
+      : a.status === 'ok' ? (a.op === 'add' ? 'Added ' + a.song + ' to ' + a.playlist + ' on ' + s.name : 'A station from ' + a.song + ' plays on ' + s.name)
+      : (a.op === 'add' ? 'Could not add ' + a.song + ' to ' + a.playlist : 'Could not make the station') + (a.error ? ': ' + a.error : ''), a.status === 'pending');
+  }
+  if (st.status === 'found' && m && !e.busy) {
+    if (st.cannot && st.cannot.add) line(st.cannot.add);
+    else for (const p of st.playlists || []) box.appendChild(btn('Add to ' + p.name + (p.edit === false ? ' (the service\'s own list)' : ''), () => lkAct(s, '/music/add', { tile: s.tile, playlist: p.id }), p.edit === false));
+    if (!(st.cannot && st.cannot.add) && !(st.playlists || []).length) box.appendChild(btn('No playlists on ' + s.name + ' yet', null, true));
+    if (!(st.cannot && st.cannot.station)) box.appendChild(btn('Create station from this song', () => lkAct(s, '/music/station', { tile: s.tile })));
+  }
+}
+async function lkPoll(s, until) {
+  for (let i = 0; i < 90; i++) {   // a minute at most; the PC's own answer settles well inside it
+    await new Promise((r) => setTimeout(r, 700));
+    let st; try { st = await api('/music/lookup-state', { tile: s.tile }); } catch (x) { return null; }
+    const e = lkState.get(s.tile); if (!e) return null;
+    e.st = st; drawLookup(s, lkBox(s.tile));
+    if (until(st)) return st;
+  }
+  return null;
+}
+async function lkStart(s) {
+  try { const st = await api('/music/lookup', { tile: s.tile }); lkState.set(s.tile, { st }); drawLookup(s, lkBox(s.tile)); } catch (x) { say('#merr', x.message); return; }
+  await lkPoll(s, (st) => st.status !== 'searching');
+}
+async function lkAct(s, path, body) {
+  const e = lkState.get(s.tile); if (!e || e.busy) return;
+  e.prevAt = e.st && e.st.action ? e.st.action.at : null; e.busy = true;
+  try { e.st = await api(path, body); drawLookup(s, lkBox(s.tile)); } catch (x) { e.busy = false; say('#merr', x.message); drawLookup(s, lkBox(s.tile)); return; }
+  const st = await lkPoll(s, (st) => !!(st.action && st.action.at !== e.prevAt && st.action.status !== 'pending'));
+  e.busy = false; drawLookup(s, lkBox(s.tile));
+  if (path === '/music/station') setTimeout(pollNow, 1200);
+  const a = st && st.action;
+  if (a && a.status === 'ok') {   // said at the top, and the entry folds ("Then confirm it was added and close it")
+    endWork(a.op === 'add' ? 'Added ' + a.song + ' to ' + a.playlist + ' on ' + s.name : 'A station from ' + a.song + ' plays on ' + s.name, true);
+    setTimeout(() => svcFold(s.tile), 1500);
+  }
+}
 api('/state').then(s => { if (s && s.name) q('#who').textContent = s.name; installPaired = true; }).catch(() => { q('#who').textContent = 'not paired: scan Prism\'s code again'; });
 const say = (el, m) => { q(el).textContent = m; if (m) setTimeout(() => { if (q(el).textContent === m) q(el).textContent = ''; }, 4000); };
 // the field on the wall, named as the page names it, so the phone says what it is typing into (never what the field holds)
@@ -2018,13 +2395,30 @@ setInterval(readyTicket, 5000);
 // untouched; the question waits under the button until answered, and the PC plays on meanwhile. A mute the phone asked for goes back
 // when the listen ends.
 let mutedByMe = false;
+// The PC's speakers as one switch on the Music and Video tabs (2026-10-27, "When I mute the pc from the private listening tab option, it
+// still shows unmuted on the main music tab"): the person's wall mute mutes the pages, which the phone's stream carries, so while this
+// phone listens the switch mutes the playback device instead (the mute the Listen tab asks about), and Unmute lifts whichever is on.
+function paintMute(on) { for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, on); m.classList.toggle('on', on); } }
+async function toggleMute(tile, after) {
+  const on = !(wallMuted || privateMuted);
+  try {
+    if (on) {
+      if (listening) { await api('/audio/private-mute', { on: true }); mutedByMe = true; privateMuted = true; }
+      else { await api('/tiles/' + encodeURIComponent(tile) + '/command', { cmd: 'mute' }); wallMuted = true; }
+    } else {
+      if (privateMuted) { await api('/audio/private-mute', { on: false }); mutedByMe = false; privateMuted = false; }
+      if (wallMuted) { await api('/tiles/' + encodeURIComponent(tile) + '/command', { cmd: 'unmute' }); wallMuted = false; }
+    }
+  } catch (e) { say('#merr', e.message); }
+  paintMute(wallMuted || privateMuted); setTimeout(after, 600);
+}
 function muteSay(text, hideAfterMs) {
   q('#muteNoteText').textContent = text; q('#muteAsk').style.display = 'none';
   clearTimeout(muteSay.t); if (hideAfterMs) muteSay.t = setTimeout(() => { q('#muteNote').className = 'work muteNote'; }, hideAfterMs);
 }
 q('#muteYes').onclick = async () => {
   if (!listening) { q('#muteNote').className = 'work muteNote'; return; }
-  try { await api('/audio/private-mute', { on: true }); mutedByMe = true; muteSay('This PC\'s speakers are muted while this phone listens. They come back when you stop.', 8000); }
+  try { await api('/audio/private-mute', { on: true }); mutedByMe = true; privateMuted = true; paintMute(true); muteSay('This PC\'s speakers are muted while this phone listens. They come back when you stop.', 8000); }
   catch { muteSay('Could not mute this PC\'s speakers. Turn them down on the PC instead.', 8000); }
 };
 q('#muteNo').onclick = () => { muteSay('This PC\'s speakers stay on.', 5000); };
@@ -2037,7 +2431,7 @@ async function muteForListen() {
 }
 async function unmuteAfterListen() {
   clearTimeout(muteSay.t); q('#muteNote').className = 'work muteNote';
-  if (!mutedByMe) return; mutedByMe = false;
+  if (!mutedByMe) return; mutedByMe = false; privateMuted = false; paintMute(wallMuted);
   try { await api('/audio/private-mute', { on: false }); } catch {}
 }
 // which window this phone hears (2026-10-05, "Remote listening for video should allow the user to select which window they're listening to"):
@@ -2076,12 +2470,91 @@ async function stopListening(sayWhy) {
   q('#listen').textContent = 'Listen on this phone'; q('#listen').classList.remove('off');
   if (sayWhy) say('#lerr', sayWhy);
 }
+// The phone's lock screen and Control Center entry while it listens (2026-10-27, "when I play through the music app, it is able to show
+// the song title, album art, etc in the iOS now playing areas ... Is it possible for it to?"): the song playing in Prism, with its art
+// from the service's own artwork address, kept current by the poll above, and the entry's own buttons act on that song as the Music
+// tab's do. With nothing playing in Prism (the Video player's sound, say) the entry reads Prism, and its pause ends the listen.
+let msKey = '', msActs = '';
+const markedArt = new Map();   // a picture's address -> the same picture with the Prism mark, as a data address ('' while it is made)
+function markArt(src, icon, done) {
+  if (markedArt.has(src)) { const c = markedArt.get(src); if (c) done(c); return; }
+  if (markedArt.size > 40) markedArt.clear();
+  markedArt.set(src, '');
+  const im = new Image(); im.crossOrigin = 'anonymous';
+  const mk = new Image(); mk.src = icon;
+  im.onload = () => { mk.decode().catch(() => {}).then(() => {
+    try {
+      const S = 512, c = document.createElement('canvas'); c.width = S; c.height = S; const g = c.getContext('2d');
+      const r = Math.max(S / im.naturalWidth, S / im.naturalHeight), w = im.naturalWidth * r, h = im.naturalHeight * r;
+      g.fillStyle = '#000'; g.fillRect(0, 0, S, S); g.drawImage(im, (S - w) / 2, (S - h) / 2, w, h);
+      const m = Math.round(S * Math.sqrt(1 / 8)), pad = S / 32;   // an eighth of the picture's AREA (2026-10-27, "I meant for it to cover about 1/8 of the total image"): about a third of its width
+      if (mk.naturalWidth) g.drawImage(mk, S - m - pad, S - m - pad, m, m);
+      const out = c.toDataURL('image/jpeg', 0.88); markedArt.set(src, out); done(out);
+    } catch (x) { markedArt.delete(src); }   // the picture's host did not share it with a page (a tainted canvas): the plain picture stays
+  }); };
+  im.onerror = () => markedArt.delete(src);
+  im.src = src;
+}
 function mediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ title: 'Prism', artist: 'the sound on the PC', artwork: [{ src: '/remote/icon.png', sizes: '128x128', type: 'image/png' }] });
-  navigator.mediaSession.setActionHandler('pause', () => stopListening(''));
+  msKey = ''; msActs = '';
   navigator.mediaSession.setActionHandler('stop', () => stopListening(''));
+  // iOS fires pause for its own interruptions too, not only for a press: the page put away in low delay, a call, another app's sound
+  // (2026-10-27, "why does it automatically pause the video I'm playing": host.log 22:55:18, a pause sent as the phone's context went
+  // interrupted, no press). In low delay any of those ends what the phone hears, so the lock screen's pause ends the listen, as before,
+  // and never touches the PC. The background mode plays on through a lock and a put-away page, so a pause there is a press.
+  const onPc = () => mode === 'background';
+  navigator.mediaSession.setActionHandler('pause', () => { if (!onPc()) { stopListening(''); return; } if (playerNow === 'video' && vTile) pressV('pause'); else if (playerNow !== 'video' && npTile) press('pause'); else stopListening(''); });
+  navigator.mediaSession.setActionHandler('play', () => { if (!onPc()) return; if (playerNow === 'video' && vTile) pressV('play'); else if (playerNow !== 'video' && npTile) press('play'); else streamHold(false); });
+  syncMediaSession();
   try { navigator.mediaSession.playbackState = 'playing'; } catch {}
+}
+// With the Video player on the PC (2026-10-27, "If we're listening to video, can we do something similar?"): the title on screen, its
+// episode and poster, play and pause, and the 15-second skips as the Video tab's own buttons send them.
+function syncMediaSession() {
+  if (!('mediaSession' in navigator) || !listening) return;
+  let title = 'Prism', artist = 'the sound on the PC', album = '', art0 = '', playing = true, acts = '', pos = null, dur = null;
+  if (playerNow === 'video') {
+    const lv = lastVideo, now = lv && lv.now, vid = now && now.video;
+    if (vid && (vid.title || vid.series)) {
+      const both = !!(vid.series && vid.title && vid.series !== vid.title), ep = typeof vid.season === 'number' && typeof vid.episode === 'number' ? 'S' + vid.season + ' E' + vid.episode : '';
+      title = both ? vid.series : (vid.title || vid.series);
+      artist = [ep, both ? vid.title : ''].filter(Boolean).join(' ' + '\u00b7' + ' ') || (lv.svc ? lv.svc.name : '');
+      album = lv.svc ? lv.svc.name : ''; art0 = lv.art || ''; playing = !!now.playing; acts = vTile ? 'seek' : '';
+      pos = typeof vid.position === 'number' ? vid.position : null; dur = typeof vid.duration === 'number' && vid.duration > 0 ? vid.duration : null;
+    }
+  } else {
+    const now = lastNow, md = now && now.metadata ? now.metadata : {}, tr = now && now.transport ? now.transport : {};
+    if (now) {
+      const aw = md.artwork; art0 = typeof aw === 'string' ? aw : Array.isArray(aw) && aw.length ? (aw[aw.length - 1].src || '') : '';
+      title = md.title || (now.ad ? 'Ad break' : 'Playing'); artist = now.ad ? 'an ad is playing' : (md.artist || now.service || ''); album = md.album || ''; playing = now.playbackState === 'playing';
+      acts = (tr.previoustrack !== false ? 'p' : '') + (tr.nexttrack !== false ? 'n' : '');
+      pos = typeof now.position === 'number' ? now.position : null; dur = typeof now.duration === 'number' && now.duration > 0 ? now.duration : null;
+    }
+  }
+  if (mode !== 'background') acts = '';   // the lock screen's other buttons act on the PC only where its pause does (above)
+  const icon = new URL('/remote/icon.png', location.href).href;
+  let art = icon; try { if (art0) art = new URL(art0, location.href).href; } catch {}
+  const key = [title, artist, album, art].join('|');
+  if (key !== msKey) {
+    msKey = key;
+    // the picture carries the Prism mark in its corner, an eighth of its area (2026-10-27, "a tiny Prism icon overlaying the corner 1/8
+    // of the music or video poster ... there is no indication that prism is the player"), composed here once per picture; a picture its host will not
+    // share with a page stays plain. The size and type are declared: Android's notification asks for them.
+    const pic = markedArt.get(art), artwork = pic ? [{ src: pic, sizes: '512x512', type: 'image/jpeg' }] : [{ src: art }];
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album, artwork }); } catch {}
+    if (!pic && art !== icon) markArt(art, icon, (made) => { if (msKey !== key) return; try { navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album, artwork: [{ src: made, sizes: '512x512', type: 'image/jpeg' }] }); } catch {} });
+  }
+  if (acts !== msActs) {
+    msActs = acts;
+    const set = (a, fn) => { try { navigator.mediaSession.setActionHandler(a, fn); } catch {} };
+    set('previoustrack', acts.includes('p') ? () => press('prev') : null); set('nexttrack', acts.includes('n') ? () => press('next') : null);
+    set('seekbackward', acts === 'seek' ? () => pressV('seekbackward') : null); set('seekforward', acts === 'seek' ? () => pressV('seekforward') : null);
+  }
+  try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch {}
+  // elapsed and total (2026-10-27, "show the elapsed/total time in the now playing areas"): the PC's own clock each poll; between polls the
+  // phone runs it on while playing. Unknown, the entry shows no clock.
+  try { if (navigator.mediaSession.setPositionState) { if (dur && pos !== null) navigator.mediaSession.setPositionState({ duration: dur, playbackRate: 1, position: Math.min(Math.max(0, pos), dur) }); else navigator.mediaSession.setPositionState(); } } catch {}
 }
 function streamHold(hold) {
   if (!listening || mode !== 'background') return;

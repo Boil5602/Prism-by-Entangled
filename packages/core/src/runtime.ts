@@ -2923,6 +2923,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     event(json) {
       const ev = JSON.parse(json) as SurfaceEvent;
       if (ev.type === "profile-migrated") { sharedMigrated?.(ev); return; }
+      if (ev.type === "device-mute") { remote.privateMuted = ev.on; return; }   // the phones' Mute the PC reads the device as it stands (2026-10-27)
       try { musicNextWatch(ev); sessionWatch(ev); bounceWatch(ev); } catch (e) { report(e); }
       orchestrator.onSurfaceEvent(ev).catch(report);
       // Phase 2: the rows a person browses on an App's popped-out page (App setup, the sign-in wizard) are kept the way

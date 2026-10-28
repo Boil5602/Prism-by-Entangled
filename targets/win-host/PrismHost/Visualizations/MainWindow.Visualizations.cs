@@ -108,6 +108,10 @@ public sealed partial class MainWindow
             using (var outer = JsonDocument.Parse(raw)) inner = outer.RootElement.ValueKind == JsonValueKind.String ? outer.RootElement.GetString()! : raw;
             using var st = JsonDocument.Parse(inner);
             if (st.RootElement.TryGetProperty("audioOwner", out var ao) && ao.ValueKind == JsonValueKind.String) owner = ao.GetString();
+            // the window a phone will hear: core's audio owner, whatever its page's mute says (2026-10-27, "I can't hear anything using
+            // private listening now": the wall mute was on from before a restart, so no page had been unmuted since, the host knew no
+            // sound window, and the listen lifted nothing - B-426)
+            if (owner is { Length: > 0 }) _surfaces.NoteSoundTile(owner);
             _wallMuted = st.RootElement.TryGetProperty("muted", out var wm) && wm.ValueKind == JsonValueKind.True;   // B-150: the wall's one mute switch
             RootGrid.DispatcherQueue.TryEnqueue(SyncVolumeSlider);   // an open slider follows the switch (0 while muted)
             string Str(JsonElement e, string k) => e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
@@ -1737,7 +1741,16 @@ public sealed partial class MainWindow
         // a right-click (or a long press) on the music player opens Quick play at the pointer (2026-10-23, "there is a right click menu. I dont think
         // there is anything in there that I want. Can we just have it open the quick play menu for music instead? Just open it by the cursor (make
         // sure it doesnt run outside the window)"); it was the scene item's sheet. The flyout keeps itself inside the window.
-        g.RightTapped += (_, e) => { e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetPosition(g)); };
+        g.RightTapped += (_, e) => { if (e.OriginalSource is DependencyObject d0 && IsInside(d0, parts.ArtCard)) return; e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetPosition(g)); };
+        // the poster (2026-10-26, "when I right click on the poster for the album, I'd still like to see my normal context menu, right now it
+        // shows nothing"): a right press on the art Image never reaches g as RightTapped (host.log: "press at ... on Image", then nothing, while
+        // the same press on the Grid opened Quick play), so the card reads the pointer's own release, which does arrive. Should the gesture
+        // ever come from inside the card, the handler above leaves it alone, so the panel opens once.
+        parts.ArtCard.PointerReleased += (_, e) =>
+        {
+            if (e.GetCurrentPoint(parts.ArtCard).Properties.PointerUpdateKind != Microsoft.UI.Input.PointerUpdateKind.RightButtonReleased) return;
+            e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetCurrentPoint(g).Position);
+        };
         g.Holding += (_, e) => { if (e.HoldingState == Microsoft.UI.Input.HoldingState.Started) { e.Handled = true; WakeViz(); _ = ShowQuickPlayAsync(g, parts.Source, null, e.GetPosition(g)); } };
         return g;
     }

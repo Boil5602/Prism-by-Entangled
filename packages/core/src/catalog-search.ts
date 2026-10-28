@@ -174,6 +174,25 @@ export function titlesFromSearch(results: unknown, max = CATALOG_TITLES): Array<
   return out;
 }
 
+/**
+ * One word typed where the title has two (2026-10-26, "I did run a search for supercrooks, and didnt find what I wanted, it was
+ * actually super crooks"): TMDB matches whole words, so "supercrooks" finds nothing. The word split in two at every letter, both
+ * parts at least two letters, for the search to try when the word as typed found no title. One word of six letters or more only;
+ * anything else gets no splits.
+ */
+export function wordSplits(q: string): string[] {
+  const w = q.trim();
+  if (!/^[a-z0-9]{6,24}$/i.test(w)) return [];
+  const out: string[] = [];
+  for (let i = 2; i <= w.length - 2; i++) out.push(w.slice(0, i) + " " + w.slice(i));
+  return out;
+}
+
+/** The same title: the normalized words equal, or equal once their spaces are gone ("supercrooks" is "super crooks"). */
+export function sameTitle(a: string, b: string): boolean {
+  return !!a && (a === b || a.replace(/ /g, "") === b.replace(/ /g, ""));
+}
+
 export interface CatalogRow { app: string; name: string; facet: string; candidate: LookupCandidate; exact: boolean; offer: string; offers: OfferKind[] }
 
 /**
@@ -183,10 +202,10 @@ export interface CatalogRow { app: string; name: string; facet: string; candidat
  */
 export function catalogRows(q: string, titles: readonly CatalogTitle[], services: readonly CatalogService[]): CatalogRow[] {
   const want = normalizeTrackText(q);
-  const ordered = [...titles].sort((a, b) => Number(normalizeTrackText(b.title) === want) - Number(normalizeTrackText(a.title) === want));
+  const ordered = [...titles].sort((a, b) => Number(sameTitle(normalizeTrackText(b.title), want)) - Number(sameTitle(normalizeTrackText(a.title), want)));
   const rows: CatalogRow[] = [];
   for (const t of ordered) {
-    const exact = !!want && normalizeTrackText(t.title) === want;
+    const exact = sameTitle(normalizeTrackText(t.title), want);
     for (const s of services) {
       if (s.status !== "signed-in" || !s.providers.length) continue;
       const offers = OFFER_ORDER.filter((o) => (t.offers[o] ?? []).some((id) => s.providers.includes(id)));

@@ -215,3 +215,12 @@ needs administrator rights is asked for together, once, while someone sets the P
 - **Remote Desktop Support** (docs/features/media-hub.md; not ticked by default).
 One elevated `cmd` runs `netsh` and `schtasks` for what is ticked; declining changes nothing. The task's definition is a temp file held
 open with no write sharing from its writing until Windows has read it.
+
+**Start Prism when I sign in to Windows** (2026-10-26, "when my PC restarted, prism wasn't launched so I couldn't reach it remotely"): a third
+switch in the same block, and under START WITH WINDOWS on the Device page. It needs no administrator rights, so it applies as it is pressed, apart
+from the one prompt: a value named `Prism` under this account's `HKCU\...\CurrentVersion\Run` naming the Prism that is running (for everyone but a
+developer, the installed copy). Windows runs it each time the account signs in. It is read back from Windows on every draw, and a value
+that names another exe (an older install, a folder since gone) reads as off until the switch is pressed again from the Prism in use. A restart brings Prism back only once the account is signed in, so the page says that a
+PC nobody touches also needs Windows set to sign in by itself (netplwiz, with "Only allow Windows Hello sign-in" off in Sign-in options);
+Prism does not change a sign-in setting. The spec's dedicated-box installer option (auto-login user, Prism as the shell, a watchdog task) is
+still the full answer for an appliance and is not built.

@@ -15,12 +15,32 @@ public sealed partial class SurfaceManager
     private bool _private;
     private bool _deviceWasMuted; private float _deviceWasVolume = -1;
     private bool _wallMutedWhilePrivate;
+    private System.Threading.Timer? _deviceWatch; private bool? _deviceMuteSeen;
     /// <summary>The window the sound is given to (the last one unmuted): the one page a phone hears. Every other window stays muted at the
     /// page while a phone listens (2026-10-06, "I'm using remote listening and it isn't playing what is on the screen in the big window" /
     /// "I should only ever be playing 1 window at a time, whether watching on Prism or remotely on my companion app": the listen lifted every
     /// muted page, and the phone heard all five windows at once).</summary>
     private string? _soundTile;
-    internal void NoteSoundTile(string id) => _soundTile = id;
+    /// <summary>The window a phone will hear, from core's audio owner (MainWindow.Visualizations reads it with the state) - not only from
+    /// an unmute, which never comes while the wall mute is on (B-426, 2026-10-27).</summary>
+    internal void NoteSoundTile(string id)
+    {
+        if (id == _soundTile) return;
+        var prev = _soundTile; _soundTile = id;
+        if (!_private) return;
+        // the sound moved during a listen (00:10:29, 2026-10-28: a new service picked under a standing wall mute - "I can't hear anything
+        // in private listening mode again"): its page had been muted as any other window's before it became the one the phone hears, and
+        // nothing lifted it. The window that had the sound is muted at its page; the new one's page is lifted, its mute being the wall's,
+        // which the speakers carry; under an audio intermission it stays silent.
+        try
+        {
+            if (prev is { } p && Get(p) is { } was && was.Muted && was.View?.CoreWebView2 is { } pc) pc.IsMuted = true;
+            if (Get(id) is { } now && Audible(now) && now.View?.CoreWebView2 is { } c) { if (now.Muted) _wallMutedWhilePrivate = true; c.IsMuted = now.Covered; _onStatus("private listening: the sound moved to " + id + (now.Muted ? ", its mute carried by the speakers" : "")); }
+            using var en = new MMDeviceEnumerator(); using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            dev.AudioEndpointVolume.Mute = _wallMutedWhilePrivate || _deviceMuteWanted;
+        }
+        catch (Exception ex) { _onStatus("private listening: sound moved " + ex.Message); }
+    }
     /// <summary>A page the room hears: a visible one, or a music player's hidden facet (not a reader, which plays nothing).</summary>
     private static bool Audible(Tile t) => t.Kind != SurfaceKind.Hidden || !t.Id.StartsWith("app:", StringComparison.Ordinal);
 
@@ -51,6 +71,7 @@ public sealed partial class SurfaceManager
                     // product. Writing Prism's volume straight onto the device took a device at 30% to 100% under a slider at 100%.
                     dev.AudioEndpointVolume.MasterVolumeLevelScalar = RoomLevel(SessionMute.Volume);
                     _onStatus("private listening: Prism's mute and volume are the device's for now");
+                    _deviceMuteSeen = null; _deviceWatch?.Dispose(); _deviceWatch = new System.Threading.Timer(_ => DeviceMuteWatch(), null, 500, 1500);
                 }
                 else
                 {
@@ -59,6 +80,8 @@ public sealed partial class SurfaceManager
                     dev.AudioEndpointVolume.Mute = _deviceWasMuted;
                     if (_deviceWasVolume >= 0) dev.AudioEndpointVolume.MasterVolumeLevelScalar = _deviceWasVolume;
                     _onStatus("private listening: over; Prism's sound as it was");
+                    _deviceWatch?.Dispose(); _deviceWatch = null; _deviceMuteSeen = null;
+                    try { _forwardEvent("", "{\"type\":\"device-mute\",\"id\":\"\",\"on\":false}"); } catch { }   // the phones' switch is the wall's again
                 }
             }
             catch (Exception ex) { _onStatus("private listening: device " + ex.Message); }
@@ -70,6 +93,7 @@ public sealed partial class SurfaceManager
     {
         if (!_private || !Audible(tile)) return false;
         if (muted && tile.Id != _soundTile) return false;   // another window: muted at its page, so the phone does not hear it either
+        if (muted && tile.Covered && tile.Id == _soundTile) { tile.Muted = true; if (tile.View?.CoreWebView2 is { } bc) bc.IsMuted = true; return true; }   // an audio intermission: the page silent for the phone (B-427)
         if (!muted)
         {
             // the sound moved here: this page is the one heard, and the window that had it is muted at its page (a mute that came first, while
@@ -78,10 +102,27 @@ public sealed partial class SurfaceManager
             _soundTile = tile.Id;
             if (tile.View?.CoreWebView2 is { } c) c.IsMuted = false;
         }
+        _wallMutedWhilePrivate = muted;   // the wall's mute as it stands now, so the phone's own switch going off does not bring a lifted mute back (2026-10-27)
         tile.Muted = muted;
         try { using var en = new MMDeviceEnumerator(); using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia); dev.AudioEndpointVolume.Mute = muted; }
         catch (Exception ex) { _onStatus("private listening: mute " + ex.Message); }
         return true;
+    }
+    /// <summary>The playback device's mute as it stands, to core for the phones' Mute the PC (2026-10-27, "If the user unmutes the PC locally,
+    /// will the app realize and update the mute/unmute buttons?"): read every 1.5 s while a phone listens, sent on change, whoever moved it
+    /// (a mute key at the PC, the mixer, a phone's own ask).</summary>
+    private void DeviceMuteWatch()
+    {
+        try
+        {
+            using var en = new MMDeviceEnumerator();
+            using var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            var on = dev.AudioEndpointVolume.Mute;
+            if (_deviceMuteSeen == on) return;
+            _deviceMuteSeen = on;
+            _forwardEvent("", "{\"type\":\"device-mute\",\"id\":\"\",\"on\":" + (on ? "true" : "false") + "}");
+        }
+        catch { }
     }
     /// <summary>The phone's switch (2026-10-05, "no audio is coming through"): the playback device muted while a phone listens, or left as the
     /// wall's mute says. The device's mute only - the pages stay audible for the loopback the phone hears.</summary>
