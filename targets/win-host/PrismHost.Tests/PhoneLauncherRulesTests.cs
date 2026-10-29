@@ -39,10 +39,11 @@ public sealed class PhoneLauncherRulesTests : IDisposable
     [Fact]
     public void ANewerKeyFileWinsOverTheSnapshot()
     {
-        var store = new StoreService(_root, saveDelayMs: 50);   // the host's way: the changed key gets its own file beside the snapshot
+        var store = new StoreService(_root, saveDelayMs: 50);
         store.Set(PhoneLauncherRules.TokensKey, "[]");
-        store.Flush();
-        var keyFile = Directory.GetFiles(Path.Combine(_root, "store"), "remote_tokens.*.json").Single();
+        store.Flush();   // the snapshot holds [] and the key file written on the way is folded in and gone (B-406), so the newer key file is written here
+        Directory.CreateDirectory(Path.Combine(_root, "store"));
+        var keyFile = Path.Combine(_root, "store", StoreService.KeyFileName(PhoneLauncherRules.TokensKey));
         File.WriteAllText(keyFile, "{\"key\":\"remote:tokens\",\"value\":" + System.Text.Json.JsonSerializer.Serialize(Tokens) + "}");
         File.SetLastWriteTimeUtc(keyFile, DateTime.UtcNow.AddMinutes(1));
         Assert.True(PhoneLauncherRules.PairedOnDisk(_root, "abc123"));

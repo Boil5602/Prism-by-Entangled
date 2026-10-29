@@ -276,7 +276,7 @@ public sealed class StoreService
         if (File.Exists(path)) File.Replace(tmp, path, null);
         else File.Move(tmp, path);
     }
-    private static string KeyFileName(string key)
+    public static string KeyFileName(string key)
     {
         var safe = Sanitize(key);
         if (safe.Length > 80) safe = safe[..80];

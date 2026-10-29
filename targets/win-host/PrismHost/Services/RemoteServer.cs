@@ -303,12 +303,16 @@ public sealed class RemoteServer : IDisposable
 
     /// <summary>The home-screen manifest: its start address keeps the phone's token, so the icon opens Prism already paired. Shared with
     /// the phone launcher (PhoneLauncher), which answers at the same address while Prism is closed.</summary>
+    /// <summary>The manifest carries an explicit id (B-446, 2026-10-28): with two home-screen web apps on a phone, iOS opened the other one
+    /// from the Now Playing control while Prism played (WebKit bug 267810); a reader there found an explicit "id" in the playing app's manifest
+    /// sets it right, read at install, so the app must be removed from the home screen and added again to take it.</summary>
+    internal const string ManifestId = "prism-companion";
     internal static string ManifestJson(string? token, bool classic)
     {
         var start = "/remote" + (token is { Length: > 0 } ? "?token=" + WebUtility.UrlEncode(token) : "");
         return classic
-            ? JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
-            : JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
+            ? JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
+            : JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
             new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" },
             new { src = "/remote/icon-192.png", sizes = "192x192", type = "image/png" },
             new { src = "/remote/icon-512.png", sizes = "512x512", type = "image/png" },

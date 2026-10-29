@@ -35,6 +35,7 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .trk{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}.trk .lbl{font-size:13px;color:var(--ink);margin-top:6px}.trk button.sel{color:var(--amber);font-weight:600}
 .muteNote{flex-direction:column;gap:8px}.muteNote.on{display:flex}.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)}.chk input{width:20px;height:20px;accent-color:var(--amber)}
 .work .drop{background:var(--ground);color:var(--amber);border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
+.safariNote .row{margin-top:8px}.safariNote input{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;padding:10px;border:0;border-radius:10px;background:var(--well);color:var(--ink);font:14px system-ui;-webkit-user-select:text;user-select:text}.safariNote a.go{display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:12px;background:var(--amber);color:var(--amber-ink);font:16px system-ui;font-weight:600;text-decoration:none}.pipOut{display:block;width:160px;height:90px;margin:10px auto 0;background:#000;border-radius:8px}
 .work{display:none;margin:10px 0 0;padding:10px 12px;background:var(--panel);border-radius:12px;color:var(--amber);font-size:14px}.work.on{display:block}.work.done{color:var(--ink)}.work i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:8px;animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 .vnp img{width:72px;height:108px}.seek{margin-top:12px}.seek input{width:100%}.times{display:flex;justify-content:space-between;font-size:13px;color:var(--ink);margin-top:2px}
 .ic{width:26px;height:26px;fill:currentColor;display:block}.mtr{gap:8px;align-items:center}.mtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.mtr button.go{flex:1.35;height:68px}.mtr button.go .ic{width:32px;height:32px}.mtr button:disabled{opacity:.35}#orderRow button{min-width:0;flex:1}#orderRow button.on{color:var(--amber)}#orderRow button.on .ic{fill:var(--amber)}.vtr{gap:8px;align-items:center}.vtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.vtr button.go{flex:1.35;height:68px}.vtr button.go .ic{width:32px;height:32px}.vtr button:disabled{opacity:.35}.vrow button{display:flex;flex-direction:column;align-items:center;gap:5px;font:13px system-ui;padding:10px 6px}.vrow .ic{width:22px;height:22px}.sbox .glass{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:var(--dim);pointer-events:none}.search .sbox input{padding-left:40px;-webkit-appearance:none;appearance:none}.sbox input::-webkit-search-decoration,.sbox input::-webkit-search-cancel-button,.sbox input::-webkit-search-results-button{-webkit-appearance:none;display:none}#vLivePanel > .body{padding:8px}.lq{width:100%;box-sizing:border-box;background:var(--ground);color:var(--ink);border:1px solid var(--chip);border-radius:10px;padding:10px 12px;font:15px system-ui;margin-bottom:8px}#vLive .item.hidden{display:none}#vLive .grp{margin:10px 6px 2px;font-size:11px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase}#vLive .grp.hidden{display:none}#vLive .item.ch{padding:9px 10px;margin-top:4px}#vLive .ch .l1{display:flex;gap:10px;align-items:baseline}#vLive .ch .l1 span:first-child{flex:none;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vLive .ch .l1 .now{flex:1;display:block;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);font-size:13px}#vLive .ch .pb{margin-top:6px}#vLive .ch .pt{display:none}#vLive .jump{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:var(--panel)}#vLive .jump::-webkit-scrollbar{display:none}#vLive .jump button{flex:none;background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:6px 11px;font:12px system-ui}#vLive .jump.hidden{display:none}.openOn{margin:4px 0 10px}.vrow{margin-top:10px}.vrow button{flex:1;background:var(--panel);color:var(--ink);border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:var(--amber)}
@@ -58,12 +59,14 @@ textarea{width:100%;min-height:96px;background:var(--panel);color:var(--ink);bor
 .big{width:100%;background:var(--amber);color:var(--amber-ink);border:0;border-radius:14px;padding:18px;font:600 18px system-ui;margin-top:12px}.big.off{background:var(--panel);color:var(--ink)}
 p.note{color:var(--ink);font-size:14px;line-height:1.4}
 #npArt[src]{cursor:pointer}
-#vizView{display:none;position:fixed;inset:0;background:#000;z-index:60}#vizView.on{display:block}#vizCanvas{position:absolute;inset:0;width:100%;height:100%}
-.vizBar{position:absolute;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:8px;transition:opacity .4s}#vizView.rest .vizBar,#vizView.rest #vizNote{opacity:0}
+#vizView{display:none;position:fixed;inset:0;background:#000;z-index:60;touch-action:none;-webkit-user-select:none;user-select:none}#vizView.on{display:block}#vizCanvas{position:absolute;inset:0;width:100%;height:100%}
+.vizBar{position:absolute;left:calc(12px + env(safe-area-inset-left));right:calc(12px + env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));display:flex;gap:8px;transition:opacity .4s}#vizView.rest .vizBar,#vizView.rest #vizNote{opacity:0;pointer-events:none}
+.vizTr{bottom:calc(74px + env(safe-area-inset-bottom))}.vizTr button{display:flex;align-items:center;justify-content:center;gap:6px;height:52px;padding:0}.vizTr button.go{flex:1.3;background:var(--amber);color:var(--amber-ink)}.vizTr button:disabled{opacity:.4}.vizTr button span{font-size:12px}
 .vizBar button{flex:1;padding:12px;border-radius:12px;border:0;background:rgba(28,33,41,.85);color:var(--ink);font:14px system-ui}
-#vizNote{position:absolute;left:16px;right:16px;top:calc(14px + env(safe-area-inset-top));color:var(--dim);font-size:13px;transition:opacity .4s}
-.vizInfo{position:absolute;left:16px;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px;color:var(--ink);text-shadow:0 1px 6px rgba(0,0,0,.7);transition:bottom .4s}#vizView.rest .vizInfo{bottom:calc(18px + env(safe-area-inset-bottom))}
-.vizInfo .svc{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#D8DEE8;opacity:.85}.vizInfo b{font-size:20px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo span{font-size:14px;color:#D8DEE8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo .clk{font-variant-numeric:tabular-nums;color:var(--amber)}
+#vizNote{position:absolute;left:calc(16px + env(safe-area-inset-left));right:calc(16px + env(safe-area-inset-right));top:calc(14px + env(safe-area-inset-top));color:var(--dim);font-size:13px;transition:opacity .4s}
+.vizInfo{position:absolute;left:calc(16px + env(safe-area-inset-left));right:calc(16px + env(safe-area-inset-right));bottom:calc(136px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px;color:var(--ink);text-shadow:0 1px 6px rgba(0,0,0,.7);transition:bottom .4s}#vizView.rest .vizInfo{bottom:calc(18px + env(safe-area-inset-bottom))}
+@media (orientation:landscape){.vizInfo{right:auto;width:calc(50% - 30vh - 28px - env(safe-area-inset-left));min-width:150px}}
+.vizInfo .svc{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo b{font-size:20px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo span{font-size:14px;color:var(--ink);opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vizInfo .clk{font-variant-numeric:tabular-nums;color:var(--amber)}
 .svc .lk{margin:8px 6px 0;font-size:14px;line-height:1.4;color:var(--ink)}.svc .lk .st{color:var(--amber);margin:0 0 4px}.svc .lk .item.dim{opacity:.55}
 .verr{display:none;margin-top:10px;padding:12px;border-radius:12px;background:var(--panel);color:var(--amber);font-size:15px;line-height:1.4;flex-direction:column;gap:10px}.verr.on{display:flex}.verr button{align-self:flex-start;background:var(--amber);color:var(--amber-ink);border:0;border-radius:12px;padding:12px 18px;font:600 15px system-ui}
 .target{display:flex;flex-direction:column;gap:3px;background:var(--panel);border-left:4px solid var(--dim);border-radius:10px;padding:10px 12px;margin-bottom:10px}.target.on{border-left-color:var(--amber)}
@@ -74,7 +77,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 .simple #vCont .card{width:150px}.simple #vCont .card .art,.simple #vCont .card .pend{width:150px;height:225px}.simple #vCont .card .nm{width:150px;top:169px}.simple #vCont .card .ago,.simple #vCont .card .sc{top:199px}.card .pend{position:absolute;left:0;top:0;width:112px;height:168px;border-radius:10px;background:rgba(5,6,9,.74);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;box-sizing:border-box;color:var(--ink);font:600 12px/1.25 system-ui;text-align:center;white-space:normal}.card .pend svg{width:30px;height:30px;fill:var(--amber)}
 </style></head><body>
 <header>__WORDMARK__<span id="who">on this PC</span><button id="more" class="more" aria-label="Options">&#8943;</button></header>
-<div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music lounge</button><button id="plVideo">Video</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="modeBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><p class="note give">Prism is free. If you'd like to support Entangled, you can on our site. It's entirely up to you. <a href="https://entangled.world/support" target="_blank" rel="noopener noreferrer">entangled.world/support</a> opens in your phone's browser.</p><button id="closeMenu">Close</button><button id="forget" class="danger">Forget this PC</button><p id="howHome" class="how"></p></div>
+<div id="menu" class="menu"><div class="players"><span>Prism on PC</span><button id="plMusic">Music player</button><button id="plVideo">Video player</button></div><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="modeBtn"></button><button id="pipBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><p class="note give">Prism is free. If you'd like to support Entangled, you can on our site. It's entirely up to you. <a href="https://entangled.world/support" target="_blank" rel="noopener noreferrer">entangled.world/support</a> opens in your phone's browser.</p><button id="closeMenu">Close</button><button id="forget" class="danger">Forget this PC</button><p id="howHome" class="how"></p></div>
 <div id="banner" class="banner"><span id="bannerText">Prism on the PC was updated. This page refreshes in 5:00.</span><button id="refreshNow">Refresh now</button></div>
 <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs><symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol><symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></symbol><symbol id="i-start" viewBox="0 0 24 24"><path d="M5 6h2v12H5zm3 6l11-6v12z"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="M17 6h2v12h-2zM5 6l11 6-11 6z"/></symbol><symbol id="i-back10" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-fwd10" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-skip" viewBox="0 0 24 24"><path d="M4 6l8 6-8 6zm8 0l8 6-8 6z"/></symbol><symbol id="i-cc" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v14H3V5zm2 2v10h14V7H5zm3 2.5h3V11H9v2h2v1.5H8v-5zm6 0h3V11h-2v2h2v1.5h-3v-5z"/></symbol><symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></symbol><symbol id="i-unmute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm11 .3l1.4-1.4 2.4 2.4 2.4-2.4 1.4 1.4-2.4 2.4 2.4 2.4-1.4 1.4-2.4-2.4-2.4 2.4-1.4-1.4 2.4-2.4z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></symbol><symbol id="i-repeat" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></symbol><symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol><symbol id="i-order" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol><symbol id="i-reverse" viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></symbol></defs></svg>
 <nav><button id="tabM" class="on">Music</button><button id="tabV" style="display:none">Video</button><button id="tabK">Keyboard</button><button id="tabL">Private Listening</button></nav>
@@ -85,9 +88,10 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="seek mseek" id="npTimeRow" style="display:none"><div class="bar"><i id="npBar"></i></div><div class="times"><span id="npTime"></span><span id="npLeft"></span></div></div>
 <div class="tr mtr"><button data-c="prev" id="trPrev" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button data-c="play" id="trPlay" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button data-c="next" id="trNext" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button></div>
 <div class="row vrow"><button data-c="thumbup" id="trUp"><svg class="ic"><use href="#i-up"/></svg><span>Like</span></button><button data-c="thumbdown" id="trDown"><svg class="ic"><use href="#i-down"/></svg><span>Dislike</span></button><button data-c="mute" id="trMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute the PC</span></button></div>
+<div class="work safariNote" id="safariNote"><span id="safariText">On iPhone, tapping the Now Playing title can open a different web app. If that bothers you, use Prism in Safari instead: copy this address and paste it into Safari.</span><input id="safariUrl" readonly><div class="row"><button id="safariCopy" class="go">Copy</button><button id="safariNo">Not now</button></div><p class="note" id="safariSay"></p></div>
 <div class="row vrow order" id="orderRow"><button data-o="normal"><svg class="ic"><use href="#i-order"/></svg><span>In order</span></button><button data-o="true-shuffle"><svg class="ic"><use href="#i-shuffle"/></svg><span>True shuffle</span></button><button data-o="reverse"><svg class="ic"><use href="#i-reverse"/></svg><span>Reverse</span></button><button id="repeatBtn"><svg class="ic"><use href="#i-repeat"/></svg><span>Repeat</span></button></div>
 <p class="work" id="mwork"></p><p class="work" id="nextLine"></p>
-<div id="vizView"><canvas id="vizCanvas"></canvas><span id="vizNote"></span><div class="vizInfo"><span class="svc" id="vizSvc"></span><b id="vizTitle"></b><span id="vizLine2"></span><span id="vizAlbum"></span><span class="clk" id="vizClock"></span></div><div class="vizBar"><button id="vizStyle" type="button">Like the PC</button><button id="vizClose" type="button">Close</button></div></div>
+<div id="vizView"><canvas id="vizCanvas"></canvas><span id="vizNote"></span><div class="vizInfo"><span class="svc" id="vizSvc"></span><b id="vizTitle"></b><span id="vizLine2"></span><span id="vizAlbum"></span><span class="clk" id="vizClock"></span></div><div class="vizBar vizTr"><button id="vizPrev" type="button" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button id="vizPlay" type="button" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button id="vizNext" type="button" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button><button id="vizMute" type="button"><svg class="ic"><use href="#i-mute"/></svg><span>Mute the PC</span></button></div><div class="vizBar"><button id="vizStyle" type="button">Sunrise Meadow</button><button id="vizClose" type="button">Close</button></div></div>
 <div id="pickSheet" class="sheet"><b id="pickWhat"></b><button id="pickNow" class="go">Play now</button><button id="pickNext">Play after this track</button><button id="pickCancel">Cancel</button></div>
 <h3 class="qh">Quick play</h3>
 <div id="quick" class="quick"><p class="note">Reading your services' lists&hellip;</p></div>
@@ -131,6 +135,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <p class="note" id="lvlNote"></p>
 <div id="lwin" class="lwin"><p class="note">Listening to</p><div class="row order" id="lwinRow"></div><p class="note" id="lwinNote"></p></div>
 <audio id="out" playsinline preload="none"></audio>
+<div class="row" id="pipRow" style="display:none"><button id="pipGo">Picture in Picture</button></div><p class="note" id="pipNote"></p>
 <p class="err" id="lerr"></p><p class="work" id="netNote"></p>
 <div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute the speakers</button><button id="muteNo">Keep them on</button></div></div>
 </section>
@@ -475,7 +480,7 @@ async function pollPlayers() {
 }
 for (const [id, kind] of [['plMusic', 'music'], ['plVideo', 'video']]) q('#' + id).onclick = async () => {
   if (q('#' + id).classList.contains('on')) return;
-  if (!confirm('Switch the PC to the ' + (kind === 'music' ? 'Music lounge' : 'Video player') + '? Everyone in the room sees it change.')) return;   // a whole-PC switch from a phone menu asks first (2026-10-17, finding 23)
+  if (!confirm('Switch the PC to the ' + (kind === 'music' ? 'Music player' : 'Video player') + '? Everyone in the room sees it change.')) return;   // a whole-PC switch from a phone menu asks first (2026-10-17, finding 23)
   try { await api('/ui/route', { route: 'prism://player/' + kind }); q('#menu').classList.remove('on'); setTimeout(pollPlayers, 800); setTimeout(pollPlayers, 2500); } catch (e) { q('#howHome').textContent = e.message; }
 };
 pollPlayers(); setInterval(pollPlayers, 5000);
@@ -549,6 +554,7 @@ async function pollNow() {
     if ((md.title || '') !== lkTitle || (now ? now.tile : null) !== lkTile) { lkTitle = md.title || ''; lkTile = now ? now.tile : null; for (const s of quickSrcs) { const m = svcMode.get(s.tile) || 'actions'; if (m === 'actions' || m === 'add') drawSvcBody(s, svcBody(s.tile)); } }
     q('#trPrev').disabled = !now || tr.previoustrack === false; q('#trNext').disabled = !now || tr.nexttrack === false; q('#trPlay').disabled = !now;
     q('#trUp').disabled = q('#trDown').disabled = !now;
+    q('#vizPrev').disabled = q('#trPrev').disabled; q('#vizNext').disabled = q('#trNext').disabled; q('#vizPlay').disabled = !now; q('#vizPlay').innerHTML = q('#trPlay').innerHTML;   // the visual's transport, the same state
   } catch (e) { say('#merr', e.message); }
 }
 setInterval(pollNow, 2500); pollNow();
@@ -591,12 +597,13 @@ q('#repeatBtn').onclick = async () => {
 // streamed to that area instead? Let the user full screen it without interrupting the music. Could be fun to zone out to"): a tap on the
 // picture opens it over the page. The PC's own bands (its loopback FFT, 48 a frame at 30 a second over the /viz/bands socket) are drawn
 // here in the lounge's three styles, in the picture's own colours; the music and the listen are untouched, and the screen stays awake.
-const viz = { on: false, ws: null, bands: new Float32Array(48), smooth: new Float32Array(48), style: 'pc', raf: 0, t: 0, lastAt: 0, parts: [], colors: ['#F2B14C', '#E8ECF2'], lock: null, restT: 0, reduced: false, sun: null,
+const viz = { on: false, ws: null, bands: new Float32Array(48), smooth: new Float32Array(48), style: 'sunrise', raf: 0, t: 0, lastAt: 0, parts: [], colors: ['#F2B14C', '#E8ECF2'], lock: null, restT: 0, reduced: false, sun: null,
   feed: null, feedT: 0, pal: null, artUrl: '', art: null, artBlur: null };
-const VIZ_STYLES = ['pc', 'sunrise', 'bars', 'ribbon', 'particles'], VIZ_NAMES = { pc: 'Like the PC', sunrise: 'Sunrise Meadow', bars: 'Bars', ribbon: 'Ribbon', particles: 'Particles' };
-// the PC's styles as the phone draws them: its scenes by name where one is ported, the plain programs by their family
-function vizStyleOf(pcStyle) { const m = { 'sunrise-meadow': 'sunrise', spectrum: 'bars', ribbon: 'ribbon', bloom: 'particles', particles: 'particles', 'prism-beams': 'particles' }; return m[pcStyle] || 'bars'; }
-function vizStyleNow() { return viz.style === 'pc' ? (viz.feed ? vizStyleOf(viz.feed.style) : 'sunrise') : viz.style; }
+// the scenes the phone draws: the PC's where one is ported, by its own name, and three plain programs. There is no "Like the PC" entry:
+// with one scene ported it drew a stand-in for the other fifteen under that name (2026-10-28, "It's not like we have all visuals
+// displaying in the companion app, do we?"); the stage's art mode and palette follow the PC in every style regardless
+const VIZ_STYLES = ['sunrise', 'bars', 'ribbon', 'particles'], VIZ_NAMES = { sunrise: 'Sunrise Meadow', bars: 'Bars', ribbon: 'Ribbon', particles: 'Particles' };
+function vizStyleNow() { return viz.style; }
 // ---- the stage's feed (2026-10-28, "Can we apply the album art over the visual like we do in the windows app?"): the visualization on the
 // PC's stage - its style, its artwork mode (off, backdrop, focal: spec section 32), the art and core's palette tinted toward it - read
 // every few seconds while the view is open, so the phone shows what the stage shows: the art blurred and dimmed behind the scene with a
@@ -609,9 +616,10 @@ async function vizFeedPoll() {
     viz.feed = f ? { style: f.style, artworkMode: f.artworkMode || 'off', artwork: f.artwork || '', palette: Array.isArray(f.palette) ? f.palette : [] } : null;
     viz.pal = viz.feed && viz.feed.palette.length >= 3 ? viz.feed.palette.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]).filter((c) => c.every((v) => !isNaN(v))) : null;
     if (viz.pal && viz.pal.length < 3) viz.pal = null;
-    const url = viz.feed && viz.feed.artworkMode !== 'off' ? viz.feed.artwork : '';
+    // the stage's source can be another service's facet than the one playing (Apple Music's, idle, while Pandora plays: 2026-10-28, "the
+    // poster has been removed from the visual on the phone"): with no art in the feed, the playing song's own, in the stage's mode
+    const url = viz.feed && viz.feed.artworkMode !== 'off' ? (viz.feed.artwork || npArtUrl()) : '';
     if (url !== viz.artUrl) { viz.artUrl = url; viz.art = null; viz.artBlur = null; if (url) vizArtLoad(url); }
-    if (viz.style === 'pc') q('#vizStyle').textContent = vizStyleWord();
   } catch (e) {}
   viz.feedT = setTimeout(vizFeedPoll, 3000);
 }
@@ -635,20 +643,24 @@ function vizArtBackdrop(g, W, H) {
   g.fillStyle = 'rgba(11,13,18,0.55)'; g.fillRect(0, 0, W, H); g.restore();
   return true;
 }
+// the focal art's centre: a little above the middle, as the PC's poster; in portrait, over the sun's travel in Sunrise Meadow, which
+// the scene matches (2026-10-28, "In portrait mode in the mobile app, the art sits too high and the sun bounces about halfway into visibility")
+function vizFocalCy(W, H) { return H > W ? H * 0.566 : H / 2 - 20; }
 function vizArtFocal(g, W, H) {
   if (!viz.art) return;
   const side = Math.max(200, Math.round(Math.min(W, H) * 0.6)), sw = viz.art.naturalWidth, sh = viz.art.naturalHeight, r = Math.min(side / sw, side / sh), w = sw * r, h = sh * r;
   g.save(); g.globalAlpha = 1; g.fillStyle = 'rgba(11,13,18,0.1)'; g.fillRect(0, 0, W, H);
-  g.drawImage(viz.art, (W - w) / 2, (H - h) / 2 - 20, w, h); g.restore();   // the PC's square, set a little above centre as its poster is
+  g.drawImage(viz.art, (W - w) / 2, vizFocalCy(W, H) - h / 2, w, h); g.restore();   // the PC's square, set a little above centre as its poster is
 }
 try { if (VIZ_STYLES.includes(localStorage.getItem('prism.viz.style'))) viz.style = localStorage.getItem('prism.viz.style'); } catch {}
 try { viz.reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch {}
 function vizStyleWord() { return VIZ_NAMES[viz.style] || viz.style; }
+function npArtUrl() { const md = lastNow && lastNow.metadata ? lastNow.metadata : {}, aw = md.artwork; return typeof aw === 'string' ? aw : Array.isArray(aw) && aw.length ? (aw[aw.length - 1].src || '') : ''; }
 // ---- Sunrise Meadow, the lounge's own scene redrawn here (2026-10-27, "What about trying the sunrise one, with the sun, birds, clouds,
 // grass. I like that one"): the PC's Tableaus.cs SunriseMeadow and its pack (visualization-styles/sunrise-meadow.json), move for move -
 // the sun climbing with the loudness, rays turning, grass swaying with the mids, clouds drifting, a flock now and then with a wake of
 // light on the beat - from the same 24 levels (attack .6, release .12, each summary riding its own recent range) off the PC's bands.
-const SUN_P = [[0xF0, 0xA8, 0x3C], [0xF0, 0x5C, 0x7A], [0xF0, 0xD0, 0x8F], [0xA8, 0xD8, 0x6C]], SUN_INK = [0x0B, 0x0D, 0x12], SUN_INK2 = [0x14, 0x18, 0x21], SUN_WHITE = [0xEC, 0xEC, 0xF0], SUN_LIFT = [0x2A, 0x38, 0x62];
+const SUN_P = [[0xF0, 0xA8, 0x3C], [0xF0, 0x5C, 0x7A], [0xF0, 0xD0, 0x8F], [0xA8, 0xD8, 0x6C]], SUN_INK = [0x0B, 0x0D, 0x12], SUN_INK2 = [0x14, 0x18, 0x21], SUN_WHITE = [0xEC, 0xEC, 0xF0], SUN_LIFT = [0x2A, 0x38, 0x62];   // scene palette: the PC's sunrise-meadow pack, a picture, not UI
 function sP(i) { const pal = viz.pal || SUN_P; return pal[Math.abs(i) % pal.length]; }
 function sMix(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
 function sCss(c, a) { return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + (a === undefined ? 1 : Math.min(1, Math.max(0, a))) + ')'; }
@@ -676,7 +688,7 @@ function sunBuild(W, H) {
   for (let i = 0; i < 7; i++) b.flock.push({ dx: -Math.floor((i + 1) / 2) * 0.032, dy: (i % 2 === 0 ? 1 : -1) * Math.floor((i + 1) / 2) * 0.02, ph: r() * 6, size: 0.011 + r() * 0.006 });
   return b;
 }
-function sunDraw(g, W, H, dt, overArt) {
+function sunDraw(g, W, H, dt, overArt, underArt) {
   if (!viz.sun) viz.sun = { b: null, lv: new Float32Array(24), hi: [0, 0, 0, 0], lo: [0, 0, 0, 0], beatE: 0, rise: 0, drift: 0, flockAt: -1, nextFlock: NaN, flockDir: 1, flockY: 0.3, hue: 0, sp: [], spNext: 0, t: 0, rng: sRng(11) };
   const st = viz.sun; if (!st.b || st.b.W !== W || st.b.H !== H) st.b = sunBuild(W, H);
   const b = st.b, S = (f) => f * H, X = (f) => f * W, Y = (f) => f * H, reduced = viz.reduced, R = st.rng;
@@ -694,7 +706,11 @@ function sunDraw(g, W, H, dt, overArt) {
   const f = { low: range(0, low / 6), mid: range(1, mid / 8), high: range(2, high / 10), loud: range(3, loud / 24), beat: Math.min(1, beatRaw), t: (st.t += dt), dt, speed: reduced ? 0.15 : 1 };
   const Lv = (frac) => lv[Math.min(23, Math.max(0, Math.round(frac * 23)))];
   st.rise += ((0.3 + 0.7 * f.loud) - st.rise) * kRise;   // never a sun below the hills: a resting dawn, a full one on a loud mix
-  const rise = st.rise, cx = X(0.5), cy = Y(0.8 - 0.36 * rise);
+  // in portrait under the focal art the sun keeps the landscape's proportions to the picture: its size and travel off the width, centred
+  // on the art, so the rays come evenly from behind the picture and the disc stays behind it (2026-10-28, "In portrait mode ... the art
+  // sits too high and the sun bounces about halfway into visibility"); landscape, and portrait without the art, are as they were
+  const tall = !!underArt && H > W, Hs = tall ? W : H, SS = (f) => f * Hs;
+  const rise = st.rise, cx = X(0.5), cy = tall ? vizFocalCy(W, H) - (rise - 0.65) * 0.36 * Hs : Y(0.8 - 0.36 * rise);
   g.globalAlpha = 1;
   // the sky, its night colours lifted toward a deep blue as on the PC
   const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, sCss(sMix([0x08, 0x0A, 0x1E], SUN_LIFT, 0.35))); sky.addColorStop(0.6, sCss(sMix([0x1A, 0x14, 0x30], SUN_LIFT, 0.35))); sky.addColorStop(1, sCss(sMix([0x2A, 0x1C, 0x2C], SUN_LIFT, 0.35)));
@@ -706,13 +722,13 @@ function sunDraw(g, W, H, dt, overArt) {
   st.drift += f.dt * f.speed * (0.006 + 0.014 * f.mid);
   for (let i = 0; i < b.clouds.length; i++) { const c = b.clouds[i], fx = (c.x + st.drift * (0.6 + 0.2 * (Math.floor(i / 4) % 3)) + 0.3) % 1.3 - 0.15; sGlow(g, X(fx), Y(c.y) + Math.sin(f.t * 0.3 + c.ph) * S(0.004), S(c.d) * (1 + 0.1 * f.low), S(c.d) * 0.5, sMix(sP(1), SUN_WHITE, 0.55), 0.8, (0.1 + 0.45 * rise) * (0.8 + 0.2 * sOsc(f.t, 0.5, c.ph))); }
   for (let i = 0; i < 18; i++) {   // rays turning slowly, each as long as its band
-    const a = f.t * 0.06 * f.speed + i * Math.PI * 2 / 18, l = Lv(i / 18), len = S(0.5 + 0.5 * l), half = 0.045;
+    const a = f.t * 0.06 * f.speed + i * Math.PI * 2 / 18, l = Lv(i / 18), len = SS(0.5 + 0.5 * l), half = 0.045;
     const rg = g.createRadialGradient(cx, cy, 0, cx, cy, len); rg.addColorStop(0, sCss(sP(2), 0.35)); rg.addColorStop(1, sCss(sP(2), 0));
     g.globalAlpha = Math.min(1, 0.15 + 0.4 * l * rise); g.fillStyle = rg; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a - half) * len, cy + Math.sin(a - half) * len); g.lineTo(cx + Math.cos(a + half) * len, cy + Math.sin(a + half) * len); g.closePath(); g.fill();
   }
-  sGlow(g, cx, cy, S(1.2 + 0.6 * f.loud), S(1.2 + 0.6 * f.loud), sP(0), 0.25, 0.3 + 0.6 * rise);
-  sGlow(g, cx, cy, S(0.5 + 0.3 * f.loud + 0.15 * f.beat), S(0.5 + 0.3 * f.loud + 0.15 * f.beat), sP(2), 0.5, 0.5 + 0.5 * f.loud);
-  g.globalAlpha = 1; g.fillStyle = sCss(sMix(sP(2), SUN_WHITE, 0.5)); g.beginPath(); g.arc(cx, cy, S(0.2 + 0.06 * f.low) / 2, 0, Math.PI * 2); g.fill();
+  sGlow(g, cx, cy, SS(1.2 + 0.6 * f.loud), SS(1.2 + 0.6 * f.loud), sP(0), 0.25, 0.3 + 0.6 * rise);
+  sGlow(g, cx, cy, SS(0.5 + 0.3 * f.loud + 0.15 * f.beat), SS(0.5 + 0.3 * f.loud + 0.15 * f.beat), sP(2), 0.5, 0.5 + 0.5 * f.loud);
+  g.globalAlpha = 1; g.fillStyle = sCss(sMix(sP(2), SUN_WHITE, 0.5)); g.beginPath(); g.arc(cx, cy, SS(0.2 + 0.06 * f.low) / 2, 0, Math.PI * 2); g.fill();
   // birds: a flock every so often, sooner on a loud mix, wings beating with the mids and the beat, lifting on the highs; none under reduced motion
   if (isNaN(st.nextFlock)) st.nextFlock = f.t + 8;
   if (st.flockAt < 0) { if (!reduced && f.t >= st.nextFlock) { st.flockAt = 0; st.flockDir = R() < 0.5 ? 1 : -1; st.flockY = 0.16 + R() * 0.3; st.hue = Math.floor(R() * SUN_P.length); } }
@@ -819,7 +835,7 @@ function vizDraw(now) {
   energy /= 6;
   const style = vizStyleNow(), mode = viz.feed ? viz.feed.artworkMode : 'off';
   const backdrop = mode === 'backdrop' && vizArtBackdrop(g, W, H);
-  if (style === 'sunrise') { sunDraw(g, W, H, dt, backdrop); if (mode === 'focal') vizArtFocal(g, W, H); return; }
+  if (style === 'sunrise') { sunDraw(g, W, H, dt, backdrop, mode === 'focal'); if (mode === 'focal') vizArtFocal(g, W, H); return; }
   g.globalAlpha = 1; g.fillStyle = style === 'particles' ? 'rgba(0,0,0,.18)' : backdrop ? 'rgba(0,0,0,0)' : '#000'; if (!backdrop || style === 'particles') g.fillRect(0, 0, W, H);
   const c1 = viz.pal ? sCss(viz.pal[0]) : viz.colors[0], c2 = viz.pal ? sCss(viz.pal[1]) : viz.colors[1];
   if (style === 'bars') {
@@ -851,6 +867,14 @@ function vizDraw(now) {
 }
 q('#npArt').onclick = () => { if (q('#npArt').getAttribute('src') || npTile) vizOpen(); };
 q('#vizClose').onclick = vizClose;
+// no zoom while the visual is up (2026-10-28, "is it possible to not allow zooming while the visual is full screen?"): iOS keeps pinch and
+// double-tap zoom on whatever the viewport says, so the view refuses its gesture events and a scaled touch move while it is open
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => { if (viz.on) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', (e) => { if (viz.on && typeof e.scale === 'number' && e.scale !== 1) e.preventDefault(); }, { passive: false });
+let vizLastTap = 0; q('#vizView').addEventListener('touchend', (e) => { if (e.target.closest('button')) return; const t = Date.now(); if (t - vizLastTap < 350) e.preventDefault(); vizLastTap = t; }, { passive: false });
+// the transport over the scene (2026-10-28, "when you tap the screen on the visual, you can access the playback controls"): the Music
+// tab's own presses, with its state; a tap on the scene brings the rows up, and they fade again after a few seconds
+for (const [id, c] of [['vizPrev', 'prev'], ['vizPlay', 'play'], ['vizNext', 'next'], ['vizMute', 'mute']]) q('#' + id).onclick = (e) => { e.stopPropagation(); press(c); vizRest(); };
 q('#vizStyle').onclick = () => { viz.style = VIZ_STYLES[(VIZ_STYLES.indexOf(viz.style) + 1) % VIZ_STYLES.length]; q('#vizStyle').textContent = vizStyleWord(); try { localStorage.setItem('prism.viz.style', viz.style); } catch {} vizRest(); };
 q('#vizView').addEventListener('pointerdown', vizRest);
 function pickSheet(what, go) {
@@ -2398,7 +2422,7 @@ let mutedByMe = false;
 // The PC's speakers as one switch on the Music and Video tabs (2026-10-27, "When I mute the pc from the private listening tab option, it
 // still shows unmuted on the main music tab"): the person's wall mute mutes the pages, which the phone's stream carries, so while this
 // phone listens the switch mutes the playback device instead (the mute the Listen tab asks about), and Unmute lifts whichever is on.
-function paintMute(on) { for (const m of document.querySelectorAll('#trMute, #vMute')) { muteLabel(m, on); m.classList.toggle('on', on); } }
+function paintMute(on) { for (const m of document.querySelectorAll('#trMute, #vMute, #vizMute')) { muteLabel(m, on); m.classList.toggle('on', on); } }
 async function toggleMute(tile, after) {
   const on = !(wallMuted || privateMuted);
   try {
@@ -2462,7 +2486,7 @@ async function stopListening(sayWhy) {
   listening = false; q('#lvlNote').textContent = keep; lvlPeak = 0; lvlFrames = 0;
   unmuteAfterListen();
   if (stat) { clearInterval(stat); stat = null; }
-  if (ws) { try { ws.close(); } catch {} ws = null; }
+  if (ws) { try { if (ws.__old) ws.__old.close(); } catch {} try { ws.close(); } catch {} ws = null; }   // a frozen socket being replaced goes too
   try { const out = q('#out'); out.pause(); out.loop = false; out.srcObject = null; out.removeAttribute('src'); out.load(); } catch {}
   if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'none'; } catch {} }
   if (ctx) { try { await ctx.close(); } catch {} ctx = null; }
@@ -2532,7 +2556,8 @@ function syncMediaSession() {
       pos = typeof now.position === 'number' ? now.position : null; dur = typeof now.duration === 'number' && now.duration > 0 ? now.duration : null;
     }
   }
-  if (mode !== 'background') acts = '';   // the lock screen's other buttons act on the PC only where its pause does (above)
+  // Next, Previous and the skips act on the PC in both modes (2026-10-28, "The next, prev buttons in iOS now playing aren't working"):
+  // only pause is fired by iOS on its own, so only pause and play are kept to the background mode (above)
   const icon = new URL('/remote/icon.png', location.href).href;
   let art = icon; try { if (art0) art = new URL(art0, location.href).href; } catch {}
   const key = [title, artist, album, art].join('|');
@@ -2617,10 +2642,21 @@ q('#listen').onclick = async () => {
     nudges = 0;
     if (ctx.state !== 'running') { ctx.resume().catch(() => {}); nudgeContext(); }
     playAt = 0;
-    ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/audio/stream?ticket=' + encodeURIComponent(t.ticket));
-    ws.binaryType = 'arraybuffer';
-    ws.onmessage = (ev) => {
+    let got = 0, lastFrameAt = Date.now(), reopens = 0, reopenAt = 0;
+    // the stream's socket, made here for the start and again for a frozen one (2026-10-28, 12:41:17, "What killed my private listening
+    // just now?"): after a short suspension the phone's socket stayed open by its own account, the PC wrote a frame every 20 ms and
+    // its writes were taken, and no frame reached the page again - iOS puts a page's socket away and never says so. Three seconds
+    // without a frame (the PC sends through silence too): a fresh ticket and a new socket, the old one closed once the new one is open,
+    // so the PC never counts no phone in between (that would lift its mute for a moment); twice in a row with nothing, the listen ends
+    // and says why.
+    const openStream = (tk, old) => {
+      const s = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/audio/stream?ticket=' + encodeURIComponent(tk));
+      s.binaryType = 'arraybuffer';
+      if (old) { s.__old = old; s.onopen = () => { try { old.onclose = null; old.onerror = null; old.onmessage = null; old.close(); } catch {} if (s.__old === old) s.__old = null; if (ctx) playAt = ctx.currentTime + lead; }; }
+      s.onmessage = (ev) => {
+      if (ws !== s) return;
       if (typeof ev.data === 'string') { try { const h = JSON.parse(ev.data); if (h.rate) rate = h.rate; if (h.channels) channels = h.channels; } catch {} return; }
+      got++; lastFrameAt = Date.now(); if (reopens && Date.now() - reopenAt > 5000) reopens = 0;
       const pcm = new Int16Array(ev.data); const frames = pcm.length / channels; if (!frames || !ctx) return;
       { let pk = 0; for (let i = 0; i < pcm.length; i += 5) { const a = pcm[i] < 0 ? -pcm[i] : pcm[i]; if (a > pk) pk = a; } noteLevel(pk / 32768); }
       const tArr = performance.now(); if (lastArrive) { const dev = Math.abs(tArr - lastArrive - 20); if (dev > jitterMax) jitterMax = dev; } lastArrive = tArr;
@@ -2639,14 +2675,62 @@ q('#listen').onclick = async () => {
       else if (playAt < now + 0.02) { playAt = now + lead; }
       else if (now - cleanSince > 45 && lead > 0.09) { lead = Math.max(0.09, lead - 0.005); cleanSince = now; }   // forty-five clean seconds: a sliver of the lead given back
       src.start(playAt); playAt += buf.duration / speed;
+      };
+      s.onclose = () => { if (ws === s) stopListening('Prism stopped the stream'); };
+      s.onerror = () => { if (ws === s) stopListening('Could not reach the sound on the PC'); };
+      ws = s;
     };
-    ws.onclose = () => stopListening(ws ? 'Prism stopped the stream' : '');
-    ws.onerror = () => stopListening('Could not reach the sound on the PC');
+    openStream(t.ticket, null);
+    const streamWatch = () => {
+      if (!listening || !ws || ws.readyState !== 1 || Date.now() - lastFrameAt < 3000) return;
+      if (reopens >= 2) { stopListening('The sound from the PC stopped arriving. Tap Listen again.'); return; }
+      reopens++; reopenAt = Date.now(); lastFrameAt = Date.now(); diag('stream frozen, reopening ' + reopens);
+      const old = ws;
+      api('/audio/stream-ticket', {}).then((tk) => { if (listening && ws === old) openStream(tk.ticket, old); }).catch((e) => stopListening('Could not reach the sound on the PC: ' + e.message));
+    };
     q('#listen').textContent = 'Stop listening'; q('#listen').classList.add('off'); say('#lerr', ''); muteForListen();
     // what the phone is doing with the sound, said on the page: the audio state, frames taken, the lead
-    let got = 0; stat = setInterval(() => { if (!ws) { clearInterval(stat); return; } q('#lerr').textContent = (ctx ? ctx.state : 'no audio') + ' \u00b7 ' + got + ' frames' + (ctx && playAt > ctx.currentTime ? ' \u00b7 ' + Math.round((playAt - ctx.currentTime) * 1000) + ' ms behind the PC' : '') + (stalls ? ' \u00b7 ' + stalls + ' stall' + (stalls === 1 ? '' : 's') : '') + (jitterMax ? ' \u00b7 jitter ' + Math.round(jitterMax) + ' ms' : ''); jitterMax = 0; }, 1000);
-    const onmsg = ws.onmessage; ws.onmessage = (ev) => { if (typeof ev.data !== 'string') got++; onmsg(ev); };
+    stat = setInterval(() => { if (!listening) { clearInterval(stat); return; } streamWatch(); if (!ws) return; q('#lerr').textContent = (ctx ? ctx.state : 'no audio') + ' \u00b7 ' + got + ' frames' + (ctx && playAt > ctx.currentTime ? ' \u00b7 ' + Math.round((playAt - ctx.currentTime) * 1000) + ' ms behind the PC' : '') + (stalls ? ' \u00b7 ' + stalls + ' stall' + (stalls === 1 ? '' : 's') : '') + (jitterMax ? ' \u00b7 jitter ' + Math.round(jitterMax) + ' ms' : ''); jitterMax = 0; }, 1000);
   } catch (e) { await stopListening(e.message); }
+};
+// ---- iOS and two home-screen web apps (docs/ios-now-playing.md, B-446, 2026-10-28): the Now Playing control opens the web app the
+// system's host showed last, not the one playing; nothing on this page decides it. Installed on an iPhone, a one-time note offers the
+// way around, Prism in Safari, which owns its own sound. Safari's x-safari-http scheme opens it there; if this page is still showing a
+// second later, the address is shown to copy and paste. The iPhone check is by platform and touch points: the user agent's version is frozen.
+const isIosDevice = () => /iPhone|iPad|iPod/.test(navigator.platform || '') || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+(function safariNote() {
+  let seen = false; try { seen = localStorage.getItem('prism.safariNote') === 'dismissed'; } catch {}
+  if (seen || !standalone() || !isIosDevice()) return;
+  const box = q('#safariNote'); box.classList.add('on');
+  const path = '/remote' + (token ? '?token=' + encodeURIComponent(token) : '');
+  const plain = location.protocol + '//' + location.host + path;
+  const input = q('#safariUrl'); input.value = plain;
+  // no Open in Safari: Safari's scheme exists only for https (x-safari-https; x-safari-http is "invalid", 2026-10-28) and the home
+  // network's page is http. The clipboard API needs https too ("nothing on clipboard"): the copy is the selection's, through
+  // execCommand, and the address can be held and copied by hand
+  input.onfocus = () => { try { input.select(); input.setSelectionRange(0, input.value.length); } catch {} };
+  q('#safariCopy').onclick = () => {
+    let ok = false;
+    try { input.focus(); input.select(); input.setSelectionRange(0, input.value.length); ok = document.execCommand('copy'); } catch {}
+    if (ok) { q('#safariSay').textContent = 'Copied. Paste it into Safari.'; return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain).then(() => { q('#safariSay').textContent = 'Copied. Paste it into Safari.'; }, () => { q('#safariSay').textContent = 'Could not copy. Hold the address to select it.'; });
+    else q('#safariSay').textContent = 'Could not copy. Hold the address to select it.';
+  };
+  q('#safariNo').onclick = () => { box.classList.remove('on'); try { localStorage.setItem('prism.safariNote', 'dismissed'); } catch {} };
+})();
+// ---- Picture in Picture test (docs/ios-now-playing.md, step e): behind a switch under the options, the sound leaves through a <video>
+// element instead of <audio>, and a button asks the phone for its Picture in Picture window, whose return button is bound to this page's
+// own scene. The stream has no video track, so the phone may offer none; the note says so.
+let pipOn = false; try { pipOn = localStorage.getItem('prism.pip') === 'on'; } catch {}
+function sayPip() { q('#pipBtn').textContent = 'Picture in Picture test: ' + (pipOn ? 'on' : 'off'); q('#pipRow').style.display = pipOn ? '' : 'none'; }
+q('#pipBtn').onclick = async () => { pipOn = !pipOn; try { localStorage.setItem('prism.pip', pipOn ? 'on' : 'off'); } catch {} if (listening) await stopListening(''); location.reload(); };
+if (pipOn) { const a = q('#out'), v = document.createElement('video'); v.id = 'out'; v.setAttribute('playsinline', ''); v.playsInline = true; v.preload = 'none'; v.className = 'pipOut'; a.replaceWith(v); }
+sayPip();
+q('#pipGo').onclick = () => {
+  const v = q('#out');
+  if (!listening) { q('#pipNote').textContent = 'Start listening first.'; return; }
+  if (typeof v.webkitSupportsPresentationMode === 'function' && v.webkitSupportsPresentationMode('picture-in-picture')) { try { v.webkitSetPresentationMode('picture-in-picture'); q('#pipNote').textContent = ''; } catch (e) { q('#pipNote').textContent = 'Could not open it: ' + e.message; } }
+  else q('#pipNote').textContent = 'This phone offers no Picture in Picture for this stream (no video track).';
 };
 </script></body></html>
 """;

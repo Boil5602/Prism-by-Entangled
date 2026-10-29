@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.40.0 - 2026-10-28 (alpha, 6f195273)
+
+The phone's lock screen now shows the song or the title playing in Prism, with its art, the clock and the controls. On the phone, each service's Quick play opens on its actions, a song can be added to a playlist on another service, and a tap on the album art opens the lounge visual, Sunrise Meadow redrawn from the PC's own scene with the art and the details over it. Mute the PC is one switch across the phone's tabs, a music ad break is silent on a listening phone and named on it, and Prism starts in a second again where it had taken two minutes. Also: Start Prism when I sign in to Windows, the Skip opening's glow, Quick play from a right-click on the poster, a one-word search tried split in two, and a played episode counting for its series card.
+
+- download: https://prism.entangled.world/windows/Prism-0.40.0-6f195273.zip
+- sha256: 0b4f777da3b1c53055259e57c8de3ce3978f2347b151dde31fa3f79fed27f8c4
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.40.0
+
 ## 0.39.0 - 2026-10-24 (alpha, 0e4852e1)
 
 The phone can open Prism. While Prism is closed the companion app says so and offers an Open Prism button, and after a crash Prism starts again by itself, at most three times an hour. Private Listening asks whether to mute this PC's speakers and no longer turns the Windows volume up to full. A show left paused comes back paused after a restart. Netflix's Skip Intro comes back with Prism's control bar, and the bar gains its Episodes button once the series is known. Quick play opens at the pointer on a right-click, and a playlist's own row can add the song playing now. The taskbar shows the Prism mark again. A Twitch video still being recorded moves to the Live tab instead of sitting on Watch without a picture.

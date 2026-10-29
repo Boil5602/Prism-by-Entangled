@@ -5,7 +5,12 @@ dismissible nudge to put it on their Home Screen. No store, no profile,
 no account.
 
 ## Installability
-- Web app manifest: name "Prism", short_name "Prism", display
+- Web app manifest: name "Prism", short_name "Prism", an explicit id
+  ("prism-companion": with another home-screen web app on the phone, iOS
+  opened that one from the Now Playing control while Prism played, WebKit
+  bug 267810, and an explicit id in the playing app's manifest is the
+  workaround a reader there found; iOS reads it at install, so an app added
+  before it must be removed and added again; B-446, 2026-10-28), display
   "standalone", start_url "/" (or the companion's root), scope the
   companion's path, theme_color and background_color from the app's
   dark surface tokens, icons at 192 and 512 px plus a maskable 512.

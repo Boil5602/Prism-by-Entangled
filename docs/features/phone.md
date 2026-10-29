@@ -42,10 +42,11 @@ phones. The app should also enable the private listening feature through the pho
    artwork address, and their play, pause, previous and next act on that song as the Music tab's buttons do (2026-10-27, "it is able
    to show the song title, album art, etc in the iOS now playing areas"). With the Video player on the PC the entry carries the title on
    screen, its episode and poster, with play, pause and the 15-second skips ("If we're listening to video, can we do something similar?").
-   With nothing playing in Prism the entry reads Prism, and its pause ends the listen. The entry's buttons act on the PC only in the
-   background sound mode: iOS fires the pause for its own interruptions too (the page put away in low delay, a call, another app's
+   With nothing playing in Prism the entry reads Prism, and its pause ends the listen. The entry's pause and play act on the PC only in
+   the background sound mode: iOS fires the pause for its own interruptions too (the page put away in low delay, a call, another app's
    sound), and in low delay any of those ends what the phone hears, so there the lock screen's pause ends the listen, as before,
-   and never touches the PC (2026-10-27, "why does it automatically pause the video I'm playing"). The picture on the lock screen carries a
+   and never touches the PC (2026-10-27, "why does it automatically pause the video I'm playing"). Previous, next and the skips are
+   presses only, so they act on the PC in both modes (2026-10-28, "The next, prev buttons in iOS now playing aren't working"). The picture on the lock screen carries a
    Prism mark in its bottom-right corner, an eighth of its area, about a third of its width (2026-10-27, "there is no indication that
    prism is the player", "I meant for it to cover about 1/8 of the total image"); it is
    composed on the phone from the service's picture, and a picture whose host will not share it with a page stays plain. Android's
@@ -66,13 +67,25 @@ phones. The app should also enable the private listening feature through the pho
    visual streamed to that area instead? Let the user full screen it without interrupting the music"): the PC's own bands (its loopback
    FFT, 48 a frame at 30 a second over the `/viz/bands` WebSocket, the pairing token) drawn on the phone: Sunrise Meadow first (the
    lounge's own scene, Tableaus.cs SunriseMeadow redrawn move for move from the same 24 levels; "What about trying the sunrise one, with
-   the sun, birds, clouds, grass"), then Bars, Ribbon and Particles; the first choice, *Like the PC*, follows the stage's style where
-   one is ported and takes the stage's palette (core's, tinted toward the art) and its artwork mode (2026-10-28, "Can we apply the album
+   the sun, birds, clouds, grass"), then Bars, Ribbon and Particles. There is no "Like the PC" entry: with one scene ported it drew a
+   stand-in for the other fifteen under that name (2026-10-28, "It's not like we have all visuals displaying in the companion app, do
+   we?"); the PC's other scenes are ported one at a time, by name, as asked. Every style takes the stage's palette; the view takes no pinch
+   or double-tap zoom, and its details and buttons keep clear of the camera cutout on every side, in landscape too (2026-10-28, "not
+   allow zooming while the visual is full screen", "the song details ... get cutoff by the iPhone's front facing camera") (core's, tinted toward the art) and its artwork mode (2026-10-28, "Can we apply the album
    art over the visual like we do in the windows app?"): *backdrop* draws the art blurred and dimmed behind the scene with the PC's slow
    drift (the scene's sky becomes a wash so the picture shows through), *focal* draws it sharp and centred over the scene at the PC's
-   size; the details sit at the bottom left as the PC's chrome has them (the service and collection, the title, the artist with the
+   size (in portrait, over the sun's travel in Sunrise Meadow, the sun keeping the landscape's proportions to the picture, its size
+   and travel off the width, so the rays come from behind the art and the disc stays hidden; 2026-10-28, "the art sits too high and the
+   sun bounces about halfway into visibility"); in landscape the details keep to the column left of the art, each line cut with an
+   ellipsis, so none runs across the picture (2026-10-28, "in landscape mode it cuts through the album photo all the way across the
+   screen"). Installed on an iPhone, the Music tab shows once a note that the Now Playing title can open a different web app, with
+   Open in Safari (docs/ios-now-playing.md, B-446). The stage's source can be another service's facet than the one playing (Apple Music's, idle, while Pandora plays), and
+   that feed carries no art: the phone then shows the playing song's own art in the stage's mode (2026-10-28, "the poster has been
+   removed from the visual on the phone"); the details sit at the bottom left as the PC's chrome has them (the service and collection, the title, the artist with the
    state, the album, the clock run on between polls; "Should show the details normally at the bottom left"), rising above the buttons
-   while they show; there is no Full screen button, since an iPhone puts only a video full screen and from the home-screen icon the
+   while they show (a tap on the scene brings up the transport with them: Previous, Play or pause, Next and Mute the PC, the Music
+   tab's own presses with its state; 2026-10-28, "when you tap the screen on the visual, you can access the playback controls"); there
+   is no Full screen button, since an iPhone puts only a video full screen and from the home-screen icon the
    page already fills the screen; Full screen, Close and the style under the picture, fading after a few
    seconds (a touch brings them back); the screen stays awake while it is open; the music, the listen and the PC are untouched.
    A music ad break (the adapter's signal, core's audio intermission) reads *an ad is playing* on the card, *Ad break* for the title
@@ -160,7 +173,7 @@ phones. The app should also enable the private listening feature through the pho
    their work: `POST /video/search {person: {id, name}}`), and the genre and service chips. Every word is core's - the lines under the
    cards, the "Play on X · offer" labels, the headings, the status line, why there is nothing - so a rule changed in core changes both
    screens; the PC's C# and the phone's JS only draw. Not yet walked on a phone.
-5. **Options (⋯).** *Prism on PC: Music lounge | Video* switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
+5. **Options (⋯).** *Prism on PC: Music player | Video player* (the PC's own names for them, settled 2026-10-29) switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
    dispatched through the PC's own player switch; `GET /players` says which exist and which is on). The Music tab is only shown while
    the Music lounge is on. Add to home screen (the phone's own instructions; the icon opens the wall already paired through the manifest's
    start address), the sound mode, the page's volume, Refresh this page, Forget this PC. A support line (2026-10-21, donations live: "we should make sure the link opens to a
@@ -230,7 +243,11 @@ phones. The app should also enable the private listening feature through the pho
 - Listen: `POST /audio/stream-ticket` (core, §14) gives a short-lived ticket; the phone opens a WebSocket at `/audio/stream?ticket=`
   which the host redeems with core and serves (Services/ListenStream.cs): the shared browser's own sound through the process loopback
   the visualizer uses, 16-bit PCM at 48 kHz stereo in 20 ms frames, about 1.5 Mbit/s. One capture serves every phone. The page plays
-  it through the Web Audio API with a short lead; a phone that falls behind has frames dropped, not queued. The same ticket opens
+  it through the Web Audio API with a short lead; a phone that falls behind has frames dropped, not queued. The socket is watched:
+  three seconds without a frame (the PC sends through silence too) and the phone replaces it with a fresh one, the old closed once the
+  new is open so the PC never counts no phone in between; twice in a row with nothing, the listen ends and says why (2026-10-28, "What
+  killed my private listening just now?": an iPhone keeps a socket open by its own account after a short suspension and delivers
+  nothing on it). The same ticket opens
   `GET /audio/live.mp3?ticket=`, a live MP3 at 128 kbit/s (NAudio.Lame, one encoder for every MP3 phone, started with the first and
   stopped with the last), served Icecast-style: `audio/mpeg`, no length, `Connection: close`. The phone's `<audio>` element plays it,
   which is the one kind of sound a phone keeps playing in the background; a phone that cannot take a chunk within a second is

@@ -3,7 +3,8 @@
  * The host draws from one token sheet (2026-10-17, the designer's pass; targets/win-host/PrismHost/Tokens.cs). Two ambers, four inks
  * and two dims had grown across the files. This fails on a retired value anywhere in the host's sources or XAML, and on a colour
  * literal in the phone page's stylesheet outside its :root rule (the phone's colours are CSS custom properties with the same names).
- * The visualizations' art palettes (Tableaus, StylePacks, StyleRenderer) are pictures, not UI, and are left alone.
+ * The visualizations' art palettes (Tableaus, StylePacks, StyleRenderer) are pictures, not UI, and are left alone; so is a line
+ * elsewhere marked "scene palette:" (the phone's port of a PC scene carries that scene's pack colours, 2026-10-28).
  *
  * Exit 0 pass, 1 fail (each offender listed as file:line).
  */
@@ -39,7 +40,7 @@ function files(dir) {
 const offenders = [];
 for (const f of files(hostDir)) {
   const lines = readFileSync(f, "utf8").split(/\r?\n/);
-  lines.forEach((l, i) => { for (const [re, why] of retired) if (re.test(l)) { offenders.push(`${relative(root, f)}:${i + 1}  ${why}`); break; } });
+  lines.forEach((l, i) => { if (l.includes("scene palette:")) return; for (const [re, why] of retired) if (re.test(l)) { offenders.push(`${relative(root, f)}:${i + 1}  ${why}`); break; } });
 }
 
 // the phone page: colour literals in its stylesheet live in :root only

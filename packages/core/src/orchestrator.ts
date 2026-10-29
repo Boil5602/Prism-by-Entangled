@@ -3032,7 +3032,7 @@ export class Orchestrator {
   }
 
   /** A human's music ask on the wall (play, a pick, Start over): arms the tile for audio focus and releases the boot hold for good (B-142). */
-  private arm(tileId: string): void { this.lastInteract.set(tileId, Date.now()); this.pickedAt.set(tileId, Date.now()); this.humanPlayed.add(tileId); this.bootPaused.delete(tileId); this.bootHeld.delete(tileId); }
+  private arm(tileId: string): void { this.lastInteract.set(tileId, Date.now()); this.pickedAt.set(tileId, Date.now()); this.humanPlayed.add(tileId); this.bootPaused.delete(tileId); this.bootHeld.delete(tileId); this.bootHoldPresses.delete(tileId); }
   /** When a person or the wall's own pick last started something on the tile - kept, unlike lastInteract, which the playback it explains uses up
    *  (2026-09-28 review: a pick made after a title ended was paused as "unrelated autoplay" because its mark was gone by the time the check ran). */
   private readonly pickedAt = new Map<string, number>();
@@ -8715,6 +8715,19 @@ export class Orchestrator {
     // B-126: a play a human just asked for (the Play button, a quick-play pick) is not the page auto-playing its
     // watch page - the boot hold does not apply; the arm below makes it the audio owner as any tap would
     if (event.type === "playback" && event.playing && this.bootPaused.has(event.id) && this.lastInteract.has(event.id)) this.bootPaused.delete(event.id);
+    // B-444 (2026-10-28, "on the companion app it says Pandora is playing, which I didn't play myself"): a music page the hold paused plays
+    // on by itself - Pandora starts its next audio element a second after the element pause (held 12:06:13, playing 12:06:14, after every
+    // restart of the day, muted and unseen on the screen) - so the page's own Pause is pressed, as the person's press would be, up to
+    // BOOT_HOLD_PRESSES times and not twice within a moment (a track start reports more than once); a human's play (the wall's or the phone's
+    // Play, a pick, a touch in the page) releases the hold as before. Not under a break: the ad runs under the veil (above).
+    if (event.type === "playback" && event.playing && this.bootHeld.has(event.id) && !this.humanPlayed.has(event.id) && !this.lastInteract.has(event.id) && !this.adActive.has(event.id) && this.isMusicTile(event.id)) {
+      const was = this.bootHoldPresses.get(event.id) ?? { n: 0, at: 0 };
+      if (was.n < Orchestrator.BOOT_HOLD_PRESSES && Date.now() - was.at >= Orchestrator.BOOT_HOLD_PRESS_GAP_MS) {
+        this.bootHoldPresses.set(event.id, { n: was.n + 1, at: Date.now() });
+        await this.tileCommand(event.id, "pause");
+        return;
+      }
+    }
     if (event.type === "playback" && event.playing && this.bootPaused.delete(event.id)) {
       this.bootHeld.add(event.id);
       // Resume-last-location boots PAUSED: the service auto-plays its watch
@@ -9521,6 +9534,12 @@ export class Orchestrator {
   private lastInteract = new Map<string, number>();
   /** Tiles the boot-hold has paused and not yet released by the human. */
   private bootHeld = new Set<string>();
+  /** B-444: the page's own Pause pressed for a held music page that played on by itself - how many times, and when last. */
+  private bootHoldPresses = new Map<string, { n: number; at: number }>();
+  static readonly BOOT_HOLD_PRESSES = 3;
+  static readonly BOOT_HOLD_PRESS_GAP_MS = 1_500;
+  /** A tile with a music service's adapter (not a video service's): the boot hold's second step applies to these. */
+  private isMusicTile(tileId: string): boolean { const t = this.tile(tileId); return !!t?.adapter && !isVideoAdapter(this.adapters.get(t.adapter)); }
 
   private lastUrlKey(dashId: string, tileId: string): string {
     return `tile:lasturl:${dashId}:${tileId}`;

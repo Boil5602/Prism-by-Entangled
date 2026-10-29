@@ -332,6 +332,7 @@ public static class SurfaceEvents
     public const string AdInfo = "ad-info";
     public const string AdHold = "ad-hold";
     public const string ListenerLost = "listener-lost";
+    public const string DeviceMute = "device-mute";
     public const string AppAdBreak = "app-ad-break";
     public const string AppSkipAvailable = "app-skip-available";
     public const string AppForeground = "app-foreground";

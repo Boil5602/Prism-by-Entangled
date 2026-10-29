@@ -325,6 +325,40 @@ describe("multi-service lounge (2026-09-07)", () => {
   });
 });
 
+describe("B-444 (2026-10-28): the boot hold on a music page that plays on by itself", () => {
+  it("presses the page's own Pause after the element pause, not twice in a moment, three times at most, and not once a person has played it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { drivers, calls, kv } = fakeDrivers();
+      kv.set("tile:lasturl:lounge:pd", "https://www.pandora.com/station/play/123");   // a resumed location boots PAUSED
+      const o = new Orchestrator(drivers);
+      o.setAdapters({ pandora: { id: "pandora", controls: { play: "[data-qa=play]", pause: "[data-qa=pause]" } } as never });
+      await o.load({ ...doc, id: "lounge", layout: { mode: "grid", cols: 1, rows: 1, gap: 0 }, tiles: [
+        { id: "pd", url: "https://www.pandora.com/", profile: "pandora", adapter: "pandora", audio: "exclusive", kind: "floating", float: { x: 0, y: 0, w: 0.3, h: 0.3, hidden: true } },
+      ] }, VIEWPORT);
+      await o.onSurfaceEvent({ type: "load-finished", id: "pd", ok: true });
+      const holds = () => calls.filter((c) => c.op === "inject" && c.id === "pd" && String(c.js).includes("__prism-hold")).length;
+      const presses = () => calls.filter((c) => c.op === "inject" && c.id === "pd" && String(c.js).includes("data-qa=pause")).length;
+      const playing = () => o.onSurfaceEvent({ type: "playback", id: "pd", playing: true });
+      await playing();
+      expect(holds()).toBe(1); expect(presses()).toBe(0);          // the hold as before: the element paused
+      await playing();                                               // Pandora starts its next element by itself
+      expect(presses()).toBe(1);                                     // the page's own Pause
+      await playing();                                               // the same start reported again within the moment
+      expect(presses()).toBe(1);
+      vi.setSystemTime(Date.now() + 2_000); await playing(); expect(presses()).toBe(2);
+      vi.setSystemTime(Date.now() + 2_000); await playing(); expect(presses()).toBe(3);
+      vi.setSystemTime(Date.now() + 2_000); await playing(); expect(presses()).toBe(3);   // bounded: never a fight with the page
+      expect(holds()).toBe(1);
+      // the person plays it from the wall: the hold is theirs to release, and the page playing on is what they asked for
+      await o.tileCommand("pd", "play");
+      calls.length = 0;
+      vi.setSystemTime(Date.now() + 2_000); await playing();
+      expect(presses()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
 describe("B-129: what a person started in App setup carries on", () => {
   it("the closed preview's playing collection is picked up by the recycled music tile - by address when the service has no player script", async () => {
     const { drivers, calls } = fakeDrivers();

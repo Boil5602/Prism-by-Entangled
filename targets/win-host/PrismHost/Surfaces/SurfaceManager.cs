@@ -2592,6 +2592,44 @@ public sealed partial class SurfaceManager
         catch (Exception ex) { _onStatus("hover " + id + ": " + ex.Message); }
     }
 
+    /// <summary>The person's press in the veil's Skip opening, delivered to the page's own Skip as a real press (2026-10-28, "Skip comes up,
+    /// glowing, but I cant possibly click on it to actually skip": the click() the opening sent ran, and YouTube's Skip, which takes only a
+    /// trusted press now, let the ad run its ten seconds, 16:05:42). The first visible Skip control's centre is read from the page and
+    /// Chromium's own input presses there - move, down, up - as ScrubAsync does for a scrubber, so the page sees what a mouse does. A
+    /// person's press, forwarded once, to the control the adapter declared and the page shows (section 26). No control found: the click()
+    /// as before.</summary>
+    private async Task PressSkipAsync(string id, string sel)
+    {
+        try
+        {
+            var find = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
+                + "for(var i=0;i<els.length;i++){var b=els[i],r=b.getBoundingClientRect();if(r.width>0&&r.height>0){return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2});}}return null;})()";
+            var raw = await EvalOnTileAsync(id, find);
+            double x = -1, y = -1;
+            if (raw is { Length: > 0 } && raw != "null")
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(JsonSerializer.Deserialize<string>(raw) ?? "null");
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object) { x = doc.RootElement.GetProperty("x").GetDouble(); y = doc.RootElement.GetProperty("y").GetDouble(); }
+                }
+                catch { }
+            }
+            if (x >= 0 && y >= 0 && Get(id)?.View?.CoreWebView2 is { } core)
+            {
+                foreach (var (type, btn, count) in new[] { ("mouseMoved", "none", 0), ("mousePressed", "left", 1), ("mouseReleased", "left", 1) })
+                    await core.CallDevToolsProtocolMethodAsync("Input.dispatchMouseEvent", System.Text.Json.JsonSerializer.Serialize(new { type, x, y, button = btn, clickCount = count }));
+                _onStatus("skip pressed on " + id + " at " + Math.Round(x) + "," + Math.Round(y));
+                return;
+            }
+            var click = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
+                + "for(var i=0;i<els.length;i++){var b=els[i],r=b.getBoundingClientRect();if(r.width>0&&r.height>0){b.click();return true;}}return false;})()";
+            _onStatus("skip pressed on " + id + ": no control shown, click() sent");
+            _ = EvalOnTileAsync(id, click);
+        }
+        catch (Exception ex) { _onStatus("skip press " + id + ": " + ex.Message); }
+    }
+
     /// <summary>surface.scrub (2026-09-23): one trusted press - move, down, up - at a page point on a service's own scrubber, the person's slider
     /// seek for a player that follows nothing else (Peacock). A video window on the wall only; logged every time.</summary>
     public async Task ScrubAsync(string id, double x, double y, bool press = true)
@@ -3379,9 +3417,7 @@ public sealed partial class SurfaceManager
                     {
                         e.Handled = true;
                         _onStatus($"skip hole pressed: {id}");
-                        var js = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
-                            + "for(var i=0;i<els.length;i++){var b=els[i],r=b.getBoundingClientRect();if(r.width>0&&r.height>0){b.click();return true;}}return false;})()";
-                        _ = EvalOnTileAsync(id, js);
+                        _ = PressSkipAsync(id, sel);
                         return;
                     }
                 }
