@@ -72,6 +72,13 @@ export interface UpdateHooks {
   /** Apply a release now (night window). Resolves when staged/applied or failed. */
   apply(release: ReleaseInfo): MaybePromise<"applied" | "staged" | "failed">;
   now(): number;
+  /** Restart the shell into the release it staged (the quiet-moment restart, B-458, 2026-10-30); absent, a staged release waits for the next start. */
+  restart?(): MaybePromise<void>;
+  /** True while the wall is quiet: nothing playing and nobody about for a while (the shell's orchestrator answers). */
+  quiet?(): boolean;
+  /** Remove what the shell staged: core let the release go (the track no longer offers it, or the track changed; security review 2026-10-30).
+   *  False when the shell could not (a held folder): core keeps the discard pending and asks again at the next check and the next start. */
+  discard?(): MaybePromise<boolean | void>;
 }
 
 export interface UpdateConfig {
@@ -87,6 +94,13 @@ export interface UpdateConfig {
   schedule?: UpdateSchedule | null;
   /** False: no check on its own (the person chose Never); Check now still asks. Default true. */
   enabled?: boolean;
+  /**
+   * Install on its own (B-458, 2026-10-30: the section-28 night window had no door - the silent install hung off a section-24 schedule entry
+   * no Prism could make, so every release waited for a press). True (the default): a newer release a check finds is staged at once, and the
+   * shell restarts into it at a quiet moment in the three hours after the check's time of day (nothing playing, nobody about), otherwise at
+   * its next start. False: the flag waits for a press, as before.
+   */
+  auto?: boolean;
 }
 
 /** A time of day ("HH:MM", the PC's own clock) and, for a weekly check, the day (0 Sunday to 6 Saturday; null or absent every day). */
@@ -146,10 +160,20 @@ export interface UpdateStatus {
   enabled?: boolean;
   /** The track's newest release as the last good check saw it, newer than this Prism or not: the changelog feed's source when up to date. */
   latest?: ReleaseInfo | null;
+  /** Install on its own (B-458). */
+  auto?: boolean;
+  /** How the staged release takes effect: at a quiet moment on its own, or at the next start; null with nothing staged. */
+  restart?: "quiet" | "next-start" | null;
+  /** A discard the shell could not finish yet (asked again at the next check and start). */
+  discardPending?: boolean;
 }
 
 const STORE_KEY = "updates:state";
 const DAY_MS = 86_400_000;
+/** B-458: the quiet-moment restart - three hours from the check's time of day (04:00 without a schedule), looked at once a minute. */
+const RESTART_WINDOW_MS = 3 * 3_600_000;
+const RESTART_POLL_MS = 60_000;
+const DEFAULT_CHECK_MINUTES = 4 * 60;
 
 interface Persisted {
   channel: UpdateChannel;
@@ -164,6 +188,8 @@ interface Persisted {
   notesFor: Record<string, string>;
   /** The track's entry at the last good check (the changelog feed). */
   latest?: ReleaseInfo | null;
+  /** The shell could not remove a staged release core let go: asked again at the next check and the next start (security review 2026-10-30). */
+  discardPending?: boolean;
 }
 
 /** Semver-ish comparison; numeric segments, pre-release sorts before release. */
@@ -238,7 +264,7 @@ export function parseManifest(text: string): UpdateManifest | null {
 type Timer = ReturnType<typeof setTimeout>;
 
 export class UpdateChecker {
-  private cfg: { currentVersion: string; manifestUrl: string; checkIntervalMs: number; schedule: UpdateSchedule | null; enabled: boolean } | null = null;
+  private cfg: { currentVersion: string; manifestUrl: string; checkIntervalMs: number; schedule: UpdateSchedule | null; enabled: boolean; auto: boolean } | null = null;
   private state: Persisted = {
     channel: "stable",
     lastCheck: null,
@@ -272,6 +298,7 @@ export class UpdateChecker {
       checkIntervalMs: config.checkIntervalMs ?? DAY_MS,
       schedule: config.schedule && scheduleMinutes(config.schedule) !== null ? config.schedule : null,
       enabled: config.enabled !== false,
+      auto: config.auto !== false,
     };
     if (config.channel) this.state.channel = config.channel;
 
@@ -289,7 +316,9 @@ export class UpdateChecker {
     this.state.lastBootVersion = config.currentVersion;
     this.state.notesFor = {}; // keep the store small — notes only matter once
     await this.persist();
+    await this.retryDiscard();   // the shell's folder held at the last discard: asked again (its start honoured the tombstone meanwhile)
     if (this.cfg.enabled) this.schedule(this.dueIn());
+    this.armRestart();   // a release staged before this start and not yet running (a hand-off that did not happen) still gets its quiet moment
   }
 
   /** The person's choice of when to check (the Updates dialog): taken at once, no restart. Never stops the checks on their own. */
@@ -299,6 +328,15 @@ export class UpdateChecker {
     this.cfg.enabled = enabled;
     if (!enabled) { this.stop(); return; }
     this.schedule(this.dueIn());
+    this.armRestart();
+  }
+
+  /** The person's switch (the Updates dialog): on, a release already found is staged now and the quiet-moment restart is armed; off, both stop. */
+  setAuto(on: boolean): void {
+    if (!this.cfg) return;
+    this.cfg.auto = on;
+    if (on && this.state.available && this.cfg.enabled) void this.onNightWindow();
+    this.armRestart();
   }
 
   /** When the next check runs on its own (epoch ms), or null when it does not. */
@@ -310,6 +348,8 @@ export class UpdateChecker {
   stop(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
   }
 
   status(): UpdateStatus {
@@ -325,6 +365,9 @@ export class UpdateChecker {
       schedule: this.cfg?.schedule ?? null,
       enabled: this.cfg?.enabled ?? false,
       latest: this.state.latest ?? null,
+      auto: this.cfg?.auto ?? true,
+      restart: !this.state.staged ? null : this.cfg?.auto && this.hooks.restart ? "quiet" : "next-start",
+      discardPending: !!this.state.discardPending,
     };
   }
 
@@ -334,6 +377,8 @@ export class UpdateChecker {
     this.state.channel = channel;
     this.state.available = null;
     this.state.latest = null;
+    this.offerGen++;   // an apply of the old track's offer still running is not recorded when it ends
+    if (this.state.staged) await this.dropStaged();   // the old track's release: not this track's to start (security review 2026-10-30)
     await this.persist();
     if (this.cfg) await this.check();
   }
@@ -349,6 +394,8 @@ export class UpdateChecker {
    */
   async check(): Promise<UpdateStatus> {
     if (!this.cfg) return this.status();
+    await this.retryDiscard();
+    const offerBefore = this.state.available?.version ?? null;
     this.state.lastCheck = new Date(this.hooks.now()).toISOString();
     let text: string | null = null;
     try {
@@ -366,11 +413,19 @@ export class UpdateChecker {
       } else {
         this.state.lastResult = "ok";
         this.state.latest = release;
+        // a staged release the track no longer offers - withdrawn, or the track moved back - is let go and removed by the shell, on every
+        // good check and so before any quiet moment could start it (security review 2026-10-30); a newer one offered replaces it below
+        if (this.state.staged && (!release || compareVersions(release.version, this.state.staged.version) < 0)) await this.dropStaged();
+        // newer than this Prism, and newer than what is already staged: the staged release is not found again at the next check (B-458)
+        const staged = this.state.staged;
         this.state.available =
-          release && compareVersions(release.version, this.cfg.currentVersion) > 0 ? release : null;
+          release && compareVersions(release.version, this.cfg.currentVersion) > 0 && !(staged && compareVersions(release.version, staged.version) <= 0) ? release : null;
       }
     }
+    if ((this.state.available?.version ?? null) !== offerBefore) this.offerGen++;   // the offer moved: an apply of the old one is not recorded when it ends
     await this.persist();
+    // B-458 (2026-10-30): a release found is staged at once - the night window had no door - and the quiet-moment restart is armed
+    if (this.state.available && this.cfg.auto && this.cfg.enabled) void this.onNightWindow();   // not awaited: a Check now answers at once, the download runs on
     if (this.cfg.enabled) this.schedule(this.cfg.schedule ? Math.max(1000, (nextScheduledAt(this.cfg.schedule, this.hooks.now()) ?? this.hooks.now() + DAY_MS) - this.hooks.now()) : this.cfg.checkIntervalMs);
     return this.status();
   }
@@ -381,21 +436,100 @@ export class UpdateChecker {
    * window retries; the shell's rollback guarantees a wall, not a brick.
    */
   async onNightWindow(): Promise<"applied" | "staged" | "failed" | "none"> {
+    // one apply at a time (security review 2026-10-30): a check, the switch and Install now may all ask; the second asker gets the first's answer
+    if (this.applying) return this.applying;
+    this.applying = this.applyNow().finally(() => {
+      this.applying = null;
+      if (this.reapply) { this.reapply = false; void this.onNightWindow(); }   // the offer moved during the apply: the current one in its turn
+    });
+    return this.applying;
+  }
+  private applying: Promise<"applied" | "staged" | "failed" | "none"> | null = null;
+  private reapply = false;
+  /** Moves whenever the offer does (a check that changes or withdraws it, a track change): an apply that started under an older offer is not recorded. */
+  private offerGen = 0;
+  /** The staged release let go: core's record and the shell's folder, so neither a start nor a quiet moment hands off into it. */
+  private async dropStaged(): Promise<void> {
+    this.offerGen++;
+    this.state.staged = null;
+    await this.tryDiscard();
+    this.armRestart();
+  }
+  /**
+   * A pending discard asked again - never against a release core records now (a newer one staged since cleared the old folder as it was
+   * written, and the pending mark with it), and never while an apply is writing the folder (security review 2026-10-30, the second pass).
+   */
+  private async retryDiscard(): Promise<void> {
+    if (!this.state.discardPending) return;
+    if (this.state.staged) { delete this.state.discardPending; await this.persist(); return; }
+    if (this.applying) return;
+    await this.tryDiscard();
+  }
+  /** The shell asked to remove what it staged; a shell that could not (a held folder) leaves the discard pending, asked again at the next check and start. */
+  private async tryDiscard(): Promise<void> {
+    let ok = true;
+    try { ok = (await this.hooks.discard?.()) !== false; } catch { ok = false; }
+    if (ok) delete this.state.discardPending; else this.state.discardPending = true;
+    await this.persist();
+  }
+  private async applyNow(): Promise<"applied" | "staged" | "failed" | "none"> {
     const release = this.state.available;
     if (!release || !this.cfg) return this.state.staged ? "staged" : "none";
-    let result: "applied" | "staged" | "failed";
+    const gen = this.offerGen;
+    let result: "applied" | "staged" | "failed" | "none";
     try {
       result = await this.hooks.apply(release);
     } catch {
       result = "failed";
     }
     if (result !== "failed") {
-      this.state.staged = release;
-      if (release.notes) this.state.notesFor[release.version] = release.notes;
-      this.state.available = null;
+      if (gen !== this.offerGen) {
+        // the offer moved while this one downloaded - withdrawn, the track changed, or a newer one offered (security review 2026-10-30): never
+        // recorded as staged; the shell's copy goes; the current offer, if any, is staged in its turn
+        await this.tryDiscard();
+        if (this.state.available && this.cfg.auto && this.cfg.enabled) this.reapply = true;
+        result = "none";
+      } else {
+        this.state.staged = release;
+        if (release.notes) this.state.notesFor[release.version] = release.notes;
+        this.state.available = null;
+        delete this.state.discardPending;   // the shell cleared the old folder as it staged this one: nothing of the old discard is owed
+      }
+    } else {
+      // a failed apply leaves nothing standing on either side (security review 2026-10-30, the fourth pass): the shell may hold a partial or a
+      // late copy of this release, or still the release staged before it - core cannot tell which - so the record is let go and the shell is
+      // asked now, behind any apply still writing, to clear its folder; whatever the track offers is found again at the next check
+      this.state.staged = null;
+      await this.tryDiscard();
     }
     await this.persist();
+    this.armRestart();
     return result;
+  }
+
+  /** The quiet window: three hours from the check's time of day (04:00 without a schedule), on the PC's own clock. */
+  inRestartWindow(now = this.hooks.now()): boolean {
+    const start = scheduleMinutes(this.cfg?.schedule) ?? DEFAULT_CHECK_MINUTES;
+    const d = new Date(now);
+    const minutes = d.getHours() * 60 + d.getMinutes();
+    return ((minutes - start + 1440) % 1440) * 60_000 < RESTART_WINDOW_MS;
+  }
+  private restartTimer: Timer | null = null;
+  /** With a release staged, install on its own on and a shell that can restart: look once a minute for the quiet moment. */
+  private armRestart(): void {
+    if (this.restartTimer) { clearTimeout(this.restartTimer); this.restartTimer = null; }
+    if (!this.cfg?.auto || !this.state.staged || !this.hooks.restart) return;
+    const t = setTimeout(() => { this.restartTimer = null; void this.maybeRestart(); }, RESTART_POLL_MS);
+    this.restartTimer = t;
+    (t as unknown as { unref?: () => void }).unref?.();
+  }
+  private async maybeRestart(): Promise<void> {
+    if (!this.cfg?.auto || !this.state.staged || !this.hooks.restart) return;
+    if (this.applying) { this.armRestart(); return; }   // never into a folder an apply is still writing (security review 2026-10-30)
+    if (this.inRestartWindow() && (this.hooks.quiet?.() ?? false)) {
+      try { await this.hooks.restart(); return; } catch { /* the shell could not: looked at again in a minute */ }
+    }
+    this.armRestart();
   }
 
   /* ------------------------------------------------------------------ */
@@ -417,7 +551,8 @@ export class UpdateChecker {
   }
 
   private schedule(delayMs: number): void {
-    this.stop();
+    if (this.timer) clearTimeout(this.timer);   // the check's own timer alone: a check must not disarm the quiet-moment restart (B-458)
+    this.timer = null;
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.check();

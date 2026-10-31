@@ -462,7 +462,7 @@ public sealed partial class MainWindow : Window
             case Ops.UiScreenClear: { var ct = m.GetString("tile"); LogLine("screen cleared from the phone: " + (string.IsNullOrEmpty(ct) ? "the big screen" : ct)); if (string.IsNullOrEmpty(ct)) _ = ClearScreensAsync(); else _ = MvRemoveWindowAsync(ct); break; }
             case Ops.UiPrivateMute: _surfaces.PrivateDeviceMute(m.GetBool("on")); break;   // the phone's "mute Prism on the PC while this phone listens" (2026-10-05)
             case Ops.UiListenRoutes: _remote?.Listen?.SetRoutes(m.GetString("json") ?? "{}"); break;   // each phone's window (2026-10-06)
-            case Ops.UiUpdateRestart: LogLine("updates: restart from the phone"); DispatcherQueue.TryEnqueue(RestartIntoStaged); break;   // the phone's Restart into the new version (2026-10-15)
+            case Ops.UiUpdateRestart: LogLine("updates: restart " + (m.GetString("reason") == "quiet" ? "at a quiet moment (install on its own)" : "from the phone")); DispatcherQueue.TryEnqueue(RestartIntoStaged); break;   // the phone's Restart into the new version (2026-10-15)
             case Ops.UiBreakWatch: { var bm = m.GetString("mode"); SetBreakWatchMode(bm is "all" or "sure" or "off" ? bm : m.GetBool("on") ? "all" : "off", " (the phone)"); break; }   // the phone's switch (2026-10-07)
             // a phone pick into a small window (2026-10-15, the phone's Play into): Watch and the big screen are left as they are, a word on the line
             case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; var vw = (int)m.GetNumber("window", 0); LogLine("video pick from the phone: " + vt + " on " + vs + (vw > 0 ? " into window " + (vw + 1) : "")); if (vw > 0) { SetPill("Prism \u00B7 " + Shorten(vt, 40) + " \u2192 window " + (vw + 1)); _ = MvCallAsync("state"); break; } if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
@@ -483,6 +483,7 @@ public sealed partial class MainWindow : Window
             // §28 updates (Services/Updates.cs, 2026-10-05): the signed manifest at the configured address; a release downloaded, verified and staged
             case Ops.UpdateFetchManifest: _ = UpdateFetchAsync(m); break;
             case Ops.UpdateApply: _ = UpdateApplyAsync(m); break;
+            case Ops.UpdateDiscard: _ = UpdateDiscardAsync(m); break;   // core let the staged release go (security review 2026-10-30)
             case Ops.SurfaceVeilImagery: AnswerVeilImagery(m); break;
             case Ops.SurfaceEvaluate: _ = AnswerEvaluateAsync(m); break;   // a small read of a page, answered (the playback doctor, 2026-09-23)
             case Ops.RuntimeError:
@@ -534,6 +535,24 @@ public sealed partial class MainWindow : Window
         try { var text = await Services.Updates.FetchManifestAsync(m.GetString("url") ?? "", LogLine); _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize(text), null); LogLine("updates: manifest read and verified"); }
         catch (Exception ex) { LogLine("updates: " + ex.Message); _brain.Call(HostCalls.Resolve, rid.Value, null, ex.Message); }
     }
+    private static readonly System.Threading.SemaphoreSlim _applyGate = new(1, 1);
+    /// <summary>Moves with every discard received: an apply that a discard crossed re-asserts the tombstone when it ends and is not offered to start (security review 2026-10-30, the third pass).</summary>
+    private static int _discardGen;
+    /// <summary>Core let the staged release go: behind any apply in flight (the folder is removed whole, after it has been written), off the
+    /// window's thread, fail-closed in Services.Updates.DiscardStaged; core hears true or false and asks again when false.</summary>
+    private async Task UpdateDiscardAsync(CommandMessage m)
+    {
+        var rid = m.RequestId;
+        bool ok;
+        System.Threading.Interlocked.Increment(ref _discardGen);
+        Services.Updates.MarkDiscard(LogLine);   // the tombstone at once: nothing promotes the copy while the removal waits behind an apply
+        await _applyGate.WaitAsync();
+        try { ok = await Task.Run(() => Services.Updates.DiscardStaged(LogLine)); }
+        catch (Exception ex) { LogLine("updates: discard " + ex.Message); ok = false; }
+        finally { _applyGate.Release(); }
+        if (rid is not null) _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize(ok), null);
+        RootGrid.DispatcherQueue.TryEnqueue(() => RefreshUpdateNotice());
+    }
     private async Task UpdateApplyAsync(CommandMessage m)
     {
         var rid = m.RequestId; if (rid is null) return;
@@ -543,7 +562,21 @@ public sealed partial class MainWindow : Window
             if (release is null) { _brain.Call(HostCalls.Resolve, rid.Value, null, "no release"); return; }
             // off the window's thread (2026-10-06, "When I check and run an install on the Updates screen, it freezes up the Updates modal window until the
             // download is complete"): the download, the hashing and the copies are the thread pool's; the status line is set back on the window's
-            var result = await Task.Run(() => Services.Updates.ApplyAsync(release, LogLine, s => RootGrid.DispatcherQueue.TryEnqueue(() => SetPill("Prism · " + s))));
+            // one apply at a time (security review 2026-10-30): two asks never write the staged folder together
+            var discardGenAtStart = System.Threading.Volatile.Read(ref _discardGen);
+            await _applyGate.WaitAsync();
+            string result;
+            try { result = await Task.Run(() => Services.Updates.ApplyAsync(release, LogLine, s => RootGrid.DispatcherQueue.TryEnqueue(() => SetPill("Prism · " + s)), () => System.Threading.Volatile.Read(ref _discardGen) == discardGenAtStart)); }
+            finally { _applyGate.Release(); }
+            // a failed apply leaves nothing promotable: the tombstone at once, whatever the folder holds, until core's discard clears it or a fresh staging replaces it
+            if (result == "failed") Services.Updates.MarkDiscard(LogLine);
+            if (result == "staged" && System.Threading.Volatile.Read(ref _discardGen) != discardGenAtStart)
+            {
+                // a discard arrived while this one was being staged: core will not record it; the tombstone stands again and it is not offered to start
+                Services.Updates.MarkDiscard(LogLine);
+                LogLine("updates: a discard crossed the staging of " + (release["version"]?.GetValue<string>() ?? "?") + "; it is not offered to start");
+                result = "failed";
+            }
             _brain.Call(HostCalls.Resolve, rid.Value, JsonSerializer.Serialize(result), null);
             if (result == "staged") RefreshUpdateNotice();
         }
@@ -905,7 +938,7 @@ public sealed partial class MainWindow : Window
         var budget = JsonDocument.Parse(DeviceBudget.OptionsFragmentJson(DeviceBudget.PhysicalMemoryBytes())).RootElement;
         // §28: the update check, at the configured address, for the configured channel (Services/Updates.cs); off when the person turned it off
         // the checker runs whether or not checks are on, so Check now works and the schedule can be changed without a restart (2026-10-06)
-        object? update = new { currentVersion = Services.Updates.CurrentVersion, manifestUrl = Services.Updates.Url, channel = Services.Updates.Channel, schedule = Services.Updates.Schedule, enabled = Services.Updates.Enabled };
+        object? update = new { currentVersion = Services.Updates.CurrentVersion, manifestUrl = Services.Updates.Url, channel = Services.Updates.Channel, schedule = Services.Updates.Schedule, enabled = Services.Updates.Enabled, auto = Services.Updates.Auto };
         return JsonSerializer.Serialize(new
         {
             adapters,

@@ -53,6 +53,7 @@ public sealed partial class MainWindow
         if (!show) return;
         ToolTipService.SetToolTip(b, staged is { } st ? "Prism " + st.version + " is installed. Press to restart into it."
             : _updateRunning ? "Downloading Prism " + av + Mid + "the status line says how far"
+            : Services.Updates.Auto ? "Prism " + av + " is ready and downloads on its own. Press to install it now. Prism asks before it restarts."
             : "Prism " + av + " is ready. Press to download and install it. Prism asks before it restarts.");
     }
 

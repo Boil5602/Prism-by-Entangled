@@ -43,6 +43,9 @@ public static class Updates
     /// <summary>True when the address or the key is not Entangled's: a fork's Prism, or one someone pointed elsewhere.</summary>
     public static bool ServerIsCustom => (Url != DefaultUrl && Url != BucketUrl) || Key != DefaultKey;
     public static bool Enabled { get => HostPrefs.GetBool("update.enabled", true); set => HostPrefs.Set("update.enabled", value); }
+    /// <summary>Install on its own (B-458, 2026-10-30): a release found is downloaded at once and Prism restarts into it at a quiet moment after
+    /// the check, otherwise at its next start; off, the flag waits for a press. Core holds the rule; this is the person's switch.</summary>
+    public static bool Auto { get => HostPrefs.GetBool("update.auto", true); set => HostPrefs.Set("update.auto", value); }
     /// <summary>When the check runs (2026-10-06, "Let the user check for updates at a scheduled time"): a time of day on the PC's clock, "HH:MM"
     /// (04:00 unless chosen), and for a weekly check the day (0 Sunday to 6 Saturday; -1 every day).</summary>
     public static string CheckAt { get => HostPrefs.GetString("update.at", "04:00"); set => HostPrefs.Set("update.at", value); }
@@ -147,7 +150,7 @@ public static class Updates
     /// <summary>core's update.apply: the release staged whole in the install folder's next copy - from its file list when the manifest names
     /// one (only the changed files fetched, each checked against the signed list), else from the zip - and run at the next start or on
     /// Restart now. "staged", or "failed" with the reason logged. Progress goes to the status line.</summary>
-    public static async Task<string> ApplyAsync(JsonObject release, Action<string> log, Action<string> status)
+    public static async Task<string> ApplyAsync(JsonObject release, Action<string> log, Action<string> status, Func<bool>? stillWanted = null)
     {
         var version = release["version"]?.GetValue<string>() ?? "";
         var url = release["url"]?.GetValue<string>() ?? "";
@@ -156,6 +159,7 @@ public static class Updates
         var filesSha = (release["filesSha256"]?.GetValue<string>() ?? "").Trim().ToLowerInvariant();
         if (version.Length == 0) { log("updates: the release names no version"); return "failed"; }
         var inst = Installer(log);
+        inst.StillWanted = stillWanted;
         if (inst.StagedVersion() == version) { log("updates: " + version + " was already staged and verified"); return "staged"; }
         var source = AppContext.BaseDirectory;
         if (files.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && filesSha.Length == 64)
@@ -167,6 +171,7 @@ public static class Updates
                 status("Prism " + version + " is ready: " + r.Downloaded + " changed files, " + (r.DownloadedBytes / 1048576.0).ToString("0.0") + " MB downloaded. It runs at the next start, or Restart now.");
                 return "staged";
             }
+            catch (OperationCanceledException ex) { log("updates: " + version + ": " + ex.Message); return "failed"; }   // not wanted any more: no zip either
             catch (Exception ex) { log("updates: " + version + " from its file list failed (" + ex.Message + "), taking the whole zip instead"); }
         }
         if (url.Length == 0 || sha.Length != 64) { log("updates: the release names no address or hash"); return "failed"; }
@@ -224,6 +229,27 @@ public static class Updates
         catch { return null; }
     }
 
+    /// <summary>Core let a staged release go (the track no longer offers it, or the track changed; security review 2026-10-30): the staged
+    /// folder is removed, so neither a start nor a quiet moment hands off into it.</summary>
+    /// <summary>The tombstone written the moment core lets a staged release go, before the folder's removal waits its turn (security review
+    /// 2026-10-30, the second pass): from then on neither a start nor Restart promotes it.</summary>
+    public static void MarkDiscard(Action<string> log)
+    {
+        try { Installer(log).MarkDiscard(); } catch (Exception ex) { log("updates: discard mark " + ex.Message); }
+    }
+    public static bool DiscardStaged(Action<string> log)
+    {
+        try
+        {
+            var inst = Installer(log);
+            var had = Directory.Exists(inst.NextDir);
+            var ok = inst.Discard();
+            if (had) log(ok ? "updates: the staged release was let go (" + inst.NextDir + " removed)" : "updates: the staged release was let go, but its folder is held: it is never promoted (tombstone), and the next start removes it");
+            return ok;
+        }
+        catch (Exception ex) { log("updates: discard " + ex.Message); return false; }
+    }
+
     /// <summary>Restart now: the staged copy is started to install itself once this process has gone (--prism-promote), then it starts Prism
     /// from the install folder. True when started; the caller closes.</summary>
     public static bool StartPromotion(Action<string> log)
@@ -273,16 +299,33 @@ public static class Updates
         if (pi >= 0)
         {
             var rest = args.Where((_, i) => i != pi && i != pi + 1).ToList();
+            // the staged copy was let go (its tombstone), or never verified: it does not install itself; the installed Prism starts as it was
+            // (security review 2026-10-30, the second pass)
+            if (File.Exists(inst.DiscardTomb) || !File.Exists(Path.Combine(myDir, Updating.UpdateInstaller.VerifiedName)))
+            {
+                log("updates: the staged copy was let go before it could install; the installed Prism starts as it was");
+                Launch(InstallExe, rest, log);
+                return true;
+            }
             if (pi + 1 < args.Count && int.TryParse(args[pi + 1], out var pid))
             {
                 try { using var old = System.Diagnostics.Process.GetProcessById(pid); old.WaitForExit(60_000); } catch { /* already gone */ }
             }
             PhoneLauncher.StopRunning(log);   // it runs from the install folder's exe: its files are replaced next
+            // looked at again now that the old Prism has gone: a discard it sent in its last moments stands (security review 2026-10-30, the third pass)
+            if (File.Exists(inst.DiscardTomb) || !File.Exists(Path.Combine(myDir, Updating.UpdateInstaller.VerifiedName)))
+            {
+                log("updates: the staged copy was let go as the old Prism closed; the installed Prism starts as it was");
+                Launch(InstallExe, rest, log);
+                return true;
+            }
             try { inst.Promote(myDir, CurrentVersion); WriteLegacyPointer(log); EnsureShortcut(log); }
             catch (Exception ex) { log("updates: the staged copy could not install itself (" + ex.Message + "); the installed Prism starts as it was"); }
             Launch(InstallExe, rest, log);
             return true;
         }
+        // a discard the last run could not finish (a held folder) is finished now - never from inside that folder, which the promote branch above is
+        try { if (!string.Equals(myDir, inst.NextDir, StringComparison.OrdinalIgnoreCase) && inst.FinishDiscard()) log("updates: a staged release let go last time is removed now"); } catch { /* the tombstone keeps it from promotion regardless */ }
         var running = ParseVersion(CurrentVersion);
         if (running is null) return false;
         var action = Updating.UpdateInstaller.Decide(myDir, running, InstallDir, ParseVersion(Updating.UpdateInstaller.VersionOf(InstallDir)), ParseVersion(inst.StagedVersion()));

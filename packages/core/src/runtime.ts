@@ -210,6 +210,8 @@ export interface PrismRuntimeApi {
   updateSetChannel(channel: string): Promise<string>;
   /** Sync JSON: when the update check runs (2026-10-06, "Let the user check for updates at a scheduled time") - {"at":"HH:MM","weekday":0-6|null} or null for a day after the last; enabled false = Never. Taken at once; answers the status. */
   updateSetSchedule(scheduleJson: string | null, enabled: boolean): string;
+  /** Install on its own (B-458): the Updates dialog's switch, taken at once. Sync JSON: the status. */
+  updateSetAuto(on: boolean): string;
   /** Plays the next episode of the series on screen from the Episodes list, when the service's own Next did nothing (2026-10-05). */
   videoPlayNextEpisode(): string;
   /** "Play after this track" from the wall's own Quick play (2026-10-05): one queued pick, as the phone's; -> {ok, started?, error?}. */
@@ -656,14 +658,16 @@ function send(op: string, payload: Record<string, unknown>): void {
 const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
 let nextRequestId = 1;
 const REQUEST_TIMEOUT_MS = 30_000;
+/** update.apply alone: a release's download and hashing (B-458 / security review 2026-10-30). */
+const APPLY_TIMEOUT_MS = 60 * 60_000;
 
-function request<T>(op: string, payload: Record<string, unknown>): Promise<T> {
+function request<T>(op: string, payload: Record<string, unknown>, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const requestId = nextRequestId++;
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(requestId);
       reject(new Error(`${op}: no response from shell`));
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
     pending.set(requestId, { resolve: resolve as (v: unknown) => void, reject, timer });
     send(op, { requestId, ...payload });
   });
@@ -751,7 +755,7 @@ export function createBridgeDrivers(): Drivers {
       privateMute: (on: boolean) => send("ui.privateMute", { on }),
       listenRoutes: (json: string) => send("ui.listenRoutes", { json }),
       breakWatch: (on: boolean, mode?: string) => send("ui.breakWatch", { on, mode: mode ?? (on ? "all" : "off") }),
-      updateRestart: () => send("ui.updateRestart", {}),
+      updateRestart: (reason?: string) => send("ui.updateRestart", { reason: reason ?? null }),
     },
     display: {
       setBrightness: (value: number) => send("display.setBrightness", { value }),
@@ -780,10 +784,13 @@ export function createBridgeDrivers(): Drivers {
     },
     update: {
       fetchManifest: (url: string) => request<string>("update.fetchManifest", { url }),
+      // the download and the hashing take as long as they take (security review 2026-10-30: the plain thirty seconds had core calling an apply
+      // failed while the host went on to stage it); an hour, then failed - and the next check finds the host's verified copy and records it
       apply: (release) =>
-        request<"applied" | "staged" | "failed">("update.apply", { release }).catch(
+        request<"applied" | "staged" | "failed">("update.apply", { release }, APPLY_TIMEOUT_MS).catch(
           () => "failed" as const,
         ),
+      discard: () => request<boolean>("update.discard", {}).then((ok) => ok !== false).catch(() => false),
     },
     store: {
       get: (key: string) => bridge().storeGet(key),
@@ -3399,6 +3406,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     updateStatus() { try { return json(orchestrator.updateStatus()); } catch (e) { report(e); return json({ error: String(e) }); } },
     async updateCheck() { try { return json(await orchestrator.checkUpdates()); } catch (e) { report(e); return json({ error: String(e) }); } },
     async updateInstallNow() { try { return json({ result: await orchestrator.installUpdateNow(), ...orchestrator.updateStatus() }); } catch (e) { report(e); return json({ error: String(e) }); } },
+    updateSetAuto(on) {
+      try { orchestrator.setUpdateAuto(!!on); return json(orchestrator.updateStatus()); } catch (e) { report(e); return json({ error: String(e) }); }
+    },
     updateSetSchedule(scheduleJson, enabled) {
       try {
         let s: { at: string; weekday?: number | null } | null = null;

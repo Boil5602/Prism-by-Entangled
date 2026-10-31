@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.40.2 - 2026-10-30 (alpha, 6ed3e707)
+
+Quick play leads with the service playing now and a loading pick can be cancelled while the song before plays on, Apple Music keeps its queue through a cancelled pick and loads a picked playlist behind the song, and Sunrise Meadow's flowers answer the music on the PC and the phone. Skip on every video service hides the page's own button and the one Skip takes an ad's too, Next episode hears the page's answer, Play on a page whose player has gone presses the page's own Play, and captions drawn by the browser show again on Apple TV. Prism starts in under a second with its lens cache bounded, a hidden page is up only once its new address is reported, and Add a music service opens Set up services.
+
+- download: https://prism.entangled.world/windows/Prism-0.40.2-6ed3e707.zip
+- sha256: ffb7911097dfa4697de5dd2a1463131b0528147fcf46cbd64598088720b3dde1
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.40.2
+
 ## 0.40.1 - 2026-10-29 (alpha, 270cb8cc)
 
 The phone's lock-screen Previous and Next act on the PC, Private Listening recovers by itself when the sound stops arriving, and a music page that played on by itself after a restart is paused the way a person would. The lounge visual on the phone shows the playback controls on a tap, keeps the art centred on the sun in portrait and the details clear of it in landscape, cannot be zoomed, and shows the poster when the stage's own feed has none. The Skip in the opening over a YouTube ad skips, and the phone's menu names the two players as the PC does. Installed on an iPhone beside another web app, the phone notes once that the Now Playing title can open the other one, with Prism's address to use in Safari instead.

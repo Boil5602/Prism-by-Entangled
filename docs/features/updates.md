@@ -92,7 +92,23 @@ website's `src/data/releases.json` and `public/_redirects` (then `npm run deploy
   status says "the server's answer did not verify". An empty key skips the check (a fork testing locally), said in the log.
 - A newer version for the channel is `available`. The Prism menu's **Updates** line says so ("0.23.0 is ready to install"), as does the
   status line once after boot. The Updates dialog shows the notes, **Check now**, **Install now**, and for a staged version **Restart into
-  the new version**. The §24 night window installs by itself when the wall is dark.
+  the new version**. **Install on its own** (the dialog's switch, on by default; B-458, 2026-10-30): a release the check finds is downloaded and
+  staged at once, and Prism restarts into it at a quiet moment in the three hours after the check's time of day - nothing playing, nobody has
+  used it for twenty minutes - or at its next start. Off, the flag waits for a press. (Until 0.40.2 the silent install hung off a §24 schedule
+  entry no Prism could make, so every release waited for a press.) Two installs never run at once, and a staged release the track no
+  longer offers - withdrawn, or the track changed - is let go on the next check and its folder removed, so neither a start nor a quiet
+  moment hands off into it. A release whose offer moved while it was downloading is never recorded as staged. The removal fails closed:
+  a tombstone beside the staged folder is written first, then the verified mark, then the folder; a held folder is never promoted while the
+  tombstone stands, the next start finishes the removal, and core asks again at its next check until the shell says it is gone. The
+  tombstone is written the moment core lets go, before the removal waits its turn behind an apply; only a fresh staging clears it; a
+  staged copy started to install itself refuses when its tombstone stands or its verified mark is missing, and the installed Prism starts
+  as it was. An apply may take an hour before core calls it failed, and a pending discard is never asked against a release core records.
+  A failed apply leaves nothing standing on either side: core lets go of its record and asks the shell at once, behind any apply still
+  writing, to clear its folder, and the host writes the tombstone the moment an apply fails; whatever the track offers is found again at
+  the next check. The staging asks the host whether the release is still wanted just before it writes the verified mark, so a copy a
+  discard crossed is never one a start could promote. The promote gate is looked at again once the old Prism has gone,
+  and Promote itself refuses a staged copy without its file list, its verified mark, or with a tombstone standing. An apply that a discard
+  crossed re-asserts the tombstone when it ends and is not offered to start.
 - **The fixed install folder** (2026-10-06, "build the fixed install folder and incremental updates"; `PrismHost.Core/UpdateInstaller.cs`,
   `Services/Updates.cs` AtStart): Prism runs from `%LOCALAPPDATA%\Programs\Prism` and nowhere else, apart from the data folder (a reset
   to defaults never moves the program). Windows keys its firewall rule on the exe's path; while each update ran from its own

@@ -229,7 +229,8 @@ export interface UiDriver {
   /** The phone's switch for the break watch (YouTube TV's channel breaks read off the picture, 2026-10-07): on or off, as Watch settings' box. */
   breakWatch?(on: boolean, mode?: string): MaybePromise<void>;
   /** The phone's Restart into the new version (2026-10-15): the shell restarts into the release it has staged; nothing when none is. */
-  updateRestart?(): MaybePromise<void>;
+  /** Restart into the staged release: `reason` "quiet" when core's own quiet moment asks (B-458), absent from a person's press on the phone. */
+  updateRestart?(reason?: string): MaybePromise<void>;
   /**
    * What a single tap on a scene item resolved to (docs/concept-scenes.md §5):
    * the shell asked core to interpret the tap and core answers here, so the
@@ -413,6 +414,9 @@ export interface MediaDriver {
 export interface UpdateDriver {
   fetchManifest(url: string): MaybePromise<string>;
   apply(release: { version: string; url?: string; sha256?: string }): MaybePromise<"applied" | "staged" | "failed">;
+  /** Remove the staged release: core let it go (the track no longer offers it, or the track changed; security review 2026-10-30). False when the
+   *  shell could not yet (a held folder): core asks again at the next check and start, and the shell's own start never promotes it meanwhile. */
+  discard?(): MaybePromise<boolean | void>;
 }
 
 export interface NetDriver {

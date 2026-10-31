@@ -236,6 +236,23 @@ public sealed partial class MainWindow
         at.TimeChanged += async (_, __) => await ApplyWhen();
         SayNext();
         checking.Children.Add(track); checking.Children.Add(whenRow); checking.Children.Add(nextLine);
+        // install on its own (B-458, 2026-10-30: the night window had no door, every release waited for a press): a release found is downloaded
+        // at once and Prism restarts into it at a quiet moment in the three hours after the check (nothing playing, nobody about), otherwise at
+        // its next start; off, the flag waits for a press as before. Taken at once, no restart.
+        var auto = new ToggleSwitch { Header = "Install on its own", OnContent = "On", OffContent = "Off", IsOn = Services.Updates.Auto, FontSize = 13 };
+        var autoLine = new TextBlock { FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
+        void SayAuto() => autoLine.Text = Services.Updates.Auto
+            ? "A new version is downloaded as soon as it is found. Prism restarts into it at a quiet moment after the check, when nothing is playing and nobody has used it for a while, or the next time it starts."
+            : "A new version waits for you. Install now and Restart are here, and the flag beside the menu.";
+        auto.Toggled += async (_, __) =>
+        {
+            Services.Updates.Auto = auto.IsOn;
+            try { _updateStatus = JsonNode.Parse(await ModelCallAwaitAsync("updateSetAuto", 10_000, auto.IsOn) ?? "null") as JsonObject; } catch { }
+            SayAuto(); changed();
+            LogLine("updates: install on its own " + (auto.IsOn ? "on" : "off"));
+        };
+        SayAuto();
+        checking.Children.Add(auto); checking.Children.Add(autoLine);
 
         // the update server: shown, not edited (2026-10-05, "Why is the public key editable"): the key decides which releases this Prism will
         // install, so a page or a message saying "paste this" must not find an open field. Change the update server reveals the fields, for a
@@ -311,7 +328,7 @@ public sealed partial class MainWindow
     {
         if (Services.Updates.Staged() is not { } st || st.version == _restartOffered) return;
         _restartOffered = st.version;
-        ShowPillOffer("Prism" + Mid + st.version + " is installed. Restart to switch to it", "Restart now", RestartIntoStaged, 45);
+        ShowPillOffer("Prism" + Mid + st.version + " is installed. " + (Services.Updates.Auto ? "Prism switches to it at a quiet moment, or restart now" : "Restart to switch to it"), "Restart now", RestartIntoStaged, 45);
         LogLine("updates: " + st.version + " installed, restart offered");
     }
 

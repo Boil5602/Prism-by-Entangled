@@ -154,7 +154,7 @@ public sealed class UpdateInstaller
         if (listVersion != version) throw new InvalidDataException("the file list is for " + listVersion + ", not " + version);
         var blobBase = listUrl[..(listUrl.LastIndexOf('/') + 1)];
 
-        ResetDir(NextDir);
+        ResetNext();
         var have = IndexOf(sourceDir);
         var byHash = new Dictionary<string, string>();
         foreach (var f in have.Values) byHash.TryAdd(f.Sha256, f.Path);
@@ -187,6 +187,7 @@ public sealed class UpdateInstaller
             if (new FileInfo(dest).Length != f.Size || Sha256File(dest) != f.Sha256) { got += await FetchBlobAsync(blobBase + f.Sha256 + ".gz", f, dest, ct); unpacked += f.Size; toFetch.Add(f); copied--; }
         }
         File.WriteAllText(Path.Combine(NextDir, IndexName), listJson);
+        EnsureWanted();
         File.WriteAllText(Path.Combine(NextDir, VerifiedName), listSha + "\n" + DateTime.UtcNow.ToString("o"));
         WriteMarker(NextDir, version, "list");
         _log("updates: " + version + " staged from its file list: " + copied + " files kept, " + toFetch.Count + " downloaded (" + (got / 1048576.0).ToString("0.0") + " MB transferred, " + (unpacked / 1048576.0).ToString("0.0") + " MB unpacked)");
@@ -238,16 +239,52 @@ public sealed class UpdateInstaller
     /// <summary>Stage a whole release already unpacked in a folder (the zip path): moved into next and indexed.</summary>
     public void StageFromUnpacked(string version, string unpackedDir)
     {
-        ResetDir(NextDir);
+        ResetNext();
         Directory.Move(unpackedDir, NextDir);
         var idx = IndexOf(NextDir);
         File.WriteAllText(Path.Combine(NextDir, IndexName), ListJson(version, idx.Values));
         WriteMarker(NextDir, version, "zip");
+        EnsureWanted();
         File.WriteAllText(Path.Combine(NextDir, VerifiedName), "zip\n" + DateTime.UtcNow.ToString("o"));
     }
 
+    /// <summary>The host's word on whether the release being staged is still wanted (no discard crossed it): asked just before the verified mark is
+    /// written, so a copy nobody wants is never one a start could promote (security review 2026-10-30, the fourth pass).</summary>
+    public Func<bool>? StillWanted { get; set; }
+    private void EnsureWanted()
+    {
+        if (StillWanted is { } wanted && !wanted()) { MarkDiscard(); throw new OperationCanceledException("a discard crossed the staging; the copy is not offered to start"); }
+    }
+
     /// <summary>The staged version, when next holds a whole one.</summary>
-    public string? StagedVersion() => File.Exists(Path.Combine(NextDir, VerifiedName)) ? VersionOf(NextDir) : null;
+    public string? StagedVersion() => !File.Exists(DiscardTomb) && File.Exists(Path.Combine(NextDir, VerifiedName)) ? VersionOf(NextDir) : null;
+
+    /// <summary>A discard's tombstone (security review 2026-10-30): written before a staged copy is removed and kept until it is gone, so a
+    /// folder a scanner or a handle held through the removal is never promoted by a start, and the next start finishes the removal.</summary>
+    public string DiscardTomb => NextDir + ".discard";
+    /// <summary>The staged copy let go, fail-closed: the tombstone first, then the verified mark (from then on nothing promotes it), then the
+    /// folder; the tombstone goes only when the folder has. True when the folder is gone.</summary>
+    public bool Discard()
+    {
+        if (!Directory.Exists(NextDir)) { try { if (File.Exists(DiscardTomb)) File.Delete(DiscardTomb); } catch { } return true; }
+        File.WriteAllText(DiscardTomb, DateTime.UtcNow.ToString("o"));
+        var verified = Path.Combine(NextDir, VerifiedName);
+        try { RetryIo(() => { if (File.Exists(verified)) File.Delete(verified); }); } catch { /* the tombstone holds */ }
+        try { RetryIo(() => Directory.Delete(NextDir, true)); } catch { return false; }
+        try { File.Delete(DiscardTomb); } catch { }
+        return !Directory.Exists(NextDir);
+    }
+    /// <summary>At a start: a discard the last run could not finish is finished now. True when there was one and the folder is gone.</summary>
+    public bool FinishDiscard() => File.Exists(DiscardTomb) && Discard();
+    /// <summary>The tombstone alone, at once (security review 2026-10-30, the second pass): from this moment no start and no Restart promotes the
+    /// staged copy, while the folder's removal waits its turn behind an apply still writing it.</summary>
+    public void MarkDiscard() => File.WriteAllText(DiscardTomb, DateTime.UtcNow.ToString("o"));
+    /// <summary>A fresh staging folder: the old one gone whole, and with it the tombstone that was about the old one.</summary>
+    public void ResetNext()
+    {
+        ResetDir(NextDir);
+        try { if (File.Exists(DiscardTomb)) File.Delete(DiscardTomb); } catch { /* a tombstone left on a folder being written anew is cleared at the next staging */ }
+    }
 
     // ---------------------------------------------------------------- promotion
 
@@ -259,6 +296,9 @@ public sealed class UpdateInstaller
     {
         sourceDir = Path.GetFullPath(sourceDir).TrimEnd(Path.DirectorySeparatorChar);
         if (string.Equals(sourceDir, InstallDir, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("the install folder cannot promote itself");
+        // the staged folder installs only whole and wanted: its file list and verified mark present, no tombstone standing (security review 2026-10-30)
+        if (string.Equals(sourceDir, NextDir, StringComparison.OrdinalIgnoreCase) && (File.Exists(DiscardTomb) || !File.Exists(Path.Combine(sourceDir, VerifiedName)) || !File.Exists(Path.Combine(sourceDir, IndexName))))
+            throw new InvalidOperationException("the staged copy was let go, or was never verified whole");
         // a copy an older updater unpacked has no install.json: the running copy says its own version
         var version = VersionOf(sourceDir) ?? knownVersion ?? throw new InvalidDataException("the folder to install names no version");
         var src = IndexOf(sourceDir);

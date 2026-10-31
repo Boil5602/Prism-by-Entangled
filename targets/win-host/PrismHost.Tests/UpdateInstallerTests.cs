@@ -213,4 +213,38 @@ public sealed class UpdateInstallerTests : IDisposable
         Assert.Equal(UpdateInstaller.StartAction.InstallSelfThenLaunch, UpdateInstaller.Decide(@"C:\Users\x\Downloads\Prism", v("0.26.0"), install, null, null));
         Assert.Equal(UpdateInstaller.StartAction.InstallSelfThenLaunch, UpdateInstaller.Decide(@"C:\Users\x\AppData\Local\Prism\app\0.27.0", v("0.27.0"), install, v("0.26.0"), null));
     }
+
+    // security review 2026-10-30 (install on its own): a staged copy core let go is removed fail-closed - the verified mark first, a tombstone
+    // until the folder is gone - so a held folder is never promoted and the next start finishes the removal
+    [Fact]
+    public void A_discard_fails_closed_and_a_tombstone_outlives_a_held_folder()
+    {
+        var inst = Make();
+        void Stage() { Directory.CreateDirectory(inst.NextDir); File.WriteAllText(Path.Combine(inst.NextDir, "PrismHost.exe"), "x"); File.WriteAllText(Path.Combine(inst.NextDir, UpdateInstaller.MarkerName), "{\"version\":\"0.30.0\"}"); File.WriteAllText(Path.Combine(inst.NextDir, UpdateInstaller.VerifiedName), ""); }
+        Stage();
+        Assert.Equal("0.30.0", inst.StagedVersion());
+        Assert.True(inst.Discard());
+        Assert.False(Directory.Exists(inst.NextDir)); Assert.Null(inst.StagedVersion()); Assert.False(File.Exists(inst.DiscardTomb));
+        Assert.True(inst.Discard());   // nothing staged: still fine
+        // a tombstone left by a discard the folder's holder cut short: nothing promotes the folder, and the next start finishes the removal
+        Stage();
+        File.WriteAllText(inst.DiscardTomb, "t");
+        Assert.Null(inst.StagedVersion());
+        Assert.True(inst.FinishDiscard());
+        Assert.False(Directory.Exists(inst.NextDir)); Assert.False(File.Exists(inst.DiscardTomb));
+        Assert.False(inst.FinishDiscard());   // nothing left to finish
+        // the tombstone alone, written the moment core lets go: the copy is not staged any more, and only a fresh staging clears the mark
+        Stage();
+        inst.MarkDiscard();
+        Assert.Null(inst.StagedVersion());
+        inst.ResetNext();
+        Assert.True(Directory.Exists(inst.NextDir)); Assert.Empty(Directory.GetFiles(inst.NextDir)); Assert.False(File.Exists(inst.DiscardTomb));
+        // Promote itself refuses a staged copy whose tombstone stands, or that was never verified whole
+        Stage();
+        inst.MarkDiscard();
+        Assert.Throws<InvalidOperationException>(() => inst.Promote(inst.NextDir));
+        inst.ResetNext(); Stage();
+        File.Delete(Path.Combine(inst.NextDir, UpdateInstaller.VerifiedName));
+        Assert.Throws<InvalidOperationException>(() => inst.Promote(inst.NextDir));
+    }
 }

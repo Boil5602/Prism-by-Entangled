@@ -1020,6 +1020,10 @@ export class Orchestrator {
         },
         apply: (release) => drivers.update?.apply(release) ?? "failed",
         now: () => Date.now(),
+        // B-458 (2026-10-30): the quiet-moment restart into a staged release, and the wall's word on whether the moment is quiet
+        ...(drivers.ui?.updateRestart ? { restart: () => drivers.ui!.updateRestart!("quiet") } : {}),
+        quiet: () => this.quietForUpdate(),
+        discard: () => drivers.update?.discard?.(),
       },
       drivers.store,
     );
@@ -4050,6 +4054,8 @@ export class Orchestrator {
 
   /** The person's choice of when the update check runs (2026-10-06): taken at once. */
   setUpdateSchedule(schedule: UpdateSchedule | null, enabled: boolean): void { this.updates.setSchedule(schedule, enabled); }
+  /** Install on its own (B-458, 2026-10-30): the Updates dialog's switch. */
+  setUpdateAuto(on: boolean): void { this.updates.setAuto(on); }
   setUpdateChannel(channel: UpdateChannel): Promise<void> {
     return this.updates.setChannel(channel);
   }
@@ -7643,6 +7649,15 @@ export class Orchestrator {
   politeIdle(now = Date.now()): boolean {
     const lastTouch = Math.max(this.personSeenAt, 0, ...this.lastInteract.values());
     return now - lastTouch > Orchestrator.POLITE_IDLE_MS && !this.video.state((this.doc?.tiles ?? []).map((t) => t.id)).some((t) => t.playing);
+  }
+  /** Nothing playing anywhere and nobody has used the wall for twenty minutes: the quiet moment a staged release restarts in (B-458). */
+  static readonly UPDATE_QUIET_MS = 20 * 60_000;
+  quietForUpdate(now = Date.now()): boolean {
+    const lastTouch = Math.max(this.personSeenAt, 0, ...this.lastInteract.values());
+    if (now - lastTouch < Orchestrator.UPDATE_QUIET_MS) return false;
+    if (this.video.state((this.doc?.tiles ?? []).map((t) => t.id)).some((t) => t.playing)) return false;
+    for (const n of this.nowPlaying.values()) if (n?.playing === true) return false;
+    return true;
   }
   private politeMayRead(app: string, now = Date.now()): boolean {
     if ((this.politeUntil.get(app) ?? 0) > now) return false;

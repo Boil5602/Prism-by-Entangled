@@ -109,7 +109,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "ui.screenClear", m1: true, fields: { tile: "string?" } },   // a screen cleared from the phone (2026-10-15): the PC's X on that window, null its Clear screens
   { op: "ui.privateMute", m1: true, fields: { on: "boolean" } },
   { op: "ui.listenRoutes", m1: true, fields: { json: "string" } },
-  { op: "ui.updateRestart", m1: true, fields: {} },   // the phone's Restart into the new version (2026-10-15): the PC restarts into the release it staged, as its own Updates window does
+  { op: "ui.updateRestart", m1: true, fields: { reason: "string?" } },   // the phone's Restart into the new version (2026-10-15): the PC restarts into the release it staged, as its own Updates window does
   { op: "ui.breakWatch", m1: true, fields: { on: "boolean", mode: "string" } },   // the phone's switch for covering YouTube TV's channel breaks (2026-10-07)   // each phone's window (2026-10-06): {routes: {listener: tile}, hero}
   // -------------------------------------------------------------- display
   { op: "display.setBrightness", fields: { value: "number" } },
@@ -132,6 +132,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // the Windows host serves both since 2026-10-05 (Services/Updates.cs): the signed manifest, the verified install into the data folder
   { op: "update.fetchManifest", m1: true, request: true, fields: { url: "string" } },
   { op: "update.apply", m1: true, request: true, fields: { release: "json" } },
+  { op: "update.discard", m1: true, request: true, fields: {} },   // the staged release let go: its folder removed, fail-closed; answers true or false (security review 2026-10-30)
   // ---------------------------------------------------------------- store
   { op: "store.set", m1: true, fields: { key: "string", value: "string" } },
   { op: "store.remove", m1: true, fields: { key: "string" } },   // a cache key core drops (B-406, 2026-10-30)

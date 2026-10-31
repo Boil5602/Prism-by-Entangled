@@ -76,6 +76,7 @@ public static class Ops
     public const string InputListRemotes = "input.listRemotes";
     public const string UpdateFetchManifest = "update.fetchManifest";
     public const string UpdateApply = "update.apply";
+    public const string UpdateDiscard = "update.discard";
     public const string StoreSet = "store.set";
     public const string StoreRemove = "store.remove";
     public const string AlarmSetTone = "alarm.setTone";
@@ -584,7 +585,8 @@ public sealed record UiListenRoutesCommand(
     [property: JsonPropertyName("json")] string Json);
 
 /// <summary>ui.updateRestart [M1]</summary>
-public sealed record UiUpdateRestartCommand();
+public sealed record UiUpdateRestartCommand(
+    [property: JsonPropertyName("reason")] string? Reason = null);
 
 /// <summary>ui.breakWatch [M1]</summary>
 public sealed record UiBreakWatchCommand(
@@ -657,6 +659,9 @@ public sealed record UpdateFetchManifestCommand(
 /// <summary>update.apply (request lane — answer via PrismRuntime.resolve) [M1]</summary>
 public sealed record UpdateApplyCommand(
     [property: JsonPropertyName("release")] System.Text.Json.JsonElement? Release = null);
+
+/// <summary>update.discard (request lane — answer via PrismRuntime.resolve) [M1]</summary>
+public sealed record UpdateDiscardCommand();
 
 /// <summary>store.set [M1]</summary>
 public sealed record StoreSetCommand(
@@ -781,6 +786,7 @@ public static class ChannelSchema
         ["input.listRemotes"] = true,
         ["update.fetchManifest"] = true,
         ["update.apply"] = true,
+        ["update.discard"] = true,
         ["store.set"] = false,
         ["store.remove"] = false,
         ["alarm.setTone"] = false,
@@ -838,6 +844,7 @@ public static class ChannelSchema
         "ui.breakWatch",
         "update.fetchManifest",
         "update.apply",
+        "update.discard",
         "store.set",
         "store.remove",
         "net.fetchStatic",

@@ -41,7 +41,7 @@ describe("the manifest's changelog history", () => {
 
   it("a newer release is both available and latest", async () => {
     const u = new UpdateChecker({ fetchManifest: () => JSON.stringify({ alpha: entry }), apply: () => "staged", now: () => 0 });
-    await u.start({ currentVersion: "0.26.25", manifestUrl: "https://example.test/manifest.json", channel: "alpha" });
+    await u.start({ currentVersion: "0.26.25", manifestUrl: "https://example.test/manifest.json", channel: "alpha", auto: false });   // install on its own off (B-458): this is about available and latest
     const st = await u.check();
     expect(st.available?.version).toBe("0.27.0");
     expect(st.latest?.version).toBe("0.27.0");
