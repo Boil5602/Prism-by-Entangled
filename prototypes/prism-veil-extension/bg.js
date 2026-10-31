@@ -66,6 +66,90 @@ function routeStart(win) {
   });
 }
 try { chrome.windows.onCreated.addListener(function (win) { if (win.type === "normal") setTimeout(function () { routeStart(win); }, 150); }); } catch (e) {}
+// After an install, an update, or being switched off and on again, the pages
+// already open run no Prism (the copy an update orphans tears itself down,
+// main.js orphaned(), B-410), so the new version injects its content scripts
+// into every open top frame the manifest matches, group by group in manifest
+// order. Player embed frames (the all_frames groups) wait for their next
+// load: listing a tab's frames needs a permission that carries an install
+// warning. 2026-10-27, "why is the prism pill button gone?".
+//
+// This needs the all-sites host permissions in the manifest: the content
+// scripts' own <all_urls> match does not let the background read a tab's
+// address or inject into it (first try, B-414, injected nowhere; B-416). The
+// install warning is the same one the content scripts always carried.
+function urlMatches(p, url) {
+  if (p === "<all_urls>") return /^(https?|file|ftp):/i.test(url);
+  var i = p.indexOf("://"); if (i < 0) return false;
+  var scheme = p.slice(0, i), rest = p.slice(i + 3), j = rest.indexOf("/"); if (j < 0) return false;
+  var host = rest.slice(0, j), path = rest.slice(j);
+  var u; try { u = new URL(url); } catch (e) { return false; }
+  if (scheme === "*" ? !/^https?:$/.test(u.protocol) : u.protocol !== scheme + ":") return false;
+  var h = u.hostname;
+  if (host !== "*") {
+    if (host.indexOf("*.") === 0) { var d = host.slice(2); if (h !== d && h.slice(-(d.length + 1)) !== "." + d) return false; }
+    else if (h !== host) return false;
+  }
+  if (path === "/*") return true;
+  var up = u.pathname + u.search, star = path.indexOf("*");
+  if (star < 0) return up === path;
+  return up.indexOf(path.slice(0, star)) === 0;   // one trailing star is all the manifest uses
+}
+// Runs in the page's isolated world first: a page whose copy is alive (the
+// browser just started, or the worker woke for some other reason) is left
+// alone; a torn-down copy marks itself dead (main.js orphaned()).
+function probeTab() {
+  var ns = window.__prismVeilNS;
+  return { href: location.href, live: window.__prismVeil === true && !(ns && ns.__dead) };
+}
+function reinjectOpenTabs() {
+  if (!chrome.scripting || !chrome.tabs) return;
+  var groups = (chrome.runtime.getManifest().content_scripts || []).filter(function (g) { return !g.all_frames; });
+  chrome.tabs.query({}, function (tabs) {
+    if (chrome.runtime.lastError) return;
+    (tabs || []).forEach(function (t) {
+      if (t.id == null || t.discarded || t.status !== "complete" || !t.url || !/^https?:/i.test(t.url)) return;
+      try {
+        chrome.scripting.executeScript({ target: { tabId: t.id }, func: probeTab }, function (res) {
+          if (chrome.runtime.lastError) return;
+          var r = res && res[0] && res[0].result;
+          if (!r || r.live || !r.href) return;
+          var due = groups.filter(function (g) {
+            var hit = (g.matches || []).some(function (p) { return urlMatches(p, r.href); });
+            var ex = (g.exclude_matches || []).some(function (p) { return urlMatches(p, r.href); });
+            return hit && !ex;
+          });
+          (function next(k) {
+            if (k >= due.length) return;
+            var g = due[k];
+            try {
+              chrome.scripting.executeScript({ target: { tabId: t.id }, files: g.js, world: g.world === "MAIN" ? "MAIN" : "ISOLATED", injectImmediately: true }, function () { void chrome.runtime.lastError; next(k + 1); });
+            } catch (e) { next(k + 1); }
+          })(0);
+        });
+      } catch (e0) {}
+    });
+  });
+}
+// One pass, 1.5 s on, so the copies an update orphaned have torn themselves
+// down first (main.js checks every 1.2 s) and the probe sees them dead.
+var reinjectT = 0;
+function scheduleReinject() {
+  if (reinjectT) return;
+  reinjectT = setTimeout(function () { reinjectT = 0; reinjectOpenTabs(); }, 1500);
+}
+try { chrome.runtime.onInstalled.addListener(function (d) { if (d && (d.reason === "install" || d.reason === "update")) scheduleReinject(); }); } catch (e) {}
+// Switched on again at edge://extensions, or the browser just started: no
+// onInstalled, but a fresh worker with an empty session store. A worker that
+// only woke from idle finds the mark and does nothing.
+try {
+  if (chrome.storage && chrome.storage.session) chrome.storage.session.get("booted", function (r) {
+    if (chrome.runtime.lastError || (r && r.booted)) return;
+    chrome.storage.session.set({ booted: Date.now() });
+    scheduleReinject();
+  });
+} catch (e) {}
+
 try { chrome.runtime.onStartup.addListener(function () { chrome.windows.getAll({ windowTypes: ["normal"] }, function (ws) { (ws || []).forEach(routeStart); }); }); } catch (e) {}
 
 // "Report ad" -> the Prism report inbox. Only ever on a user's explicit click

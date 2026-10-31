@@ -187,7 +187,7 @@ public sealed partial class MainWindow
             case "item.mute": await ToggleItemMuteAsync(hit.P("item")); _routeStack.Remove(hit); break;
             case "item.visualNext": await CycleVisualizationStyleAsync(hit.P("item")); _routeStack.Remove(hit); break;
             case "item.musicService": _routeStack.Remove(hit); _ = ChangeMusicServiceAsync(hit.P("item")); break;
-            case "item.musicAdd": _routeStack.Remove(hit); _ = ChangeMusicServiceAsync(hit.P("item"), add: true); break;   // multi-service lounge (2026-09-07)
+            case "item.musicAdd": _routeStack.Remove(hit); _ = ShowWelcomeAsync(); break;   // Set up services, since 2026-10-29 (the add dialog is retired)   // multi-service lounge (2026-09-07)
             case "item.musicRemove": _routeStack.Remove(hit); _ = RemoveMusicServiceAsync(hit.P("item")); break;   // B-195 (2026-09-09)
             case "item.musicAds": _routeStack.Remove(hit); _ = AdsSoundModalAsync(hit.P("item")); break;   // section 26 ambient audio (2026-09-07)
             case "item.visualStyle": _routeStack.Remove(hit); _ = VisualStyleModalAsync(hit.P("item")); break;   // a modal on the spot, applied live (2026-09-06)

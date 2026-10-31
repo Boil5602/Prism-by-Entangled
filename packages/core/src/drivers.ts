@@ -448,6 +448,14 @@ export interface NetDriver {
 export interface StoreDriver {
   get(key: string): MaybePromise<string | null>;
   set(key: string, value: string): MaybePromise<void>;
+  /**
+   * A key dropped for good (B-406, 2026-10-30: core's own caches are bounded by core; the lens cache had grown to 15,000 keys
+   * with nothing pruning it). Only ever a cache key core wrote itself - never a profile, a session or a person's setting (§10).
+   * A shell without it keeps every cache; nothing else changes.
+   */
+  remove?(key: string): MaybePromise<void>;
+  /** The keys that start with a prefix, for a bounded cache to look over its own entries. */
+  keys?(prefix: string): MaybePromise<string[]>;
 }
 
 /** §24 alarm tone — a bundled or system-default sound, always local. */

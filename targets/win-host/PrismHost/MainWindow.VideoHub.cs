@@ -947,7 +947,7 @@ public sealed partial class MainWindow
             else if (was != "video")
             {
                 await MvCallAsync("state");   // multiview kept across a restart: the small windows' bars follow the controls from the start
-                if (!VideoHubOpen && StageCurtain.Visibility != Visibility.Visible && !_asSession && !await ScreenTitleUpAsync()) await ShowVideoHubAsync();   // a title already up (back from the Music player mid-film): the player stays on top
+                if (!VideoHubOpen && StageCurtain.Visibility != Visibility.Visible && !_asSession && !await ScreenTitleUpAsync()) { await ShowVideoHubAsync(); _hubArrivedAt = DateTime.UtcNow; }   // a title already up (back from the Music player mid-film): the player stays on top
                 RemoveBootCover(VideoHubOpen ? "Watch drawn" : "a title is up");
                 _ = FollowWatchHomeAsync(++_watchHomeRun);
             }
@@ -1000,6 +1000,14 @@ public sealed partial class MainWindow
         }
         catch { return; }
         if (!VideoHubOpen || !(_mvBigHas ? tile?["playing"]?.GetValue<bool>() == true : TitleUp(tile))) return;
+        // the kept title back on the screen after the boot's own Watch: Watch gives way to it, never the corner (see _hubArrivedAt)
+        if (_hubArrivedAt is { } arrived && (DateTime.UtcNow - arrived).TotalSeconds < 90 && !_mvOn && !held)
+        {
+            _hubArrivedAt = null;
+            LogLine("video hub: closed, the kept title is up on the screen");
+            CloseVideoHub(redraw: true);
+            return;
+        }
         await MvCallAsync("state");   // the corner follows what core says now (SyncWatchStack)
         if (_mvBig?["starting"]?.GetValue<bool>() != true && _startingTiles.Count > 0 && tile?["playing"]?.GetValue<bool>() == true)
         {
@@ -1153,8 +1161,14 @@ public sealed partial class MainWindow
     }
 
     /// <summary>Open (or rebuild) the menu from core's current word (videoMenu + videoState).</summary>
+    /// <summary>When Watch was opened by the wall's own arrival at the Video player (the boot, a switch), not by a person: a title core brings
+    /// back on the screen in the next while (the restart's Play press on the kept title) closes Watch and stands, as the person left it
+    /// (2026-10-29, "Why is apple sitting on a web page instead of the video that was paused?": the kept episode began under an open Watch,
+    /// the corner took it at 306x172, and Apple's player paused on the resize and closed thirty seconds on). A person's own Watch clears it.</summary>
+    private DateTime? _hubArrivedAt;
     public async Task ShowVideoHubAsync()
     {
+        _hubArrivedAt = null;
         // whether playlists are usable (a TMDB account linked) before the tabs are drawn; a page left on Playlists without one opens on Watch
         await PlaylistsActiveAsync();
         if (_hubTab == "playlists" && !_playlistsTab) _hubTab = "watch";

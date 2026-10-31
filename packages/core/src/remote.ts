@@ -1035,12 +1035,22 @@ export class RemoteApi {
     if (req.method === "GET" && req.path === "/music/quick") {
       const sources = this.musicQuick?.() ?? [];
       const m = this.orchestrator.musicState();
-      const out = sources.map((s) => {
+      const out = await Promise.all(sources.map(async (s) => {
         const lib = this.orchestrator.musicLibraryNow(s.tile);
         const src = m.sources[s.tile];
-        return { ...s, playbackState: src?.playbackState ?? null, playlists: lib.playlists.map((p) => ({ id: p.id, name: p.name })), stations: lib.stations.map((p) => ({ id: p.id, name: p.name })), cannot: this.orchestrator.musicLookupCannot(s.tile) };
-      });
+        // the last five it played from, with ids the phone can play by (2026-10-29, the phone's Recent stations and playlists)
+        const recent = (await this.orchestrator.recentMusic(s.tile)).filter((e) => !!e.id && (e.kind === "playlist" || e.kind === "station" || e.kind === "album")).slice(0, 5).map((e) => ({ id: e.id!, name: e.label, kind: e.kind, at: e.at }));
+        return { ...s, playbackState: src?.playbackState ?? null, playlists: lib.playlists.map((p) => ({ id: p.id, name: p.name })), stations: lib.stations.map((p) => ({ id: p.id, name: p.name })), recent, cannot: this.orchestrator.musicLookupCannot(s.tile) };
+      }));
       return json(200, { sources: out });
+    }
+    // POST /music/cancel {tile} - a pick still loading is dropped and what plays, plays on (2026-10-29, "is it feasible to add a cancel
+    // button there when my current music is still playing and to just keep the currently playing item up?")
+    if (req.method === "POST" && req.path === "/music/cancel") {
+      const b = this.parseBody(req.body);
+      const tile = b?.["tile"];
+      if (typeof tile !== "string" || !tile) return json(400, { error: 'body must be {"tile"}' });
+      return json(200, { ok: true, kept: await this.orchestrator.cancelMusicPick(tile) });
     }
     // POST /music/play {tile, kind, id, order?} - a listed collection, as the wall's Quick play plays it
     if (req.method === "POST" && req.path === "/music/play") {

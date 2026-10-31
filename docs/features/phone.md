@@ -63,6 +63,18 @@ phones. The app should also enable the private listening feature through the pho
    play/pause, next, thumbs, Mute Prism on PC - the buttons read the PC's real mute), the order chips (In order / True shuffle / Reverse
    and a standing Repeat, the PC's own choices and limits: a station has no order, a service without track lists has no true shuffle)
    and the services' Quick play as an accordion (`GET /music/quick`, `POST /music/play`, `POST /music/repeat`; 2026-10-04).
+   The service playing now leads the list, its head saying *Now Playing* beside a five-bar meter drawn from the PC's own bands
+   (the visual's `/viz/bands` socket, opened while the Music tab shows a playing service and closed when it does not; 2026-10-29,
+   "listed at the top of quick play list ... a little sound meter next to it showing the beats"). With nothing playing the stage's
+   service leads.
+   Under the accordion, with a gap, *Recent stations and playlists*: the last five collections played across the services, flat rows
+   under the service's name, a tap playing one as the accordion's rows do (`recent` on each source of `/music/quick`; 2026-10-29, "dont
+   make the user go to child menus to find everything", "Maybe just the last 5 items"). The PC's Quick play has the same section.
+   While a pick is still loading over a song that plays on, the work line carries *Cancel*: the pick is dropped on the PC
+   (`POST /music/cancel {tile}`, core's cancelMusicPick: the pending clears, a track-list read under way is let fall, and the page's
+   adapter is told, Apple's dropping the play() after its setQueue) and the song plays on; 2026-10-29, "is it feasible to add a cancel
+   button there when my current music is still playing and to just keep the currently playing item up?". The PC's block has the same
+   Cancel beside its loading line.
    A tap on the card's picture opens the lounge visual on the phone (2026-10-27, "Can I tap the album art ... and get the music lounge
    visual streamed to that area instead? Let the user full screen it without interrupting the music"): the PC's own bands (its loopback
    FFT, 48 a frame at 30 a second over the `/viz/bands` WebSocket, the pairing token) drawn on the phone: Sunrise Meadow first (the
@@ -128,7 +140,7 @@ phones. The app should also enable the private listening feature through the pho
    video) page for video ... Optimizes for mobile"). The big window's title with its art (TMDB's poster as the PC's bar shows it),
    season and episode, the service, a seek bar (the spot goes when the finger lifts; off for a service whose adapter cannot seek),
    and the bar's own verbs: start over (the previous episode in the first 5 s, the PC's rule), back 10 s, play/pause, forward 10 s,
-   next episode, skip intro (shown only while the service offers a skip, 2026-10-05), captions (a sheet of the service's own
+   next episode, skip intro (shown only while the service offers a skip, 2026-10-05, and for an ad's Skip the break knows of, 2026-10-29), captions (a sheet of the service's own
    subtitle and audio tracks as the PC's menu lists them, the one in use marked, a tap picks it on the PC, Close lets a service's own
    panel close - `POST /video/tracks`, `/video/track`, `/video/tracks-done`; a service without a tracks script gets its own captions
    button pressed on the PC instead, 2026-10-05), mute Prism on PC. The page's own error under the card in amber with a Retry

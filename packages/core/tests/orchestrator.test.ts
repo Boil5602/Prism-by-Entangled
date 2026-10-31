@@ -903,3 +903,107 @@ describe("§3 rule 5 — human attribution survives a slow service", () => {
     expect(o.getState()?.audioOwner).toBe("sp");
   });
 });
+
+describe("2026-10-29: Play after a station played from the page brings the station back, and the older true shuffle keeps standing", () => {
+  const lounge = (): DashboardDocument => ({ ...doc, id: "lounge", layout: { mode: "grid", cols: 1, rows: 1, gap: 0 }, tiles: [
+    { id: "stage", visualization: { style: "prism-beams", source: "am", artwork: "backdrop" }, audio: "mute", aspectHint: "16:9" },
+    { id: "am", url: "https://music.apple.com/", adapter: "apple-music", audio: "exclusive", kind: "floating", float: { x: 0, y: 0, w: 0.3, h: 0.3, hidden: true } },
+  ] });
+  const order = (at: number) => JSON.stringify({ kind: "playlist", id: "pl.bedtime", name: "Bedtime Beats", order: "true-shuffle", ids: ["a", "b", "c"], index: 1, count: 3, at });
+  const station = { kind: "station", id: "ra.discovery", label: "Discovery Station", url: "https://music.apple.com/us/station/discovery/ra.discovery" };
+  const am = { id: "apple-music", musicPlay: "x", musicQueue: "x", musicTracks: "x", controls: { play: ".play" } };
+  it("the resume point, newer than the order's last move and naming the station, is what Play brings back; the order stays", async () => {
+    const { drivers, calls, kv } = fakeDrivers();
+    (drivers.surface as any).createVisualization = (opts: any) => void calls.push({ op: "createVisualization", ...opts });
+    kv.set("music:order:lounge:am", order(Date.now() - 60_000));
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ "apple-music": am } as never);
+    await o.load(lounge(), VIEWPORT);
+    await o.onSurfaceEvent({ type: "navigated", id: "am", url: station.url });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "above", artist: "96 Zeus", context: station } });
+    expect(await o.resumePoint("am")).toMatchObject({ kind: "station", id: "ra.discovery" });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });   // a restart: nothing queued
+    calls.length = 0;
+    expect(await o.resumeMusic("am")).toBe("ok");
+    const js = calls.filter((c) => c.op === "inject" && c.id === "am").map((c) => String(c.js)).join("\n");
+    expect(js).toContain('__prismMusicPlay("station", "ra.discovery"');
+    expect(js).not.toContain("__prismMusicQueue");
+    expect(o.musicOrderOf("am")).toMatchObject({ id: "pl.bedtime", order: "true-shuffle", spot: 2 });   // standing still, at its spot
+  });
+  it("an order asked after the station carries on as before", async () => {
+    const { drivers, calls, kv } = fakeDrivers();
+    (drivers.surface as any).createVisualization = (opts: any) => void calls.push({ op: "createVisualization", ...opts });
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ "apple-music": am } as never);
+    await o.load(lounge(), VIEWPORT);
+    await o.onSurfaceEvent({ type: "navigated", id: "am", url: station.url });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "above", artist: "96 Zeus", context: station } });
+    kv.set("music:order:lounge:am", order(Date.now() + 1000));   // the order asked after the station
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });
+    calls.length = 0;
+    const done = o.resumeMusic("am");
+    await new Promise((r) => setTimeout(r, 50));
+    const js = calls.filter((c) => c.op === "inject" && c.id === "am").map((c) => String(c.js)).join("\n");
+    expect(js).toContain("__prismMusicQueue");
+    expect(js).not.toContain("__prismMusicPlay(");
+    const token = /__prismMusicQueue\("([^"]+)"/.exec(js)?.[1];
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: token!, op: "queue", ok: true } as never);   // the page took the queue
+    expect(await done).toBe("ok");
+  });
+});
+
+describe("2026-10-29: Cancel while a pick loads drops the pick and tells the page, and what plays, plays on", () => {
+  const lounge = (): DashboardDocument => ({ ...doc, id: "lounge", layout: { mode: "grid", cols: 1, rows: 1, gap: 0 }, tiles: [
+    { id: "stage", visualization: { style: "prism-beams", source: "am", artwork: "backdrop" }, audio: "mute", aspectHint: "16:9" },
+    { id: "am", url: "https://music.apple.com/", adapter: "apple-music", audio: "exclusive", kind: "floating", float: { x: 0, y: 0, w: 0.3, h: 0.3, hidden: true } },
+  ] });
+  it("the pending clears, the page gets __prismMusicPlayCancel, and the answer says whether a song still plays", async () => {
+    const { drivers, calls } = fakeDrivers();
+    (drivers.surface as any).createVisualization = (opts: any) => void calls.push({ op: "createVisualization", ...opts });
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ "apple-music": { id: "apple-music", musicPlay: "x", musicQueue: "x", musicTracks: "x", controls: { play: ".play" } } } as never);
+    await o.load(lounge(), VIEWPORT);
+    const station = { kind: "station", id: "ra.discovery", label: "Discovery Station", url: "https://music.apple.com/us/station/discovery/ra.discovery" };
+    await o.onSurfaceEvent({ type: "navigated", id: "am", url: station.url });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "above", artist: "96 Zeus", context: station } });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });
+    expect(await o.resumeMusic("am")).toBe("ok");   // a pick by id: pending until the page says it plays
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicPending).toBeTruthy();
+    calls.length = 0;
+    expect(await o.cancelMusicPick("am")).toBe(false);   // nothing playing at this moment
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicPending).toBeUndefined();
+    expect(calls.some((c) => c.op === "inject" && c.id === "am" && String(c.js).includes("__prismMusicPlayCancel"))).toBe(true);
+    expect(await o.cancelMusicPick("nope")).toBe(false);
+  });
+});
+
+describe("B-449: a Recent row carries a standing true shuffle on from its spot, as a Quick play row does", () => {
+  const lounge = (): DashboardDocument => ({ ...doc, id: "lounge", layout: { mode: "grid", cols: 1, rows: 1, gap: 0 }, tiles: [
+    { id: "stage", visualization: { style: "prism-beams", source: "am", artwork: "backdrop" }, audio: "mute", aspectHint: "16:9" },
+    { id: "am", url: "https://music.apple.com/", adapter: "apple-music", audio: "exclusive", kind: "floating", float: { x: 0, y: 0, w: 0.3, h: 0.3, hidden: true } },
+  ] });
+  it("the recent's play queues the order from its spot instead of the page's own play", async () => {
+    const { drivers, calls, kv } = fakeDrivers();
+    (drivers.surface as any).createVisualization = (opts: any) => void calls.push({ op: "createVisualization", ...opts });
+    kv.set("music:order:lounge:am", JSON.stringify({ kind: "playlist", id: "pl.vibes", name: "Vibes", order: "true-shuffle", ids: ["a", "b", "c", "d"], index: 2, count: 4, at: Date.now() - 60_000 }));
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ "apple-music": { id: "apple-music", musicPlay: "x", musicQueue: "x", musicTracks: "x", controls: { play: ".play" } } } as never);
+    await o.load(lounge(), VIEWPORT);
+    const url = "https://music.apple.com/us/library/playlist/pl.vibes";
+    await o.onSurfaceEvent({ type: "navigated", id: "am", url });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "Gospel Oak", artist: "Wolf Alice", context: { kind: "playlist", id: "pl.vibes", label: "Vibes", url } } });
+    expect((await o.recentMusic("am")).some((e) => e.id === "pl.vibes")).toBe(true);
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });
+    calls.length = 0;
+    const done = o.playRecent("am", url);
+    await new Promise((r) => setTimeout(r, 50));
+    const js = calls.filter((c) => c.op === "inject" && c.id === "am").map((c) => String(c.js)).join("\n");
+    expect(js).toContain("__prismMusicQueue");
+    expect(js).toContain('["c","d"]');   // from the spot, not the first track
+    expect(js).not.toContain('__prismMusicPlay("playlist"');
+    const token = /__prismMusicQueue\("([^"]+)"/.exec(js)?.[1];
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: token!, op: "queue", ok: true } as never);
+    expect(await done).toBe("ok");
+    expect(o.musicOrderOf("am")).toMatchObject({ id: "pl.vibes", order: "true-shuffle" });
+  });
+});

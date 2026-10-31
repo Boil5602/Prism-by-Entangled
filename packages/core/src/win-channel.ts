@@ -134,6 +134,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "update.apply", m1: true, request: true, fields: { release: "json" } },
   // ---------------------------------------------------------------- store
   { op: "store.set", m1: true, fields: { key: "string", value: "string" } },
+  { op: "store.remove", m1: true, fields: { key: "string" } },   // a cache key core drops (B-406, 2026-10-30)
   // ---------------------------------------------------------------- misc
   { op: "alarm.setTone", fields: { playing: "boolean" } },
   { op: "net.submitCompatReport", fields: { report: "string" } },

@@ -542,6 +542,8 @@ export interface PrismRuntimeApi {
   restyleVisualization(tileId: string, style: string, artwork: string | null): void;
   /** Quick play: JSON of the last few collections this music tile played from (most recent first). Sync from core's cache; a read refreshes it for the next open. */
   musicRecent(tileId: string): string;
+  /** Quick play: a pick still loading is dropped and what plays, plays on (2026-10-29). */
+  musicCancel(tileId: string): void;
   /** Quick play: go to one of those collections and press the page's Play. */
   playRecent(tileId: string, url: string): void;
   /** Quick play: JSON {playlists, stations} of the service's library as the page reported it (sync from core's cache). */
@@ -785,6 +787,18 @@ export function createBridgeDrivers(): Drivers {
     },
     store: {
       get: (key: string) => bridge().storeGet(key),
+      // the keys under a prefix, from the snapshot the brain page mirrors (B-406, 2026-10-30: the lens cache prunes its own entries);
+      // a shell without the mirror answers none, and the cache keeps everything
+      keys: (prefix: string) => {
+        try { const snap = (globalThis as unknown as { __prismStoreSnapshot?: Record<string, string> }).__prismStoreSnapshot; return snap ? Object.keys(snap).filter((k) => k.startsWith(prefix)) : []; } catch { return []; }
+      },
+      // a key dropped: its pending write forgotten, the mirror's copy gone at once, the host told (store.remove)
+      remove: (key: string) => {
+        const pend = storePending.get(key);
+        if (pend) { clearTimeout(pend.timer); storePending.delete(key); }
+        try { const snap = (globalThis as unknown as { __prismStoreSnapshot?: Record<string, string> }).__prismStoreSnapshot; if (snap) delete snap[key]; } catch { /* no snapshot */ }
+        send("store.remove", { key });
+      },
       // a value the store already holds is not sent again (2026-09-28: a music page's library, saved on every one-second report, unchanged -
       // 1,551 saves in 35 minutes, each a rewrite of the whole store on the host). A value that keeps changing reaches the host once per quiet
       // five seconds, thirty seconds at the most (2026-10-03, perf.log: the watch log, the recents and the resume point were set 54 times a
@@ -3167,16 +3181,22 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       // when the page still names the same episode three seconds on, the next one from the Episodes list, through the same play as a card
       if (cmd === "nextepisode") {
         const sv0 = videoServices();
-        const before = sv0.screen && sv0.screen.slot === tileId ? orchestrator.videoState().find((x) => x.id === tileId)?.video ?? null : null;
+        // the page's own word before the press (B-452, 2026-10-29): the state the screen shows lays the expected episode over it as soon as
+        // the press is made, so a check against that read the expectation as the move, and the list was never asked ("it shows the new e8
+        // in the bottom ... but i'm still watching the credits", then "the E8 went back to E7")
+        const before = sv0.screen && sv0.screen.slot === tileId ? orchestrator.videoPageEpisodeMark(tileId) : "";
+        const fromList = (why: string) => {
+          const r2 = nextEpisodeFromList() as { ok?: boolean; error?: string; did?: string };
+          report(new Error("next episode: " + why + "; " + (r2.ok ? "played the next from the Episodes list (" + r2.did + ")" : "the list could not: " + r2.error)));
+        };
         orchestrator.tileCommand(tileId, cmd).then((r) => {
           if (r !== "ok") report(new Error("tileCommand " + cmd + ": " + r));
           if (!before) return;
+          // the page said its Next was not there to press (Apple TV before its Play Next Episode card): the list at once
+          if (r === "unavailable") { fromList("the service's page has no Next to press now"); return; }
           setTimeout(() => {
-            const now = orchestrator.videoState().find((x) => x.id === tileId)?.video ?? null;
-            const same = !!now && now.id === before.id && now.episode === before.episode && now.season === before.season;
-            if (!same) return;
-            const r2 = nextEpisodeFromList() as { ok?: boolean; error?: string; did?: string };
-            report(new Error("next episode: the service's own Next did nothing; " + (r2.ok ? "played the next from the Episodes list (" + r2.did + ")" : "the list could not: " + r2.error)));
+            if (orchestrator.videoPageEpisodeMark(tileId) !== before) return;
+            fromList("the service's own Next did nothing");
           }, 3000);
         }, report);
         return;
@@ -4283,6 +4303,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     musicRecent(tileId) {
       return json(orchestrator.recentMusicNow(tileId));
     },
+    musicCancel(tileId) {
+      orchestrator.cancelMusicPick(tileId).catch(report);
+    },
     musicLibrary(tileId) {
       return json({ ...orchestrator.musicLibraryNow(tileId), orders: orchestrator.musicOrderSupport(tileId), order: orchestrator.musicOrderOf(tileId), repeat: orchestrator.musicRepeatOf(tileId) });   // 2026-09-17: what orders the service can do, the standing one with its spot, and the repeat switch, ride along for the menu
     },
@@ -4473,7 +4496,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const tile = sv.screen?.slot ?? null;
       const st = tile ? orchestrator.videoState().find((x) => x.id === tile) ?? null : null;
       const art = tile ? orchestrator.videoArtOf(tile) : null;
-      const now = st ? { tile, playing: st.playing, video: st.video, skip: st.skip ?? null, error: st.error, can: st.can, pending: st.pending, art: art?.art ?? null, artTitle: art?.title ?? null } : null;
+      // an ad's Skip the break's cover knows of (the adapter's declared control) is an offer too, as on the PC (2026-10-29)
+      const now = st ? { tile, playing: st.playing, video: st.video, skip: st.skip ?? (orchestrator.getState()?.tiles.find((t) => t.id === tile)?.skipAvailable ? "Skip Ad" : null), error: st.error, can: st.can, pending: st.pending, art: art?.art ?? null, artTitle: art?.title ?? null } : null;
       return {
         active: sv.active, screen: sv.screen, now,
         continue: trim(rows.continue), list: trim(rows.list),

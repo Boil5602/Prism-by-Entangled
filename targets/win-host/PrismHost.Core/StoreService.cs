@@ -108,6 +108,31 @@ public sealed class StoreService
         }
     }
 
+    /// <summary>
+    /// A key dropped for good (B-406, 2026-10-30: core bounds its own caches - the lens cache had reached 15,000 keys). Gone from the live
+    /// data and from its own per-key file now, and the next write is a whole-store one brought forward, so a later start never reads the
+    /// key back from an older snapshot. Only keys: never a profile folder or a snapshot picture (section 10), which are not keys at all.
+    /// </summary>
+    public bool Remove(string key)
+    {
+        lock (_lock)
+        {
+            if (!_data.Remove(key)) return false;
+            _dirtyKeys.Remove(key);
+            KeysDropped++;
+            try { var f = Path.Combine(KeysDir, KeyFileName(key)); if (File.Exists(f)) File.Delete(f); } catch { /* the whole-store write below leaves it out regardless */ }
+            if (_saveTimer is null) { Save(_data); return true; }
+            _compactSoon = true;   // the next write is the whole store, without the key
+            var now = Environment.TickCount64;
+            if (!_dirty) { _dirty = true; _dirtySince = now; }
+            var left = MaxSaveDelayMs - (now - _dirtySince);
+            _saveTimer.Change(Math.Max(0, Math.Min(_saveDelayMs, left)), Timeout.Infinite);
+            return true;
+        }
+    }
+    /// <summary>Keys dropped since the start (B-406).</summary>
+    public long KeysDropped { get; private set; }
+
     /// <summary>Anything set and not yet on disk is written now, and the full snapshot with it (window close, process exit).</summary>
     public void Flush() => SaveNow(full: true);
 

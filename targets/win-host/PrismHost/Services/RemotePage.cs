@@ -36,7 +36,7 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .muteNote{flex-direction:column;gap:8px}.muteNote.on{display:flex}.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink)}.chk input{width:20px;height:20px;accent-color:var(--amber)}
 .work .drop{background:var(--ground);color:var(--amber);border:0;border-radius:8px;padding:4px 10px;font:13px system-ui;margin-left:6px}
 .safariNote .row{margin-top:8px}.safariNote input{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;padding:10px;border:0;border-radius:10px;background:var(--well);color:var(--ink);font:14px system-ui;-webkit-user-select:text;user-select:text}.safariNote a.go{display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:12px;background:var(--amber);color:var(--amber-ink);font:16px system-ui;font-weight:600;text-decoration:none}.pipOut{display:block;width:160px;height:90px;margin:10px auto 0;background:#000;border-radius:8px}
-.work{display:none;margin:10px 0 0;padding:10px 12px;background:var(--panel);border-radius:12px;color:var(--amber);font-size:14px}.work.on{display:block}.work.done{color:var(--ink)}.work i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:8px;animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.work{display:none;margin:10px 0 0;padding:10px 12px;background:var(--panel);border-radius:12px;color:var(--amber);font-size:14px}.work.on{display:block}.work button.cancel{float:right;margin:-3px 0 0 10px;background:var(--ground);color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font:600 13px system-ui}.work.done{color:var(--ink)}.work i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);margin-right:8px;animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 .vnp img{width:72px;height:108px}.seek{margin-top:12px}.seek input{width:100%}.times{display:flex;justify-content:space-between;font-size:13px;color:var(--ink);margin-top:2px}
 .ic{width:26px;height:26px;fill:currentColor;display:block}.mtr{gap:8px;align-items:center}.mtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.mtr button.go{flex:1.35;height:68px}.mtr button.go .ic{width:32px;height:32px}.mtr button:disabled{opacity:.35}#orderRow button{min-width:0;flex:1}#orderRow button.on{color:var(--amber)}#orderRow button.on .ic{fill:var(--amber)}.vtr{gap:8px;align-items:center}.vtr button{flex:1;height:58px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:16px}.vtr button.go{flex:1.35;height:68px}.vtr button.go .ic{width:32px;height:32px}.vtr button:disabled{opacity:.35}.vrow button{display:flex;flex-direction:column;align-items:center;gap:5px;font:13px system-ui;padding:10px 6px}.vrow .ic{width:22px;height:22px}.sbox .glass{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:var(--dim);pointer-events:none}.search .sbox input{padding-left:40px;-webkit-appearance:none;appearance:none}.sbox input::-webkit-search-decoration,.sbox input::-webkit-search-cancel-button,.sbox input::-webkit-search-results-button{-webkit-appearance:none;display:none}#vLivePanel > .body{padding:8px}.lq{width:100%;box-sizing:border-box;background:var(--ground);color:var(--ink);border:1px solid var(--chip);border-radius:10px;padding:10px 12px;font:15px system-ui;margin-bottom:8px}#vLive .item.hidden{display:none}#vLive .grp{margin:10px 6px 2px;font-size:11px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase}#vLive .grp.hidden{display:none}#vLive .item.ch{padding:9px 10px;margin-top:4px}#vLive .ch .l1{display:flex;gap:10px;align-items:baseline}#vLive .ch .l1 span:first-child{flex:none;max-width:46%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#vLive .ch .l1 .now{flex:1;display:block;margin:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);font-size:13px}#vLive .ch .pb{margin-top:6px}#vLive .ch .pt{display:none}#vLive .jump{position:sticky;top:0;z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:var(--panel)}#vLive .jump::-webkit-scrollbar{display:none}#vLive .jump button{flex:none;background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:6px 11px;font:12px system-ui}#vLive .jump.hidden{display:none}.openOn{margin:4px 0 10px}.vrow{margin-top:10px}.vrow button{flex:1;background:var(--panel);color:var(--ink);border:0;border-radius:12px;padding:12px 8px;font:14px system-ui}.vrow button.on{color:var(--amber)}
 .cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.cards::-webkit-scrollbar{display:none}.card{flex:none;width:112px;background:none;border:0;padding:0;color:var(--ink);text-align:left;font:13px system-ui}.card{position:relative;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}.card .art{width:112px;height:168px;border-radius:10px;background:var(--panel);object-fit:cover;display:block}.card .di{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:13px;border:0;background:rgba(5,6,9,.75);color:var(--ink);font:600 13px system-ui;padding:0}.card .mk{position:absolute;top:6px;left:6px;min-width:26px;height:26px;padding:0 4px;border-radius:7px;background:rgba(5,6,9,.78);color:var(--ink);font:700 11px system-ui;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}.card .mk img{width:26px;height:26px;object-fit:cover;display:block;margin:0 -4px}.sheet.full>*{flex-shrink:0}.sheet.full{top:0;left:0;right:0;bottom:0;border-radius:0;padding:0 14px calc(20px + env(safe-area-inset-bottom));max-height:none;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;z-index:60}.sheet.full .top{position:sticky;top:0;display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 0 10px;background:var(--panel);z-index:1}.sheet.full .top b{flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sheet.full .top button{background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:9px 14px;font:600 14px system-ui}body.locked{overflow:hidden;position:fixed;left:0;right:0;width:100%}#srSheet{flex-direction:column;gap:0}#wsSheet{flex-direction:column;gap:4px}#wsNote:empty{display:none}#wsBody p.ver{margin:2px 0;padding:0;background:none;font:600 16px system-ui;color:var(--ink)}#wsBody .chlog{margin-top:8px;max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-left:3px solid var(--amber);padding-left:12px}#wsBody .chlog .rel{padding:8px 0;border-bottom:1px solid var(--track)}#wsBody .chlog .rel b{display:block;font-size:14px;color:var(--ink)}#wsBody .chlog .rel b.new{color:var(--amber)}#wsBody .chlog .rel p{margin:4px 0 0;font-size:13px;line-height:1.4;color:var(--ink);white-space:pre-wrap}#wsBody .wsLink{display:block;margin-top:8px;padding:12px;border-radius:12px;background:var(--amber);color:var(--amber-ink);font:600 15px system-ui;text-align:center;text-decoration:none}#wsBody h4{margin:16px 0 6px;font-size:12px;letter-spacing:.08em;color:var(--amber);text-transform:uppercase}#wsBody .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}#wsBody .chips button{background:var(--chip);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:8px 12px;font:13px system-ui;text-align:left}#wsBody .chips button.on{color:var(--amber);border-color:var(--amber)}#wsBody .fld{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;color:var(--ink)}#wsBody .fld span{flex:1}#wsBody .fld input{width:110px;padding:8px 10px;font:16px system-ui}#wsBody .act{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}#wsBody .act button{flex:1;padding:12px;font:15px system-ui;border-radius:12px;border:0;background:var(--chip);color:var(--ink)}#wsBody .act button.go{background:var(--amber);color:var(--amber-ink);font-weight:600}#wsBody .cat{background:var(--ground);border-radius:12px;padding:10px;margin-top:8px}#wsBody .cat input{width:100%;margin-top:6px;padding:10px 12px;font:15px system-ui;background:var(--panel)}#wsBody .hid{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--track);font-size:14px;color:var(--ink)}#wsBody .hid span{flex:1;line-height:1.35}#wsBody .hid b{color:var(--ink)}#wsBody .hid button{padding:8px 10px;font:13px system-ui;border-radius:10px;background:var(--chip);color:var(--ink);border:0}#wsBody p.sub{margin:2px 0 0;font-size:12px;color:var(--dim)}#wsBody .jump{position:sticky;top:calc(50px + env(safe-area-inset-top));z-index:2;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0;background:var(--panel)}#wsBody .jump::-webkit-scrollbar{display:none}#wsBody .jump button{flex:none;background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:7px 12px;font:13px system-ui}#wsBody .wsSec{margin-top:8px;background:var(--ground)}#wsBody .wsSec>button.head{padding:14px 12px}#wsBody .wsSec>.body{padding:0 12px 12px}#wsBody .wsSec h4:first-child{margin-top:4px}#wsBody .wsSec .cat{background:var(--panel)}#wsBody .wsSec .cat input{background:var(--ground)}#srq{flex:1;padding:10px 12px;font:16px system-ui;-webkit-appearance:none;appearance:none}#srq::-webkit-search-decoration,#srq::-webkit-search-cancel-button,#srq::-webkit-search-results-button{-webkit-appearance:none;display:none}#detSheet{flex-direction:column;gap:8px}#detSheet .dh{display:flex;gap:12px}#detSheet .dh img{width:84px;height:126px;border-radius:8px;object-fit:cover;background:var(--well);flex:none}#detSheet .dh b{font-size:17px}#detSheet .dh span{display:block;color:var(--ink);font-size:13px;margin-top:3px}#detSheet .dv{color:var(--ink);font-size:14px;line-height:1.35}#detSheet .dcast{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}#detSheet .dcast button{flex:none;width:64px;font-size:11px;color:var(--ink);text-align:center;background:none;border:0;padding:0;font-family:system-ui}#detSheet .dcast button span{display:block}#chSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#chSheet .dh{display:flex;gap:12px}#chSheet .dh img{width:72px;height:72px;border-radius:36px;object-fit:cover;background:var(--well);flex:none}#chSheet .dh b{font-size:17px}#chSheet .dh span{display:block;color:var(--ink);font-size:13px;margin-top:3px}#chSheet .dv{color:var(--ink);font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}#chSheet .cards{flex-wrap:wrap;overflow:visible}#detSheet .dtags{display:flex;flex-wrap:wrap;gap:6px}#detSheet .dtags:empty{display:none}#detSheet .dtags button{background:var(--chip);color:var(--ink);border:0;border-radius:999px;padding:7px 11px;font:13px system-ui}#detSheet .dchan{display:flex;flex-direction:column;gap:8px;background:var(--ground);border-radius:12px;padding:10px}#detSheet .dchan:empty{display:none}#detSheet .dchan .ch1{display:flex;align-items:center;gap:10px}#detSheet .dchan .ch1 img{width:44px;height:44px;border-radius:22px;object-fit:cover;background:var(--well);flex:none}#detSheet .dchan .ch1 b{display:block;font-size:15px}#detSheet .dchan .ch1 span{display:block;color:var(--ink);font-size:12px}#detSheet .dchan .chd{color:var(--ink);font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#detSheet .dchan .chl{font-size:12px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin-top:2px}#detSheet .dchan .cards{margin:0}#detSheet .dchan .chb{display:flex;gap:8px}#detSheet .dchan .chb button{background:var(--chip);color:var(--ink);border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#perSheet{max-height:85vh;overflow-y:auto;flex-direction:column;gap:8px}#perSheet .dh{display:flex;gap:12px}#perSheet .dh img{width:84px;height:84px;border-radius:42px;object-fit:cover;background:var(--well);flex:none}#perSheet .dh b{font-size:17px}#perSheet .dh span{display:block;color:var(--ink);font-size:13px;margin-top:3px}#perSheet .dv{color:var(--ink);font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}#perSheet .cards{flex-wrap:wrap;overflow:visible}#perSheet .psort{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}#perSheet .psort button{background:var(--chip);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:7px 12px;font:13px system-ui}#perSheet .psort button.on{color:var(--amber);border-color:var(--amber)}#perSheet .card.here .art,#detSheet .dcast button.here img{outline:2px solid var(--amber);outline-offset:2px}#detSheet .dcast button.here span{color:var(--amber)}#vSvcBody .srow{display:flex;align-items:center;gap:10px;padding:6px 0}#vSvcBody .srow b{flex:1;font-weight:500}#vSvcBody .srow span{color:var(--ink);font-size:12px}#vSvcBody .srow span.amber{color:var(--amber)}#vSvcBody .srow button{background:var(--chip);color:var(--ink);border:0;border-radius:10px;padding:8px 10px;font:13px system-ui}#detSheet .dcast img{width:56px;height:56px;border-radius:28px;object-fit:cover;background:var(--well)}#detSheet .dwhere{font-size:13px;color:var(--ink)}#detSheet .dwhere b{color:var(--amber)}.card .art.wide{height:63px}.card .art.wide ~ .ago{top:37px}.card .art.wide ~ .sc{top:37px}.zoom{display:none;position:fixed;inset:0;z-index:80;background:rgba(5,6,9,.94);align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:16px;box-sizing:border-box}.zoom.on{display:flex}.zoom img{max-width:100%;max-height:calc(100% - 40px);object-fit:contain;border-radius:10px}.zoom span{color:var(--ink);font:13px system-ui}#detArt{cursor:zoom-in}.card .nm{position:absolute;left:0;top:84px;width:112px;box-sizing:border-box;padding:16px 6px 6px;border-radius:0 0 10px 10px;background:linear-gradient(rgba(5,6,9,0),rgba(5,6,9,.88) 40%);color:var(--ink);font:600 12px/1.25 system-ui;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:56px}.card .ago{position:absolute;left:6px;top:142px;padding:3px 7px;border-radius:7px;background:rgba(5,6,9,.78);color:var(--ink);font:600 11px system-ui;white-space:nowrap}.card .sc{position:absolute;right:6px;top:142px;padding:3px 7px;border-radius:7px;background:rgba(5,6,9,.78);color:var(--ink);font:600 11px system-ui;white-space:nowrap}.card .sc.mine{color:var(--amber)}.card .bar{height:3px;background:var(--track);border-radius:2px;margin-top:4px;overflow:hidden}.card .bar i{display:block;height:100%;background:var(--amber)}.card b{display:block;margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card span{display:block;color:var(--ink);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .svc2{color:var(--amber)}
@@ -45,7 +45,7 @@ header{display:flex;align-items:center;gap:10px;padding:14px 18px 8px}header b{c
 .shead{font-size:12px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin:12px 6px 2px}.topr{background:var(--panel);border-radius:12px;overflow:hidden;margin-top:8px}.topr img{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--ground)}.topr img.poster{object-fit:contain;max-height:240px}.topr .tb{padding:10px 12px 12px}.topr small{color:var(--amber);font-size:11px;letter-spacing:.08em;text-transform:uppercase}.topr b{display:block;font-size:18px;margin-top:2px}.topr .f{color:var(--ink);font-size:13px;margin-top:3px}.topr .o{color:var(--ink);font-size:13px;line-height:1.35;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.topr .on{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.topr .on button{background:var(--ground);color:var(--amber);border:0;border-radius:999px;padding:8px 12px;font:13px system-ui}.topr .on button.d{color:var(--ink)}
 .people{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:4px 0}.people::-webkit-scrollbar{display:none}.people button{flex:none;width:84px;background:none;border:0;color:var(--ink);font:12px system-ui;text-align:center;padding:0}.people img,.people .mono{width:64px;height:64px;border-radius:32px;object-fit:cover;background:var(--panel);display:block;margin:0 auto 4px}.people .mono{line-height:64px;font-size:20px;color:var(--dim)}.people span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:8px}.fchips::-webkit-scrollbar{display:none}.fchips button{flex:none;background:var(--chip);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:6px 11px;font:12px system-ui}.fchips button.on{color:var(--amber);border-color:var(--amber)}
 #detActs,#ctxTop,#ctxActs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}#detActs.fold{display:none;margin-top:0}#detActs.fold.on{display:grid}#detActs [data-rm]{grid-column:1/-1}#detSheet .dbar{display:flex;gap:8px}#detSheet .dbar button{flex:1;min-height:46px;padding:10px 12px;border-radius:10px;border:0;font:600 15px system-ui;background:var(--raised);color:var(--ink)}#detSheet .dbar button.go{background:var(--amber);color:var(--amber-ink)}#detNote:empty{display:none}#ctxActs:empty{display:none}#ctxTop button{min-height:56px;padding:12px;border-radius:12px;background:var(--raised);color:var(--ink);border:0;font-size:16px;text-align:center}.ctxHead{display:flex;gap:12px;align-items:flex-start;margin-top:6px}#ctxSheet .dh img{width:84px;height:126px;border-radius:8px;object-fit:cover;background:var(--well);flex:none}.ctxHead b{display:block;font-size:18px;color:var(--ink)}.ctxHead span{display:block;margin-top:4px;font-size:14px;color:var(--ink)}#ctxActs button{min-height:56px;font-size:16px}#ctxTop button.go{background:var(--amber);color:var(--amber-ink);font-weight:600}#ctxTop [data-rm]{grid-column:1/-1}#ctxTop button:disabled{opacity:.6}#ctxRate{margin-top:12px}#ctxRate .rh{font-size:13px;color:var(--ink);margin-bottom:6px}#ctxRate .stars{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}#ctxRate .stars button{min-height:44px;background:var(--chip);border:0;border-radius:10px;padding:0;font:600 17px system-ui;color:var(--ink)}#ctxRate .stars button.on{background:var(--amber);color:var(--amber-ink)}#ctxRate .stars button:disabled{opacity:.45}#ctxNote:empty{display:none}#ctxActs button.go,#ctxActs .plpick,#ctxActs [data-rm]{grid-column:1/-1}#ctxActs button.go{background:var(--amber);color:var(--amber-ink);font-weight:600}#detActs button,#ctxActs button{min-height:48px;padding:10px 12px;border-radius:10px;background:var(--raised);color:var(--ink);border:0;font-size:15px;text-align:center}#detActs button:disabled,#ctxActs button:disabled{opacity:.6}#detActs .plpick{display:flex;flex-wrap:wrap;gap:6px;width:100%}#detActs .plpick button{background:var(--chip)}#vPlaylists{margin-top:12px}#vPlBody .item.now{color:var(--amber)}#vPlBody .item.done{opacity:.55}.plbar{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}.plbar button{background:var(--track);color:var(--ink);border:0;border-radius:10px;padding:8px 12px;font:14px system-ui}.plbar button.go{background:var(--amber);color:var(--amber-ink)}.plhead{display:flex;align-items:center;gap:10px;margin-top:8px}.plhead b{font-size:16px;color:var(--ink)}#vEpisodes{margin-top:12px}#vEpBody .ssn{font-size:12px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin:8px 6px 4px}#vEpBody .item.now{color:var(--amber)}.lens .qh small{display:block;font-size:11px;letter-spacing:0;text-transform:none;color:var(--dim);margin-top:2px}.svc .item .now{display:block;color:var(--ink);font-size:13px;margin-top:2px}
-.quick{display:flex;flex-direction:column;gap:8px}.svc{background:var(--panel);border-radius:12px;overflow:hidden}.svc>button.head{width:100%;display:flex;align-items:center;gap:10px;background:none;color:var(--ink);border:0;padding:14px 12px;font:600 16px system-ui;text-align:left}.svc>button.head .st{margin-left:auto;font-size:13px;font-weight:400;color:var(--amber)}.svc>button.head .chev{font-size:13px;color:var(--dim)}.svc.open>button.head .chev{transform:rotate(90deg)}
+.quick{display:flex;flex-direction:column;gap:8px}.svc{background:var(--panel);border-radius:12px;overflow:hidden}.svc>button.head{width:100%;display:flex;align-items:center;gap:10px;background:none;color:var(--ink);border:0;padding:14px 12px;font:600 16px system-ui;text-align:left}.svc>button.head .st{margin-left:auto;font-size:13px;font-weight:400;color:var(--amber)}.svc>button.head .chev{font-size:13px;color:var(--dim)}.svc.open>button.head .chev{transform:rotate(90deg)}.recent{margin-top:18px}.recent h4{margin:0 0 4px;font:600 11px system-ui;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}.recent .svcName{margin:10px 0 0;font:13px system-ui;color:var(--dim)}.recent .item{display:block;width:100%;background:var(--panel);color:var(--ink);border:0;border-radius:10px;padding:12px;font:15px system-ui;text-align:left;margin-top:6px}.svc>button.head .meter{display:none;align-items:flex-end;gap:2px;height:14px;width:18px;margin-left:8px;flex:none}.svc>button.head .meter i{display:block;width:2px;height:15%;border-radius:1px;background:var(--amber)}.svc.playing>button.head .meter{display:inline-flex}
 .svc > .body{display:none;padding:0 8px 10px}.svc.open > .body{display:block}.svc .grp{font-size:12px;letter-spacing:.08em;color:var(--ink);text-transform:uppercase;margin:8px 6px 4px}.svc .item{display:block;width:100%;background:var(--ground);color:var(--ink);border:0;border-radius:10px;padding:12px;font:15px system-ui;text-align:left;margin-top:6px}.svc .item .pb{display:block;height:4px;background:var(--track);border-radius:2px;margin-top:7px;overflow:hidden}.svc .item .pb i{display:block;height:100%;background:var(--amber)}.svc .item .pb i.unk{background:var(--dim);width:100%;opacity:.35}.svc .item .pt{display:block;color:var(--ink);font-size:12px;margin-top:4px}.svc .item.go{color:var(--amber)}
 nav{display:flex;gap:6px;padding:0 14px 10px}nav button{flex:1;background:var(--panel);color:var(--ink);border:0;border-radius:12px;padding:10px;font:inherit}nav button.on{background:var(--amber-on);color:var(--amber)}
 main{padding:0 14px 20px}section{display:none}section.on{display:block}
@@ -95,6 +95,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div id="pickSheet" class="sheet"><b id="pickWhat"></b><button id="pickNow" class="go">Play now</button><button id="pickNext">Play after this track</button><button id="pickCancel">Cancel</button></div>
 <h3 class="qh">Quick play</h3>
 <div id="quick" class="quick"><p class="note">Reading your services' lists&hellip;</p></div>
+<div id="recent" class="recent"></div>
 <p class="err" id="merr"></p>
 </section>
 <section id="V">
@@ -447,7 +448,7 @@ q('#forget').onclick = async () => {
 };
 const TABS = [['tabM', 'M'], ['tabV', 'V'], ['tabK', 'K'], ['tabL', 'L']];
 let tabNow = 'M';
-function showTab(sec) { tabNow = sec; for (const [t, s2] of TABS) { q('#' + t).classList.toggle('on', s2 === sec); q('#' + s2).classList.toggle('on', s2 === sec); } if (sec === 'M') { pollNow(); loadQuick(); } if (sec === 'V') { pollVideo(); liveReadAsk(); } if (sec === 'L') readyTicket(); }
+function showTab(sec) { tabNow = sec; for (const [t, s2] of TABS) { q('#' + t).classList.toggle('on', s2 === sec); q('#' + s2).classList.toggle('on', s2 === sec); } if (sec === 'M') { pollNow(); loadQuick(); } if (sec === 'V') { pollVideo(); liveReadAsk(); } if (sec === 'L') readyTicket(); meterSync(); }
 // the Live section is a person looking at the guides (docs/features/live.md): the phone asks for the read as the PC's Live tab does
 // (2026-10-05, "Why does it say no live channels on any of my services?": only the PC's tab asked, so a phone opened after a restart saw none)
 let liveAskedAt = 0;
@@ -497,7 +498,7 @@ async function checkVersion() {
     if (v !== pageVersion && !refreshAt) { refreshAt = Date.now() + 5 * 60 * 1000; q('#banner').classList.add('on'); tickBanner(); }
   } catch {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); meterSync(); });
 function tickBanner() {
   if (!refreshAt) return;
   const left = Math.max(0, Math.round((refreshAt - Date.now()) / 1000));
@@ -542,7 +543,7 @@ async function pollNow() {
     }
     q('#trPlay').innerHTML = '<svg class="ic"><use href="#i-' + (now && now.playbackState === 'playing' ? 'pause' : 'play') + '"/></svg>';
     npPos = now && typeof now.position === 'number' ? now.position : null; npDur = now && typeof now.duration === 'number' && now.duration > 0 ? now.duration : null;
-    npPlaying = !!(now && now.playbackState === 'playing'); npAt = Date.now(); drawTime();
+    npPlaying = !!(now && now.playbackState === 'playing'); npAt = Date.now(); drawTime(); quickMark();
     const pend0 = now && now.pending && !now.pending.failed ? now.pending : null;
     npCol = pend0 && pend0.id ? { kind: pend0.kind, id: pend0.id, label: pend0.name } : now && now.collection && now.collection.id ? now.collection : null;
     if (work && work.kind && work.id && (!npCol || npCol.id !== work.id)) npCol = { kind: work.kind, id: work.id, label: work.name };   // this phone's own pick, before the PC has said so
@@ -689,14 +690,14 @@ function sunBuild(W, H) {
   return b;
 }
 function sunDraw(g, W, H, dt, overArt, underArt) {
-  if (!viz.sun) viz.sun = { b: null, lv: new Float32Array(24), hi: [0, 0, 0, 0], lo: [0, 0, 0, 0], beatE: 0, rise: 0, drift: 0, flockAt: -1, nextFlock: NaN, flockDir: 1, flockY: 0.3, hue: 0, sp: [], spNext: 0, t: 0, rng: sRng(11) };
+  if (!viz.sun) viz.sun = { b: null, lv: new Float32Array(24), hi: [0, 0, 0, 0], lo: [0, 0, 0, 0], beatE: 0, rise: 0, drift: 0, flockAt: -1, nextFlock: NaN, flockDir: 1, flockY: 0.3, hue: 0, sp: [], spNext: 0, t: 0, rng: sRng(11), flv: new Float32Array(24), fph: new Float32Array(24) };
   const st = viz.sun; if (!st.b || st.b.W !== W || st.b.H !== H) st.b = sunBuild(W, H);
   const b = st.b, S = (f) => f * H, X = (f) => f * W, Y = (f) => f * H, reduced = viz.reduced, R = st.rng;
   // the PC's renderer takes its steps 30 times a second; a phone draws 60 or 120 frames, so every per-step amount is scaled to the
   // frame's length (2026-10-27, "The sun pops up and down so frantically. Is that how the pc one behaves?" - no: the same amounts per
   // frame ran the scene two to four times faster than the wall)
   const k = (c) => 1 - Math.pow(1 - c, dt * 30);
-  const lv = st.lv, kA = k(0.6), kR = k(0.12), kB = k(0.15), kRange = k(0.012), kRise = k(0.025);
+  const lv = st.lv, kA = k(0.6), kR = k(0.12), kB = k(0.15), kRange = k(0.012), kRise = k(0.025), kFa = k(0.35), kFr = k(0.08);
   for (let i = 0; i < 24; i++) { const l = Math.min(1, Math.max(0, (viz.bands[i * 2] + viz.bands[i * 2 + 1]) / 2)); lv[i] = l > lv[i] ? lv[i] + (l - lv[i]) * kA : lv[i] + (l - lv[i]) * kR; }
   let lowB = 0; for (let i = 0; i < 4; i++) lowB += lv[i]; lowB /= 4;
   const beatRaw = Math.max(0, lowB - st.beatE) * (reduced ? 0.2 : 1); st.beatE += (lowB - st.beatE) * kB;
@@ -762,7 +763,16 @@ function sunDraw(g, W, H, dt, overArt, underArt) {
     const gr = b.grass[i], baseX = X(gr.x), top = Y(1 - gr.h), lean = Math.sin(f.t * 1.1 * f.speed + gr.ph) * S(0.01 + 0.035 * f.mid) + S(0.01);
     g.lineWidth = Math.max(0.5, gr.w); g.strokeStyle = sCss(gr.c); g.beginPath(); g.moveTo(baseX, H); g.quadraticCurveTo(baseX + lean * 0.35, (H + top) / 2, baseX + lean, top); g.stroke();
   }
-  for (let i = 0; i < b.flowers.length; i++) { const fl = b.flowers[i], d = S(0.012 + 0.02 * rise); sGlow(g, X(fl.x) + Math.sin(f.t * 1.1 * f.speed + i) * S(0.006), Y(fl.y), d, d, fl.c, 1, 0.2 + 0.8 * rise); }
+  // the flowers answer the music (2026-10-29, "little fuzzy looking puffballs ... more lively"), as the PC's: a band each, the pack's palette
+  // walked over the song at each one's pace, white on the band's peaks, a swell with the band and a hop on the beat, a quicker sway with the mids
+  for (let i = 0; i < b.flowers.length; i++) {
+    const fl = b.flowers[i], raw = lv[(i * 7) % 24]; st.flv[i] += (raw - st.flv[i]) * (raw > st.flv[i] ? kFa : kFr);   // eased: a breath, not a shake
+    const l = st.flv[i], pal = viz.pal || SUN_P, walk = (f.t * (0.12 + 0.06 * (i % 3)) + i * 0.37) % pal.length, ia = Math.floor(walk), ib = (ia + 1) % pal.length;
+    const c = sMix(sMix(pal[ia], pal[ib], walk - ia), SUN_WHITE, 0.55 * l), hop = reduced ? 0 : f.beat * S(0.005) * (0.5 + 0.5 * Math.sin(i * 1.7));
+    const d = S(0.012 + 0.02 * rise) * (1 + 0.5 * l);
+    st.fph[i] += dt * f.speed * (1.1 + 0.6 * f.mid);   // the sway's own phase, never a rate multiplied into the clock (a moving rate jumps the phase: the shake)
+    sGlow(g, X(fl.x) + Math.sin(st.fph[i] + i) * S(0.006 + 0.002 * f.mid), Y(fl.y) - hop, d, d, c, 1, 0.2 + 0.8 * rise * (0.7 + 0.3 * l));
+  }
   g.save(); g.translate(W / 2, H / 2); g.scale(W * 0.78, H * 0.85);   // the cinematic edge
   const vg = g.createRadialGradient(0, 0, 0, 0, 0, 1); vg.addColorStop(0.45, sCss(SUN_INK, 0)); vg.addColorStop(1, sCss(SUN_INK, 0.28)); g.fillStyle = vg; g.fillRect(-2, -2, 4, 4); g.restore();
 }
@@ -783,6 +793,7 @@ function vizClose() {
   clearTimeout(viz.feedT); viz.feedT = 0; clearInterval(viz.infoT); viz.infoT = 0;
   cancelAnimationFrame(viz.raf); viz.raf = 0; viz.parts = [];
   try { if (viz.lock) { viz.lock.release(); viz.lock = null; } } catch {}
+  meterSync();
 }
 function vizRest() { const v = q('#vizView'); v.classList.remove('rest'); clearTimeout(viz.restT); viz.restT = setTimeout(() => v.classList.add('rest'), 3500); }   // the buttons fade; a touch brings them back
 // the details at the bottom left, as the PC's chrome has them (2026-10-28, "Shouldn't just show the album art. Should show the details
@@ -800,12 +811,12 @@ function vizInfo() {
   q('#vizClock').textContent = pos !== null ? mmss(pos) + (npDur ? ' / ' + mmss(npDur) : '') : '';
 }
 function vizConnect() {
-  if (!viz.on) return;
+  if (!viz.on && !meterOn()) return;   // the visual's, and the Quick play meter's while it shows
   try {
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/viz/bands?token=' + encodeURIComponent(token));
     ws.binaryType = 'arraybuffer'; viz.ws = ws;
     ws.onmessage = (e) => { if (!(e.data instanceof ArrayBuffer)) return; const b = new Uint8Array(e.data), n = Math.min(b.length, viz.bands.length); for (let i = 0; i < n; i++) viz.bands[i] = b[i] / 255; if (q('#vizNote').textContent) q('#vizNote').textContent = ''; };
-    ws.onclose = () => { if (viz.ws === ws) { viz.ws = null; if (viz.on) { q('#vizNote').textContent = 'Reconnecting to the PC' + '\u2026'; setTimeout(vizConnect, 1500); } } };
+    ws.onclose = () => { if (viz.ws === ws) { viz.ws = null; if (viz.on) { q('#vizNote').textContent = 'Reconnecting to the PC' + '\u2026'; setTimeout(vizConnect, 1500); } else if (meterOn()) setTimeout(vizConnect, 1500); } };
     ws.onerror = () => { try { ws.close(); } catch {} };
   } catch (e) { q('#vizNote').textContent = 'No bands from the PC: ' + e.message; }
 }
@@ -918,9 +929,23 @@ function drawNext(next) {
 function startWork(name, service, tile, collection, kind, id) {
   work = { name, service, at: Date.now(), tile, collection: collection || null, kind: kind || null, id: id || null };
   const w = q('#mwork'); w.className = 'work on'; w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode('Opening ' + name + ' on ' + service + '\u2026'));
+  workCancel(w, tile);
   for (const d of document.querySelectorAll('#quick .svc.open')) d.classList.remove('open');
   if (openSvcs) openSvcs.clear();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+// Cancel (2026-10-29, "is it feasible to add a cancel button there when my current music is still playing and to just keep the currently
+// playing item up?"): on the work line while the song before plays on; the press drops the pick on the PC (POST /music/cancel)
+function workCancel(w, tile) {
+  if (!(npPlaying && npTile) || !tile) return;
+  const c = document.createElement('button'); c.className = 'cancel'; c.textContent = 'Cancel';
+  c.onclick = async (e) => {
+    e.stopPropagation();
+    const keep = lastNow && lastNow.metadata && lastNow.metadata.title ? lastNow.metadata.title : 'the music';
+    try { await api('/music/cancel', { tile }); } catch {}
+    endWork('Kept ' + keep + ' playing', true);
+  };
+  w.appendChild(c);
 }
 function workText(s) {
   const w = s.work; const n = w.count !== null && w.count !== undefined ? ' ' + w.count.toLocaleString() + (w.total ? ' of ' + w.total.toLocaleString() : '') : '';
@@ -940,7 +965,7 @@ function drawWork(n) {
   else if (!busy && !work && q('#mwork').className === 'work on' && !q('#mwork').textContent.startsWith('Opening')) q('#mwork').className = 'work';
   if (!work) return;
   const src0 = (n.sources || []).find((s) => s.tile === work.tile);
-  if (src0 && src0.work && !src0.work.error) { const w = q('#mwork'); w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode(workText(src0))); }
+  if (src0 && src0.work && !src0.work.error) { const w = q('#mwork'); w.innerHTML = '<i></i>'; w.appendChild(document.createTextNode(workText(src0))); workCancel(w, work.tile); }
   // done when the PC's pending pick has cleared and the page plays: the new collection, not the one that was on before the tap
   const src = (n.sources || []).find((s) => s.tile === work.tile);
   const pend = src && src.pending;
@@ -2130,30 +2155,90 @@ let quickSig = '', openSvcs = null;   // which services' sections are open: the 
 async function loadQuick() {
   try {
     const r = await api('/music/quick');
-    const sig = JSON.stringify((r.sources || []).map((s) => [s.tile, s.name, s.session, (s.playlists || []).map((p) => p.id + p.name), (s.stations || []).map((p) => p.id + p.name)]));
+    // the service playing now leads the list (2026-10-29, "make it so the currently playing service is listed at the top of quick play
+    // list"), else the stage's; the rest keep the PC's order. The leader is part of the shape, so a change of service redraws
+    let srcs = r.sources || [];
+    const top = srcs.find((x) => isPlayingSvc(x)) || srcs.find((x) => x.active);
+    if (top) srcs = [top, ...srcs.filter((x) => x !== top)];
+    const sig = JSON.stringify(srcs.map((s) => [s.tile, s.name, s.session, (s.playlists || []).map((p) => p.id + p.name), (s.stations || []).map((p) => p.id + p.name), (s.recent || []).map((p) => p.id)]));
     if (sig === quickSig) {
       // the same shape: only the words on the heads move (2026-10-04: a rebuild on every playback flip swallowed taps mid-pick)
-      for (const s of r.sources || []) { const st = q('#quick .svc[data-tile="' + s.tile + '"] .st'); if (st) st.textContent = s.session === 'signed-out' ? 'signed out' : s.playbackState === 'playing' ? 'playing' : s.active ? 'on the stage' : ''; }
+      quickSrcs = srcs; quickMark();
       return;
     }
-    quickSig = sig; quickSrcs = r.sources || [];
+    quickSig = sig; quickSrcs = srcs; r.sources = srcs;
     const box = q('#quick'); box.innerHTML = '';
+    q('#recent').innerHTML = '';
     if (!r.sources || !r.sources.length) { box.innerHTML = '<p class="note">No music service is set up in Prism yet.</p>'; return; }
     for (const s of r.sources) {
       if (openSvcs === null) { openSvcs = new Set(r.sources.filter((x) => x.active).map((x) => x.tile)); }   // the first paint: the stage's service open
       const d = document.createElement('div'); d.className = 'svc' + (openSvcs.has(s.tile) ? ' open' : ''); d.dataset.tile = s.tile;
       const head = document.createElement('button'); head.className = 'head';
-      head.innerHTML = '<span class="chev">&#9654;</span><span></span><span class="st"></span>';
+      head.innerHTML = '<span class="chev">&#9654;</span><span></span><span class="st"></span><span class="meter"><i></i><i></i><i></i><i></i><i></i></span>';
       head.children[1].textContent = s.name;
-      head.children[2].textContent = s.session === 'signed-out' ? 'signed out' : s.playbackState === 'playing' ? 'playing' : s.active ? 'on the stage' : '';
       head.onclick = () => { d.classList.toggle('open'); if (d.classList.contains('open')) openSvcs.add(s.tile); else openSvcs.delete(s.tile); };
       d.appendChild(head);
       const body = document.createElement('div'); body.className = 'body'; drawSvcBody(s, body);
       d.appendChild(body); box.appendChild(d);
     }
+    drawRecent(srcs);
+    quickMark();
   } catch (e) { say('#merr', e.message); }
 }
 loadQuick(); setInterval(loadQuick, 15000);
+// ---- Now Playing in Quick play (2026-10-29, "call it currently playing and add a little sound meter next to it showing the beats"; "Now
+// Playing would be a better thing to say"): the playing service's head says Now Playing, with five bars off the PC's own bands, the
+// visual's socket opened while the Music tab shows a playing service and closed when it does not. The song's own poll marks the heads, so
+// a play or a pause shows within a second, not at the list's 15-second read.
+// ---- Recent stations and playlists (2026-10-29, "add a Recent Stations & Playlists under all the services in Quick Play ... grouped by
+// service but dont make the user go to child menus"; "Maybe just the last 5 items"): the last five collections played across the services,
+// flat rows under the service's name, under the accordion with a gap; a tap plays as a pick in the accordion does. The PC's Quick play has the same.
+function drawRecent(srcs) {
+  const box = q('#recent'); box.innerHTML = '';
+  const all = []; for (const s of srcs) for (const r of s.recent || []) all.push({ s, r });
+  all.sort((a, b) => (b.r.at || 0) - (a.r.at || 0));
+  const top = all.slice(0, 5); if (!top.length) return;
+  const h = document.createElement('h4'); h.textContent = 'Recent stations and playlists'; box.appendChild(h);
+  const seen = []; for (const x of top) if (!seen.includes(x.s)) seen.push(x.s);
+  for (const s of seen) {
+    const n = document.createElement('div'); n.className = 'svcName'; n.textContent = s.name; box.appendChild(n);
+    for (const { r } of top.filter((x) => x.s === s)) {
+      const b = document.createElement('button'); b.className = 'item'; b.textContent = r.name; box.appendChild(b);
+      b.onclick = () => { const go = (when) => pickPlay(s, r.kind, r, when); if (npPlaying || work || npTile) pickSheet(r.name + ' on ' + s.name, go); else go('now'); };
+    }
+  }
+}
+async function pickPlay(s, kind, it, when) {   // a listed collection, now or after this track, as the accordion's rows play one
+  svcMode.set(s.tile, 'actions');
+  if (when === 'now') startWork(it.name, s.name, s.tile, it.name, kind, it.id);
+  else { say('#merr', ''); for (const d of document.querySelectorAll('#quick .svc.open')) d.classList.remove('open'); if (openSvcs) openSvcs.clear(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  try {
+    const r = await api('/music/play', { tile: s.tile, kind, id: it.id, order: kind === 'station' || !nextOrder ? 'auto' : nextOrder, when });
+    if (when === 'next' && r && r.started) startWork(it.name, s.name, s.tile, it.name, kind, it.id);
+    setTimeout(pollNow, 1200);
+  } catch (e) { endWork(e.message, false); }
+}
+function isPlayingSvc(s) { return s.tile === npTile ? !!npPlaying : s.playbackState === 'playing'; }
+function headStatus(s) { return s.session === 'signed-out' ? 'signed out' : isPlayingSvc(s) ? 'Now Playing' : s.active ? 'on the stage' : ''; }
+function quickMark() {
+  for (const s of quickSrcs) { const d = q('#quick .svc[data-tile="' + s.tile + '"]'); if (!d) continue; d.classList.toggle('playing', isPlayingSvc(s)); const st = d.querySelector('.st'); if (st) st.textContent = headStatus(s); }
+  meterSync();
+}
+const meter = { raf: 0, lv: new Float32Array(5) };
+function meterOn() { return tabNow === 'M' && !viz.on && document.visibilityState === 'visible' && !!q('#quick .svc.playing'); }
+function meterSync() {
+  const want = meterOn();
+  if (want && !viz.ws) vizConnect();
+  if (!want && !viz.on && viz.ws) { try { viz.ws.close(); } catch {} viz.ws = null; }
+  if (want && !meter.raf) meter.raf = requestAnimationFrame(meterDraw);
+}
+function meterDraw() {
+  meter.raf = 0; if (!meterOn()) return;
+  const bd = viz.bands;
+  for (let k = 0; k < 5; k++) { let m = 0; for (let i = k * 9; i < k * 9 + 9; i++) m = Math.max(m, bd[i] || 0); const l = Math.min(1, m), was = meter.lv[k]; meter.lv[k] = was + (l - was) * (l > was ? 0.6 : 0.15); }
+  document.querySelectorAll('#quick .svc.playing .meter i').forEach((b, i) => { b.style.height = Math.round(15 + 85 * meter.lv[i % 5]) + '%'; });
+  meter.raf = requestAnimationFrame(meterDraw);
+}
 // ---- the song playing now, on another service (2026-10-27, "add songs to a playlist cross service like I can do in the pc player"):
 // the PC's own lookup and its verbs (concept-scenes, Decision 2026-09-16) under every service's Quick play entry, the one
 // playing the song included, as the PC's playlist rows offer it ("What if I want to add on the same service"). The service's

@@ -36,7 +36,24 @@
   // ---- human override: Escape rips down every cover and unmutes, and holds
   // off for a while, so a viewer can ALWAYS get straight back to their show.
   var suppressUntil = 0;
-  PV.suppressed = function () { return Date.now() < suppressUntil; };
+  PV.suppressed = function () { return Date.now() < suppressUntil || orphaned() || !!(PV.veilOff && PV.veilOff()); };
+  // Switched off at edge://extensions (or Firefox's add-ons page), the page
+  // keeps the covers this script put there and nothing is left to take them
+  // down (2026-10-27, "Its off and veils are up still"). An orphaned content
+  // script sees no chrome.runtime.id: the first sweep that notices tears
+  // everything down and the loops idle from then on.
+  var dead = false;
+  function orphaned() {
+    if (dead) return true;
+    var alive = true; try { alive = !!(chrome.runtime && chrome.runtime.id); } catch (e) { alive = false; }
+    if (alive) return false;
+    dead = true;
+    PV.__dead = true; window.__prismVeil = false;   // the next copy (bg.js probeTab, reinjection) may start
+    try { PV.clearCovers(); } catch (e1) {}
+    try { if (PV.uncoverVideo) PV.uncoverVideo(); } catch (e2) {}
+    try { document.querySelectorAll("[data-prism-ui],prism-popup-button").forEach(function (n) { n.remove(); }); } catch (e3) {}
+    return true;
+  }
   function dismissAll(ms) {
     suppressUntil = Date.now() + (ms || 6000);
     PV.clearCovers();
@@ -174,10 +191,10 @@
   function start() {
     if (PV.__started) return; PV.__started = true;
     PV.observeRoot(document.documentElement);
-    PV.mountReportChip();
+    PV.loadUiPrefs();
     if (PV.ensurePill) PV.ensurePill();
     PV.sweep();
-    setInterval(function () { PV.sweep(); if (PV.ensurePill) PV.ensurePill(); }, 1200);
+    setInterval(function () { PV.sweep(); if (!orphaned() && PV.ensurePill) PV.ensurePill(); }, 1200);
     findInfopanes();
     setInterval(findInfopanes, 2000);   // (re)cache infopanes as they load
     setInterval(pollInfopanes, 60);      // catch a slide swap within ~60ms

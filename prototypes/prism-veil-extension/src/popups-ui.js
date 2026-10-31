@@ -10,7 +10,9 @@
     core's MorphCoalescer: bursts coalesce, one morph per ~10s, ~3s hold,
     aria-live. No pulsing, no alarm colors, no unprompted expansion; reduced
     motion dissolves instead of morphing.
-  - The panel: ledger rows with exactly two verbs, Open and Always allow;
+  - The panel (one button on the page, 2026-10-27): the main switch, Report
+    an ad and Reveal 15 s on top; then the popup ledger rows with exactly two
+    verbs, Open and Always allow;
     the post-open nudge; "Popups you've allowed" with Remove; per-site block
     all; hide the button here (interception continues; the toolbar badge is
     the fallback surface).
@@ -36,7 +38,7 @@
     set: function (k, v) { cache[k] = v; try { var o = {}; o["pv:" + k] = v; chrome.storage.local.set(o); } catch (e) {} },
   };
   var policy = new core.PopupPolicy(store);
-  var morph = new core.MorphCoalescer();
+  var morph = new core.MorphCoalescer({ hold: 5000 });
 
   function pushSnapshot() {
     try { document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(policy.snapshot()) } })); } catch (e) {}
@@ -120,8 +122,13 @@ opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);ba
 .pill:hover,.pill.on{opacity:1}\
 .pill .lbl{white-space:nowrap;transition:opacity .35s}\
 .pill.morph .lbl{color:#F0A83C}\
+.pill.glow{opacity:1;border-color:#F0A83C;box-shadow:0 0 12px 3px rgba(240,168,60,.75)}\
+.pill.off .lbl{color:#A3ABB7}\
+.pill.off{opacity:.6}\
+.acts{display:flex;gap:8px;margin:6px 0 2px}\
+.acts .btn{flex:1;padding:7px 10px}\
 .pill.dissolve .lbl{opacity:0}\
-.pill.collapsed{right:0;padding:0;width:10px;height:44px;border-radius:8px 0 0 8px;justify-content:center;border-right:0;opacity:.35}\
+.pill.collapsed{right:14px;padding:0;width:12px;height:44px;border-radius:7px;justify-content:center;opacity:.7;background:rgba(240,168,60,.9);border-color:rgba(0,0,0,.55);box-shadow:0 0 0 1px rgba(255,255,255,.4),0 2px 6px rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none}\
 .pill.collapsed .lbl,.pill.collapsed .x{display:none}\
 .pill .x{opacity:.7;font-size:33px;line-height:1;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;width:36px;margin:0 -12px 0 -6px;padding-bottom:7px;border-radius:0 14px 14px 0}\
 .pill .x:hover{opacity:1;background:rgba(255,255,255,.14)}\
@@ -166,7 +173,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     mk = document.createElement("span"); mk.className = "mk"; pill.appendChild(mk);
     var x = document.createElement("span"); x.className = "x"; x.textContent = "›"; x.title = "Collapse";
     pill.appendChild(label); pill.appendChild(x);
-    pill.addEventListener("click", function (e) { e.stopPropagation(); if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
+    pill.addEventListener("click", function (e) { e.stopPropagation(); if (PV.cancelReportPick && PV.cancelReportPick()) return; if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
     // this site's reliability: the styled card above the pill (same card as
     // the link marks), not a browser title bubble
     pill.addEventListener("mouseenter", function () { if (pill.__credMs && PV.showCredTip && !panelOpen) PV.showCredTip(pill, pill.__credMs, "Open the panel for the Why? links"); });
@@ -261,10 +268,31 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
   function paintMorph() {
     var m = morph.next(Date.now());
     if (!m) { scheduleMorph(); return; }
-    if (!pill || prefs.hidden) { return; }
+    if (!pill || prefs.hidden || picking) { return; }
     setLabel(m.label, true);
+    glow(true);
     if (revertTimer) clearTimeout(revertTimer);
-    revertTimer = setTimeout(function () { revertTimer = 0; setLabel("Prism", false); scheduleMorph(); }, m.until - Date.now());
+    revertTimer = setTimeout(function () { revertTimer = 0; restLabel(); glow(false); scheduleMorph(); }, m.until - Date.now());
+  }
+  // A held popup is easy to miss on a label alone (2026-10-27, "Can we make it
+  // more obvious that the popup was blocked"): for the hold the pill comes out
+  // of its edge tab and its edge glows amber, the same ring a cover's close
+  // hole wears (dom.js ringHoles), breathing unless motion is reduced. Then it
+  // rests and goes back behind its tab, unless the person tapped it meanwhile,
+  // in which case it stays out for good.
+  var glowAnim = null;
+  function glow(on) {
+    if (!pill) return;
+    if (glowAnim) { try { glowAnim.cancel(); } catch (e0) {} glowAnim = null; }
+    if (on) {
+      pill.classList.remove("collapsed");
+      pill.classList.add("glow");
+      if (!reduced) { try { glowAnim = pill.animate([{ boxShadow: "0 0 6px 1px rgba(240,168,60,.45)" }, { boxShadow: "0 0 18px 5px rgba(240,168,60,.95)" }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e1) {} }
+      return;
+    }
+    pill.classList.remove("glow");
+    if (panelOpen && prefs.collapsed) setCollapsed(false);
+    else applyPrefs(prefs);
   }
   function setLabel(text, accent) {
     if (!pill) return;
@@ -272,6 +300,14 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     if (reduced) { pill.classList.add("dissolve"); setTimeout(apply, 180); }   // dissolve, no movement
     else apply();
   }
+  // The resting label: "Prism", "Prism off" while the main switch is off,
+  // "Cancel report" while a report pick is on (the click then cancels it).
+  var picking = false;
+  function veilIsOff() { return !!(PV.veilOff && PV.veilOff()); }
+  function baseLabel() { return picking ? "✕ Cancel report" : veilIsOff() ? "Prism off" : "Prism"; }
+  function restLabel() { if (!pill) return; pill.classList.toggle("off", veilIsOff() && !picking); setLabel(baseLabel(), picking); }
+  PV.onReportPick = function (on) { picking = !!on; if (on) closePanel(); restLabel(); };
+  PV.onVeilToggle = function () { restLabel(); if (panelOpen) renderPanel(); };
 
   // ---- the panel ------------------------------------------------------------
   function togglePanel() { if (panelOpen) closePanel(); else openPanel(); }
@@ -303,7 +339,22 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
   function renderPanel() {
     if (!panel) return;
     panel.textContent = "";
-    panel.appendChild(el("h2", null, "Popups on " + site));
+    panel.appendChild(el("h2", null, "Prism on " + site));
+    // The veil: the main switch, a report, a look underneath.
+    var tv = el("label", "toggle"); tv.title = "The main switch. On: ads, video breaks and, if you chose it, AI-labelled content are covered with art. Off: every cover comes down on every page at once. Popups are still intercepted.";
+    var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff();
+    cv.addEventListener("change", function () { if (PV.setUiPref) PV.setUiPref("veilOff", !cv.checked); else if (PV.setVeilOff) PV.setVeilOff(!cv.checked); });
+    tv.appendChild(cv); tv.appendChild(document.createTextNode("Veil on")); panel.appendChild(tv);
+    var acts = el("div", "acts");
+    var rb = btn("⚑ Report an ad", true, function () { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); });
+    rb.title = "Then click an ad the veil missed, or a veil that should not be there. The report shows you exactly what it holds; nothing is sent without your click.";
+    acts.appendChild(rb);
+    var rv = btn("Reveal 15 s", false, function () { closePanel(); if (PV.dismissAll) PV.dismissAll(15000); });
+    rv.title = "Lift every veil on this page for 15 seconds. Also: press and hold a veil for 3 seconds, or Esc for 6 seconds.";
+    acts.appendChild(rv);
+    panel.appendChild(acts);
+
+    panel.appendChild(el("h3", null, "Popups"));
     var vrows = visitRows(), vtotal = 0; vrows.forEach(function (r) { vtotal += r.count; });
     panel.appendChild(el("div", "sub", vtotal ? vtotal + (vtotal === 1 ? " popup" : " popups") + " intercepted since you arrived, none loaded." : "Nothing intercepted since you arrived."));
 
@@ -336,10 +387,14 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
       }
     });
 
-    // allowed list - plain sentences, one Remove each
-    var allowed = policy.listAllowed();
-    panel.appendChild(el("h3", null, "Popups you’ve allowed"));
-    if (!allowed.length) panel.appendChild(el("div", "empty", "None yet. Allowing is one tap on a row above, whenever you need it."));
+    // allowed list, THIS site only - plain sentences, one Remove each. The
+    // list across every site grows for years (2026-10-27, "it may grow to
+    // hundreds"): that one lives in the toolbar popup, with a filter.
+    var allowedAll = policy.listAllowed();
+    var allowed = allowedAll.filter(function (a) { return a.site === site; });
+    var elsewhere = allowedAll.length - allowed.length;
+    panel.appendChild(el("h3", null, "Popups you’ve allowed here"));
+    if (!allowed.length) panel.appendChild(el("div", "empty", "None on this site. Allowing is one tap on a row above, whenever you need it."));
     allowed.forEach(function (a) {
       var row = el("div", "row");
       var d = el("div", "dest", a.sentence); d.title = "since " + a.since.slice(0, 10);
@@ -347,6 +402,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
       row.appendChild(btn("Remove", false, function () { policy.remove(a.site, a.dest); renderPanel(); }));
       panel.appendChild(row);
     });
+    if (elsewhere) panel.appendChild(el("div", "empty", elsewhere + (elsewhere === 1 ? " more on another site" : " more on other sites") + ", under Settings below."));
 
     // This site: two switches (tooltips carry the explanations).
     panel.appendChild(el("h3", null, "This site"));

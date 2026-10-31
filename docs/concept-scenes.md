@@ -508,8 +508,10 @@ remote and the menu can never make a player queue an arbitrary thing.
 *Decision (2026-09-07) — one lounge, several services.* A Music Lounge may hold
 more than one hidden music source - Apple Music and Spotify and Pandora, each in
 its own profile with its own sign-in. **Add a music service…** (the stage's sheet,
-and the foot of Quick play) appends a second source; the stage keeps drawing the
-current one. Quick play then groups by service: each service is its own submenu
+and the foot of Quick play) opens Set up services, where a press on a service's card
+adds it to the Music player and opens its sign-in (*Decision 2026-10-29*: the separate
+add dialog is retired, "just open the Set up Services screen when its pressed"); the
+stage keeps drawing the current one. Quick play then groups by service: each service is its own submenu
 named for it (the one on the stage marked, a signed-out one marked), with its
 last five, its playlists and its stations inside. **The visual follows the
 music:** a pick on another service plays there and every stage in the scene

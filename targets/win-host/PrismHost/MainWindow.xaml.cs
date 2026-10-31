@@ -477,6 +477,7 @@ public sealed partial class MainWindow : Window
                 PerfNoteSet(storedKey, storedValue.Length);   // perf.log: which keys are set most, and how big (2026-10-03)
                 OnTilesKeyStored(storedKey);   // §6 micro-facets: a phone's edit reaches the wall page too
                 break;
+            case Ops.StoreRemove: { var removedKey = m.GetString("key") ?? ""; if (removedKey.Length > 0) _store.Remove(removedKey); break; }   // a cache key core drops (B-406, 2026-10-30)
             case Ops.NetFetchStatic: _ = FetchStaticAsync(m); break;
             case Ops.NetFetchKeyed: _ = FetchKeyedAsync(m); break;
             // §28 updates (Services/Updates.cs, 2026-10-05): the signed manifest at the configured address; a release downloaded, verified and staged

@@ -145,6 +145,8 @@ public sealed partial class SurfaceManager
         public Grid? SkipRing;
         public Microsoft.UI.Xaml.Media.Animation.Storyboard? SkipRingPulse;
         public string? SkipTarget;
+        /// <summary>The player's skip control is there right now (core's observation): the card's own Skip chip shows unless the wall's button serves this window.</summary>
+        public bool SkipAvailable;
         /// <summary>The veil's opening over the player's own Skip, in the tile's own coordinates (2026-10-12): a press on the stage shield
         /// inside it is the person pressing that control.</summary>
         public Windows.Foundation.Rect? SkipHole;
@@ -1108,9 +1110,11 @@ public sealed partial class SurfaceManager
         if (tile.Intermission is null)
         {
             var g = new Grid { Opacity = 0 };                       // Background null: hits pass through
-            // The veil ground in FOUR slabs so a real cutout can expose the
-            // player's own Skip button (spec 26: the hole is the skip path -
-            // extension parity, video.js cuts the same hole with clip-path).
+            // The veil ground in FOUR slabs: a real cutout once exposed the
+            // player's own Skip button (spec 26; the extension's video.js still
+            // cuts that hole). Since 2026-10-29 the wall's own Skip takes every
+            // skip and the cover stays whole; the paused look's open panel still
+            // uses the opening.
             var subSlabs = new Border[4];
             var artSlabs = new Image[4];
             var artFrames = new Grid[4];
@@ -2800,7 +2804,7 @@ public sealed partial class SurfaceManager
         tile.PausedLook = on;
         var hadHole = tile.PauseHoleSel is not null;
         tile.PauseHoleSel = on && !string.IsNullOrEmpty(openSel) ? openSel : null;
-        if (tile.PauseHoleSel is not null) StartSkipHole(tile); else if (hadHole && string.IsNullOrEmpty(tile.SkipTarget)) StopSkipHole(tile);
+        if (tile.PauseHoleSel is not null) StartSkipHole(tile); else if (hadHole) StopSkipHole(tile);
         if (tile.CardHead is { } h) h.Text = on ? "Paused" : tile.CardHeadText ?? h.Text;
         if (tile.CardLine is { } l) l.Text = on ? (string.IsNullOrWhiteSpace(tile.NpCoverTitle) ? "Press Play to go on" : tile.NpCoverTitle + (string.IsNullOrWhiteSpace(tile.NpCoverSub) ? "" : "  \u00B7  " + tile.NpCoverSub)) : tile.CardLineText ?? l.Text;
         if (tile.CardPoster is { } ps)
@@ -2831,6 +2835,7 @@ public sealed partial class SurfaceManager
         }
         if (tile?.Intermission is not { } g) return;
         if (tile.SkipChip is { } chip) chip.Visibility = Visibility.Collapsed;
+        tile.SkipAvailable = false;
         tile.Covered = false;
         tile.ArtDrift?.Stop(); tile.ArtDrift = null;                 // the picture rests when the cover goes
         tile.Peeked = false;                                         // a peek never outlives its break
@@ -2870,13 +2875,28 @@ public sealed partial class SurfaceManager
         var tile = Get(id);
         if (tile is null) return;
         tile.SkipTarget = available ? target : null;
-        // The cutout - the player's OWN button, really visible and really
-        // clickable through the veil - is the default; the card's chip is the
-        // fallback when no control selector was observed.
-        if (tile.SkipChip is { } chip)
-            chip.Visibility = available && string.IsNullOrEmpty(target) ? Visibility.Visible : Visibility.Collapsed;
-        if (available && !string.IsNullOrEmpty(target)) StartSkipHole(tile);
-        else if (tile.PauseHoleSel is null) StopSkipHole(tile);   // a paused look's open panel stays open
+        tile.SkipAvailable = available;
+        // The cutout - the player's OWN button, really visible and really clickable through the veil - was the default while a control
+        // selector was observed, with the card's chip as the fallback. Since 2026-10-29 ("hide the streaming chrome and put it top and center")
+        // the cover stays whole: the wall's own Skip button (MainWindow.SkipOffer) serves the big window and the card's chip every other,
+        // and a press goes to the control through core's skip verb, a trusted press at its place.
+        SyncSkipChip(tile);
+        if (tile.PauseHoleSel is null) StopSkipHole(tile);   // a paused look's open panel stays open
+    }
+
+    private string? _skipOnWall;
+    /// <summary>The window whose ad Skip the wall's own button serves (MainWindow.SkipOffer, 2026-10-29): its card shows no Skip of its own, so one
+    /// button stands, not two; null when the wall's button is down.</summary>
+    public void SkipOnWall(string? id)
+    {
+        if (_skipOnWall == id) return;
+        var was = _skipOnWall; _skipOnWall = id;
+        foreach (var t in new[] { was, id }) if (t is not null && Get(t) is { } tile) SyncSkipChip(tile);
+    }
+
+    private void SyncSkipChip(Tile tile)
+    {
+        if (tile.SkipChip is { } chip) chip.Visibility = tile.Covered && tile.SkipAvailable && _skipOnWall != tile.Id ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void StartSkipHole(Tile tile)
@@ -2902,7 +2922,7 @@ public sealed partial class SurfaceManager
 
     private async Task PollSkipHoleAsync(Tile tile)
     {
-        if (!tile.Covered || (tile.SkipTarget ?? tile.PauseHoleSel) is not { Length: > 0 } sel) { StopSkipHole(tile); return; }
+        if (!tile.Covered || tile.PauseHoleSel is not { Length: > 0 } sel) { StopSkipHole(tile); return; }   // the paused look's open panel; a skip is the wall's button now
         var js = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
             + "for(var i=0;i<els.length;i++){var e=els[i],r=e.getBoundingClientRect();"
             + "if(r.width>0&&r.height>0)return JSON.stringify({x:r.x,y:r.y,w:r.width,h:r.height});}return null;})()";

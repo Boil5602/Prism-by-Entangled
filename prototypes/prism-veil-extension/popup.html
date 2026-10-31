@@ -24,6 +24,7 @@
   .btn { font:600 12px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#2A2F38; border:1px solid var(--edge); border-radius:8px; padding:5px 10px; cursor:pointer; white-space:nowrap; }
   .btn:hover { border-color:var(--accent); }
   .btn.primary { background:var(--accent); color:var(--bezel); border-color:var(--accent); }
+  input.filter { width:100%; box-sizing:border-box; margin:4px 0 6px; padding:6px 8px; border-radius:8px; border:1px solid var(--edge); background:var(--wall); color:var(--ink); font:12px -apple-system,"Segoe UI",Roboto,sans-serif; }
   .btn[disabled] { opacity:.6; cursor:default; }
   .empty { color:var(--dim); padding:6px 0; }
   .seg { display:inline-flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
@@ -51,11 +52,17 @@
   <header><span class="brand">prism</span><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open this site's controls on the page: popups intercepted here, per-site switches, this site's reliability rating">This site</button></header>
   <section id="view"></section>
 
+  <section id="allowed-all" hidden>
+    <h3>Popups you've allowed</h3>
+    <div class="row" data-tip="Every popup you have allowed, on every site: the site, then the destination it may open. Remove one and that site's popups to it are held again. The Prism button's panel shows only the current site's."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
+    <div id="allowed-list" hidden></div>
+  </section>
+
   <section>
     <h3>Veil</h3>
-    <label class="row" data-tip="The bottom-right Prism button on pages. On = every site (clears any per-site hides). Off = hidden on this site only; the button's × does the same."><input type="checkbox" id="pill-on"><span class="dest">Show the Prism button</span></label>
+    <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labelled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
+    <label class="row" data-tip="The bottom-right Prism button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the Prism button</span></label>
     <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
-    <label class="row" data-tip="A small ⚑ Report ad chip bottom-left on every page. Click it, then click an ad the veil missed (or a veil that shouldn't be there) to send a report. Nothing is sent without your click."><input type="checkbox" id="report-chip"><span class="dest">Show the ⚑ Report button</span></label>
     <div class="row" data-tip="How the intermission over a video ad looks. Full card: art with the countdown and controls in the middle. Corner chip: art only, a small chip top-left that opens the controls."><span class="dest">Intermission</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
   </section>
 

@@ -611,6 +611,19 @@ export function clickControlJs(control: string): string {
   return `(function(){${finder}if(e&&typeof e.click==='function'){e.click();return true;}return false;})()`;
 }
 
+/**
+ * Page-side: the centre of the control's first laid-out match as "x,y", or "" (B-447, 2026-10-29): for a press made as a mouse makes it, through
+ * the surface's own input (scrub), where a click() is not enough (YouTube's Skip takes only a trusted press). A key binding has no place.
+ */
+export function controlCentreJs(control: string): string {
+  const b = parseControl(control);
+  if (b.kind === "key") return "''";
+  const finder = b.kind === "deep"
+    ? `${DEEP_QUERY_JS}var es=[dq(${JSON.stringify(b.path)})];`
+    : `var es=document.querySelectorAll(${JSON.stringify(b.selector)});`;
+  return `(function(){${finder}for(var i=0;i<es.length;i++){var e=es[i];if(!e)continue;var r=e.getBoundingClientRect();if(r.width>0&&r.height>0)return Math.round(r.left+r.width/2)+','+Math.round(r.top+r.height/2);}return '';})()`;
+}
+
 function keyCode(key: string): string {
   if (key === " " || /^space$/i.test(key)) return "Space";
   if (key.length === 1 && /[a-z]/i.test(key)) return "Key" + key.toUpperCase();

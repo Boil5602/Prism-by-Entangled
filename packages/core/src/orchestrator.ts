@@ -21,7 +21,7 @@ import { validRegion } from "./focus.js";
 import { clampZoom, hostSlug } from "./catalog.js";
 import type { Drivers, SurfaceEvent, InputEvent } from "./drivers.js";
 import type { Rect, SolvedRects } from "./solver.js";
-import { fillItemAddress, onServiceSite, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, mediaFallbackJs, type AdapterSpec } from "./adapters.js";
+import { fillItemAddress, onServiceSite, AdapterRegistry, FRAME_PRELUDE_JS, clickControlJs, controlCentreJs, mediaFallbackJs, type AdapterSpec } from "./adapters.js";
 import { cleanCandidates, type LookupState, type LookupServiceState, pickTitleHit } from "./video-lookup.js";
 import { sortCards, releaseOf, type HubSort } from "./hub-sort.js";
 import { BROWSE_FULL_PAGES, BROWSE_FULL_SIZE, BROWSE_GENRES, BROWSE_LOOKAHEAD, BROWSE_MAX_PAGES, BROWSE_REGION, BROWSE_ROW_SIZE, browseGenre, browseValue, discoverQuery, discoverTitles, inGenre, mergeDiscover, offerCounts, type BrowseCard, type BrowseGenre, type BrowseOffer, type BrowseTitle, type DiscoverRowId } from "./browse.js";
@@ -896,8 +896,13 @@ export interface MusicLookupState {
 }
 type MusicResultEvent = Extract<SurfaceEvent, { type: "music-result" }>;
 
-/** Chromium's own media controls, off on a video service's page (drawn over a fullscreen <video> on a pause, whatever the page asked). */
-export const NO_NATIVE_VIDEO_CONTROLS_CSS = "video::-webkit-media-controls, video::-webkit-media-controls-enclosure, video::-webkit-media-controls-panel { display:none !important; opacity:0 !important; }";
+/**
+ * Chromium's own media controls, off on a video service's page (drawn over a fullscreen <video> on a pause, whatever the page asked): the bar,
+ * its panel and the overlay play button - never the `::-webkit-media-controls` wrapper itself, which also holds the browser's caption box
+ * (B-455, 2026-10-29, "i tried enabling english CC but nothing happened": Apple TV's captions are a 'showing' text track drawn by the browser,
+ * and the wrapper hidden whole hid them with the controls).
+ */
+export const NO_NATIVE_VIDEO_CONTROLS_CSS = "video::-webkit-media-controls-enclosure, video::-webkit-media-controls-panel, video::-webkit-media-controls-overlay-enclosure, video::-webkit-media-controls-overlay-play-button { display:none !important; opacity:0 !important; }";
 
 export class Orchestrator {
   private doc: DashboardDocument | null = null;
@@ -2268,6 +2273,7 @@ export class Orchestrator {
       else if (standing && standing.kind === kind && standing.id === id) item = { id, name: standing.name, kind: kind as LibraryItem["kind"] };
     }
     if (!item) return "unknown";
+    const gen = this.nextPickGen(tileId);   // 2026-10-29: a Cancel while the track list is read stands this pick down (cancelMusicPick)
     // "auto" is the plain press (a Quick play row, 2026-09-17): a Prism-ordered play of THIS collection with a saved spot carries
     // on from it; anything else plays in order. An order named outright (the transport's order button) always starts afresh.
     let order: PlayOrder = "normal";
@@ -2321,6 +2327,7 @@ export class Orchestrator {
       // while that prepared"): the read is the slow part, and whatever played on keeps playing through it; the other source goes quiet
       // only when the ordered list is ready to hand to the player
       const ids = await this.musicTracks(tileId, kind, id, order);
+      if (this.pickGen.get(tileId) !== gen) { this.readingFor.delete(tileId); this.musicWork.delete(tileId); return "ok"; }   // cancelled while reading: what plays, plays on
       if (!ids.length) { this.readingFor.delete(tileId); return "unsupported"; }
       const ordered = orderTracks(ids, order);
       await this.claimAudio(tileId);
@@ -2554,6 +2561,23 @@ export class Orchestrator {
       const r = await this.askMusic(tileId, token, `window.__prismMusicQueueAppend && window.__prismMusicQueueAppend(${JSON.stringify(token)}, ${JSON.stringify(next)}, ${JSON.stringify({ kind: o.kind, id: o.id })})`);
       if (r?.ok && this.musicOrder.get(tileId) === o) this.orderQueuedUpTo.set(tileId, upTo + next.length);   // the same order still stands
     } finally { if (this.musicOrder.get(tileId) === o) this.orderAppending.delete(tileId); }
+  }
+  /**
+   * 2026-10-29 ("When I pick a station or playlist it says loading ... is it feasible to add a cancel button there when my current music is
+   * still playing and to just keep the currently playing item up?"): a pick still loading is dropped. The pending clears (the block's
+   * loading line goes), a track-list read under way is let fall (the generation below), the one more send stands down with the pending,
+   * and the page is told (the adapter's __prismMusicPlayCancel: Apple's drops the play() that would follow its setQueue). What the page
+   * has already started cannot be unstarted from here; the block offers Cancel only while the song before still plays.
+   */
+  private readonly pickGen = new Map<string, number>();
+  private nextPickGen(tileId: string): number { const g = (this.pickGen.get(tileId) ?? 0) + 1; this.pickGen.set(tileId, g); return g; }
+  async cancelMusicPick(tileId: string): Promise<boolean> {
+    if (!this.tile(tileId)) return false;
+    this.nextPickGen(tileId);
+    this.musicPending.delete(tileId);
+    this.musicWork.delete(tileId); this.readingFor.delete(tileId);
+    try { await this.drivers.surface.inject(tileId, null, "window.__prismMusicPlayCancel && window.__prismMusicPlayCancel()"); } catch { /* the page may be away */ }
+    return this.nowPlaying.get(tileId)?.playing === true;
   }
   /** The standing play order per tile: the collection and the order it was asked in (the wall's block names it; a restart restores it). */
   private readonly musicOrder = new Map<string, { kind: string; id: string; name: string; order: PlayOrder; count?: number; ids?: string[]; index?: number; pass?: number; at: number }>();
@@ -2984,6 +3008,12 @@ export class Orchestrator {
     const byId = entry.id && /^(playlist|station|album)$/.test(entry.kind) ? { kind: entry.kind as "playlist" | "station" | "album", id: entry.id } : collectionIdFromUrl(url);   // B-125: older entries too
     this.arm(tileId);   // B-126: a quick-play pick is a human's press, whichever path plays it
     if (byId && spec?.musicPlay) {
+      // B-449 (2026-10-29, "I just started Vibes with true shuffle, but it is playing in the exact original play list order ... 1337 of 1662"):
+      // a Recent row played the collection by id in the page's own order while the block named the standing true shuffle at its spot. The
+      // plain press of a listed collection (playCollection, "auto") carries a standing Prism order on from its spot, so a recent goes that
+      // way first; one the library does not list any more falls to the play by id below
+      const asListed = await this.playCollection(tileId, byId.kind, byId.id, "auto");
+      if (asListed === "ok") return "ok";
       if (this.holdsCollection(tileId, byId.kind, byId.id)) { await this.resumeHeld(tileId); return "ok"; }   // B-140
       await this.claimAudio(tileId);   // B-137: the quick jump
       await this.drivers.surface.inject(tileId, null, `window.__prismMusicPlay && window.__prismMusicPlay(${JSON.stringify(byId.kind)}, ${JSON.stringify(byId.id)}, ${JSON.stringify(entry.label ?? "")})`);
@@ -3182,8 +3212,16 @@ export class Orchestrator {
   async resumeMusic(tileId: string): Promise<"ok" | "none" | "unknown-tile"> {
     const tile = this.tile(tileId);
     if (!tile) return "unknown-tile";
-    if (await this.continueOrder(tileId)) return "ok";   // 2026-09-17: a Prism-ordered play carries on from its saved spot
+    // 2026-10-29 ("it said the last thing playing was discovery station, I pressed Play, it opened the prior playlist"): the resume point
+    // newer than the standing order's last move and naming another collection (B-233's rule for what is another: the same kind, or a
+    // station) means the person moved on from the order - a station started from the page itself, here - so Play brings the point back.
+    // The order stays standing ("I'd love to resume the original true shuffle if I play Bedtime Beats again"): a pick of its collection
+    // carries it on from its spot, as before.
+    if (!this.musicOrder.has(tileId)) await this.loadMusicOrder(tileId);
     const point = await this.resumePoint(tileId);
+    const standing = this.musicOrder.get(tileId);
+    const movedOn = !!standing && !!point?.kind && !!point.id && point.id !== standing.id && (point.kind === standing.kind || point.kind === "station") && point.at > standing.at;
+    if (!movedOn && await this.continueOrder(tileId)) return "ok";   // 2026-09-17: a Prism-ordered play carries on from its saved spot
     if (!point) return "none";
     // B-205 (2026-09-15): by id through the service's own player where there is one - the same path as a Quick play pick.
     // Pressing the page's Play control on the station page found no header Play and hit the sidebar's "Play Vibes" card
@@ -4325,6 +4363,15 @@ export class Orchestrator {
         }
         if (!selector) return "unknown-cmd";
         if (!this.intermission.isSkipAvailable(tileId)) return "unavailable";
+        // the press as a mouse makes it (B-447, 2026-10-28: YouTube's Skip takes only a trusted press, so a click() let the ad run on): the
+        // control's centre read from the page and the surface's own input pressed there, the way a service's scrubber is pressed; a control
+        // with no place on the page gets the click() as before. One way for the wall's Skip, the phone's and the key (2026-10-29)
+        if (this.drivers.surface.scrub && this.drivers.surface.evaluate) {
+          let at = "";
+          try { const raw = await this.drivers.surface.evaluate(tileId, controlCentreJs(selector)); at = raw ? String(JSON.parse(raw)) : ""; } catch { at = ""; }
+          const m = /^(-?[0-9]+),(-?[0-9]+)$/.exec(at);
+          if (m) { await this.drivers.surface.scrub(tileId, Number(m[1]), Number(m[2]), true); return "ok"; }
+        }
         await this.drivers.surface.inject(tileId, null, clickControlJs(selector));
         return "ok";
       }
@@ -4457,6 +4504,25 @@ export class Orchestrator {
         // play), the declared control only when the player did not take it: a DOM selector is the part that
         // rots (Apple's skip control moved into the video player and Next did nothing), the player API is not.
         const viaPlayer = spec?.musicCmd ? `(window.__prismMusicCmd&&window.__prismMusicCmd(${JSON.stringify(cmd)}))` : this.video.cmdJs(spec, cmd);   // VP-2: a video adapter's own player the same way
+        // Play on a video page with no player on it (B-453, 2026-10-29, Apple TV's episode page after its player had closed: "It has the right
+        // episode and stuff in the controls, but when I click play, nothing happens"): the adapter's own play finds no video and answers false,
+        // and the bare element fallback had nothing to press either. Heard now: the page's own Play is the way on, pressed as a pick of the
+        // title the page names (its context, else the tile's resume point) through the adapter's videoPlay, the same press as a card's
+        if (cmd === "play" && viaPlayer && !declared && !tile.launch && !spec?.musicCmd && this.video.isVideoTile(tileId) && this.drivers.surface.evaluate) {
+          let took: string | null = null;
+          try { took = await this.drivers.surface.evaluate(tileId, viaPlayer); } catch { took = null; }
+          if (took === "true") return "ok";
+          if (took === "false") {
+            const st = this.video.state([tileId])[0];
+            const v = st?.video, rp = st?.resume, here = this.currentUrl.get(tileId) ?? null;
+            const web = (u: string | null | undefined): string | null => (u && /^https?:[/][/]/i.test(u) ? u : null);   // the page's own word for its address, taken only as a web address
+            const pick = v && (web(v.url) || here) ? { kind: v.kind === "live" ? "channel" : v.kind || "title", id: String(v.id ?? web(v.url) ?? here), url: web(v.url) ?? here, name: v.title }
+              : rp ? { kind: rp.kind, id: rp.id ?? web(rp.url) ?? rp.title, url: web(rp.url), name: rp.title } : null;
+            if (pick && (await this.videoPlay(tileId, pick.kind, pick.id, pick.url, pick.name)) === "ok") return "ok";
+          }
+          await this.drivers.surface.inject(tileId, null, mediaFallbackJs(cmd));
+          return "ok";
+        }
         if (declared) {
           // §26: a declared control, clicked only because a human asked.
           await this.drivers.surface.inject(tileId, null, this.withOffer(spec, cmd, this.withWake(spec, viaPlayer ? `(function(){if(${viaPlayer})return true;return ${clickControlJs(declared)};})()` : clickControlJs(declared))));
@@ -4493,19 +4559,33 @@ export class Orchestrator {
       case "skipintro":
       case "captions":
       case "fullscreen": {
-        // the next episode shown at once, when the service's own list knows it (see videoExpectEpisode)
-        if (cmd === "nextepisode") {
-          const v = this.video.state([tileId])[0]?.video;
-          const hit = v?.series && v.id ? this.listEpisodeById(v.series, String(v.id)) : null;
-          if (v?.series && hit?.next) this.videoExpectEpisode(tileId, { series: v.series, season: hit.next.season, episode: hit.next.episode, title: hit.next.title, id: hit.next.id });
-          // the wall's cover while the service moves to it (2026-10-06, "I pressed next video twice, and it showed the big door prize home page,
-          // and then started the video"): the runtime raises it, naming the service
-          if (v?.series) this.episodeMoveHook?.(tileId, hit?.next ? `${v.series}, S${hit.next.season} E${hit.next.episode}` : `${v.series}, the next episode`);
-        }
         // VP-2 (2026-09-19): verbs only a video adapter's own script can take - Netflix's Skip Intro, the next episode, the
         // captions control - clicked only because a human asked (section 26 pass-through); no element fallback makes sense
         const tile = this.tile(tileId)!;
         const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
+        // Next episode: the page's own Next pressed, and its answer heard (B-452, 2026-10-29, Apple TV in the credits before its Play Next
+        // Episode card: "it shows the new e8 in the bottom and the new 0:00 start time, but i'm still watching the credits"): the next episode
+        // is shown at once, when the service's own list knows it (videoExpectEpisode), and the wall's cover goes up while the service moves
+        // to it (2026-10-06, "I pressed next video twice, and it showed the big door prize home page") - only once the page says it took the
+        // press. A page that answers false (no Next on it now) gets neither, and unavailable goes back, for the runtime's play from the list
+        if (cmd === "nextepisode") {
+          const js = this.video.cmdJs(spec, cmd);
+          if (!js) return "unavailable";
+          this.arm(tileId);
+          let took: boolean | null = null;
+          if (this.drivers.surface.evaluate) {
+            try { const raw = await this.drivers.surface.evaluate(tileId, js); took = raw === "false" ? false : raw === "true" ? true : null; } catch { took = null; }
+            if (took === false) return "unavailable";
+          } else await this.drivers.surface.inject(tileId, null, js);
+          const v = this.video.state([tileId])[0]?.video;
+          const hit = v?.series && v.id ? this.listEpisodeById(v.series, String(v.id)) : null;
+          if (v?.series && hit?.next) this.videoExpectEpisode(tileId, { series: v.series, season: hit.next.season, episode: hit.next.episode, title: hit.next.title, id: hit.next.id });
+          if (v?.series) this.episodeMoveHook?.(tileId, hit?.next ? `${v.series}, S${hit.next.season} E${hit.next.episode}` : `${v.series}, the next episode`);
+          return "ok";
+        }
+        // an ad's Skip the break's cover knows of (the adapter's declared control, YouTube's) is the skip verb's: the wall's button and the phone's
+        // send skipintro for every offer they show (2026-10-29, "make all the skip buttons behave this way")
+        if (cmd === "skipintro" && !this.video.skipOfferOf(tileId) && this.intermission.isSkipAvailable(tileId)) return this.tileCommand(tileId, "skip");
         // the wall's Skip presses the button core found on the page (SKIP_PRESS_JS, every service); a page that answers nothing has the adapter's own
         if (cmd === "skipintro" && this.drivers.surface.evaluate) {
           let said = "";
@@ -4596,6 +4676,9 @@ export class Orchestrator {
     if ((this.lastInteract.get(tileId) ?? 0) > Date.now() - 60_000) return { ok: false, did: "a person acted there" };
     return this.video.healStall(tileId, "the picture froze (" + Math.round(seconds) + " s still)") ? { ok: true, did: "reopened" } : { ok: false, did: "no reopen (given up or under way)" };
   }
+  /** The episode the page itself names right now (its id, season and episode), with no expectation laid over it: "" when it names none.
+   *  The runtime's next-episode check compares this before and after the press (B-452: the expected episode had been read as the move). */
+  videoPageEpisodeMark(tileId: string): string { return Orchestrator.episodeMark(this.video.state([tileId])[0]?.video ?? null); }
   videoExpectEpisode(tileId: string, e: { series: string; season: number; episode: number; title: string; id?: string | null }): void {
     const now = this.video.state([tileId])[0]?.video ?? null;
     this.expecting.set(tileId, { series: e.series, season: e.season, episode: e.episode, title: e.title, id: e.id ?? null, at: Date.now(), from: Orchestrator.episodeMark(now) });
@@ -4920,7 +5003,16 @@ export class Orchestrator {
     return { rating: r ? `★ ${r.mean.toFixed(1)} · TMDB · ${r.votes} votes` : null, links: outboundLinks(f), facts: f ? { article: f.article ?? null, qid: f.qid ?? null, awards: f.awards ?? null, released: f.released ?? null, views7: f.views7 ?? null, rating: r, at: f.at } : null };
   }
   /** Boot: the key is read from the store so ratings can show before any press. */
-  private lensBoot(): void { void this.lenses.key(); }
+  private lensBoot(): void { void this.lenses.key(); this.lensPruneLater(Orchestrator.LENS_PRUNE_FIRST_MS); }
+  /** The lens cache's prune (B-406): first a minute and a half after the boot, off the start path, then once a day. */
+  static readonly LENS_PRUNE_FIRST_MS = 90_000;
+  static readonly LENS_PRUNE_EVERY_MS = 24 * 3_600_000;
+  private lensPruneLater(ms: number): void {
+    const t = setTimeout(() => { void this.lenses.prune().catch(() => null).then(() => this.lensPruneLater(Orchestrator.LENS_PRUNE_EVERY_MS)); }, ms);
+    (t as unknown as { unref?: () => void }).unref?.();   // a test's process is not kept alive for it
+  }
+  /** The last lens-cache prune's count, for a diagnostic line. */
+  lensPruneState(): { at: number; looked: number; removed: number; retired: number } | null { return this.lenses.lastPrune; }
   /** The adapter's search address for a service, with the words in place (video-menu-spec §3 searchUrl). */
   /** The page on a service that lists everything carrying a tag (the open pool's page, else the service's search for #tag): a creator's tag
    *  pressed on a video's Details opens it (2026-10-11). */
@@ -5495,7 +5587,7 @@ export class Orchestrator {
   // shows and posts it back with the token core handed it (the music-result channel, op "lookup"); core cleans and keeps
   // the answers per service, the menu draws them as one labeled row. Surfaces stay for a few minutes of repeat searches,
   // then go. Nothing leaves the machine but the service's own page requests.
-  private readonly lookups = new Map<string, { app: string; adapter: string | null; up: boolean; upWaits: Array<() => void>; lastUsed: number; /** standing on the service's list page: its reports feed the My list row */ onList?: boolean; /** standing on the service's Who's watching page: its report is the household, read only */ onProfiles?: boolean; /** walk the app's own route to its list once the home is up (videoListRoute) */ routeOnUp?: boolean; listRead?: number; listNavAt?: number; lastListEmpty?: boolean; /** the profile page reported */ profilesAt?: number; /** an owned walk reached its end */ ownedDone?: number; /** standing on the service's home page for its own rows (Service suggestions): its shelves alone are kept */ onHome?: boolean; homeNavAt?: number; homeRead?: number }>();
+  private readonly lookups = new Map<string, { app: string; adapter: string | null; up: boolean; upWaits: Array<() => void>; /** B-307: a navigated event reached since the last navigate asked (the new address is committed) */ navSince?: boolean; /** B-307: the page stood on another address when the navigate was asked, so a load-finished before the new address is reported is the old page's */ needsNav?: boolean; lastUsed: number; /** standing on the service's list page: its reports feed the My list row */ onList?: boolean; /** standing on the service's Who's watching page: its report is the household, read only */ onProfiles?: boolean; /** walk the app's own route to its list once the home is up (videoListRoute) */ routeOnUp?: boolean; listRead?: number; listNavAt?: number; lastListEmpty?: boolean; /** the profile page reported */ profilesAt?: number; /** an owned walk reached its end */ ownedDone?: number; /** standing on the service's home page for its own rows (Service suggestions): its shelves alone are kept */ onHome?: boolean; homeNavAt?: number; homeRead?: number }>();
   private lookupNow: LookupState | null = null;
   private lookupSeq = 0;
   private lookupIdleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -6305,7 +6397,7 @@ export class Orchestrator {
         await this.drivers.surface.setMuted(id, true);   // a search page that autoplays a trailer is heard by nobody
       }
       entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
-      await this.drivers.surface.navigate(id, url);
+      this.armHiddenUp(entry, id, url); await this.drivers.surface.navigate(id, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
         entry!.upWaits.push(() => { clearTimeout(timer); resolve(true); });
@@ -6588,7 +6680,7 @@ export class Orchestrator {
         await this.drivers.surface.setMuted(surfaceId, true);
       }
       entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
-      await this.drivers.surface.navigate(surfaceId, url);
+      this.armHiddenUp(entry, surfaceId, url); await this.drivers.surface.navigate(surfaceId, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
         entry!.upWaits.push(() => { clearTimeout(timer); resolve(true); });
@@ -6633,7 +6725,7 @@ export class Orchestrator {
         await this.drivers.surface.setMuted(surfaceId, true);
       }
       entry.up = false; entry.lastUsed = Date.now(); entry.onList = false; entry.onHome = false; entry.routeOnUp = false;
-      await this.drivers.surface.navigate(surfaceId, url);
+      this.armHiddenUp(entry, surfaceId, url); await this.drivers.surface.navigate(surfaceId, url);
       const up = await new Promise<boolean>((resolve) => {
         const timer = setTimeout(() => resolve(false), Orchestrator.LOOKUP_UP_TIMEOUT_MS);
         entry!.upWaits.push(() => { clearTimeout(timer); resolve(true); });
@@ -7277,9 +7369,21 @@ export class Orchestrator {
     });
   }
 
+  /**
+   * Before a hidden page is sent to an address (B-307's tail, 2026-10-30): a load-finished carries no address, and a page still loading its
+   * last address finishes that load after the navigate was asked - the job then ran its script on the old page and heard nothing (Peacock's
+   * My Stuff removals that "came back"). So while the page stood on another address, the new page is up only once the shell has reported
+   * the new address (navigated) and a load has finished after it. A page with no address yet, or sent to the address it is on, is up at
+   * the next load-finished as before (a same-address reload reports no new address).
+   */
+  private armHiddenUp(entry: { navSince?: boolean; needsNav?: boolean }, surfaceId: string, url: string): void {
+    const was = this.currentUrl.get(surfaceId) ?? null;
+    entry.navSince = false; entry.needsNav = was !== null && was !== url;
+  }
   private async onLookupEvent(event: SurfaceEvent): Promise<void> {
     const entry = this.lookups.get(event.id)!;
     if (event.type === "load-finished" && event.ok) {
+      if (entry.needsNav && !entry.navSince) return;   // the page before's late load (B-307): the new page's own comes after its address is reported
       await this.drivers.surface.inject(event.id, null, FRAME_PRELUDE_JS);
       const spec = entry.adapter ? this.adapters.get(entry.adapter) : undefined;
       if (spec) await this.drivers.surface.inject(event.id, spec.css ?? null, adapterScript(spec));
@@ -8421,6 +8525,7 @@ export class Orchestrator {
     if (event.type === "navigated") {
       const before = this.currentUrl.get(event.id) ?? null;
       if (event.url) { this.currentUrl.set(event.id, event.url); this.navAt.set(event.id, Date.now()); }
+      { const le = this.lookups.get(event.id); if (le) le.navSince = true; }   // a hidden page's new address is committed (B-307): its next load-finished is its own
       if (event.url) this.freshPageOnNextTitle(event.id, before, event.url);
       if (event.url) this.video.noteNavigated(event.id, event.url);   // where an address asked for arrived (the doctor keeps watching it)
       // a break belongs to its page: one that moved to another site has ended it (2026-10-23, "not getting any sound in prism right now":

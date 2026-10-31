@@ -1,5 +1,7 @@
 /*
-  Prism Veil - the "Report ad" tool. A corner chip; click it, then click an
+  Prism Veil - the "Report ad" tool. Report an ad in the Prism button's
+  panel (one button on the page since 2026-10-27, "the report ad and the
+  Prism buttons should be combined into the Prism button"), then click an
   ad (or a veil). Produces a compact, PII-free description of the element,
   its ancestry across shadow boundaries, any nearby ad label, and - when the
   pick lands on a veil - WHICH rule placed it. Copied to the clipboard.
@@ -159,8 +161,7 @@
     return out;
   }
 
-  var CHIP_LABEL = "⚑ Report ad";
-  var pick = null, chip = null;
+  var pick = null;
   // One toast at a time: a new one replaces the old, cancelling a pick clears
   // the prompt at once (it lingered after Cancel, 2026-08-29), and a click on
   // a toast dismisses it.
@@ -181,7 +182,7 @@
   function exitPick() {
     clearToast();
     if (pick) { try { pick.remove(); } catch (e) {} pick = null; }
-    if (chip) chip.textContent = CHIP_LABEL;
+    if (PV.onReportPick) { try { PV.onReportPick(false); } catch (e1) {} }
   }
   function doReport(el, pt) {
     var report;
@@ -343,36 +344,23 @@
     c.addEventListener("contextmenu", function (e) { e.preventDefault(); e.stopPropagation(); exitPick(); toast("Report cancelled", "#A3ABB7"); }, true);
     document.documentElement.appendChild(c);
     pick = c;
-    if (chip) chip.textContent = "✕ Cancel";
+    if (PV.onReportPick) { try { PV.onReportPick(true); } catch (e1) {} }
     toast("Click the ad to report it · Esc to cancel", "#F0A83C");
   }
-  function unmountChip() {
-    if (chip) { if (PV.releaseOnTop) PV.releaseOnTop(chip); try { chip.remove(); } catch (e) {} chip = null; }
-    exitPick();
-  }
-  function mountChip() {
-    // Also inside player EMBED frames (the veil runs there): a report sent from
-    // inside the player carries that frame's own trace as its diag - the only
-    // route that has worked for the Google/YouTube embed (2026-08-29).
-    if (chip) return;
-    chip = document.createElement("button");
-    chip.setAttribute("data-prism-ui", "1");
-    chip.textContent = CHIP_LABEL;
-    chip.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:2147483647;background:#12131abb;" +
-      "color:#c9cbd6;font:600 11px/1 system-ui,sans-serif;padding:7px 10px;border:1px solid #ffffff22;" +
-      "border-radius:8px;cursor:pointer;opacity:.32;transition:opacity .15s;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);";
-    chip.addEventListener("mouseenter", function () { chip.style.opacity = "1"; });
-    chip.addEventListener("mouseleave", function () { chip.style.opacity = pick ? "1" : ".32"; });
-    chip.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); enterPick(); }, true);
-    try { document.documentElement.appendChild(chip); } catch (e) {}
-    if (PV.keepOnTop) PV.keepOnTop(chip);   // stay above late floating ads at max z-index
-  }
+  // The Prism button's panel starts a report; the button itself (reading
+  // "Cancel report" meanwhile), Esc or a right-click ends it.
+  PV.enterReportPick = enterPick;
+  PV.inReportPick = function () { return !!pick; };
+  PV.cancelReportPick = function () { if (!pick) return false; exitPick(); toast("Report cancelled", "#A3ABB7"); return true; };
   addEventListener("keydown", function (e) { if (e.key === "Escape" && pick) exitPick(); }, true);
 
-  // Prism-wide UI prefs (chrome.storage.local "pv:ui"): the chip is OFF by
-  // default and switched on from the Prism button's panel. Live-toggled.
+  // Prism-wide UI prefs (chrome.storage.local "pv:ui"). Live-toggled: the
+  // main switch and the intermission layout apply the moment they change.
   PV.uiPrefs = {};
-  function applyUiPrefs() { if (PV.uiPrefs.reportChip) mountChip(); else unmountChip(); if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} } }
+  function applyUiPrefs() {
+    if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff); } catch (e0) {} }
+    if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} }
+  }
   PV.setUiPref = function (k, v) {
     PV.uiPrefs[k] = v; applyUiPrefs();
     // Not read yet: merge into what is stored rather than write our defaults.
@@ -418,6 +406,6 @@
   }
 
   PV.prismReport = prismReport;
-  PV.mountReportChip = loadUiPrefs;
+  PV.loadUiPrefs = loadUiPrefs;
   PV.toast = toast;
 })();

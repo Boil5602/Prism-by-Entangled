@@ -11,7 +11,7 @@ window.__prismStoreSnapshot = window.__prismStoreSnapshot || {};
 window.PrismBridge = {
   dispatch: function (json) {
     /* mirror store.set into the snapshot so storeGet stays coherent */
-    try { var m = JSON.parse(json); if (m && m.op === "store.set") window.__prismStoreSnapshot[m.key] = m.value; } catch (e) {}
+    try { var m = JSON.parse(json); if (m && m.op === "store.set") window.__prismStoreSnapshot[m.key] = m.value; else if (m && m.op === "store.remove") delete window.__prismStoreSnapshot[m.key]; } catch (e) {}
     window.chrome.webview.postMessage(json);
   },
   storeGet: function (key) {

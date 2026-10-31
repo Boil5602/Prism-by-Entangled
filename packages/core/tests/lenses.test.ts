@@ -290,3 +290,48 @@ describe("the menu under a lens (the runtime)", () => {
     expect(JSON.parse(rt.lensDisclosure("Dark"))).toMatchObject({ rating: null, links: [] });
   });
 });
+
+// B-406 (2026-10-30): the lens cache bounded - a retired generation goes whole, a live entry goes after thirty days, and nothing else is touched
+describe("the lens cache prune (B-406)", () => {
+  const NOW = Date.parse("2026-10-30T12:00:00Z"), DAY = 24 * 3600_000;
+  function rig(canPrune: boolean) {
+    const store = new Map<string, string>(); const removed: string[] = [];
+    const hooks = {
+      fetchStatic: async () => { throw new Error("offline"); },
+      store: () => ({
+        get: (k: string) => store.get(k) ?? null, set: (k: string, v: string) => void store.set(k, v),
+        ...(canPrune ? { keys: (p: string) => [...store.keys()].filter((k) => k.startsWith(p)), remove: (k: string) => { store.delete(k); removed.push(k); } } : {}),
+      }),
+      dashId: () => "wall", now: () => NOW, paceMs: 0,
+    };
+    const seed = (k: string, at: number | null) => store.set(k, JSON.stringify(at === null ? { value: 1 } : { at, value: 1 }));
+    seed("lens:tmdbref6:wall:fresh|tv", NOW - 2 * DAY);              // live, fresh: stays
+    seed("lens:tmdb:wall:old|movie", NOW - 31 * DAY);                 // live, past thirty days: goes
+    seed("lens:mrtop2:wall:2026/09/01", NOW - 59 * DAY);              // a most-read day list, long past the week it is read for: goes
+    seed("lens:tmdbref4:wall:anything|tv", NOW - DAY);                // a retired generation, fresh or not: goes
+    seed("lens:tmdbref5:wall:other|movie", NOW - 15 * DAY);           // retired: goes
+    seed("lens:views:wall:noat:Article", null);                       // no `at`: stays
+    seed("lens:tmdb:other:old|movie", NOW - 400 * DAY);               // another dashboard's: untouched
+    store.set("lens:tmdb:key:wall", "abc.def");                       // the fixed keys: untouched, whatever their shape
+    store.set("lens:tmdb:watchlist:wall", JSON.stringify({ titles: [], at: NOW - 400 * DAY }));
+    store.set("lens:airs:wall", JSON.stringify({ at: NOW - 400 * DAY }));
+    store.set("video:resume:wall:x", JSON.stringify({ at: 1 }));      // not a lens key at all
+    return { store, removed, r: new LensResolver(hooks) };
+  }
+  it("drops retired generations and stale entries of this dashboard, nothing else", async () => {
+    const { store, removed, r } = rig(true);
+    expect(await r.prune()).toEqual({ looked: 6, removed: 2, retired: 2 });
+    expect(removed.sort()).toEqual(["lens:mrtop2:wall:2026/09/01", "lens:tmdb:wall:old|movie", "lens:tmdbref4:wall:anything|tv", "lens:tmdbref5:wall:other|movie"]);
+    expect([...store.keys()].sort()).toEqual(["lens:airs:wall", "lens:tmdb:key:wall", "lens:tmdb:other:old|movie", "lens:tmdb:watchlist:wall", "lens:tmdbref6:wall:fresh|tv", "lens:views:wall:noat:Article", "video:resume:wall:x"]);
+    expect(r.lastPrune).toEqual({ at: NOW, looked: 6, removed: 2, retired: 2 });
+    // a second pass finds nothing more to drop
+    expect(await r.prune()).toEqual({ looked: 2, removed: 0, retired: 0 });
+  });
+  it("does nothing on a shell whose store cannot list or remove", async () => {
+    const { store, r } = rig(false);
+    const before = [...store.keys()].sort();
+    expect(await r.prune()).toBeNull();
+    expect([...store.keys()].sort()).toEqual(before);
+    expect(r.lastPrune).toBeNull();
+  });
+});

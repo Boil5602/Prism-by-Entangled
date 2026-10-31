@@ -239,7 +239,7 @@ export interface LensHooks {
   fetchKeyed?(url: string, headers: Record<string, string>, method?: string, body?: string): Promise<string>;
   /** the least time between two open-source reads, ms (default STATIC_GAP_MS; a test's mock may say 0) */
   paceMs?: number;
-  store(): { get(key: string): string | null | Promise<string | null>; set(key: string, value: string): void | Promise<void> } | undefined;
+  store(): { get(key: string): string | null | Promise<string | null>; set(key: string, value: string): void | Promise<void>; remove?(key: string): void | Promise<void>; keys?(prefix: string): string[] | Promise<string[]> } | undefined;
   dashId(): string | null;
   now(): number;
 }
@@ -248,6 +248,14 @@ const DAY = 24 * 3600_000;
 const TTL = { wiki: 7 * DAY, views: DAY, wikidata: 7 * DAY, tmdb: 3 * DAY };   // tmdb: three days since the owned library joined (2026-09-22) - two thousand titles, three calls each, a daily pass was too much
 /** an unanswered TMDB ask is tried again after this, not a day */
 const RETRY_MS = 5 * 60_000;
+/**
+ * The cache parts written today (B-406, 2026-10-30). An entry under this dashboard whose part is not here belongs to a retired
+ * generation (tmdbref4, tmdbref5: a field added, the part renamed, the old entries never read again - 6,254 of the 15,168 lens keys
+ * on the person's PC) and is dropped at the next prune. A part renamed again is added here, and its old name is left out.
+ */
+const LIVE_PARTS = new Set(["tmdbref6", "wiki3", "wikidata", "views", "tmdb", "mritem2", "mrreads", "mrtop2", "mrtopics"]);
+/** A cache entry older than this is dropped: every TTL above is under it, and the most-read day lists are read for the last week only. */
+const LENS_KEEP_MS = 30 * DAY;
 /** a series' last aired episode is asked again after six hours */
 const AIRS_TTL_MS = 6 * 3_600_000;
 const KINDS_RE = /\b(film|movie|series|television|tv|show|sitcom|documentary|miniseries|anime|drama|comedy)\b/i;
@@ -379,6 +387,34 @@ export class LensResolver {
   private remember(part: string, key: string, value: unknown): void {
     const ck = this.cacheKey(part, key); const store = this.hooks.store();
     if (ck && store) { try { void store.set(ck, JSON.stringify(value)); } catch { /* best effort */ } }
+  }
+  /** The last prune's count (diag). */
+  lastPrune: { at: number; looked: number; removed: number; retired: number } | null = null;
+  /**
+   * The lens cache bounded (B-406, 2026-10-30: 15,168 lens keys in the person's store, 3.3 MB of its 13, nothing pruning them). Only
+   * this dashboard's own cache entries are looked at - `lens:<part>:<dash>:<rest>` - so the fixed keys (the TMDB key, session,
+   * ratings and watchlist, the airs list) and another dashboard's entries are never touched. A retired part goes whole; a live part's
+   * entry goes when its `at` is older than LENS_KEEP_MS; an entry with no `at` stays. Null on a shell whose store cannot list or
+   * remove (nothing happens there).
+   */
+  async prune(): Promise<{ looked: number; removed: number; retired: number } | null> {
+    const store = this.hooks.store(); const dash = this.hooks.dashId();
+    if (!store || !dash || !store.keys || !store.remove) return null;
+    let keys: string[];
+    try { keys = await store.keys("lens:"); } catch { return null; }
+    const now = this.hooks.now();
+    let looked = 0, removed = 0, retired = 0;
+    for (const k of keys) {
+      const m = /^lens:([a-z0-9]+):([^:]+):/.exec(k);
+      if (!m || m[2] !== dash) continue;
+      looked++;
+      if (!LIVE_PARTS.has(m[1]!)) { try { await store.remove(k); retired++; } catch { /* next time */ } continue; }
+      let at: unknown;
+      try { const raw = await store.get(k); at = raw ? (JSON.parse(raw) as { at?: unknown } | null)?.at : undefined; } catch { continue; }
+      if (typeof at === "number" && now - at > LENS_KEEP_MS) { try { await store.remove(k); removed++; } catch { /* next time */ } }
+    }
+    this.lastPrune = { at: now, looked, removed, retired };
+    return { looked, removed, retired };
   }
 
   private async read(key: string, title: string, kind: WorkKind | null, providers: readonly number[], want: Set<string>): Promise<void> {
@@ -640,7 +676,7 @@ export class LensResolver {
    * fetch; null when there is no key or TMDB did not answer. The catalog search (catalog-search.ts) reads through here too.
    */
   /** what the resolver is doing right now (a diagnostic: the queue had stalled with three reads that never answered, 2026-09-22) */
-  diag(): { pending: number; inFlight: number; queued: number; inFlightT: number; queuedT: number; loading: string[]; last: string | null } { return { pending: this.pending, inFlight: this.inFlight, queued: this.queue.length, inFlightT: this.inFlightT, queuedT: this.queueT.length, loading: [...this.loading].slice(0, 6), last: this.lastFetch }; }
+  diag(): { pending: number; inFlight: number; queued: number; inFlightT: number; queuedT: number; loading: string[]; last: string | null; prune: { at: number; looked: number; removed: number; retired: number } | null } { return { prune: this.lastPrune, pending: this.pending, inFlight: this.inFlight, queued: this.queue.length, inFlightT: this.inFlightT, queuedT: this.queueT.length, loading: [...this.loading].slice(0, 6), last: this.lastFetch }; }
   private lastFetch: string | null = null;
 
   /**

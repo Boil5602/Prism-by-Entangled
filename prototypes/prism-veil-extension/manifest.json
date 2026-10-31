@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Prism",
-  "version": "0.7.192",
+  "version": "0.7.194",
   "description": "Ads become art. The Prism intermission veil (spec section 27) for any page: ad elements are covered - exactly, scroll-synced, never a pixel outside - by imagery you chose. Observe-only: nothing is clicked, nothing is blocked from loading.",
   "content_scripts": [
     {
@@ -139,13 +139,16 @@
   ],
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "scripting"
   ],
   "optional_permissions": [
     "tabs"
   ],
   "host_permissions": [
-    "https://prism.entangled.world/*"
+    "https://prism.entangled.world/*",
+    "http://*/*",
+    "https://*/*"
   ],
   "optional_host_permissions": [
     "http://*/*",

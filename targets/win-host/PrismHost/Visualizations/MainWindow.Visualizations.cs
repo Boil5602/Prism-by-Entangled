@@ -243,6 +243,10 @@ public sealed partial class MainWindow
         /// <summary>Whether core reports this source as the §3 audio owner (i.e. audible).</summary>
         public bool Owns;
         public ProgressRing Spinner = null!;
+        /// <summary>2026-10-29: Cancel beside the loading line while a pick loads over a song that plays on (core's cancelMusicPick).</summary>
+        public Button Cancel = null!;
+        /// <summary>The metadata block: presses pass through it to the scene, except while Cancel shows (2026-10-29, "no matter how many times I click cancel, nothing is recognized").</summary>
+        public StackPanel Meta = null!;
         public Rectangle Bar = null!, BarTrack = null!;
         /// <summary>Last position core reported, and when - the display interpolates between 2s polls so the clock ticks.</summary>
         public double PosSec, DurSec;
@@ -769,7 +773,7 @@ public sealed partial class MainWindow
             menu0.Items.Add(new MenuFlyoutItem { Text = "Nothing yet. Play something from the revealed page once", IsEnabled = false });
             menu0.Items.Add(new MenuFlyoutSeparator());
             var add0 = new MenuFlyoutItem { Text = "Add a music service\u2026" };
-            add0.Click += (_, __) => _ = ChangeMusicServiceAsync(source, add: true);
+            add0.Click += (_, __) => _ = ShowWelcomeAsync();   // Set up services (2026-10-29, "just open the Set up Services screen when its pressed")
             menu0.Items.Add(add0);
             _vizFlyout = menu0; ShowFlyout(menu0);
             return;
@@ -780,6 +784,25 @@ public sealed partial class MainWindow
         // B-205 "Switch to" entry inside each submenu was one click too many and is gone.
         List<TransportState> rows;
         try { rows = await ReadTransportAsync(); } catch { rows = new(); }
+        // the service playing now leads the list (2026-10-29, "make it so the currently playing service is listed at the top of quick play
+        // list"; the phone's Quick play does the same), else the stage's; the rest keep their order
+        bool PlayingNow(string tile) => rows.Any(x => (x.TileId == tile || x.Facet == tile) && x.Playing);
+        sources = sources.OrderByDescending(x => PlayingNow(x.tile)).ThenByDescending(x => x.active).ToList();
+        // Now Playing's meter (2026-10-29, "add a little sound meter next to it showing the beats"): five bars off the PC's own bands, the
+        // same source the stage draws, moved while the panel is open and stopped with it
+        var meters = new List<(Microsoft.UI.Xaml.Shapes.Rectangle[] bars, float[] lv)>();
+        var meterTimer = DispatcherQueue.CreateTimer(); meterTimer.Interval = TimeSpan.FromMilliseconds(33);
+        meterTimer.Tick += (_, __) =>
+        {
+            float[] bd; try { bd = _vizAudio.Bands(48); } catch { return; }
+            foreach (var (bars, lv) in meters)
+                for (var k = 0; k < 5; k++)
+                {
+                    float m = 0; for (var i = k * 9; i < k * 9 + 9 && i < bd.Length; i++) m = Math.Max(m, bd[i]);
+                    var l = Math.Min(1f, m); lv[k] += (l - lv[k]) * (l > lv[k] ? 0.6f : 0.15f);
+                    bars[k].Height = Math.Round(2 + 12 * lv[k]);
+                }
+        };
         var panel = new StackPanel { Spacing = 2, Width = 340 };
         var flyout = new Flyout { Content = panel, Placement = FlyoutPlacementMode.Top, FlyoutPresenterStyle = QuickPlayPresenterStyle() };
         // B-215 (2026-09-16): the app menu's shield (MainWindow.Menu.cs) - while the flyout is open an invisible XAML grid covers
@@ -790,7 +813,8 @@ public sealed partial class MainWindow
         Canvas.SetZIndex(shield, 999);
         shield.PointerPressed += (_, e) => { e.Handled = true; flyout.Hide(); };
         flyout.Opened += (_, __) => { if (!RootGrid.Children.Contains(shield)) RootGrid.Children.Add(shield); };
-        flyout.Closed += (_, __) => { RootGrid.Children.Remove(shield); LogLine("quick play: panel closed"); };
+        flyout.Closed += (_, __) => { RootGrid.Children.Remove(shield); meterTimer.Stop(); LogLine("quick play: panel closed"); };
+        flyout.Opened += (_, __) => { if (meters.Count > 0) meterTimer.Start(); };
         var clear = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         var nameButtons = new Dictionary<string, Button>();
         foreach (var s in sources)
@@ -828,11 +852,22 @@ public sealed partial class MainWindow
             var label = new Grid();
             label.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             label.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            label.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var text = new StackPanel();
-            text.Children.Add(new TextBlock { Text = s.name + (s.active ? "  \u00B7  on the stage" : "") + (signedOut ? "  \u00B7  sign in" : ""), FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis });
+            var playingNow = PlayingNow(s.tile) && !signedOut;
+            text.Children.Add(new TextBlock { Text = s.name + (playingNow ? "  \u00B7  Now Playing" : s.active ? "  \u00B7  on the stage" : "") + (signedOut ? "  \u00B7  sign in" : ""), FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis });
+            FrameworkElement? meter = null;
+            if (playingNow)
+            {
+                var bars = new Microsoft.UI.Xaml.Shapes.Rectangle[5];
+                var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Height = 14, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+                for (var k = 0; k < 5; k++) { bars[k] = new Microsoft.UI.Xaml.Shapes.Rectangle { Width = 2, Height = 2, RadiusX = 1, RadiusY = 1, Fill = Tokens.Amber, VerticalAlignment = VerticalAlignment.Bottom }; strip.Children.Add(bars[k]); }
+                meters.Add((bars, new float[5])); meter = strip;
+            }
             if (what is { Length: > 0 }) text.Children.Add(new TextBlock { Text = what, FontSize = 10, Foreground = VizDimInk, TextTrimming = TextTrimming.CharacterEllipsis });
             var chevron = new TextBlock { Text = "\u203A", FontSize = 16, Foreground = VizDimInk, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-            Grid.SetColumn(text, 0); Grid.SetColumn(chevron, 1); label.Children.Add(text); label.Children.Add(chevron);
+            Grid.SetColumn(text, 0); Grid.SetColumn(chevron, 2); label.Children.Add(text); label.Children.Add(chevron);
+            if (meter is not null) { Grid.SetColumn(meter, 1); label.Children.Add(meter); }
             var name = new Button { Content = label, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(8, 6, 8, 6), Background = clear, BorderThickness = new Thickness(0) };
             ToolTipService.SetToolTip(name, s.name + ": recents and playlists");
             var sub = new MenuFlyout { MenuFlyoutPresenterStyle = presenter, Placement = FlyoutPlacementMode.Right };
@@ -852,8 +887,10 @@ public sealed partial class MainWindow
             sub.Items.Add(lookupHead); sub.Items.Add(lookupPick); sub.Items.Add(lookupAdd); sub.Items.Add(lookupStation); sub.Items.Add(new MenuFlyoutSeparator());
             var (tileL, nameL) = (s.tile, s.name);
             // a pick among candidates closes the menu (a menu item always does); the same screen comes straight back with the answer
+            var keepOpen = false;   // a candidate pick's reopen (B-215) closes the menu on purpose: the panel stays for it
             Func<Task> reopen = async () =>
             {
+                keepOpen = true;
                 // B-215, read from host.log 12:36 (2026-09-16): a pick closes the service's menu chain (a menu item always does) but
                 // the Quick play panel itself STAYS open - its IsOpen held for the whole 800 ms wait. Hiding it and building a new
                 // one was the "whole menu closes" the person saw. The way back is the same button's menu shown again, in place.
@@ -888,14 +925,55 @@ public sealed partial class MainWindow
             open.Click += (_, __) => { flyout.Hide(); OpenRoute("prism://facet/" + Uri.EscapeDataString(tile2) + "/reveal?mode=window" + (signedOut2 ? "&signin=1" : "")); };   // B-193
             sub.Items.Add(open);
             name.Flyout = sub;
+            // a press on the screen with this menu open closes the panel too (2026-10-29, "I'm still having to click twice on the background to
+            // get rid of the full quick play menu"): the menu's own dismiss eats the first press and the panel never sees it (an overlay
+            // pass-through did not carry it either). So when the menu closes with the pointer off the panel and no reopen owed, the panel goes
+            // with it; a press on the panel itself (another service, say) closes the menu alone, as before
+            sub.Closed += (_, __) => { if (keepOpen) { keepOpen = false; return; } if (flyout.IsOpen && !PointerIsOver(panel)) flyout.Hide(); };
             nameButtons[s.tile] = name;
             Grid.SetColumn(play, 0); Grid.SetColumn(name, 1);
             row.Children.Add(play); row.Children.Add(name);
             panel.Children.Add(row);
         }
+        // Recent stations and playlists (2026-10-29, "add a Recent Stations & Playlists under all the services in Quick Play ... grouped by
+        // service but dont make the user go to child menus to find everything"; "Maybe just the last 5 items"): the last five collections
+        // played across the services, flat rows under a small service label, a gap above the section; the phone's Quick play has the same
+        var recent = new List<(string tile, string service, string label, string kind, string url, long at)>();
+        foreach (var s in sources)
+        {
+            try
+            {
+                var rr = await RuntimeEvalAsync("PrismRuntime.musicRecent(" + Q(s.tile) + ")");
+                if (rr is not null && System.Text.Json.Nodes.JsonNode.Parse(rr) is System.Text.Json.Nodes.JsonArray ra)
+                    foreach (var e in ra.OfType<System.Text.Json.Nodes.JsonObject>())
+                    {
+                        var url = e["url"]?.GetValue<string>(); var kind = e["kind"]?.GetValue<string>() ?? "";
+                        if (url is null || (kind != "playlist" && kind != "station" && kind != "album")) continue;
+                        var playedAt = e["at"] is System.Text.Json.Nodes.JsonValue av && av.TryGetValue<long>(out var atv) ? atv : 0L;
+                        recent.Add((s.tile, s.name, e["label"]?.GetValue<string>() ?? "", kind, url, playedAt));
+                    }
+            }
+            catch { }
+        }
+        if (recent.Count > 0)
+        {
+            panel.Children.Add(new Border { Height = 1, Background = Tokens.AmberAt(0x3A), Margin = new Thickness(6, 12, 6, 6) });
+            panel.Children.Add(new TextBlock { Text = "Recent stations and playlists", FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = VizDimInk, CharacterSpacing = 140, Margin = new Thickness(10, 0, 10, 2) });
+            string? lastService = null;
+            foreach (var r in recent.OrderByDescending(x => x.at).Take(5).GroupBy(x => x.service).SelectMany(g => g))
+            {
+                if (r.service != lastService) { lastService = r.service; panel.Children.Add(new TextBlock { Text = r.service, FontSize = 11, Foreground = VizDimInk, Margin = new Thickness(10, 6, 10, 0) }); }
+                var rowText = new TextBlock { Text = r.label, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis };
+                var rowBtn = new Button { Content = rowText, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Background = clear, BorderThickness = new Thickness(0) };
+                ToolTipService.SetToolTip(rowBtn, r.kind + "  " + (char)0x00B7 + "  " + r.service);
+                var (rTile, rUrl, rLabel) = (r.tile, r.url, r.label);
+                rowBtn.Click += (_, __) => { flyout.Hide(); LogLine("quick play recent: " + rTile + " -> " + rUrl); _brain.Call(HostCalls.PlayRecent, rTile, rUrl); SetPill("Prism" + Mid + "loading " + rLabel + (char)0x2026); };
+                panel.Children.Add(rowBtn);
+            }
+        }
         panel.Children.Add(new Border { Height = 1, Background = Tokens.AmberAt(0x3A), Margin = new Thickness(6, 4, 6, 4) });
         var add = new Button { Content = new TextBlock { Text = "Add a music service\u2026", FontSize = 13 }, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Background = clear, BorderThickness = new Thickness(0) };
-        add.Click += (_, __) => { flyout.Hide(); _ = ChangeMusicServiceAsync(source, add: true); };
+        add.Click += (_, __) => { flyout.Hide(); _ = ShowWelcomeAsync(); };   // Set up services (2026-10-29, "just open the Set up Services screen when its pressed and retire the other path")
         panel.Children.Add(add);
         if (openService is not null && nameButtons.TryGetValue(openService, out var reopenBtn))
             flyout.Opened += (_, __) => RootGrid.DispatcherQueue.TryEnqueue(() =>
@@ -1358,22 +1436,24 @@ public sealed partial class MainWindow
     private MenuFlyoutSubItem CollectionRow(QuickRowContext c, string text, string kind, string id, string name, Action playNow)
     {
         var source = c.Source;
+        void Picked() { try { (_vizFlyout as FlyoutBase)?.Hide(); } catch { } }   // a pick closes the Quick play panel too (2026-10-29, "the quick play menu stays open. I dont think thats necessary")
         var row = new MenuFlyoutSubItem { Text = text, Foreground = VizNowInk };
         var continues = c.StandingId == id && c.StandingSpot is int && c.StandingCount is int sc0 && sc0 > 0 && c.StandingLabel is { Length: > 0 };
         var now = new MenuFlyoutItem { Text = "Play now", Icon = new FontIcon { Glyph = "\uE768" } };
         ToolTipService.SetToolTip(now, kind == "station" ? "Starts the station" : "From the top, in the order the service lists it");
-        now.Click += (_, __) => playNow();
+        now.Click += (_, __) => { Picked(); playNow(); };
         row.Items.Add(now);
         if (continues)
         {
             var carry = new MenuFlyoutItem { Text = "Carry on: " + c.StandingLabel + ", " + c.StandingSpot + " of " + c.StandingCount, Icon = new FontIcon { Glyph = "\uE8A7" } };
-            carry.Click += (_, __) => { LogLine("quick play: " + source + " " + kind + " " + id + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, kind, id); SetPill("Prism" + Mid + "carrying on " + c.Prefix + name + (char)0x2026); };
+            carry.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, kind, id); SetPill("Prism" + Mid + "carrying on " + c.Prefix + name + (char)0x2026); };
             row.Items.Add(carry);
         }
         var after = new MenuFlyoutItem { Text = "Play after this track", Icon = new FontIcon { Glyph = "\uE893" } };
         ToolTipService.SetToolTip(after, name + " starts when the track playing now gives way. Nothing playing, it starts now.");
         after.Click += async (_, __) =>
         {
+            Picked();
             LogLine("quick play: " + source + " " + kind + " " + id + " (after this track)");
             var r = await ModelCallAsync("musicPlayNext", source, kind, id);
             System.Text.Json.Nodes.JsonObject? jr = null; try { jr = r is null ? null : System.Text.Json.Nodes.JsonNode.Parse(r) as System.Text.Json.Nodes.JsonObject; } catch { }
@@ -1395,7 +1475,7 @@ public sealed partial class MainWindow
             var v = new MenuFlyoutItem { Text = chosen ? verb + "  " + (char)0x00B7 + "  now" : verb, IsEnabled = c.CannotOwn is null, Icon = new FontIcon { Glyph = glyph, Foreground = VizDimInk }, Foreground = chosen ? LookupAmber : VizNowInk };
             ToolTipService.SetToolTip(v, c.CannotOwn is null ? tip : Cap(c.CannotOwn));
             var (o2, verb2) = (order, verb);
-            v.Click += (_, __) => { LogLine("quick play: " + source + " " + kind + " " + id + " (" + o2 + ")"); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("Prism" + Mid + c.Prefix + name + ", " + verb2.ToLowerInvariant() + (char)0x2026); };
+            v.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (" + o2 + ")"); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("Prism" + Mid + c.Prefix + name + ", " + verb2.ToLowerInvariant() + (char)0x2026); };
             row.Items.Add(v);
         }
         // Repeat: the service's switch, beside the orders, not one of them (2026-09-18, "one that can be enabled in addition to the selected order")
@@ -1529,10 +1609,17 @@ public sealed partial class MainWindow
         parts.State = new TextBlock { Text = "", FontFamily = VizMono, FontSize = 13, Foreground = VizDimInk, VerticalAlignment = VerticalAlignment.Bottom };
         parts.Spinner = new ProgressRing { Width = 14, Height = 14, IsActive = false, Visibility = Visibility.Collapsed, Margin = new Thickness(8, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom, Foreground = VizNowInk };
         parts.Line2.Children.Add(parts.Artist); parts.Line2.Children.Add(parts.State); parts.Line2.Children.Add(parts.Spinner);
+        // Cancel (2026-10-29, "is it feasible to add a cancel button there when my current music is still playing and to just keep the
+        // currently playing item up?"): shown while a pick loads over a song that plays on; the press drops the pick (core's cancelMusicPick)
+        parts.Cancel = Small("Cancel", () => { LogLine("quick play: cancel " + parts.Source); _ = RuntimeEvalAsync("PrismRuntime.musicCancel(" + Q(parts.Source) + ")"); SetPill("Prism" + Mid + "kept " + (parts.Title.Text.Length > 0 ? parts.Title.Text : "the music") + " playing"); });
+        parts.Cancel.Margin = new Thickness(12, 0, 0, 1); parts.Cancel.VerticalAlignment = VerticalAlignment.Bottom; parts.Cancel.Visibility = Visibility.Collapsed;
+        ToolTipService.SetToolTip(parts.Cancel, "Drop this pick and keep what is playing");
+        parts.Line2.Children.Add(parts.Cancel);
         parts.Album = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizDimInk, Opacity = 0.85, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
         parts.Service = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, CharacterSpacing = 140, Foreground = VizDimInk, Opacity = 0.9 };
         parts.Collection = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizDimInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
         meta.Children.Add(parts.Service); meta.Children.Add(parts.Title); meta.Children.Add(parts.Line2); meta.Children.Add(parts.Album); meta.Children.Add(parts.Collection);
+        parts.Meta = meta;
 
         // ---- the artwork card, top-right: the cover itself, clear, framed. Backdrop mode keeps blurring it behind the scene.
         parts.Art = new Image { Stretch = Stretch.UniformToFill };
@@ -2066,15 +2153,17 @@ public sealed partial class MainWindow
                 if (parts.Title.Text.Length == 0) parts.Title.Text = pending;
                 parts.State.Text = (block.Artist.Length > 0 ? VisualizationChrome.MetaSeparator : "") + VisualizationChrome.PendingState(pending, t!.PendingFailed, serviceName);
                 parts.Spinner.IsActive = t.PendingFailed is null; parts.Spinner.Visibility = t.PendingFailed is null ? Visibility.Visible : Visibility.Collapsed;
+                parts.Cancel.Visibility = t.PendingFailed is null && parts.Playing ? Visibility.Visible : Visibility.Collapsed;   // 2026-10-29: only while the song before plays on
+                parts.Meta.IsHitTestVisible = parts.Cancel.Visibility == Visibility.Visible;   // the block takes presses only while Cancel is there to take them (its children cannot be hit otherwise)
                 parts.Line2.Visibility = Visibility.Visible;
             }
             else if (t?.Session == "signed-out" && parts.Title.Text.Length == 0)
             {
                 // B-123: the page is signed out and nothing is loaded - the block says so instead of standing empty
                 parts.Title.Text = serviceName ?? ""; parts.State.Text = VisualizationChrome.SignedOutState(serviceName);
-                parts.Spinner.IsActive = false; parts.Spinner.Visibility = Visibility.Collapsed; parts.Line2.Visibility = Visibility.Visible;
+                parts.Spinner.IsActive = false; parts.Spinner.Visibility = Visibility.Collapsed; parts.Line2.Visibility = Visibility.Visible; parts.Cancel.Visibility = Visibility.Collapsed; parts.Meta.IsHitTestVisible = false;
             }
-            else { parts.Spinner.IsActive = false; parts.Spinner.Visibility = Visibility.Collapsed; }
+            else { parts.Spinner.IsActive = false; parts.Spinner.Visibility = Visibility.Collapsed; parts.Cancel.Visibility = Visibility.Collapsed; parts.Meta.IsHitTestVisible = false; }
             // whether the SOURCE declared art is core's fact too (the transport
             // row's Artwork), not a guess: it picks "backdrop: album art" vs
             // "backdrop: none" in the label below.

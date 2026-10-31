@@ -47,7 +47,7 @@ Classic content scripts sharing one namespace (`PV`), loaded in this order:
 | `src/rules.js` | **detection**: `SLOT_SELECTORS`, `SITE_RULES` (per-site rows), label walker, dedupe → `collectTargets()` |
 | `src/covers.js` | display covers: placement modes, sweep, row-shared art, sticky-bar clip, mute-under |
 | `src/video.js` | video breaks: `SSAI_AD_SOURCES` registry, Intermission card, Skip hole, the fixed veil |
-| `src/report.js` | the ⚑ Report ad chip (names the rule that placed a veil) |
+| `src/report.js` | Report an ad, from the Prism button's panel (names the rule that placed a veil) |
 | `src/main.js` | observers, timers, Escape / hold-to-reveal, start |
 
 `ima-hook.js` (main world, `document_start`) is unchanged: it publishes the IMA/DAI SDK's
@@ -119,7 +119,7 @@ page (`ntp.html`). Everything on it is local except three opt-in fetches, each
 - **Prism frames** - the user's paired frames (`Name | http://ip:8471 | token`), spec section 6 API:
   `GET /state` every 20 s while visible, play/pause on the audible tile, sleep/wake, send a URL to a web tile.
 
-Each configured origin is granted individually via `optional_host_permissions` when saved.
+Each configured origin is requested via `optional_host_permissions` when saved (since 0.8.0 the manifest's all-sites host permission already covers them, so the request is granted at once).
 
 ## Popups (spec section 30)
 

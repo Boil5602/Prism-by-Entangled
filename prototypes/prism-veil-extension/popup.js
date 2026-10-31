@@ -67,6 +67,42 @@
       view.appendChild(row);
     });
   }
+  // ---- every allowance, every site: a count, the list on request, a filter
+  // once it is long (2026-10-27, "it may grow to hundreds over time") --------
+  var allowedOpen = false;
+  function paintAllowedAll() {
+    var rows = policy.listAllowed(), sites = {};
+    rows.forEach(function (r) { sites[r.site] = 1; });
+    var nSites = Object.keys(sites).length;
+    $("allowed-all").hidden = !rows.length;
+    if (!rows.length) return;
+    $("allowed-text").textContent = rows.length + (rows.length === 1 ? " popup allowed" : " popups allowed") + " on " + nSites + (nSites === 1 ? " site" : " sites");
+    $("allowed-show").textContent = allowedOpen ? "Hide" : "Show";
+    var list = $("allowed-list"); list.hidden = !allowedOpen; list.textContent = "";
+    if (!allowedOpen) return;
+    var q = "", box = el("div");
+    if (rows.length > 12) {
+      var f = el("input", "filter"); f.type = "search"; f.placeholder = "Filter by site or destination";
+      f.addEventListener("input", function () { q = f.value.trim().toLowerCase(); draw(); });
+      list.appendChild(f);
+    }
+    list.appendChild(box);
+    function draw() {
+      box.textContent = "";
+      var shown = rows.filter(function (r) { return !q || (r.site + " " + r.dest).toLowerCase().indexOf(q) >= 0; });
+      shown.slice(0, 200).forEach(function (a) {
+        var row = el("div", "row"); row.title = a.sentence + " (since " + a.since.slice(0, 10) + ")";
+        var d = el("div", "dest"); d.appendChild(el("b", null, a.site)); d.appendChild(el("span", "meta", "→ " + a.dest)); row.appendChild(d);
+        row.appendChild(btn("Remove", function () { policy.remove(a.site, a.dest); paintAllowedAll(); refresh(); }));
+        box.appendChild(row);
+      });
+      if (shown.length > 200) box.appendChild(el("div", "sum", (shown.length - 200) + " more. Narrow the filter."));
+      if (!shown.length) box.appendChild(el("div", "sum", "No match."));
+    }
+    draw();
+  }
+  $("allowed-show").addEventListener("click", function () { allowedOpen = !allowedOpen; paintAllowedAll(); });
+
   function refresh() {
     if (tabId == null) { render(null); return; }
     chrome.tabs.sendMessage(tabId, { type: "prism-popup-visit" }, function (v) {
@@ -88,7 +124,7 @@
     paintUi();
   }
   function paintUi() {
-    $("report-chip").checked = !!ui.reportChip;
+    $("veil-on").checked = !ui.veilOff;
     $("ai-veil").checked = !!ui.aiVeil;
     $("src-marks").checked = !!ui.srcMarks;
     $("sources").hidden = !ui.srcMarks;
@@ -100,7 +136,7 @@
     var sets = ui.artSets || ["nature"];
     Array.prototype.forEach.call(document.querySelectorAll("#art-sets input"), function (i) { i.checked = sets.indexOf(i.value) >= 0; });
   }
-  $("report-chip").addEventListener("change", function () { setUi("reportChip", $("report-chip").checked); });
+  $("veil-on").addEventListener("change", function () { setUi("veilOff", !$("veil-on").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
   $("src-marks").addEventListener("change", function () { setUi("srcMarks", $("src-marks").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (i) {
@@ -199,6 +235,7 @@
     paintReclaimed(all["pv:reclaimed:days"]);
     Object.keys(all).forEach(function (k) { if (k.indexOf("pv:") === 0) cache[k.slice(3)] = all[k]; });
     policy.load().then(function () {
+      paintAllowedAll();
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         tabId = (tabs && tabs[0] && tabs[0].id != null) ? tabs[0].id : null;
         refresh();
@@ -209,5 +246,8 @@
     if (area !== "local") return;
     if (ch["pv:ui"]) { ui = ch["pv:ui"].newValue || {}; paintUi(); }
     if (ch["pv:art"]) paintArt(ch["pv:art"].newValue);
+    var pop = false;
+    Object.keys(ch).forEach(function (k) { if (k.indexOf("pv:popups:") === 0) { cache[k.slice(3)] = ch[k].newValue; pop = true; } });
+    if (pop) policy.load().then(function () { paintAllowedAll(); refresh(); });
   });
 })();

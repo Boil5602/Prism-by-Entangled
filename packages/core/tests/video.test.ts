@@ -160,6 +160,48 @@ describe("video - the adapter contract", () => {
     expect(await o.tileCommand("nope", "skipintro")).toBe("unknown-tile");
   });
 
+  it("Next episode hears the page's answer (B-452): false is unavailable, with no expected episode shown; true shows the next and covers the move", async () => {
+    const { drivers, calls } = fakeDrivers();
+    let answer = "false";
+    drivers.surface.evaluate = async (_id, js) => (js.includes("__prismVideoCmd(\"nextepisode\")") ? answer : "");
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ netflix: { id: "netflix", videoContext: "/*c*/", videoCmd: "/*cmd*/" } as never, youtube: { id: "youtube" } as never });
+    await o.load(doc, { w: 1000, h: 625 });
+    const moves: string[] = [];
+    o.episodeMoveHook = (_id, title) => void moves.push(title);
+    await o.onSurfaceEvent({ type: "now-playing", id: "nf", info: { playing: true, title: "", video: { kind: "episode", series: "Silo", title: "Radio", id: "e7", season: 3, episode: 7, url: "https://www.netflix.com/watch/7", playing: true, position: 3400, duration: 3589 } } } as never);
+    await tick();
+    calls.length = 0;
+    expect(await o.tileCommand("nf", "nextepisode")).toBe("unavailable");
+    expect(o.videoState().find((t) => t.id === "nf")!.video!.episode).toBe(7);   // the page's own word stands
+    expect(moves).toEqual([]);
+    expect(o.videoPageEpisodeMark("nf")).toBe("e7|3|7");
+    answer = "true";
+    expect(await o.tileCommand("nf", "nextepisode")).toBe("ok");
+    expect(moves).toEqual(["Silo, the next episode"]);   // no list of the series here: the cover names the series alone
+    expect(injects(calls, "__prismVideoCmd").length).toBe(0);   // evaluated, not injected twice
+  });
+
+  it("Play on a video page whose player is gone presses the page's own Play as a pick of the title it names (B-453)", async () => {
+    const { drivers, calls } = fakeDrivers();
+    let answer = "false";
+    drivers.surface.evaluate = async (_id, js) => (js.includes("__prismVideoCmd(\"play\")") ? answer : "");
+    const o = new Orchestrator(drivers);
+    o.setAdapters({ netflix: { id: "netflix", videoContext: "/*c*/", videoCmd: "/*cmd*/", videoPlay: "/*play*/" } as never, youtube: { id: "youtube" } as never });
+    await o.load(doc, { w: 1000, h: 625 });
+    await o.onSurfaceEvent({ type: "now-playing", id: "nf", info: { playing: false, title: "", video: { kind: "episode", series: "Silo", title: "Gray Goo", id: "e8", season: 3, episode: 8, url: "https://www.netflix.com/watch/8", playing: false, position: 0, duration: 3589 } } } as never);
+    await tick();
+    calls.length = 0;
+    expect(await o.tileCommand("nf", "play")).toBe("ok");
+    const plays = injects(calls, "__prismVideoPlay(");
+    expect(plays.length).toBe(1);
+    expect(plays[0]).toContain("\"episode\", \"e8\", \"https://www.netflix.com/watch/8\"");
+    answer = "true";   // a player on the page took the play: nothing more
+    calls.length = 0;
+    expect(await o.tileCommand("nf", "play")).toBe("ok");
+    expect(injects(calls, "__prismVideoPlay(").length).toBe(0);
+  });
+
   it("no seek while the page says an ad is running: a stitched break is covered, never skipped (B-263)", async () => {
     const { drivers, calls } = fakeDrivers();
     const o = new Orchestrator(drivers);

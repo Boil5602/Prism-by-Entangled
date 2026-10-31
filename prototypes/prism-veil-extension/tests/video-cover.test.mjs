@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { loadVeil } from "./harness.mjs";
 
 // The intermission cover must construct in both HUD modes and with both
@@ -175,5 +175,104 @@ describe("hole ring", () => {
     expect(rings[0].style.left).toBe("197px");
     PV.ringHoles(cover, []);
     expect(cover.querySelectorAll("[data-prism-veil]").length).toBe(0);
+  });
+});
+
+// The 0.8.0 walk, YT-5 (2026-10-26, "it just has a resume or full screen
+// button ... I didnt see watch anyway anywhere"): with the corner chip, the
+// popover's button was built as "Resume" and never relabelled for an AI
+// veil. Card and popover say the same thing in every mode.
+describe("AI veil: the corner chip's popover says Watch anyway", () => {
+  function veilFor(mode, cover) {
+    const v = document.createElement("video"); document.body.appendChild(v);
+    return { cover, video: v, box: v, mode, ai: { label: "Made with AI", source: "YouTube" }, pauseAfter: false, pauseAt: 0, reclaimAt: 0 };
+  }
+  it("AI mode labels both buttons Watch anyway", () => {
+    const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
+    PV.uiPrefs = { hud: "minimal", aiVeil: true };
+    const cover = PV.__buildCover(true);
+    PV.__paintCardFor(veilFor("ai", cover));
+    expect(cover.__resume.textContent).toBe("▶ Watch anyway");
+    expect(cover.__popResume.textContent).toBe("▶ Watch anyway");
+    expect(cover.__popResume.style.display).toBe("inline-block");
+    cover.remove();
+  });
+  it("a paused show says Resume on both", () => {
+    const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
+    PV.uiPrefs = { hud: "minimal" };
+    const cover = PV.__buildCover(false);
+    PV.__paintCardFor(veilFor("ai", cover));
+    PV.__paintCardFor(veilFor("pause", cover));
+    expect(cover.__resume.textContent).toBe("▶ Resume");
+    expect(cover.__popResume.textContent).toBe("▶ Resume");
+    cover.remove();
+  });
+});
+
+// A short content clip is not an ad clip when YouTube's own clock says it is
+// the content (report 2026-10-27: a trailer under 3 minutes, reached from the
+// feed so the page's meta was stale, was veiled the moment its preroll ended).
+describe("YouTube isAdClip", () => {
+  function setup(label) {
+    const PV = loadVeil({ host: "www.youtube.com" });
+    try { window.happyDOM.setURL("https://www.youtube.com/watch?v=BeOSI5bGjIo"); } catch (e) {}
+    document.head.innerHTML = `<meta itemprop="identifier" content="OLDVIDEO111"><meta itemprop="duration" content="PT8M10S">`;   // the previous video's
+    document.body.innerHTML = `<div id="movie_player"><video></video><div class="ytp-time-display"><span class="ytp-time-current">0:03</span><span class="ytp-time-duration">${label}</span></div></div>`;
+    const row = PV.SSAI_AD_SOURCES.find((r) => r.source === "YouTube player");
+    return { row, v: document.querySelector("video") };
+  }
+  function withDuration(v, d) { Object.defineProperty(v, "duration", { value: d, configurable: true }); return v; }
+  it("a 2:30 clip under a 2:30 clock is the content", () => {
+    const { row, v } = setup("2:30");
+    expect(row.isAdClip(withDuration(v, 150.2))).toBe(false);
+  });
+  it("a 0:15 clip under a 2:30 clock is an ad", () => {
+    const { row, v } = setup("2:30");
+    expect(row.isAdClip(withDuration(v, 15))).toBe(true);
+  });
+  it("an hour-long clock parses too", () => {
+    const { row, v } = setup("1:02:30");
+    expect(row.isAdClip(withDuration(v, 3750))).toBe(false);
+  });
+  it("no clock: an ad-length clip still counts (unchanged)", () => {
+    const { row, v } = setup("");
+    expect(row.isAdClip(withDuration(v, 150))).toBe(true);
+  });
+});
+
+// The player left the view with its ad veil up (report 2026-10-29, YouTube, 0.7.192:
+// "I had a video starting, but changed my mind and clicked youtube to go back
+// to the main screen ... it kept the video veil up for about 15 seconds"): the
+// watch page hides, its <video> collapses to 0x0 with the marker off, and the
+// end-grace plus the pod-gap hold kept the cover over the home feed for 14 s.
+describe("ad veil with the player gone", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  it("drops within a second once the main video is collapsed with no ad marker; the marker on keeps it", () => {
+    vi.useFakeTimers({ now: 1_800_000_000_000 });
+    const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
+    window.chrome.runtime.sendMessage = () => {};
+    document.body.innerHTML = `<div id="movie_player" class="ad-showing" data-rect="0,0,1200,675"><div class="video-ads ytp-ad-module"><div class="ytp-ad-text">Ad</div></div><video data-rect="0,0,1200,675"></video></div>`;
+    const player = document.getElementById("movie_player"), v = document.querySelector("video");
+    expect(PV.videoAdBreak()).toBe(true);
+    expect(PV.vidVeil() && PV.vidVeil().mode).toBe("ad");
+    // a re-layout as the ad clip loads: the player collapses for a beat (its marker unreadable meanwhile) and comes back: the veil stays
+    vi.advanceTimersByTime(2000);
+    for (const el of [player, v]) el.setAttribute("data-rect", "0,0,0,0");
+    expect(PV.videoAdBreak()).toBe(true);
+    vi.advanceTimersByTime(300);
+    for (const el of [player, v]) el.setAttribute("data-rect", "0,0,1200,675");
+    expect(PV.videoAdBreak()).toBe(true);
+    vi.advanceTimersByTime(1000);
+    expect(PV.videoAdBreak()).toBe(true);
+    // the person leaves for the home page: the watch page hides, the marker goes, the home feed is under the cover now
+    player.classList.remove("ad-showing");
+    document.querySelector(".ytp-ad-module").innerHTML = "";
+    for (const el of [player, v]) el.setAttribute("data-rect", "0,0,0,0");
+    PV.videoAdBreak();
+    vi.advanceTimersByTime(300);
+    expect(PV.videoAdBreak()).toBe(true);     // a beat: not yet
+    vi.advanceTimersByTime(600);
+    expect(PV.videoAdBreak()).toBe(false);    // 900 ms collapsed with no marker: down, not 14 s later
+    expect(PV.vidVeil()).toBe(null);
   });
 });

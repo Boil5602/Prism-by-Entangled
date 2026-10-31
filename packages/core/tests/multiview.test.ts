@@ -633,7 +633,11 @@ describe("multiview", () => {
     rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
     await vi.advanceTimersByTimeAsync(20);
     const withCss = ops.filter((o) => o.op === "inject" && o.id === "screen" && typeof (o as { css?: unknown }).css === "string");
-    expect(withCss.some((o) => String((o as { css?: unknown }).css).includes("::-webkit-media-controls"))).toBe(true);
+    const css = withCss.map((o) => String((o as { css?: unknown }).css)).join(" ");
+    expect(css).toContain("video::-webkit-media-controls-panel");
+    expect(css).toContain("video::-webkit-media-controls-overlay-play-button");
+    // never the wrapper itself: Chromium keeps the browser's caption box inside it (B-455, 2026-10-29, Apple TV's English CC hidden with the controls)
+    expect(css).not.toMatch(/video::-webkit-media-controls\s*[,{]/);
   });
 
   it("a cleared screen's service is read again soon, and until the title reaches its Continue Watching (2026-09-26, Schitt's Creek)", async () => {

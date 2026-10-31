@@ -46,6 +46,32 @@ describe("background work on a service's hidden page", () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
+  // B-307's tail (2026-10-30): a page standing on another address finishes that load after the navigate was asked; that load-finished is
+  // not the new page up - the new page's own comes after the shell reports the new address
+  it("a load-finished before the new address is reported is the page before's, not the new page up", async () => {
+    const { rt, ops } = await setup();
+    rt.videoRemoveContinue("hulu", "a1", "The Bear");
+    await vi.advanceTimersByTimeAsync(20);
+    rt.event(JSON.stringify({ type: "navigated", id: W, url: "https://www.hulu.com/hub/home" }));
+    await up(rt);
+    const t1 = tokenOf(ops); expect(t1).toBeTruthy();
+    await answer(rt, t1!, true);
+    await vi.advanceTimersByTimeAsync(50);
+    // the page moved on by itself (the service's own routing) and is loading my-stuff when the next job asks for the home
+    rt.event(JSON.stringify({ type: "navigated", id: W, url: "https://www.hulu.com/my-stuff" }));
+    ops.length = 0;
+    rt.videoRemoveContinue("hulu", "a2", "Only Murders");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "navigate" && o.id === W).length).toBe(1);
+    await up(rt);                                                        // my-stuff's late load: not the home
+    expect(tokenOf(ops)).toBeNull();
+    expect(ops.some((o) => o.op === "inject" && o.id === W && !String(o.js).includes("window.frame.__prism"))).toBe(false);   // nothing of the job reached the old page (the idempotent prelude every load gets is not the job)
+    rt.event(JSON.stringify({ type: "navigated", id: W, url: "https://www.hulu.com/hub/home" }));
+    await up(rt);                                                        // the home's own load
+    const t2 = tokenOf(ops); expect(t2).toBeTruthy();
+    expect(t2).not.toBe(t1);
+  });
+
   it("a removal runs on the service's own work page - never the lookup page a person's search or pick uses", async () => {
     const { rt, ops } = await setup();
     expect(JSON.parse(rt.videoRemoveContinue("hulu", "a1", "The Bear"))).toMatchObject({ status: "working" });

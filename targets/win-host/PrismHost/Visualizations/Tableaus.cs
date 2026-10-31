@@ -667,6 +667,11 @@ public sealed class SunriseMeadow : Tableau
     private readonly List<Polygon> _rays = new();
     private readonly List<(Polyline blade, double x, double h, double ph)> _grass = new();
     private readonly List<(Ellipse fl, double x, double y)> _flowers = new();
+    // the flowers' colours (2026-10-29): a gradient brush does not repaint when its stops are recoloured, so every colour a flower can
+    // show is a brush made once - the palette walked in quarter steps, each at four lifts toward white - and a flower swaps among them
+    private Brush[,] _flowerBrushes = new Brush[0, 0];
+    private readonly double[] _flowerLv = new double[24];
+    private readonly double[] _flowerPh = new double[24];   // the sway's own phase: a rate multiplied into the clock jumps the phase whenever the rate moves ("they just shake")
     private Ellipse[] _stars = Array.Empty<Ellipse>();
     private double _rise;
     // birds and clouds (2026-10-22, "add some periodic bird and cloud flybies to Sunrise Meadow ... make sure they're part of the scene changes
@@ -720,6 +725,13 @@ public sealed class SunriseMeadow : Tableau
         }
         _flowers.Clear();
         for (var i = 0; i < 24; i++) _flowers.Add((Glow(0, 0, S(0.02), P(i % 2 == 0 ? 3 : 0), 1, 0.2), rng.NextDouble(), 0.84 + rng.NextDouble() * 0.14));
+        _flowerBrushes = new Brush[Pal.Length * 4, 4];
+        for (var p = 0; p < Pal.Length; p++)
+            for (var q = 0; q < 4; q++)
+            {
+                var c0 = Mix(P(p), P(p + 1), q / 4.0);
+                for (var w = 0; w < 4; w++) _flowerBrushes[p * 4 + q, w] = Radial(Mix(c0, White, 0.22 * w), 1);
+            }
         Vignette(0.28);
     }
     public override void Frame(TableauFrame f)
@@ -757,11 +769,24 @@ public sealed class SunriseMeadow : Tableau
             g.blade.Points.Add(new Windows.Foundation.Point(baseX + lean * 0.35, (H + top) / 2));
             g.blade.Points.Add(new Windows.Foundation.Point(baseX + lean, top));
         }
+        // the flowers answer the music (2026-10-29, "little fuzzy looking puffballs at the bottom. Can these change color with the music too?
+        // ... I'd like them to be more lively"): each follows one band - it swells and brightens with it - its colour walks the pack's palette
+        // over the song at its own pace and lifts toward white on its band's peaks, the beat gives the row a hop, and the sway quickens with
+        // the mids. Under reduced motion there is no hop. The phone's port does the same.
         for (var i = 0; i < _flowers.Count; i++)
         {
             var (fl, x, y) = _flowers[i];
-            Size(fl, X(x) + Math.Sin(f.T * 1.1 * f.Speed + i) * S(0.006), Y(y), S(0.012 + 0.02 * _rise));
-            Op(fl, 0.2 + 0.8 * _rise);
+            // the band's level, eased (a quick rise, a slow fall) so the flower breathes with it rather than shakes ("they just shake violently")
+            var raw = f.Levels.Length > 0 ? f.Levels[(i * 7) % f.Levels.Length] : f.Loud;
+            _flowerLv[i] += (raw - _flowerLv[i]) * (raw > _flowerLv[i] ? 0.35 : 0.08);
+            var lv = _flowerLv[i];
+            var walk = (f.T * (0.12 + 0.06 * (i % 3)) + i * 0.37) % Pal.Length;
+            var pi = (int)walk; var br = _flowerBrushes[pi * 4 + (int)((walk - pi) * 4), (int)Math.Min(3, lv * 4)];
+            if (!ReferenceEquals(fl.Fill, br)) fl.Fill = br;
+            var hop = f.Reduced ? 0 : f.Beat * S(0.005) * (0.5 + 0.5 * Math.Sin(i * 1.7));
+            _flowerPh[i] += f.Dt * f.Speed * (1.1 + 0.6 * f.Mid);
+            Size(fl, X(x) + Math.Sin(_flowerPh[i] + i) * S(0.006 + 0.002 * f.Mid), Y(y) - hop, S(0.012 + 0.02 * _rise) * (1 + 0.5 * lv));
+            Op(fl, 0.2 + 0.8 * _rise * (0.7 + 0.3 * lv));
         }
         // birds: a flock every so often (sooner on a loud mix), twenty seconds across at rest and quicker on a busy one, wings beating
         // with the mids and the beat, the whole flock lifting on the highs; none under reduced motion

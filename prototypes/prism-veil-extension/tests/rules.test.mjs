@@ -682,3 +682,36 @@ describe("cover box is immune to page sizing rules", () => {
     c.remove();
   });
 });
+
+// YouTube Shorts, the AI veil on (report 2026-10-26, "when I click into the
+// search at the top middle, the ad veil covers the whole thing up"): the
+// search history suggested "ai generated" under the box, the AI walker read
+// it as the platform's disclosure and grew it to the search box. A label
+// inside a search control, its suggestion list or any typed field is a
+// query, never a disclosure, for the AI walker and the ad badge walker alike.
+describe("labels inside a search control are not disclosures", () => {
+  function setup() {
+    const PV = loadVeil({ host: "www.youtube.com" });
+    try { window.happyDOM.setURL("https://www.youtube.com/shorts/9ST0vf0qn8M"); } catch (e) {}
+    PV.uiPrefs = { aiVeil: true };
+    return PV;
+  }
+  it("a suggestion reading 'ai generated' under the search box covers nothing", () => {
+    const PV = setup();
+    const out = detect(PV, `<ytd-masthead><yt-searchbox role="search" ${R(640, 4, 640, 48)}>
+      <textarea role="combobox" aria-expanded="true" aria-autocomplete="list" ${R(650, 16, 566, 24)}></textarea>
+      <div role="listbox" ${R(640, 52, 640, 240)}><div ${R(640, 52, 640, 40)}><span ${R(660, 62, 90, 20)}>ai generated</span></div></div>
+    </yt-searchbox></ytd-masthead>`);
+    expect(out).toEqual([]);
+  });
+  it("the same label on a card still grows to the card", () => {
+    const PV = setup();
+    const out = detect(PV, `<div id="card" ${R(0, 100, 500, 400)}><span ${R(10, 110, 90, 20)}>AI-generated</span><img ${R(0, 140, 500, 300)}></div>`);
+    expect(out).toEqual([{ tag: "div", id: "card", why: "ai-label: AI-generated" }]);
+  });
+  it("a 'Sponsored' suggestion in a search list is not an ad badge", () => {
+    const PV = loadVeil({ host: "www.example.com" });
+    const out = detect(PV, `<div role="search" ${R(0, 0, 600, 48)}><input role="combobox" ${R(0, 0, 500, 40)}><ul role="listbox" ${R(0, 48, 600, 200)}><li ${R(0, 48, 600, 40)}><span class="ad-label" ${R(10, 58, 70, 20)}>Sponsored</span></li></ul></div>`);
+    expect(out).toEqual([]);
+  });
+});

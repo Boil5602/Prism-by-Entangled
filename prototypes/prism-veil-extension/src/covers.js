@@ -655,7 +655,7 @@
 
   /** One pass: detect, cover new ads, drop stale covers, resync the rest. */
   function sweep() {
-    if (PV.suppressed()) return;
+    if (veilOff || (PV.suppressed && PV.suppressed())) return;
     PV.videoAdBreak();
     var res = PV.collectTargets(), targets = res.targets;
     why = res.why;
@@ -727,6 +727,22 @@
     veils.forEach(function (c, t) { lowerPager(c); c.remove(); unmuteUnder(t); });
     veils.clear();
   }
+
+  // The main switch (pv:ui.veilOff, 2026-10-27, "Lets give it a main off
+  // switch"): off drops every cover and the video veil at once and keeps the
+  // sweep and the break detector idle; on sweeps again at once. Popups and the
+  // reliability marks are not the veil and keep running.
+  var veilOff = false;
+  function setVeilOff(off) {
+    off = !!off;
+    if (off === veilOff) return;
+    veilOff = off;
+    if (off) { clearCovers(); if (PV.uncoverVideo) { try { PV.uncoverVideo(); } catch (e) {} } }
+    else sweep();
+    if (PV.onVeilToggle) { try { PV.onVeilToggle(off); } catch (e2) {} }
+  }
+  PV.veilOff = function () { return veilOff; };
+  PV.setVeilOff = setVeilOff;
 
   PV.veils = veils;
   PV.closeControl = closeControl;   // tests

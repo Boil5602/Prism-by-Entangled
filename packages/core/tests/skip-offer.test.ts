@@ -46,6 +46,34 @@ describe("the page's skip offer (2026-09-29)", () => {
   });
 });
 
+describe("the page's skip hidden the moment it shows (2026-10-29, \"the skip button does flash on the screen before it moves to top and center\")", () => {
+  beforeEach(() => { document.body.innerHTML = ""; });
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  it("a Skip Intro that appears between two looks is hidden before the next look; an ad's Skip is left alone", async () => {
+    expect(ask(SKIP_OFFER_JS)).toBe("");   // the look arms the watcher
+    document.body.innerHTML = `<div class="controls"><button data-uia="player-skip-intro">Skip Intro</button></div><div class="ad-container"><button>Skip</button></div>`;
+    sized();
+    await settle();
+    expect((document.querySelector("[data-uia]") as HTMLElement).style.opacity).toBe("0");
+    expect((document.querySelector(".ad-container button") as HTMLElement).style.opacity).toBe("");
+    expect(ask(SKIP_OFFER_JS)).toBe("Skip Intro");   // the next look still names it
+  });
+  it("a skip the page switches on is hidden as it comes on; the press still reaches it", async () => {
+    document.body.innerHTML = `<button class="skip button_disabled" aria-label="Skip">SKIP</button>`;
+    sized();
+    expect(ask(SKIP_OFFER_JS)).toBe("");
+    await settle();
+    const b = document.querySelector("button") as HTMLElement;
+    expect(b.style.opacity).toBe("");
+    b.className = "skip";
+    await settle();
+    expect(b.style.opacity).toBe("0");
+    let clicks = 0; b.addEventListener("click", () => { clicks++; });
+    expect(ask(SKIP_PRESS_JS)).toBe("Skip");
+    expect(clicks).toBe(1);
+  });
+});
+
 describe("an ad's own Skip, for every service (2026-09-29, section 26 pass-through)", () => {
   beforeEach(() => { document.body.innerHTML = ""; });
   it("in a break the ad's Skip is the offer: Skip, Skip Ad, Skip Ads; a count-down or a button switched off is not", () => {

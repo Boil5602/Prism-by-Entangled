@@ -77,6 +77,7 @@ public static class Ops
     public const string UpdateFetchManifest = "update.fetchManifest";
     public const string UpdateApply = "update.apply";
     public const string StoreSet = "store.set";
+    public const string StoreRemove = "store.remove";
     public const string AlarmSetTone = "alarm.setTone";
     public const string NetSubmitCompatReport = "net.submitCompatReport";
     public const string NetApplyBlockHosts = "net.applyBlockHosts";
@@ -662,6 +663,10 @@ public sealed record StoreSetCommand(
     [property: JsonPropertyName("key")] string Key,
     [property: JsonPropertyName("value")] string Value);
 
+/// <summary>store.remove [M1]</summary>
+public sealed record StoreRemoveCommand(
+    [property: JsonPropertyName("key")] string Key);
+
 /// <summary>alarm.setTone [stub until later milestone]</summary>
 public sealed record AlarmSetToneCommand(
     [property: JsonPropertyName("playing")] bool Playing);
@@ -777,6 +782,7 @@ public static class ChannelSchema
         ["update.fetchManifest"] = true,
         ["update.apply"] = true,
         ["store.set"] = false,
+        ["store.remove"] = false,
         ["alarm.setTone"] = false,
         ["net.submitCompatReport"] = false,
         ["net.applyBlockHosts"] = false,
@@ -833,6 +839,7 @@ public static class ChannelSchema
         "update.fetchManifest",
         "update.apply",
         "store.set",
+        "store.remove",
         "net.fetchStatic",
         "net.fetchKeyed",
         "runtime.error",

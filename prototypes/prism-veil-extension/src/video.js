@@ -27,6 +27,7 @@
   var AD_END_GRACE_MS = 2500;       // hold the ad veil this long after the marker drops
   var AD_MIN_HOLD_MS = 1500;        // a fresh ad veil never drops sooner (player re-layout at ad start)
   var AD_GAP_HOLD_MS = 10000;
+  var PLAYER_GONE_MS = 700;         // a collapsed or detached player with no ad marker this long is a player gone, not a pod gap
   var holdTraceAt = 0, pauseWhyAt = 0;
   var skipAt = 0;   // the human clicked Skip through the hole: no end-grace, no gap hold - uncover as the marker drops
   // The clip-path hole lets a real click reach the control directly (0.7.98),
@@ -175,6 +176,16 @@
         var cur = (/[?&]v=([\w-]{11})/.exec(location.search) || [])[1] || "";
         var metaOk = !!(mv && cur && (mv.getAttribute("content") || "") === cur);
         if (m && metaOk) { var mm = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(m.getAttribute("content") || ""); if (mm) L = (+mm[1] || 0) * 3600 + (+mm[2] || 0) * 60 + (+mm[3] || 0); }
+        // The meta is stale after SPA navigation, but the player's own clock
+        // (.ytp-time-duration, "2:31") names the content's length and is
+        // current: a clip as long as the clock says is the content, however
+        // short. Report 2026-10-27 ("false positive occuring on this trailer
+        // video"): a trailer under 3 minutes, reached from the feed, was veiled
+        // as an ad clip the moment its preroll ended.
+        if (!(L > 0)) {
+          var lab = document.querySelector("#movie_player .ytp-time-duration"), lt = lab ? parseClockLong((lab.textContent || "").trim()) : -1;
+          if (lt > 0 && Math.abs(d - lt) <= 2) return false;
+        }
         // Known content length: an ad is anything else that is ad-length.
         // Unknown: only a genuinely ad-length clip (<= 3 min) counts.
         return L > 0 ? (Math.abs(d - L) > 2 && d <= 180) : d <= 180;
@@ -856,9 +867,10 @@
       c.__count.textContent = ""; c.__count.style.display = "none";
       c.__time.style.display = pos ? "block" : "none";
       c.__info.style.display = pos ? "block" : "none";
-      if (c.__resume) c.__resume.style.display = "inline-block";
+      if (c.__resume) { c.__resume.style.display = "inline-block"; c.__resume.textContent = "\u25B6 Resume"; }
       if (c.__pauseAfter) c.__pauseAfter.style.display = "none";
       if (c.__chip) {
+        c.__popResume.textContent = "\u25B6 Resume";
         c.__chipLbl.textContent = " Paused";
         c.__popPos.textContent = pos; c.__popPos.style.display = pos ? "block" : "none";
         c.__popPause.style.display = "none"; c.__popResume.style.display = "inline-block";
@@ -893,7 +905,10 @@
       if (c.__chip) {
         c.__chipLbl.textContent = " AI \u00b7 " + (apos || "veiled");
         c.__popPos.textContent = apos; c.__popPos.style.display = apos ? "block" : "none";
-        c.__popPause.style.display = "none"; c.__popResume.style.display = "inline-block";
+        // The corner chip's popover says the same as the card: "Watch anyway",
+        // not "Resume" (the 0.8.0 walk, YT-5: "it just has a resume or full
+        // screen button ... I didnt see watch anyway anywhere").
+        c.__popPause.style.display = "none"; c.__popResume.style.display = "inline-block"; c.__popResume.textContent = "\u25B6 Watch anyway";
       }
       return;
     }
@@ -1093,6 +1108,7 @@
   // vidVeil: null, or { cover, video, box, mode:"ad"|"pause", wasMuted,
   //   pauseAfter, pauseAt, reclaimAt, artAt }. Exactly one veil at a time.
   var vidVeil = null, vidVeilStart = 0, vidBreakExpired = false, vidLastAd = 0, resumedAt = 0;
+  var goneSince = 0;   // since when the main video has been collapsed / detached with no ad marker (PLAYER_GONE_MS)
 
   // "Pause after break" is remembered per site (chrome.storage.local
   // "pv:pauseAfter:<host>") so the next visit starts with the same choice.
@@ -1848,6 +1864,7 @@
     dying.style.opacity = "0";
     setTimeout(function () { if (dying && dying.parentNode) dying.remove(); }, 520);
     vidVeil = null;
+    goneSince = 0;
   }
 
   /** Evaluate the ad/pause signal and cover / transition / uncover. Returns true while covered. */
@@ -1892,6 +1909,19 @@
       }
     } else softT0 = -1;
     if (adRaw) vidLastAd = now;
+    // The player left the view with its ad veil up (report 2026-10-29, YouTube, 0.7.192: "I had a video starting, but changed my mind
+    // and clicked youtube to go back to the main screen ... it kept the video veil up for about 15 seconds after I'd changed back to
+    // the home page"): the watch page hid, its <video> collapsed to 0x0 paused at 0 with the marker off, and the end-grace then the
+    // pod-gap hold ("loading") kept the cover over the home feed for 14 s. A collapsed or detached element with no ad marker for more
+    // than a beat is a player gone, not a pod gap: nothing of an ad can play in it, and the cover would stand over something else.
+    // The veil drops now (uncover-fast, spec section 26). A fresh veil keeps its AD_MIN_HOLD_MS; the marker on keeps it (branch 1b).
+    var collapsed = false;
+    try { collapsed = !v || !v.isConnected || (function () { var r = v.getBoundingClientRect(); return r.width < 2 || r.height < 2; })(); } catch (eG) { collapsed = false; }
+    if (collapsed && !adRaw) { if (!goneSince) goneSince = now; } else goneSince = 0;
+    if (vidVeil && vidVeil.mode === "ad" && goneSince && now - goneSince >= PLAYER_GONE_MS && (!vidVeilStart || now - vidVeilStart >= AD_MIN_HOLD_MS)) {
+      uncover("player-gone" + (v ? (v.isConnected ? " collapsed" : " detached") : " v=none"));
+      return false;
+    }
     // Every 10s while an ad veil is up: what is holding it (a stuck veil on
     // Hulu during content, 2026-08-29 - which signal, and the player state).
     if (vidVeil && vidVeil.mode === "ad" && now - holdTraceAt > 10000) {
@@ -2125,6 +2155,7 @@
   PV.videoAdBreak = videoAdBreak;
   PV.__rowContainer = rowContainer; PV.__adSourceNow = ssaiActiveSource;   // tests: player families
   PV.__buildCover = buildCover;   // tests: the cover must construct (0.7.47 shipped one that threw)
+  PV.__paintCardFor = function (veil) { var keep = vidVeil; vidVeil = veil; try { updateCard(); } finally { vidVeil = keep; } };   // tests: the card for a veil state
 
   // Event-driven detection (2026-08-29, YouTube: a ~300ms flash of the ad's
   // first frames BEFORE the veil - the poll is 350ms and nothing woke it).

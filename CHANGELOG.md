@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.40.1 - 2026-10-29 (alpha, 270cb8cc)
+
+The phone's lock-screen Previous and Next act on the PC, Private Listening recovers by itself when the sound stops arriving, and a music page that played on by itself after a restart is paused the way a person would. The lounge visual on the phone shows the playback controls on a tap, keeps the art centred on the sun in portrait and the details clear of it in landscape, cannot be zoomed, and shows the poster when the stage's own feed has none. The Skip in the opening over a YouTube ad skips, and the phone's menu names the two players as the PC does. Installed on an iPhone beside another web app, the phone notes once that the Now Playing title can open the other one, with Prism's address to use in Safari instead.
+
+- download: https://prism.entangled.world/windows/Prism-0.40.1-270cb8cc.zip
+- sha256: ff80ee4b3f935ac1120022cd5797037b2066221ba157c025d08f2cb18871b084
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.40.1
+
 ## 0.40.0 - 2026-10-28 (alpha, 6f195273)
 
 The phone's lock screen now shows the song or the title playing in Prism, with its art, the clock and the controls. On the phone, each service's Quick play opens on its actions, a song can be added to a playlist on another service, and a tap on the album art opens the lounge visual, Sunrise Meadow redrawn from the PC's own scene with the art and the details over it. Mute the PC is one switch across the phone's tabs, a music ad break is silent on a listening phone and named on it, and Prism starts in a second again where it had taken two minutes. Also: Start Prism when I sign in to Windows, the Skip opening's glow, Quick play from a right-click on the poster, a one-word search tried split in two, and a played episode counting for its series card.

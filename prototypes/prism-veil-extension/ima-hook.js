@@ -58,7 +58,10 @@
   }
 
   function log() {
-    try { console.error("PRISMAD " + Array.prototype.join.call(arguments, " ") + " @video=" + (function () { var v = document.querySelector("video"); return v ? Math.round(v.currentTime) : "?"; })()); } catch (e) {}
+    // console.debug, not error: these are trace lines for a person reading the
+    // console, and Edge files every console.error from an extension script on
+    // its Errors page as a fault ("errors reported", 2026-10-27, the 0.8.0 walk).
+    try { console.debug("PRISMAD " + Array.prototype.join.call(arguments, " ") + " @video=" + (function () { var v = document.querySelector("video"); return v ? Math.round(v.currentTime) : "?"; })()); } catch (e) {}
   }
 
   function hookDai(ima) {

@@ -45,6 +45,12 @@ iOS reads the manifest only at install. None of these changed anything.
 Ruled out: the Media Session side (metadata, art, position, buttons all reach iOS and act on Prism);
 pairing, networking and the page's state; cached manifests.
 
+Considered and declined (2026-10-29): the other web app's manifest set to `"display": "browser"`, so it
+opens in Safari and leaves Prism as the host's only web app. The only page-side change that reaches the
+mechanism, and it costs the other app its own window; the person said no. Clearing the other app's Media
+Session at boot (null metadata, playback state none, handlers removed) changes nothing: that app never
+registers an entry, and the title tap resolves to the host's bundle id regardless.
+
 The workaround on WebKit bug 267810 (comment of 2026-10-15: an explicit manifest `id` fixed it for two
 apps on sibling subdomains of one site) is a same-site case. It does not apply to unrelated origins, which
 matches the result here. The iOS 27 NowPlaying framework is a Swift layer for native apps over the same

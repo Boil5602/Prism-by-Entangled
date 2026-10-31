@@ -127,8 +127,11 @@ public sealed class StoreServiceTests : IDisposable
         // §10 by construction: the type must not expose any member that could
         // delete or clear a profile. Guarded reflectively so a future "cleanup"
         // helper fails review here first.
+        // The one exception, reviewed 2026-10-30 (B-406): Remove(key) drops a store KEY - core's own cache entries, which core bounds
+        // itself - and nothing else; RemoveDropsTheKeyNowAndAtTheNextStart proves a profile folder's files and a snapshot picture
+        // survive it. Any other member named this way still fails here first.
         var offenders = typeof(StoreService).GetMethods()
-            .Where(m => m.DeclaringType == typeof(StoreService))
+            .Where(m => m.DeclaringType == typeof(StoreService) && m.Name != nameof(StoreService.Remove))
             .Select(m => m.Name)
             .Where(n => n.Contains("Delete", StringComparison.OrdinalIgnoreCase)
                      || n.Contains("Clear", StringComparison.OrdinalIgnoreCase)
@@ -230,6 +233,40 @@ public sealed class StoreServiceTests : IDisposable
             Thread.Sleep(400);
             var e = new StoreService(root, saveDelayMs: 50);
             Assert.Equal("x", e.Get("a:b")); Assert.Equal("y", e.Get("a_b"));
+        }
+        finally { try { Directory.Delete(root, true); } catch { } }
+    }
+
+    // B-406 (2026-10-30): a key core drops is gone now, gone from its own file, and gone at the next start - with or without a Flush
+    [Fact]
+    public void RemoveDropsTheKeyNowAndAtTheNextStart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "prism-store-remove-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var a = new StoreService(root, saveDelayMs: 50);
+            a.Set("lens:tmdb:wall:one", "{\"at\":1}"); a.Set("lens:tmdb:wall:two", "{\"at\":2}"); a.Set("keep", "yes");
+            var profileFile = Path.Combine(a.ProfileDir("netflix"), "Cookies"); File.WriteAllText(profileFile, "session-bytes");
+            File.WriteAllBytes(a.SnapshotPath("screen"), new byte[] { 1, 2, 3 });
+            Thread.Sleep(400);
+            Assert.Equal(3, Directory.GetFiles(a.KeysDir, "*.json").Length);
+            Assert.True(a.Remove("lens:tmdb:wall:one"));
+            Assert.Equal("session-bytes", File.ReadAllText(profileFile));          // section 10: a key drop touches no profile
+            Assert.True(File.Exists(a.SnapshotPath("screen")));                    // nor a snapshot picture
+            Assert.False(a.Remove("lens:tmdb:wall:one"));                 // already gone: nothing to do
+            Assert.Null(a.Get("lens:tmdb:wall:one"));
+            Assert.False(File.Exists(Path.Combine(a.KeysDir, StoreService.KeyFileName("lens:tmdb:wall:one"))));   // its own file gone at once
+            Assert.Equal(1, a.KeysDropped);
+            Thread.Sleep(400);                                            // the whole-store write brought forward
+            Assert.True(File.Exists(a.StorePath));
+            var b = new StoreService(root, saveDelayMs: 50);              // a restart without a Flush
+            Assert.Null(b.Get("lens:tmdb:wall:one"));
+            Assert.Equal("{\"at\":2}", b.Get("lens:tmdb:wall:two")); Assert.Equal("yes", b.Get("keep"));
+            // a remove followed by a Flush: the snapshot is without it too
+            b.Remove("lens:tmdb:wall:two"); b.Flush();
+            var c = new StoreService(root);
+            Assert.Null(c.Get("lens:tmdb:wall:two")); Assert.Equal("yes", c.Get("keep"));
+            Assert.DoesNotContain("lens:tmdb:wall:two", File.ReadAllText(c.StorePath));
         }
         finally { try { Directory.Delete(root, true); } catch { } }
     }

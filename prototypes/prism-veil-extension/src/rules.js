@@ -431,6 +431,17 @@
   // (a row of sibling cards means the ad is the child we already have), and
   // by size caps as a backstop. `section` = a labeled sponsored-content block,
   // covered whole with larger caps (CNN's Dianomi zone runs ~1.6 screens).
+  // A label inside a SEARCH control is a query, not a disclosure: YouTube's
+  // search history suggested "ai generated" under the search box, the AI
+  // walker read it as the platform's label and covered the whole box
+  // (report 2026-10-26, "when I click into the search at the top middle,
+  // the ad veil covers the whole thing up"). Search boxes, their suggestion
+  // lists and any typed field are skipped by every label walker. Narrow on
+  // purpose: not <form> (WebForms sites wrap the whole page in one).
+  var SEARCH_UI = "[role='search'],[role='searchbox'],[role='combobox'],[role='listbox'],[aria-autocomplete],input,textarea,[contenteditable='true'],ytd-masthead";
+  function inSearchUi(el) { try { return !!(el && el.closest && el.closest(SEARCH_UI)); } catch (e) { return false; } }
+  PV.inSearchUi = inSearchUi;
+
   function badgeUnit(badge, strong, section) {
     var el = badge, depth = 0;
     var vpA = innerWidth * innerHeight;
@@ -774,6 +785,7 @@
           var hr = host.getBoundingClientRect();
           if (hr.width <= 0 || hr.height <= 0 || hr.width > 400) continue;
           if (host.closest && host.closest("[data-prism-ui],[data-prism-veil]")) continue;
+          if (inSearchUi(host)) continue;
           if (/(^|\.)youtube\.com$/i.test(location.hostname)) {
             var meta = host.closest("ytd-watch-metadata, #description, ytd-watch-info-text, #info-container, ytd-reel-video-renderer");
             if (meta) {
@@ -1169,6 +1181,7 @@
         if (!BADGE.test(t) && !isSection) continue;
         var host = n.parentElement;
         if (!host) continue;
+        if (inSearchUi(host)) continue;
         if (/^(ad|ads)$/i.test(t)) {
           var okBare = false, hn = host, hd = 0;
           while (hn && hd < 3) { if (AD_LABEL_CLS.test(PV.classStr(hn))) { okBare = true; break; } hn = hn.parentElement; hd++; }

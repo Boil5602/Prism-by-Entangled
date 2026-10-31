@@ -730,7 +730,7 @@ public sealed partial class MainWindow
         catch { return false; }
     }
 
-    private async Task ChangeMusicServiceAsync(string tileId, bool add = false)
+    private async Task ChangeMusicServiceAsync(string tileId)   // the "add" variant is gone (2026-10-29): Add a music service opens Set up services
     {
         await ReadModelAsync();
         if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
@@ -745,15 +745,13 @@ public sealed partial class MainWindow
 
         var list = new StackPanel { Spacing = 4 };
         var tcs = new TaskCompletionSource<(HostCatalogEntry? entry, string? appId)?>();
-        var present = new HashSet<string>(scene.Hidden.Select(h => h["facet"]?.GetValue<string>()).Where(f => f is not null).Select(f => _model.Facet(f!)?.App).Where(a => a is not null)!);
-        var dlg = new ContentDialog { Title = add ? "Add a music service" : "Music service", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
-        list.Children.Add(Meta(add ? "A second service for this PC: sign in once, and its playlists and stations join Quick play under their own heading." : "Which service plays on this PC. You sign in once; the beams do the rest."));
+        var dlg = new ContentDialog { Title = "Music service", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
+        list.Children.Add(Meta("Which service plays on this PC. You sign in once; the beams do the rest."));
         foreach (var sug in role.Suggestions)
         {
             var entry = _catalog.FirstOrDefault(c => c.Id == sug); var known = _model.App(sug);
             if (entry is null && known is null) continue;
             var name = entry?.Name ?? known!.Name;
-            if (add && present.Contains(sug)) continue;   // already one of this wall's services
             var note = (known is not null ? StatusWord(known) : "not added yet") + (currentApp == sug ? "  ·  playing now" : "");
             var e = entry; var k = known?.Id;
             list.Children.Add(AppRow(name, note, () => { tcs.TrySetResult((e, k)); dlg.Hide(); }));
@@ -763,7 +761,7 @@ public sealed partial class MainWindow
         // the Widevine-audio POC cleared for the tile; the rest say so, and Prism reads them live once they are signed in.
         foreach (var entry in _catalog)
         {
-            if (role.Suggestions.Contains(entry.Id) || (add && present.Contains(entry.Id))) continue;
+            if (role.Suggestions.Contains(entry.Id)) continue;
             if (!EntryIsMusicService(entry)) continue;
             var known = _model.App(entry.Id);
             var note = (known is not null ? StatusWord(known) : "not added yet") + "  ·  not yet verified on Prism" + (currentApp == entry.Id ? "  ·  playing now" : "");
@@ -793,23 +791,15 @@ public sealed partial class MainWindow
             await ReadModelAsync();
             if (_model.Scene(sid) is not { } sc) return null;
             var s = sc.Clone();
-            if (add)
-            {
-                // a second source: appended, the stage untouched - the first pick on it moves the visual there
-                if (!s.Hidden.Any(h => h["facet"]?.GetValue<string>() == facetId)) s.Hidden.Add(new JsonObject { ["facet"] = facetId, ["audio"] = role.Audio });
-            }
-            else
-            {
-                // B-168 (2026-09-08): "Change the music service" is which service the stage draws - never which services the
-                // wall keeps. It overwrote the first hidden entry (Apple) with the pick, even one already listed (Spotify,
-                // twice): Apple vanished from the music services. Now: the service joins the list if absent, and the stages move to it.
-                if (!s.Hidden.Any(h => h["facet"]?.GetValue<string>() == facetId)) s.Hidden.Add(new JsonObject { ["facet"] = facetId, ["audio"] = role.Audio });
-                foreach (var v in s.Visualizations) v["source"] = facetId;   // every stage in this scene draws this service
-            }
+            // B-168 (2026-09-08): "Change the music service" is which service the stage draws - never which services the
+            // wall keeps. It overwrote the first hidden entry (Apple) with the pick, even one already listed (Spotify,
+            // twice): Apple vanished from the music services. Now: the service joins the list if absent, and the stages move to it.
+            if (!s.Hidden.Any(h => h["facet"]?.GetValue<string>() == facetId)) s.Hidden.Add(new JsonObject { ["facet"] = facetId, ["audio"] = role.Audio });
+            foreach (var v in s.Visualizations) v["source"] = facetId;   // every stage in this scene draws this service
             var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
             try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not save the scene"); return null; } } catch { }
             LogLine("call {\"fn\":\"music.service\",\"scene\":\"" + sid + "\",\"app\":\"" + a2.Id + "\",\"facet\":\"" + facetId + "\"}");
-            SetPill(add ? "Prism · " + a2.Name + " joined this PC's music. Open Quick play (⟲) to pick something" : "Prism · " + a2.Name + " is this PC's music. Tap the stage to pick something, then Play");
+            SetPill("Prism · " + a2.Name + " is this PC's music. Tap the stage to pick something, then Play");
             await ReadModelAsync();
             await ApplySceneAsync(sid);
             return facetId;
