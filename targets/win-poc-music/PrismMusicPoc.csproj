@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Widevine-audio POC harness (docs/reports/music-webview2-poc.md).
+       WPF + Evergreen WebView2, default CoreWebView2EnvironmentOptions and
+       default user agent - the same runtime configuration the host's
+       SurfaceManager.AttachViewAsync uses, so EME evidence carries over.
+       Build: dotnet build -c Release      Run: dotnet run -c Release [mode] -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PrismMusicPoc</AssemblyName>
+    <RootNamespace>PrismMusicPoc</RootNamespace>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Evergreen WebView2 runtime (system-installed), never Fixed Version -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="probe.html;selftest.html;hiddentest.html;eme-probe.js;media-logger.js" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

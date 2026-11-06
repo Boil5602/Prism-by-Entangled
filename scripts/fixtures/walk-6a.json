@@ -1,0 +1,307 @@
+{
+  "$doc": "scene-model-spec §6a walk-test: every state a user can SEE on a scene, with the reach counts the rule fixes - editor ≤ 1 action, App settings ≤ 2 actions, Back returns exactly to the scene. Consumed by scripts/walk-test-6a.mjs against the prism:// route registry Agent 3 provides (see that script's header for the registry shape). `actions` name the human gestures §6a lists; a reach entry in the registry must exist from the state to the destination with at most `max` actions.",
+  "rule": "no state a user can see on a scene may require more than one action to reach its editor and two to reach its App settings; Back always returns to the scene",
+  "counting": "ACTION COUNT convention (the reading that makes §6a self-consistent with its own long-press example): opening the context sheet on an item - long-press / right-click / remote-hold - is SELECTION and counts 0; every choice or navigation after it counts 1; a direct tap, badge-tap, or corner affordance counts 1. So editor via the sheet = 1 (Edit facet), App settings via the sheet = 1, App settings through the editor = 2 (the ceiling).",
+  "selectionGestures": [
+    "long-press",
+    "right-click",
+    "remote-hold"
+  ],
+  "actionsVocabulary": [
+    "tap",
+    "long-press",
+    "right-click",
+    "remote-hold",
+    "sheet:Edit facet",
+    "sheet:App settings / sign in",
+    "sheet:Open full page (setup mode)",
+    "sheet:Swap facet in this slot",
+    "sheet:Mute",
+    "badge-tap",
+    "corner:Edit this facet",
+    "corner:App settings",
+    "key:Back",
+    "key:Esc",
+    "sheet:Visual style…",
+    "sheet:Next visual",
+    "sheet:Add a music service…",
+    "sheet:Remove a music service…",
+    "sheet:Intermission…",
+    "sheet:Open the full app",
+    "sheet:Sign in…"
+  ],
+  "states": [
+    {
+      "id": "video-facet",
+      "spec": "§6a single tap → full-page native experience; long-press → context sheet",
+      "visible": "a video facet in a slot (e.g. Hulu Live TV 16:9·XL)",
+      "reach": {
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Edit facet"
+          ]
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 2,
+          "via": [
+            "long-press",
+            "sheet:App settings / sign in"
+          ]
+        },
+        "fullPage": {
+          "route": "prism://item/:item/sheet",
+          "max": 1,
+          "via": [
+            "tap"
+          ],
+          "hostCall": "promote (tileCommand / toggleFullscreen)",
+          "note": "the tap itself is a host call, not a route; the sheet route stands in for the item being addressable"
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "music-visualization",
+      "spec": "§6a long-press → sheet; the sheet's Open the full app reveals the native player (§32) as an inline window (B-146). A tap does nothing (B-145)",
+      "visible": "a visualization whose source is a hidden music facet",
+      "reach": {
+        "editor": {
+          "route": "prism://item/:item/visual/style",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Visual style…"
+          ],
+          "note": "2026-09-06: a stage's editor is the visual (pack + artwork), not the hidden facet's page"
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 2,
+          "via": [
+            "long-press",
+            "sheet:App settings / sign in"
+          ]
+        },
+        "reveal": {
+          "route": "prism://facet/:id/reveal",
+          "max": 2,
+          "via": [
+            "long-press",
+            "sheet:Open the full app"
+          ],
+          "note": "2026-09-08: the tap reveal went (it took people into the page with no way to tell Back from App settings); the player opens from the sheet, as an inline window with Prism's menu bar"
+        },
+        "nextVisual": {
+          "route": "prism://item/:item/visual/next",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Next visual"
+          ]
+        },
+        "addService": {
+          "route": "prism://item/:item/music/add",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Add a music service…"
+          ],
+          "note": "2026-09-07: a second service joins the lounge; Quick play groups by service and the visual follows the pick"
+        },
+        "adsSound": {
+          "route": "prism://item/:item/music/ads",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Intermission…"
+          ],
+          "note": "2026-09-07: section 26 ambient audio - a soundscape instead of silence during a service's ads"
+        },
+        "musicRemove": {
+          "route": "prism://item/:item/music/remove",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Remove a music service…"
+          ]
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "needs-attention-badge",
+      "spec": "§6a the badge is itself the shortcut → prism://app/<id>/setup; sign-in returns to the scene with the facet reloading (§16)",
+      "visible": "a needs-attention badge on any item (App signed out, login redirect, adapter failing)",
+      "reach": {
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 1,
+          "via": [
+            "badge-tap"
+          ]
+        },
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Edit facet"
+          ]
+        }
+      },
+      "back": "scene",
+      "onReturn": "facet reloads via §16 crossfade"
+    },
+    {
+      "id": "floating-facet",
+      "spec": "§5 floating facets get the same on-scene interactions as slot facets",
+      "visible": "a floating facet (anchor corner + size fraction) above the slots",
+      "reach": {
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Edit facet"
+          ]
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 2,
+          "via": [
+            "long-press",
+            "sheet:App settings / sign in"
+          ]
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "hidden-facet",
+      "spec": "a hidden facet is not visible on the scene itself; what IS visible is its visualization (music-visualization) or the pill's now-playing card - the pill/card must offer the same sheet",
+      "visible": "the pill / now-playing card for a hidden audio facet",
+      "reach": {
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Edit facet"
+          ]
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 2,
+          "via": [
+            "long-press",
+            "sheet:App settings / sign in"
+          ]
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "placeholder-slot",
+      "spec": "§5 missing-assignment slots render the App-poster placeholder, tappable to assign",
+      "visible": "an unassigned slot showing the poster placeholder",
+      "reach": {
+        "assign": {
+          "route": "prism://item/:item/swap",
+          "max": 1,
+          "via": [
+            "tap"
+          ]
+        },
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "long-press",
+            "sheet:Edit facet"
+          ]
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "full-page-reveal",
+      "spec": "§6a during full-page/reveal a corner affordance (and mapped remote key) offers Edit this facet and App settings",
+      "visible": "a facet promoted to full-page / a revealed native player",
+      "reach": {
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "corner:Edit this facet"
+          ]
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 1,
+          "via": [
+            "corner:App settings"
+          ]
+        },
+        "collapse": {
+          "route": "prism://scene/:id",
+          "max": 1,
+          "via": [
+            "key:Back"
+          ]
+        }
+      },
+      "back": "scene"
+    },
+    {
+      "id": "context-sheet",
+      "spec": "§6a the compact context sheet: each item a deep link, sheet closes on action, Back returns to the scene",
+      "visible": "the context sheet open over any item",
+      "reach": {
+        "editor": {
+          "route": "prism://facet/:id/edit",
+          "max": 1,
+          "via": [
+            "sheet:Edit facet"
+          ]
+        },
+        "appSettings": {
+          "route": "prism://app/:id/setup",
+          "max": 1,
+          "via": [
+            "sheet:App settings / sign in"
+          ]
+        },
+        "setupMode": {
+          "route": "prism://app/:id/setup",
+          "max": 1,
+          "via": [
+            "sheet:Open full page (setup mode)"
+          ]
+        },
+        "swap": {
+          "route": "prism://item/:item/swap",
+          "max": 1,
+          "via": [
+            "sheet:Swap facet in this slot"
+          ]
+        }
+      },
+      "back": "scene"
+    }
+  ],
+  "routesRequired": [
+    "prism://scene/:id",
+    "prism://app/:id/setup",
+    "prism://app/:id/settings",
+    "prism://facet/:id/edit",
+    "prism://item/:item/sheet",
+    "prism://item/:item/swap",
+    "prism://item/:item/visual/next",
+    "prism://item/:item/visual/style"
+  ],
+  "$routesSource": "route shapes = packages/core/src/routes.ts (routes.scene/appSetup/appSettings/facetEdit/itemSheet/slotSwap); the registry Agent 3 ships must list these exact strings"
+}

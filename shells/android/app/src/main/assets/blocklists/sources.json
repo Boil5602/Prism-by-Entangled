@@ -1,0 +1,37 @@
+[
+  {
+    "id": "ads",
+    "name": "EasyList",
+    "maintainer": "EasyList community",
+    "url": "https://easylist.to/easylist/easylist.txt",
+    "license": "GPL-3.0 / CC BY-SA 3.0",
+    "syncedAt": "2026-08-24",
+    "default": true,
+    "format": "abp",
+    "hosts": "ads.hosts",
+    "cosmetic": "easylist-cosmetic.txt",
+    "note": "Bundled offline baseline: a starter subset of the upstream list. The sync mechanism (spec section 5) replaces it with the full list independently of shell releases."
+  },
+  {
+    "id": "trackers",
+    "name": "EasyPrivacy",
+    "maintainer": "EasyList community",
+    "url": "https://easylist.to/easylist/easyprivacy.txt",
+    "license": "GPL-3.0 / CC BY-SA 3.0",
+    "syncedAt": "2026-08-24",
+    "default": true,
+    "format": "abp",
+    "hosts": "trackers.hosts"
+  },
+  {
+    "id": "scam-disinfo",
+    "name": "StevenBlack fakenews",
+    "maintainer": "Steven Black (community)",
+    "url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-only/hosts",
+    "license": "MIT",
+    "syncedAt": "2026-08-24",
+    "default": false,
+    "format": "hosts",
+    "hosts": "scam-disinfo.hosts"
+  }
+]

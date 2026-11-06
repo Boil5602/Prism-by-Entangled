@@ -1,0 +1,25 @@
+{
+  "name": "prism-conformance",
+  "version": "0.1.0",
+  "description": "The kit that defines 'is a Prism': drives any shell via the remote API and golden-tests the observable contracts (spec §23).",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "main": "./dist/checks.js",
+  "types": "./dist/checks.d.ts",
+  "bin": {
+    "prism-conformance": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "prism-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

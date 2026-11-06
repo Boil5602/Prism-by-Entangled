@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prism">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link id="manifest" rel="manifest" href="/manifest.json">
+<title>Prism Remote</title>
+<style>
+  :root {
+    --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#D7DCE3;
+    --dim:#8A93A0; --faint:#5A6270; --accent:#F0A83C; --danger:#D06A5A; --ok:#9FD8A5;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    margin:0; background:var(--wall); color:var(--ink); min-height:100vh;
+    font-family:-apple-system, "Segoe UI", Roboto, sans-serif;
+    /* Installed on iPhone the page runs under the status bar: respect the notch. */
+    padding:calc(14px + env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom));
+  }
+  header { display:flex; align-items:center; gap:8px; padding:4px 2px 12px; flex-wrap:nowrap; }
+  #frames { flex:1 1 auto; min-width:0; }
+  .brand { font-family:ui-monospace, monospace; font-size:11px; color:var(--accent); letter-spacing:.08em; }
+  h1 { font-size:17px; font-weight:600; margin:0; }
+  #dash { margin-left:auto; font-size:12px; color:var(--dim); flex:0 1 auto; max-width:30%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #banner { display:none; background:#3A2A28; border:1px solid #4A3230; color:#E8B4A8; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:12px; }
+  #dashes { display:none; gap:8px; margin-bottom:12px; overflow-x:auto; }
+  #dashes button { flex:0 0 auto; }
+
+  /* The wall: a scaled mirror of the frame's solved layout (§8). Names and
+     state only — never content. Tap a tile to select it. */
+  #wall { position:relative; width:100%; background:#0e0e10; border:1px solid var(--edge); border-radius:12px; overflow:hidden; }
+  .wt { position:absolute; border:1px solid var(--edge); border-radius:6px; background:var(--panel); padding:6px 7px; overflow:hidden; cursor:pointer; transition:border-color .15s, background .15s; }
+  .wt.hero { border-color:rgba(240,168,60,.45); }
+  .wt.sel { background:#2A3240; border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .wt.focus { outline:2px solid var(--accent); outline-offset:-3px; } /* the TV remote's d-pad focus ring */
+  .wt .n { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wt .m { font-size:10px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+  /* Service badge: the wall shows only WHAT each tile is; tapping tells you what it is doing. */
+  .wt.brand { display:flex; align-items:center; justify-content:center; padding:4px; }
+  .wt .b { font-weight:800; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-align:center; }
+  .wt .st { position:absolute; left:6px; bottom:5px; right:6px; font-size:11px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wt .dot { position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--faint); }
+  .wt .dot.on { background:var(--ok); box-shadow:0 0 8px rgba(159,216,165,.6); }
+  .wt .tag { position:absolute; bottom:5px; right:6px; font-family:ui-monospace, monospace; font-size:9px; color:var(--dim); }
+  .wt .tag.warn { color:var(--accent); }
+
+  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:12px; margin-top:10px; }
+  /* Tapped tile: full screen. Phone Back (button, swipe, or the header) returns to the wall. */
+  #tilepanel.full { position:fixed; inset:0; z-index:40; margin:0; border:0; border-radius:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:calc(10px + env(safe-area-inset-top)) 12px calc(24px + env(safe-area-inset-bottom)); background:var(--wall); }
+  #tp-topbar { display:flex; align-items:center; gap:10px; margin:-2px 0 10px; }
+  #tp-topbar .tname { font-size:20px; }
+  .btns.big button { flex:1 1 40%; padding:16px 10px; font-size:16px; }
+  .dpad { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; max-width:280px; margin:14px auto 6px; }
+  .dpad button { padding:18px 0; font-size:18px; }
+  #tp-more { margin-top:14px; border-top:1px solid var(--edge); padding-top:6px; }
+  #tp-more summary { cursor:pointer; list-style:none; }
+  #tp-more summary::before { content:"▸ "; } #tp-more[open] summary::before { content:"▾ "; }
+  #tp-back { font-size:15px; padding:8px 14px; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .tname { font-size:15px; font-weight:600; }
+  .badge { font-family:ui-monospace, monospace; font-size:10px; color:var(--dim); border:1px solid var(--edge); border-radius:5px; padding:2px 6px; }
+  .badge.hero { color:var(--accent); border-color:rgba(240,168,60,.4); }
+  .sub { font-size:12px; color:var(--dim); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  button { flex:1 1 auto; min-width:64px; background:#171B22; color:var(--ink); border:1px solid var(--edge); border-radius:9px; padding:12px 8px; font-size:13px; font-family:inherit; }
+  button:active { background:#232A34; }
+  button.accent { color:var(--accent); border-color:rgba(240,168,60,.4); }
+  button.sm { padding:8px 10px; font-size:12px; flex:0 0 auto; }
+  input[type=text], input[type=password] { flex:1 1 auto; min-width:0; background:#0e0e10; color:var(--ink); border:1px solid var(--edge); border-radius:9px; padding:11px 10px; font-size:14px; font-family:inherit; }
+  .h { font-size:11px; color:var(--faint); letter-spacing:.06em; text-transform:uppercase; margin:12px 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips button { flex:0 0 auto; padding:8px 11px; font-size:12px; border-radius:16px; }
+  #hint { font-size:12px; color:var(--dim); text-align:center; padding:10px 0 0; }
+  footer { text-align:center; color:var(--faint); font-size:11px; padding-top:14px; font-family:ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">PRISM</span>
+  <!-- Multi-frame: every QR scan adds a frame; pick which one this page drives. -->
+  <select id="frames" style="background:#171B22;color:var(--ink);border:1px solid var(--edge);border-radius:8px;padding:6px 8px;font-size:15px;font-weight:600;font-family:inherit;max-width:55%"></select>
+  <button id="frame-menu" class="sm" style="flex:0 0 auto;padding:6px 10px">⋯</button>
+  <span id="dash">connecting…</span>
+</header>
+<div id="banner"></div>
+<!-- Installable PWA (§6 step 2): feels like an app, is just web. -->
+<section id="install" class="panel" style="display:none; margin:0 0 12px">
+  <div class="row"><span class="tname">Keep this remote on your phone</span></div>
+  <div id="install-hint" class="sub" style="white-space:normal"></div>
+  <div class="btns"><button id="install-btn" class="accent">➕ Add to Home Screen</button><button id="install-later" class="sm">Later</button></div>
+</section>
+<nav id="dashes"></nav>
+<div id="wall" style="height:180px"></div>
+<div id="hint">Tap a tile to put it on the TV.</div>
+
+<!-- §7 native: a native app is in front — type into whatever field the TV remote put the cursor in. -->
+<section id="apppanel" class="panel" style="display:none">
+  <div class="row"><span id="ap-name" class="tname">App in front</span><span class="badge">native</span></div>
+  <div class="row" style="margin-top:8px"><input id="ap-text" type="text" placeholder="Type into the focused field (email, password, search)…" autocapitalize="none"><button id="ap-send" class="accent sm">Send</button></div>
+  <div class="btns"><button id="ap-back" class="sm">◀ Back in app</button></div>
+  <div class="sub" style="white-space:normal">Move to the field with the TV remote, then send. Delivered through Prism's accessibility observer as your typed text; LAN-only, never stored.</div>
+</section>
+
+<!-- The phone mirrors the TV: this card is shown exactly while its tile is full
+     screen on the TV (tapped here, or OK on the TV remote). Back — on the phone
+     or the TV — returns both to the wall. -->
+<section id="tilepanel" class="panel" style="display:none">
+  <div id="tp-topbar"><button id="tp-back" class="sm">‹ Wall</button><span id="tp-name" class="tname"></span><span id="tp-state" class="sub" style="margin:0"></span></div>
+  <div class="btns big" id="tp-btns"></div>
+  <div id="tp-page" style="display:none">
+    <div class="dpad">
+      <span></span><button data-key="DPAD_UP">▲</button><span></span>
+      <button data-key="DPAD_LEFT">◀</button><button class="accent" data-key="DPAD_CENTER">OK</button><button data-key="DPAD_RIGHT">▶</button>
+      <span></span><button data-key="DPAD_DOWN">▼</button><span></span>
+    </div>
+    <div class="btns" style="justify-content:center"><button class="sm" data-key="TAB">Tab ⇥</button><button class="sm" data-key="BACKSPACE">⌫</button><button class="sm" data-key="ESCAPE">Esc</button><button class="sm" data-key="SPACE">Space</button></div>
+    <!-- The page's own visible buttons (a promo's ×, Agree, Sign In…): tap to press that one. -->
+    <div id="tp-pagebtns" style="display:none"><div class="h">On the page</div><div class="btns" id="tp-pagebtns-list"></div></div>
+    <div id="tp-signin" style="display:none">
+      <div class="h">Sign in</div>
+      <div id="si-step" class="sub" style="white-space:normal;margin-bottom:6px">Waiting for the page…</div>
+      <!-- One field at a time — the one the page is asking for. Standard autocomplete
+           hints so the phone's password manager offers autofill. Sent LAN-only; never stored. -->
+      <form id="si-form" action="#" autocomplete="on">
+        <div class="row"><input id="si-input" name="username" type="text" placeholder="Email" autocapitalize="none" autocomplete="username"><button id="si-send" type="submit" class="accent sm">Send ↵</button></div>
+      </form>
+      <div id="si-ask" style="display:none;margin-top:8px"><div class="sub" style="white-space:normal">The page is asking first — tap to press:</div><div id="si-ask-btns" class="row" style="flex-wrap:wrap;gap:6px"></div></div>
+      <div class="row" style="margin-top:8px"><button id="si-restart" type="button" class="sm">↺ Start over</button></div>
+    </div>
+  </div>
+  <details id="tp-more"><summary class="h">More</summary>
+    <div class="btns" id="tp-more-btns"></div>
+    <div id="tp-mode-note" class="sub" style="display:none;white-space:normal;margin-top:8px"></div>
+    <div id="tp-open">
+      <div class="h">Open in this tile</div>
+      <div class="row"><input id="tp-url" type="text" placeholder="Paste a link or search YouTube…" inputmode="url" autocapitalize="none"><button id="tp-go" class="accent sm">Open</button></div>
+      <div class="chips" id="tp-sites"></div>
+      <div class="h">Apps on this frame <span id="tp-apps-note" style="text-transform:none;letter-spacing:0;color:var(--faint)"> — open full screen, Back returns</span></div>
+      <div class="chips" id="tp-apps"><button class="sm" disabled>loading…</button></div>
+    </div>
+  </details>
+</section>
+<!-- §14 private listening: the CLIENT picks the transport (iOS/background → HTTP stream). -->
+<section id="listen" class="panel" style="display:none">
+  <div class="row"><span class="tname">Listen on this phone</span><span id="listen-badge" class="badge"></span></div>
+  <div id="listen-hint" class="sub" style="white-space:normal"></div>
+  <div class="btns">
+    <button id="listen-toggle" class="accent">🎧 Listen</button>
+    <button id="listen-resume" style="display:none">🔊 Resume speakers</button>
+    <button id="listen-nudge-minus">−50ms</button>
+    <button id="listen-nudge-plus">+50ms</button>
+  </div>
+  <audio id="listen-audio" playsinline style="display:none"></audio>
+</section>
+<footer>frame.dashboard/v0.1 · paired to this frame</footer>
+<script>
+(function () {
+  /* ------------------------- frames (multi-TV) ------------------------- */
+  // One entry per paired frame: { url, token, name }. A QR scan on any frame
+  // adds (or refreshes) that frame; the picker chooses which one this page
+  // drives. Tokens are per phone per frame (§6) and never leave the phone.
+  var frames = [];
+  try { frames = JSON.parse(localStorage.getItem("prism-frames") || "[]"); } catch (e) { frames = []; }
+  try { // migrate the single-frame storage of earlier builds
+    var legacy = localStorage.getItem("prism-token");
+    if (legacy && !frames.length) { frames.push({ url: location.origin, token: legacy, name: "" }); localStorage.removeItem("prism-token"); }
+  } catch (e) {}
+  var qs = new URLSearchParams(location.search);
+  if (qs.get("token")) {
+    var existing = frames.filter(function (f) { return f.url === location.origin; })[0];
+    if (existing) existing.token = qs.get("token"); else frames.push({ url: location.origin, token: qs.get("token"), name: "" });
+    saveFrames();
+    try { localStorage.setItem("prism-current", location.origin); } catch (e) {}
+    // The token stays in the URL on purpose: "Add to Home Screen" captures
+    // the current URL, so the installed app opens already paired (its
+    // storage is separate from the browser's on iPhone). LAN-only, per phone.
+  }
+  /* ------------------------- install (PWA) ------------------------- */
+  (function () {
+    var here = frames.filter(function (f) { return f.url === location.origin; })[0];
+    if (here) document.getElementById("manifest").href = "/manifest.json?token=" + encodeURIComponent(here.token);
+    var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    var dismissed = false;
+    try { dismissed = sessionStorage.getItem("prism-install-later") === "1"; } catch (e) {}
+    if (standalone || dismissed || !here) return;
+    var $inst = document.getElementById("install");
+    var $hint = document.getElementById("install-hint");
+    var $btn = document.getElementById("install-btn");
+    var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var deferred = null;
+    window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; $inst.style.display = "block"; });
+    if (ios) {
+      $hint.textContent = "Tap Share (the box with an arrow) → \"Add to Home Screen\". The app opens already paired with this frame.";
+      $btn.style.display = "none";
+      $inst.style.display = "block";
+    } else {
+      $hint.textContent = "Installs as an app icon; opens already paired. Otherwise, bookmark this page — scanning the QR again also works.";
+      // Chrome shows the native prompt only when it decides the page is installable; keep the hint visible regardless.
+      setTimeout(function () { if (!deferred) { $btn.textContent = "Use your browser's \"Install app\" / \"Add to Home screen\" menu"; $btn.disabled = true; $inst.style.display = "block"; } }, 2500);
+    }
+    $btn.addEventListener("click", function () {
+      if (!deferred) return;
+      deferred.prompt();
+      deferred.userChoice.then(function () { deferred = null; $inst.style.display = "none"; });
+    });
+    document.getElementById("install-later").addEventListener("click", function () {
+      $inst.style.display = "none";
+      try { sessionStorage.setItem("prism-install-later", "1"); } catch (e) {}
+    });
+  })();
+  var current = null;
+  try { current = localStorage.getItem("prism-current"); } catch (e) {}
+  var frame = frames.filter(function (f) { return f.url === current; })[0] || frames[0] || null;
+  var token = frame ? frame.token : null;
+  function saveFrames() { try { localStorage.setItem("prism-frames", JSON.stringify(frames)); } catch (e) {} }
+  function base() { return frame ? frame.url : location.origin; }
+
+  var $frames = document.getElementById("frames");
+  function renderFrames() {
+    $frames.replaceChildren.apply($frames, frames.map(function (f) {
+      var o = document.createElement("option");
+      o.value = f.url; o.textContent = f.name || f.url.replace(/^https?:\/\//, "");
+      if (frame && f.url === frame.url) o.selected = true;
+      return o;
+    }));
+    if (!frames.length) { var o = document.createElement("option"); o.textContent = "No frame paired"; $frames.appendChild(o); }
+  }
+  $frames.addEventListener("change", function () {
+    frame = frames.filter(function (f) { return f.url === $frames.value; })[0] || null;
+    token = frame ? frame.token : null;
+    try { localStorage.setItem("prism-current", frame ? frame.url : ""); } catch (e) {}
+    state = null; rects = null; selected = null; apps = null;
+    api("/apps").then(function (r) { return r.ok ? r.json() : { apps: [] }; }).then(function (a) { apps = a.apps || []; }).catch(function () { apps = []; });
+    poll(); pollListen();
+  });
+  document.getElementById("frame-menu").addEventListener("click", function () {
+    if (!frame) return;
+    var choice = prompt("Frame \"" + (frame.name || frame.url) + "\"\n\nType a new name to rename it, or FORGET to unpair this phone from it.", frame.name || "");
+    if (choice === null) return;
+    if (choice.trim().toUpperCase() === "FORGET") {
+      api("/pairing", { method: "DELETE" }).catch(function () {}).then(function () {
+        frames = frames.filter(function (f) { return f !== frame; });
+        saveFrames();
+        frame = frames[0] || null; token = frame ? frame.token : null;
+        try { localStorage.setItem("prism-current", frame ? frame.url : ""); } catch (e) {}
+        renderFrames(); state = null; poll();
+      });
+    } else if (choice.trim()) {
+      frame.name = choice.trim(); saveFrames(); renderFrames();
+    }
+  });
+  renderFrames();
+
+  var $dash = document.getElementById("dash");
+  var $banner = document.getElementById("banner");
+  var $dashes = document.getElementById("dashes");
+  var $wall = document.getElementById("wall");
+  var $hint = document.getElementById("hint");
+  var $tp = document.getElementById("tilepanel");
+  var state = null, rects = null, selected = null, apps = null;
+
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ "Authorization": "Bearer " + token }, opts.headers || {});
+    return fetch(base() + path, opts); // the selected frame, which may not be the one that served this page (CORS)
+  }
+  function cmd(tile, c) {
+    return api("/tiles/" + encodeURIComponent(tile) + "/command", { method: "POST", body: JSON.stringify({ cmd: c }) }).then(poll);
+  }
+  function layoutSwitch(id) { api("/layout/" + encodeURIComponent(id), { method: "PUT" }).then(poll); }
+  function fail(msg) { $banner.style.display = "block"; $banner.textContent = msg; $dash.textContent = "offline"; }
+
+  // Ids and names come from dashboard documents, which can be imported from
+  // shared layouts (§15) — never build HTML from them. DOM nodes only.
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function btn(label, cls, onClick) {
+    var b = el("button", cls || "", label);
+    b.addEventListener("click", onClick);
+    return b;
+  }
+  function host(url) { try { return new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return ""; } }
+  // A launch tile's human name: the frame's app list knows "com.netflix.ninja" is Netflix.
+  function appLabel(pkg, fallback) {
+    if (apps) for (var i = 0; i < apps.length; i++) if (apps[i].package === pkg) return apps[i].label;
+    return fallback || pkg;
+  }
+  function tileById(id) { for (var i = 0; i < state.tiles.length; i++) if (state.tiles[i].id === id) return state.tiles[i]; return null; }
+
+  /* ------------------------------ the wall ------------------------------ */
+  // Brand wordmarks by host / package: text in the service's colour, no images fetched.
+  var BRANDS = [
+    [/youtube/i, "YouTube", "#FF3B30"], [/netflix/i, "NETFLIX", "#E50914"], [/disney/i, "Disney+", "#5B8DEF"],
+    [/hbomax|max\.com|wbd\.stream/i, "HBO Max", "#C9B7FF"], [/primevideo|amazon/i, "prime video", "#00A8E1"],
+    [/hulu/i, "hulu", "#1CE783"], [/tubi/i, "Tubi", "#FFFF13"], [/xumo/i, "Xumo", "#3AA1FF"], [/paramount|cbs\.ott/i, "Paramount+", "#4A8BFF"], [/apple/i, "Apple TV", "#F5F5F7"], [/twitch/i, "Twitch", "#A970FF"],
+    [/plex/i, "Plex", "#E5A00D"], [/wikipedia/i, "Wikipedia", "#E8E8E8"], [/npr/i, "NPR", "#E8E8E8"],
+    [/radio\.garden/i, "Radio Garden", "#8ED1A5"], [/nasa/i, "NASA", "#FC3D21"],
+  ];
+  function brand(t) {
+    var key = (t.url ? host(t.url) : "") + " " + (t.launch || "") + " " + t.id;
+    for (var i = 0; i < BRANDS.length; i++) if (BRANDS[i][0].test(key)) return { label: BRANDS[i][1], color: BRANDS[i][2] };
+    return { label: t.launch ? appLabel(t.launch, t.id) : (t.url ? host(t.url).replace(/^www\./, "") : t.id), color: "#D7DCE3" };
+  }
+  // What the tile is doing right now, in one short phrase.
+  function stateLine(t) {
+    if (t.intermission) return "intermission — ad break";
+    if (state.fullscreen === t.id) return "full screen on the TV";
+    if (t.launch && !t.url) return "native app";
+    if (state.entered === t.id) return "you are controlling this page";
+    if (t.onLogin) return "on the sign-in page";
+    if (t.playing) return "playing";
+    if (t.state === "warm") return "sleeping (warm)";
+    if (t.peeking) return "peeking";
+    if (t.url) {
+      var path = t.url.replace(/^https?:\/\/[^/]+/, "").replace(/[?#].*$/, "");
+      return "browsing" + (path && path !== "/" ? " " + path.slice(0, 28) : "");
+    }
+    return "";
+  }
+  // The wall is updated IN PLACE on every poll (nodes keyed by tile id):
+  // rebuilding it would swallow a tap that lands between two polls.
+  var wallNodes = {};
+  function renderWall() {
+    if (!state || !rects) return;
+    var vw = rects.viewport.w || 1, vh = rects.viewport.h || 1;
+    var W = $wall.clientWidth || 320;
+    var H = Math.round(W * vh / vw);
+    $wall.style.height = H + "px";
+    var s = W / vw;
+    var solo = state.layoutMode === "solo";
+    var cells = rects.rects;
+    if (solo) { // one app at a time: a strip of equal cells, the shown one highlighted
+      var webTiles = state.tiles.filter(function (t) { return t.url; });
+      var cw = vw / Math.max(1, webTiles.length);
+      cells = {}; webTiles.forEach(function (t, i) { cells[t.id] = { x: i * cw, y: 0, w: cw, h: vh }; });
+      H = Math.round(W * 0.28); $wall.style.height = H + "px"; s = W / vw;
+      var hs = H / vh; // cells are as tall as the strip
+      Object.keys(cells).forEach(function (k) { cells[k] = { x: cells[k].x, y: 0, w: cells[k].w, h: vh }; });
+    }
+    var ids = state.tiles.filter(function (t) { return cells[t.id]; }).map(function (t) { return t.id; });
+    var rebuild = ids.length !== Object.keys(wallNodes).length || ids.some(function (id) { return !wallNodes[id]; });
+    if (rebuild) {
+      wallNodes = {};
+      $wall.replaceChildren.apply($wall, ids.map(function (id) {
+        var d = el("div", "wt brand");
+        d.appendChild(el("div", "b")); d.appendChild(el("div", "st")); d.appendChild(el("span", "dot")); d.appendChild(el("span", "tag"));
+        d.addEventListener("click", function () { openTile(id); });
+        wallNodes[id] = d; return d;
+      }));
+    }
+    state.tiles.forEach(function (t) {
+      var r = cells[t.id], d = wallNodes[t.id];
+      if (!r || !d) return;
+      d.className = "wt brand" + (state.hero === t.id ? " hero" : "") + (selected === t.id || (solo && state.fullscreen === t.id) ? " sel" : "") + (state.focused === t.id && !solo ? " focus" : "");
+      d.style.left = (r.x * s) + "px"; d.style.top = (r.y * s) + "px";
+      d.style.width = Math.max(8, r.w * s - 2) + "px"; d.style.height = Math.max(8, r.h * s - 2) + "px";
+      var b = brand(t), bw = d.children[0];
+      bw.textContent = b.label; bw.style.color = b.color;
+      bw.style.fontSize = Math.max(11, Math.min(26, r.w * s / Math.max(5, b.label.length) * 1.6)) + "px";
+      d.children[1].textContent = selected === t.id ? stateLine(t) : ""; // the tapped tile says what it is doing
+      d.children[2].className = "dot" + (t.playing ? " on" : "");
+      var tag = t.intermission ? "intermission" : state.fullscreen === t.id ? "full screen" : state.entered === t.id ? "controlling" : t.state === "warm" ? "warm" : t.skipAvailable ? "skip ✓" : "";
+      d.children[3].className = "tag" + (t.skipAvailable ? " warn" : ""); d.children[3].textContent = tag;
+    });
+    $hint.textContent = state.layoutMode === "solo" ? "One app at a time — tap the one to show on the TV." : "Tap a tile to put it on the TV.";
+    $hint.style.display = selected ? "none" : "block";
+  }
+
+  /* --------------------------- selected tile ---------------------------- */
+  var SITES = [
+    ["YouTube", "https://www.youtube.com/"],
+    ["Netflix", "https://www.netflix.com/browse"],
+    ["YouTube TV", "https://tv.youtube.com/"],
+    ["Twitch", "https://www.twitch.tv/"],
+    ["Plex", "https://app.plex.tv/"],
+    ["NASA TV", "https://plus.nasa.gov/"],
+    ["Radio", "https://radio.garden/"],
+    ["Wikipedia", "https://en.wikipedia.org/wiki/Special:Random"],
+    ["Weather", "https://www.windy.com/"]
+  ];
+  function toUrl(text) {
+    var t = text.trim();
+    if (!t) return null;
+    if (/^https?:\/\//i.test(t)) return t;
+    if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(t)) return "https://" + t;
+    return "https://www.youtube.com/results?search_query=" + encodeURIComponent(t); // search
+  }
+  function navigate(tile, url) {
+    return api("/navigate", { method: "POST", body: JSON.stringify({ tile: tile, url: url }) }).then(function (r) {
+      if (!r.ok) return r.json().then(function (e) { fail(e.error || "could not open"); });
+      $banner.style.display = "none";
+    }).then(poll);
+  }
+  function launch(pkg) {
+    return api("/launch", { method: "POST", body: JSON.stringify({ package: pkg }) }).then(poll);
+  }
+  // The card mirrors the TV. Opening from the phone puts the tile full screen
+  // on the TV (same as OK on its remote); closing returns the TV to the wall.
+  // Opening/closing FROM the TV (fromTv) only follows — no command echoed back.
+  var openedAt = 0, signinOpen = false;
+  function openTile(id, fromTv) {
+    var t = tileById(id);
+    if (selected !== id) history.pushState({ tile: id }, "");
+    selected = id; signinOpen = false; openedAt = Date.now();
+    if (!fromTv && t && t.url && state.fullscreen !== id) cmd(id, "fullscreen");
+    renderWall(); renderTile(); $tp.scrollTop = 0;
+  }
+  function closeTile(fromTv) {
+    var id = selected; selected = null;
+    if (!fromTv && id && state && state.fullscreen === id && state.layoutMode !== "solo") cmd(id, "normal");
+    renderWall(); renderTile();
+  }
+  // Phone Back (hardware button, swipe, browser back) pops our entry → wall on both.
+  window.addEventListener("popstate", function () { if (selected) closeTile(false); });
+  document.getElementById("tp-back").addEventListener("click", function () { if (history.state && history.state.tile) history.back(); else closeTile(false); });
+  // Follow the TV: OK on its remote opens the card here; its Back closes it.
+  // While a web tile is open, show the page's own buttons so a promo or a
+  // consent sheet can be dismissed by tapping what you see (pressed only on tap).
+  var pageBtnsFor = null;
+  function pollPageButtons() {
+    var t = selected && tileById(selected);
+    var box = document.getElementById("tp-pagebtns"), list = document.getElementById("tp-pagebtns-list");
+    if (!t || !t.url) { box.style.display = "none"; pageBtnsFor = null; return; }
+    api("/tiles/" + encodeURIComponent(t.id) + "/buttons").then(function (r) { return r.ok ? r.json() : { buttons: [] }; }).then(function (b) {
+      if (selected !== t.id) return;
+      var labels = (b.buttons || []).slice(0, 8);
+      var key = labels.join("|");
+      if (key === pageBtnsFor) return;
+      pageBtnsFor = key;
+      box.style.display = labels.length ? "block" : "none";
+      list.replaceChildren.apply(list, labels.map(function (label) {
+        return btn(label === "×" || /^close$/i.test(label) ? "✕ " + label : label, "sm", function () {
+          api("/tiles/" + encodeURIComponent(t.id) + "/press", { method: "POST", body: JSON.stringify({ label: label }) }).then(function () { pageBtnsFor = null; setTimeout(pollPageButtons, 1200); }).catch(function () {});
+        });
+      }));
+    }).catch(function () {});
+  }
+  setInterval(pollPageButtons, 3000);
+  function syncWithTv() {
+    if (!state) return;
+    if (state.layoutMode === "solo") return; // one app is always on screen: the phone keeps the strip; a tap switches
+    if (state.fullscreen && selected !== state.fullscreen) { openTile(state.fullscreen, true); return; }
+    var t = selected && tileById(selected);
+    if (!state.fullscreen && t && t.url && Date.now() - openedAt > 5000) { if (history.state && history.state.tile) history.back(); else closeTile(true); }
+  }
+  var mutedLocal = {};
+  function renderTile() {
+    if (!state || !selected) { $tp.style.display = "none"; $tp.classList.remove("full"); document.body.style.overflow = ""; return; }
+    var t = tileById(selected);
+    if (!t) { selected = null; $tp.style.display = "none"; $tp.classList.remove("full"); document.body.style.overflow = ""; return; }
+    $tp.style.display = "block"; $tp.classList.add("full"); document.body.style.overflow = "hidden";
+    document.getElementById("tp-name").textContent = brand(t).label;
+    document.getElementById("tp-state").textContent = stateLine(t) || "";
+
+    // Four things at most, the ones you reach for on the couch.
+    var list = [];
+    if (t.launch && !t.url) {
+      list.push(btn("▶ Open " + appLabel(t.launch, t.id), "accent", function () { cmd(t.id, "launch"); }));
+    } else {
+      if (t.skipAvailable) list.push(btn("⏭ Skip ad", "accent", function () { cmd(t.id, "skip"); })); // §26: only while observed
+      list.push(btn(t.playing ? "⏸ Pause" : "▶ Play", "", function () { cmd(t.id, t.playing ? "pause" : "play"); }));
+      var m = !!mutedLocal[t.id];
+      list.push(btn(m ? "🔊 Sound on" : "🔇 Mute", "", function () { mutedLocal[t.id] = !m; cmd(t.id, m ? "unmute" : "mute"); }));
+      if (t.loginUrl) list.push(btn("🔑 Sign in", signinOpen || t.onLogin ? "accent" : "", function () { signinOpen = !signinOpen; if (signinOpen && !t.onLogin) goSignIn(t); renderTile(); setTimeout(pollFields, 300); }));
+    }
+    var btns = document.getElementById("tp-btns");
+    btns.replaceChildren.apply(btns, list);
+
+    var web = !!t.url;
+    document.getElementById("tp-page").style.display = web ? "block" : "none";
+    document.getElementById("tp-signin").style.display = web && (signinOpen || t.onLogin) ? "block" : "none";
+
+    // Everything else lives under More.
+    var more = [];
+    (t.shortcuts || []).forEach(function (sc) { more.push(btn("→ " + sc.label, "accent", function () { navigate(t.id, sc.url); })); });
+    if (web) more.push(btn("↻ Reload", "", function () { cmd(t.id, "reload"); }));
+    if (state.hero !== t.id && state.layoutMode === "hero") more.push(btn("★ Make hero", "", function () { cmd(t.id, "hero"); }));
+    if (t.alternative) {
+      var other = t.alternative.mode === "native" ? "Use native app (" + appLabel(t.alternative.target, t.id) + ")" : "Use web player";
+      more.push(btn("⇄ " + other, "", function () {
+        api("/tiles/" + encodeURIComponent(t.id) + "/mode", { method: "PUT", body: JSON.stringify({ mode: t.alternative.mode }) }).then(poll);
+      }));
+    }
+    var mb = document.getElementById("tp-more-btns");
+    mb.replaceChildren.apply(mb, more);
+    var modeNote = document.getElementById("tp-mode-note");
+    if (t.alternative) {
+      modeNote.style.display = "block";
+      modeNote.textContent = t.mode === "native"
+        ? "Native app: intermission and Skip work only where the app exposes its ad markers to Prism's observer — no in-page overlay."
+        : "Web player: full intermission and Skip chip. Native app (opt-in): full quality, but intermission only where the app exposes its ad markers.";
+    } else {
+      modeNote.style.display = "none";
+    }
+    var open = document.getElementById("tp-open");
+    open.style.display = web ? "block" : "none";
+    if (web) {
+      var sites = document.getElementById("tp-sites");
+      sites.replaceChildren.apply(sites, SITES.map(function (site) { return btn(site[0], "", function () { navigate(t.id, site[1]); }); }));
+      renderApps();
+    }
+  }
+  function renderApps() {
+    var box = document.getElementById("tp-apps");
+    if (!apps) return;
+    if (!apps.length) { box.replaceChildren(el("span", "sub", "No launchable apps reported by this frame.")); return; }
+    box.replaceChildren.apply(box, apps.map(function (a) { return btn(a.label, "", function () { launch(a.package); }); }));
+  }
+  document.getElementById("tp-go").addEventListener("click", function () {
+    var url = toUrl(document.getElementById("tp-url").value);
+    if (url && selected) navigate(selected, url);
+  });
+  document.getElementById("tp-url").addEventListener("keydown", function (e) { if (e.key === "Enter") document.getElementById("tp-go").click(); });
+
+  // §7 page control: every key/text here is a human's, forwarded into the page.
+  function sendKey(key) { if (selected) api("/tiles/" + encodeURIComponent(selected) + "/key", { method: "POST", body: JSON.stringify({ key: key }) }).catch(function () {}); }
+  // Sign-in, one step at a time: the phone shows the field the PAGE is asking
+  // for (email → password → one-time code), polled while the section is open.
+  // Each Send types that one value and presses Continue — a human's own keystrokes.
+  var siStep = null, siPolling = null;
+  var STEPS = {
+    email: { label: "Enter your email", type: "text", name: "username", ac: "username", ph: "Email", mode: "email" },
+    password: { label: "Enter your password", type: "password", name: "password", ac: "current-password", ph: "Password", mode: "text" },
+    code: { label: "Enter the code the service sent you", type: "text", name: "code", ac: "one-time-code", ph: "Code", mode: "numeric" },
+  };
+  function setStep(step, sent) {
+    var $i = document.getElementById("si-input"), $l = document.getElementById("si-step"), $f = document.getElementById("si-form");
+    if (step === siStep) { if (!step) $l.textContent = sent ? "Sent — waiting for the page…" : "Waiting for the page…"; return; }
+    siStep = step;
+    if (!step) { $l.textContent = sent ? "Sent — waiting for the page…" : "Waiting for the page…"; $f.style.display = "none"; return; }
+    var s = STEPS[step];
+    $f.style.display = "";
+    $i.value = ""; $i.type = s.type; $i.name = s.name; $i.placeholder = s.ph; $i.setAttribute("autocomplete", s.ac); $i.setAttribute("inputmode", s.mode);
+    $l.textContent = s.label;
+  }
+  function pollFields() {
+    var t = selected && tileById(selected);
+    if (!t || !t.url || document.getElementById("tp-signin").style.display === "none") return;
+    api("/tiles/" + encodeURIComponent(t.id) + "/fields").then(function (r) { return r.ok ? r.json() : null; }).then(function (f) {
+      if (!f || selected !== t.id) return;
+      // The first EMPTY field in the page's order; filled ones are done. Nothing empty ⇒ waiting.
+      setStep(f.email === 1 ? "email" : f.password === 1 ? "password" : f.code === 1 ? "code" : null, f.email === 2 || f.password === 2);
+    }).catch(function () {});
+  }
+  setInterval(pollFields, 2000);
+  function sendField(field, value) {
+    if (!selected || !value) return;
+    var tile = encodeURIComponent(selected);
+    api("/tiles/" + tile + "/type", { method: "POST", body: JSON.stringify({ text: value, field: field, submit: true }) })
+      .then(function (r) { if (r && !r.ok) return r.json().then(function (e) { fail(e.error || "could not type into the page"); showAsk(e.buttons || [], function () { sendField(field, value); }); throw new Error("typed-failed"); }); $banner.style.display = "none"; showAsk([]); })
+      .then(function () { document.getElementById("si-input").value = ""; siStep = null; setStep(null); setTimeout(pollFields, 1500); setTimeout(pollFields, 4000); })
+      .catch(function () {});
+  }
+  // The page's own buttons, offered when it shows no field. Tapping presses
+  // that button (a human gesture forwarded), then retries what they were doing.
+  function showAsk(buttons, then) {
+    var $a = document.getElementById("si-ask"), $b = document.getElementById("si-ask-btns");
+    if (!buttons.length) { $a.style.display = "none"; $b.replaceChildren(); return; }
+    $a.style.display = "block";
+    $b.replaceChildren.apply($b, buttons.map(function (label) {
+      return btn(label, "accent sm", function () {
+        api("/tiles/" + encodeURIComponent(selected) + "/press", { method: "POST", body: JSON.stringify({ label: label }) })
+          .then(function (r) { if (r.ok) { $banner.style.display = "none"; showAsk([]); if (then) setTimeout(then, 2500); } })
+          .catch(function () {});
+      });
+    }));
+  }
+  // "Go to sign-in page": the adapter's login URL, then — where the form opens
+  // from a button (Apple TV) — that press, because the human asked for it.
+  function goSignIn(t) {
+    return api("/navigate", { method: "POST", body: JSON.stringify({ tile: t.id, url: t.loginUrl }) })
+      .then(function () { return new Promise(function (r) { setTimeout(r, t.loginPress ? 7000 : 0); }); })
+      .then(function () { if (t.loginPress) return api("/tiles/" + encodeURIComponent(t.id) + "/press", { method: "POST", body: JSON.stringify({ label: t.loginPress }) }); })
+      .then(poll).catch(function () {});
+  }
+  document.getElementById("si-form").addEventListener("submit", function (e) {
+    e.preventDefault(); // never navigates; the value goes to the frame's tile as keystrokes
+    if (siStep) sendField(siStep, document.getElementById("si-input").value);
+  });
+  // Start over: reload the service's sign-in page from scratch (a fresh form,
+  // whatever step it was stuck on). Nothing is kept anywhere.
+  document.getElementById("si-restart").addEventListener("click", function () {
+    var t0 = selected && tileById(selected);
+    document.getElementById("si-input").value = ""; setStep(null);
+    if (!t0 || !t0.loginUrl) return;
+    showAsk([]);
+    goSignIn(t0)
+      // Sites pre-fill the last address from their own cookie: blank it once the field is up
+      // (after the old document is gone -- the clear then waits for the new field).
+      .then(function () { return new Promise(function (r) { setTimeout(r, 2500); }); })
+      .then(function () { return api("/tiles/" + encodeURIComponent(selected) + "/type", { method: "POST", body: JSON.stringify({ text: "", field: "email" }) }); })
+      .then(function () { $banner.style.display = "none"; pollFields(); }).catch(function () {});
+  });
+
+  // §7 native app in front: type into its focused field / Back — via the observer.
+  var $ap = document.getElementById("apppanel");
+  function renderApp() {
+    if (!state || !state.foregroundApp) { $ap.style.display = "none"; return; }
+    $ap.style.display = "block";
+    document.getElementById("ap-name").textContent = appLabel(state.foregroundApp, state.foregroundApp) + " is in front";
+  }
+  function sendAppText() {
+    var $t = document.getElementById("ap-text");
+    if (!$t.value) return;
+    api("/apps/type", { method: "POST", body: JSON.stringify({ text: $t.value }) }).then(function (r) {
+      if (r.ok) { $t.value = ""; $banner.style.display = "none"; }
+      else return r.json().then(function (e) { fail(e.error || "could not type"); });
+    }).catch(function () {});
+  }
+  document.getElementById("ap-send").addEventListener("click", sendAppText);
+  document.getElementById("ap-text").addEventListener("keydown", function (e) { if (e.key === "Enter") sendAppText(); });
+  document.getElementById("ap-back").addEventListener("click", function () { api("/apps/back", { method: "POST" }).catch(function () {}); });
+  Array.prototype.forEach.call(document.querySelectorAll("#tp-page [data-key]"), function (b) {
+    b.addEventListener("click", function () { sendKey(b.getAttribute("data-key")); });
+  });
+
+  /* ------------------------------ dashboards ---------------------------- */
+  function renderDashes() {
+    if (state.dashboards && state.dashboards.length > 1) {
+      $dashes.style.display = "flex";
+      $dashes.replaceChildren.apply($dashes, state.dashboards.map(function (d) {
+        var b = btn(d, "", function () { layoutSwitch(d); });
+        if (d === state.dashboard) { b.style.color = "var(--accent)"; b.style.borderColor = "rgba(240,168,60,.4)"; }
+        return b;
+      }));
+    } else {
+      $dashes.style.display = "none";
+    }
+  }
+
+  function render() {
+    if (!state) return;
+    $banner.style.display = "none";
+    $dash.textContent = state.name;
+    renderDashes();
+    syncWithTv();
+    renderWall();
+    renderTile();
+    renderApp();
+  }
+
+  function poll() {
+    if (!token) {
+      var installed = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+      return fail(installed
+        ? "This app was added to your Home Screen before pairing was saved. Remove the icon, scan the frame's QR in your browser, then add it again — it will open already paired."
+        : "Not paired — scan the QR on the frame again.");
+    }
+    return Promise.all([
+      api("/state").then(function (r) { if (r.status === 401) throw new Error("unpaired"); return r.json(); }),
+      api("/rects").then(function (r) { return r.ok ? r.json() : null; })
+    ]).then(function (res) {
+      state = res[0]; rects = res[1] || rects;
+      if (frame && !frame.name && state && state.name) { frame.name = state.name; saveFrames(); renderFrames(); }
+      render();
+    }).catch(function (e) {
+      fail(String(e.message) === "unpaired" ? "This phone's token was revoked — scan the QR again." : "Can't reach the frame.");
+    });
+  }
+  api("/apps").then(function (r) { return r.ok ? r.json() : { apps: [] }; }).then(function (a) { apps = a.apps || []; render(); }).catch(function () { apps = []; });
+  window.addEventListener("resize", renderWall);
+  setInterval(poll, 3000);
+  poll();
+
+  /* ---------------- §14 private listening (client-side transport choice) --- */
+  var listen = {
+    status: null, beat: null, pc: null,
+    preferred: function () {
+      var ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      var t = this.status && this.status.transports || [];
+      if (ios && t.indexOf("http") >= 0) return "http";
+      if (t.indexOf("webrtc") >= 0) return "webrtc";
+      return t[0] || null;
+    },
+    mine: function () {
+      var s = this.status; if (!s) return null;
+      for (var i = 0; i < s.listeners.length; i++) if (s.listeners[i].id === token) return s.listeners[i];
+      return null;
+    }
+  };
+  var $listen = document.getElementById("listen");
+  var $lBadge = document.getElementById("listen-badge");
+  var $lHint = document.getElementById("listen-hint");
+  var $lToggle = document.getElementById("listen-toggle");
+  var $lResume = document.getElementById("listen-resume");
+  var $lAudio = document.getElementById("listen-audio");
+
+  function renderListen() {
+    var s = listen.status;
+    if (!s || !s.supported) { $listen.style.display = "none"; return; }
+    $listen.style.display = "block";
+    var me = listen.mine();
+    var t = me ? me.transport : listen.preferred();
+    $lBadge.textContent = t === "http" ? "stream · ~" + Math.round(s.avOffsetMs.http / 100) / 10 + "s" : "webrtc · ~" + s.avOffsetMs.webrtc + "ms";
+    if (s.paused) {
+      $lHint.textContent = "Listening paused on your phone — frame speakers stay muted until you resume or a couple of minutes pass.";
+      $lResume.style.display = "";
+    } else {
+      $lHint.textContent = me
+        ? (t === "http" ? "You can minimize this page and keep listening." : "Keep this page open on iPhone; Android keeps playing in the background.")
+        : "Frame audio plays through this phone's headphones. Speakers mute while you listen.";
+      $lResume.style.display = "none";
+    }
+    $lToggle.textContent = me && me.state === "listening" ? "⏹ Stop listening" : "🎧 Listen";
+  }
+  function pollListen() {
+    api("/audio/listen").then(function (r) { return r.ok ? r.json() : null; }).then(function (s) { listen.status = s; renderListen(); }).catch(function () {});
+  }
+  function startBeat(ms) { stopBeat(); listen.beat = setInterval(function () { api("/audio/heartbeat", { method: "POST" }).catch(function () {}); }, ms || 5000); }
+  function stopBeat() { if (listen.beat) clearInterval(listen.beat); listen.beat = null; }
+  function stopAudio() {
+    try { $lAudio.pause(); $lAudio.removeAttribute("src"); $lAudio.srcObject = null; $lAudio.load(); } catch (e) {}
+    if (listen.pc) { try { listen.pc.close(); } catch (e) {} listen.pc = null; }
+  }
+  function startAudio(s, t) {
+    if (t === "http" && s.streamPath) {
+      // Never the pairing token in a URL: a short-lived stream ticket scoped to the stream path.
+      api("/audio/stream-ticket", { method: "POST" }).then(function (r) { return r.json(); }).then(function (tk) {
+        $lAudio.src = base() + tk.path + "?ticket=" + encodeURIComponent(tk.ticket);
+        $lAudio.play().catch(function () {});
+      }).catch(function () {});
+      if ("mediaSession" in navigator) {
+        try { navigator.mediaSession.metadata = new MediaMetadata({ title: "Prism — " + (state ? state.name : "frame"), artist: "Private listening" }); } catch (e) {}
+      }
+      $lAudio.addEventListener("ended", function () { pollListen(); });
+    }
+    if (t === "webrtc" && window.RTCPeerConnection) {
+      var pc = new RTCPeerConnection({ iceServers: [] }); // LAN only — no STUN, nothing leaves the network
+      listen.pc = pc;
+      pc.addTransceiver("audio", { direction: "recvonly" });
+      pc.ontrack = function (ev) { $lAudio.srcObject = ev.streams[0] || new MediaStream([ev.track]); $lAudio.play().catch(function () {}); };
+      pc.onicecandidate = function (ev) {
+        if (!ev.candidate) return;
+        api("/audio/webrtc/ice", { method: "POST", body: JSON.stringify({ candidate: JSON.stringify(ev.candidate.toJSON()) }) }).catch(function () {});
+      };
+      pc.onconnectionstatechange = function () { if (pc.connectionState === "failed" || pc.connectionState === "disconnected") pollListen(); };
+      pc.createOffer().then(function (offer) {
+        return pc.setLocalDescription(offer).then(function () {
+          return api("/audio/webrtc/offer", { method: "POST", body: JSON.stringify({ sdp: pc.localDescription.sdp }) });
+        });
+      }).then(function (r) { return r.json(); }).then(function (a) {
+        if (a && a.sdp) return pc.setRemoteDescription({ type: "answer", sdp: a.sdp });
+      }).catch(function () {});
+    }
+    if (navigator.wakeLock && navigator.wakeLock.request) navigator.wakeLock.request("screen").catch(function () {});
+  }
+  $lToggle.addEventListener("click", function () {
+    var me = listen.mine();
+    var enable = !(me && me.state === "listening");
+    var t = listen.preferred();
+    api("/audio/listen", { method: "POST", body: JSON.stringify(enable ? { enable: true, transport: t } : { enable: false }) })
+      .then(function (r) { return r.json(); }).then(function (s) {
+        listen.status = s; renderListen();
+        if (enable) { startAudio(s, t); startBeat(s.heartbeatMs); } else { stopAudio(); stopBeat(); }
+      });
+  });
+  $lResume.addEventListener("click", function () {
+    stopAudio(); stopBeat();
+    api("/audio/resume", { method: "POST" }).then(function (r) { return r.json(); }).then(function (s) { listen.status = s; renderListen(); });
+  });
+  function nudge(delta) {
+    var s = listen.status; var me = listen.mine(); if (!s || !me) return;
+    api("/audio/offset", { method: "POST", body: JSON.stringify({ ms: s.avOffsetMs[me.transport] + delta, transport: me.transport }) }).then(pollListen);
+  }
+  document.getElementById("listen-nudge-minus").addEventListener("click", function () { nudge(-50); });
+  document.getElementById("listen-nudge-plus").addEventListener("click", function () { nudge(50); });
+  setInterval(pollListen, 4000);
+  pollListen();
+})();
+</script>
+</body>
+</html>

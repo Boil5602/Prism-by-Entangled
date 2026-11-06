@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism pages</title>
+<!--
+  The root of the tiles.prism mapping (Assets/tiles). Not a facet anyone
+  assigns - just an honest answer when someone types the bare address.
+  ZERO network, like everything under this folder.
+-->
+<link rel="stylesheet" href="shared/tiles.css">
+<style>
+  .cards { display: flex; flex-wrap: wrap; gap: var(--gap); }
+  .cards a {
+    flex: 1 1 40%;
+    min-width: 12em;
+    display: block;
+    padding: var(--pad);
+    border: 1px solid var(--panel-edge);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .cards a:hover { border-color: var(--accent); }
+  .cards strong { display: block; font-family: var(--display); font-size: clamp(15px, 3.2vmin, 26px); }
+  .cards span { color: var(--ink-dim); font-size: var(--small); line-height: 1.35; }
+</style>
+</head>
+<body>
+<header class="tile-head"><h1>Prism pages</h1></header>
+<p class="note-line">
+  Small pages Prism serves from this device. They need no account and reach no
+  network: the list and the timer live in this device's own store.
+</p>
+<div class="cards">
+  <a href="chores/"><strong>Chores &amp; notes</strong><span>The household list, plus a notes area. Editable from a paired phone.</span></a>
+  <a href="timer/"><strong>Timer</strong><span>Countdown and interval, with a local chime at zero.</span></a>
+</div>
+</body>
+</html>

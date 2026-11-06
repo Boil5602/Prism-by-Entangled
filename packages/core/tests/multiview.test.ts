@@ -1,0 +1,993 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRuntime } from "../src/runtime.js";
+import { UNMUTE_PLAYER_JS, mvLayout, mvPipRect } from "../src/orchestrator.js";
+import type { Drivers } from "../src/drivers.js";
+import type { DashboardDocument } from "../src/types.js";
+
+// Multiview (2026-09-23): the Video player's screen slot and up to three floating video windows; the big one by role, the rest down
+// its right edge; a swap trades places and never reloads a page; a pick lands in the target window; off closes the small windows.
+
+function rig(kv = new Map<string, string>()) {
+  const ops: Array<Record<string, unknown>> = [];
+  const rects = new Map<string, { x: number; y: number; w: number; h: number }>();
+  const muted = new Map<string, boolean>();
+  const unmuted: string[] = [];
+  const drivers: Drivers = {
+    surface: {
+      create: (o) => void ops.push({ op: "create", id: o.id }), destroy: (id) => void ops.push({ op: "destroy", id }),
+      setRect: (id, r) => void rects.set(id, r), setOpacity: () => {}, setZ: () => {},
+      navigate: (id, url) => void ops.push({ op: "navigate", id, url }), inject: (id, css, js) => void ops.push({ op: "inject", id, js, css }),
+      freeze: (id) => void ops.push({ op: "freeze", id }), reveal: (id) => void ops.push({ op: "reveal", id }), suspend: () => {}, resume: () => {}, setMuted: (id, m) => { muted.set(id, m); if (!m) unmuted.push(id); }, setViewport: () => {},
+    },
+    store: { get: (k) => kv.get(k) ?? null, set: (k, v) => void kv.set(k, v) },
+  };
+  return { ops, rects, drivers, kv, muted, unmuted };
+}
+const doc: DashboardDocument = { schema: "frame.dashboard/v0.1", id: "wall", name: "Wall", layout: { mode: "hero", hero: "news", heroSize: 0.62, satellites: "auto", gap: 0 }, tiles: [{ id: "news", url: "https://news.example.com/", audio: "mute" }] };
+
+async function setup(kv?: Map<string, string>, huluExtra: Record<string, unknown> = {}) {
+  const r = rig(kv);
+  const rt = createRuntime(r.drivers);
+  const adapters = { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoCmd: "/*cmd*/", ...huluExtra }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } };
+  rt.init(JSON.stringify(doc), 1920, 1080, JSON.stringify({ adapters }));
+  await vi.advanceTimersByTimeAsync(50);
+  for (const [id, name, url] of [["hulu", "Hulu", "https://www.hulu.com/hub/home"], ["netflix", "Netflix", "https://www.netflix.com/browse"]] as const) {
+    expect(JSON.parse(rt.modelSaveApp(JSON.stringify({ id, name, adapter: id, baseUrl: url, profileId: id, setup: { status: "signed-in" }, render: { audio: "exclusive" } }))).ok).toBe(true);
+  }
+  expect(JSON.parse(rt.modelSaveFacet(JSON.stringify({ id: "hu", app: "hulu", url: "https://www.hulu.com/hub/home", slotClass: "16:9·XL", label: "Home" }))).ok).toBe(true);
+  expect(JSON.parse(rt.modelSaveFacet(JSON.stringify({ id: "nf", app: "netflix", url: "https://www.netflix.com/browse", slotClass: "16:9·XL", label: "Home" }))).ok).toBe(true);
+  expect(JSON.parse(rt.modelSaveLayout(JSON.stringify({ id: "night", name: "Night", canvasSize: { w: 1920, h: 1080 }, slots: [{ id: "screen", rect: { x: 0, y: 0, w: 1, h: 1 } }], source: { mode: "template", template: "movie-night" } }))).ok).toBe(true);
+  expect(JSON.parse(rt.modelSaveScene(JSON.stringify({ id: "movie-night-1", name: "Movie Night", layout: "night", assign: { screen: "hu" }, floating: [], hidden: [] }))).ok).toBe(true);
+  rt.switchPlayer("video");
+  await vi.advanceTimersByTimeAsync(50);
+  rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+  await vi.advanceTimersByTimeAsync(50);
+  r.ops.length = 0;
+  return { ...r, rt };
+}
+/** The screen slot's place on a 1920 x 1080 wall, inset by the wall's gap. */
+const BASE = { x: 4, y: 4, w: 1912, h: 1072 };
+const state = (rt: ReturnType<typeof createRuntime>) => JSON.parse(rt.videoMultiview("state")) as { on: boolean; target: number; windows: Array<{ tile: string; app: string }> };
+
+/** Netflix in the big window and Hulu's screen slot small, as a person makes it now: Netflix added as window 2, then dragged to the big place. */
+async function bigNetflix(rt: ReturnType<typeof createRuntime>) {
+  rt.videoMultiview("target", "1");
+  rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+  await vi.advanceTimersByTimeAsync(50);
+  rt.videoMultiview("place", "nf:0");
+  rt.videoMultiview("target", "0");
+  await vi.advanceTimersByTimeAsync(50);
+}
+describe("multiview", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("a small window sits on the big one's right edge, 16:9, a quarter of its width, one under the other", () => {
+    const base = { x: 0, y: 0, w: 1920, h: 1080 };
+    const a = mvPipRect(base, 0), b = mvPipRect(base, 1);
+    expect(a.w).toBe(461); expect(a.h).toBe(Math.round(461 * 9 / 16));
+    expect(a.x + a.w).toBeLessThan(1920); expect(b.y).toBeGreaterThan(a.y + a.h);
+  });
+
+  it("a 32:9 wall: the big window full height and exactly 16:9 on the left, the small ones a grid in the space to its right - all on screen (2026-09-23, 49\" monitors)", () => {
+    const base = { x: 4, y: 4, w: 5112, h: 1432 };
+    const three = mvLayout(base, 3);
+    expect(three.hero).toEqual({ x: 4, y: 4, w: 2546, h: 1432 });
+    expect(three.smalls.length).toBe(3);
+    for (const r of three.smalls) {
+      expect(r.x).toBeGreaterThanOrEqual(three.hero.x + three.hero.w);
+      expect(r.x + r.w).toBeLessThanOrEqual(base.x + base.w);
+      expect(r.y + r.h).toBeLessThanOrEqual(base.y + base.h);
+      expect(Math.abs(r.w / r.h - 16 / 9)).toBeLessThan(0.01);
+    }
+    expect(three.smalls[0]!.w).toBeGreaterThan(1200);   // two columns - the largest windows the space allows
+    expect(mvLayout(base, 0).hero).toEqual(base);        // nothing small: the big window has the whole slot
+  });
+  it("a 16:9 wall keeps the small windows over the big one's right edge; a short slot shrinks the stack so it never runs off the bottom", () => {
+    const base = { x: 4, y: 4, w: 1912, h: 1072 };
+    const l = mvLayout(base, 3);
+    expect(l.hero).toEqual(base);
+    expect(l.smalls).toEqual([0, 1, 2].map((i) => mvPipRect(base, i)));
+    const short = { x: 0, y: 0, w: 1900, h: 820 };   // wider than 16:9, not wide enough for the side grid
+    for (const r of mvLayout(short, 3).smalls) expect(r.y + r.h).toBeLessThanOrEqual(short.h);
+  });
+
+  it("a pick into the big window replaces it - by a click or a drop, another service's too; nothing moves down, nothing closes (2026-10-15)", async () => {
+    const { rt, ops, rects } = await setup();
+    expect(JSON.parse(rt.videoMultiview("on"))).toMatchObject({ ok: true, on: true, windows: [{ tile: "screen", app: "hulu" }] });
+    await bigNetflix(rt);   // Netflix big, Hulu small
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf", "screen"]);
+    expect(rects.get("nf")).toEqual(BASE);
+    expect(JSON.parse(rt.videoServices()).screen).toMatchObject({ slot: "nf", app: "netflix" });   // the stage bar follows the big window
+    // a click on a Hulu title with the big window the target: Netflix gives way, Hulu's small window stays where it is
+    ops.length = 0;
+    rt.videoPlayOn("hu", "title", "h1", "https://www.hulu.com/watch/h1", "Shrinking");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.length).toBe(2);
+    expect(state(rt).windows[0]!.app).toBe("hulu");
+    expect(state(rt).windows.some((w) => w.app === "netflix")).toBe(false);
+    // ... and a drop on it: the same
+    rt.videoMultiview("drop", "0");
+    rt.videoPlayOn("nf", "title", "82", "https://www.netflix.com/watch/82", "Shadow");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.length).toBe(2);
+    expect(state(rt).windows[0]!.app).toBe("netflix");
+  });
+
+  it("a small window whose title played to its end closes; one paused partway stays (2026-10-15, YouTube's suggestions grid left up after a clip ended)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
+    const face = (playing: boolean, position: number) => rt.event(JSON.stringify({ type: "now-playing", id: "nf", info: { playing, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Grace", url: "https://www.netflix.com/watch/81", playing, position, duration: 185 } } }));
+    face(true, 60); await vi.advanceTimersByTimeAsync(1000);
+    face(false, 90);   // paused partway: a title still up, not empty
+    for (let i = 0; i < 12; i++) { face(false, 90); await vi.advanceTimersByTimeAsync(10_000); }
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+    face(true, 180); await vi.advanceTimersByTimeAsync(1000);
+    for (let i = 0; i < 3; i++) { face(false, 185); await vi.advanceTimersByTimeAsync(10_000); }   // at its end, the page still naming it
+    expect(state(rt).windows.some((w) => w.tile === "nf")).toBe(false);   // closed: the last small window gone, multiview ends as a closed window leaves it
+    expect(state(rt).on).toBe(false);
+  });
+
+  it("a pick into a small window holds its last frame until the player fills it, never longer than the cover's limit (2026-10-15, a Twitch page seen for four seconds)", async () => {
+    const { rt, ops } = await setup(undefined, { videoCmd: "/*cmd fullscreen*/" });
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+    // still loading (its player not yet filling it): no frame is taken - it would be the half-drawn page
+    ops.length = 0;
+    rt.videoMultiview("drop", "1");   // dropped on window 2
+    rt.videoPlayOn("nf", "title", "81b", "https://www.netflix.com/watch/81b", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ops.some((o) => o.id === "nf" && o.op === "freeze")).toBe(false);
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "nf", contains: true }));   // now it plays, filling the window
+    await vi.advanceTimersByTimeAsync(50);
+    ops.length = 0;
+    rt.videoMultiview("drop", "1");   // dropped on window 2
+    rt.videoPlayOn("nf", "title", "82", "https://www.netflix.com/watch/82", "Shadow");   // a second title dropped onto the small window
+    await vi.advanceTimersByTimeAsync(50);
+    const seq = ops.filter((o) => o.id === "nf" && (o.op === "freeze" || o.op === "navigate" || o.op === "reveal")).map((o) => o.op);
+    expect(seq.slice(0, 2)).toEqual(["freeze", "navigate"]);   // the frame is held before the address changes
+    expect(seq).not.toContain("reveal");
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "nf", contains: true }));   // the player fills the window
+    await vi.advanceTimersByTimeAsync(400);
+    expect(ops.filter((o) => o.id === "nf" && o.op === "reveal").length).toBe(1);
+    // a page that never fills (a sign-in, a gate): shown after the limit
+    ops.length = 0;
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "nf", contains: true }));
+    rt.videoMultiview("drop", "1");   // dropped on window 2
+    rt.videoPlayOn("nf", "title", "83", "https://www.netflix.com/watch/83", "Third");
+    await vi.advanceTimersByTimeAsync(16_000);
+    expect(ops.filter((o) => o.id === "nf" && o.op === "reveal").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("the stage keeper: a multiview window playing a title with its player out of its window is asked back; one filling it is left alone (2026-10-15)", async () => {
+    const { rt, ops } = await setup(undefined, { videoCmd: "/*cmd fullscreen*/" });
+    rt.videoMultiview("on");   // Hulu's screen slot is the big window; its page plays a title
+    const face = (playing: boolean) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Shrinking", url: "https://www.hulu.com/watch/h1", playing, position: 30, duration: 3000 } } }));
+    face(true); rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+    await vi.advanceTimersByTimeAsync(200_000);   // past any pick's own ask
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));
+    ops.length = 0;
+    for (let i = 0; i < 6; i++) { face(true); await vi.advanceTimersByTimeAsync(5000); }
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(false);   // on its stage: left alone
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: false }));   // something took the player out
+    for (let i = 0; i < 6; i++) { face(true); await vi.advanceTimersByTimeAsync(5000); }
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(true);
+  });
+
+  it("the stage keeper asks the page when the fullscreen mark stands too long: a mark the shell never took back is dropped and the window asked back (2026-10-15)", async () => {
+    const { rt, ops, drivers } = await setup(undefined, { videoCmd: "/*cmd fullscreen*/" });
+    let pageFs = true;
+    drivers.surface.evaluate = async () => JSON.stringify(pageFs);
+    rt.videoMultiview("on");
+    const face = () => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Shrinking", url: "https://www.hulu.com/watch/1" } } }));
+    face(); rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+    await vi.advanceTimersByTimeAsync(200_000);
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));
+    ops.length = 0;
+    for (let i = 0; i < 6; i++) { face(); await vi.advanceTimersByTimeAsync(5000); }
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(false);   // the page says fullscreen: left alone
+    pageFs = false;   // the player left fullscreen and the shell said nothing
+    for (let i = 0; i < 6; i++) { face(); await vi.advanceTimersByTimeAsync(5000); }
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(true);
+  });
+
+  it("Prism's loading mark (2026-10-16): a small window's pick shows it after a moment and drops it on play; a page that waits for data shows it, an ad does not", async () => {
+    const { rt, drivers } = await setup();
+    const marks: Array<[string, boolean]> = [];
+    drivers.surface.setLoading = (id: string, on: boolean) => void marks.push([id, on]);
+    rt.videoMultiview("on");
+    rt.videoMultiview("drop", "new");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(200);
+    expect(marks.length).toBe(0);   // not before the hold
+    await vi.advanceTimersByTimeAsync(900);
+    const w = state(rt).windows[1]!.tile;
+    expect(marks).toContainEqual([w, true]);
+    rt.event(JSON.stringify({ type: "now-playing", id: w, info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Grace", url: "https://www.netflix.com/watch/81" } } }));
+    rt.event(JSON.stringify({ type: "playback", id: w, playing: true }));
+    await vi.advanceTimersByTimeAsync(400);
+    expect(marks[marks.length - 1]).toEqual([w, false]);
+    marks.length = 0;
+    rt.event(JSON.stringify({ type: "buffering", id: w, on: true }));   // the page waits for data mid-play
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(marks).toContainEqual([w, true]);
+    rt.event(JSON.stringify({ type: "buffering", id: w, on: false }));
+    expect(marks[marks.length - 1]).toEqual([w, false]);   // gone at once
+    marks.length = 0;
+    rt.event(JSON.stringify({ type: "now-playing", id: w, info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Grace", url: "https://www.netflix.com/watch/81", ad: true } } }));
+    rt.event(JSON.stringify({ type: "buffering", id: w, on: true }));   // an ad waiting is the ad's, never Prism's mark
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(marks.some(([, on]) => on)).toBe(false);
+  });
+
+  it("the video viewer shows video or nothing: a window with no player up is under Prism's mark, never the service's own page; a gate the person must answer is not covered (2026-11-05)", async () => {
+    const { rt, drivers } = await setup();
+    const marks: Array<[string, boolean]> = [];
+    drivers.surface.setLoading = (id: string, on: boolean) => void marks.push([id, on]);
+    rt.videoMultiview("on");
+    const big = state(rt).windows[0]!.tile;
+    const say = (info: Record<string, unknown>) => rt.event(JSON.stringify({ type: "now-playing", id: big, info: { playing: false, title: "", artist: "", album: "", artwork: null, ...info } }));
+    say({ video: null });   // the service's search page on the big screen: no player
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(marks).toContainEqual([big, true]);
+    say({ playing: true, video: { kind: "title", title: "Grace", url: "https://www.netflix.com/watch/81" } });
+    rt.event(JSON.stringify({ type: "playback", id: big, playing: true }));
+    await vi.advanceTimersByTimeAsync(400);
+    expect(marks[marks.length - 1]).toEqual([big, false]);   // a player up: the picture shows
+  });
+
+  it("titles dropped on empty places one right after another each open their own window - none replaces the one still opening (2026-10-15)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("drop", "new");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    rt.videoMultiview("drop", "new");   // at once, before the first window's page is up
+    rt.videoPlayOn("nf", "title", "82", "https://www.netflix.com/watch/82", "Shadow");
+    await vi.advanceTimersByTimeAsync(50);
+    const wins = state(rt).windows;
+    expect(wins.length).toBe(3);
+    expect(wins.filter((w) => w.app === "netflix").length).toBe(2);
+    expect(wins[0]!.app).toBe("hulu");   // the big window untouched
+  });
+
+  it("a phone pick names its window as the PC's drag does - Watch's own target is untouched, and Clear asks the PC for its own X (2026-10-15)", async () => {
+    const { rt, drivers } = await setup();
+    const sent: Array<Record<string, unknown>> = [];
+    drivers.ui = { ...(drivers.ui ?? {}), videoPick: (title: string, service: string, poster: string | null, window?: number) => void sent.push({ op: "ui.videoPick", title, window: window ?? 0 }),
+      screenClear: (tile: string | null) => void sent.push({ op: "ui.screenClear", tile }),
+      fullScreen: (on: boolean) => void sent.push({ op: "ui.fullScreen", on }) } as never;
+    globalThis.PrismBridge = { dispatch: (j: string) => void sent.push(JSON.parse(j) as Record<string, unknown>), storeGet: () => null } as never;
+    try {
+      rt.mintPairing("http://prism");
+      await vi.advanceTimersByTimeAsync(50);
+      const token = sent.find((m) => m.op === "remote.pairing")?.token as string;
+      expect(token).toBeTruthy();
+      let n = 100;
+      const call = async (path: string, body?: Record<string, unknown>): Promise<Record<string, unknown>> => {
+        const id = ++n;
+        rt.http(id, JSON.stringify({ method: body ? "POST" : "GET", path, body: body ? JSON.stringify(body) : null, token }));
+        await vi.advanceTimersByTimeAsync(50);
+        const r = sent.find((m) => m.op === "http.response" && m.requestId === id);
+        return JSON.parse(String(r?.body ?? "null")) as Record<string, unknown>;
+      };
+      // + Window 2 from the phone with only the big screen up: multiview on, the pick opens window 2, the big screen as it was
+      expect((await call("/video/play", { facet: "nf", kind: "title", id: "81", url: "https://www.netflix.com/watch/81", name: "Grace", into: "new" })).ok).toBe(true);
+      expect(state(rt).windows.map((w) => w.app)).toEqual(["hulu", "netflix"]);
+      const pick = sent.filter((m) => m.op === "ui.videoPick").pop();
+      expect(pick?.window).toBe(1);
+      // the PC's Watch puts its target on the big window, as every redraw does; the phone's next pick names window 2 and lands there anyway
+      rt.videoMultiview("target", "0");
+      await call("/video/play", { facet: "hu", kind: "title", id: "h2", url: "https://www.hulu.com/watch/h2", name: "Hulu Two", into: 1 });
+      const s1 = state(rt);
+      expect(s1.windows.map((w) => w.app)).toEqual(["hulu", "hulu"]);
+      expect(s1.target).toBe(0);   // the PC's own target is the PC's
+      // a pick naming no window plays big
+      await call("/video/play", { facet: "nf", kind: "title", id: "82", url: "https://www.netflix.com/watch/82", name: "Big", into: 0 });
+      expect(sent.filter((m) => m.op === "ui.videoPick").pop()?.window).toBe(0);
+      // Clear on window 2: the PC is asked for its own X on that window; on a lone big screen, its Clear screens (null)
+      const w2 = state(rt).windows[1]!.tile;
+      expect((await call("/video/screens", { clear: 1 })).ok).toBe(true);
+      expect(sent.filter((m) => m.op === "ui.screenClear").pop()).toMatchObject({ tile: w2 });
+      expect((await call("/video/screens", { clear: 7 })).ok).toBe(false);
+      // Full screen from the phone (2026-10-31): the PC is asked for its own F11; the window's state shows in the screens answer, the PC's
+      // own report of it (a press at the PC counts) winning
+      expect((await call("/video/screens")).fullScreen).toBe(false);
+      expect((await call("/video/full-screen", { on: true })).ok).toBe(true);
+      expect(sent.filter((m) => m.op === "ui.fullScreen").pop()).toMatchObject({ on: true });
+      expect((await call("/video/screens")).fullScreen).toBe(true);
+      rt.event(JSON.stringify({ type: "window-fullscreen", id: "", on: false }));
+      expect((await call("/video/screens")).fullScreen).toBe(false);
+      expect((await call("/video/full-screen", { on: "yes" })).error).toBeTruthy();
+    } finally { delete (globalThis as { PrismBridge?: unknown }).PrismBridge; }
+  });
+
+  it("picks into small windows step along as Watch's Play into does - window 2, then a new window 3 - and the big window is untouched (2026-10-15)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");   // into window 2
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.length).toBe(2);
+    expect(state(rt).target).toBe(2);   // the next place, still empty: the next pick opens it
+    rt.videoPlayOn("nf", "title", "82", "https://www.netflix.com/watch/82", "Shadow");
+    await vi.advanceTimersByTimeAsync(50);
+    const wins = state(rt).windows;
+    expect(wins.length).toBe(3);
+    expect(wins[0]!.app).toBe("hulu");
+    expect(state(rt).target).toBe(3);
+    rt.videoMultiview("target", "0");   // the big window chosen again: the next pick replaces it, nothing is added
+    rt.videoPlayOn("nf", "title", "83", "https://www.netflix.com/watch/83", "Third");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.length).toBe(3);
+    expect(state(rt).windows[0]!.app).toBe("netflix");
+  });
+
+  it("swap trades the places of live pages - nothing is created, destroyed or navigated", async () => {
+    const { rt, ops, rects } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("swap")).windows.map((w: { tile: string }) => w.tile)).toEqual(["screen", "nf"]);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "create" || o.op === "destroy" || o.op === "navigate")).toEqual([]);
+    expect(rects.get("screen")).toEqual(BASE);
+    expect(rects.get("nf")).toEqual(mvPipRect(BASE, 0));
+  });
+
+  it("the sound stays with the big window: a pick into a small window plays there muted, and its own play signal takes nothing (2026-09-23)", async () => {
+    const { rt, muted, unmuted } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+    rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
+    rt.event(JSON.stringify({ type: "playback", id: "nf", playing: true }));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(muted.get("nf")).toBe(true);
+    expect(unmuted).not.toContain("nf");
+  });
+
+  it("drag out: a small window closes; the big one out, the next backfills it and plays on as the big screen, untouched (2026-09-23; 2026-09-25)", async () => {
+    const { rt, ops, rects } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+    // the big one out: Netflix is the one left - its own window plays on in the big place, never opened again (2026-09-25: moving it into the screen slot reloaded it)
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("remove", "screen"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf"]);
+    expect(rects.get("nf")).toEqual(BASE);
+    expect(ops.some((o) => o.op === "destroy" && o.id === "nf")).toBe(false);
+    expect(ops.some((o) => o.op === "navigate" && o.id === "nf")).toBe(false);
+  });
+
+  it("place: a window dragged onto another place trades places with the one there", async () => {
+    const { rt, rects } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(JSON.parse(rt.videoMultiview("place", "nf:0")).windows.map((w: { tile: string }) => w.tile)).toEqual(["nf", "screen"]);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(rects.get("nf")).toEqual(BASE);
+    expect(rects.get("screen")).toEqual(mvPipRect(BASE, 0));
+  });
+
+  it("a swap lifts the new big window's own player mute - once, when the big window changes (2026-09-23, Peacock silent after Swap)", async () => {
+    const { rt, ops } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    ops.length = 0;
+    rt.videoMultiview("swap");
+    await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "inject" && o.js === UNMUTE_PLAYER_JS).map((o) => o.id)).toEqual(["screen"]);
+    ops.length = 0;
+    rt.videoMultiview("place", "screen:0");   // already big: nothing changes hands, nothing is un-muted
+    await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "inject" && o.js === UNMUTE_PLAYER_JS)).toEqual([]);
+  });
+
+  it("the tile with the sound, playing a title, has its page's own mute lifted once per title - a restored big window too (B-292)", async () => {
+    const { rt, ops } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("swap"); await vi.advanceTimersByTimeAsync(20);
+    rt.videoMultiview("swap"); await vi.advanceTimersByTimeAsync(20);   // Netflix big again, with the sound, its page up
+    ops.length = 0;
+    const report = (url: string) => rt.event(JSON.stringify({ type: "now-playing", id: "nf", info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Grace", url, playing: true, position: 5, duration: 3000 } } }));
+    report("https://www.netflix.com/watch/81"); await vi.advanceTimersByTimeAsync(20);
+    report("https://www.netflix.com/watch/81"); await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "inject" && o.id === "nf" && o.js === UNMUTE_PLAYER_JS).length).toBe(1);
+    report("https://www.netflix.com/watch/82"); await vi.advanceTimersByTimeAsync(20);   // the next title: once more
+    expect(ops.filter((o) => o.op === "inject" && o.id === "nf" && o.js === UNMUTE_PLAYER_JS).length).toBe(2);
+    // a small window playing never has its player touched
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Paradise", url: "https://www.hulu.com/watch/h1", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(ops.filter((o) => o.op === "inject" && o.id === "screen" && o.js === UNMUTE_PLAYER_JS)).toEqual([]);
+  });
+
+  it("the quick change: a pick with small window 2 named lands there and the big window stays", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    expect(JSON.parse(rt.videoMultiview("target", "1")).target).toBe(1);
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+  });
+
+  it("off hides the small windows: nothing reloads, the big one is untouched, the small ones pause and leave the wall; on brings them back playing", async () => {
+    const { rt, ops, rects } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));   // the one that went small plays on
+    await vi.advanceTimersByTimeAsync(20);
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("off"))).toMatchObject({ ok: true, on: false });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ops.filter((o) => o.op === "create" || o.op === "destroy" || o.op === "navigate")).toEqual([]);
+    expect(rects.get("nf")).toEqual(BASE);
+    expect(rects.get("screen")!.x).toBeLessThan(0);
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes("pause"))).toBe(true);
+    expect(ops.some((o) => o.op === "inject" && o.id === "nf" && String(o.js).includes("pause"))).toBe(false);
+    expect(JSON.parse(rt.videoServices()).screen).toMatchObject({ slot: "nf" });   // the stage bar stays with the big one
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("on"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(rects.get("screen")).toEqual(mvPipRect(BASE, 0));
+    expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes("play"))).toBe(true);
+    expect(JSON.parse(rt.videoMultiview("state")).on).toBe(true);
+  });
+
+  it("close ends multiview: the small windows close; the big one stays - in the screen slot, at the title it was playing", async () => {
+    const { rt, ops } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    rt.event(JSON.stringify({ type: "navigated", id: "nf", url: "https://www.netflix.com/watch/81" }));
+    await vi.advanceTimersByTimeAsync(20);
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("close"))).toMatchObject({ ok: true, on: false });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ops.some((o) => o.op === "destroy" && o.id === "nf")).toBe(true);
+    expect(JSON.parse(rt.videoServices()).screen).toMatchObject({ slot: "screen", app: "netflix" });
+  });
+
+  it("the TV off and on again: a restart brings back multiview, its windows in their places, each at the title it had up", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.videoMultiview("on");
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "The Rookie", title: "Pilot", playing: true } } }));
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
+    rt.event(JSON.stringify({ type: "navigated", id: "nf", url: "https://www.netflix.com/watch/81" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "nf", info: { playing: true, video: { kind: "movie", title: "Grace", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf", "screen"]);
+    // the wall closes; a new process boots on the same store, with the document the store kept
+    const b = rig(kv);
+    const rt2 = createRuntime(b.drivers);
+    const adapters = { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } };
+    rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt2)).toMatchObject({ on: true, windows: [{ tile: "nf" }, { tile: "screen" }] });
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "nf")?.url).toBe("https://www.netflix.com/watch/81");
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/watch/abc");
+    expect(b.rects.get("nf")).toEqual(BASE);
+    expect(b.rects.get("screen")).toEqual(mvPipRect(BASE, 0));
+    const vs = JSON.parse(rt2.videoState()) as Array<{ id: string; pending: { name: string } | null }>;
+    expect(vs.find((t) => t.id === "nf")?.pending?.name).toBe("Grace");   // Watch sees a title on its way and stays down
+  });
+
+  it("a title brought back after a restart is taken to the spot it had reached by its service's seek; one that resumed by itself is left alone (2026-09-28, Silo)", async () => {
+    for (const [startsAt, seeks] of [[4, true], [1190, false]] as const) {
+      const kv = new Map<string, string>();
+      const { rt } = await setup(kv, { videoSeek: "/*seek*/" });
+      rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+      for (const pos of [600, 1200]) {
+        rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "Who Are You", playing: true, position: pos, duration: 3600 } } }));
+        await vi.advanceTimersByTimeAsync(50);
+      }
+      expect(Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"))).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Silo", pos: 1200 }]);
+      const b = rig(kv);
+      const rt2 = createRuntime(b.drivers);
+      rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoSeek: "/*seek*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+      await vi.advanceTimersByTimeAsync(3_000);
+      rt2.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));   // the restored title starts: the wall's own doing, not a person's
+      rt2.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "Who Are You", playing: true, position: startsAt, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(5_000);
+      const seek = b.ops.filter((o) => o.op === "inject" && /__prismVideoSeek[(]/.test(String(o.js)));
+      expect(seek.map((o) => String(o.js).match(/__prismVideoSeek[(]([0-9.]+)[)]/)?.[1])).toEqual(seeks ? ["1200"] : []);
+    }
+  });
+
+  it("the episode the player names wins over a page still naming the one before: the report and what a restart loads follow the player (2026-09-28, Silo)", async () => {
+    const kv = new Map<string, string>();
+    const ep = (e: number, title: string) => ({ season: 3, episode: e, title, id: "e" + e, url: "https://www.hulu.com/watch/e" + e, synopsis: null, still: null, duration: null });
+    kv.set("video:episode-lists", JSON.stringify({ "hulu|silo": { at: Date.now(), source: "service", series: "Silo", seasons: [{ season: 3, label: "Season 3", episodes: [ep(1, "Who Are You?"), ep(2, "It's All Good")] }] } }));
+    const { rt } = await setup(kv);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/e1" }));
+    const say = (title: string, pos: number) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, title, video: { kind: "episode", series: "Silo", title: "Who Are You?", season: 3, episode: 1, id: "e1", url: "https://www.hulu.com/watch/e1", playing: true, position: pos, duration: 3600 } } }));
+    say("Who Are You?", 3200); await vi.advanceTimersByTimeAsync(50);
+    say("It’s All Good", 845); await vi.advanceTimersByTimeAsync(50);   // the player rolled on; the page did not
+    const v = (JSON.parse(rt.videoState()) as Array<{ id: string; video: Record<string, unknown> }>).find((t) => t.id === "screen")!.video;
+    expect(v).toMatchObject({ title: "It's All Good", season: 3, episode: 2, id: "e2" });
+    expect(Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"))).toEqual([{ url: "https://www.hulu.com/watch/e2", name: "Silo", pos: 845 }]);
+    say("Silo", 900); await vi.advanceTimersByTimeAsync(50);   // a player naming the show only: nothing corrected
+    expect((JSON.parse(rt.videoState()) as Array<{ id: string; video: Record<string, unknown> }>).find((t) => t.id === "screen")!.video).toMatchObject({ title: "Who Are You?", episode: 1 });
+  });
+
+  it("a live channel on a service that tunes by its own walk comes back as the channel: its home loaded, the tune asked once it is up (2026-09-29, Peacock)", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv, { videoTune: "/*tune*/" });
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/live/4928" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "live", series: "Funniest Videos", title: "S7 E1", channel: "Funniest Videos", id: "4928", url: "https://www.hulu.com/live/4928", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"))).toEqual([{ url: "https://www.hulu.com/live/4928", name: "Funniest Videos", tune: "Funniest Videos" }]);
+    const b = rig(kv);
+    const rt2 = createRuntime(b.drivers);
+    rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoTune: "/*tune*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/hub/home");   // its home, not the live address
+    rt2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('__prismVideoTune("Funniest Videos")'))).toBe(true);
+    const st = (JSON.parse(rt2.videoState()) as Array<{ id: string; pending: { name: string; kind: string } | null }>).find((t) => t.id === "screen")!;
+    expect(st.pending).toMatchObject({ name: "Funniest Videos", kind: "live" });
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(b.ops.filter((o) => o.op === "navigate" && o.id === "screen").length).toBe(1);   // no second address: the walk is the tune's
+  });
+
+  it("the spot after a restart is never forced on a person who pressed on the page, nor on another title (2026-09-28 review)", async () => {
+    for (const between of ["press", "other"] as const) {
+      const kv = new Map<string, string>();
+      const { rt } = await setup(kv, { videoSeek: "/*seek*/" });
+      rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+      rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "Who Are You", playing: true, position: 1200, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      const b = rig(kv);
+      const rt2 = createRuntime(b.drivers);
+      rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoSeek: "/*seek*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+      await vi.advanceTimersByTimeAsync(50);
+      if (between === "press") { rt2.event(JSON.stringify({ type: "interaction", id: "screen" })); rt2.event(JSON.stringify({ type: "playback", id: "screen", playing: true })); }
+      const video = between === "press" ? { series: "Silo", title: "Who Are You" } : { series: "Severance", title: "Good News About Hell" };
+      rt2.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", ...video, playing: true, position: 4, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(b.ops.filter((o) => o.op === "inject" && /__prismVideoSeek[(]/.test(String(o.js)))).toEqual([]);
+    }
+  });
+
+  it("a title brought back that never starts gets its own address once more; one that plays is left alone", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    for (const [id, url, title] of [["screen", "https://www.hulu.com/watch/abc", "Pilot"], ["nf", "https://www.netflix.com/watch/81", "Grace"]] as const) {
+      rt.event(JSON.stringify({ type: "navigated", id, url }));
+      rt.event(JSON.stringify({ type: "now-playing", id, info: { playing: true, video: { kind: "movie", title, playing: true } } }));
+    }
+    await vi.advanceTimersByTimeAsync(50);
+    const b = rig(kv);
+    const rt2 = createRuntime(b.drivers);
+    rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    for (const id of ["screen", "nf"]) rt2.event(JSON.stringify({ type: "load-finished", id, ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    rt2.event(JSON.stringify({ type: "playback", id: "nf", playing: true }));   // Netflix started; Hulu sits on its ad loader
+    b.ops.length = 0;
+    await vi.advanceTimersByTimeAsync(46_000);
+    const again = b.ops.filter((o) => o.op === "navigate");
+    expect(again.map((o) => o.id)).toEqual(["screen"]);
+    expect(again[0]!.url).toBe("https://www.hulu.com/watch/abc");
+  });
+
+  it("a title brought back whose address waits for a Play press has its service's Play pressed; one that plays is not (2026-09-25, Foundation)", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    for (const [id, url, title] of [["screen", "https://www.hulu.com/watch/abc", "Pilot"], ["nf", "https://www.netflix.com/watch/81", "Grace"]] as const) {
+      rt.event(JSON.stringify({ type: "navigated", id, url }));
+      rt.event(JSON.stringify({ type: "now-playing", id, info: { playing: true, video: { kind: "movie", title, playing: true } } }));
+    }
+    await vi.advanceTimersByTimeAsync(50);
+    const b = rig(kv);
+    const rt2 = createRuntime(b.drivers);
+    rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoPlay: "/*p*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/", videoPlay: "/*p*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    for (const id of ["screen", "nf"]) rt2.event(JSON.stringify({ type: "load-finished", id, ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    rt2.event(JSON.stringify({ type: "playback", id: "nf", playing: true }));   // Netflix plays by itself; Hulu's page waits for Play
+    b.ops.length = 0;
+    await vi.advanceTimersByTimeAsync(9_000);
+    const presses = b.ops.filter((o) => o.op === "inject" && String(o.js).includes("__prismVideoPlay("));
+    expect(presses.map((o) => o.id)).toEqual(["screen"]);
+    expect(String(presses[0]!.js)).toContain("https://www.hulu.com/watch/abc");
+  });
+
+  it("a title left paused comes back paused even when its page waits for the restore's Play press; a person's press lets it play (2026-10-23, Silo)", async () => {
+    for (const person of [false, true]) {
+      const kv = new Map<string, string>();
+      const { rt } = await setup(kv);
+      rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+      rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: true, position: 1980, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: false, position: 1990, duration: 3600 } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      expect(Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"))).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Silo", pos: 1990, paused: true }]);
+      const b = rig(kv);
+      const rt2 = createRuntime(b.drivers);
+      rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoPlay: "/*p*/", videoCmd: "/*cmd*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+      await vi.advanceTimersByTimeAsync(50);
+      rt2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+      await vi.advanceTimersByTimeAsync(9_000);   // the page waits for Play: the restore presses it
+      expect(b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes("__prismVideoPlay("))).toBe(true);
+      if (person) rt2.event(JSON.stringify({ type: "interaction", id: "screen" }));
+      rt2.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Silo", title: "It's All Good", playing: true, position: 1990, duration: 3600 } } }));
+      b.ops.length = 0;
+      rt2.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+      await vi.advanceTimersByTimeAsync(1_000);
+      const paused = b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('"pause"'));
+      expect(paused).toBe(!person);
+    }
+  });
+
+  it("a video service's page draws no browser controls: the wall's rule rides its adapter's css (2026-09-25, Apple TV's fullscreen <video>)", async () => {
+    const { rt, ops } = await setup();
+    ops.length = 0;
+    rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(20);
+    const withCss = ops.filter((o) => o.op === "inject" && o.id === "screen" && typeof (o as { css?: unknown }).css === "string");
+    const css = withCss.map((o) => String((o as { css?: unknown }).css)).join(" ");
+    expect(css).toContain("video::-webkit-media-controls-panel");
+    expect(css).toContain("video::-webkit-media-controls-overlay-play-button");
+    // never the wrapper itself: Chromium keeps the browser's caption box inside it (B-455, 2026-10-29, Apple TV's English CC hidden with the controls)
+    expect(css).not.toMatch(/video::-webkit-media-controls\s*[,{]/);
+  });
+
+  it("a cleared screen's service is read again soon, and until the title reaches its Continue Watching (2026-09-26, Schitt's Creek)", async () => {
+    const { rt, ops } = await setup(undefined, { videoLibrary: "/*LIB*/", videoListUrl: "https://www.hulu.com/my-stuff" });
+    rt.videoRefreshStale();   // the services named to core (Watch open)
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "Schitt's Creek", title: "Pilot", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(200);
+    ops.length = 0;
+    rt.videoMultiview("clearAll");
+    await vi.advanceTimersByTimeAsync(11_000);
+    const reads = () => ops.filter((o) => o.op === "navigate" && String(o.id) === "app:hulu:lookup").length;
+    expect(reads()).toBeGreaterThan(0);   // read within ten seconds of the clear
+    const first = reads();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(reads()).toBeGreaterThan(first);   // not on the row yet: read again
+  });
+
+  it("a pause from the wall keeps the picture in its window: a player that leaves fullscreen for its pause screen goes back; one left without a pause stays", async () => {
+    const { rt, ops } = await setup();
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));
+    await vi.advanceTimersByTimeAsync(20);
+    const stageAsks = () => ops.filter((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes("__prismStageTry")).length;
+    await rt.tileCommand("screen", "pause");
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: false }));   // Paramount+'s pause screen
+    await vi.advanceTimersByTimeAsync(700);
+    expect(stageAsks()).toBe(1);
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: true }));
+    await vi.advanceTimersByTimeAsync(20);
+    rt.event(JSON.stringify({ type: "fullscreen-element", id: "screen", contains: false }));   // left later, not by a pause
+    await vi.advanceTimersByTimeAsync(700);
+    expect(stageAsks()).toBe(1);
+  });
+
+  it("a pause the wall was asked for holds once: a page that plays again by itself is paused again; a Play from the wall is left playing", async () => {
+    const { rt, ops } = await setup();
+    const pauses = () => ops.filter((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('__prismVideoCmd("pause")')).length;
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+    await vi.advanceTimersByTimeAsync(20);
+    await rt.tileCommand("screen", "pause");
+    await vi.advanceTimersByTimeAsync(20);
+    const first = pauses();
+    expect(first).toBeGreaterThan(0);
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: false }));
+    await vi.advanceTimersByTimeAsync(10_000);
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));   // Hulu, by itself
+    await vi.advanceTimersByTimeAsync(20);
+    expect(pauses()).toBe(first * 2);
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));   // again: not fought
+    await vi.advanceTimersByTimeAsync(20);
+    expect(pauses()).toBe(first * 2);
+    await rt.tileCommand("screen", "play");
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+    await vi.advanceTimersByTimeAsync(20);
+    expect(pauses()).toBe(first * 2);
+  });
+
+  it("a title closed before the wall was is not brought back - the service's home comes up", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", series: "The Rookie", title: "Pilot", playing: true } } }));
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/hub/home" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, video: null } }));
+    await vi.advanceTimersByTimeAsync(50);
+    const b = rig(kv);
+    const rt2 = createRuntime(b.drivers);
+    rt2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/hub/home");
+    expect(state(rt2).on).toBe(false);
+  });
+
+  it("only windows in the order count: a stray floating video window leaves the scene, nothing drawn behind the windows (2026-09-23, a 5th behind #2)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    // a floating Netflix window the order never took - left by an older build, or a scene edited by hand
+    const scene = () => (JSON.parse(rt.modelState()).scenes as Array<{ id: string; floating?: Array<{ facet: string }> }>).find((x) => x.id === "movie-night-1")!;
+    const sc = scene();
+    expect(JSON.parse(rt.modelSaveScene(JSON.stringify({ ...sc, floating: [{ facet: "nf", anchor: "top-right", size: 0.24, face: "page" }] }))).ok).toBe(true);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen"]);   // not a window: the state already leaves it out ...
+    await vi.advanceTimersByTimeAsync(50);
+    expect((scene().floating ?? []).map((f) => f.facet)).toEqual([]);   // ... and it has left the scene
+    // a pick on Netflix now opens it as a window of the order, once
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf", "screen"]);
+    expect((scene().floating ?? []).filter((f) => f.facet === "nf")).toHaveLength(1);
+  });
+
+  it("a title brought back that still never starts after its second address is given up and forgotten: the next boot brings the service's home (2026-09-23, Apple's Hijack)", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "movie", title: "Pilot", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(kv.get("video:up:wall")).toContain("/watch/abc");
+    const boot = () => {
+      const b = rig(kv);
+      const r2 = createRuntime(b.drivers);
+      r2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+      return { b, r2 };
+    };
+    const one = boot();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(one.b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/watch/abc");
+    one.r2.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(91_000);   // the second address at 45 s, and still nothing at 90 s
+    const vs = JSON.parse(one.r2.videoState()) as Array<{ id: string; pending: { failed?: string } | null }>;
+    expect(vs.find((t) => t.id === "screen")?.pending?.failed).toMatch(/did not start/);
+    expect(kv.get("video:up:wall") ?? "{}").not.toContain("/watch/abc");
+    const two = boot();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(two.b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/hub/home");
+  });
+
+  it("only a title that played is brought back: a page on a title's address that never played is not (2026-09-23)", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false, video: { kind: "movie", title: "Pilot", playing: false, position: 0 } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(kv.get("video:up:wall") ?? "{}").not.toContain("/watch/abc");
+    const b = rig(kv);
+    const r2 = createRuntime(b.drivers);
+    r2.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/hub/home");
+  });
+
+  it("a small window with no video closes after 45 s, the ones after it moving up; a pick still loading is kept (2026-09-24, \"Its not supposed to show any of them if not assigned a video\")", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");   // Netflix to the big window; Hulu's home page moves down, playing nothing
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);   // not yet
+    await vi.advanceTimersByTimeAsync(20_000);
+    // the empty window is gone; Netflix's pick, still loading, stays - alone in the big place, as it was (2026-09-25)
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix"]);
+  });
+
+  it("a small window in an ad break is not empty, however long the break; once it ends and nothing plays, the 45 s count begins (2026-09-28, the Live tab)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");   // Hulu's window moves down, its page naming nothing
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
+    rt.event(JSON.stringify({ type: "ad-break", id: "screen", active: true }));   // ... in a long break
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    rt.event(JSON.stringify({ type: "ad-break", id: "screen", active: false }));
+    await vi.advanceTimersByTimeAsync(50_000);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix"]);
+  });
+
+  it("a channel window that goes quiet is tuned once more before it is closed (2026-10-09, \"What happened to window 5?\")", async () => {
+    const { rt, ops } = await setup(undefined, { videoTune: "/*tune*/" });
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");   // Netflix added as window 2, then placed big (2026-10-15: a pick into the big window replaces it)
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");   // Netflix big; Hulu's window small
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("place", "nf:0"); rt.videoMultiview("target", "0");
+    rt.videoMultiview("target", "1");
+    expect(JSON.parse(rt.videoTune("hu", "cbs-news", "https://www.hulu.com/live/cbs-news", "CBS News"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    const hulu = state(rt).windows.find((w) => w.app === "hulu")!.tile;
+    rt.event(JSON.stringify({ type: "playback", id: hulu, playing: true }));
+    rt.event(JSON.stringify({ type: "now-playing", id: hulu, info: { playing: true, title: "CBS News", artist: "CBS News", video: { kind: "live", id: "cbs-news", title: "CBS News" } } }));
+    await vi.advanceTimersByTimeAsync(70_000);   // past the pick's clock, playing
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    // the channel goes quiet: nothing named, nothing playing
+    rt.event(JSON.stringify({ type: "playback", id: hulu, playing: false }));
+    rt.event(JSON.stringify({ type: "now-playing", id: hulu, info: null }));
+    ops.length = 0;
+    await vi.advanceTimersByTimeAsync(55_000);
+    // not closed: tuned again (the adapter's tune is called on the page)
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix", "hulu"]);
+    expect(ops.some((o) => o.op === "inject" && o.id === hulu && String(o.js ?? "").includes("__prismVideoTune"))).toBe(true);
+    // the tune does not take either: the window is given up, once, and no second tune is tried
+    ops.length = 0;
+    await vi.advanceTimersByTimeAsync(130_000);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["netflix"]);
+    expect(ops.filter((o) => o.op === "inject" && o.id === hulu && String(o.js ?? "").includes("__prismVideoTune")).length).toBe(0);
+  });
+
+  it("a second window of a service leaves the first one alone: not closed, not opened again (2026-09-25, Apple TV)", async () => {
+    const { rt, ops } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("hu", "title", "h2", "https://www.hulu.com/watch/h2", "Two");
+    await vi.advanceTimersByTimeAsync(50);
+    ops.length = 0;
+    rt.videoMultiview("target", "2");
+    rt.videoPlayOn("hu", "title", "h3", "https://www.hulu.com/watch/h3", "Three");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(ops.filter((o) => o.id === "hu" && (o.op === "destroy" || o.op === "create" || o.op === "navigate")).map((o) => o.op)).toEqual([]);
+  });
+
+  it("one service in several windows: a Hulu title dropped on window 2 and another on window 3 open two more Hulu windows, copies of its facet; clearing one removes its copy (2026-09-24)", async () => {
+    const { rt } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("hu", "title", "h2", "https://www.hulu.com/watch/h2", "Two");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.videoMultiview("target", "2");
+    rt.videoPlayOn("hu", "title", "h3", "https://www.hulu.com/watch/h3", "Three");
+    await vi.advanceTimersByTimeAsync(50);
+    const s = state(rt);
+    expect(s.windows.map((w) => w.app)).toEqual(["hulu", "hulu", "hulu"]);
+    expect(s.windows.map((w) => w.tile)).toEqual(["screen", "hu", "hu-w2"]);
+    const facets = () => (JSON.parse(rt.modelState()) as { facets: Array<{ id: string }> }).facets.map((f) => f.id);
+    expect(facets()).toContain("hu-w2");
+    rt.videoMultiview("remove", "hu-w2");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "hu"]);
+    expect(facets()).not.toContain("hu-w2");
+    // the same service on the target place: the title plays in that window, nothing new opens
+    rt.videoMultiview("target", "1");
+    expect(JSON.parse(rt.videoPlayOn("hu", "title", "h4", "https://www.hulu.com/watch/h4", "Four"))).toMatchObject({ ok: true, tile: "hu" });
+  });
+
+  it("Clear screens: every small window closes and multiview ends; with one screen it still answers (2026-09-24, \"clear all the video screens even if only 1 is playing\")", async () => {
+    const { rt, ops } = await setup();
+    rt.videoMultiview("on");
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.length).toBe(2);
+    expect(JSON.parse(rt.videoMultiview("clearAll"))).toMatchObject({ ok: true, cleared: true, on: false });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).on).toBe(false);
+    ops.length = 0;
+    expect(JSON.parse(rt.videoMultiview("clearAll"))).toMatchObject({ ok: true, cleared: true, on: false });   // single screen: nothing to close, still fine
+    await vi.advanceTimersByTimeAsync(50);
+    // the screen's page leaves the title for its service's home, so its next report cannot bring the title back (2026-09-25)
+    expect(ops.some((o) => o.op === "navigate" && o.id === "screen")).toBe(true);
+  });
+
+  it("back to start: past 5 s the title starts again; in its first 5 s an episode plays the one before (2026-09-24)", async () => {
+    const { rt, ops } = await setup(undefined, { videoEpisodeNumber: "/*ep*/" });
+    const report = (position: number, season: number, episode: number) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", title: "Pilot", series: "Parks and Recreation", season, episode, position, duration: 1300 } } }));
+    report(120, 2, 3);
+    await vi.advanceTimersByTimeAsync(10);
+    ops.length = 0;
+    expect(JSON.parse(rt.videoStartOver()).did).not.toBe("previous");   // two minutes in: back to the start, never the episode before
+    expect(ops.some((o) => o.op === "inject" && String(o.js).includes("__prismVideoEpisodeNumber"))).toBe(false);
+    report(2, 2, 3);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(JSON.parse(rt.videoStartOver())).toMatchObject({ ok: true, did: "previous", season: 2, episode: 2 });
+    expect(ops.some((o) => o.op === "inject" && String(o.js).includes("__prismVideoEpisodeNumber(2, 2)"))).toBe(true);
+    report(1, 2, 1);   // the season's first episode, the season before not listed yet: the start
+    await vi.advanceTimersByTimeAsync(10);
+    expect(JSON.parse(rt.videoStartOver()).did).not.toBe("previous");
+  });
+});
+
+describe("a service's own limit on streams at once (2026-09-29)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("a window past the service's cap is refused in words, before it is made; one that gives way does not count", async () => {
+    const { rt } = await setup(undefined, { maxStreams: 2, videoTune: "/*tune*/" });
+    rt.videoMultiview("on");                       // the big window: Hulu, one stream
+    rt.videoMultiview("target", "1");
+    expect(JSON.parse(rt.videoTune("hu", "cbs-news", "https://www.hulu.com/live/cbs-news", "CBS News"))).toMatchObject({ ok: true, multiview: true });   // two
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["hulu", "hulu"]);
+    rt.videoMultiview("target", "2");
+    const third = JSON.parse(rt.videoTune("hu", "cbs-sports", "https://www.hulu.com/live/cbs-sports", "CBS Sports"));
+    expect(third).toMatchObject({ ok: false, error: "Hulu plays 2 at once on one account. Close one of its windows first" });
+    expect(state(rt).windows.length).toBe(2);
+    // a service with no cap the wall knows of: as many as multiview allows
+    expect(JSON.parse(rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace"))).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.app)).toEqual(["hulu", "hulu", "netflix"]);
+    // the Netflix window in place 2 giving way to Hulu would make Hulu's third: refused; a Hulu window giving way keeps Hulu at two: allowed
+    rt.videoMultiview("target", "2");
+    expect(JSON.parse(rt.videoTune("hu", "cbs-sports", "https://www.hulu.com/live/cbs-sports", "CBS Sports"))).toMatchObject({ ok: false });
+    rt.videoMultiview("target", "1");
+    expect(JSON.parse(rt.videoTune("hu", "cbs-sports", "https://www.hulu.com/live/cbs-sports", "CBS Sports"))).toMatchObject({ ok: true });
+  });
+  it("a phone listens to a small window (2026-10-05): it takes the audio while the big one stays big; null gives it back; a swap keeps the choice", async () => {
+    const { rt, muted } = await setup();
+    rt.videoMultiview("on");
+    await bigNetflix(rt);   // Netflix big, Hulu small (2026-10-15: a pick into the big window replaces it, so it is added and placed)
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf", "screen"]);
+    rt.event(JSON.stringify({ type: "now-playing", id: "nf", info: { playing: true, video: { kind: "movie", id: "81", title: "Grace", url: "https://www.netflix.com/watch/81", playing: true, ad: false } } }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "episode", id: "e1", title: "Ep One", series: "Show", url: "https://www.hulu.com/watch/e1", playing: true, ad: false } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(rt.listenWindow).toBeDefined();
+    const r = JSON.parse(await rt.listenWindow("screen")) as { result: string; tile: string | null };
+    expect(r).toMatchObject({ result: "ok", tile: "screen" });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(muted.get("screen")).toBe(false);   // the small window has the audio
+    expect(muted.get("nf")).toBe(true);        // the big one is quiet
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["nf", "screen"]);   // and still big
+    // a swap: the chosen window keeps the sound, whichever is big
+    rt.videoMultiview("swap");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(state(rt).windows.map((w) => w.tile)).toEqual(["screen", "nf"]);
+    expect(muted.get("screen")).toBe(false);
+    // the choice cleared (the last phone gone): the big window again
+    expect(JSON.parse(await rt.listenWindow(null))).toMatchObject({ result: "ok", tile: null });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(muted.get("screen")).toBe(false);   // screen is the big one now
+    rt.videoMultiview("swap");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(muted.get("nf")).toBe(false); expect(muted.get("screen")).toBe(true);   // the sound follows the big window as ever
+  });
+});
+
+describe("mvLayout in a slot much taller than 16:9 (2026-10-06, the window made narrow)", () => {
+  it("puts the big window across the top and the small ones in the largest grid below", async () => {
+    const { mvLayout } = await import("../src/orchestrator.js");
+    const l = mvLayout({ x: 4, y: 4, w: 1265, h: 1340 }, 4);
+    expect(l.hero).toEqual({ x: 4, y: 4, w: 1265, h: 712 });
+    expect(l.smalls).toHaveLength(4);
+    for (const s of l.smalls) { expect(s.w).toBeGreaterThan(500); expect(s.y).toBeGreaterThanOrEqual(4 + 712); expect(s.y + s.h).toBeLessThanOrEqual(4 + 1340); }
+    expect(new Set(l.smalls.map((s) => s.x)).size).toBe(2);   // two columns
+  });
+});

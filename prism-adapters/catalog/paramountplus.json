@@ -1,0 +1,25 @@
+{
+  "id": "paramountplus",
+  "name": "Paramount+",
+  "url": "https://www.paramountplus.com/",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "software",
+    "evidence": "docs/reports/video-drm-matrix.md - signed in, 2026-09-19: PlayReady SW_SECURE_DECODE (2000), Widevine SW_SECURE_DECODE; an episode served 960x540 (Colin from Accounts S1E1), the movie page's 86 s stream 1280x720. SOFTWARE: embedded."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "Sign in inside the tile; sessions persist (§10). The veil extension's Paramount+ pause-panel/ad handling is Chromium-extension work; host intermission arrives with M3.",
+  "adapter": "paramountplus"
+}

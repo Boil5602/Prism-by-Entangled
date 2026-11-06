@@ -1,0 +1,234 @@
+# Prism for Windows — Host Shell Specification v0.1
+
+*The Phase-1 flagship: a native Windows app hosting web tiles in WebView2, running prism-core, rendering the §26 veil at the compositor level. Confirmed by POCs 1–2 (Netflix + Hulu embedded, simultaneous DRM playback, host overlay over protected video, page-invisible mute).*
+
+This document specifies only what is Windows-specific. All behavior lives in `docs/dashboard-schema.md` (§1–§30) and is referenced, not restated.
+
+---
+
+## 1. Scope & non-goals
+
+**In scope (v1):** dashboard rendering from schema (§1–§9), hero layouts (§8), tile lifecycle (§16/§18), region focus (§17), intermission + veils + popups (§26/§27/§30), audio focus + private listening (§3/§14), remotes + phone pairing (§6/§11), schedules/night/alarm (§4/§24), living previews (§25), updates (§28), kiosk profile, Optimizer hook.
+**Non-goals (v1):** VPN (§21) — interface stubbed; Photos (concept doc); TV launch tiles beyond the Edge-window hand-off; Linux/Android anything.
+
+## 2. Process architecture
+
+```
+PrismHost.exe (WinUI 3, .NET 8, x64/ARM64)
+├─ Core runtime: prism-core (TypeScript) hosted in a headless WebView2
+│  "brain" instance — core decides everything; host executes via the seam
+├─ Tile surfaces: one WebView2 control per live tile (Evergreen runtime;
+│  never Fixed — it lacks PlayReady), each bound to its own user-data folder
+├─ Composition layer: host-owned Win2D/Composition visuals ABOVE all tiles
+│  (veils, seams, pill, intermission card, snapshots during transitions)
+├─ Services: audio (WASAPI loopback + per-control IsMuted), display
+│  (brightness/power/HDCP status), input (raw keyboard/HID + BT pairing UI),
+│  remote API (local HTTP/WS server), updater, watchdog IPC
+└─ PrismWatchdog.exe (tiny): restarts the host on crash/hang; kiosk-only
+```
+
+Core ↔ host messaging: one JSON channel (`PostWebMessageAsJson` / `WebMessageReceived`) carrying seam commands and events. No host logic decides layout, audio policy, lifecycle, or veil state — ever. The conformance kit (§23) tests this boundary.
+
+## 3. Driver seam → WebView2 mapping
+
+| Seam op | Implementation | Notes |
+|---|---|---|
+| `Surface.create(profile)` | new `WebView2` with `CoreWebView2Environment` per user-data folder | folder path = `%LOCALAPPDATA%\Prism\profiles\<profileId>`; never deleted except by explicit user action (§10) |
+| `setRect/opacity/z` | control bounds via layout host; z via visual tree order | animations rendered by composition layer, not per-frame control resize (§16 motion) |
+| `navigate(url)` | `CoreWebView2.Navigate` | readiness = `NavigationCompleted` + first paint (`DOMContentLoaded` + injected `frame.ready()` / paint-settle timer) |
+| `inject(css,js)` | `AddScriptToExecuteOnDocumentCreatedAsync` (JS) + injected style tag | adapters delivered from the adapter store; re-inject on SPA navigation via `SourceChanged` |
+| `snapshot()` | `CapturePreviewAsync` → bitmap | DRM regions return black: composition layer treats last-good snapshot as opaque during transitions (§16) |
+| `setMuted` | `CoreWebView2.IsMuted` | page-invisible (verified) — this is the §26 mute path |
+| `captureAudio` | WASAPI loopback of the process audio session | feeds §14 mix → WebRTC + HTTP stream outputs |
+| `Display.brightness/power` | Windows brightness API / monitor power via `SendMessage` + DDC/CI where available | HDCP status surfaced in settings (4K checklist) |
+| `Input.events` | Win32 raw input; BT HID pairing via Windows.Devices.Bluetooth UI | §11 multi-remote; §7 input map in core |
+| `Media.launch` | Edge installed-app window positioned over the hero rect | the kiosk hybrid for any service that serves software-tier only in WebView2 |
+| `Store` | profiles + snapshots + settings under `%LOCALAPPDATA%\Prism` | migrations never wipe (§10, §28) |
+| `Net.vpn` | stub interface | v2 |
+| `Surface.create(kind)` | `kind` = `slot` \| `floating` \| `hidden`; every kind attaches through ONE seam, `SurfaceManager.AttachEngineAsync` (the only `new WebView2` in the host) | the §5 coverage invariant as code: bootstrap, events to core, inject path, composition overlay, popup doctrine, page-invisible mute, fullscreen auto-grant - a new surface kind cannot skip them; `scripts/verify-surface-coverage.mjs --no-known-gaps` asserts it |
+| hidden presence (§32 music facets) | the container keeps its rect and parks LEFT of the canvas (x = −(w+64)), never `Collapsed`, never 0×0; core lays a hidden page out at its window-reveal size (three quarters of the wall), so the service renders its desktop player - Spotify's sidebar, and with it Your Library, is gone below about a thousand pixels of width (B-173) | measured 2026-09-01 (`targets/win-poc-music --hidden-test`): `Collapsed`/0×0 flips the page to `visibilityState: hidden` and Chromium pauses muted-element media there; off-canvas the page stays "visible" and every variant (muted element, control-muted, audible) keeps advancing at 1.0× |
+| `surface.setPresence(id, hidden\|panel\|hero, rect, ms)` | move + resize + §16 fade of the SAME control; the renderer is never recreated | §32 reveal/collapse: audio uninterrupted; core picks the rect (panel = the float place, hero = the largest slot) and z 35 (slots 0 < floating 30 < revealed 35 < takeover 40 < popups 950 < pill) |
+| `surface.createVisualization(id, style, source, artwork)` + `setVisualizationFeed(id, json)` | `VisualizationHost` (no web view) → `IVisualizationRenderer` chosen by `VisualizationStyles` (Agent 3 registers Prism Beams / Spectrum / Ribbon / Bloom; `BarsRenderer` is the host's fallback); 30 Hz tick while the feed is active, 10 Hz + fewer bands under reduced motion; idles dark | the FFT never crosses the seam: `IVisualizationAudioSource.Bands(n)` is `Services/Audio/WasapiLoopbackFft` (NAudio loopback of the render device, 2048-pt Hann FFT, log bands 40 Hz–16 kHz, attack/decay + slow AGC, capture only while a visualization is active). Process-scoped loopback is the planned upgrade (ledger B-33) |
+| popup child surfaces (§30) | a `Tile` of kind `popup` (`<opener>#popup-N`) in the opener's profile, attached through `AttachEngineAsync`, hosted in the sheet over the wall | inherits the opener's `IsMuted` (§3), closes with the opener on destroy/suspend, excluded from boot cache/snapshots, reported to core as `popup {open}` events; a popup's `window.open` is a §30 backstop (no chains) |
+| `ContainsFullScreenElementChanged` | auto-granted on every surface (WebView2 fills the surface's rect with the fullscreen element); the host posts `fullscreen-element {contains}` | §26 presentation keeping reads the state from core; promotion to the window is core's decision |
+| `ui.route(route, source, id?)` | `MainWindow.UiRouteRequested` (the rail / editors subscribe); until a router subscribes the pill names the route | §6a deep links from the phone (`POST /items/{id}/action`, `/ui/route`), a held remote key (`*_LONG` → `context-sheet`), or core; the host's own UI reports routes it opens via `ReportUiRoute` → `uiRoute` so the flight recorder shows one shape |
+| remote API listener | `Services/RemoteServer` (TcpListener HTTP/1.1 on 8471, LAN + loopback) → `PrismRuntime.http` → `http.response` | bytes only: core routes and authenticates (§6 tokens); boot mints a pairing URL `onlyIfUnpaired`; `/remote` is a placeholder page until the PWA lands; `/audio/stream` answers 501 until §14 capture is served |
+| Edge hand-off verification (§5) | `Services/HandoffCheck.Verify` + `kiosk/Install-PrismKiosk.ps1` step 3 | the host has no hand-off today (B-24) → `HandoffNotPresent`, reported not warned; when `Media.launch` lands the check reads the hand-off profile's `Preferences` for the veil extension and the host warns on `ProfileMissing` / `ExtensionMissing` |
+
+## 4. Tile lifecycle on WebView2
+
+- `live`: control exists, page loaded. `warm`: control disposed, snapshot shown by composition layer, user-data folder intact. `cold`: snapshot only, no folder warm-up.
+- `maxLiveTiles` from device profile: N100/8GB → 4; 16GB → 7; measured RAM headroom can lower it dynamically (core decides; host reports memory pressure events).
+- Serialized refresh (§18): host enforces one hidden-loading control at a time; core schedules.
+- DRM tiles: never demoted while audible; snapshot for a DRM tile is the last non-black capture or a generated poster (service glyph) — never a black rectangle on the wall.
+
+## 4b. Mini player (B-221, 2026-09-16)
+
+A fourth corner button on the stage opens the **mini player**: a second window of the host, always on top of other windows, no border or title bar, about 320 by 180 at the display's scale, remembered where it was last dragged (host prefs). It draws the stage's current visual live - a mirror `VisualizationHost` on the same style, source and audio bands, fed every feed the stage gets and rebuilt on a restyle - inside a bevelled frame (lit top-left edge, shadowed bottom-right, a sheen, the scene tilted a few degrees) so it reads as a small 3D tile. Its transport (previous, play/pause, next, mute, back, the song) appears only while the pointer is over it and goes through the same core calls the stage uses; drag anywhere moves it; Esc or a double-click brings the full player back. The music keeps playing from the main window's hidden pages - it is a window of the same host - and sign-in, settings and scenes stay in the full player.
+
+## 5. Composition layer (the veil, the pill, the transitions)
+
+**Coverage invariant (normative): the §26/§27/§30 engine runs in every web surface this app creates — no exceptions.** Concretely:
+- **Slot facets**: full engine — intermission veil, gallery/partial veils, popup interception, pill (pill renders once app-level, not per-facet).
+- **Floating facets**: same engine; veils render within the floating surface's bounds, above it in the composition order like everywhere else.
+- **Hidden facets** (audio-only, e.g. a music service): no visual surface, so intermission becomes **audio intermission** — on the adapter's ad-break signal, the shell mutes the facet (page-invisible `IsMuted`) and may play ambient audio (§26) until the end signal; same mute-fast/cover-slow/uncover-fast asymmetry (§26, 2026-09-15: the mute lands on the first sign, the soundscape after the window), same no-synthetic-interaction rule.
+- **App setup mode** (full-screen familiar browsing): engine active — popup Control Center especially matters here, since setup is where users browse most freely.
+- **Picker live previews** (§31): engine active in the temporary preview profile.
+- **Launched Edge windows** (the 4K hand-off, §29): outside WebView2, so covered by the **extension installed in Edge** — the kiosk installer installs/verifies the extension in the Edge profile used for hand-offs, and the host surfaces a warning if a hand-off window lacks it. A hand-off must never silently mean "ads came back."
+
+Conformance addition (§12): a coverage test enumerates every surface-creation path in the host and asserts engine injection + composition hookup on each; a new surface type that skips the engine fails the kit.
+
+- Sits above every tile in the visual tree; hit-testing passes through except on its own controls (intermission card, pill, peek target).
+- Renders: §16 crossfades (snapshot ↔ live), hero reflow animations (220ms ease), §26 intermission scenery + card (minimal mode, pause-after-break, chime, peek), §27 partial/gallery veils computed from injected element rects, §30 pill + Control Center panel.
+- Element-rect tracking for veils: injected observer posts rects on layout change; host maps CSS px → control px → screen px (DPI-aware, per-monitor v2).
+- Reduced-motion honored system-wide (Windows setting) → dissolves.
+
+**Host UI contrast (2026-09-16).** Every word the host draws on its own dark surfaces (menus, sheets, the
+player control, pills) is read from a room, not a desk. Rules: (1) an informational row is never made inert by
+rendering it in a control's *disabled* state - that state's grey on the menu surface (#12131A) is unreadable
+("dark gray on dark gray"); a label gets its own template or a plain TextBlock. (2) Text on host surfaces reads at
+4.5:1 or better: light ink #E8ECF2 for information, amber #F2B14C for the one thing to notice, #8A93A2 only for a
+genuinely secondary line under a primary one, never for a row's only text. (3) A verb that cannot act right now MAY
+be disabled - it is a control, its grey means "not now" - and the reason goes in its tooltip. (4) Where the eye
+should land, put a picture there (artwork above a find), not only a brighter word. (5) Every colour the host
+draws is a token (2026-10-17): `targets/win-host/PrismHost/Tokens.cs` holds the ink, the amber, the grounds, the chip
+states and the alphas (`AmberAt`), each surface's own brushes are aliases of them, the phone page carries the same
+names as CSS custom properties in its `:root`, and `scripts/audit-tokens.mjs` (a verify step) fails on a colour
+outside the sheet. The visualizations' art palettes are pictures and keep their own.
+
+## 6. Audio
+
+- Per-tile mute via `IsMuted` (page-invisible). Audio focus (§3) in core; host applies.
+- Private listening (§14): WASAPI loopback capture of the host's own session → Opus encode → WebRTC (foreground/Android) + chunked HTTP/LL-HLS endpoint (background/iOS), served by the local remote API server. `avOffset` measured per transport.
+- Ambient audio (§26) and chime: host-played local assets, ducked/ordered per spec.
+
+## 7. Input & remotes
+
+- BT HID remotes pair through a host UI wrapping Windows' pairing flow (no Settings app exposure in kiosk); all remotes concurrent; input map in core.
+- Phone remote: QR at first boot → local HTTPS/WS API with per-phone tokens (§6). Off-network relay opt-in.
+- No HDMI-CEC on PCs: optional Pulse-Eight USB-CEC adapter driver maps to `CEC_*` keys (v1.1).
+
+## 8. Kiosk profile
+
+- Installer option "Dedicated Prism box": creates auto-login local user `prism`, sets its shell to `PrismHost.exe` (custom shell key; Assigned Access where edition supports), disables sleep/fast-startup, enables BIOS-restore reminder, installs watchdog as a scheduled task at logon.
+- Boot experience: black substrate → persisted snapshots of last dashboard within ~2s → tiles revive behind crossfades (§16). Never a Windows desktop flash.
+- Escape hatch: a documented key chord + phone-remote action to exit to desktop (settings-gated).
+- Optimizer (baselines doc) offered as step one; manifest-driven, reversible.
+
+## 9. Updates
+
+- §28: signed MSIX or MSI with self-update checking a static, unparameterized manifest; applied in the night window; rollback on failed launch (watchdog detects boot loop → previous version). Profiles/snapshots untouched across updates.
+- Adapters/filter lists/imagery packs update independently on their own cadence.
+
+## 10. Privacy & telemetry
+
+- §19 compat reports only (opt-in, per-incident, whitelisted, inspectable). §22 inventory applies: the host writes nothing off-device except user-initiated reports, updates checks, and relay traffic the user enabled.
+- Ledger, popup ledger, snapshots, settings: local only.
+
+## 10b. The wall's cost (perf.log, 2026-10-03)
+
+Once a minute the host writes one line to `diagnostics/perf.log` (MainWindow.PerfWatch.cs): the host and every WebView2 process it owns -
+CPU share over the minute, GPU share from Windows' per-process GPU engine counters, working set, IO rate (file and network together, the
+nearest Windows gives without a capture) - summed, then by profile (each service's browser as a whole: its browser, GPU, utility and
+renderer processes, since a profile's video decoding lands in its one GPU process that no page owns), then the three costliest renderers
+with the surfaces they draw and whether each is parked hidden. A `stalls` count is the UI thread arriving more than 200 ms late on a
+half-second timer. Local only; rotated in place at 2 MB. (2026-10-03): the baseline before hidden pages are made cheaper
+(docs/features/live.md carries that plan). First reading, three windows playing: ~10 GB working set over ~70 processes, CPU 12-20%, GPU
+15-20%; Apple TV's hidden lookup page pulling ~1 MB/s with its profile's GPU at 9-11% (a promo reel playing to nobody); the host itself
+at 1.9 GB.
+
+What the first night found and fixed (2026-10-03 to 02:25, three windows playing throughout; the lines are in perf.log):
+
+| | before | after |
+|---|---|---|
+| CPU, all cores | 11-21% | 7.5-9% |
+| GPU | 14-20% | 4.7-6% |
+| working set, all processes | 9.2-10.5 GB | 7.5-7.9 GB |
+| the host's working set | 1.9-3.3 GB | 1.0-1.2 GB |
+| the host's allocation rate | 1.0-1.7 GB/min | 0.3-0.6 GB/min |
+| store writes from the brain | 170/min | 6/min |
+| store file writes (the whole 7 MB each) | 20/min | 1-2/min |
+
+- **Readers dark** (SurfaceManager.DozeIdleReadersAsync, host-prefs `perf.readersDark`, the dev hook "readers on|off"): a hidden reader page
+  (core's "app:<service>:lookup" / "work" pages) untouched for ninety seconds, and a music player's facet that has not played for ten
+  minutes, is parked (SurfaceManager.Parking): its WebView2 memory target is Low, and a renderer process drawing only parked pages
+  runs below normal priority in Windows' efficiency mode (EcoQoS); both are undone before any script, navigation or pointer reaches
+  it. The page itself is never slowed or frozen. The lifecycle freeze (`Page.setWebLifecycleState frozen`) left a page's document
+  hidden for good (B-371), and the DevTools CPU throttle that replaced it (8x) made each throttled page that had work of its own hold
+  a full core: measured 2026-10-16, four parked music pages at 25% of a 16-core machine with nothing playing, 1.3% once woken.
+  Apple TV's lookup page had been the busiest renderer on the wall (5% CPU, 1 MB/s) for nobody.
+- **Decorative loops paused on hidden surfaces** (SurfaceManager.DecorJs): Apple Music's home page looped two muted animated-artwork
+  videos, one 1662 by 2216, under the Video player - its profile's GPU process at 13% decoding for nobody. A page action on a surface
+  entering hidden presence pauses every muted looping video (new ones too) and resumes the ones Prism paused when it comes back.
+- **Store writes coalesced per key** (runtime.ts store.set): the watch log, the recents and the resume point were set 54 times a minute by
+  three playing windows; a changing value now reaches the host after a quiet five seconds, thirty at the most (the brain's snapshot takes
+  it at once, so a read sees it); the host waits four seconds, twenty at the most, before writing the file.
+- Still to look at: the 10 MB/s of IO three playing windows draw, and whether readers should be suspended outright (`TrySuspendAsync`)
+  for memory.
+
+The second pass (2026-10-03, morning, one window playing, the Watch page open): the host's own share. A heap dump showed 267 MB live
+against 1.5-2.4 GB of working set, so the gap was garbage the GC was allowed to keep; a 40-second allocation trace (dotnet-trace,
+`Microsoft-Windows-DotNETRuntime:0x1:5`, the ticks grouped by stack) named the sources. perf.log now carries the brain's answers by
+function and the surfaces' events by type (bytes a minute), the host's allocation by type (an in-process listener on the runtime's
+allocation ticks, host-prefs `perf.allocTypes`), the sampler's own cost, and the beat's.
+
+| | before | after |
+|---|---|---|
+| the host's working set | 1.0-2.4 GB, climbing between restarts | 0.5 GB, flat |
+| the host's managed heap | 0.2-2.0 GB | 55-95 MB |
+| the host's allocation rate | 300-450 MB/min | 60-80 MB/min |
+| the brain's answers to the host | 19 x 1.5 MB a minute | 20 x 30 KB + 15 x 190 KB (the first four minutes) |
+
+- **The Watch page's follow loops asked for the whole menu** (`videoMenu`, 1.47 MB: the owned library 1.06 MB of it) every three seconds
+  and parsed it. They ask for `videoMenuRows` now - the two rows, the watchlist, orders, lens, screen - with the lens rows only for the
+  loop that fills ratings in. The hub's open still reads the whole menu once.
+- **The store's save** was half the remaining churn: `Utf8JsonWriter.WriteString` rents a six-times escape buffer for every megabyte
+  value and grows its output buffer to the whole file (12 MB, three times a minute). StoreService.Save escapes each string by hand
+  into a 16 KB StreamWriter buffer; the file's shape is unchanged (a round-trip test covers every string shape, a lone surrogate
+  becomes U+FFFD as the serializer made it).
+- **The GC conserves memory** (`System.GC.ConserveMemory` 5 in runtimeconfig.template.json): the heap is compacted sooner instead of
+  growing while memory is plentiful - a wall is a device, and a 2 GB heap means long gen-2 pauses (the `stalls` count).
+- What is left is the traffic itself: strings from WinRT (every script result from a page), the host's answers to the brain's page
+  reads serialized to JSON, and the brain's answers to the host - 30-50 MB a minute, proportional to what the pages are asked.
+
+The third pass (2026-10-03, afternoon): **one browser, many sign-ins** (docs/features/sign-ins.md) - every service in one shared
+Chromium profile instead of a browser a service: 41 processes and 5.5-6.8 GB at 9 surfaces became 26 processes and 3.3-3.7 GB at
+15 surfaces, CPU 8-9% to 2-3%. Inside the one browser (the hub request "perf" lists every process in host.log): the frozen readers
+are 5-15 MB each - Chromium purges a frozen page well - so the weight was the idle music players (Apple Music 430 MB, Spotify 216,
+Amazon Music 160, Pandora 147) and the playing window. **Music parked**: a music facet that is not playing and has not been touched
+for ten minutes is frozen like a reader (SurfaceManager.IsMusicFacet, MusicIdle), woken before any script, navigation, pointer,
+placement or reveal reaches it. Behind the same readers-dark switch.
+
+**The store in files a key** (StoreService, 2026-10-03): the whole store had been rewritten on every change - 12 MB, three times a
+minute while something played, 50 GB a day on a mini PC's SSD. A changed key now writes its own file under `store\` (the key made
+safe plus a short hash, `{"key","value"}`, swapped in whole); `store.json` stays as the full snapshot, written at exit and every half
+hour, so backups, the migration scripts and the Device screen read it as before. Loading takes the snapshot and lays each per-key
+file over it when the file is newer (a snapshot a later run wrote without per-key files - tests, tools - wins). A corrupt per-key
+file is set aside, never erased (section 10). perf.log's `saves` now counts the per-key writes: six files and a megabyte a minute
+while something plays, nothing at all while the wall idles.
+
+**The stats on the wall** (MainWindow.PerfPanel.cs, 2026-10-03): Watch settings has a Performance tab - the stats switch (host-prefs `perf.panel`), readers dark, and the
+panel: perf.log's last hour as five small charts (CPU, GPU, memory with the host's own line under it, downloads and disk, the host's
+allocation with its heap under it), the last minute's split by service, the busiest pages, and the host's traffic line. With the switch
+on the same panel sits at the foot of the Watch page and refills as each minute's line lands. It reads the log alone; nothing is
+measured twice, nothing leaves the device. The first line after a start (the host alone) is left out of the charts.
+
+## 11. Packaging & requirements
+
+- Targets: Windows 10 22H2+ / Windows 11, x64 (ARM64 build after v1).
+- Requires: WebView2 Evergreen runtime (bootstrap-installed if absent), .NET 8 runtime (self-contained build to avoid dependency), HEVC Video Extension recommended (4K checklist).
+- Hardware baselines: `docs/windows-hardware-baselines.md`.
+
+## 12. Conformance & testing
+
+- Passes the §23 conformance kit: solver rects identical to reference, §16 no-white-frame timings, audio exclusivity, storage persistence across restart and update, §19 report schema.
+- Windows-specific tests: DRM tile playback tier recorded per service (Netflix/Hulu/YouTube) with overlay active; mute page-invisibility assertion; capture-does-not-disrupt-playback; kiosk boot-to-dashboard time; watchdog recovery; DPI/multi-monitor rect mapping.
+
+## 13. Milestones
+
+- **M1 — Skeleton:** host + core brain + one tile via seam; snapshot/crossfade; profiles persist. *Demo: Netflix tile survives restart.*
+- **M2 — Dashboard:** solver-driven N tiles, hero drag/resize, lifecycle, refresh engine, schedules. *Demo: kitchen dashboard from the editor JSON.*
+- **M3 — Intermission:** veil/card/pill/popups on the composition layer; adapters via injection; page-invisible mute; ledger. *Demo: Hulu ad break → Bierstadt, pass-through skip, pause-after-break.*
+- **M4 — Remotes & listening:** BT pairing UI, phone QR pairing, private listening both transports.
+- **M5 — Kiosk & updates:** installer profile, watchdog, self-update, Optimizer hook. *Demo: cold boot to dashboard, unattended for a week.*
+- **M6 — Conformance & polish:** kit passes; night/alarm; living previews; region focus; store-ready.

@@ -1,0 +1,322 @@
+using System.Text.Json.Nodes;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+
+namespace PrismHost;
+
+/// <summary>
+/// Multiview by hand (2026-09-23). A card held (or pulled downward off its row) lifts; a bar of the four places drops in at the top of the Watch page; let go
+/// on a place and the title plays there (multiview comes on if it was off). A filled place in the strip lifts the same way: onto another
+/// place it trades places, anywhere else it leaves multiview. The big window out, the next one backfills it; the last one out leaves
+/// the stage empty - the empty stage is drawn (flat since 2026-10-17; it had been).
+/// </summary>
+public sealed partial class MainWindow
+{
+    /// <summary>What a card plays - the same six things its press passes to PlayOnAsync, and its service's name.</summary>
+    /// <summary>What a dragged card plays. A Browse-style card (Most read, New episodes, New movies, The Binge) names no address: it carries the
+    /// service and the catalog id, and plays the way its own press does (2026-09-26).</summary>
+    internal sealed record CardPick(string Facet, string Kind, string Id, string? Url, string Title, string? Art, string Service, string? BrowseApp = null, string? PlayVerb = null);
+
+    /// <summary>The rows' lift: a static row (Carousel) hands a held card to the page that owns the drag.</summary>
+    private static Func<Button, PointerRoutedEventArgs, bool>? s_cardLift;
+
+    private CardPick? _dragCard;            // a card in the air
+    /// <summary>A Live channel lifted off the schedule (2026-10-07): dropped on a place, the channel is tuned into it.</summary>
+    internal sealed record LivePick(string Facet, string Id, string? Url, string Name, string Service, string? Logo);
+    private LivePick? _dragLive;
+    private string? _dragTile;              // or a window from the strip
+    private int _dragFrom = -1;
+    private uint _dragPointer;
+    private Border? _dragGhost;
+    private Border? _dropBar;
+    private readonly List<(FrameworkElement zone, int index)> _dropZones = new();
+    private bool _dragWired;
+
+    /// <summary>Called as the Watch page is built: the page's root owns every drag on it.</summary>
+    private void WireMvDrag(Grid overlay)
+    {
+        _dragWired = false;
+        s_cardLift = (b, e) => b.Tag is CardPick c && BeginDrag(overlay, e, c, null, -1);
+        overlay.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler((_, e) => DragMoved(overlay, e)), true);
+        overlay.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler((_, e) => _ = DragReleasedAsync(overlay, e)), true);
+        overlay.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler((_, e) => { if (ReferenceEquals(e.OriginalSource, overlay) && e.Pointer.PointerId == _dragPointer) EndDrag(overlay); }), true);
+        _dragWired = true;
+    }
+
+    /// <summary>A filled place in the strip lifts when pulled past a few pixels (a click still makes it the target).</summary>
+    private void MakeChipDraggable(UIElement chip, string tile, int index)
+    {
+        Windows.Foundation.Point start = default; bool down = false; uint id = 0;
+        chip.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
+        {
+            var pt = e.GetCurrentPoint(chip);
+            if (!pt.Properties.IsLeftButtonPressed) return;
+            down = true; id = e.Pointer.PointerId; start = pt.Position;
+        }), true);
+        chip.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler((_, e) =>
+        {
+            if (!down || e.Pointer.PointerId != id || _videoHub is not { } overlay) return;
+            var p = e.GetCurrentPoint(chip).Position;
+            if (Math.Abs(p.X - start.X) < 12 && Math.Abs(p.Y - start.Y) < 12) return;
+            down = false;
+            chip.ReleasePointerCapture(e.Pointer);
+            BeginDrag(overlay, e, null, tile, index);
+        }), true);
+        chip.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler((_, __) => down = false), true);
+    }
+
+    private bool BeginDrag(Grid overlay, PointerRoutedEventArgs e, CardPick? card, string? tile, int from)
+    {
+        if (!_dragWired || !ReferenceEquals(_videoHub, overlay) || (card is null && tile is null && _dragLive is null)) return false;
+        if (!overlay.CapturePointer(e.Pointer)) return false;
+        _dragCard = card; _dragTile = tile; _dragFrom = from; _dragPointer = e.Pointer.PointerId;
+        var name = card?.Title ?? _dragLive?.Name ?? MvWindowName(tile!);
+        var ghostBody = new StackPanel { Spacing = 4, Width = 200 };
+        if ((card?.Art ?? _dragLive?.Logo) is { Length: > 0 } art) { try { ghostBody.Children.Add(new Border { CornerRadius = new CornerRadius(6), Height = 112, Child = new Image { Source = new BitmapImage(Services.ArtCache.UriFor(art)), Stretch = Stretch.UniformToFill } }); } catch { } }
+        ghostBody.Children.Add(new TextBlock { Text = Shorten(name, 30), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextTrimming = TextTrimming.CharacterEllipsis });
+        _dragGhost = new Border { Child = ghostBody, Padding = new Thickness(8), CornerRadius = new CornerRadius(8), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0x1A, 0x1D, 0x24)), BorderBrush = HubAmber, BorderThickness = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = 0.92 };
+        // on the window's own top layer, over the playing windows too (2026-10-09): as a
+        // child of the Watch page it passed under any window drawn above the page
+        Canvas.SetZIndex(_dragGhost, 990);
+        Grid.SetRowSpan(_dragGhost, 20); Grid.SetColumnSpan(_dragGhost, 20);
+        RootGrid.Children.Add(_dragGhost);
+        ShowDropBar(overlay);
+        DragMoved(overlay, e);
+        LogLine("multiview drag: " + (card is not null ? "card " + card.Title + " (" + card.Service + ")" : _dragLive is not null ? "channel " + _dragLive.Name + " (" + _dragLive.Service + ")" : "window " + tile + " from " + from));
+        return true;
+    }
+
+    private bool BeginLiveDrag(Grid overlay, PointerRoutedEventArgs e, LivePick pick)
+    {
+        _dragLive = pick;
+        if (BeginDrag(overlay, e, null, null, -1)) return true;
+        _dragLive = null;
+        return false;
+    }
+
+    private string MvWindowName(string tile)
+    {
+        var w = _mvWindows.OfType<JsonObject>().FirstOrDefault(x => x["tile"]?.GetValue<string>() == tile);
+        return w is null ? tile : (w["title"]?.GetValue<string>() is { Length: > 0 } t ? t : w["name"]?.GetValue<string>() ?? tile);
+    }
+
+    /// <summary>The drop targets for a drag: the Watch page's own strip, in place - scrolled into view, its places the zones (2026-09-23). A tab without the strip (Library,
+    /// Browse) gets the pinned bar, offering the same places.</summary>
+    /// <summary>The drop places drawn again from core's state as it is now (a pick since the last read may have filled the big screen).</summary>
+    private async Task RefreshDropPlacesAsync()
+    {
+        var had = _mvBigHas;
+        await MvCallAsync("state");
+        if (!_stripDragging || had == _mvBigHas) return;
+        DrawMvStrip();
+        _dropZones.Clear();
+        _dropZones.AddRange(_stripZones);
+        _dropZones.AddRange(_stackZones);
+    }
+    private void ShowDropBar(Grid overlay)
+    {
+        // Watch: its corner places are the drop places, nothing pops up (2026-09-25)
+        if (_stackZones.Count > 0 && ReferenceEquals(_stackOverlay, overlay))
+        {
+            _dropZones.Clear();
+            _dropZones.AddRange(_stackZones);
+            return;
+        }
+        if (_mvStrip is { } strip && strip.XamlRoot is not null)
+        {
+            _stripDragging = true;
+            DrawMvStrip();
+            _dropZones.Clear();
+            _dropZones.AddRange(_stripZones);
+            _dropZones.AddRange(_stackZones);   // Watch's corner places take a drop too (2026-09-25)
+            _ = RefreshDropPlacesAsync();   // what the big screen holds now decides whether Window 2 is offered
+            strip.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true, VerticalAlignmentRatio = 0.1 });
+            return;
+        }
+        _dropZones.Clear();
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        for (var i = 0; i < MvShownPlaces(); i++)
+        {
+            var w = _mvOn ? _mvWindows.OfType<JsonObject>().FirstOrDefault(x => x["index"] is JsonValue iv && iv.TryGetValue<int>(out var ii) && ii == i) : null;
+            var what = w is null ? (i == 0 && !_mvOn ? "what is on the screen now" : "empty") : (w["name"]?.GetValue<string>() ?? "") + (w["title"]?.GetValue<string>() is { Length: > 0 } t ? " · " + Shorten(t, 22) : "");
+            var zone = new Border
+            {
+                Width = i == 0 ? 280 : 210, Height = i == 0 ? 120 : 96, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0xE8, 0xEC, 0xF2)), Background = HubCard, Padding = new Thickness(12, 8, 12, 8), VerticalAlignment = VerticalAlignment.Top,
+                Child = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, Children =
+                {
+                    new TextBlock { Text = i == 0 ? "Big window" : "Window " + (i + 1), FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk },
+                    new TextBlock { Text = what, FontSize = 13, Foreground = HubDim, TextTrimming = TextTrimming.CharacterEllipsis },
+                } },
+            };
+            _dropZones.Add((zone, i));
+            row.Children.Add(zone);
+        }
+        var hint = new TextBlock
+        {
+            Text = _dragCard is not null ? "Drop on a window to play it there · anywhere else to cancel" : "Drop on another window to trade places · anywhere else takes it out of multiview",
+            FontSize = 14, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        _dropBar = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 18, 0, 0), Padding = new Thickness(18, 14, 18, 14),
+            CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xF4, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x5A), BorderThickness = new Thickness(1),
+            Child = new StackPanel { Spacing = 10, Children = { row, hint } },
+        };
+        Canvas.SetZIndex(_dropBar, 40);
+        overlay.Children.Add(_dropBar);
+    }
+
+    private int ZoneAt(Grid overlay, Windows.Foundation.Point p)
+    {
+        foreach (var (zone, index) in _dropZones)
+        {
+            if (zone.Visibility != Visibility.Visible) continue;   // a Watch window not offered yet
+            try
+            {
+                var r = zone.TransformToVisual(overlay).TransformBounds(new Windows.Foundation.Rect(0, 0, zone.ActualWidth, zone.ActualHeight));
+                if (r.Contains(p)) return index;
+            }
+            catch { }
+        }
+        return -1;
+    }
+
+    private void DragMoved(Grid overlay, PointerRoutedEventArgs e)
+    {
+        if (_dragGhost is null || e.Pointer.PointerId != _dragPointer) return;
+        // a move with no button held is a drag whose release was lost (2026-09-25,:
+        // a card lifted under a press over remote desktop and dropped on the big screen) - it ends with nothing dropped
+        var cur = e.GetCurrentPoint(overlay);
+        if (e.Pointer.PointerDeviceType == Microsoft.UI.Input.PointerDeviceType.Mouse && !cur.Properties.IsLeftButtonPressed) { LogLine("multiview drag: button up, dropped nothing"); EndDrag(overlay); return; }
+        var p = cur.Position;
+        var rp = e.GetCurrentPoint(RootGrid).Position;
+        _dragGhost.Margin = new Thickness(rp.X + 14, rp.Y + 10, 0, 0);
+        var at = ZoneAt(overlay, p);
+        foreach (var (zone, index) in _dropZones)
+        {
+            var on = index == at;
+            if (zone is Border bz) { bz.BorderBrush = on ? HubAmber : new SolidColorBrush(Windows.UI.Color.FromArgb(0x80, 0xE8, 0xEC, 0xF2)); bz.Background = on ? HubChipOn : HubCard; }
+            else if (zone is Control cz) { cz.Background = on ? HubChipOn : HubChip; cz.BorderBrush = HubAmber; cz.BorderThickness = new Thickness(on ? 2 : 0); }
+        }
+        e.Handled = true;
+    }
+
+    private async Task DragReleasedAsync(Grid overlay, PointerRoutedEventArgs e)
+    {
+        if (_dragGhost is null || e.Pointer.PointerId != _dragPointer) return;
+        var at = ZoneAt(overlay, e.GetCurrentPoint(overlay).Position);
+        var (card, tile, from, live) = (_dragCard, _dragTile, _dragFrom, _dragLive);
+        e.Handled = true;
+        EndDrag(overlay);
+        overlay.ReleasePointerCaptures();
+        if (card is not null) { if (at >= 0) await DropCardAsync(card, at); return; }
+        if (live is not null) { if (at >= 0) { await TuneIntoAsync(at, live.Facet, live.Id, live.Url, live.Name, live.Service, live.Logo); DrawMvStrip(); } return; }
+        if (tile is null) return;
+        if (at >= 0 && at != from) { await MvCallAsync("place", tile + ":" + at); SetPill("Prism · " + Shorten(MvWindowName(tile), 40) + " → " + (at == 0 ? "the big window" : "window " + (at + 1))); }
+        else if (at < 0)
+        {
+            var name = MvWindowName(tile);
+            var r = await MvCallAsync("remove", tile);
+            if (r?["ok"]?.GetValue<bool>() == false) { SetPill("Prism · " + (r["error"]?.GetValue<string>() ?? "could not take it out")); return; }
+            if (r?["sceneId"]?.GetValue<string>() is { } sid) await SceneAppliedAsync(sid, r.ToJsonString());
+            SetPill("Prism · " + Shorten(name, 40) + " is out of multiview" + (_mvWindows.Count == 0 ? ". Nothing is playing now" : ""));
+        }
+        DrawMvStrip();
+    }
+
+    private void EndDrag(Grid overlay)
+    {
+        if (_dragGhost is not null) RootGrid.Children.Remove(_dragGhost);
+        if (_dropBar is not null) overlay.Children.Remove(_dropBar);
+        _dragGhost = null; _dropBar = null; _dropZones.Clear();
+        _dragCard = null; _dragTile = null; _dragFrom = -1; _dragLive = null;
+        if (_stripDragging) { _stripDragging = false; DrawMvStrip(); }   // the strip plain again: Swap and Turn off back
+    }
+
+    /// <summary>A card let go on a place: multiview on if it was off, the place as the target for this one pick, the pick as a press
+    /// would make it - Watch stays up for the next drag, and the target goes back to what it was.</summary>
+    private Task PlayPickAsync(CardPick c) =>
+        c.BrowseApp is { } app ? BrowsePlayAsync(app, c.Id, c.Title, c.Service, c.PlayVerb ?? "videoBrowsePlay") : PlayOnAsync(c.Facet, c.Kind, c.Id, c.Url, c.Title);
+
+    private async Task DropCardAsync(CardPick c, int index)
+    {
+        // a small place with nothing on the big screen: the big screen first (a second window only once the big one has a title, 2026-09-24);
+        // a place past the windows there are is the next one (core keeps the windows in order, no gaps)
+        if (index > 0 && !_mvBigHas) index = 0;
+        if (index > 0 && _mvOn) index = Math.Min(index, Math.Max(1, _mvWindows.Count));
+        if (index > 0 && !_mvOn) index = 1;
+        // no Multiview button (2026-09-24): the big screen with multiview off is a plain pick; a small window starts it
+        if (!_mvOn && index == 0)
+        {
+            SetPill("Prism \u00B7 " + Shorten(c.Title, 40) + " on the big screen");
+            _mvBigHas = true;   // at once: a drop on window 2 right after is window 2's, not a second pick for the big screen
+            await PlayPickAsync(c);
+            _ = FollowStartingAsync();
+            // the big screen in Watch's corner at once (2026-09-24): the page is drawn again once the pick is
+            // loading, and the corner comes with it
+            for (var i = 0; i < 24 && VideoHubOpen; i++)
+            {
+                // the corner takes it in place (2026-09-25): the whole page had been drawn again for it, and a drag begun meanwhile went with the old page
+                if (await ScreenTitleUpAsync()) { await MvCallAsync("state"); break; }
+                await Task.Delay(250);
+            }
+            return;
+        }
+        if (!_mvOn) await MvCallAsync("on");
+        if (!_mvOn) { SetPill("Prism · multiview could not come on"); return; }
+        var was = _mvTarget;
+        // a drop on a window replaces what it shows, the big window too; a drop on an empty place opens the next window, the place core finds free
+        // when the pick arrives - not the one counted here, which a drop made a moment before may already be opening (2026-10-15)
+        var onEmpty = _mvOn && index >= _mvWindows.Count;
+        await MvCallAsync("drop", onEmpty ? "new" : index.ToString());
+        SetPill("Prism · " + Shorten(c.Title, 40) + " → " + (index == 0 ? "the big window" : "window " + (index + 1)));
+        await PlayPickAsync(c);
+        _ = FollowStartingAsync();
+        await MvCallAsync("target", was.ToString());
+        DrawMvStrip();
+        await Task.Delay(2500);   // the window's page is up by now: its name on the strip
+        await MvCallAsync("state");
+        DrawMvStrip();
+    }
+
+    // ---------------------------------------------------------------- the empty stage
+    private Grid? _emptyStage;
+    /// <summary>Multiview on and no window left: nothing is playing, and Prism says so on a flat ground with its mark (the curtains
+    /// were taken down 2026-10-17). Gone the moment a window is filled.</summary>
+    private void SyncEmptyStage()
+    {
+        // the single big screen too, once nothing is on it (2026-09-25): the service's home under a cleared screen is not a thing to watch.
+        // Only while the Video player is the wall; a pick (loading counts) takes it away
+        // never over Watch: the stage stands above the tile canvas, Watch included - it comes up as Watch closes
+        // never over a sign-in or the welcome page (2026-09-29, a new device: the stage stood over the service's sign-in page)
+        var show = !VideoHubOpen && !_asSession && _welcome is null && ((_mvOn && _mvWindows.Count == 0) || (!_mvOn && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible));
+        if (!show) { if (_emptyStage is not null) _emptyStage.Visibility = Visibility.Collapsed; return; }
+        _emptyStage ??= BuildEmptyStage();
+        _emptyStage.Visibility = Visibility.Visible;
+    }
+    /// <summary>The empty stage, flat (2026-10-17): the page
+    /// ground, Prism's mark, and the two lines. The purple drapes, the gold ropes, the valance and the spot that stood here since 2026-09-25 are gone.</summary>
+    private Grid BuildEmptyStage()
+    {
+        var g = new Grid { Background = Tokens.Page, IsHitTestVisible = false };
+        var mark = new Image { Width = 112, Height = 112, Opacity = 0.55, HorizontalAlignment = HorizontalAlignment.Center };
+        try { var mp = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png"); if (System.IO.File.Exists(mp)) mark.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(mp)); } catch { }
+        g.Children.Add(new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 10,
+            Children =
+            {
+                mark,
+                new TextBlock { Text = "Nothing is playing", FontSize = 34, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) },
+                new TextBlock { Text = "Drag a title from Watch onto the big window", FontSize = 17, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
+            },
+        });
+        Canvas.SetZIndex(g, 924);   // under the stage curtain (925) and the Watch page (930): a pick's own face and the page stand over it
+        RootGrid.Children.Add(g);
+        return g;
+    }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Prism music POC - hidden-surface playback test</title>
+<style>body{background:#14171C;color:#F2F4F7;font:13px Consolas,monospace;padding:16px}</style>
+<h3>Hidden-surface playback: does audio keep advancing at 0x0 / 1x1?</h3>
+<pre id="out"></pre>
+<audio id="a" controls muted></audio>
+<script>
+(async () => {
+  const out = document.getElementById('out');
+  const log = (s) => { out.textContent += s + '\n'; };
+  const post = (kind, data) => { try { chrome.webview.postMessage(JSON.stringify({ type: 'poc', kind, frame: 'top', at: Date.now(), data })); } catch (e) {} };
+  // 60 s of a quiet 440 Hz tone, mono 8 kHz 16-bit
+  const rate = 8000, secs = 60, n = rate * secs; const buf = new ArrayBuffer(44 + n * 2); const v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 440 * i / rate) * 3000), true);
+  const a = document.getElementById('a');
+  // ?unmuted=1 plays the element unmuted (a real music player's case; the harness may mute the CONTROL instead), ?vol=0.02 keeps it quiet
+  const q = new URLSearchParams(location.search);
+  if (q.get('unmuted') === '1') a.muted = false;
+  if (q.get('vol')) a.volume = Number(q.get('vol'));
+  a.src = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  a.load();
+  document.addEventListener('visibilitychange', () => post('visibility', { state: document.visibilityState, currentTime: a.currentTime, wall: performance.now() }));
+  setInterval(() => post('tick', { currentTime: a.currentTime, paused: a.paused, wall: performance.now(), visibility: document.visibilityState, w: innerWidth, h: innerHeight }), 2000);
+  try { await a.play(); log('play() resolved (muted)'); } catch (e) { log('play() ' + e.name + ': ' + e.message); }
+  post('started', { visibility: document.visibilityState });
+})();
+</script>

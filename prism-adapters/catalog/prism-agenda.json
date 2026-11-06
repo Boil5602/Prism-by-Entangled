@@ -1,0 +1,94 @@
+{
+  "id": "prism-agenda",
+  "name": "Agenda",
+  "url": "https://tiles.prism/agenda/",
+  "adapter": "prism-tiles",
+  "aspectHint": "4:3",
+  "audio": "mute",
+  "account": "none",
+  "firstParty": true,
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "a first-party page the host serves from its own Assets/tiles - no media element, no EME call, no network request of any kind; the WebView2 surface it runs in is the one surveyed in docs/reports/win-host-m1.md"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "agenda",
+      "label": "The week",
+      "selector": "agenda-week"
+    },
+    {
+      "id": "today",
+      "label": "Today only",
+      "selector": "agenda-today"
+    }
+  ],
+  "facetPresets": {
+    "4:3·M": [
+      {
+        "id": "agenda",
+        "label": "The week",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Kitchen Command's calendar role: the page lays itself out for this class, so no region is cut - the whole page IS the facet"
+      }
+    ],
+    "1:1·M": [
+      {
+        "id": "agenda",
+        "label": "The week",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "Family Hub's calendar role: the page reflows to a square and shows fewer days"
+      }
+    ],
+    "4:3": [
+      {
+        "id": "agenda",
+        "label": "The week",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "any 4:3 slot"
+      }
+    ],
+    "1:1": [
+      {
+        "id": "agenda",
+        "label": "The week",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "any square slot"
+      }
+    ],
+    "3:4": [
+      {
+        "id": "today",
+        "label": "Today only",
+        "selector": "agenda-today",
+        "zoom": 1.1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "a tall slot shows today rather than squeezing seven days"
+      }
+    ]
+  },
+  "notes": "Prism's own week, served locally at https://tiles.prism/agenda/ from the host's Assets/tiles. No account, no sign-in, no network: the week is a document core owns (tiles:agenda), editable from the panel and from a phone through the §6 remote API. Personal calendars still connect through Merge (charter §2.1) - this is the first-party page for a week the box already holds."
+}

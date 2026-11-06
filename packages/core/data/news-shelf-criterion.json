@@ -1,0 +1,8 @@
+{
+  "id": "wp-rsp-generally-reliable",
+  "label": "Generally reliable on Wikipedia's Perennial Sources list",
+  "statement": "Sources rated \"generally reliable\" on Wikipedia's Perennial Sources list",
+  "status": ["gr"],
+  "excludeBlacklisted": true,
+  "requireDomain": true
+}

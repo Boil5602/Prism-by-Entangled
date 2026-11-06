@@ -1,0 +1,30 @@
+{
+  "id": "jellyfin",
+  "name": "Jellyfin",
+  "url": "{server}/web/#/home",
+  "site": "https://jellyfin.org/",
+  "address": {
+    "ask": "Your Jellyfin server's address",
+    "example": "http://192.168.1.20:8096"
+  },
+  "adapter": "jellyfin",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "docs/reports/video-drm-matrix.md - Jellyfin, 2026-11-03: a direct file in a plain video element on the public demo (no MSE, no mediaKeys); the household's own files, no copy protection by design. Read in a browser, not yet on a wall."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "notes": "Your own media server. Jellyfin has no fixed address: Prism asks for your server's when you add it (http://192.168.1.20:8096 or the address you reach it at from outside), and opens its web pages there. Sign in on the page with the user your server knows. No ads, no DRM, nothing but your own library."
+}

@@ -1,0 +1,45 @@
+{
+  "name": "user-esc-no-restore",
+  "spec": "if the drop follows user input (Esc) it is the human's intent - never fought, even across a later ad break",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 8000,
+      "kind": "input",
+      "key": "Escape"
+    },
+    {
+      "t": 8050,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "user"
+    },
+    {
+      "t": 9000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 30000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 40000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": []
+  }
+}

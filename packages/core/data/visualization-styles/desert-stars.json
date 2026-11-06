@@ -1,0 +1,28 @@
+{
+  "id": "desert-stars",
+  "name": "Desert Stars",
+  "blurb": "Dunes under a wide sky; stars, a low moon, and a shooting star on every beat.",
+  "program": "desert-stars",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#F0C070",
+    "#ECECF0",
+    "#C86CF0",
+    "#F05C7A"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

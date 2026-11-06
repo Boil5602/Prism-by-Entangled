@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Repro A</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Repro A">
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #14171C; color: #E8ECF2; font: 18px system-ui; }
+  button { font: 22px system-ui; padding: 18px 28px; border: 0; border-radius: 14px; background: #F2B14C; color: #14171C; }
+  p { max-width: 28em; text-align: center; padding: 0 16px; }
+</style>
+</head>
+<body>
+<div>
+  <h1>Repro A</h1>
+  <p>Plays a quiet 440 Hz tone through an audio element with Media Session metadata. Then open Repro B and tap the Now Playing pill.</p>
+  <button id="go">Play tone</button>
+  <p id="say"></p>
+  <audio id="out" playsinline></audio>
+</div>
+<script>
+  var go = document.getElementById('go'), say = document.getElementById('say'), out = document.getElementById('out'), ctx = null, osc = null;
+  go.onclick = function () {
+    if (ctx) { ctx.close(); ctx = null; osc = null; out.pause(); out.srcObject = null; go.textContent = 'Play tone'; say.textContent = 'Stopped.'; return; }
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    osc = ctx.createOscillator(); osc.frequency.value = 440;
+    var gain = ctx.createGain(); gain.gain.value = 0.1;
+    var dest = ctx.createMediaStreamDestination();
+    osc.connect(gain); gain.connect(dest); osc.start();
+    out.srcObject = dest.stream;
+    out.play().then(function () { say.textContent = 'Playing. Now open Repro B and tap the Now Playing pill.'; }, function (e) { say.textContent = 'Could not play: ' + e.message; });
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: 'Repro A', artist: 'Repro', artwork: [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }] });
+      navigator.mediaSession.setActionHandler('play', function () { out.play(); navigator.mediaSession.playbackState = 'playing'; });
+      navigator.mediaSession.setActionHandler('pause', function () { out.pause(); navigator.mediaSession.playbackState = 'paused'; });
+      navigator.mediaSession.playbackState = 'playing';
+    }
+    go.textContent = 'Stop';
+  };
+</script>
+</body>
+</html>

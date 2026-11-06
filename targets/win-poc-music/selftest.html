@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Prism music POC - harness self-test</title>
+<style>body{background:#14171C;color:#F2F4F7;font:13px Consolas,monospace;padding:16px}</style>
+<h3>Harness self-test: clear-key EME session + a real media pipeline</h3>
+<p>Proves the observer and the CDP Media domain deliver events in this runtime,
+so an empty log on a real service means "the site did nothing", not "the rig is deaf".</p>
+<pre id="out"></pre>
+<audio id="a" controls muted></audio>
+<script>
+(async () => {
+  const out = document.getElementById('out');
+  const log = (s) => { out.textContent += s + '\n'; };
+  // 1. org.w3.clearkey audio-only: exercises requestMediaKeySystemAccess -> createMediaKeys ->
+  //    createSession -> generateRequest -> message -> update -> keystatuseschange without any server.
+  try {
+    const access = await navigator.requestMediaKeySystemAccess('org.w3.clearkey', [{
+      initDataTypes: ['keyids'], audioCapabilities: [{ contentType: 'audio/mp4; codecs="mp4a.40.2"' }] }]);
+    const keys = await access.createMediaKeys();
+    const session = keys.createSession('temporary');
+    session.addEventListener('message', async (ev) => {
+      const req = JSON.parse(new TextDecoder().decode(ev.message));
+      const resp = { keys: req.kids.map(kid => ({ kty: 'oct', kid, k: 'FEEDFACEDEADBEEF0123456789ABCDEF'.slice(0, 22) })), type: 'temporary' };
+      await session.update(new TextEncoder().encode(JSON.stringify(resp)));
+      const st = []; session.keyStatuses.forEach(v => st.push(v));
+      log('clearkey session: key statuses ' + JSON.stringify(st));
+    });
+    await session.generateRequest('keyids', new TextEncoder().encode(JSON.stringify({ kids: ['AAECAwQFBgcICQoLDA0ODw'] })));
+    log('clearkey: generateRequest ok');
+  } catch (e) { log('clearkey: ' + e.name + ': ' + e.message); }
+
+  // 2. a real audio pipeline: 1 s of silence as a WAV data URI, muted, load + play.
+  const rate = 8000, n = rate; const buf = new ArrayBuffer(44 + n * 2); const v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  const blob = new Blob([buf], { type: 'audio/wav' });
+  const a = document.getElementById('a');
+  a.src = URL.createObjectURL(blob);
+  a.load();
+  try { await a.play(); log('audio: play() resolved (muted autoplay)'); } catch (e) { log('audio: play() ' + e.name + ': ' + e.message); }
+  document.title = 'PRISM-SELFTEST-DONE';
+})();
+</script>
