@@ -4,7 +4,7 @@ Each window's rows (bwtest bench with FEATCSV=...: one per frame, the break mode
 every reading as it is, each "seconds since" as three recency kernels exp(-s/tau), and the picture's and the logo's recent history as
 causal rolling means. Past only, so the same features work live.
 """
-import csv
+import csv, os
 
 import numpy as np
 
@@ -20,7 +20,13 @@ def load(path):
             rows.setdefault(line[0], []).append([float(x) for x in line[1:]])
     names = head[2:]
     ix = {n: i + 1 for i, n in enumerate(names)}   # column 0 is t
-    return {w: np.array(sorted(v, key=lambda x: x[0])) for w, v in rows.items()}, names, ix
+    out = {w: np.array(sorted(v, key=lambda x: x[0])) for w, v in rows.items()}
+    if os.environ.get("CLOCK") == "1":
+        # the minute of the hour (2026-11-06, the feature review's item 2): networks put their breaks at much the same minutes; t is the
+        # recording's clock (seconds since midnight), as LearnedBreak.Score's clockSec
+        out = {w: np.column_stack([a, np.round((a[:, 0] % 3600) / 60, 3)]) for w, a in out.items()}
+        names = names + ["minute_of_hour"]; ix["minute_of_hour"] = len(names)
+    return out, names, ix
 
 
 ROLL_SIGNALS = ("logo_ratio", "logo_seen", "change", "std", "mean")
@@ -98,6 +104,9 @@ class CapModel:
         cnt = Counter(t for x in lines for t in cap_tokens(x))
         self.vocab = {t: i for i, (t, c) in enumerate(sorted(cnt.items())) if c >= 3}
         self.vocab = {t: i for i, t in enumerate(self.vocab)}
+        if not self.vocab or len(set(y)) < 2:   # no captions to learn from (NOCC=1, 2026-11-06): every line scores 0.5
+            self.w = np.zeros(len(self.vocab)); self.b = 0.0
+            return self
         lr = LogisticRegression(C=1.0, max_iter=500, class_weight="balanced")
         lr.fit(self._matrix(lines), np.asarray(y))
         self.w = lr.coef_[0]; self.b = float(lr.intercept_[0])

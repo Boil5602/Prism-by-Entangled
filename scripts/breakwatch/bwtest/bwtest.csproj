@@ -8,5 +8,6 @@
     <Compile Include="../../../targets/win-host/PrismHost/Services/AdPrints.cs" />
     <Compile Include="../../../targets/win-host/PrismHost/Services/AdSounds.cs" />
     <Compile Include="../../../targets/win-host/PrismHost/Services/LearnedBreak.cs" />
+    <Compile Include="../../../targets/win-host/PrismHost/Services/PictureNet.cs" />
   </ItemGroup>
 </Project>

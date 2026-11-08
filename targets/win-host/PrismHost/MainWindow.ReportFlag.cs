@@ -65,7 +65,7 @@ public sealed partial class MainWindow
         var kOther = Radio("Something else", "rk", false);
         body.Children.Add(kAd); body.Children.Add(kBug); body.Children.Add(kIdea); body.Children.Add(kOther);
         // an ad on a page: Veil's own report lets the person point at it and sends what it is made of, so Veil can learn to cover it
-        var pointAt = new HyperlinkButton { Content = "Point at the ad on the screen instead (helps Veil learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
+        var pointAt = new HyperlinkButton { Content = "Point at the ad on the screen instead (helps Prism learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
         body.Children.Add(pointAt);
         kAd.Checked += (_, __) => pointAt.Visibility = Visibility.Visible;
         kBug.Checked += (_, __) => pointAt.Visibility = Visibility.Collapsed;

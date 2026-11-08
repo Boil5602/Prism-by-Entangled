@@ -3213,6 +3213,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         return;
       }
       orchestrator.tileCommand(tileId, cmd).then((r) => {
+        // a service with no way to show its own controls answers "unavailable" and nothing changes (video.showControls): not an error
+        // (2026-11-06: fifty of them on YouTube TV in a day were the bulk of the day's runtime errors)
+        if (r === "unavailable" && cmd === "showcontrols") return;
         if (r !== "ok") report(new Error("tileCommand " + cmd + ": " + r));
       }, report);
     },

@@ -726,3 +726,12 @@ describe("labels inside a search control are not disclosures", () => {
     expect(out).toEqual([]);
   });
 });
+
+// YouTube TV's "Sponsored" tray (2026-11-06): the video's ad chrome, outside the player; the video veil covers its slot, not a second cover.
+describe("YouTube TV Sponsored tray", () => {
+  it("is never covered by the label pass", () => {
+    const PV = loadVeil({ host: "tv.youtube.com" });
+    const out = detect(PV, `<div id="top" ${R(0, 0, 180, 134)}><ytu-ads-title-tray ${R(0, 0, 180, 134)}><div ${R(10, 10, 160, 40)}><span ${R(10, 10, 104, 23)}>Sponsored</span></div></ytu-ads-title-tray></div>`);
+    expect(out).toEqual([]);
+  });
+});

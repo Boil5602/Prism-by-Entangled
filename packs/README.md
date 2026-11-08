@@ -22,7 +22,7 @@ packs/<id>/*.jpg          IGNORED   the bytes - maintainer-fetched, never commit
 
 A fresh clone therefore has the whole provenance record and none of the
 pictures, which is exactly the posture `prototypes/prism-veil-art` keeps for
-the Veil pool. The gate is green on that clone: absent bytes are reported, not
+the extension's art pool. The gate is green on that clone: absent bytes are reported, not
 failed.
 
 ## Refresh

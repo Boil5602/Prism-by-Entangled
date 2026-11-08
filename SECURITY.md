@@ -10,7 +10,7 @@ for a security problem until it has been fixed.
 
 A useful report includes:
 
-- what is affected: the Windows app, the Veil browser extension (and which browser), prism-core,
+- what is affected: the Windows app, the Prism browser extension (and which browser), prism-core,
   an adapter, or the ad-report inbox;
 - the version (the About box in the Windows app, or the extension's version in its popup);
 - steps to reproduce, and what an attacker could do with it;
@@ -30,7 +30,7 @@ There is no paid bug bounty.
 In scope:
 
 - the Windows app (`targets/win-host`) and prism-core (`packages/core`);
-- the Veil browser extension (`prototypes/prism-veil-extension`);
+- the Prism browser extension (`prototypes/prism-veil-extension`);
 - the adapters shipped in this repository (`prism-adapters`);
 - the ad-report inbox Entangled runs (`prototypes/prism-veil-reports`).
 
@@ -40,7 +40,7 @@ unlocked computer, or that only affect a copy someone has modified, are also out
 
 ## Supported versions
 
-Security fixes go into the latest release of the Windows app and of the Veil extension. Please
+Security fixes go into the latest release of the Windows app and of the Prism extension. Please
 update to the latest version before reporting.
 
 ## Good-faith research

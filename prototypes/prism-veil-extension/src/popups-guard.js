@@ -61,10 +61,16 @@
     }, true);
   });
 
-  // dev: self-reload on request from a local page
+  // dev: self-reload on request from a local page, for an unpacked (development) install alone (bg.js keeps pv:dev; a store install never
+  // listens)
   if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
-    document.addEventListener("prism-dev-reload", function () {
-      try { chrome.runtime.sendMessage({ type: "prism-dev-reload" }); } catch (e) {}
-    });
+    try {
+      chrome.storage.local.get("pv:dev", function (r) {
+        if (!(r && r["pv:dev"])) return;
+        document.addEventListener("prism-dev-reload", function () {
+          try { chrome.runtime.sendMessage({ type: "prism-dev-reload" }); } catch (e) {}
+        });
+      });
+    } catch (e0) {}
   }
 })();

@@ -40,6 +40,7 @@
     } catch (x) {}
   }, true);
   var SOFT_CONTENT_S = 4;           // a soft (selector-only) ad signal over content dies after this much content playback
+  var spottedSrc = false;           // this tick's ad veil is a spotted one (the break watch's), not marked (the service's own)
   var softT0 = -1;                  // content time when the soft signal began        // between two ads in a pod the player loads (paused/buffering, marker off): hold, not uncover
   var PAUSE_SETTLE_MS = 1800;       // let a pause-after-break pause take effect
   var RESUME_GRACE_MS = 2500;       // after Resume, ignore lingering ad labels
@@ -65,7 +66,52 @@
   //                   first (raw play() leaves its UI thinking it is paused);
   //                   default: raw play() first, control only if still paused
   //   adInfo(cont)  - { count: "N of M" | null, remaining: seconds | null }
+  // Pluto TV's stream (traceable source: the addresses Pluto's own web player fetches, 2026-11-07). A programme's segments come from a
+  // clip path (<n>_pluto/clip/<id>/.../dash/...), and each ad creative from an address that names it (<n>_ad/creative/<id>_ad/...),
+  // one 30 s creative after another through a break. Read from the page's resource timings, nothing fetched or blocked. A segment is
+  // fetched ahead of its play by the player's buffer, so each change is dated by the buffer's lead at that moment.
+  var plutoStream = {
+    on: false, adFrom: 0, showFrom: 0,
+    lead: function () {
+      try { var v = PV.mainVideo(); if (v && v.buffered && v.buffered.length) return Math.max(0, Math.min(20, v.buffered.end(v.buffered.length - 1) - v.currentTime)) * 1000; } catch (e) {}
+      return 6000;
+    },
+    take: function (name) {
+      var path = String(name || "").split("?")[0];
+      if (!/plutotv\.net\/|pluto\.tv\//i.test(path)) return;
+      var now = Date.now();
+      if (/_ad%2Fcreative%2F|_ad\/creative\//i.test(path)) { if (this.adFrom <= this.showFrom) this.adFrom = now + this.lead(); }
+      // any other media segment of Pluto's (a programme's clip folder, whoever owns it; its just-in-time packager; Pluto's own promos)
+      // is the show: on the first live try the programme came from a studio's clip folder, not Pluto's, and the veil never ended
+      else if (/siloh[^/]*\.plutotv\.net\//i.test(path) && /\/(clip|jit|dash|hls|mp4)\//i.test(path)) { if (this.showFrom <= this.adFrom) this.showFrom = now + this.lead(); }
+    },
+    start: function () {
+      if (this.on) return;
+      this.on = true;
+      var self = this;
+      try { performance.getEntriesByType("resource").slice(-60).forEach(function (e) { self.take(e.name); }); } catch (e) {}
+      try {
+        if (typeof PerformanceObserver === "undefined") return;
+        var o = new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { self.take(e.name); }); });
+        o.observe({ type: "resource" });
+      } catch (e2) {}
+    },
+    adNow: function () {
+      this.start();
+      var now = Date.now();
+      return this.adFrom > 0 && this.adFrom > this.showFrom && now >= this.adFrom;
+    }
+  };
   var SSAI_AD_SOURCES = [
+    {
+      // Pluto TV (traceable source: the addresses its web player fetches, read from resource timings; see plutoStream above).
+      source: "Pluto TV web player stream",
+      host: /(^|\.)pluto\.tv$/i,
+      container: "#alwaysOnPlayerContainer, .aa-player-skin",
+      authoritative: true,
+      adNow: function () { return plutoStream.adNow(); },
+      adInfo: function () { return { count: "", remaining: null }; }
+    },
     {
       // Hulu (traceable source: Hulu web player, also the Store PWA). Regular
       // breaks are server-stitched into the CONTENT stream
@@ -153,6 +199,9 @@
       // populated for the next ad before the class flips: a second, earlier
       // signal that also bridges the content beat between two ads.
       adSelector: ".video-ads.ytp-ad-module > *",
+      // YouTube TV's own inserted ad slot also shows a "Sponsored" tray at the page's top left, outside the player (2026-11-06; Prism's
+      // YouTube TV adapter reads the same tray): visible with that text, it is an ad slot as the player's class is.
+      adPage: { host: /(^|\.)tv\.youtube\.com$/i, sel: "ytu-ads-title-tray", text: /sponsored|\bad\b/i },
       // Trace 2026-08-29: ad 1 -> content for ~3s (marker off, content clip
       // playing) -> ad 2. 2.5s grace uncovered into that beat.
       endGraceMs: 4000,
@@ -616,6 +665,18 @@
       if (ad) { earlyUntil = Date.now() + EARLY_AD_MS; }
     }
   }
+  // A row's page-wide ad mark (adPage: { host, sel, text }): an element anywhere on the page, shown (not [hidden], visible) and saying so.
+  function pageAdMark(p) {
+    if (p.host && !p.host.test(location.hostname)) return false;
+    try {
+      var els = document.querySelectorAll(p.sel);
+      for (var i = 0; i < els.length; i++) {
+        var e = els[i];
+        if (!e.hasAttribute("hidden") && adElVisible(e) && (!p.text || p.text.test(e.textContent || ""))) return true;
+      }
+    } catch (x) {}
+    return false;
+  }
   /** The registry row whose ad signal is on right now, else null. */
   function ssaiActiveSource() {
     for (var i = 0; i < SSAI_AD_SOURCES.length; i++) {
@@ -626,6 +687,9 @@
       var r = cont.getBoundingClientRect();
       if (r.width <= 400 || r.height <= 200) continue;
       if ((s.adClass && cont.classList.contains(s.adClass)) || (s.adClassRe && s.adClassRe.test(cont.className + ""))) { s.__soft = false; s.__early = false; s.__via = "class"; return s; }
+      if (s.adPage && pageAdMark(s.adPage)) { s.__soft = false; s.__early = false; s.__via = "page:" + s.adPage.sel; return s; }
+      // a source that reads its signal elsewhere than the player's DOM (Pluto TV: the stream's addresses), asked each look
+      if (s.adNow) { var an = false; try { an = !!s.adNow(); } catch (eN) {} if (an) { s.__soft = false; s.__early = false; s.__via = "stream"; return s; } }
       // The ad-mode element must be VISIBLE, not merely present: players keep
       // hidden ad containers in the DOM during playback (Hulu's .PauseAd),
       // and matching a hidden one veils the show mid-play.
@@ -912,10 +976,11 @@
     if (c.__resume) c.__resume.textContent = "\u25B6 Resume";
     // Ad break: the player's / SDK's own countdown, and "Pause after break".
     if (c.__sub) c.__sub.textContent = vidVeil.pauseAfter ? "Your show will be paused after the break" : "Your show returns after the break";
+    if (c.__spotted && c.__sub) c.__sub.textContent = "Looks like a commercial break";
     if (c.__resume) c.__resume.style.display = "none";
     var info = adInfoLine();
     // A live stream with no usable countdown: say LIVE, never "0:00 left".
-    if (isLive(vidVeil.video) && (!info.time || /^0:00/.test(info.time))) info.time = "LIVE";
+    if (isLive(vidVeil.video) && (!info.time || /^0:00\b/.test(info.time))) info.time = "LIVE";
     if (c.__time.textContent !== info.time) c.__time.textContent = info.time;
     if (c.__count.textContent !== info.count) c.__count.textContent = info.count;
     c.__time.style.display = info.time ? "block" : "none";
@@ -940,6 +1005,91 @@
   }
 
   // ---------------------------------------------------------------- art
+  // A spotted veil (2026-11-06): the same opaque veil, its card naming who decided (Prism's break watch) and offering Not a break. Its
+  // art stays still (no pan, no crossfade): the tab's stream records the veil, and under it the break watch reads only that still
+  // picture and the captions, as the bench replays it (COVERSIGHT=art). A see-through veil was tried and dropped the same day: a still
+  // picture with the show moving behind it is hard to look at.
+  function setSource(src) {
+    if (!vidVeil || vidVeil.source === src) return;
+    vidVeil.source = src;
+    styleSpotted(vidVeil.cover, src === "spotted");
+    trace("source " + src);
+  }
+  function styleSpotted(cover, on) {
+    if (!cover || !!cover.__spotted === !!on) return;
+    cover.__spotted = !!on;
+    var art = cover.__art;
+    if (art) {
+      try { art.getAnimations().forEach(function (a) { a.cancel(); }); } catch (e) {}
+      art.style.transform = "none";
+      if (!on) kenBurns(art);
+    }
+    var card = cover.__card;
+    if (card && !cover.__showAd) {
+      var sa = document.createElement("button");
+      sa.setAttribute("data-prism-veil", "1"); sa.type = "button"; sa.textContent = "Show ad";
+      sa.title = "Shows this break as it plays. The veil can be brought back from the corner.";
+      sa.style.cssText = "pointer-events:auto;cursor:pointer;margin:12px 0 0 10px;font:600 14px -apple-system,Segoe UI,Roboto,sans-serif;color:#D7DCE3;background:transparent;border:1.5px solid #5A6270;border-radius:9px;padding:7px 14px";
+      sa.addEventListener("click", function (ev) { ev.stopPropagation(); try { PV.dismissVideo(0); } catch (e) {} });
+      card.appendChild(sa); cover.__showAd = sa;
+    }
+    if (card) {
+      card.title = on ? "Spotted by Prism's break watch, which reads the picture. The service did not mark this break." : "";
+      var nb = cover.__notBreak;
+      if (!nb && on) {
+        nb = document.createElement("button");
+        nb.setAttribute("data-prism-veil", "1"); nb.type = "button"; nb.textContent = "Not a break";
+        nb.title = "Lifts the cover now. Prism's break watch takes it as the show.";
+        nb.style.cssText = "pointer-events:auto;cursor:pointer;margin-top:12px;font:600 14px -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;background:transparent;border:1.5px solid #F0A83C;border-radius:9px;padding:7px 14px";
+        nb.addEventListener("click", function (ev) { ev.stopPropagation(); try { if (PV.spottedDismiss) PV.spottedDismiss(); } catch (e) {} uncover("not a break"); });
+        card.appendChild(nb); cover.__notBreak = nb;
+        // the way out (2026-11-07): a spotted veil is Prism's own judgement, so its card links straight to the two switches that turn the
+        // live TV detection off, opened in the panel's page with those rows lit
+        var off = document.createElement("button");
+        off.setAttribute("data-prism-veil", "1"); off.type = "button"; off.textContent = "Turn this detection off";
+        off.title = "Opens Prism's options at the live TV switches";
+        off.style.cssText = "pointer-events:auto;cursor:pointer;margin:12px 0 0 10px;font:500 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#9AA4B2;background:transparent;border:1.5px solid #5A6270;border-radius:9px;padding:7px 12px";
+        off.addEventListener("click", function (ev) { ev.stopPropagation(); try { chrome.runtime.sendMessage({ type: "pv:open-options", highlight: "live" }, function () { void chrome.runtime.lastError; }); } catch (e) {} });
+        card.appendChild(off); cover.__detectOff = off;
+      }
+      if (nb) nb.style.display = on ? "inline-block" : "none";
+      if (cover.__detectOff) cover.__detectOff.style.display = on ? "inline-block" : "none";
+    }
+  }
+  function breakLook() { var l = PV.uiPrefs && PV.uiPrefs.breakLook; return l === "mute" || l === "show" ? l : "veil"; }
+  // The mute look: the cover stays as the mute's holder but shows nothing over the ad but a small box (the ad muted, Unmute); Unmute is
+  // the reveal (the sound back, and the restore chip offers the veil again for the rest of the break)
+  function styleLook(cover, look) {
+    if (!cover || cover.__look === look) return;
+    cover.__look = look;
+    var mute = look === "mute", art = cover.__art;
+    cover.style.background = mute ? "transparent" : "#0A0C0F";
+    cover.style.pointerEvents = mute ? "none" : "auto";
+    if (art) art.style.display = mute ? "none" : "";
+    var box = cover.__muteBox;
+    if (!box && mute) {
+      box = document.createElement("div");
+      box.setAttribute("data-prism-veil", "1");
+      box.style.cssText = "position:absolute;left:14px;top:14px;display:flex;align-items:center;gap:10px;pointer-events:auto;font:600 14px -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;background:rgba(10,12,15,.85);padding:8px 10px 8px 14px;border-radius:10px";
+      var lbl = document.createElement("span"); lbl.setAttribute("data-prism-veil", "1"); lbl.textContent = "Ad muted";
+      var un = document.createElement("button"); un.setAttribute("data-prism-veil", "1"); un.type = "button"; un.textContent = "Unmute";
+      un.style.cssText = "pointer-events:auto;cursor:pointer;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#0A0C0F;background:#F0A83C;border:0;border-radius:8px;padding:6px 12px";
+      un.addEventListener("click", function (ev) { ev.stopPropagation(); try { PV.dismissVideo(0); } catch (e) {} }, true);
+      box.appendChild(lbl); box.appendChild(un);
+      cover.appendChild(box); cover.__muteBox = box;
+    }
+    if (box) box.style.display = mute ? "flex" : "none";
+    applyHud(cover);
+    if (!mute && cover.__card) { cover.__card.style.display = ""; applyHud(cover); }
+  }
+  // for the offscreen page: a spotted veil fully up (its still picture is what the break watch reads under it), or fading
+  PV.spottedCoverInfo = function () {
+    try {
+      if (!vidVeil || !vidVeil.cover || !vidVeil.cover.__spotted) return null;
+      var op = parseFloat(getComputedStyle(vidVeil.cover).opacity);
+      return op > 0.99 ? { spotted: true } : { fading: true };
+    } catch (e) { return null; }
+  };
   function kenBurns(layer) {
     var s0 = 1 + Math.random() * 0.02, s1 = 1.09 + Math.random() * 0.04;
     var tx = (Math.random() * 2 - 1) * 2.2, ty = (Math.random() * 2 - 1) * 2.2;
@@ -952,6 +1102,7 @@
   }
   function maybeCrossfadeArt() {
     if (!vidVeil || !vidVeil.artAt || (Date.now() - vidVeil.artAt) < 22000) return;
+    if (vidVeil.cover && vidVeil.cover.__spotted) return;   // a spotted veil keeps one picture (Veil's offscreen page subtracts it)
     vidVeil.artAt = Date.now();
     var cover = vidVeil.cover, prev = cover.__art;
     var nl = document.createElement("div");
@@ -1208,10 +1359,42 @@
     pop.appendChild(popPos); pop.appendChild(popPause); pop.appendChild(popResume); pop.appendChild(popFs);
     cover.appendChild(chip); cover.appendChild(pop);
     cover.__chip = chip; cover.__chipLbl = chipLbl; cover.__pop = pop; cover.__popPos = popPos; cover.__popPause = popPause; cover.__popBox = popBox; cover.__popResume = popResume;
+    // The peep (2026-11-07): resting on the corner glyph opens a small panel under it with the video as it plays behind the veil,
+    // sound off, and a Reveal 15 s button below it (what press-and-hold does). The picture is a copy of the video's stream where the
+    // page allows one (captureStream); a protected video cannot be copied, so for it the veil opens a keyhole at the panel and the
+    // page's own video is drawn small inside it, put back as it was when the pointer leaves. data-prism-ui: pressing the panel is
+    // not the press-and-hold on the veil.
+    var peep = document.createElement("div");
+    peep.setAttribute("data-prism-ui", "1");
+    peep.style.cssText = "position:absolute;left:14px;top:52px;display:none;flex-direction:column;gap:8px;pointer-events:auto;font:500 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#D7DCE3;background:rgba(20,23,28,.92);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 30px rgba(0,0,0,.5)";
+    var peepVideo = document.createElement("video");
+    peepVideo.setAttribute("data-prism-ui", "1"); peepVideo.muted = true; peepVideo.autoplay = true; peepVideo.playsInline = true;
+    peepVideo.style.cssText = "display:none;width:192px;height:108px;background:#000;border-radius:6px;object-fit:contain";
+    var peepHole = document.createElement("div");
+    peepHole.setAttribute("data-prism-ui", "1");
+    peepHole.style.cssText = "display:none;width:192px;height:108px;border-radius:6px;background:transparent";
+    var peepNote = document.createElement("div"); peepNote.setAttribute("data-prism-ui", "1"); peepNote.style.cssText = "color:#9AA4B2;font-size:12px;max-width:192px";
+    var peepReveal = document.createElement("button"); peepReveal.setAttribute("data-prism-ui", "1"); peepReveal.type = "button";
+    peepReveal.style.cssText = "cursor:pointer;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#0A0C0F;background:#F0A83C;border:0;border-radius:9px;padding:7px 14px;align-self:flex-start";
+    peepReveal.textContent = "Reveal 15 s"; peepReveal.title = "Shows the video for fifteen seconds, then the veil comes back";
+    peepReveal.addEventListener("click", function (ev) { ev.stopPropagation(); peepStop(cover); try { PV.dismissVideo(15000); } catch (e) {} });
+    peep.appendChild(peepVideo); peep.appendChild(peepHole); peep.appendChild(peepNote); peep.appendChild(peepReveal);
+    cover.appendChild(peep);
+    cover.__peep = peep; cover.__peepVideo = peepVideo; cover.__peepHole = peepHole; cover.__peepNote = peepNote;
+    chipMoon.title = "Rest here for a peep at the video";
+    var peepLeave = 0;
+    function peepOpen() { if (peepLeave) { clearTimeout(peepLeave); peepLeave = 0; } if (cover.__pop && cover.__pop.style.display !== "none") return; peepStart(cover); }
+    function peepClose() { if (peepLeave) clearTimeout(peepLeave); peepLeave = setTimeout(function () { peepLeave = 0; peepStop(cover); }, 250); }
+    chip.addEventListener("mouseenter", peepOpen); chip.addEventListener("mouseleave", peepClose);
+    peep.addEventListener("mouseenter", peepOpen); peep.addEventListener("mouseleave", peepClose);
+    peep.addEventListener("click", function (ev) { ev.stopPropagation(); });
+    // the pointer resting elsewhere on the veil closes the peep too (a leave event the browser never delivered left it open on the first
+    // live try, 2026-11-07), and it closes by itself after twenty seconds: the keyhole is a look, not a window
+    cover.addEventListener("mousemove", function (ev) { if (cover.__peepOn && !chip.contains(ev.target) && !peep.contains(ev.target)) peepClose(); });
     cover.__cardMoon = msg.querySelector(".__prismmoon");
     chipMoon.addEventListener("click", function (ev) { ev.stopPropagation(); toggleHud(); });
     if (cover.__cardMoon) cover.__cardMoon.addEventListener("click", function (ev) { ev.stopPropagation(); toggleHud(); });
-    chip.addEventListener("click", function (ev) { ev.stopPropagation(); pop.style.display = (pop.style.display === "none") ? "flex" : "none"; });
+    chip.addEventListener("click", function (ev) { ev.stopPropagation(); if (hudMode() !== "minimal") return; peepStop(cover); pop.style.display = (pop.style.display === "none") ? "flex" : "none"; });
     pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
     popResume.addEventListener("click", function (ev) { ev.stopPropagation(); resumePlayback(); });
     applyHud(cover);
@@ -1268,16 +1451,102 @@
   // label and clock and opens the popover; the card is hidden.
   function applyHud(cover) {
     var c = cover || (vidVeil && vidVeil.cover); if (!c || !c.__chip) return;
+    if (c.__look === "mute") { c.__card.style.display = "none"; c.__chip.style.display = "none"; c.__pop.style.display = "none"; return; }
     var min = hudMode() === "minimal";
     c.__card.style.display = min ? "none" : "block";
     c.__chip.style.display = "flex";
-    c.__chip.style.pointerEvents = min ? "auto" : "none";
+    c.__chip.style.pointerEvents = "auto";   // the peep opens from the glyph in both modes (2026-11-07); the popover only in the minimal one
     c.__chip.style.cursor = min ? "pointer" : "default";
     if (c.__chipMoon) c.__chipMoon.style.cursor = min ? "pointer" : "default";
     if (c.__chipLbl) c.__chipLbl.style.display = min ? "" : "none";
     if (!min) c.__pop.style.display = "none";
   }
   PV.applyHud = function () { applyHud(); };
+
+  // The peep's picture (2026-11-07). First a copy of the video's own stream, which a page allows for its own unprotected video;
+  // refused (a protected video, or one from another origin), the veil opens a keyhole where the panel's picture box sits and the
+  // page's video is drawn small inside it: scaled to the box with its top-left corner moved there, the cover cut out over the box
+  // (an even-odd polygon), everything put back by peepStop.
+  function peepStart(c) {
+    if (!c || !c.__peep || !vidVeil || vidVeil.cover !== c || c.__look === "mute") return;
+    // the video to show is the one PLAYING now: on Tubi and other SDK players an ad plays in its own element while the show's video
+    // waits paused, and the first live try peeped at the paused show (2026-11-07); the veil's own video when none is playing
+    var v = vidVeil.video;
+    try {
+      var vs = document.querySelectorAll("video"), bestA = 0;
+      for (var i = 0; i < vs.length; i++) {
+        var cand = vs[i]; if (cand.paused || cand.readyState < 2) continue;
+        var cr0 = cand.getBoundingClientRect(), a = cr0.width * cr0.height;
+        if (a > bestA && a > 10000) { bestA = a; v = cand; }
+      }
+    } catch (e0) {}
+    if (!v) return;
+    c.__peep.style.display = "flex";
+    if (c.__peepOn) return;
+    c.__peepOn = true;
+    if (c.__peepTimer) clearTimeout(c.__peepTimer);
+    c.__peepTimer = setTimeout(function () { peepStop(c); }, 20000);
+    var pv = c.__peepVideo, hole = c.__peepHole, note = c.__peepNote;
+    try {
+      if (typeof v.captureStream !== "function") throw new Error("no captureStream");
+      var s = v.captureStream();
+      if (!s || !s.getVideoTracks().length) throw new Error("no video track");
+      c.__peepStream = s; pv.srcObject = s; pv.style.display = "block"; hole.style.display = "none"; note.textContent = "";
+      try { var pr = pv.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e0) {}
+      return;
+    } catch (e) { c.__peepStream = null; pv.style.display = "none"; }
+    // the keyhole
+    try {
+      hole.style.display = "block";
+      var cr = c.getBoundingClientRect(), hr = hole.getBoundingClientRect(), vr = v.getBoundingClientRect();
+      if (!vr.width || !vr.height) throw new Error("no video box");
+      var k = Math.min(hr.width / vr.width, hr.height / vr.height);
+      var tx = hr.left + (hr.width - vr.width * k) / 2 - vr.left, ty = hr.top + (hr.height - vr.height * k) / 2 - vr.top;
+      c.__peepSaved = { transform: v.style.getPropertyValue("transform"), transformP: v.style.getPropertyPriority("transform"), origin: v.style.getPropertyValue("transform-origin"), originP: v.style.getPropertyPriority("transform-origin"), opacity: v.style.getPropertyValue("opacity"), opacityP: v.style.getPropertyPriority("opacity"), hidden: v.hasAttribute("data-prism-hidden") };
+      v.style.setProperty("transform-origin", "0 0", "important");
+      v.style.setProperty("transform", "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(4) + ")", "important");
+      // the veil keeps YouTube's video at opacity 0 (video[data-prism-hidden]) and sets that again every look: an inline opacity, marked
+      // important, outranks it while the peep is open (seen black on the first live try, 2026-11-07)
+      v.style.setProperty("opacity", "1", "important");
+      var x1 = (hr.left - cr.left).toFixed(1) + "px", y1 = (hr.top - cr.top).toFixed(1) + "px", x2 = (hr.right - cr.left).toFixed(1) + "px", y2 = (hr.bottom - cr.top).toFixed(1) + "px";
+      c.style.clipPath = "polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, " + x1 + " " + y1 + ", " + x1 + " " + y2 + ", " + x2 + " " + y2 + ", " + x2 + " " + y1 + ", " + x1 + " " + y1 + ")";
+      // the display covers (covers.js) over the ad's own element sit under the keyhole and would show their art in it (seen on Tubi,
+      // 2026-11-07): every other veil element over the player's box is hidden while the peep is open, put back after
+      c.__peepHidden = [];
+      try {
+        var pr = cr; document.querySelectorAll("[data-prism-veil]").forEach(function (el) {
+          if (el === c || c.contains(el)) return;
+          var er = el.getBoundingClientRect(); if (!er.width || !er.height) return;
+          if (er.right < pr.left || er.left > pr.right || er.bottom < pr.top || er.top > pr.bottom) return;
+          c.__peepHidden.push([el, el.style.getPropertyValue("visibility"), el.style.getPropertyPriority("visibility")]);
+          el.style.setProperty("visibility", "hidden", "important");
+        });
+      } catch (e3) {}
+      c.__peepKeyhole = v; note.textContent = "A protected video: shown through a keyhole";
+    } catch (e2) { hole.style.display = "none"; note.textContent = "No peep here"; }
+  }
+  function peepStop(c) {
+    if (!c || !c.__peep) return;
+    c.__peep.style.display = "none";
+    if (c.__peepTimer) { clearTimeout(c.__peepTimer); c.__peepTimer = 0; }
+    if (!c.__peepOn) return;
+    c.__peepOn = false;
+    try { if (c.__peepStream) c.__peepStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    c.__peepStream = null;
+    try { c.__peepVideo.srcObject = null; } catch (e1) {}
+    var v = c.__peepKeyhole, sv = c.__peepSaved;
+    if (v && sv) {
+      try {
+        if (sv.transform) v.style.setProperty("transform", sv.transform, sv.transformP); else v.style.removeProperty("transform");
+        if (sv.origin) v.style.setProperty("transform-origin", sv.origin, sv.originP); else v.style.removeProperty("transform-origin");
+        if (sv.opacity) v.style.setProperty("opacity", sv.opacity, sv.opacityP); else v.style.removeProperty("opacity");
+      } catch (e2) {}
+    }
+    c.__peepKeyhole = null; c.__peepSaved = null;
+    try { (c.__peepHidden || []).forEach(function (h) { if (h[1]) h[0].style.setProperty("visibility", h[1], h[2]); else h[0].style.removeProperty("visibility"); }); } catch (e4) {}
+    c.__peepHidden = null;
+    try { c.style.clipPath = ""; } catch (e3) {}
+  }
 
   // ---------------------------------------------------------------- controls
   // The player's own TRANSPORT play/pause control - and only that. A loose
@@ -1732,10 +2001,28 @@
   // the section is looked for inside <ytd-watch-flexy video-id=...> matching
   // the URL; YouTube's per-video verdict (ai-tiles.js, looked up once) wins
   // over the DOM either way and is the only thing that writes the cache.
-  function aiLabeled() {
+  // A player that is not the watch page's (B-408, 2026-10-26: the video playing in a channel page's header, labelled AI, played unveiled):
+  // its video id from the player's own renderer - the header's title link - and YouTube's per-video verdict, looked up as a tile's is.
+  // The page carries no "How this was made" section for it, so the verdict alone decides; until it is in, nothing is covered.
+  var AI_PLAYER_HOSTS = "ytd-channel-video-player-renderer";
+  function playerVideoId(v) {
+    var host = v && v.closest ? v.closest(AI_PLAYER_HOSTS) : null;
+    var a = host ? host.querySelector("a[href*='/watch?v=']") : null;
+    var m = a ? /[?&]v=([\w-]{11})/.exec(a.getAttribute("href") || "") : null;
+    return m ? m[1] : "";
+  }
+  function aiLabeled(v) {
     if (!(PV.uiPrefs && PV.uiPrefs.aiVeil)) return null;
     if (!/(^|\.)youtube\.com$/i.test(location.hostname)) return null;
     var vid = ""; try { var vm = /[?&]v=([\w-]{11})/.exec(location.search); vid = vm ? vm[1] : ""; } catch (e) {}
+    if (!vid) {
+      var pid = playerVideoId(v);
+      if (!pid) return null;
+      var pv = PV.aiVerdict ? PV.aiVerdict(pid) : undefined;
+      if (pv === 1) return { label: "Made with AI", source: "YouTube" };
+      if (pv === undefined && PV.aiLookup) { try { PV.aiLookup(pid); } catch (e3) {} }
+      return null;
+    }
     var verdict = (vid && PV.aiVerdict) ? PV.aiVerdict(vid) : undefined;
     if (verdict === 0) return null;
     var flexy = document.querySelector("ytd-watch-flexy");
@@ -1750,6 +2037,42 @@
     return { label: m[0].charAt(0).toUpperCase() + m[0].slice(1), source: "YouTube" };
   }
   PV.__aiLabeled = aiLabeled;   // tests
+  // YouTube TV's own ad slots (opt-in pv:ui.ytvVeil): the page-world reader (src/ytv-cues.js) acts only while this says "on", so
+  // turning the switch off stops it in a page that is already open. It sets the same SDK ad flag the veil follows.
+  // YouTube TV is covered only while it is watched live (2026-11-06, Prism and Veil alike): rewound, paused behind or a recording, the
+  // viewer can skip an ad themselves, and a wrong cover is undone by scanning back. The page shows no state for it (its LIVE button is
+  // the same either way, read 2026-11-06), but the video's own clock does: at the live edge it runs in step with the real clock, and
+  // scanning back or a pause leaves it behind by exactly that much (two readings matched the scrub bar to the second: 79 s, 159 s).
+  // So the smallest gap seen in this playback is the live edge, and more than YTV_BEHIND_S past it is behind. A stream shorter than
+  // six hours is a recording, not a channel (Prism's adapter rule for live).
+  var YTV_BEHIND_S = 45;
+  var ytvClock = { v: null, base: Infinity };
+  function ytvBehindLive(v) {
+    if (!/(^|\.)tv\.youtube\.com$/i.test(location.hostname) || !v) return false;
+    try {
+      if (ytvClock.v !== v) {
+        ytvClock.v = v; ytvClock.base = Infinity;
+        var reset = function () { ytvClock.base = Infinity; };
+        v.addEventListener("emptied", reset); v.addEventListener("loadstart", reset);   // a channel change starts a new clock
+      }
+      var d = v.duration;
+      if (isFinite(d) && d > 0 && d <= 21600) return true;   // a recording
+      if (v.readyState < 2) return false;
+      var off = performance.now() / 1000 - v.currentTime;
+      if (off < ytvClock.base) ytvClock.base = off;
+      return off - ytvClock.base > YTV_BEHIND_S;
+    } catch (e) { return false; }
+  }
+  PV.ytvBehindLive = ytvBehindLive;
+  if (/(^|\.)tv\.youtube\.com$/i.test(location.hostname) && window === window.top) {
+    var ytvMirror = function () {
+      try {
+        var want = (PV.uiPrefs && PV.uiPrefs.ytvVeil !== false) ? "on" : "off";   // on unless switched off (decision 2026-11-07: safe detection on by default)
+        if (document.documentElement.getAttribute("data-prism-ytv") !== want) document.documentElement.setAttribute("data-prism-ytv", want);
+      } catch (e) {}
+    };
+    ytvMirror(); setInterval(function () { ytvMirror(); try { ytvBehindLive(PV.mainVideo()); } catch (e) {} }, 1000);
+  }
   function enterAi(v, ssai, ai) {
     if (!vidVeil) {
       vidVeilStart = Date.now();
@@ -1803,14 +2126,20 @@
       trace("up(ad" + (ssai && ssai.__early ? "-early" : "") + ") src=" + (ssai ? ssai.source : "sdk") + " v=" + Math.round(v.getBoundingClientRect().width) + vst + " via=" + (lastTrigger || "poll") + (lastTriggerAt ? "+" + (Date.now() - lastTriggerAt) + "ms" : ""));
       vidVeil = { cover: buildCover(true), video: v, wasMuted: wasMuted, artAt: Date.now(), box: veilBox(ssai, v), mode: "ad", early: !!(ssai && ssai.__early), pauseAfter: pauseAfterPref, pauseAt: 0, reclaimAt: (PV.reclaimVideoStart ? PV.reclaimVideoStart() : 0) };
       muteOthers(v); tabMuteStart();
+      veilLog("up", ssai);
     } else if (vidVeil.mode !== "ad") {
       // a pause intermission overtaken by a real break: switch to ad, count reclaimed time
       vidVeil.mode = "ad"; vidVeil.pauseAfter = pauseAfterPref; vidVeil.pauseAt = 0;
       vidVeilStart = Date.now();
       if (!vidVeil.reclaimAt && PV.reclaimVideoStart) vidVeil.reclaimAt = PV.reclaimVideoStart();
+      veilLog("up", ssai);
     }
+    if (vidVeil && !spottedSrc) vidVeil.__logSrc = "marked";   // a marked break takes a spotted veil over: the log says what it ended as
     if (vidVeil.video !== v) { if (!tabMuted) { try { v.muted = true; } catch (e) {} } showVideos(); vidVeil.video = v; muteOthers(v); }
-    hideVideo(v);
+    setSource(spottedSrc ? "spotted" : "marked");
+    styleLook(vidVeil.cover, breakLook());
+    ambient(breakLook() === "veil");
+    if (vidVeil.cover.__look === "mute") showVideos(); else hideVideo(v);
     vidVeil.box = veilBox(ssai, v);
     positionCover(true);
     if (!vidVeil.__firstFrames) {
@@ -1843,10 +2172,43 @@
   // Trace: every raise and drop of the video veil, with the reason and the
   // veil's age, into the report diagnostics (dom.js data-prism-errors ring).
   function trace(msg) { try { if (PV.recordError) PV.recordError("veil " + msg + (vidVeilStart ? " @" + (Date.now() - vidVeilStart) + "ms" : "")); } catch (e) {} }
+  // The veil log (2026-11-07): every video veil over an ad break, as it goes up and as it comes down, kept in the extension's storage
+  // (bg.js, pv:veil-log) the way the Prism app keeps its calls.log: when, on which site and channel, marked or spotted, the break
+  // watch's chance and the rule that called it, and at the drop the reason and how long it stood. Copied from the panel.
+  function veilLog(ev, ssai, why) {
+    try {
+      var rec = { ev: ev, at: Date.now(), site: location.hostname };
+      if (ev === "up") {
+        rec.src = spottedSrc ? "spotted" : "marked";
+        if (vidVeil) vidVeil.__logSrc = rec.src;
+        if (spottedSrc) { var si = PV.spottedInfo ? PV.spottedInfo() : null; rec.p = si ? Math.round((si.p || 0) * 100) / 100 : 0; rec.why = (si && si.why) || "learned"; }
+        else rec.why = ssai ? String(ssai.source || "") : "sdk";
+      } else {
+        rec.src = (vidVeil && vidVeil.__logSrc) || (spottedSrc ? "spotted" : "marked");
+        rec.why = String(why || "?"); rec.s = vidVeilStart ? Math.round((Date.now() - vidVeilStart) / 1000) : 0;
+      }
+      var chan = PV.liveChannelName ? PV.liveChannelName() : ""; if (chan) rec.chan = chan;
+      chrome.runtime.sendMessage({ type: "pv:veil-log", rec: rec }, function () { void chrome.runtime.lastError; });
+    } catch (e) {}
+  }
+  // The soundscape (2026-11-06, the Prism app's opt-in ambient audio): while a veil covers an ad break, the chosen loop plays from the
+  // extension's own page (the tab itself is muted), faded in and out; off by default
+  var ambientOn = false;
+  function ambient(on) {
+    var snd = PV.uiPrefs && PV.uiPrefs.breakSound;
+    if (on && !snd) on = false;
+    if (on === ambientOn) return;
+    ambientOn = on;
+    try { chrome.runtime.sendMessage({ type: "pv:ambient", on: on, sound: snd || "" }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+  }
+  PV.ambientOff = function () { ambient(false); };
   function uncover(why) {
     pauseAfterPref = false;   // the "After the break" choice was for the break that just ended
+    ambient(false);
     if (!vidVeil) return;
     trace("down(" + (why || "?") + ") mode=" + vidVeil.mode);
+    if (vidVeil.mode === "ad") veilLog("down", null, why);
+    peepStop(vidVeil.cover);
     if (PV.reclaimVideoEnd && vidVeil.reclaimAt) { PV.reclaimVideoEnd(vidVeil.reclaimAt); vidVeil.reclaimAt = 0; }
     restoreMute();
     var dying = vidVeil.cover;
@@ -1881,6 +2243,14 @@
     } catch (eS) {}
     var ssai = ssaiActiveSource();
     var adRaw = adSignalOn(ssai);
+    // A spotted break (2026-11-06): Prism's break watch, reading the live TV picture (src/live-picture.js, offscreen.js), says a
+    // commercial break is on. It counts only while nothing of the service's own says so: a marked break wins and takes the veil over.
+    spottedSrc = false;
+    if (!adRaw && PV.spottedNow && PV.spottedNow()) { adRaw = true; spottedSrc = true; }
+    // How an ad break looks (2026-11-06, the Prism app's three looks): veil (the cover and the mute), mute (the ad's picture with its sound
+    // off and an Unmute), show (the ad as it plays, nothing done). Pauses and AI-labelled content keep their own veils.
+    if (adRaw && breakLook() === "show") adRaw = false;
+    if (adRaw && ytvBehindLive(v)) { if (!vidVeil || vidVeil.mode === "ad") trace("ytv behind live: no ad cover"); adRaw = false; }
     // Soft signal (see ssaiActiveSource) over CONTENT: allow it only until the
     // content has played SOFT_CONTENT_S seconds; then it is stale ad chrome.
     if (adRaw && ssai && ssai.__soft && v) {
@@ -2015,7 +2385,7 @@
         positionCover(false); updateCard();
         return true;
       }
-      var aiAfter = aiLabeled();
+      var aiAfter = aiLabeled(v);
       if (aiAfter && aiWatchAnyway !== aiKey()) { enterAi(v, ssai, aiAfter); return true; }
       var vs = ""; try { vs = v ? " paused=" + v.paused + " rs=" + v.readyState + " dur=" + Math.round(v.duration) + " t=" + Math.round(v.currentTime) : " v=none"; } catch (eV) {}
       uncover("ad-ended adRaw=" + adRaw + " grace=" + inGrace + " expired=" + vidBreakExpired + vs);
@@ -2059,8 +2429,8 @@
       return false;
     }
     // 3b) AI-labelled video (opt-in): a full intermission while it plays.
-    var ai = aiLabeled();
-    if (ai && v && v.getBoundingClientRect().width > 400 && aiWatchAnyway !== aiKey()) {
+    var ai = aiLabeled(v);
+    if (ai && v && v.getBoundingClientRect().width > 240 && aiWatchAnyway !== aiKey()) {
       enterAi(v, ssai, ai);
       return true;
     }

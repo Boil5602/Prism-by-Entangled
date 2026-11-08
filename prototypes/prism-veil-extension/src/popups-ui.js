@@ -442,7 +442,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     // Everything Prism-wide (veil, content, photos, start page, time
     // reclaimed) lives in the toolbar popup - one place, not two.
     var srow = el("div", "toggle"); srow.style.cssText = "justify-content:flex-end;gap:10px;margin-top:10px;cursor:default";
-    var hint = el("span", null, "Veil, content, photos, time reclaimed:"); hint.style.color = "#A3ABB7"; hint.style.fontSize = "12px";
+    var hint = el("span", null, "Covering ads, content, photos, time reclaimed:"); hint.style.color = "#A3ABB7"; hint.style.fontSize = "12px";
     srow.appendChild(hint);
     var sb = btn("Settings", true, function () {
       try {

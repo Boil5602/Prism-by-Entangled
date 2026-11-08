@@ -87,7 +87,7 @@ def interval(num, den):
 
 for spec in sys.argv[5:]:
     name, path = spec.split("=", 1)
-    cov = np.zeros(len(T), bool); up = None; n = 0
+    cov = np.zeros(len(T), bool); up = None; n = 0; spans = []   # spans: each cover as (up, down) in seconds of the day
     for l in open(path, encoding="utf-8", errors="replace"):
         m = re.match(r"(\d\d):(\d\d):(\d\d)\.\d+ break watch " + re.escape(win) + r": (break|show) ", l)
         if not m:
@@ -95,7 +95,7 @@ for spec in sys.argv[5:]:
             m2 = re.match(r"(\d\d):(\d\d):(\d\d)", l)
             if m2 and up is not None and ("brain ready" in l or ("break watch " + win + ":" in l and "said Not an ad" in l)):
                 t = int(m2.group(1)) * 3600 + int(m2.group(2)) * 60 + int(m2.group(3))
-                cov[max(0, up - A):max(0, t - A)] = True; up = None
+                cov[max(0, up - A):max(0, t - A)] = True; spans.append((up, t)); up = None
             continue
         t = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
         if m.group(4) == "break":
@@ -103,8 +103,14 @@ for spec in sys.argv[5:]:
                 up = t
                 if A <= t <= B: n += 1
         elif up is not None:
-            cov[max(0, up - A):max(0, t - A)] = True; up = None
-    if up is not None: cov[max(0, up - A):] = True
+            cov[max(0, up - A):max(0, t - A)] = True; spans.append((up, t)); up = None
+    if up is not None: cov[max(0, up - A):] = True; spans.append((up, B))
+    # the pop-up a person sees: a veil that came up on the show (no marked ad within 4 s of it) and was gone within 20 s. Counted
+    # whole, in reviewed time only; the exams' gate (2026-11-07), since each one is a cover the person watched appear for nothing.
+    short = 0
+    for u, d in spans:
+        i0, i1 = max(0, u - A), max(0, d - A + 1)
+        if d - u <= 20 and rev[i0:i1].any() and not ads[max(0, i0 - 4):i1 + 4].any(): short += 1
 
     # the marked ad time that went uncovered, by cause
     late = mid = early = whole = 0; begins, stays = [], []
@@ -135,4 +141,4 @@ for spec in sys.argv[5:]:
           f"   missed {ad_s - int((cov & ads & rev).sum())} s: began late {late}, dropped mid-break {mid}, lifted early {early}, breaks missed whole {whole}")
     print(f"      show wrongly covered {100 * wrong.sum() / max(1, show_s):5.2f}%{interval([x[2] for x in blk], [x[3] for x in blk])} ({int(wrong.sum())} s):"
           f" stayed on after a break {linger}, came up ahead of one {ahead}, on their own {own} s in {owns} covers ({100 * own / max(1, show_s):.3f}% of show time)")
-    print(f"      covers {n}; a cover begins {med(begins)} s into a break and stays {med(stays)} s after it (medians)")
+    print(f"      covers {n}, on the show and gone within 20 s {short}; a cover begins {med(begins)} s into a break and stays {med(stays)} s after it (medians)")

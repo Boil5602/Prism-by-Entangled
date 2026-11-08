@@ -173,6 +173,12 @@ if a.zip:
 else:
     scratch = tempfile.mkdtemp(prefix="prism-publish-")
     out = os.path.join(scratch, "publish")
+    # every release carries the newest break watch pack (docs/features/break-watch-packs.md, 2026-11-07): the live pack is fetched into
+    # Assets/breakwatch/pack/ and verified (signature, every file's hash) before the build; a pack that does not verify stops the publish
+    fp = subprocess.run(["node", os.path.join(ROOT, "scripts", "release", "fetch-pack.mjs")], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if fp.returncode != 0:
+        sys.exit("the break watch pack does not verify, nothing published:" + NL + (fp.stdout + fp.stderr).strip())
+    print(fp.stdout.strip())
     print("publishing to", out)
     subprocess.run(["dotnet", "publish", "-c", "Release", "-p:Platform=x64", "-r", "win-x64", "--self-contained", "-o", out, "-nologo"],
                    cwd=os.path.dirname(CSPROJ), check=True)

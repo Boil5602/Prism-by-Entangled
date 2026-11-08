@@ -44,7 +44,7 @@
   function render(v) {
     var view = $("view"); view.textContent = "";
     if (!v) { $("site").textContent = ""; view.appendChild(el("div", "empty", "Prism isn't running on this page (browser pages, the store, PDFs).")); $("open-here").disabled = true; return; }
-    $("site").textContent = v.site; curSite = v.site;
+    $("site").textContent = v.site; curSite = v.site; try { paintLiveSites(); } catch (e) {}
     var pf0 = policy.prefs(v.site); $("pill-on").checked = !pf0.hidden;
     var total = 0; v.rows.forEach(function (r) { total += r.count; });
     view.appendChild(el("div", "sum", total
@@ -126,6 +126,17 @@
   function paintUi() {
     $("veil-on").checked = !ui.veilOff;
     $("ai-veil").checked = !!ui.aiVeil;
+    var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
+    Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
+    $("sound-row").hidden = !chrome.offscreen;   // Firefox has no offscreen page to play it from
+    Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) { l.classList.toggle("on", l.dataset.look === look); });
+    $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
+    $("pack-updates").checked = !!ui.packUpdates;
+    paintPack();
+    $("live-picture").checked = !!ui.livePicture && !!chrome.tabCapture;
+    $("live-sites").hidden = !(ui.livePicture && chrome.tabCapture);
+    if (!ui.livePicture) $("live-now").hidden = true;
+    paintLiveSites();
     $("src-marks").checked = !!ui.srcMarks;
     $("sources").hidden = !ui.srcMarks;
     var cs = ui.credSrc || {};
@@ -138,6 +149,132 @@
   }
   $("veil-on").addEventListener("change", function () { setUi("veilOff", !$("veil-on").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
+  Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) {
+    l.addEventListener("click", function () { setUi("breakSound", l.dataset.snd || undefined); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) {
+    l.addEventListener("click", function () { setUi("breakLook", l.dataset.look === "veil" ? undefined : l.dataset.look); });
+  });
+  $("ytv-veil").addEventListener("change", function () { setUi("ytvVeil", $("ytv-veil").checked); });
+  // The pack (2026-11-07): the one opt-in; the note names the pack held, or the bundled one, and the last check's word
+  function paintPack() {
+    chrome.storage.local.get(["pv:pack", "pv:pack:last"], function (r) {
+      var held = r && r["pv:pack"], last = r && r["pv:pack:last"], note = $("pack-note");
+      if (!$("pack-updates").checked && !held) { note.hidden = true; return; }
+      var s = held ? "Detections: pack " + held.pack + (held.date ? " (" + held.date + ")" : "") + (held.notes ? ". " + held.notes : "") : "Detections: the ones that came with this version.";
+      if (last && !last.ok && last.error) s += " Last check: " + last.error + ".";
+      else if (last && last.same) s += " Checked: nothing newer.";
+      note.textContent = s; note.hidden = false;
+    });
+  }
+  $("pack-updates").addEventListener("change", function () {
+    setUi("packUpdates", $("pack-updates").checked);
+    if ($("pack-updates").checked) { $("pack-note").textContent = "Checking..."; $("pack-note").hidden = false; chrome.runtime.sendMessage({ type: "pv:pack-check" }, function () { void chrome.runtime.lastError; paintPack(); }); }
+    else paintPack();
+  });
+  // the tab's stream exists in Chromium only: elsewhere the option stays visible, disabled, with the reason
+  if (!chrome.tabCapture) {
+    $("live-picture").disabled = true;
+    $("live-picture-row").setAttribute("data-tip", "This browser does not let an extension read a tab's picture, so this needs Edge or Chrome. Marked ad slots are still covered when that option is on.");
+  }
+  $("live-picture").addEventListener("change", function () { setUi("livePicture", $("live-picture").checked); askPicture(); });
+  // The list of live TV sites whose picture is read (tv.youtube.com to start with): a host, or a site above it (example.com covers
+  // www.example.com and watch.example.com)
+  function liveSites() { return Array.isArray(ui.liveTvSites) ? ui.liveTvSites : ["tv.youtube.com"]; }
+  function siteOf(text) {
+    var h = String(text || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").split(/[\/?#:]/)[0].replace(/^www\./, "");
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h) ? h : "";
+  }
+  function onSites(host) { host = String(host || "").toLowerCase(); return liveSites().some(function (h) { return host === h || host.slice(-(h.length + 1)) === "." + h; }); }
+  function addSite(h) {
+    if (!h || liveSites().indexOf(h) >= 0) return;
+    setUi("liveTvSites", liveSites().concat([h])); askPicture();
+  }
+  function paintLiveSites() {
+    var box = $("live-site-list"); box.textContent = "";
+    liveSites().forEach(function (h) {
+      var c = el("span", "chip", h), x = document.createElement("button");
+      x.textContent = "\u00d7"; x.title = "Remove " + h; x.setAttribute("aria-label", "Remove " + h);
+      x.addEventListener("click", function () { setUi("liveTvSites", liveSites().filter(function (y) { return y !== h; })); });
+      c.appendChild(x); box.appendChild(c);
+    });
+    if (!liveSites().length) box.appendChild(el("span", "empty", "No sites. Add one below."));
+    var here = siteOf(curSite);
+    $("live-site-here").hidden = !here || onSites(curSite);
+    if (here) $("live-site-here").textContent = "Add " + here;
+  }
+  $("live-site-add").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var h = siteOf(e.target.value);
+    if (h) { addSite(h); e.target.value = ""; } else e.target.select();
+  });
+  $("live-site-here").addEventListener("click", function () { addSite(siteOf(curSite)); });
+  // Chromium hands a tab's stream only once Veil was invoked on that tab: opening this panel is that, so a YouTube TV tab waiting on it starts
+  // ... and the panel says when this tab's picture is being read (the browser's own sharing mark names no one)
+  // the channel on this tab and the person's choice for it (all breaks / sure breaks only / none), as the Prism app's channel covers
+  var liveChannel = "";
+  function paintChannel(name, mode) {
+    liveChannel = name || "";
+    $("live-chan").hidden = !liveChannel;
+    if (!liveChannel) return;
+    $("live-chan-name").textContent = liveChannel + ": ";
+    var cur = (ui.liveChannels || {})[liveChannel] || mode || "all";
+    Array.prototype.forEach.call(document.querySelectorAll("#live-chan-seg label"), function (l) { l.classList.toggle("on", l.dataset.mode === cur); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#live-chan-seg label"), function (l) {
+    l.addEventListener("click", function () {
+      if (!liveChannel) return;
+      var n = {}, cur = ui.liveChannels || {}; for (var k in cur) n[k] = cur[k];
+      if (l.dataset.mode === "all") delete n[liveChannel]; else n[liveChannel] = l.dataset.mode;
+      setUi("liveChannels", n); paintChannel(liveChannel);
+    });
+  });
+  function askPicture(again) {
+    if (tabId == null || !chrome.tabCapture || !ui.livePicture) { $("live-now").hidden = true; $("live-chan").hidden = true; return; }
+    try {
+      chrome.tabs.sendMessage(tabId, { type: "pv:live-picture-start" }, function (st) {
+        void chrome.runtime.lastError;
+        $("live-now").hidden = !(st && st.state === "on");
+        paintChannel(st && st.channel, st && st.mode);
+        if (st && st.state === "starting" && !again) setTimeout(function () { askPicture(true); }, 1500);
+      });
+    } catch (e) {}
+  }
+  // Opened from a spotted veil's "Turn this detection off" (popup.html?highlight=live, 2026-11-07): the two live TV switches lit and
+  // scrolled into view, with a line on what they do; the light goes out when one is touched.
+  try {
+    var hl = new URLSearchParams(location.search).get("highlight");
+    if (hl === "live") {
+      var rows = [$("ytv-veil-row"), $("live-picture-row")].filter(Boolean);
+      rows.forEach(function (r) { r.classList.add("hl"); });
+      $("live-note").hidden = false;
+      setTimeout(function () { if (rows[0] && rows[0].scrollIntoView) rows[0].scrollIntoView({ block: "center" }); }, 50);
+      rows.forEach(function (r) { r.addEventListener("change", function () { rows.forEach(function (x) { x.classList.remove("hl"); }); }); });
+    }
+  } catch (e) {}
+  // The veil log (2026-11-07): the records bg.js keeps (pv:veil-log), copied as one line a record, newest last, like the Prism app's
+  // calls.log: the date and time, up or down, marked or spotted, the channel and site, then at a raise the chance and the rule, at a
+  // drop how long the veil stood and the reason in brackets.
+  function veilLogLine(r) {
+    var d = new Date(r.at || 0), two = function (n) { return (n < 10 ? "0" : "") + n; };
+    var when = d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds());
+    var s = when + " " + (r.ev || "?") + " " + (r.src || "?") + (r.chan ? " " + r.chan : "") + " " + (r.site || "");
+    if (r.ev === "up") s += (typeof r.p === "number" ? " " + r.p.toFixed(2) : "") + (r.why ? " " + r.why : "");
+    else s += (typeof r.s === "number" ? " " + r.s + " s" : "") + (r.why ? " (" + r.why + ")" : "");
+    return s;
+  }
+  $("veil-log-copy").addEventListener("click", function () {
+    chrome.runtime.sendMessage({ type: "pv:veil-log-get" }, function (a) {
+      void chrome.runtime.lastError;
+      a = Array.isArray(a) ? a : [];
+      var text = a.map(veilLogLine).join("\n") + (a.length ? "\n" : "");
+      var done = function (ok) { $("veil-log-note").textContent = ok ? (a.length ? a.length + " lines copied" : "Nothing logged yet") : "Could not copy"; };
+      try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+    });
+  });
+  $("veil-log-clear").addEventListener("click", function () {
+    chrome.runtime.sendMessage({ type: "pv:veil-log-clear" }, function () { void chrome.runtime.lastError; $("veil-log-note").textContent = "Cleared"; });
+  });
   $("src-marks").addEventListener("change", function () { setUi("srcMarks", $("src-marks").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (i) {
     i.addEventListener("change", function () { var n = {}; var cs = ui.credSrc || {}; for (var k in cs) n[k] = cs[k]; n[i.dataset.src] = i.checked; setUi("credSrc", n); });
@@ -239,6 +376,7 @@
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         tabId = (tabs && tabs[0] && tabs[0].id != null) ? tabs[0].id : null;
         refresh();
+        askPicture();
       });
     });
   });

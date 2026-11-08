@@ -43,9 +43,13 @@ const SHIP = [
   "popup-hook.js",
   "popup.html",
   "popup.js",
+  "offscreen.html",
+  "offscreen.js",
   "report-ad-snippet.js",
   "src",
   "art",
+  "sounds",
+  "vendor",
   "icons",
   "ntp.html",
   "ntp.css",
@@ -73,6 +77,8 @@ function deriveManifest(v) {
   if (v.browser === "firefox") {
     const swFile = (m.background && m.background.service_worker) || "bg.js";
     m.background = { scripts: [swFile] };
+    // Firefox has no tab stream (chrome.tabCapture): the YouTube TV picture option is shown disabled there (2026-11-06)
+    m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");   // and no offscreen pages
     m.browser_specific_settings = Object.assign({}, m.browser_specific_settings,
       { gecko: { id: GECKO_ID, strict_min_version: MIN_FIREFOX,
         // Firefox built-in data consent (https://mzl.la/firefox-builtin-data-consent).
@@ -102,6 +108,8 @@ for (const v of wanted) {
     cpSync(from, join(out, rel), { recursive: true });
     copied++;
   }
+  // Firefox has no tab stream, so the live TV picture's offscreen page and the break watch's model (1.6 MB) never run there (2026-11-06)
+  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch/model.json", "src/breakwatch/picture-net.json", "sounds", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";
   if (zip && process.platform === "win32") {

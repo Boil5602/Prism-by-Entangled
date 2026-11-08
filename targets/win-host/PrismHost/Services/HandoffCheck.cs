@@ -53,7 +53,11 @@ public static class HandoffCheck
             {
                 // match by manifest name (unpacked ids are hashes of the path) or by a known id
                 var name = entry.Value.TryGetProperty("manifest", out var m) && m.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                var known = VeilExtensionIds.Contains(entry.Name) || name.Contains("Prism", StringComparison.OrdinalIgnoreCase) && name.Contains("Veil", StringComparison.OrdinalIgnoreCase);
+                // the extension's manifest name is Prism alone since its rename (older builds had Veil in it, 2026-11-06); its description names it, so another
+                // extension called Prism is not taken for it
+                var desc = entry.Value.TryGetProperty("manifest", out var m2) && m2.TryGetProperty("description", out var dv) && dv.ValueKind == JsonValueKind.String ? dv.GetString() ?? "" : "";
+                var known = VeilExtensionIds.Contains(entry.Name) || name.Contains("Prism", StringComparison.OrdinalIgnoreCase)
+                    && (name.Contains("Veil", StringComparison.OrdinalIgnoreCase) || desc.Contains("Prism intermission veil", StringComparison.OrdinalIgnoreCase));
                 if (!known) continue;
                 var state = entry.Value.TryGetProperty("state", out var st) && st.ValueKind == JsonValueKind.Number ? st.GetInt32() : 1;
                 if (state == 1) return HandoffStatus.Verified;       // 1 = enabled in Chromium's extension prefs
@@ -67,7 +71,7 @@ public static class HandoffCheck
     public static string? Warning(HandoffStatus status) => status switch
     {
         HandoffStatus.ProfileMissing => "Edge hand-off profile not set up - run the kiosk installer before using Full Screen hand-offs (ads would not be veiled there)",
-        HandoffStatus.ExtensionMissing => "Prism veil extension missing from the Edge hand-off profile - a hand-off window would show ads unveiled",
+        HandoffStatus.ExtensionMissing => "Prism extension missing from the Edge hand-off profile - a hand-off window would show ads unveiled",
         _ => null,
     };
 }

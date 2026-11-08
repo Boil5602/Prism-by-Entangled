@@ -662,7 +662,7 @@ reject (then the mockup is redrawn to match the wall).
 | §2.5.2 | Mock 4 shows | Verdict |
 |---|---|---|
 | 1 Beams — white input beam, prism, four `PRISM_BANDS` beams bent by energy | White line from the left edge to x≈0.47, prism triangle **centred at (0.50, 0.44)**, four beams from x≈0.52 to the right edge, each fanning with a slow sine and pulsing in width | Geometry agrees. **Position differs:** the renderer places the prism at 0.42w (CS-8). *Proposal P1:* make the position normative — prism centred at (0.50, 0.44). |
-| 1 Beams — palette | `T.beams = #E8654F · #F0A83C · #8FBF6B · #5B9BD5` (red-orange, amber, green, blue) | **Palette differs** from `PRISM_BANDS` (`#F0A83C · #5CC8C0 · #C86CF0 · #F05C7A`: amber, teal, violet, rose), which SM-3 shipped as the brand's four bands and every style pack, the Veil and the wizard use. *Proposal P2 (recommend reject):* the mockup adopts `PRISM_BANDS`; the brand palette is not changed by a marketing draft. |
+| 1 Beams — palette | `T.beams = #E8654F · #F0A83C · #8FBF6B · #5B9BD5` (red-orange, amber, green, blue) | **Palette differs** from `PRISM_BANDS` (`#F0A83C · #5CC8C0 · #C86CF0 · #F05C7A`: amber, teal, violet, rose), which SM-3 shipped as the brand's four bands and every style pack, the Prism extension and the wizard use. *Proposal P2 (recommend reject):* the mockup adopts `PRISM_BANDS`; the brand palette is not changed by a marketing draft. |
 | — | **A spectrum floor**: 42 rounded bars along the bottom (x 90→720 of 800, base y=400, heights 14–60, coloured by band, opacity 0.5), rising with the audio | **Missing from §2.5.2.** *Proposal P3:* add point 8 — a low bar field across the bottom sixth, band-coloured at 50 % opacity, driven by the same smoothed bands; idle: settles to its floor with the ambient drift; reduced motion: static at the floor. |
 | 2 Backdrop — art blurred and dimmed, palette tinted | Conic-gradient art layer, `blur(38px) brightness(.55) opacity .8`, over a radial base | Agrees; the blur/dim magnitudes are a reasonable default for CS-8's layer. No change. |
 | 3 Metadata line — bottom-left, **monospace**, `title — artist`, then dimmer state | **Two lines**: title in Space Grotesk 600 (13 px), then `The Refractions · hidden facet · ♪ exclusive` — artist in dim sans, the state in mono | **Typography and shape differ.** Charter: one mono line. Mock: a two-line block, only the state in mono. *Proposal P4:* adopt the mock — line 1 title (grotesk semibold, `LeInk`), line 2 `artist · state` (artist dim sans, state dim mono). Note the fixture strings in CS-9 (`Aurora Skies — The Refractions`) would become `Aurora Skies` / `The Refractions · hidden facet · ♪ exclusive`. |
@@ -677,7 +677,7 @@ reject (then the mockup is redrawn to match the wall).
 - *Decision: **P1 adopted.*** The prism is centred at (0.50, 0.44). §2.5.2
   point 1 amended; `DrawBeams` moves off 0.42w.
 - *Decision: **P2 rejected.*** `PRISM_BANDS` stays — amber, teal, violet,
-  rose are the brand's four bands, shipped across the style packs, the Veil
+  rose are the brand's four bands, shipped across the style packs, the Prism extension
   and the wizard, and a marketing draft does not move them. **The mockup is
   wrong and gets redrawn** to the brand bands (`T.beams` in
   `prototypes/prism-website-mockups.jsx`).

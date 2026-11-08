@@ -135,6 +135,12 @@ public sealed partial class MainWindow
             null,
             "Prism doesn't send any of this anywhere. Each source is contacted directly from this device.");
 
+        // other people's libraries in Prism for Windows (2026-11-05): their notices and licence texts ship in Assets
+        Section("Other people's software", null,
+            "Prism carries LAME, NAudio, NAudio.Lame, QRCoder, the .NET runtime and Microsoft's Windows App SDK and WebView2, each under its own licence. LAME is under the GNU LGPL, and you can replace it with your own build.",
+            null,
+            "The notices and licence texts are in Prism's folder: Assets/THIRD-PARTY-NOTICES.txt and Assets/licenses.");
+
         // the company, in full (2026-09-25)
         // the mark (2026-09-25): TM until it is registered, then (R)
         body.Children.Add(new TextBlock { Text = "\u00A9 2026 Entangled Labs LLC. Licensed under the GNU GPL v3 or later. Prism comes with absolutely no warranty. See the GNU GPL for details. Prism by Entangled is a trademark of Entangled Labs LLC. Netflix, Hulu, Disney+ and the other service names and logos shown in Prism belong to their owners. Prism isn't affiliated with or endorsed by them.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });

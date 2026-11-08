@@ -9,8 +9,8 @@ its left. It fades with the other grips while a video plays and comes back with 
 
 ## The form
 
-- **What is it?** Ads are on my screen / Something isn't working / An idea or an improvement / Something else (ideas since 2026-10-06,: the question under it becomes). With *Ads*, a link offers Veil's own report
-  instead: point at the ad on the wall and its structure goes to the ad reports, so Veil can learn to cover it (Prism menu, Veil,
+- **What is it?** Ads are on my screen / Something isn't working / An idea or an improvement / Something else (ideas since 2026-10-06,: the question under it becomes). With *Ads*, a link offers the Prism app's own ad report
+  instead: point at the ad on the wall and its structure goes to the ad reports, so Prism can learn to cover it (Prism menu, Veil,
   Report an ad).
 - **Where?** The Music player / The Video player / Somewhere else in Prism. The player on now is chosen.
 - **Which service?** Prism itself, or one of the services of the player chosen above: the Music player's for music, the Video

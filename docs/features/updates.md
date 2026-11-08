@@ -47,10 +47,10 @@ GitHub names no latest release). The manifest's `stable` entry stays at 0.23.0 o
 installs, which read `stable` and would otherwise never update again; once on 0.23.0 they follow `alpha`. It is not a full
 release, and no later publish passes `--also stable` until there is one.
 
-- The signature is ECDSA P-256 / SHA-256 over the manifest's exact bytes, raw r||s in base64 - the same scheme as Veil's art index.
+- The signature is ECDSA P-256 / SHA-256 over the manifest's exact bytes, raw r||s in base64 - the same scheme as the extension's art index.
   The private key lives at `~/.prism/prism-updates-signing.pem` on the publishing machine and nowhere else; the public JWK is the
   default `update.key` in the host.
-- The zips sit in the same bucket (Tigris, served at prism.entangled.world, the one Veil's art uses), never in a git tree. The website's
+- The zips sit in the same bucket (Tigris, served at prism.entangled.world, the one the extension's art uses), never in a git tree. The website's
   Download page reads the version, date, size and hash from its own `releases.json`, which the publish script writes, so the page and
   the manifest cannot disagree; `/prism/download/windows` on the site 302s to the current zip.
 - The page's Size opens into what the download is made of (2026-10-09): `scripts/release/size_breakdown.py` puts every file in the zip in one named part (Prism itself, with its sounds and
@@ -170,7 +170,7 @@ which read as "Last check never" right after a check (2026-10-05).
 
 - **The count is of downloads, not installs.** Prism never reports an install: that would be telemetry, which it promises not to do.
   The website's Download button goes to `https://reports.entangled.world/v1/download/windows` (the reports service that already runs
-  for Veil, prototypes/prism-veil-reports/server.mjs): it adds one to a number and sends the browser on to the current zip, read from
+  for the extension, prototypes/prism-veil-reports/server.mjs): it adds one to a number and sends the browser on to the current zip, read from
   the signed manifest. Nothing about the person is kept - no address, no browser string, no time - only the number, in the service's
   private bucket. `GET /v1/downloads` answers `{"windows": N}` with CORS for entangled.world, and the site shows it. A HEAD does not
   count; a bot that fetches the link does, so the number is an honest upper bound on people.

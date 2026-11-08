@@ -182,6 +182,9 @@ prototypes/prism-veil-art/pool/manifest.json	ee7d4d1222d6071f
 prototypes/prism-veil-extension/report-ad-snippet.js	563ac28aed0c3201
 prototypes/prism-veil-extension/src/art-credits.js	2a224703c55ec99b
 prototypes/prism-veil-extension/src/art-credits.js	7a84f35cf6619a90
+prototypes/prism-veil-extension/src/breakwatch/break-model.js	5c66d58e48086bdc
+prototypes/prism-veil-extension/src/breakwatch/break-model.js	85aebdce60c6d770
+prototypes/prism-veil-extension/src/breakwatch/break-model.js	f538d5b5788b0d94
 prototypes/prism-veil-extension/src/covers.js	d23178769069a707
 prototypes/prism-veil-extension/src/report.js	6450d59ee9eaba73
 prototypes/prism-veil-extension/src/rules.js	1e1d4a2c8cd2068f
@@ -190,6 +193,8 @@ prototypes/prism-veil-extension/src/rules.js	b36f7f23ef06c9d8
 prototypes/prism-veil-extension/src/video.js	1c1a67cc8bc480de
 prototypes/prism-veil-extension/tests/popup-backstop.test.mjs	7d31e88cbfeae157
 prototypes/prism-veil-extension/tests/popup-hook.test.mjs	ae94b76b517d178d
+prototypes/prism-veil-extension/vendor/tesseract/worker.min.js	25e2c4f482cb4775
+prototypes/prism-veil-extension/vendor/tesseract/worker.min.js	426851bb608cde98
 scripts/breakwatch/exams.md	ced153ff8d9c9fd4
 scripts/breakwatch/train2.py	f1f4a6c906ff9f27
 scripts/release/size_breakdown.py	3ac1f0a7dc0f320d
@@ -197,6 +202,8 @@ scripts/verify-presentation-fixtures.mjs	a7ef3d5f23380ae5
 targets/win-host/PrismHost.Core/Redact.cs	884809a356cdfd4f
 targets/win-host/PrismHost.Core/VisualizationChrome.cs	551a234686b48512
 targets/win-host/PrismHost.Core/VisualizationChrome.cs	88d7f29ba07e83eb
+targets/win-host/PrismHost/Assets/licenses/Windows.AI.MachineLearning-ThirdPartyNotices.txt	9075082ee1ceb1b1
+targets/win-host/PrismHost/Assets/licenses/WindowsAppSDK-NOTICE.txt	9075082ee1ceb1b1
 targets/win-host/PrismHost/Assets/tutorial/tutorial.json	471ada98689acbaa
 targets/win-host/PrismHost/MainWindow.AdDebug.cs	80e22780c001b984
 targets/win-host/PrismHost/MainWindow.AdDebug.cs	c1c03e0d2c17714e

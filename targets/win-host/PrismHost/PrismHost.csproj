@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.42.0</Version>
+    <Version>0.43.0</Version>
     <!-- Program.cs is the entry point (2026-10-23): the same exe runs as the phone launcher with -launcher, before any XAML starts -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
@@ -54,6 +54,9 @@
     <Content Include="Assets\prism-icon-192.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism-icon-512.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism-icon-512-maskable.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- other people's libraries: their notices and licence texts ship with every build (2026-11-05) -->
+    <Content Include="Assets\THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\licenses\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\packages\core\dist\prism-runtime.js" Link="Assets\brain\prism-runtime.js" CopyToOutputDirectory="PreserveNewest" />
     <!-- the animated wordmark snippet (docs/features/animated-wordmark.md): core emits it, the phone's page inlines it; absent, the page keeps its plain name -->
@@ -62,6 +65,8 @@
     <Content Include="..\..\..\packages\core\dist\prism-splash.html" Link="Assets\brain\prism-splash.html" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\..\packages\core\dist\prism-splash.html')" />
     <Content Include="Assets\demo-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\learned.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\breakwatch\picture-net.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\breakwatch\pack\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\catalog.bin" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\first-run-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- docs/concept-scenes.md §6: the first-party micro-facets, served at

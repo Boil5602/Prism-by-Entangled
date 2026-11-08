@@ -1,7 +1,7 @@
-# Prism Veil — release checklist (Edge / Chrome / Firefox)
+# Prism extension — release checklist (Edge / Chrome / Firefox)
 
 The browser extension only. The Windows host is in development and is out of
-scope here. Written 2026-09-12 against Veil **0.7.170** (`prototypes/prism-veil-extension`).
+scope here. Written 2026-09-12 against the Prism extension **0.7.170** (`prototypes/prism-veil-extension`).
 
 Each step is **Do → Expect**. If what you see differs from *Expect*, stop and
 report the step id (e.g. `SM-4`): that is a bug or a wrong script, and both are
@@ -36,7 +36,7 @@ is a hotfix on the release branch, then the row is walked again.
 |---|---|---|---|
 | FV-1 | `git checkout -b release/0.8` from `main` | branch exists; `main` keeps moving | CODE |
 | FV-2 | set `"version": "0.8.0"` in `manifest.json` (the only version string; the Firefox manifest derives from it) | `grep '"version"' manifest.json` shows 0.8.0 once | CODE |
-| FV-3 | write `CHANGELOG.md` in the extension folder from `git log --oneline 3999664..HEAD -- prototypes/prism-veil-extension` (Veil 0.7.150 → 0.7.170), grouped by site | one line per user-visible change; no internal chatter | CODE |
+| FV-3 | write `CHANGELOG.md` in the extension folder from `git log --oneline 3999664..HEAD -- prototypes/prism-veil-extension` (extension 0.7.150 → 0.7.170), grouped by site | one line per user-visible change; no internal chatter | CODE |
 | FV-4 | tag: `git tag veil-0.8.0` after the gate passes, not before | tag on the commit the stores received | CODE |
 
 ## 2 · Pre-flight (automated)
@@ -49,6 +49,8 @@ is a hotfix on the release branch, then the row is walked again.
 | PF-4 | `unzip -l dist/prism-veil-chromium-0.8.0.zip` | no `tests/`, `dist/`, `node_modules/`, `README.md`, `sign.log`, `.env`; `art/` present | AUTO |
 | PF-5 | `git diff main -- prototypes/prism-veil-extension/manifest.json` | the version, `scripting` and the all-sites host permissions (`http://*/*`, `https://*/*`, B-414/B-416) are the only changes; `tabs` only optional; no new line on the extension's Warnings entry at edge://extensions | AUTO |
 | PF-7 | with two or three pages open and covered, reload the extension at edge://extensions, then switch it off and on again (both stand in for a store update) | within a couple of seconds each open page has its covers and its Prism button back, no page reload; an embedded player's veil waits for that page's next load | CODE |
+| PF-8 | the temporary capture probe is gone (2026-11-06) | no `src/capture-probe.js`; `manifest.json` has no `capture-probe` content script and no `<all_urls>`; bg.js has no `captureProbe` / `streamProbe` | CODE |
+| PF-9 | `grep '"permissions"' -A8 dist/*/manifest.json` | chromium: `tabCapture` and `offscreen` (the live TV picture; neither adds an install warning); firefox: neither, and no `offscreen.*` or `src/breakwatch/model.json` in its package | AUTO |
 | PF-6 | load the built `dist/chromium` unpacked in a **fresh** Edge profile | popup opens, shows 0.8.0, no console errors on `about:blank` and on a plain news page | CODE |
 
 ## 3 · Privacy gate (spec §19 / §22)
@@ -62,7 +64,9 @@ Walk with DevTools → Network open, filter to the extension's requests.
 | PV-3 | Prism button → Report an ad, click any ad, read the panel | it lists exactly what is sent (the site's domain, the element details, the kind of ad, the note, the version); ticking **Include the full page address** adds the page address and the embedded players' addresses to the list; nothing leaves until **Send to Prism** | USER (0.7.181) |
 | PV-4 | press Send | one `POST https://reports.entangled.world/v1/report`; body = only what the panel listed (no `url`, `frames`, `framesDirect` or `diag.iframes` unless the box was ticked; no `ua`, `fb` or settings); no cookies; no IP or id fields (server stores none) | CODE |
 | PV-5 | grep the packages for telemetry hosts | `grep -rl "google-analytics\|sentry\|segment\|mixpanel" dist/` → nothing | AUTO |
+| PV-7 | YouTube TV with Read the live TV picture on, through a break | no request of the extension's at all while it reads: the stream, the text reader, the known ads and the model stay in the browser (the offscreen page loads only extension files: the model, the text reader, the sounds) | CODE |
 | PV-6 | update checks | there are none in the extension; the stores update it. Confirm no `update_url` in either manifest | AUTO |
+| PV-8 | development hooks (2026-11-07): install the packed zip as a normal install (not Load unpacked), open a localhost page and YouTube TV with the picture reading on | `<html>` carries no `data-prism-version`, `data-prism-live-picture` or `data-prism-live-text`; a `prism-dev-reload` event does nothing. These exist for an unpacked install alone (bg.js asks `management.getSelf` once and keeps `pv:dev`) | CODE |
 
 ## 4 · Art gate
 
@@ -152,6 +156,28 @@ the ad's own close control inside the hole: the ad and the veil both go.
 | OP-3 | Twitch main player ad + a shelf mini player | main player veiled; the mini player covered like a display ad | CODE |
 | OP-4 | Kick stitched ad | veil; countdown from "NNs left"; count from "Ad N of M" | CODE |
 | OP-5 | SOOP chat-column banner and an IMA ad in the player | banner covered; player veiled; in-stream pixel ads are **not** detectable | KNOWN |
+
+### YouTube TV (live channels)
+
+Both options are off by default; for now they act on tv.youtube.com alone (the panel's Live TV sites list starts with it).
+
+| id | Do | Expect | mark |
+|---|---|---|---|
+| LT-1 | fresh profile, open the panel | Veil marked ad slots in live TV and Read the live TV picture are both off; in Firefox the picture option is shown disabled, its tooltip saying why | CODE |
+| LT-2 | marked ad slots on; a channel that runs YouTube TV's own slots (one show around the clock) | the slot is covered by a marked veil; the Sponsored tray at the top left gets no cover of its own | USER (0.7.226) |
+| LT-3 | the same, rewound a minute or playing a recording | no cover (live edge only) | CODE |
+| LT-4 | picture on; on a YouTube TV channel press the page's Prism button, choose Allow | the player's box gets isolation: isolate; the tab shows its sharing mark; the toolbar button's title on that tab opens with a line saying the extension reads its picture; the panel has a line saying so too | USER (0.7.239) |
+| LT-5 | let it play through a network commercial break, about ten minutes in | a spotted veil: opaque, its picture still, the card saying it looks like a commercial break with Not a break and Show ad; it lifts within seconds of the show's return, not in the middle of the break | CODE |
+| LT-6 | press Not a break | the veil lifts at once; that channel gets no spotted veil for five minutes (as the Prism app's Not an ad) | CODE |
+| LT-7 | a marked slot starts while a spotted veil is up | the veil turns marked (opaque, the normal card) | CODE |
+| LT-8 | switch the picture off with the stream running | the sharing mark and the toolbar line go at once; reload the page: no stream | CODE |
+| LT-9 | add another live TV site in the panel, open it | its picture is read there too (no marked slots, no live-edge rule: those are YouTube TV's) | CODE |
+| LT-10 | the panel's During ad breaks: Mute only, then Show, on any video ad | Mute only: the ad in view, no sound, an Unmute box that brings the sound back; Show: nothing done | CODE |
+| LT-11 | Sound during breaks: River, then a veiled break | the loop fades in under the veil and out as it lifts; the tab stays muted | CODE |
+| LT-12 | on a reading channel, the panel's All breaks / Sure only / None | None: no veil on that channel; Sure only: only YouTube TV's own slots and paid programming | CODE |
+| LT-13 | Show ad on a spotted or marked veil | the break shows; the corner chip brings the veil back | CODE |
+| LT-14 | a commercial with words on screen (a phone number, a web address) | data-prism-live-text shows the words read; the person's captions are not among them | USER (0.7.253) |
+| LT-15 | reload the extension, reopen the channel and start the reading | the channel's learned logo comes back (no eight minutes of learning) | CODE |
 
 ### Feeds and portals
 

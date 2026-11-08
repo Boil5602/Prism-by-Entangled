@@ -31,6 +31,8 @@ BASE = frozenset(args[args.index("--base") + 1].split(",")) if "--base" in args 
 # CNN and FX, first on Comedy Central), and the trees had learned "a slot ended 40 s ago" as "the break is over" - the cover dropped
 # mid-break on a channel new to them (2026-10-08, 6 of 9 such lifts). The slot itself (cue_on) stays.
 SKIP2 = ("chance", "active", "since_cue_stop", "since_cue_predict")
+# EXTRA_SKIP=a,b (2026-11-06): more inputs left out - the browser extension's model has no on-screen text or QR codes to read
+SKIP2 = SKIP2 + tuple(x for x in os.environ.get("EXTRA_SKIP", "").split(",") if x)
 TAUS = (10,)        # one kernel a timer: a tree splits the same on any monotone form of it (all 1,811 timer splits sat on one of the three)
 ONLY = json.load(open(args[args.index("--only") + 1], encoding="utf-8")) if "--only" in args else None   # train on a manifest's seconds alone
 INSET = frozenset(args[args.index("--inset-ads") + 1].split(",")) if "--inset-ads" in args else None   # ticker channels: an inset picture is an ad, marked or not
@@ -180,6 +182,7 @@ for feat, day in DAYS:
             if more.any(): print(f"{tag} {w[-6:]:>6}: {int((more & keep).sum())} marked-show seconds on {', '.join(sorted(INSET))} are an inset picture: counted as ads", flush=True)
             y = y | more
         cap = events(day, w, "cc")
+        if os.environ.get("NOCC") == "1": cap = []   # the extension's model without captions (2026-11-06; bench NOCC=1)
         # the day's own seconds alone: frames recorded on its date, and none from the time of day where another date's lines stand in its
         # log (the replay that made the readings was fed both dates' captions and screen words there)
         own = own_frames(day, w, t)
@@ -353,7 +356,7 @@ if EXAMS:
     # The exams, by trees trained on every training second. Fitted as the export fits them (each training row's captions scored by a
     # classifier that never saw its channel); an exam's rows are scored as live scores them (the classifier of all the training).
     from sklearn.metrics import average_precision_score, roc_auc_score
-    caps = {c: cap_fit({c}) for c in set(np.concatenate([v["cch"] for v in P.values() if len(v["cch"])]))}
+    caps = {c: cap_fit({c}) for c in set(np.concatenate([v["cch"] for v in P.values() if len(v["cch"])] or [np.array([], dtype=object)]))}
     final_cap = cap_fit(set())
     sc_fit = cap_scores(lambda d: caps.get(d, final_cap)); sc_live = cap_scores(lambda d: final_cap)
     Xa, ya = rows_of(sc_fit, lambda v: np.ones(len(v["t"]), bool))
@@ -482,7 +485,7 @@ if "--no-eval" not in args:
         print(line, flush=True)
 
 if EXPORT:
-    caps = {c: cap_fit({c}) for c in set(np.concatenate([v["cch"] for v in P.values() if len(v["cch"])]))}
+    caps = {c: cap_fit({c}) for c in set(np.concatenate([v["cch"] for v in P.values() if len(v["cch"])] or [np.array([], dtype=object)]))}
     final_cap = cap_fit(set())
     sc = cap_scores(lambda d: caps.get(d, final_cap))
     X, y = rows_of(sc, lambda v: np.ones(len(v["t"]), bool))
@@ -507,6 +510,19 @@ if EXPORT:
              "kernels": list(TAUS), "rolls": {"signals": ["logo_ratio", "logo_seen", "change", "std", "mean"], "windows": [5, 15, 30], "seconds": True},
              "captionInputs": ["cap_mean8", "cap_mean20", "cap_lines20", "cap_since"], "features": FN, "baseline": base, "trees": trees,
              "caption": final_cap.export(), "captionLag": 3, "policy": POLICY}
+    # no caption word the private scrub list names (~/.prism/public-scrub.txt; the publishing check's own patterns): a model ships inside
+    # Veil and goes into the public tree, and a word heard in a show's captions can match a household detail (2026-11-06)
+    try:
+        import importlib.util as _iu
+        _sp = _iu.spec_from_file_location("public_snapshot", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "release", "public-snapshot.py"))
+        _ps = _iu.module_from_spec(_sp); _sp.loader.exec_module(_ps)
+        _pats = _ps.patterns() if os.path.exists(_ps.LIST) else []
+        _w = model["caption"]["weights"]
+        _gone = [k for k in _w if any(q.search(k) for q in _pats)]
+        for k in _gone: del _w[k]
+        if _gone: print(f"caption words left out by the scrub list: {len(_gone)}", flush=True)
+    except Exception as _e:
+        print("scrub list not applied:", _e, flush=True)
     with open(EXPORT, "w", encoding="utf-8") as f: json.dump(model, f, separators=(",", ":"))
     print("written", EXPORT, os.path.getsize(EXPORT) // 1024, "KB")
     trained_manifest(os.path.splitext(EXPORT)[0] + ".trained.json")

@@ -1,0 +1,9 @@
+Soundscapes played during ad breaks when the person chooses one (Prism extension, 2026-11-06). Three of the Prism app's twelve
+(docs/soundscape-credits.md), the same files. Every one is licensed CC0 1.0 (Creative Commons Zero, public-domain dedication:
+no attribution required, any use). Credits are given anyway: the recordists earned them.
+
+river.mp3        River                 Freesound 251655 by marsal.oido     https://freesound.org/people/marsal.oido/sounds/251655/
+wind-chimes.mp3  Wind Chimes at Night  Freesound 667173 by itsgabbo        https://freesound.org/people/itsgabbo/sounds/667173/
+star-walk.mp3    Star Walk             Freesound 595385 by szegvari        https://freesound.org/people/szegvari/sounds/595385/
+
+Licence text: https://creativecommons.org/publicdomain/zero/1.0/

@@ -1,6 +1,6 @@
-# Prism Veil art pool
+# Prism extension art pool
 
-The photos the Veil shows over ads and on the start page. Nature only.
+The photos the extension shows over ads and on the start page. Nature only.
 
 **License rule:** only Wikimedia Commons files whose recorded license is CC0 or
 public domain — free for commercial use, no attribution required. `fetch-art.py`

@@ -8,6 +8,9 @@
   window.__prismVeil = true;
   var PV = window.__prismVeilNS || (window.__prismVeilNS = {});
   PV.VERSION = (function () { try { return chrome.runtime.getManifest().version; } catch (e) { return ""; } })();
+  // On a page of the developer's own (127.0.0.1 or localhost, the hosts the prism-dev-reload hook answers), the version in view: after
+  // a reload asked for from there, the page says which build is running (2026-11-07). Never on any other site.
+  try { if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) chrome.storage.local.get("pv:dev", function (r) { if (r && r["pv:dev"]) document.documentElement.setAttribute("data-prism-version", PV.VERSION); }); } catch (e) {}
 
   // ---- art
   var BUNDLED = (PV.ART_FILES || []).map(function (p) { return chrome.runtime.getURL(p); });

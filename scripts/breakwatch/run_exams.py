@@ -25,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GOLDEN = os.path.join(os.environ["LOCALAPPDATA"], "Prism", "diagnostics", "golden")
 WORK = os.path.join(os.environ["LOCALAPPDATA"], "Prism", "diagnostics", "exam-work")
 EXE = os.path.join(HERE, "bwtest", "bin", "Release", "net8.0", "bwtest.exe")
+EXE = os.environ.get("BWEXE") or EXE   # another build of the harness (2026-11-06: one built aside while a replay holds this one)
 SHIPPED = os.path.join(HERE, "..", "..", "targets", "win-host", "PrismHost", "Assets", "breakwatch", "learned.json")
 
 args = sys.argv[1:]
@@ -44,6 +45,12 @@ def flag(name):
 
 model_path = opt("--model", SHIPPED); on = opt("--on"); off = opt("--off"); only = opt("--only")
 keep_calls = flag("--keep-calls"); gentle = flag("--gentle")
+# --max-short N (2026-11-07, the pop-up gate): the run fails (exit 2) when its veils that came up on the show and were gone within
+# 20 s number more than N. A new model must not raise the count the live one scores.
+max_short = opt("--max-short")
+# Network promos score as show time unless told otherwise (the owner stopped covering them 2026-11-04): PROMOS=show is the exams'
+# standing condition, so a run without it in the environment gets it here; PROMOS=ads scores them as ads.
+if os.environ.get("PROMOS") is None: os.environ["PROMOS"] = "show"
 switches = dict(a.split("=", 1) for a in args if "=" in a)
 if gentle:
     sys.path.insert(0, os.path.join(HERE, "pic"))
@@ -61,7 +68,7 @@ def hhmmss(h):
     return h.replace(":", "") + "000"
 
 
-tot = dict(ad=0, cov=0, show=0, wrong=0, late=0, mid=0, early=0, linger=0, ahead=0, own=0, owns=0); per = []
+tot = dict(ad=0, cov=0, show=0, wrong=0, late=0, mid=0, early=0, linger=0, ahead=0, own=0, owns=0, short=0); per = []
 for e in exams:
     if gentle: wait_if_busy(every=0)
     day, win = e["day"], e["window"]
@@ -79,24 +86,32 @@ for e in exams:
     calls = os.path.join(WORK, re.sub(r"[^A-Za-z0-9]+", "-", e["name"]) + ".calls.log")
     env = dict(os.environ, BENCHROOT=root, FEATCSV="", BWDIR=lib, LMODEL=mp, LPARITY="", LVETO="1", HALF="0", LCALLS=calls, LCALLS0="", CUELEAD=str(e.get("lead", 18)))
     env.update(switches)
+    # LPARITYDIR=<folder> (2026-11-06, the look-ahead measure): each exam's learned chance per look, as <folder>/<exam>.csv
+    if switches.get("LPARITYDIR"):
+        env["LPARITY"] = os.path.join(switches["LPARITYDIR"], re.sub(r"[^A-Za-z0-9]+", "-", e["name"]) + ".csv")
     subprocess.run([EXE, "bench", f0, f1, os.path.join(WORK, "rules.log")], env=env, capture_output=True)
     out = subprocess.run([sys.executable, os.path.join(HERE, "exam.py"), "--trained", os.path.join(HERE, "trained.json"), day, win, e["from"], e["to"], "x=" + calls],
                          capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     h = re.search(r"(\d+) ad s, (\d+) show s", out)
     m1 = re.search(r"ads covered\s+([\d.]+)%.*?missed (\d+) s: began late (\d+), dropped mid-break (\d+), lifted early (\d+)", out)
     m2 = re.search(r"\((\d+) s\): stayed on after a break (\d+), came up ahead of one (\d+), on their own (\d+) s in (\d+) covers", out)
-    if not (h and m1 and m2):
+    m3 = re.search(r"covers (\d+), on the show and gone within 20 s (\d+)", out)
+    if not (h and m1 and m2 and m3):
         print(e["name"], "could not be scored:", out[-400:]); continue
     ad, show, missed = int(h.group(1)), int(h.group(2)), int(m1.group(2))
     tot["ad"] += ad; tot["cov"] += ad - missed; tot["show"] += show; tot["wrong"] += int(m2.group(1))
     tot["late"] += int(m1.group(3)); tot["mid"] += int(m1.group(4)); tot["early"] += int(m1.group(5))
     tot["linger"] += int(m2.group(2)); tot["ahead"] += int(m2.group(3)); tot["own"] += int(m2.group(4)); tot["owns"] += int(m2.group(5))
-    per.append(f"{e['name']} {m1.group(1)}% / {m2.group(1)} s / mid {m1.group(4)}")
+    tot["short"] += int(m3.group(2))
+    per.append(f"{e['name']} {m1.group(1)}% / {m2.group(1)} s / mid {m1.group(4)} / short {m3.group(2)}")
     if not keep_calls:
         try: os.remove(calls)
         except OSError: pass
 if tot["ad"]:
     name = "on " + str(model["policy"]["on"]) + " off " + str(model["policy"].get("off")) + (" " + " ".join(k + "=" + v for k, v in switches.items()) if switches else "")
     print(f"{name}: ads covered {100 * tot['cov'] / tot['ad']:.1f}% of {tot['ad']} s | show wrongly covered {100 * tot['wrong'] / tot['show']:.2f}% ({tot['wrong']} s of {tot['show']})"
-          f" | missed: late {tot['late']}, mid-break {tot['mid']}, early {tot['early']} | wrong: stayed on {tot['linger']}, ahead {tot['ahead']}, on their own {tot['own']} s in {tot['owns']}")
+          f" | missed: late {tot['late']}, mid-break {tot['mid']}, early {tot['early']} | wrong: stayed on {tot['linger']}, ahead {tot['ahead']}, on their own {tot['own']} s in {tot['owns']}"
+          f" | pop-ups (on the show, gone within 20 s) {tot['short']}")
     print("   " + "   ".join(per))
+    if max_short is not None and tot["short"] > int(max_short):
+        print(f"GATE FAILED: {tot['short']} pop-ups, more than the {max_short} allowed"); sys.exit(2)

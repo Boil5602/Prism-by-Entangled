@@ -54,7 +54,7 @@ Prism menu > Updates, and only the files that changed are downloaded.
 ## For developers
 
 Open-source dashboard frames: DIY hardware builds running web-tile dashboards. The
-Windows app is the first. A browser extension (Veil, the ad-cover engine on its own) is
+Windows app is the first. A browser extension (the Prism extension, which carries the app's ad covering into browsers) is
 in development, and a Linux image for small boxes is planned.
 
 ### Repo shape (spec §23)

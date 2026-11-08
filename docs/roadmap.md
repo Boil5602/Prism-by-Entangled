@@ -48,6 +48,20 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   names YouTube TV once as where it works today. The labels in Watch settings and on the phone still say YouTube TV, and change
   with the second service.
 
+- **A delay for the big screen, so the break watch sees ahead** (asked 2026-11-06): the person watches the big screen a few seconds
+  behind live while a hidden window on the same channel stays at the live edge for the break watch, so a cover can go up on the
+  break's first frame and come down on the show's first frame. Most of what the watch misses is timing (on the seven exams: covers
+  begun late 510 s, kept on after a break 581 s, lifted early 124 s). *Decision:* the big screen only; multiview stays live; a setting
+  the person turns off, which also turns itself off on sports channels (a delay spoils a game the phone already scored). It costs a
+  second stream: YouTube TV allows 3 at once on the base plan (4K Plus lifts that at home, but only in its own app, so a web page
+  likely stays at 3), and Prism never reads the plan from the account pages; the hidden window backs off by itself when the service
+  says too many streams are playing, and the delay is off for that session. The live-edge rule counts Prism's own delay as live. Never
+  by holding back and replaying the picture itself: that would be re-showing protected video (the third-party services policy). What
+  it takes: the look-ahead measured on the bench first (the gain at 5, 10, 20 and 30 s), then the hidden live window and its tune,
+  the big window's own seek behind live, the covers timed from the hidden window's calls, the back-off on the too-many-streams
+  message, the setting and its sports rule, and docs/network.md for the extra stream. Prism for Windows only; the extension would need a
+  second tab.
+
 ## Buying and renting
 
 - **A code for the phone in place of buying on the PC** (talked through 2026-10-11): pressing Rent or Buy under a title's Where to watch shows a card with a
@@ -121,11 +135,11 @@ capture back up, and plays it to the room the slowest listener's lag later. Vide
 Asked:, then, then (*Decision:* "Go"). The ranking, by impact against the effort to
 get there. The guardrails are the same for every item: it runs from the developer's own machine with their own key, it is handed
 structure and logs, never a person's content and nothing about the household, every change it proposes arrives as a diff proven
-before it ships, and no shipped build of Prism or Veil calls a model.
+before it ships, and no shipped build of the Prism app or the Prism extension calls a model.
 
 Start now:
 
-1. **Site-structure doctor for Veil** (the first build). The project's largest recurring cost is a site's markers found by hand and
+1. **Site-structure doctor for the extension** (the first build). The project's largest recurring cost is a site's markers found by hand and
    found again when the site changes, and the sites never reached. A tool reads a site's structure (the dumped DOM around the
    players and the ad slots, from the Firefox BiDi harness, headless, never the screen), proposes the site's rules as a diff, and
    proves the proposal on the same dump before it is accepted by hand. **First cut built 2026-11-03** (docs/doctor.md): `scripts/doctor/`
@@ -138,7 +152,7 @@ Start now:
 Next:
 
 4. **The release gate walked by machine** (docs/veil-release-checklist.md): the harness drives both browsers through the site matrix
-   and a vision pass judges the screenshots. After the doctor has settled how a site is loaded and dumped, since it reuses that. **First cut 2026-11-04** (docs/doctor.md): `scripts/doctor/gate.mjs`, eight public rows walked in headless Firefox and judged by vision against each row's Expect; evidence for the person, never a mark. It found two faults in the doctor's own dump and one in the Veil's trace on its first walk.
+   and a vision pass judges the screenshots. After the doctor has settled how a site is loaded and dumped, since it reuses that. **First cut 2026-11-04** (docs/doctor.md): `scripts/doctor/gate.mjs`, eight public rows walked in headless Firefox and judged by vision against each row's Expect; evidence for the person, never a mark. It found two faults in the doctor's own dump and one in the extension's trace on its first walk.
 5. **Labelling for the break detector** (memory: learned break detector): hours of recordings labelled offline for retraining. A
    batch job run when there is time to retrain, not a tool kept running. **Built 2026-11-04** (docs/doctor.md): `scripts/doctor/label.mjs`, contact sheets of a kept recording to a vision pass, marks in the marking page's format; the FX hour scored 99.2% of ad time and 0.64% of show time against the person's marks, about eighty cents an hour.
 

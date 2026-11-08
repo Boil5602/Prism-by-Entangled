@@ -355,6 +355,18 @@ public sealed partial class MainWindow
         BwChoice("sure", "Sure breaks only", "Only the breaks that need no guess: the ad slots YouTube TV marks itself, and paid programmes the guide or the screen names. It never covers the show by mistake, and it misses the breaks YouTube TV doesn't mark.");
         BwChoice("off", "Off", "YouTube TV's channels are never covered.");
         body.Children.Add(bwRow);
+        // the pack (docs/features/break-watch-packs.md, 2026-11-07): the one opt-in to the daily fetch of Entangled's newest detections, and
+        // a line naming the pack in force
+        var packRow = new StackPanel { Spacing = 2, Margin = new Thickness(0, 10, 0, 0) };
+        var packBox = new CheckBox { Content = new TextBlock { Text = "Get ad cover updates from Entangled", FontSize = 14, Foreground = HubInk }, IsChecked = Services.BreakPack.Enabled, MinWidth = 0 };
+        ToolTipService.SetToolTip(packBox, "Once a day Prism fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data. Nothing about this PC is sent: one plain request, no identifier. Off, the detections that came with this version are used.");
+        var packNote = new TextBlock { FontSize = 13, Foreground = HubDim, Margin = new Thickness(28, 0, 0, 0), TextWrapping = TextWrapping.Wrap };
+        void PaintPack() { var p = s_pack; packNote.Text = p is null ? "Detections: the ones built into this version." : "Detections: " + p.Line + (string.IsNullOrEmpty(p.Notes) ? "" : ". " + p.Notes); }
+        PaintPack();
+        packBox.Checked += (_, __) => { Services.BreakPack.Enabled = true; LogLine("break watch pack: updates turned on"); _ = Task.Run(async () => { if (await Services.BreakPack.CheckAsync(LogLine)) s_packPending = true; }); };
+        packBox.Unchecked += (_, __) => { Services.BreakPack.Enabled = false; LogLine("break watch pack: updates turned off"); };
+        packRow.Children.Add(packBox); packRow.Children.Add(packNote);
+        body.Children.Add(packRow);
         // the channels the person turned off (the cover card's Never cover): each one here to cover again
         var offRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(28, 0, 0, 0) };
         void DrawOff()

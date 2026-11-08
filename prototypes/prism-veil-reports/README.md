@@ -1,6 +1,6 @@
 # prism-veil-reports
 
-The receiver for ad reports from the Veil extension's **⚑ Report ad** tool and the Windows app's
+The receiver for ad reports from the Prism extension's **⚑ Report ad** tool and the Windows app's
 report. `POST /v1/report` with the report JSON → stored as one object in the **private** Tigris
 bucket `prism-veil-reports` under `reports/YYYY/MM/DD/<site>/<uuid>.json`. Pick them up with
 `python ../prism-veil-art/pull-reports.py` (add `--purge` to delete them from the bucket after

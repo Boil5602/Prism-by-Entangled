@@ -109,18 +109,53 @@ describe("watch page AI label is scoped to the current video", () => {
   });
 });
 
+// B-408 (2026-10-26): a channel page's header plays a video with no watch URL and no "How this was made" section; its id comes from the
+// header renderer's title link, and YouTube's per-video verdict (looked up as a tile's is) decides.
+describe("a channel header's video is judged by its own video id", () => {
+  const HEADER = `<ytd-channel-video-player-renderer><div id="player"><video></video></div><h3><a href="/watch?v=HeAdErViD01">Trailer</a></h3></ytd-channel-video-player-renderer>`;
+  function setup() {
+    const PV = loadVeil({ host: "www.youtube.com" });
+    try { window.happyDOM.setURL("https://www.youtube.com/@somechannel"); } catch (e) {}
+    PV.uiPrefs = { aiVeil: true };
+    document.body.innerHTML = HEADER;
+    return PV;
+  }
+  it("an unjudged header video is looked up and left alone until the verdict is in", () => {
+    const PV = setup(); const looked = [];
+    PV.aiVerdict = () => undefined; PV.aiLookup = (id) => looked.push(id);
+    expect(PV.__aiLabeled(document.querySelector("video"))).toBe(null);
+    expect(looked).toEqual(["HeAdErViD01"]);
+  });
+  it("a header video YouTube labels is covered; one it does not label is not", () => {
+    const PV = setup();
+    PV.aiVerdict = (id) => (id === "HeAdErViD01" ? 1 : undefined);
+    expect(PV.__aiLabeled(document.querySelector("video"))).toEqual({ label: "Made with AI", source: "YouTube" });
+    PV.aiVerdict = () => 0;
+    expect(PV.__aiLabeled(document.querySelector("video"))).toBe(null);
+  });
+  it("a video outside the header on the same page is not judged by the header's id", () => {
+    const PV = setup();
+    document.body.insertAdjacentHTML("beforeend", `<div id="other"><video></video></div>`);
+    PV.aiVerdict = () => 1;
+    expect(PV.__aiLabeled(document.querySelector("#other video"))).toBe(null);
+  });
+});
+
 // Full card = centred card + the glyph alone top-left as an inert mark;
 // corner chip = chip with label/clock that opens the popover, card hidden
 // (
 // 2026-09-12).
 describe("video veil HUD layouts", () => {
-  it("full card keeps the centred card and shows only the corner glyph, inert", () => {
+  it("full card keeps the centred card and shows only the corner glyph; the glyph takes the pointer for the peep, its click opens no popover", () => {
     const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
     PV.uiPrefs = { hud: "interactive" };
     const cover = PV.__buildCover(true);
     expect(cover.__card.style.display).toBe("block");
     expect(cover.__chip.style.display).toBe("flex");
-    expect(cover.__chip.style.pointerEvents).toBe("none");
+    expect(cover.__chip.style.pointerEvents).toBe("auto");   // the peep (2026-11-07) opens from the glyph in both HUD modes
+    cover.__chip.dispatchEvent(new window.Event("click", { bubbles: true }));
+    expect(cover.__pop.style.display).toBe("none");
+    expect(cover.__peep.style.display).toBe("none");   // the peep opens on rest, not on a click, and only with a veil up
     expect(cover.__chipLbl.style.display).toBe("none");
     expect(cover.__chipMoon.textContent).toBe("◐");
     // the card's own glyph + "Intermission" row is gone from the middle (2026-09-12)
@@ -269,6 +304,140 @@ describe("ad veil with the player gone", () => {
     expect(PV.videoAdBreak()).toBe(true);     // a beat: not yet
     vi.advanceTimersByTime(600);
     expect(PV.videoAdBreak()).toBe(false);    // 900 ms collapsed with no marker: down, not 14 s later
+    expect(PV.vidVeil()).toBe(null);
+  });
+});
+
+// YouTube TV is covered only at the live edge (2026-11-06): the video's clock against the real clock, the smallest gap is live.
+describe("YouTube TV: behind the live edge is not covered", () => {
+  function setup() {
+    const PV = loadVeil({ host: "tv.youtube.com" });
+    let now = 1000000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const v = document.createElement("video");
+    let ct = 46800;
+    Object.defineProperty(v, "currentTime", { get: () => ct, configurable: true });
+    Object.defineProperty(v, "readyState", { get: () => 4, configurable: true });
+    Object.defineProperty(v, "duration", { get: () => 50390, configurable: true });
+    return { PV, v, tick: (s, play = true) => { now += s * 1000; if (play) ct += s; }, seek: (d) => { ct += d; } };
+  }
+  afterEach(() => vi.restoreAllMocks());
+  it("playing live stays live; scanning back 79 s is behind; forward to live is live again", () => {
+    const { PV, v, tick, seek } = setup();
+    expect(PV.ytvBehindLive(v)).toBe(false);
+    tick(30); expect(PV.ytvBehindLive(v)).toBe(false);
+    seek(-79); tick(1); expect(PV.ytvBehindLive(v)).toBe(true);
+    seek(79); tick(1); expect(PV.ytvBehindLive(v)).toBe(false);
+  });
+  it("a long pause leaves the viewer behind live", () => {
+    const { PV, v, tick } = setup();
+    PV.ytvBehindLive(v);
+    tick(60, false); expect(PV.ytvBehindLive(v)).toBe(true);
+  });
+  it("a recording (shorter than six hours) is never live", () => {
+    const { PV, v } = setup();
+    Object.defineProperty(v, "duration", { get: () => 1800, configurable: true });
+    expect(PV.ytvBehindLive(v)).toBe(true);
+  });
+  it("off YouTube TV the rule does nothing", () => {
+    const PV = loadVeil({ host: "www.youtube.com" });
+    const v = document.createElement("video");
+    Object.defineProperty(v, "duration", { get: () => 1800, configurable: true });
+    expect(PV.ytvBehindLive(v)).toBe(false);
+  });
+});
+
+// YouTube TV's own ad slot shows a "Sponsored" tray outside the player (2026-11-06; Prism's adapter reads it too): shown, it is an ad slot.
+describe("YouTube TV: the Sponsored tray is an ad mark", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  it("a shown tray saying Sponsored puts the video veil up; hidden, it does not", () => {
+    vi.useFakeTimers({ now: 1_800_000_000_000 });
+    const PV = loadVeil({ host: "tv.youtube.com" }); PV.pickArt = () => "";
+    window.chrome.runtime.sendMessage = () => {};
+    document.body.innerHTML = `<ytu-ads-title-tray hidden data-rect="0,0,180,134"><span>Sponsored</span></ytu-ads-title-tray>` +
+      `<div id="movie_player" class="html5-video-player" data-rect="150,0,2251,1266"><div class="video-ads ytp-ad-module"></div><video data-rect="150,0,2251,1266"></video></div>`;
+    expect(PV.videoAdBreak()).toBe(false);
+    document.querySelector("ytu-ads-title-tray").removeAttribute("hidden");
+    expect(PV.videoAdBreak()).toBe(true);
+    expect(PV.vidVeil() && PV.vidVeil().mode).toBe("ad");
+  });
+  it("off YouTube TV the tray means nothing", () => {
+    vi.useFakeTimers({ now: 1_800_000_000_000 });
+    const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
+    window.chrome.runtime.sendMessage = () => {};
+    document.body.innerHTML = `<ytu-ads-title-tray data-rect="0,0,180,134"><span>Sponsored</span></ytu-ads-title-tray>` +
+      `<div id="movie_player" class="html5-video-player" data-rect="0,0,1200,675"><div class="video-ads ytp-ad-module"></div><video data-rect="0,0,1200,675"></video></div>`;
+    expect(PV.videoAdBreak()).toBe(false);
+  });
+});
+
+// A spotted break (2026-11-06): the break watch's word puts the same opaque veil up, its art still, with a card that names the source
+// and a "Not a break" button; the service's own mark wins and makes it a marked veil.
+describe("spotted video veil", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  function setup() {
+    vi.useFakeTimers({ now: 1_800_000_000_000 });
+    const PV = loadVeil({ host: "tv.youtube.com" }); PV.pickArt = () => "art/a.jpg"; PV.pickBundledArt = () => "chrome-extension://x/art/b.jpg";
+    window.chrome.runtime.sendMessage = () => {};
+    document.body.innerHTML = `<div id="movie_player" class="html5-video-player" data-rect="0,0,1600,900"><div class="video-ads ytp-ad-module"></div><video data-rect="0,0,1600,900"></video></div>`;
+    let on = false, dismissed = 0;
+    PV.spottedNow = () => on; PV.spottedDismiss = () => { dismissed++; on = false; };
+    return { PV, v: document.querySelector("video"), set: (x) => { on = x; }, dismissed: () => dismissed };
+  }
+  it("goes up opaque and still, says who decided, and lifts on Not a break", () => {
+    const { PV, v, set, dismissed } = setup();
+    expect(PV.videoAdBreak()).toBe(false);
+    set(true);
+    expect(PV.videoAdBreak()).toBe(true);
+    const vv = PV.vidVeil();
+    expect(vv.source).toBe("spotted");
+    expect(v.hasAttribute("data-prism-hidden")).toBe(true);
+    expect(vv.cover.__art.style.opacity || "1").toBe("1");
+    expect(vv.cover.__art.style.transform).toBe("none");
+    expect(vv.cover.__sub.textContent).toBe("Looks like a commercial break");
+    expect(vv.cover.__notBreak.style.display).toBe("inline-block");
+    vv.cover.__notBreak.click();
+    expect(dismissed()).toBe(1);
+    expect(PV.vidVeil()).toBe(null);
+  });
+  it("the service's own mark takes the veil over as a marked one", () => {
+    const { PV, v, set } = setup();
+    set(true); PV.videoAdBreak();
+    document.getElementById("movie_player").classList.add("ad-showing");
+    PV.videoAdBreak();
+    const vv = PV.vidVeil();
+    expect(vv.source).toBe("marked");
+    expect(v.hasAttribute("data-prism-hidden")).toBe(true);
+    expect(vv.cover.__notBreak.style.display).toBe("none");
+  });
+});
+
+// How an ad break looks (2026-11-06, the Prism app's three looks): veil, mute only (the ad in view, its sound off, Unmute), show (nothing done).
+describe("ad break looks", () => {
+  afterEach(() => { vi.useRealTimers(); });
+  function setup(look) {
+    vi.useFakeTimers({ now: 1_800_000_000_000 });
+    const PV = loadVeil({ host: "www.youtube.com" }); PV.pickArt = () => "";
+    window.chrome.runtime.sendMessage = () => {};
+    PV.uiPrefs = Object.assign(PV.uiPrefs || {}, { breakLook: look });
+    document.body.innerHTML = `<div id="movie_player" class="ad-showing" data-rect="0,0,1200,675"><div class="video-ads ytp-ad-module"><div class="ytp-ad-text">Ad</div></div><video data-rect="0,0,1200,675"></video></div>`;
+    return { PV, v: document.querySelector("video") };
+  }
+  it("mute only: no picture over the ad, its video left showing, an Unmute that lifts it", () => {
+    const { PV, v } = setup("mute");
+    expect(PV.videoAdBreak()).toBe(true);
+    const c = PV.vidVeil().cover;
+    expect(c.__look).toBe("mute");
+    expect(c.style.background).toBe("transparent");
+    expect(c.__art.style.display).toBe("none");
+    expect(c.__muteBox.style.display).toBe("flex");
+    expect(v.hasAttribute("data-prism-hidden")).toBe(false);
+    c.__muteBox.querySelector("button").click();
+    expect(PV.vidVeil()).toBe(null);
+  });
+  it("show: the break goes by with nothing done", () => {
+    const { PV } = setup("show");
+    expect(PV.videoAdBreak()).toBe(false);
     expect(PV.vidVeil()).toBe(null);
   });
 });

@@ -33,6 +33,16 @@
   .seg input { position:absolute; opacity:0; width:0; height:0; }
   .sources { display:flex; gap:10px; padding:2px 0 4px 23px; font-size:12px; color:var(--dim); }
   .sources label { display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .livesites { padding:2px 0 6px 23px; font-size:12px; }
+  .livesites .sub { color:var(--dim); margin:2px 0 4px; }
+  /* the rows a veil's link points at (popup.html?highlight=live): lit until the person touches one */
+  .row.hl { outline:2px solid #F0A83C; outline-offset:2px; border-radius:8px; animation:hl-pulse 1.2s ease-in-out 3; }
+  @keyframes hl-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(240,168,60,.0); } 50% { box-shadow:0 0 0 6px rgba(240,168,60,.35); } }
+  .chip { display:inline-flex; align-items:center; gap:2px; background:#2A2F38; border:1px solid var(--edge); border-radius:8px; padding:2px 2px 2px 8px; margin:0 6px 4px 0; color:var(--ink); }
+  .chip button { background:none; border:0; color:var(--dim); cursor:pointer; font-size:14px; line-height:1; padding:2px 6px; }
+  .chip button:hover { color:var(--accent); }
+  .addrow { display:flex; gap:6px; align-items:center; }
+  .addrow input.filter { margin:0; }
   .disk { display:inline-block; width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
   .mono { font:600 12px "IBM Plex Mono",Consolas,monospace; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .err { color:var(--accent); font-size:12px; }
@@ -59,7 +69,7 @@
   </section>
 
   <section>
-    <h3>Veil</h3>
+    <h3>Covering ads</h3>
     <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labelled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
     <label class="row" data-tip="The bottom-right Prism button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the Prism button</span></label>
     <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
@@ -68,7 +78,27 @@
 
   <section>
     <h3>Content</h3>
+    <div class="row" id="look-row" data-tip="How a video's ad break looks. Veil covers it with art and mutes it. Mute only leaves the ad in view with its sound off, with an Unmute button. Show lets it play as it is."><span class="dest">During ad breaks</span>
+      <span class="seg" id="look-seg"><label data-look="veil">Veil</label><label data-look="mute">Mute only</label><label data-look="show">Show</label></span></div>
+    <div class="row" id="sound-row" data-tip="A quiet soundscape while a veil covers a video's ad break (the tab itself stays muted). Field recordings, free to use (CC0). Off by default."><span class="dest">Sound during breaks</span>
+      <span class="seg" id="sound-seg"><label data-snd="">Off</label><label data-snd="river">River</label><label data-snd="chimes">Chimes</label><label data-snd="stars">Stars</label></span></div>
     <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labelled content</span></label>
+    <div class="livesites" id="live-note" hidden>These two switches are the live TV ad detection. Off, Prism puts up no veil of its own on live TV; the services' own marked breaks are still covered elsewhere.</div>
+    <label class="row" id="ytv-veil-row" data-tip="Some live TV services mark the ad slots they add to a channel. With this on, Prism covers the channel while one of those slots plays. A channel's own commercials carry no mark, so they still show. For now this works on YouTube TV. On by default."><input type="checkbox" id="ytv-veil"><span class="dest">Veil marked ad slots in live TV</span></label>
+    <label class="row" id="live-picture-row" data-tip="Reads the live TV picture once a second, for spotting the channel&#39;s commercials. Nothing leaves the browser. The tab shows a sharing mark while it runs. For now this works on YouTube TV. Off by default."><input type="checkbox" id="live-picture"><span class="dest">Read the live TV picture</span></label>
+    <label class="row" id="pack-row" data-tip="Once a day Prism fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data (nothing that runs). Nothing about you is sent: no cookie, no identifier, one plain request. Off, the detections that came with this version are used."><input type="checkbox" id="pack-updates"><span class="dest">Get ad cover updates from Entangled</span></label>
+    <div class="livesites" id="pack-note" hidden></div>
+    <div class="livesites" id="live-now" hidden>Reading this tab's picture now.</div>
+    <div class="livesites" id="live-chan" hidden data-tip="What Prism covers on this channel. Sure breaks only covers YouTube TV's own marked slots and paid programming, never a break it only judged."><span id="live-chan-name"></span>
+      <span class="seg" id="live-chan-seg"><label data-mode="all">All breaks</label><label data-mode="sure">Sure only</label><label data-mode="off">None</label></span></div>
+    <div class="livesites" id="live-sites" hidden>
+      <div class="sub" data-tip="The sites whose live TV picture is read. YouTube TV is the one tried so far. Add another live TV site to try the ad detection there.">Live TV sites</div>
+      <div id="live-site-list"></div>
+      <div class="addrow"><input class="filter" id="live-site-add" placeholder="Add a site, like example.com" spellcheck="false"><button class="btn" id="live-site-here" hidden>Add this site</button></div>
+    </div>
+    <div class="livesites" id="veil-log-row" data-tip="A record of every veil Prism put over a video's ad break on this browser: when it went up and came down, the site and channel, whether the service marked the break or Prism's break watch spotted it, and the rule that called it. It stays in this browser. Copy puts it on the clipboard as text.">
+      <div class="addrow"><span class="sub">Veil log</span><button class="btn" id="veil-log-copy">Copy</button><button class="btn" id="veil-log-clear">Clear</button><span class="sub" id="veil-log-note"></span></div>
+    </div>
     <label class="row" data-tip="<p><b>Three-disk cylinder</b> next to links to rated outlets, and on the Prism button for the site you're on. One disk per source, on that source's own scale:</p><p><span class='d' style='background:#3fb950'></span>green &middot; <span class='d' style='background:#d29922'></span>yellow &middot; <span class='d' style='background:#f85149'></span>red</p><p>grey = no information &middot; hollow = source switched off</p><p>Click a disk to open the discussion behind the rating</p><p>Nothing is hidden or blocked. Unlisted is not &ldquo;bad&rdquo;.</p>"><input type="checkbox" id="src-marks"><span class="dest">Mark source reliability</span></label>
     <div class="sources" id="sources" hidden>
       <label data-tip="<p><b>Wikipedia &ndash; Perennial Sources</b> (CC BY-SA)</p><p>Community-adjudicated: reliable / no consensus / unreliable / deprecated</p><p>Every rating links to the discussion that set it</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>

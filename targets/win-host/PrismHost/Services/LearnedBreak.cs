@@ -41,6 +41,14 @@ public sealed class LearnedBreak
     /// <summary>... but below this the cover lifts at once: a programme coming back sends the chance to almost nothing, where an ad that
     /// looks like a programme leaves it in between.</summary>
     private readonly double _offDeep;
+    /// <summary>The picture network's weight in logit (policy "picture", 2026-11-07): its chance for the frame joins the trees' before the
+    /// policy decides, as the bench (PICW) and the extension blend it. 0, the model's default, leaves the network out.</summary>
+    public double PictureWeight { get; }
+    /// <summary>Agreement to start (policy "agree", 2026-11-07): a cover may begin only when the trees' own chance is at least TreeMin and
+    /// the picture network's at least NetMin; up, the blend alone holds it. Off unless the model says so.</summary>
+    public bool Agree { get; }
+    public double TreeMin { get; }
+    public double NetMin { get; }
     public int Trained { get; }
 
     private LearnedBreak(JsonElement r)
@@ -67,6 +75,10 @@ public sealed class LearnedBreak
         _on = pol.GetProperty("on").GetDouble(); _off = pol.GetProperty("off").GetDouble(); _hold = pol.GetProperty("hold").GetInt32();
         _offHold = pol.TryGetProperty("offHold", out var oh) && oh.ValueKind == JsonValueKind.Number ? oh.GetDouble() : 0;
         _offDeep = pol.TryGetProperty("offDeep", out var od) && od.ValueKind == JsonValueKind.Number ? od.GetDouble() : 0;
+        PictureWeight = pol.TryGetProperty("picture", out var pw) && pw.ValueKind == JsonValueKind.Number ? pw.GetDouble() : 0;
+        Agree = pol.TryGetProperty("agree", out var ag) && ag.ValueKind == JsonValueKind.True;
+        TreeMin = pol.TryGetProperty("treeMin", out var tmn) && tmn.ValueKind == JsonValueKind.Number ? tmn.GetDouble() : 0.5;
+        NetMin = pol.TryGetProperty("netMin", out var nmn) && nmn.ValueKind == JsonValueKind.Number ? nmn.GetDouble() : 0.5;
         Trained = r.TryGetProperty("trained", out var tr) ? tr.GetInt32() : 0;
     }
 
@@ -131,12 +143,17 @@ public sealed class LearnedBreak
     }
 
     /// <summary>The trees' chance of an ad at t, from the break model's readings (<see cref="BreakModel.FeatureNames"/> order, then print_seen).
-    /// Readings are taken at three decimals, as training read them.</summary>
-    public double Score(State s, double[] readings, double printSeen, double t)
+    /// Readings are taken at three decimals, as training read them. coverUp (2026-11-06): 1 when this look was taken through Prism's own
+    /// cover, as a browser extension's are (its cover is in the picture it reads); Prism's own captures never hold the cover, so 0.</summary>
+    /// clockSec (2026-11-06): the local time of day in seconds, for a model trained with the minute of the hour (bench CLOCK=1); NaN leaves
+    /// it out.
+    public double Score(State s, double[] readings, double printSeen, double t, double coverUp = 0, double clockSec = double.NaN)
     {
         var byName = new Dictionary<string, double>(StringComparer.Ordinal);
         for (var i = 0; i < BreakModel.FeatureNames.Length && i < readings.Length; i++) byName[BreakModel.FeatureNames[i]] = Math.Round(readings[i], 3, MidpointRounding.AwayFromZero);
         byName["print_seen"] = printSeen;
+        byName["cover_up"] = coverUp;
+        if (!double.IsNaN(clockSec)) byName["minute_of_hour"] = Math.Round(((clockSec % 3600) + 3600) % 3600 / 60, 3, MidpointRounding.AwayFromZero);
         var x = new List<double>(96);
         foreach (var n in _inputs)
         {

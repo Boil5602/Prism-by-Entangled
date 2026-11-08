@@ -31,3 +31,6 @@ scripts/doctor/out/
 
 # the owner's own words, kept on this PC only, never committed or pushed (2026-11-05)
 .private/
+# the bundled break watch pack is generated at publish time (scripts/release/publish-pack.py --bundle), never committed
+targets/win-host/PrismHost/Assets/breakwatch/pack/
+scripts/release/out/

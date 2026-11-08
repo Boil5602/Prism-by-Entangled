@@ -1,4 +1,4 @@
-# Prism Veil (extension)
+# The Prism extension
 
 Turns video **ad breaks** into chosen imagery (spec §26/§27). Observe-only: nothing
 is clicked and no ad is blocked from loading — the ad plays underneath while art,

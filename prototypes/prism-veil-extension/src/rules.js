@@ -1183,6 +1183,9 @@
         var host = n.parentElement;
         if (!host) continue;
         if (inSearchUi(host)) continue;
+        // YouTube TV's "Sponsored" tray sits outside the player but is the video's ad chrome: the video veil's (2026-11-06, a small
+        // second cover at the top left during its ad slots)
+        if (host.closest && host.closest("ytu-ads-title-tray")) continue;
         if (/^(ad|ads)$/i.test(t)) {
           var okBare = false, hn = host, hd = 0;
           while (hn && hd < 3) { if (AD_LABEL_CLS.test(PV.classStr(hn))) { okBare = true; break; } hn = hn.parentElement; hd++; }

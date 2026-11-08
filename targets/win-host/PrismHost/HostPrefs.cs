@@ -27,6 +27,13 @@ internal static class HostPrefs
         }
     }
 
+    /// <summary>Whether the key was ever set (a new install has none of them): for a default that applies to new installs alone.</summary>
+    public static bool Has(string key)
+    {
+        try { return Doc()[key] is not null; }
+        catch { return false; }
+    }
+
     public static bool GetBool(string key, bool fallback)
     {
         try { return Doc()[key] is JsonValue v && v.TryGetValue<bool>(out var b) ? b : fallback; }

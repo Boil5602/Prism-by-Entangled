@@ -54,6 +54,8 @@ public sealed partial class MainWindow
         public double PaidOpenSeen = -9999;   // the opening statement, shown or spoken, the half hour was last set from
         public double PaidCloseSeen = -9999;  // the closing statement that last ended one
         public double PaidLogoSince = -1;     // since when the channel's logo has stood through a paid programme's cover (-1: it is away)
+        public bool BehindNoted;
+        public bool BehindLive;               // the viewer is behind YouTube TV's live edge or on a recording: no cover (2026-11-06)
         public bool SureOnly;                 // the person set this channel to sure breaks only (ChannelCovers.Sure)
         public bool Withheld;                 // ... and the watch has found a break it is not covering (said once in the log)
         public bool AdLine;
@@ -61,6 +63,7 @@ public sealed partial class MainWindow
         /// <summary>The picture is inset over the channel's ticker (BreakModel.InsetBreakAt), as last logged.</summary>
         public bool Inset;
         public double LearnedFrom = -1;   // when the learned detector began on this window: the rules decide its first 45 s (its history is empty)
+        public byte[]? PicPrev; public double PicPrevAt = -999;   // the frame before, for the picture network's change input (within three seconds)
     }
 
     private DispatcherTimer? _breakWatch;
@@ -78,7 +81,12 @@ public sealed partial class MainWindow
         get
         {
             var m = HostPrefs.GetString("video.breakWatchMode", "");
-            return m is "all" or "sure" or "off" ? m : HostPrefs.GetBool("video.breakWatch", true) ? "all" : "off";
+            if (m is "all" or "sure" or "off") return m;
+            // a new install, with neither setting ever stored, covers sure breaks only: the safe detection (the service's own marks, paid
+            // programming) on, the picture-based detection off until the person turns it on (decision 2026-11-07). An install that had the
+            // old on/off switch keeps what it chose.
+            if (!HostPrefs.Has("video.breakWatch")) return "sure";
+            return HostPrefs.GetBool("video.breakWatch", true) ? "all" : "off";
         }
     }
     private void SetBreakWatchMode(string mode, string from)
@@ -92,6 +100,7 @@ public sealed partial class MainWindow
     // the learned detector (Assets/breakwatch/learned.json, 2026-10-07): it decides the covers when its file is there and the setting is on;
     // the hand rules still run (they make its readings) and decide alone without it
     private static LearnedBreak? s_learned;
+    private static PictureNet? s_picNet;   // Assets/breakwatch/picture-net.json, when the model's policy weighs it (2026-11-07)
     private static bool LearnedOn => s_learned is not null && HostPrefs.GetBool("video.breakWatchLearned", true);
     private static string BreakWatchDir => Path.Combine(HostPaths.DataDir, "breakwatch");
 
@@ -110,10 +119,46 @@ public sealed partial class MainWindow
         return true;
     }
 
+    /// <summary>The pack in force (BreakPack.Held: the newer of the bundled and the downloaded), or null for the files in the install alone.</summary>
+    private static BreakPack.Pack? s_pack;
+    private static volatile bool s_packPending;   // a newer pack downloaded, to apply at the first look with no cover up
+    private static void LoadDetectors(Action<string> log)
+    {
+        s_pack = BreakPack.Held(log);
+        var modelPath = s_pack?.ModelPath ?? Path.Combine(AppContext.BaseDirectory, "Assets", "breakwatch", "learned.json");
+        var netPath = s_pack?.PictureNetPath ?? Path.Combine(AppContext.BaseDirectory, "Assets", "breakwatch", "picture-net.json");
+        s_learned = LearnedBreak.Load(modelPath);
+        // the picture network (2026-11-07) joins the trees only when the model's policy gives it a weight: a model trained without it in mind
+        // leaves it out, whatever ships beside it
+        s_picNet = s_learned is { PictureWeight: > 0 } ? PictureNet.Load(netPath) : null;
+        log(s_learned is null ? "break watch: no learned detector, the hand rules decide" : "break watch: the learned detector decides (trained on " + s_learned.Trained + " marked seconds)" + (LearnedOn ? "" : " - turned off in settings")
+            + (s_learned is { PictureWeight: > 0 } ? (s_picNet is null ? "; the picture network is missing" : "; the picture network at " + s_learned.PictureWeight.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)) : "")
+            + (s_pack is null ? "; no pack, the install's files" : "; " + s_pack.Line));
+    }
+    /// <summary>A newer pack, applied between looks while no cover is up: the detectors reload from it and every window's learned state starts
+    /// again (its rolling means belong to the old model); the known-ads catalog is read again at the next look.</summary>
+    private void ApplyPack()
+    {
+        s_packPending = false;
+        LoadDetectors(LogLine);
+        foreach (var st in _watches.Values) { st.L = s_learned?.NewState(); st.LearnedFrom = -1; }
+        _prints = null;   // re-read with the pack's catalog
+        LogLine("break watch: " + (s_pack?.Line ?? "the install's files") + " applied");
+    }
+    private async Task PackChecksAsync()
+    {
+        await Task.Delay(TimeSpan.FromMinutes(2));
+        while (true)
+        {
+            try { if (await BreakPack.CheckAsync(LogLine)) s_packPending = true; } catch { }
+            await Task.Delay(TimeSpan.FromHours(24));
+        }
+    }
+
     private void InitBreakWatch()
     {
-        s_learned = LearnedBreak.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "breakwatch", "learned.json"));
-        LogLine(s_learned is null ? "break watch: no learned detector, the hand rules decide" : "break watch: the learned detector decides (trained on " + s_learned.Trained + " marked seconds)" + (LearnedOn ? "" : " - turned off in settings"));
+        LoadDetectors(LogLine);
+        _ = PackChecksAsync();
         _notAdHandler = id =>
         {
             if (!DismissBreak(id, out var st, out var now)) return;
@@ -152,6 +197,7 @@ public sealed partial class MainWindow
             _watches.Remove(gone);
         }
         var bigId = _surfaces.BigWindowId();
+        if (s_packPending && !_watches.Values.Any(w => w.Covered)) ApplyPack();   // a newer pack, between looks, with no cover up
         foreach (var id in ids)
         {
             var channel = ChannelOf(_surfaces.SourceOf(id));
@@ -211,6 +257,7 @@ public sealed partial class MainWindow
                     using var ld = System.Text.Json.JsonDocument.Parse(lj);
                     var lr = ld.RootElement;
                     playing = lr.TryGetProperty("paused", out var pz) && pz.ValueKind == System.Text.Json.JsonValueKind.False;
+                    st.BehindLive = lr.TryGetProperty("behind", out var bh) && bh.ValueKind == System.Text.Json.JsonValueKind.True;
                     // the sound's fingerprint (AdSounds): matched against the ads heard before; a sure break's words are kept as it goes
                     if (lr.TryGetProperty("afp", out var af) && af.GetString() is { Length: >= 8 } hex)
                     {
@@ -380,7 +427,18 @@ public sealed partial class MainWindow
             var covered = st.Model.Active;
             if (LearnedOn && st.L is not null)
             {
-                var lp = s_learned!.Score(st.L, st.Model.Features(now), printSeenNow ? 1 : 0, now);
+                var lp = s_learned!.Score(st.L, st.Model.Features(now), printSeenNow ? 1 : 0, now, 0, DateTime.Now.TimeOfDay.TotalSeconds);
+                // the picture network's chance for this frame, added in logit at the policy's weight (as the bench's PICW and the extension)
+                if (s_picNet is not null && shot.Value.Gray is { Length: 320 * 180 } g)
+                {
+                    var q = Math.Clamp(s_picNet.Chance(g, now - st.PicPrevAt < 3 ? st.PicPrev : null), 0.001, 0.999); var l0 = Math.Clamp(lp, 0.001, 0.999);
+                    var blended = 1 / (1 + Math.Exp(-(Math.Log(l0 / (1 - l0)) + s_learned.PictureWeight * Math.Log(q / (1 - q)))));
+                    // agreement to start (policy "agree", 2026-11-07): no cover begins unless both detectors lean to a break
+                    if (s_learned.Agree && !st.L.Up && (lp < s_learned.TreeMin || q < s_learned.NetMin)) blended = 0;
+                    lp = blended;
+                    st.L.LastP = lp;
+                    st.PicPrev = g; st.PicPrevAt = now;
+                }
                 var lup = s_learned.Decide(st.L, lp, now, st.Model.LogoInBand);
                 if (st.LearnedFrom < 0) st.LearnedFrom = now;
                 // its first 45 s on a window (a restart, a new channel) the learned detector has no history - no rolling means, no captions - and
@@ -484,6 +542,11 @@ public sealed partial class MainWindow
                 if (withheld != st.Withheld) { st.Withheld = withheld; if (withheld) LogLine("break watch " + id + ": a break the watch found is not covered (sure breaks only on " + st.ChannelName + ")"); }
             }
             else st.Withheld = false;
+            // Covered only while watched live (2026-11-06, Prism and Veil alike): rewound, paused behind or a recording, the viewer can skip an
+            // ad themselves and undo a wrong cover by scanning back. The adapter's meter reads it from the video's clock. The watch goes on reading
+            // and learning; only the cover is held back.
+            if (st.BehindLive != st.BehindNoted) { st.BehindNoted = st.BehindLive; LogLine("break watch " + id + ": " + (st.BehindLive ? "behind the live edge or a recording - no cover" : "at the live edge")); }
+            if (st.BehindLive) covered = false;
             var shownChanged = covered != st.Covered;
             if (shownChanged)
             {
@@ -771,7 +834,7 @@ public sealed partial class MainWindow
     }
 
     private AdPrints? _prints;
-    private AdPrints Prints => _prints ??= new AdPrints(Path.Combine(BreakWatchDir, "prints.bin"), Path.Combine(AppContext.BaseDirectory, "Assets", "breakwatch", "catalog.bin"));   // the shipped ad catalog beside this PC's own (2026-11-04)
+    private AdPrints Prints => _prints ??= new AdPrints(Path.Combine(BreakWatchDir, "prints.bin"), s_pack?.PrintsPath ?? Path.Combine(AppContext.BaseDirectory, "Assets", "breakwatch", "catalog.bin"));   // the shipped ad catalog (the pack's when one is held, 2026-11-07) beside this PC's own (2026-11-04)
     private AdSounds? _sounds;
     private AdSounds Sounds => _sounds ??= new AdSounds(Path.Combine(BreakWatchDir, "sounds.bin"));
 

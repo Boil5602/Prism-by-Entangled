@@ -314,7 +314,154 @@ function tabMuteChain(tid, job) {
   var next = prev.then(function () { return new Promise(function (res) { var t = setTimeout(res, 5000); job(function () { clearTimeout(t); res(); }); }); });
   tabMuteQueues[tid] = next.catch(function () {});
 }
+// The toolbar button's title for a tab (2026-11-06): the browser's own sharing mark cannot say who reads a tab, so while Veil reads a tab's
+// live TV picture its button says so, above the source reliability line and the popups summary.
+var titleParts = {};
+var TITLE_BASE = "Prism - popups intercepted on this site (click for the summary)";
+var TITLE_LIVE = "Prism is reading this tab's live TV picture to spot commercial breaks. Nothing leaves the browser.";
+function paintTitle(id) {
+  var p = titleParts[id] || {}, lines = [];
+  if (p.live) lines.push(TITLE_LIVE);
+  if (p.cred) lines.push("Source reliability\n" + p.cred);
+  lines.push(TITLE_BASE);
+  try { chrome.action.setTitle({ tabId: id, title: lines.join("\n") }); } catch (e) {}
+}
+function liveTitle(id, on) {
+  if (id == null) return;
+  var p = titleParts[id] = titleParts[id] || {};
+  if (!!p.live === !!on) return;
+  p.live = !!on; paintTitle(id);
+}
+// Development hooks (2026-11-07, before a store release): the self-reload from a localhost page, the version stamp and the live TV
+// state attributes on <html> exist for an unpacked (development) install alone. The install type is asked once and kept in storage
+// (pv:dev) for the content scripts, which cannot ask themselves.
+var DEV = false;
+try {
+  chrome.management.getSelf(function (info) {
+    void chrome.runtime.lastError;
+    DEV = !!(info && info.installType === "development");
+    try { chrome.storage.local.set({ "pv:dev": DEV }); } catch (e) {}
+  });
+} catch (e0) {}
+// The break watch pack (docs/features/break-watch-packs.md; first cut 2026-11-07): with the one opt-in (pv:ui.packUpdates) the extension
+// fetches pack.json and pack.sig once a day from prism.entangled.world (a host its manifest already names; no cookie, no query string,
+// nothing about the person), verifies the signature with the pack key (its own key, never the update key) and keeps the parts it reads
+// - the extension's model (veil) and the picture network - in storage when the pack is newer than the bundled one. The offscreen page
+// reads them at a channel's start, never mid-break. Firefox has no offscreen page: the parts are fetched and kept but never run.
+var PACK_HOST = "https://prism.entangled.world/breakwatch/";
+var PACK_PUBKEY = {"kty":"EC","x":"LrWgoxu5PyGer3kYoG6IbqfUUy9enje0FZFh5JaBaFA","y":"1OHpA5kQ0lZfWNgrtEeo1s-6rOGjSy-kqiSiEcf9T5Y","crv":"P-256"};
+var PACK_ALARM = "pv-pack";
+function packNewer(x, y) {   // "YYYY-MM-DD.N": later day, then higher count
+  function split(s) { s = String(s || ""); var i = s.lastIndexOf("."); return i < 0 ? [s, 0] : [s.slice(0, i), +s.slice(i + 1) || 0]; }
+  var a = split(x), b = split(y);
+  return a[0] !== b[0] ? a[0] > b[0] : a[1] > b[1];
+}
+function versionAtLeast(have, need) {
+  var h = String(have || "").split("-")[0].split(".").map(Number), n = String(need || "").split("-")[0].split(".").map(Number);
+  for (var i = 0; i < Math.max(h.length, n.length); i++) { var x = h[i] || 0, y = n[i] || 0; if (x !== y) return x > y; }
+  return true;
+}
+function sha256Hex(buf) { return crypto.subtle.digest("SHA-256", buf).then(function (d) { return Array.prototype.map.call(new Uint8Array(d), function (b) { return (b < 16 ? "0" : "") + b.toString(16); }).join(""); }); }
+var packInflight = null;
+function packCheck(cb) {
+  if (packInflight) return packInflight.then(cb, cb);
+  var opts = { referrerPolicy: "no-referrer", cache: "no-cache", credentials: "omit" };
+  packInflight = Promise.all([
+    fetch(PACK_HOST + "pack.json", opts).then(function (r) { if (!r.ok) throw new Error("pack.json " + r.status); return r.arrayBuffer(); }),
+    fetch(PACK_HOST + "pack.sig", opts).then(function (r) { if (!r.ok) throw new Error("pack.sig " + r.status); return r.text(); }),
+    crypto.subtle.importKey("jwk", PACK_PUBKEY, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"])
+  ]).then(function (x) {
+    return crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, x[2], b64ToBuf(x[1]), x[0]).then(function (ok) {
+      if (!ok) throw new Error("the signature does not match the pack key");
+      var pack = JSON.parse(new TextDecoder().decode(x[0]));
+      if (!pack || pack.format !== 1 || !pack.pack) throw new Error("a format this build does not read");
+      var mine = chrome.runtime.getManifest().version;
+      if (pack.minVeil && !versionAtLeast(mine, pack.minVeil)) throw new Error("needs the extension " + pack.minVeil);
+      return new Promise(function (res) { chrome.storage.local.get(["pv:pack"], function (r) { res([pack, (r && r["pv:pack"]) || null]); }); });
+    });
+  }).then(function (pr) {
+    var pack = pr[0], held = pr[1];
+    return fetch(chrome.runtime.getURL("src/breakwatch/model.json")).then(function (r) { return r.json(); }).then(function (bundled) {
+      var heldSerial = held && held.pack, bundledSerial = bundled && bundled.pack;
+      if ((heldSerial && !packNewer(pack.pack, heldSerial)) || (bundledSerial && !packNewer(pack.pack, bundledSerial))) return { ok: true, pack: pack.pack, same: true };
+      var parts = [];
+      if (pack.models && pack.models.veil) parts.push(["pv:pack:veil", pack.models.veil]);
+      if (pack.pictureNet) parts.push(["pv:pack:picnet", pack.pictureNet]);
+      return Promise.all(parts.map(function (p) {
+        var file = String(p[1].file || "");
+        if (file.indexOf("..") >= 0 || file.indexOf("files/") !== 0) throw new Error("a file path outside the pack");
+        return fetch(PACK_HOST + file, opts).then(function (r) { if (!r.ok) throw new Error(file + " " + r.status); return r.arrayBuffer(); }).then(function (buf) {
+          return sha256Hex(buf).then(function (h) {
+            if (h !== String(p[1].sha256 || "").toLowerCase()) throw new Error(file + " does not match its hash");
+            var text = new TextDecoder().decode(buf); JSON.parse(text);   // the parts this build reads are JSON; one that does not parse is refused
+            return [p[0], text];
+          });
+        });
+      })).then(function (kv) {
+        var o = {}; kv.forEach(function (x) { o[x[0]] = x[1]; });
+        o["pv:pack"] = { pack: pack.pack, date: pack.date || "", notes: pack.notes || "", at: Date.now(), parts: kv.map(function (x) { return x[0]; }) };
+        return new Promise(function (res, rej) { chrome.storage.local.set(o, function () { if (chrome.runtime.lastError) rej(new Error(chrome.runtime.lastError.message)); else res({ ok: true, pack: pack.pack, parts: kv.length }); }); });
+      });
+    });
+  }).catch(function (e) { return { ok: false, error: String(e && e.message || e).slice(0, 200) }; })
+    .then(function (r) { packInflight = null; try { var s = {}; s["pv:pack:last"] = { at: Date.now(), ok: !!r.ok, error: r.error || "", pack: r.pack || "", same: !!r.same }; chrome.storage.local.set(s); } catch (e2) {} return r; });
+  return packInflight.then(cb, cb);
+}
+function packApply(on) {
+  try {
+    if (on) { chrome.alarms.create(PACK_ALARM, { periodInMinutes: 24 * 60 }); packCheck(function () {}); }
+    else chrome.alarms.clear(PACK_ALARM);
+  } catch (e) {}
+}
+try {
+  chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === PACK_ALARM) packCheck(function () {}); });
+  chrome.storage.local.get("pv:ui", function (r) { var ui = (r && r["pv:ui"]) || {}; if (ui.packUpdates) packApply(true); });
+  chrome.storage.onChanged.addListener(function (ch, area) {
+    if (area !== "local" || !ch["pv:ui"]) return;
+    var o = ch["pv:ui"].oldValue || {}, n = ch["pv:ui"].newValue || {};
+    if (!!o.packUpdates !== !!n.packUpdates) packApply(!!n.packUpdates);
+  });
+} catch (e) {}
+var veilLogQ = Promise.resolve();
+function veilLogAppend(rec) {
+  veilLogQ = veilLogQ.then(function () {
+    return new Promise(function (res) {
+      try {
+        chrome.storage.local.get("pv:veil-log", function (r) {
+          var a = (r && Array.isArray(r["pv:veil-log"])) ? r["pv:veil-log"] : [];
+          a.push(rec); if (a.length > 1000) a = a.slice(a.length - 1000);
+          var o = {}; o["pv:veil-log"] = a; chrome.storage.local.set(o, function () { void chrome.runtime.lastError; res(); });
+        });
+      } catch (e) { res(); }
+    });
+  }).catch(function () {});
+}
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+  if (msg && msg.type === "pv:live-stream") { liveStreamId(sender, sendResponse); return true; }
+  if (msg && msg.type === "pv:offscreen-idle") { closeOffscreen(); return; }
+  // the share route (the page reads its own picture): the offscreen page judges its frames, and the toolbar line says it is reading
+  if (msg && msg.type === "pv:live-model") { if (!chrome.offscreen) { sendResponse({ error: "no offscreen" }); return; } ensureOffscreen().then(function () { sendResponse({ ok: true }); }, function (e) { sendResponse({ error: String(e && e.message || e) }); }); return true; }
+  // a channel's learned logo for the live TV picture, kept in the extension's storage (the offscreen page has no storage of its own)
+  if (msg && msg.type === "pv:live-save") { var sk = "pv:bw:" + String(msg.key || "?").slice(0, 80), so = {}; so[sk] = msg.state; try { chrome.storage.local.set(so); } catch (e) {} return; }   // a channel's logo, or __prints: the known ads learned here
+  if (msg && msg.type === "pv:live-load") { var lk = "pv:bw:" + String(msg.key || "?").slice(0, 80); try { chrome.storage.local.get(lk, function (r) { sendResponse((r && r[lk]) || null); }); } catch (e) { sendResponse(null); } return true; }
+  // the veil log (2026-11-07): every video veil over an ad break, up and down, from every tab, as the Prism app keeps its calls.log;
+  // the newest 1000 records stay, the panel copies or clears them. Appends are queued so two tabs' records never overwrite each other.
+  if (msg && msg.type === "pv:veil-log") { if (msg.rec && typeof msg.rec === "object") veilLogAppend(msg.rec); return; }
+  if (msg && msg.type === "pv:pack-check") { packCheck(function (r) { try { sendResponse(r); } catch (e) {} }); return true; }   // the panel's Check now
+  // a veil's way to the options (2026-11-07): the panel's page opened as a tab with the named rows lit (popup.html?highlight=live)
+  if (msg && msg.type === "pv:open-options") { try { chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") + "?highlight=" + encodeURIComponent(String(msg.highlight || "").slice(0, 20)) }); } catch (e) {} return; }
+  if (msg && msg.type === "pv:veil-log-get") { veilLogQ = veilLogQ.then(function () { return new Promise(function (res) { chrome.storage.local.get("pv:veil-log", function (r) { sendResponse((r && r["pv:veil-log"]) || []); res(); }); }); }); return true; }
+  if (msg && msg.type === "pv:veil-log-clear") { veilLogQ = veilLogQ.then(function () { return new Promise(function (res) { chrome.storage.local.remove("pv:veil-log", function () { sendResponse({ ok: true }); res(); }); }); }); return true; }
+  // the soundscape for a veiled ad break (the person's choice; the tab is muted, so it plays from the offscreen page)
+  if (msg && msg.type === "pv:ambient") {
+    if (!chrome.offscreen) return;
+    var amb = { type: "pv:ambient-play", target: "offscreen", on: !!msg.on, sound: String(msg.sound || "") };
+    if (!amb.on) { try { chrome.runtime.sendMessage(amb, function () { void chrome.runtime.lastError; }); } catch (e) {} return; }
+    ensureOffscreen().then(function () { try { chrome.runtime.sendMessage(amb, function () { void chrome.runtime.lastError; }); } catch (e) {} }, function () {});
+    return;
+  }
+  if (msg && msg.type === "pv:live-reading") { if (sender && sender.tab) liveTitle(sender.tab.id, !!msg.on); return; }
+  if (msg && msg.type === "pv:live-ended") { liveTitle(msg.tabId, false); return; }
   if (msg && msg.type === "prism-report-send") { sendReport(msg.report || {}, sendResponse); return true; }
   if (msg && msg.type === "prism-open-settings") {
     // chrome.action.openPopup exists in Chrome 127+ / Firefox; it may refuse
@@ -373,8 +520,9 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (!msg || !sender.tab) return;
   var id = sender.tab.id;
   if (msg.type === "prism-cred-site") {
-    var t = String(msg.text || ""), base = "Prism - popups intercepted on this site (click for the summary)";
-    try { chrome.action.setTitle({ tabId: id, title: t ? "Source reliability\n" + t + "\n" + base : base }); } catch (e) {}
+    (titleParts[id] = titleParts[id] || {}).cred = String(msg.text || ""); paintTitle(id);
+  } else if (msg.type === "pv:live-close") {
+    liveTitle(id, false);   // the page stopped reading its picture (the offscreen page answers the message itself)
   } else if (msg.type === "prism-popup-badge") {
     var n = msg.count | 0;
     try {
@@ -383,8 +531,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ tabId: id, color: "#F0A83C" });
     } catch (e) {}
   } else if (msg.type === "prism-dev-reload") {
-    // only src/popups-guard.js sends this, and only from 127.0.0.1 / localhost pages
-    try { if (/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/)/.test(sender.tab.url || "")) chrome.runtime.reload(); } catch (e) {}
+    // only src/popups-guard.js sends this, and only from 127.0.0.1 / localhost pages, and only an unpacked (development) install answers
+    try { if (DEV && /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/)/.test(sender.tab.url || "")) chrome.runtime.reload(); } catch (e) {}
   } else if (msg.type === "prism-popup-deliberate") {
     (deliberate[id] = deliberate[id] || []).push(String(msg.url || ""));
     setTimeout(function () { var l = deliberate[id]; if (l) { var i = l.indexOf(String(msg.url || "")); if (i >= 0) l.splice(i, 1); } }, 15000);
@@ -450,3 +598,119 @@ chrome.tabs.onRemoved.addListener(function (tabId) {
   delete deliberate[tabId]; delete frameTraces[tabId];
   try { chrome.storage.local.remove("pv:frames:" + tabId); } catch (e) {}
 });
+
+// Live TV (2026-11-06). YouTube TV's own ad slots (pv:ui.ytvVeil, on by default since 2026-11-07, src/ytv-cues.js) are read on YouTube TV
+// alone: the marks are its format. The live TV picture (opt-in pv:ui.livePicture, src/live-picture.js) is read on the sites in the
+// person's list of live TV sites (pv:ui.liveTvSites, tv.youtube.com to start with), so the ad detection can be tried on another one.
+// Each file is registered only while its switch is on, and put into matching tabs already open when it is turned on (or the list
+// changes); off, it is unregistered and the open pages stop at once (each listens to its switch itself).
+var LIVE_TV_DEFAULT = ["tv.youtube.com"];
+function liveTvSites(ui) { var l = ui && ui.liveTvSites; return Array.isArray(l) ? l : LIVE_TV_DEFAULT; }
+function siteMatches(sites) {
+  var out = [];
+  sites.forEach(function (h) { if (/^[a-z0-9.-]+$/i.test(h)) out.push("*://" + h + "/*", "*://*." + h + "/*"); });
+  return out;
+}
+function onLiveTvList(url, ui) {
+  var host = ""; try { host = new URL(url).hostname.toLowerCase(); } catch (e) { return false; }
+  return liveTvSites(ui).some(function (h) { return host === h || host.slice(-(h.length + 1)) === "." + h; });
+}
+var YTV_SCRIPTS = [
+  { key: "ytvVeil", id: "pv-ytv-cues", file: "src/ytv-cues.js", world: "MAIN", runAt: "document_start", matches: function () { return ["*://tv.youtube.com/*"]; } },
+  { key: "livePicture", id: "pv-live-picture", file: "src/live-picture.js", files: ["src/breakwatch/cs.js", "src/breakwatch/break-model.js", "src/live-picture.js"], world: "ISOLATED", runAt: "document_idle", needs: ["tabCapture", "offscreen"],
+    matches: function (ui) { return siteMatches(liveTvSites(ui)); }, list: true }
+];
+function ytvInjectOpen(sc, ui) {
+  try {
+    chrome.tabs.query({ url: sc.matches(ui) }, function (tabs) {
+      void chrome.runtime.lastError;
+      (tabs || []).forEach(function (t) {
+        try { chrome.scripting.executeScript({ target: { tabId: t.id }, files: sc.files || [sc.file], world: sc.world }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+      });
+    });
+  } catch (e) {}
+}
+// a reader's switch: the safe detection (the service's own marks, ytvVeil) is on unless switched off, the picture reading off unless
+// switched on (decision 2026-11-07)
+function scOn(sc, ui) { var v = ui && ui[sc.key]; return sc.key === "ytvVeil" ? v !== false : !!v; }
+function ytvApply(sc, on, ui, again) {
+  if (sc.needs && sc.needs.some(function (k) { return !chrome[k]; })) on = false;   // Firefox has no tab stream: the picture option is shown disabled there
+  var m = sc.matches(ui);
+  if (!m.length) on = false;
+  try {
+    chrome.scripting.getRegisteredContentScripts({ ids: [sc.id] }, function (rs) {
+      void chrome.runtime.lastError;
+      var has = !!(rs && rs.length);
+      function register() {
+        chrome.scripting.registerContentScripts([{ id: sc.id, matches: m, js: sc.files || [sc.file], runAt: sc.runAt,
+          world: sc.world, allFrames: false, persistAcrossSessions: true }], function () { void chrome.runtime.lastError; ytvInjectOpen(sc, ui); });
+      }
+      // a registration kept from an earlier version with another file list is renewed (a reload keeps registrations)
+      var stale = has && JSON.stringify((rs[0] && rs[0].js) || []) !== JSON.stringify(sc.files || [sc.file]);
+      if (on && has && (again || stale)) chrome.scripting.unregisterContentScripts({ ids: [sc.id] }, function () { void chrome.runtime.lastError; register(); });
+      else if (on && !has) register();
+      else if (!on && has) chrome.scripting.unregisterContentScripts({ ids: [sc.id] }, function () { void chrome.runtime.lastError; });
+    });
+  } catch (e) {}
+}
+// The tab's own stream for the live TV picture (2026-11-06): asked for with Veil's own pages as its user (no consumer tab), and held by
+// Veil's offscreen page (offscreen.html), so the browser's sharing notice names the extension rather than the site. The tab's page asks
+// that page for its frames. Chromium hands a tab's stream only once Veil was invoked on the tab (its toolbar button); the panel then asks
+// the page to start again.
+var OFFSCREEN_URL = "offscreen.html", offscreenOpening = null;
+function ensureOffscreen() {
+  if (offscreenOpening) return offscreenOpening;
+  offscreenOpening = (chrome.runtime.getContexts ? chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }) : Promise.resolve([]))
+    .then(function (have) {
+      if (have && have.length) return;
+      return chrome.offscreen.createDocument({ url: OFFSCREEN_URL, reasons: ["USER_MEDIA", "AUDIO_PLAYBACK"],
+        justification: "Reads the live TV picture of a tab the person chose, for spotting commercial breaks, and plays the soundscape the person chose for ad breaks. Nothing leaves the browser." });
+    })
+    .then(function () { offscreenOpening = null; }, function (e) { offscreenOpening = null; throw e; });
+  return offscreenOpening;
+}
+function liveStreamId(sender, sendResponse) {
+  try {
+    var t = sender && sender.tab;
+    if (!t || !chrome.tabCapture || !chrome.offscreen) { sendResponse({ error: "not available here" }); return; }
+    chrome.storage.local.get("pv:ui", function (r) {
+      var ui = (r && r["pv:ui"]) || {};
+      if (!ui.livePicture) { sendResponse({ error: "switched off" }); return; }
+      if (!onLiveTvList(t.url || "", ui)) { sendResponse({ error: "not on the list of live TV sites" }); return; }
+      chrome.tabCapture.getMediaStreamId({ targetTabId: t.id }, function (id) {
+        var err = chrome.runtime.lastError;
+        if (err || !id) { sendResponse({ error: err ? err.message : "no stream id" }); return; }
+        ensureOffscreen().then(function () {
+          chrome.runtime.sendMessage({ type: "pv:live-open", target: "offscreen", tabId: t.id, streamId: id }, function (res) {
+            var e2 = chrome.runtime.lastError;
+            if (!e2 && res && res.ok) liveTitle(t.id, true);
+            sendResponse(e2 || !res ? { error: e2 ? e2.message : "the offscreen page did not answer" } : res);
+          });
+        }, function (e) { sendResponse({ error: "offscreen: " + String(e && e.message || e) }); });
+      });
+    });
+  } catch (e) { sendResponse({ error: String(e && e.message || e) }); }
+}
+// a closed tab's stream ends with it; the offscreen page goes when it holds none (pv:offscreen-idle, in the one message listener above)
+function closeOffscreen() {
+  if (!chrome.offscreen) return;
+  try { chrome.offscreen.closeDocument(function () { void chrome.runtime.lastError; }); } catch (e) {}
+}
+try {
+  chrome.tabs.onRemoved.addListener(function (tabId) {
+    delete titleParts[tabId];
+    try { chrome.runtime.sendMessage({ type: "pv:live-shut", target: "offscreen", tabId: tabId }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+  });
+} catch (e) {}
+try {
+  chrome.scripting.unregisterContentScripts({ ids: ["pv-ytv-picture"] }, function () { void chrome.runtime.lastError; });   // its name until 0.7.222
+  chrome.storage.local.get("pv:ui", function (r) { var ui = (r && r["pv:ui"]) || {}; YTV_SCRIPTS.forEach(function (sc) { ytvApply(sc, scOn(sc, ui), ui); }); });
+  chrome.storage.onChanged.addListener(function (ch, area) {
+    if (area !== "local" || !ch["pv:ui"]) return;
+    var o = ch["pv:ui"].oldValue || {}, n = ch["pv:ui"].newValue || {};
+    YTV_SCRIPTS.forEach(function (sc) {
+      var listChanged = sc.list && JSON.stringify(liveTvSites(o)) !== JSON.stringify(liveTvSites(n));
+      if (scOn(sc, o) !== scOn(sc, n) || (listChanged && scOn(sc, n))) ytvApply(sc, scOn(sc, n), n, listChanged);
+    });
+  });
+} catch (e) {}
