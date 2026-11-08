@@ -1,0 +1,19 @@
+{
+  "match": [
+    "disneyplus.com"
+  ],
+  "capabilities": [],
+  "injectAt": "document-end",
+  "version": "2026.08.1",
+  "login": "https://www.disneyplus.com/identity/login/enter-email",
+  "shortcuts": [
+    {
+      "label": "Switch profile",
+      "url": "https://www.disneyplus.com/select-profile"
+    },
+    {
+      "label": "Home",
+      "url": "https://www.disneyplus.com/home"
+    }
+  ]
+}

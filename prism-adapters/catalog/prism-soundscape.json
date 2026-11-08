@@ -1,0 +1,84 @@
+{
+  "id": "prism-soundscape",
+  "name": "Soundscape",
+  "url": "https://tiles.prism/soundscape/",
+  "adapter": "prism-tiles",
+  "aspectHint": "16:9",
+  "audio": "mix",
+  "account": "none",
+  "firstParty": true,
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "none",
+    "evidence": "a first-party page the host serves from its own Assets/tiles - Web Audio synthesis only (noise, oscillators, filters), no media file, no EME call and no network request; the WebView2 surface it runs in is the one surveyed in docs/reports/win-host-m1.md"
+  },
+  "zoom": 1,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    }
+  ],
+  "facetPresets": {
+    "16:9·M": [
+      {
+        "id": "ambient",
+        "label": "Ambient",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "section 26 ambient audio: the soundscape page as a placement of its own - a hidden ambient source (crickets, whales, rain, ocean, wind by ?sound=)"
+      }
+    ],
+    "1:1·M": [
+      {
+        "id": "ambient",
+        "label": "Ambient",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "section 26 ambient audio: the soundscape page as a placement of its own - a hidden ambient source (crickets, whales, rain, ocean, wind by ?sound=)"
+      }
+    ],
+    "1:1": [
+      {
+        "id": "ambient",
+        "label": "Ambient",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "section 26 ambient audio: the soundscape page as a placement of its own - a hidden ambient source (crickets, whales, rain, ocean, wind by ?sound=)"
+      }
+    ],
+    "4:3·M": [
+      {
+        "id": "ambient",
+        "label": "Ambient",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "section 26 ambient audio: the soundscape page as a placement of its own - a hidden ambient source (crickets, whales, rain, ocean, wind by ?sound=)"
+      }
+    ],
+    "21:9-strip": [
+      {
+        "id": "ambient",
+        "label": "Ambient",
+        "selector": null,
+        "zoom": 1,
+        "pad": 0,
+        "fit": "width",
+        "notes": "section 26 ambient audio: the soundscape page as a placement of its own - a hidden ambient source (crickets, whales, rain, ocean, wind by ?sound=)"
+      }
+    ]
+  },
+  "notes": "docs/concept-scenes.md decision 2026-09-07: the ambient-audio page core opens beside a music source during its ad breaks; listed here so a person may also place it as an always-on ambient source of its own"
+}

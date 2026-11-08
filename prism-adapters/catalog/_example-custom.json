@@ -1,0 +1,12 @@
+{
+  "$comment": "NOT a catalog entry (underscore prefix = documentation). This is the tile the picker writes for an 'any website' choice — plain tile schema (§31), no picker-only fields. The poster comes from the page's own title/icon at add time; nothing here names one.",
+  "tile": {
+    "id": "york-cam",
+    "url": "https://example.org/webcams/minster",
+    "profile": "york-cam",
+    "zoom": 1.25,
+    "focus": { "selector": "#stream-panel", "pad": 12, "fit": "width" },
+    "aspectHint": "4:3",
+    "audio": "mute"
+  }
+}

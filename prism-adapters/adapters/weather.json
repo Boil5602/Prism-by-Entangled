@@ -1,0 +1,20 @@
+{
+  "match": [
+    "forecast.weather.gov",
+    "www.weather.gov"
+  ],
+  "version": "0.1.0",
+  "selectors": {
+    "current-conditions": "#current-conditions",
+    "current-summary": "#current_conditions-summary",
+    "seven-day": "#seven-day-forecast",
+    "detailed-forecast": "#detailed-forecast"
+  },
+  "verified": {
+    "selectors.current-conditions": "verified 2026-09-01 by fetching forecast.weather.gov/MapClick.php?lat=40.7128&lon=-74.006 (ids present, one each)",
+    "selectors.current-summary": "verified as above",
+    "selectors.seven-day": "verified as above",
+    "selectors.detailed-forecast": "verified as above"
+  },
+  "notes": "National Weather Service point forecast (MapClick.php). Static HTML with stable ids; no sign-in, no media, nothing to observe - the adapter is a selector table for the §31 presets. A facet must point at a LOCATION page: search your town on weather.gov first, then cut the facet from the forecast page it lands on."
+}

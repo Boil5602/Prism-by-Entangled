@@ -1,0 +1,35 @@
+{
+  "id": "netflix",
+  "name": "Netflix",
+  "url": "https://www.netflix.com/browse",
+  "adapter": "netflix",
+  "aspectHint": "16:9",
+  "audio": "exclusive",
+  "poster": {
+    "source": "site",
+    "fallback": "wordmark"
+  },
+  "drm": {
+    "windows-host": "hardware",
+    "evidence": "docs/reports/win-host-m1.md - EME probe in the embedded tile: PlayReady HW_SECURE_ALL(3000) once the CDM is warm (2026-08-31 run); the first-ever run reported SW_SECURE_DECODE(2000) before provisioning settled. Confirm with signed-in playback stats before relying on 4K embedded."
+  },
+  "zoom": 1.0,
+  "focusPresets": [
+    {
+      "id": "whole",
+      "label": "Whole page",
+      "selector": null
+    },
+    {
+      "id": "browse",
+      "label": "Browse",
+      "selector": null
+    },
+    {
+      "id": "continue",
+      "label": "Continue watching",
+      "selector": "continue-watching"
+    }
+  ],
+  "notes": "Sign in inside the tile; sessions persist (§10). Landing page redirects to /browse when signed in."
+}

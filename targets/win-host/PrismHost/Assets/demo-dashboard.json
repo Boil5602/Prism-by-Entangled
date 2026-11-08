@@ -1,0 +1,41 @@
+{
+  "schema": "frame.dashboard/v0.1",
+  "id": "m1-demo",
+  "name": "M1 demo \u2014 Netflix + Hulu",
+  "layout": {
+    "mode": "hero",
+    "hero": "netflix",
+    "heroSize": 0.62,
+    "satellites": "auto"
+  },
+  "tiles": [
+    {
+      "id": "netflix",
+      "url": "https://www.netflix.com/",
+      "profile": "netflix",
+      "persist": true,
+      "viewport": "desktop",
+      "audio": "exclusive",
+      "intermission": {
+        "enabled": true
+      },
+      "veil": {
+        "mode": "veil-only"
+      }
+    },
+    {
+      "id": "hulu",
+      "url": "https://www.hulu.com/",
+      "profile": "hulu",
+      "persist": true,
+      "viewport": "desktop",
+      "audio": "exclusive",
+      "intermission": {
+        "enabled": true
+      },
+      "veil": {
+        "mode": "veil-only"
+      }
+    }
+  ]
+}

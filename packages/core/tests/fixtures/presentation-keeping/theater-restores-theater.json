@@ -1,0 +1,42 @@
+{
+  "name": "theater-restores-theater",
+  "spec": "restore the state the human had: a theater drop re-invokes enterTheater, never enterFullscreen (I4)",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "theater",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 5100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 35000,
+        "action": "enterTheater",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

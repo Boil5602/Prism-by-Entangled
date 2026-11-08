@@ -1,0 +1,28 @@
+{
+  "match": [
+    "youtube.com",
+    "m.youtube.com"
+  ],
+  "capabilities": [
+    "media-keys",
+    "ad-break",
+    "skip-passthrough",
+    "partial-veil"
+  ],
+  "injectAt": "document-end",
+  "version": "2026.08.3",
+  "css": "ytm-mealbar-promo-renderer, tp-yt-paper-dialog[modern] { display: none !important; }",
+  "controls": {
+    "next": ".ytp-next-button, ytm-next-button button",
+    "prev": ".ytp-prev-button",
+    "skip": ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern"
+  },
+  "overlays": [
+    {
+      "selector": ".ytp-ad-overlay-container, .ytp-ad-overlay-slot",
+      "mode": "hide"
+    }
+  ],
+  "js": "(function () { if (window.__prismYt) return; window.__prismYt = true; /* section 26: OBSERVE, NEVER INTERACT. This adapter contains no click(), no dispatchEvent(), no synthetic input of any kind - the core lint rejects adapters that do. Player controls are DECLARED in adapter.json `controls`; core forwards a human's remote key / phone button / chip tap to them. */ frame.onMediaCommand = function (cmd) { var v = document.querySelector('video'); if (cmd === 'play' && v) v.play(); if (cmd === 'pause' && v) v.pause(); }; var adState = false; var skipState = false; var check = function () { var player = document.querySelector('.html5-video-player, #movie_player'); var showing = !!(player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))); if (showing !== adState) { adState = showing; frame.adBreak(showing); } var skip = document.querySelector('.ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern'); var available = !!(showing && skip && skip.offsetParent !== null && !skip.disabled); if (available !== skipState) { skipState = available; /* signal = affordance + its target; core forwards a HUMAN's activation there */ frame.skipAvailable(available, available ? ('.' + String(skip.className || '').trim().split(/\\s+/)[0]) : null); } }; var observer = new MutationObserver(check); var arm = function () { var player = document.querySelector('.html5-video-player, #movie_player'); if (player) { observer.observe(player, { attributes: true, childList: true, subtree: true, attributeFilter: ['class', 'style', 'disabled'] }); check(); } else { setTimeout(arm, 2000); } }; arm(); })();",
+  "login": "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/"
+}

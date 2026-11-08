@@ -1,0 +1,16 @@
+{
+  "apps": [
+    {
+      "titleMatch": "Google Chrome|Microsoft Edge|Firefox|Brave",
+      "ignore": true
+    },
+    {
+      "titleMatch": "Visual Studio|Code|Terminal|Explorer|Task Manager",
+      "ignore": true
+    },
+    {
+      "titleMatch": "YouTube",
+      "adRegex": "^(ad|advertisement|sponsored)([\\s:|-]+[\\d:]+.*)?$|^ad \\d+ of \\d+$"
+    }
+  ]
+}

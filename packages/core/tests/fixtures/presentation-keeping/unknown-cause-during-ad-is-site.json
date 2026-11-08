@@ -1,0 +1,45 @@
+{
+  "name": "unknown-cause-during-ad-is-site",
+  "spec": "a drop of unknown cause with no recent input and an ad break live is the site's doing - restore at the boundary",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 5100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "unknown"
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 35000,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  },
+  "options": {
+    "inputWindowMs": 1500
+  }
+}

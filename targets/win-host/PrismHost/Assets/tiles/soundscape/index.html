@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soundscape</title>
+<!--
+  prism-soundscape - ambient audio for a music service's ad breaks
+  (docs/concept-scenes.md §6 / dashboard-schema §26 "Ambient audio (opt-in)").
+
+  Served by the host at https://tiles.prism/soundscape/?sound=<id> from
+  Assets/tiles. Twelve field recordings, all CC0 (Creative Commons Zero) from
+  Freesound - see docs/soundscape-credits.md for each recordist and source page - trimmed
+  to a loop and bundled here: ZERO network at runtime, nothing downloaded, ever.
+  (The first cut synthesized everything with Web Audio; the maintainer's verdict
+  on the crickets, 2026-09-08: "they're bad". Real recordings now, all twelve.)
+
+  Core opens this page in a hidden surface when a hidden music source's break
+  begins (its own audio is ducked by section 26), fades it in, and mutes the
+  surface again when the break ends. The wall's mute covers it like any other
+  sound (section 3).
+
+  Looping: two <audio> elements take turns through Web Audio gain nodes, the
+  next one starting a few seconds before the current one ends with a linear
+  crossfade, so a loop never clicks or gaps. No script ever fetches: the
+  elements load their same-origin files themselves (scripts/verify-tile-assets
+  keeps it that way).
+
+  The page answers `window.__prismSoundscape.play(id)` / `.stop()` and a
+  `#sound=<id>` hash change, so a switch never needs a reload. ?gain=0.8 sets
+  the level. Older ids (crickets, whales, rain, ocean, wind - the synthesized
+  set) map onto the nearest recording so a scene saved before this keeps working.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #0B0C10; color: #9AA3B2; font: 13px "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  .line { position: absolute; left: 18px; bottom: 14px; letter-spacing: .12em; text-transform: uppercase; font-size: 11px; opacity: .7; }
+</style>
+</head>
+<body>
+<div class="line" id="line">soundscape</div>
+<script>
+(function () {
+  'use strict';
+  var GAIN = 0.8;
+  try { var g = parseFloat(new URLSearchParams(location.search).get('gain') || ''); if (g >= 0 && g <= 1) GAIN = g; } catch (e) {}
+  var XFADE = 3.0;   // seconds of overlap at the loop seam
+
+  // id -> sounds/<id>.mp3; the names live in the host's wheel and in docs/soundscape-credits.md
+  var SOUNDS = {
+    'bayou': 1, 'midwest-forest': 1, 'wind-shutter': 1, 'heavy-storm': 1, 'river': 1, 'beach-cave': 1,
+    'park-meadow': 1, 'wind-chimes': 1, 'city': 1, 'bees': 1, 'arcade': 1, 'star-walk': 1
+  };
+  var LEGACY = { crickets: 'midwest-forest', whales: 'beach-cave', rain: 'heavy-storm', ocean: 'beach-cave', wind: 'wind-shutter' };
+
+  var ac = null, master = null, current = null, currentName = null;
+  function ctx() {
+    if (ac) return ac;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    // field recordings are quiet things (peaks around 0.02 against the music's 0.1-0.4): a compressor with makeup gain
+    // brings a loop up to the level of the music it stands in for. Measured on the wall 2026-09-14 (host.log, the
+    // session meter): Pandora peaked 0.25-0.30 of full scale while the bayou loop peaked 0.99 - the makeup ran the
+    // louder recordings into the ceiling, eleven dB over the music ("the intermission is VERY loud"). So a LIMITER
+    // after the makeup: threshold -12 dBFS (0.25), hard knee, 20:1, 3 ms attack - every loop lands where the music
+    // is, the quiet ones lifted, the loud ones held. The wall's volume scales the session the same for both.
+    master = ac.createGain(); master.gain.value = 0;
+    var comp = ac.createDynamicsCompressor(); comp.threshold.value = -30; comp.knee.value = 12; comp.ratio.value = 6; comp.attack.value = 0.01; comp.release.value = 0.4;
+    var makeup = ac.createGain(); makeup.gain.value = 5;
+    var limiter = ac.createDynamicsCompressor(); limiter.threshold.value = -12; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.25;
+    // Chromium's DynamicsCompressorNode adds its own automatic makeup gain AFTER the ratio, so the limiter's -12 dBFS
+    // ceiling came out at 0.78 of full scale on the wall (measured 2026-09-14, second pass: bayou 0.75-0.80 against
+    // the music's 0.28). It still does the useful part - every loop lands at about the same level - so a fixed trim
+    // after it sets where that level is: 0.78 * 0.36 = 0.28, the music's own peak. ?gain= still scales the input.
+    var trim = ac.createGain(); trim.gain.value = 0.36;
+    master.connect(comp); comp.connect(makeup); makeup.connect(limiter); limiter.connect(trim); trim.connect(ac.destination);
+    return ac;
+  }
+
+  // one looping voice: two elements alternating with a crossfade at the seam
+  function voice(id) {
+    var a = ctx(), alive = true, els = [], timer = null, active = 0;
+    function make() {
+      var el = document.createElement('audio');
+      el.src = 'sounds/' + id + '.mp3'; el.preload = 'auto';
+      var node = a.createMediaElementSource(el), gn = a.createGain(); gn.gain.value = 0;
+      node.connect(gn); gn.connect(master);
+      return { el: el, gain: gn };
+    }
+    els = [make(), make()];
+    voice.last = els;   // for the debug hook
+    function startAt(i, now, fade) {
+      var v = els[i]; v.el.currentTime = 0;
+      var p = v.el.play(); if (p && p.catch) p.catch(function () {});
+      v.gain.gain.cancelScheduledValues(now); v.gain.gain.setValueAtTime(fade ? 0 : 1, now);
+      if (fade) v.gain.gain.linearRampToValueAtTime(1, now + fade);
+    }
+    function schedule() {
+      if (!alive) return;
+      var v = els[active], d = v.el.duration;
+      if (!isFinite(d) || d <= 0) { timer = setTimeout(schedule, 250); return; }
+      var left = d - v.el.currentTime, lead = Math.min(XFADE, d / 2);
+      if (left <= lead + 0.05) {
+        var now = a.currentTime, next = 1 - active;
+        v.gain.gain.cancelScheduledValues(now); v.gain.gain.setValueAtTime(v.gain.gain.value, now);
+        v.gain.gain.linearRampToValueAtTime(0, now + lead);
+        startAt(next, now, lead);
+        setTimeout(function () { try { v.el.pause(); } catch (e) {} }, (lead + 0.2) * 1000);
+        active = next;
+        timer = setTimeout(schedule, 500);
+      } else timer = setTimeout(schedule, Math.max(100, (left - lead) * 1000 - 150));
+    }
+    startAt(0, a.currentTime, 0);   // the master gain does the fade-in
+    timer = setTimeout(schedule, 500);
+    return { stop: function () { alive = false; clearTimeout(timer); els.forEach(function (v) { try { v.el.pause(); v.el.removeAttribute('src'); v.el.load(); } catch (e) {} }); } };
+  }
+
+  function play(name) {
+    var a = ctx(); if (a.state !== 'running') a.resume();
+    if (LEGACY[name]) name = LEGACY[name];
+    if (!SOUNDS[name]) name = 'midwest-forest';
+    if (current && currentName === name) return;
+    if (current) { try { current.stop(); } catch (e) {} }
+    current = voice(name); currentName = name;
+    master.gain.cancelScheduledValues(a.currentTime); master.gain.setValueAtTime(master.gain.value, a.currentTime);
+    master.gain.linearRampToValueAtTime(GAIN, a.currentTime + 2.5);
+    document.getElementById('line').textContent = 'soundscape · ' + name;
+  }
+  function stop() {
+    if (!ac) return;
+    master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value, ac.currentTime);
+    master.gain.linearRampToValueAtTime(0, ac.currentTime + 1.2);
+    var c = current; current = null; currentName = null;
+    setTimeout(function () { if (c) { try { c.stop(); } catch (e) {} } }, 1400);
+    document.getElementById('line').textContent = 'soundscape';
+  }
+  window.__prismSoundscape = { play: play, stop: stop, get current() { return currentName; },
+    debug: function () { return { state: ac && ac.state, master: master && master.gain.value, els: (voice.last || []).map(function (v) { return { t: Math.round(v.el.currentTime), dur: Math.round(v.el.duration), paused: v.el.paused, err: v.el.error && v.el.error.code, gain: +v.gain.gain.value.toFixed(2) }; }) }; } };
+  function fromLocation() {
+    var h = /[#&?]sound=([a-z-]+)/.exec(location.hash) || /[#&?]sound=([a-z-]+)/.exec(location.search);
+    if (h) play(h[1]);
+  }
+  addEventListener('hashchange', fromLocation);
+  fromLocation();
+})();
+</script>
+</body>
+</html>

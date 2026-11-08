@@ -1,0 +1,69 @@
+! Title: Prism baseline element-hiding list
+! Maintainer: PRISM by Entangled (prism-adapters)
+! License: MIT
+! Source: distilled from the prism-veil extension's slot engine
+!   (prototypes/prism-veil-extension/src/rules.js SLOT_SELECTORS + AD_STACKS),
+!   each selector proven against live sites during the 2026-08 veil sessions.
+! Syntax: Adblock Plus element-hiding rules; generic rules only in v0.
+! Spec 27: these selectors LOCATE display-ad slots; the veil fills them with
+! locally-served art. A selector that matches nothing does nothing.
+##ins.adsbygoogle
+##iframe[id^="google_ads_iframe"]
+##div[id^="google_ads_iframe"]
+##div[id^="div-gpt-ad"]
+##iframe[src*="doubleclick.net"]
+##iframe[src*="googlesyndication.com"]
+##iframe[src*="adnxs.com"]
+##iframe[src*="amazon-adsystem.com"]
+##iframe[src*="criteo.com"]
+##iframe[src*="rubiconproject.com"]
+##iframe[src*="pubmatic.com"]
+##iframe[src*="openx.net"]
+##iframe[src*="taboola.com"]
+##iframe[src*="outbrain.com"]
+##[id^="outbrain_widget"]
+##[id^="taboola-"]
+##[data-widget-id*="taboola"]
+##iframe[src*="2mdn.net"]
+##iframe[src*="moatads.com"]
+##iframe[src*="adsafeprotected"]
+##iframe[src*="teads.tv"]
+##iframe[src*="smartadserver"]
+##[data-ad-slot]
+##[data-google-query-id]
+##[data-ad-unit]
+##[data-adunit]
+##[aria-label="Advertisement"]
+##[class*="ad-slot"]
+##[class*="ad_slot"]
+##[class*="ad-container"]
+##[class*="ad__container"]
+##.mv-ad-box
+##.adthrive-ad
+##[id^="ezoic-pub-ad-placeholder-"]
+##[data-pw-desk]
+##[data-freestar-ad]
+##[id^="adngin-"]
+##[data-fuse]
+##.htl-ad
+##[data-str-native-key]
+##[id^="rcjsload_"]
+##_carbonads_placeholder_never_matches
+##ytd-display-ad-renderer
+##ytd-in-feed-ad-layout-renderer
+##ytd-ad-slot-renderer
+##ytd-banner-promo-renderer
+##ytm-promoted-video-renderer
+##tp-yt-paper-dialog ytd-mealbar-promo-renderer
+##ytd-statement-banner-renderer
+##.stream-display-ad__wrapper
+##.headliner-ad
+##div[id="headliner"]
+! Twitch front-page / shelf mini-player video ads (reported 2026-08-31 via
+! prism-host: 4 ad-chrome marks visible, only the 2 side slots covered).
+! Source: Twitch's own ad chrome - buttons aria-labelled "Pause Ad" /
+! "Unmute Ad" / "Mute Ad" / "Leave feedback for this Ad" exist only inside a
+! video-ad unit; the .tw-aspect frame holding them is the slot. On a channel
+! page a pre-roll may match too - harmless, the tile-wide veil (adapter,
+! same markers) is already up over it.
+www.twitch.tv##.tw-aspect:has([aria-label='Pause Ad'],[aria-label='Unmute Ad'],[aria-label='Mute Ad'],[aria-label^='Leave feedback for this Ad'])

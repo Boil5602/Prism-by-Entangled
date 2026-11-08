@@ -1,0 +1,28 @@
+{
+  "id": "aurora-ridge",
+  "name": "Aurora Ridge",
+  "blurb": "Curtains of aurora waving over a mountain ridge; the stars twinkle with the highs, the curtains breathe with the mids.",
+  "program": "aurora-ridge",
+  "family": "environment",
+  "bands": 24,
+  "palette": [
+    "#5CF0B0",
+    "#5CC8C0",
+    "#C86CF0",
+    "#8FA8FF"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

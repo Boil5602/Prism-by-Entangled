@@ -1,0 +1,192 @@
+/*
+  First-party micro-facet styling (docs/concept-scenes.md §6).
+
+  Design tokens are the project's own — the values in prototypes/frame-editor.jsx
+  and prototypes/prism-build-wizard.jsx, copied here as literals because these
+  pages take ZERO network: no CDN, no web font, no external image, nothing but
+  what ships in Assets/tiles. The prototypes' Space Grotesk / IBM Plex faces are
+  deliberately NOT loaded; the stacks below fall back to what Windows already
+  has, which is the whole point of an offline first-party page.
+
+  Sizes are in vmin so one sheet reads correctly at every class a template
+  points these pages at (4:3·M in Kitchen Command, 1:1·M in Family Hub) and at
+  the sizes in between. Touch targets never go below 44px: this is a panel on a
+  wall, pressed with a thumb.
+*/
+
+:root {
+  --wall: #14171C;
+  --wall-light: #262C36;
+  --panel: #1E232B;
+  --panel-edge: #2C333E;
+  --ink: #D7DCE3;
+  --ink-dim: #8A93A0;
+  --ink-faint: #5A6270;
+  --accent: #F0A83C;
+  --accent-dim: #8A6524;
+  --danger: #D06A5A;
+  --ok: #8FBF6B;
+
+  --ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --display: "Segoe UI Variable Display", "Segoe UI Semibold", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --base: clamp(14px, 3.1vmin, 26px);
+  --small: clamp(11px, 2.2vmin, 18px);
+  --tap: max(44px, 8.4vmin);
+  --gap: clamp(6px, 1.6vmin, 16px);
+  --pad: clamp(10px, 2.6vmin, 26px);
+  --radius: clamp(5px, 1.1vmin, 10px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: var(--base);
+  /* a wall panel is pressed, not selected; long-press must not start a drag */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  padding: var(--pad);
+  gap: var(--gap);
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--wall-light) 0%, var(--wall) 62%);
+}
+
+/* ------------------------------------------------------------ furniture */
+
+header.tile-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap);
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+header.tile-head h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(15px, 3.4vmin, 30px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.meta {
+  color: var(--ink-faint);
+  font-size: var(--small);
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.note-line {
+  color: var(--ink-dim);
+  font-size: var(--small);
+  line-height: 1.35;
+}
+
+.banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: calc(var(--gap) * 0.8) var(--gap);
+  border: 1px solid var(--accent-dim);
+  border-left-width: clamp(3px, 0.7vmin, 6px);
+  border-radius: var(--radius);
+  background: rgba(240, 168, 60, 0.08);
+  color: var(--ink);
+  font-size: var(--small);
+  line-height: 1.35;
+}
+.banner[hidden] { display: none; }
+.banner .grow { flex: 1 1 auto; }
+
+/* ------------------------------------------------------------- controls */
+
+button {
+  font: inherit;
+  font-family: var(--ui);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  min-height: var(--tap);
+  padding: 0 clamp(8px, 1.8vmin, 18px);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:hover { border-color: var(--ink-faint); }
+button:active { background: var(--wall-light); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[disabled] { opacity: 0.4; cursor: default; }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #12131A;
+  font-weight: 600;
+}
+button.primary:active { background: #d99632; }
+
+button.ghost { background: transparent; color: var(--ink-dim); }
+button.ghost:hover { color: var(--ink); }
+
+button.icon {
+  min-width: var(--tap);
+  padding: 0;
+  font-size: clamp(13px, 2.6vmin, 22px);
+  line-height: 1;
+}
+
+input[type="text"], textarea {
+  font: inherit;
+  font-family: var(--ui);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 0 clamp(8px, 1.8vmin, 16px);
+  min-height: var(--tap);
+  -webkit-user-select: text;
+  user-select: text;
+}
+input[type="text"]::placeholder, textarea::placeholder { color: var(--ink-faint); }
+input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+textarea {
+  padding: calc(var(--gap) * 0.7) clamp(8px, 1.8vmin, 16px);
+  line-height: 1.4;
+  resize: none;
+}
+
+input[type="range"] { accent-color: var(--accent); height: var(--tap); }
+
+.row { display: flex; align-items: center; gap: var(--gap); }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1 1 auto; min-width: 0; }
+
+.offline {
+  flex: 0 0 auto;
+  padding: var(--gap);
+  border: 1px dashed var(--danger);
+  border-radius: var(--radius);
+  color: var(--ink-dim);
+  font-size: var(--small);
+}
+.offline[hidden] { display: none; }
+
+/* Motion is decoration here: a household that asked for less gets none. */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

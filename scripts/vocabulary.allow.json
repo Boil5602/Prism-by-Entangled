@@ -1,0 +1,20 @@
+{
+  "$doc": "Exceptions for scripts/audit-vocabulary.mjs. `devicePatterns` are regexes (case-insensitive) matching 'frame' used for the PHYSICAL DEVICE - the one meaning CLAUDE.md keeps. `exact` are whole UI strings that are fine as written. `viewPatterns` are regexes for 'view' NOT meaning the pre-model facet (point of view, web view...) - 'view' is report-only either way. Add a device pattern only when the sentence is about the device on the wall; never to quiet a slot/facet/layout usage - since the SM-6 rename those fail the gate and are renamed, not excused.",
+  "devicePatterns": [
+    "\\bdashboard frames?\\b",
+    "\\bthis frame\\b",
+    "\\bthe frame's\\b",
+    "\\bon (this|the) frame\\b",
+    "\\bframe's (QR|shell|screen|display)\\b",
+    "\\bPrism frame\\b",
+    "\\bevery Prism frame\\b",
+    "\\bframes? (reboots?|restarts?|boots?|sleeps?)\\b"
+  ],
+  "viewPatterns": [
+    "\\bpoint of view\\b",
+    "\\b(its|their|his|her|the organization's) views\\b",
+    "\\bweb ?views?\\b",
+    "\\bview pixels?\\b"
+  ],
+  "exact": []
+}

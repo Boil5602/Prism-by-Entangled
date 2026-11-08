@@ -1,0 +1,44 @@
+{
+  "name": "uncorrelated-drop-is-doubt",
+  "spec": "a drop that correlates with neither user input nor an ad-break/ended signal is doubt: never fought, never restored (asymmetric bias - a lost fullscreen is cheap, fighting a human is the real failure); a later ad break does not retroactively explain it",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 20000,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "unknown"
+    },
+    {
+      "t": 25000,
+      "kind": "tick"
+    },
+    {
+      "t": 40000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 60000,
+      "kind": "ad-break",
+      "active": false
+    },
+    {
+      "t": 61000,
+      "kind": "tick"
+    }
+  ],
+  "expect": {
+    "actions": []
+  }
+}

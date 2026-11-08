@@ -1,0 +1,12 @@
+{
+  "id": "spectrum",
+  "name": "Spectrum",
+  "blurb": "Classic bars, tasteful: rounded, evenly spaced, the palette running low to high.",
+  "program": "bars",
+  "bands": 48,
+  "palette": ["#F0A83C", "#5CC8C0", "#C86CF0", "#F05C7A"],
+  "background": "transparent",
+  "motion": { "speed": 1, "attack": 0.6, "release": 0.14, "beat": 0.3 },
+  "reducedMotion": { "speed": 0.3, "beat": 0 },
+  "params": { "gap": 0.35, "corner": 0.5, "peakHold": 0.6, "floor": 0.03 }
+}

@@ -1,0 +1,49 @@
+{
+  "name": "missed-end-signal-timeout",
+  "spec": "the §26 safety timeout: no ad-break:false ever arrives; the intermission controller lifts the veil on timeout and THAT is the boundary the keeper restores at",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 6000,
+      "kind": "intermission",
+      "active": true,
+      "reason": "signal"
+    },
+    {
+      "t": 6100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 186000,
+      "kind": "intermission",
+      "active": false,
+      "reason": "timeout"
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 186000,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

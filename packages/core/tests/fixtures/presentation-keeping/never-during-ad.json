@@ -1,0 +1,52 @@
+{
+  "name": "never-during-ad",
+  "spec": "invariant I1: a site drop mid-ad must not be restored while the ad is live even if a second drop signal repeats - one action, at the boundary",
+  "facet": {
+    "id": "hulu-hero",
+    "keepPresentation": true,
+    "onEnd": "none"
+  },
+  "events": [
+    {
+      "t": 0,
+      "kind": "presentation",
+      "state": "fullscreen",
+      "cause": "user"
+    },
+    {
+      "t": 5000,
+      "kind": "ad-break",
+      "active": true
+    },
+    {
+      "t": 5100,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 12000,
+      "kind": "presentation",
+      "state": "none",
+      "cause": "site"
+    },
+    {
+      "t": 20000,
+      "kind": "tick"
+    },
+    {
+      "t": 35000,
+      "kind": "ad-break",
+      "active": false
+    }
+  ],
+  "expect": {
+    "actions": [
+      {
+        "t": 35000,
+        "action": "enterFullscreen",
+        "facet": "hulu-hero"
+      }
+    ]
+  }
+}

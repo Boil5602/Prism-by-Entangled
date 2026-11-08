@@ -1,0 +1,30 @@
+{
+  "id": "prism-beams",
+  "name": "Prism Beams",
+  "blurb": "The signature: a beam enters a prism and leaves as the brand's four bands, refracting with the audio.",
+  "program": "beams",
+  "bands": 32,
+  "palette": [
+    "#F0A83C",
+    "#5CC8C0",
+    "#C86CF0",
+    "#F05C7A"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.5,
+    "release": 0.1,
+    "beat": 0.7
+  },
+  "reducedMotion": {
+    "speed": 0.2,
+    "beat": 0
+  },
+  "params": {
+    "beamWidth": 0.012,
+    "spread": 0.75,
+    "glow": 0.35,
+    "prismSize": 0.22
+  }
+}

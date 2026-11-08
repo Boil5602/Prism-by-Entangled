@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New tab</title>
+<link rel="stylesheet" href="ntp.css">
+</head>
+<body>
+  <!-- Prism start page: replaces the ad-carrying MSN New Tab page (Edge blocks
+       extensions on ntp.msn.com, so the only ad-free answer is our own page).
+       No network requests of its own. The search form is a plain GET to the
+       engine the user picks - nothing is sent anywhere until they submit. -->
+  <div id="art" aria-hidden="true"></div>
+  <div id="scrim" aria-hidden="true"></div>
+
+  <main id="stage">
+    <header id="top">
+      <span id="brand">Prism by Entangled</span>
+      <button id="settings-btn" type="button" title="Settings" aria-label="Settings">&#x2699;</button>
+    </header>
+
+    <div id="hero">
+    <section id="clock" aria-live="off">
+      <div id="time">--:--</div>
+      <div id="date">&nbsp;</div>
+      <div id="weather" hidden>
+        <div id="wx-now"><span id="wx-temp">--&deg;</span><span id="wx-desc"></span></div>
+        <div id="wx-meta"></div>
+        <div id="wx-days"></div>
+      </div>
+    </section>
+
+    <form id="search" role="search" method="get" action="https://www.bing.com/search" autocomplete="off">
+      <input id="q" name="q" type="search" placeholder="Search" aria-label="Search" spellcheck="false">
+    </form>
+
+    <nav id="links" aria-label="Quick links"></nav>
+    </div><!-- /hero -->
+
+    <div id="widgets">
+    <!-- Today: events from the user's own .ics feed (settings). Fetched from
+         this extension page only, no-referrer, cached 10 minutes. -->
+    <section id="today" aria-label="Today" hidden>
+      <div id="today-head">
+        <span id="today-title">Today</span><span id="today-sub"></span>
+        <span id="cal-nav" hidden><button id="cal-prev" type="button" title="Previous month">&#x2039;</button><button id="cal-next" type="button" title="Next month">&#x203A;</button></span>
+        <span id="cal-views"><button id="cal-view-today" type="button" class="on">Today</button><button id="cal-view-month" type="button">Month</button></span>
+      </div>
+      <div id="cal-grid" hidden></div>
+      <ul id="today-list"></ul>
+    </section>
+
+    <!-- Prism frames strip (spec section 6 remote API): each paired frame's
+         current dashboard and audible tile, with sleep/wake, play/pause and
+         "send a page to a tile". Talks only to the frames the user listed. -->
+    <section id="frames" aria-label="Prism frames" hidden></section>
+
+    <!-- Apple Music: the official embed player (embed.music.apple.com).
+         Full playback for a signed-in Apple Music subscriber, previews
+         otherwise. No developer token; the player runs in Apple's own
+         sandboxed iframe. -->
+    <section id="music" aria-label="Apple Music" hidden></section>
+    </div><!-- /widgets -->
+  </main>
+
+  <div id="settings" hidden>
+    <div id="settings-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <h2 id="settings-title">Start page</h2>
+      <label>Search engine
+        <select id="engine">
+          <option value="https://www.bing.com/search">Bing</option>
+          <option value="https://duckduckgo.com/">DuckDuckGo</option>
+          <option value="https://www.google.com/search">Google</option>
+        </select>
+      </label>
+      <label>Clock <select id="clockfmt"><option value="12">12-hour</option><option value="24">24-hour</option></select></label>
+      <label>Quick links <span class="hint">one per line: <code>Name | https://url</code></span>
+        <textarea id="links-edit" rows="6" spellcheck="false"></textarea>
+      </label>
+      <label class="row"><input id="drift" type="checkbox"> Slow photo drift</label>
+      <label class="row"><input id="src-marks" type="checkbox"> Source reliability marks <span class="hint">colours quick links by <a href="https://en.wikipedia.org/wiki/Wikipedia:Reliable_sources/Perennial_sources" target="_blank" rel="noreferrer">Wikipedia's Perennial Sources</a> status (CC BY-SA); each mark links to the discussion behind it. Nothing is hidden; unlisted sites get no mark.</span></label>
+      <label class="row"><input id="online-art" type="checkbox"> Online photo pool <span class="hint">streams the full CC0 / public-domain set from prism.entangled.world; off = the bundled photos only</span></label>
+      <label>Weather location <span class="hint">town or city; blank = off</span>
+        <div class="inline"><input id="wx-place" type="text" placeholder="e.g. State College, PA" spellcheck="false"><button id="wx-locate" type="button" title="Use my location">&#x2316;</button></div>
+        <span id="wx-status" class="hint"></span>
+      </label>
+      <label class="row">Units <select id="wx-units"><option value="f">&deg;F</option><option value="c">&deg;C</option></select></label>
+      <label>Calendar feed <span class="hint">an .ics URL (private feed link); blank = off</span>
+        <input id="cal-url" type="url" placeholder="https://…/feed.ics" spellcheck="false">
+        <span id="cal-status" class="hint"></span>
+      </label>
+      <label>Apple Music <span class="hint">paste a <b>station</b> link for shuffled radio (in Apple Music, a station’s ⋯ → Share → Copy Link); a playlist/album plays in order. Blank = off.</span>
+        <input id="music-url" type="url" placeholder="https://music.apple.com/…/station/…" spellcheck="false">
+        <span id="music-status" class="hint"></span>
+      </label>
+      <label>Prism frames <span class="hint">one per line: <code>Name | http://ip:8471 | token</code> (token from the frame's pairing QR)</span>
+        <textarea id="frames-edit" rows="3" spellcheck="false"></textarea>
+        <span id="frames-status" class="hint"></span>
+      </label>
+      <div class="actions">
+        <button id="settings-save" type="button">Save</button>
+        <button id="settings-close" type="button" class="ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="ntp.js"></script>
+</body>
+</html>

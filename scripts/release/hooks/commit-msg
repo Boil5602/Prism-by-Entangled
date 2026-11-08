@@ -1,0 +1,16 @@
+#!/bin/sh
+# The owner's words never enter a commit message either (2026-11-05: the archive is pushed, and its messages had quoted them). A message
+# that quotes someone in a person's voice is refused: describe the ask in Prism's own words, with its date. The exact wording, when worth
+# keeping, goes in .private/owner-words.md, which git ignores.
+# Switch it on once:  cp scripts/release/hooks/commit-msg .git/hooks/commit-msg
+python - "$1" <<'PY'
+import re, sys
+msg = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+msg = "\n".join(l for l in msg.split("\n") if not l.startswith("#"))
+voice = re.compile(r"(?<![A-Za-z'])(I|I'm|I've|I'd|I'll|Im|Ive|Id|we're|we've|we'll|let's|lets|Let's|Lets|my|me|Can we|Could we|Should we|"
+                   r"Do we|We need|we need|we should|can you|Can you|my wife|Why not|Is there|How about|What about)(?![A-Za-z'])")
+for q in re.findall(r'["“]([^"”]{12,1500})["”]', msg):
+    if voice.search(q):
+        sys.stderr.write("commit refused: the message quotes someone in a person's voice: " + " ".join(q.split())[:120] + "\n")
+        sys.exit(1)
+PY

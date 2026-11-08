@@ -1,0 +1,28 @@
+{
+  "id": "lantern-festival",
+  "name": "Lantern Festival",
+  "blurb": "Paper lanterns rising over a crowd; each glows with a band and sways as it climbs.",
+  "program": "lantern-festival",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#F05C7A",
+    "#F0A83C",
+    "#F0D08F",
+    "#C86CF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

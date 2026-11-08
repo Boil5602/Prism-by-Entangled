@@ -1,0 +1,28 @@
+{
+  "id": "harbor-lights",
+  "name": "Harbor Lights",
+  "blurb": "A harbor at night; boats bob on the swell with the lows, a lighthouse beam sweeps, the lights double in the water.",
+  "program": "harbor-lights",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#F0A83C",
+    "#5CC8C0",
+    "#A8C8FF",
+    "#ECECF0"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.15,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}
