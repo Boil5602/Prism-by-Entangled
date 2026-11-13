@@ -118,7 +118,7 @@ describe("the last day, and the way in (2026-10-01)", () => {
   });
 });
 
-describe("the per-league day pages (2026-10-01, read in a hidden page of Prism's own browser)", () => {
+describe("the per-league day pages (2026-10-01, read in a hidden page of PRISM's own browser)", () => {
   it("read into the same games as the header's; the address names the day", async () => {
     const { parseLeagueScoreboard, scoreDayUrl } = await import("../src/scores.js");
     const games = parseLeagueScoreboard("MLB", "Major League Baseball", readFileSync(new URL("./fixtures/espn/mlb-day.json", import.meta.url), "utf8"));

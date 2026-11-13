@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200">
+<rect width="640" height="200" fill="#06b6d4"/><rect x="420" width="220" height="200" fill="#0e7490"/>
+<rect x="476" y="36" width="108" height="128" rx="22" fill="#fff"/><circle cx="530" cy="100" r="30" fill="#a5f3fc"/><circle cx="530" cy="100" r="10" fill="#0e7490"/>
+<text x="34" y="74" font-family='Segoe UI,Helvetica,Arial,sans-serif' font-size="40" font-weight="900" fill="#083344">ZEPHYRINE</text>
+<text x="34" y="112" font-family='Segoe UI,Helvetica,Arial,sans-serif' font-size="21" font-weight="600" fill="#083344">The quiet air purifier everyone is talking about</text>
+<rect x="34" y="132" width="170" height="44" rx="22" fill="#083344"/><text x="119" y="161" text-anchor="middle" font-family='Segoe UI,Helvetica,Arial,sans-serif' font-size="18" font-weight="800" fill="#a5f3fc">SEE THE DEAL</text>
+</svg>

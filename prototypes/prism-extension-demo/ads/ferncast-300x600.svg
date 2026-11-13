@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600" viewBox="0 0 300 600" role="img" aria-label="An invented advertisement: Ferncast earbuds">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4f7b"/><stop offset="1" stop-color="#ff9a3d"/></linearGradient></defs>
+  <rect width="300" height="600" fill="url(#g)"/>
+  <text x="150" y="86" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="900">FERNCAST</text>
+  <text x="150" y="118" text-anchor="middle" fill="#3a0a18" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">EARBUDS THAT STAY PUT</text>
+  <circle cx="150" cy="290" r="112" fill="#fff"/>
+  <g fill="#3a0a18"><ellipse cx="112" cy="272" rx="30" ry="38"/><rect x="100" y="296" width="14" height="52" rx="7"/><ellipse cx="188" cy="272" rx="30" ry="38"/><rect x="186" y="296" width="14" height="52" rx="7"/></g>
+  <g fill="#ff4f7b"><circle cx="112" cy="268" r="11"/><circle cx="188" cy="268" r="11"/></g>
+  <text x="150" y="452" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="900">30% OFF</text>
+  <text x="150" y="482" text-anchor="middle" fill="#3a0a18" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700">THIS WEEKEND ONLY</text>
+  <rect x="50" y="514" width="200" height="54" rx="27" fill="#3a0a18"/>
+  <text x="150" y="549" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="800">ORDER NOW</text>
+</svg>

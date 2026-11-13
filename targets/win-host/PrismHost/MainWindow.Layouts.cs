@@ -52,8 +52,8 @@ public sealed partial class MainWindow
         panel.Children.Add(new TextBlock
         {
             Text = mode == "views"
-                ? "Pick the app whose facets you want to make - a facet is a page + region cut for one slot class (the classes come from your saved layouts). An app that is not on Prism yet is added first. Esc closes."
-                : "Pick the app to sign in to, navigate and explore - every catalog app and everything on Prism, not only the slots that happen to be laid out. An app that is not on Prism yet is added first. Esc closes.",
+                ? "Pick the app whose facets you want to make - a facet is a page + region cut for one slot class (the classes come from your saved layouts). An app that is not on PRISM yet is added first. Esc closes."
+                : "Pick the app to sign in to, navigate and explore - every catalog app and everything on PRISM, not only the slots that happen to be laid out. An app that is not on PRISM yet is added first. Esc closes.",
             FontSize = 12, Foreground = LeDim, TextWrapping = TextWrapping.Wrap,
         });
         var list = new StackPanel { Spacing = 4 };
@@ -61,16 +61,16 @@ public sealed partial class MainWindow
         foreach (var entry in _catalog)
         {
             var slots = onWall.Where(t => t.Id == entry.Id || t.Id.StartsWith(entry.Id + "-", StringComparison.Ordinal) || (entry.Adapter.Length > 0 && t.App == entry.Adapter)).Select(t => t.Id).ToList();
-            var status = slots.Count == 0 ? "not on Prism yet, added first" : slots.Count == 1 ? "on Prism as " + slots[0] : slots.Count + " slots on Prism, the first is configured";
+            var status = slots.Count == 0 ? "not on PRISM yet, added first" : slots.Count == 1 ? "on PRISM as " + slots[0] : slots.Count + " slots on PRISM, the first is configured";
             var e = entry; var f = slots;
             list.Children.Add(AppRow(entry.Name, status, () => { CloseAppList(); _ = ConfigureAppAsync(e, f, mode); }));
         }
         foreach (var t in onWall.Where(t => !_catalog.Any(c => t.Id == c.Id || t.Id.StartsWith(c.Id + "-", StringComparison.Ordinal) || (c.Adapter.Length > 0 && t.App == c.Adapter))))
         {
             var id = t.Id;
-            list.Children.Add(AppRow(t.Name, "custom site on Prism as " + id + (t.Url is { } u ? "  ·  " + u : ""), () => { CloseAppList(); BeginViewfinder(id, mode); }));
+            list.Children.Add(AppRow(t.Name, "custom site on PRISM as " + id + (t.Url is { } u ? "  ·  " + u : ""), () => { CloseAppList(); BeginViewfinder(id, mode); }));
         }
-        list.Children.Add(AppRow("Custom website…", "any URL, added to Prism, then configured", () => { CloseAppList(); _ = ConfigureCustomSiteAsync(mode); }));
+        list.Children.Add(AppRow("Custom website…", "any URL, added to PRISM, then configured", () => { CloseAppList(); _ = ConfigureCustomSiteAsync(mode); }));
         panel.Children.Add(new ScrollViewer { Content = list, MaxHeight = 540, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         overlay.Children.Add(panel);
         RootGrid.Children.Add(overlay);
@@ -96,17 +96,17 @@ public sealed partial class MainWindow
         string target;
         if (typed.Length > 0 && typed != source)
         {
-            if (!IsHttpUrl(typed)) { SetPill("Prism · http(s) addresses only"); return; }
+            if (!IsHttpUrl(typed)) { SetPill("PRISM · http(s) addresses only"); return; }
             target = new Uri(typed).ToString();
         }
         else target = source;
         SetStatus($"save home {id}: source={source} typed={(typed.Length > 0 ? typed : "(unedited)")} → {target}");
-        if (!IsHttpUrl(target)) { SetPill("Prism · nothing to save yet. The slot has no page"); return; }
+        if (!IsHttpUrl(target)) { SetPill("PRISM · nothing to save yet. The slot has no page"); return; }
         var reload = target != source;
         _brain.Call(HostCalls.UpdateTile, id, JsonSerializer.Serialize(new { url = target, home = true, reload }));
         await Task.Delay(120);
         CancelViewfinder();
-        SetPill("Prism · " + id + " home page saved: " + Shorten(target, 60));
+        SetPill("PRISM · " + id + " home page saved: " + Shorten(target, 60));
     }
 
     private void CloseAppList()
@@ -121,9 +121,9 @@ public sealed partial class MainWindow
         if (slots.Count > 0) { BeginViewfinder(slots[0], mode); return; }
         var tileId = NewTileId(entry.Id);
         _brain.Call(HostCalls.AddCatalogTile, entry.Json, JsonSerializer.Serialize(new { tileId }), SelectorTableJson(entry.Adapter));
-        SetPill("Prism · adding " + entry.Name + ". Its configure screen opens when the page is up");
+        SetPill("PRISM · adding " + entry.Name + ". Its configure screen opens when the page is up");
         if (await WaitForSurfaceAsync(tileId, 25000)) BeginViewfinder(tileId, mode);
-        else SetPill("Prism · " + entry.Name + " added; open Configure an app again once it is up");
+        else SetPill("PRISM · " + entry.Name + " added; open Configure an app again once it is up");
     }
 
     private async Task ConfigureCustomSiteAsync(string mode = "app")
@@ -131,12 +131,12 @@ public sealed partial class MainWindow
         var url = await PromptTextAsync("Custom website", "https://", "https://example.com", "Add and configure");
         if (string.IsNullOrWhiteSpace(url)) return;
         Uri? parsed;
-        try { parsed = new Uri(url.Trim()); } catch { SetPill("Prism · that is not a web address"); return; }
+        try { parsed = new Uri(url.Trim()); } catch { SetPill("PRISM · that is not a web address"); return; }
         var tileId = NewTileId(HostSlug(parsed.Host));
         _brain.Call(HostCalls.AddCustomTile, parsed.ToString(), JsonSerializer.Serialize(new { tileId }));
-        SetPill("Prism · adding " + parsed.Host + ". Its configure screen opens when the page is up");
+        SetPill("PRISM · adding " + parsed.Host + ". Its configure screen opens when the page is up");
         if (await WaitForSurfaceAsync(tileId, 25000)) BeginViewfinder(tileId, mode);
-        else SetPill("Prism · " + parsed.Host + " added; open Configure an app again once it is up");
+        else SetPill("PRISM · " + parsed.Host + " added; open Configure an app again once it is up");
     }
 
     /// <summary>core's catalog hostSlug: "news.ycombinator.com" → "news-ycombinator" (www. dropped, TLD dropped).</summary>

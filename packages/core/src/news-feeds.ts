@@ -7,7 +7,7 @@
  * when the channel carries several, the feed's address, and the path the stream's own items share where the feed mixes them with
  * articles). Core reads the paired feeds whose channel is in the guide, every ten minutes, through the host's static fetch (one fixed
  * address each, nothing of the household in it, dashboard-schema section 22), and the Live tab's News mode shows a card a segment under
- * the show's name; a press tunes the channel. The network chose the stories by airing them; Prism orders nothing, newest first as the
+ * the show's name; a press tunes the channel. The network chose the stories by airing them; PRISM orders nothing, newest first as the
  * feed lists them.
  *
  * What is left out, each a named rule the tab's tooltip states (section 5: every filter traceable): the networks' opinion sections are

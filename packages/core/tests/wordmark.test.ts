@@ -34,8 +34,8 @@ describe("animated wordmark (docs/features/animated-wordmark.md)", () => {
   });
 
   it("markup: a wrapper per letter with its own transparent text and the label; copies aria-hidden; size reserved by the wrapper text", () => {
-    const html = wordmarkHtml({ size: "22px", label: "Prism" });
-    expect(html.startsWith('<span class="pw" role="img" aria-label="Prism" tabindex="0" style="font-size:22px">')).toBe(true);
+    const html = wordmarkHtml({ size: "22px", label: "PRISM" });
+    expect(html.startsWith('<span class="pw" role="img" aria-label="PRISM" tabindex="0" style="font-size:22px">')).toBe(true);
     expect((html.match(/<span class="pw-l">/g) ?? []).length).toBe(5);
     expect((html.match(/aria-hidden="true"/g) ?? []).length).toBe(5 * (PRISM_BANDS.length + 1));
     expect(wordmarkCss()).toContain("color:transparent");

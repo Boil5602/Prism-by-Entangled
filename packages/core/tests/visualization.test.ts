@@ -25,11 +25,11 @@ import type { Visualization } from "../src/scene-model.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const packsDir = join(here, "../data/visualization-styles");
 
-describe("§32 style packs — the twenty shipped packs are valid data", () => {
+describe("§32 style packs — the shipped packs are valid data", () => {
   const files = readdirSync(packsDir).filter((f) => f.endsWith(".json")).sort();
-  it("ships exactly the twenty packs core names: the four originals, eight environment tableaus, eight community tableaus", () => {
+  it("ships exactly the packs core names: the four originals, eight environment tableaus, eight community tableaus and Seasons", () => {
     expect(files).toEqual([...VISUALIZATION_STYLE_IDS].map((id) => id + ".json").sort());
-    expect(files).toHaveLength(20);
+    expect(files).toHaveLength(21);
     const ids = files.map((f) => normalizeStylePack(JSON.parse(readFileSync(join(packsDir, f), "utf8")))!.id).sort();
     expect(ids).toEqual([...VISUALIZATION_STYLE_IDS].sort());
   });
@@ -47,7 +47,7 @@ describe("§32 style packs — the twenty shipped packs are valid data", () => {
       expect(pack.reducedMotion.speed).toBeLessThan(pack.motion.speed);
     }
   });
-  it("Prism Beams is the signature: the brand's four bands, in order", () => {
+  it("PRISM Beams is the signature: the brand's four bands, in order", () => {
     const beams = normalizeStylePack(JSON.parse(readFileSync(join(packsDir, "prism-beams.json"), "utf8")))!;
     expect(beams.program).toBe("beams");
     expect(beams.palette).toEqual([...PRISM_BANDS]);

@@ -8,7 +8,7 @@ namespace PrismHost;
 
 /// <summary>
 /// The listen page's switch (2026-10-31): a card from the
-/// Prism menu with the switch, and while it is on, the address and a QR for it. Core holds the switch and mints the household key once
+/// PRISM menu with the switch, and while it is on, the address and a QR for it. Core holds the switch and mints the household key once
 /// (remote.ts houseListen); the host serves the page at /listen?key= (Services/ListenPage.cs). Off, the address answers a page that says so.
 /// </summary>
 public sealed partial class MainWindow
@@ -19,7 +19,7 @@ public sealed partial class MainWindow
 
     private async void ListenPageCard()
     {
-        if (_remote is null) { SetPill("Prism" + Dot + "the phone remote is not running on this device"); return; }
+        if (_remote is null) { SetPill("PRISM" + Dot + "the phone remote is not running on this device"); return; }
         CloseListenCard();
         JsonObject? st = null;
         try { st = JsonNode.Parse(await ModelCallAwaitAsync("houseListen", 10_000, (object?)null) ?? "null") as JsonObject; } catch { }
@@ -71,11 +71,11 @@ public sealed partial class MainWindow
                 {
                     try { st = JsonNode.Parse(await ModelCallAwaitAsync("houseListen", 10_000, (object?)null) ?? "null") as JsonObject; } catch { st = null; }
                     on = st?["on"]?.GetValue<bool>() == true; key = st?["key"]?.GetValue<string>() ?? "";
-                    LogLine("listen page: new address failed"); SetPill("Prism" + Dot + "could not replace the listen page's address. It is as it was.");
+                    LogLine("listen page: new address failed"); SetPill("PRISM" + Dot + "could not replace the listen page's address. It is as it was.");
                     sw.IsOn = on; await DrawAddressAsync(); return;
                 }
                 LogLine("listen page: new address");
-                SetPill("Prism" + Dot + "the listen page has a new address. The old one opens nothing now.");
+                SetPill("PRISM" + Dot + "the listen page has a new address. The old one opens nothing now.");
                 await DrawAddressAsync();
             };
             addr.Children.Add(renew);
@@ -90,9 +90,9 @@ public sealed partial class MainWindow
             on = st?["on"]?.GetValue<bool>() == true; key = st?["key"]?.GetValue<string>() ?? "";
             if (sw.IsOn != on) sw.IsOn = on;   // core's word
             if (!on) _remote.Listen?.Drop("house");   // off cuts the house's streams at once; the rest end at their next check
-            if (failed || on != wanted) { LogLine("listen page: switch failed (wanted " + (wanted ? "on" : "off") + ")"); SetPill("Prism" + Dot + "could not change the listen page. It is " + (on ? "on" : "off") + "."); await DrawAddressAsync(); return; }
+            if (failed || on != wanted) { LogLine("listen page: switch failed (wanted " + (wanted ? "on" : "off") + ")"); SetPill("PRISM" + Dot + "could not change the listen page. It is " + (on ? "on" : "off") + "."); await DrawAddressAsync(); return; }
             LogLine("listen page: " + (on ? "on" : "off"));
-            SetPill("Prism" + Dot + (on ? "the listen page is on. Anyone on your network with its address can listen." : "the listen page is off. Its address answers nothing now."));
+            SetPill("PRISM" + Dot + (on ? "the listen page is on. Anyone on your network with its address can listen." : "the listen page is off. Its address answers nothing now."));
             await DrawAddressAsync();
         };
         var close = Chip(new TextBlock { Text = "Close", FontSize = 18, Foreground = HubInk }, false);

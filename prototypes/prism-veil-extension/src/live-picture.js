@@ -1,7 +1,7 @@
 /*
-  Prism - the live TV picture, read for the break watch (opt-in pv:ui.livePicture, off by default; 2026-11-06). ISOLATED world, top frame.
+  PRISM - the live TV picture, read for the break watch (opt-in pv:ui.livePicture, off by default; 2026-11-06). ISOLATED world, top frame.
   Read on the sites in the person's list of live TV sites (pv:ui.liveTvSites; tv.youtube.com to start with, the only one tried so far).
-  The frame the break model scores: once a second the channel's picture as 320x180 grey, the same frame Prism for Windows hands its model
+  The frame the break model scores: once a second the channel's picture as 320x180 grey, the same frame PRISM for Windows hands its model
   (SurfaceManager.CaptureForWatchAsync): the middle 16:9 of the video's area, scaled with linear filtering, grey = (B*29 + G*150 + R*77) >> 8.
   It comes from the tab's own live stream (chrome.tabCapture), never from snapshots (2026-11-06 decision): the page cannot read the
   protected <video> itself, and a snapshot a second costs ~15% of a core. The stream is held by Veil's offscreen page (offscreen.js), so the
@@ -102,7 +102,7 @@
     return false;
   }
 
-  // The captions, when the person has them on (Veil never switches them on): the words new since the last look, as Prism's YouTube TV
+  // The captions, when the person has them on (Veil never switches them on): the words new since the last look, as PRISM's YouTube TV
   // adapter reads them (the caption window's text, less what it already showed)
   var ccLast = "", ccBuf = [], ccAt = 0;
   function ccRead() {
@@ -117,7 +117,7 @@
       if (add.trim()) { ccBuf.push(add.trim()); if (ccBuf.length > 40) ccBuf.shift(); }
     } catch (e) {}
   }
-  // the channel: the network logo the watch page shows (its name, as the Prism app's break watch names a channel; read 2026-11-06:
+  // the channel: the network logo the watch page shows (its name, as the PRISM app's break watch names a channel; read 2026-11-06:
   // ytu-icon-button.ypc-network-logo, Food Network), else the watch address; its learned logo is kept per channel
   function channelKey() {
     try {
@@ -127,7 +127,7 @@
     } catch (x) {}
     var m = /^[\/]watch[\/]([A-Za-z0-9_-]+)/.exec(location.pathname); return m ? m[1] : location.pathname;
   }
-  // what else the page says, as the Prism app's break watch is told it: the network's name, the programme on now (the watch page's
+  // what else the page says, as the PRISM app's break watch is told it: the network's name, the programme on now (the watch page's
   // title), and YouTube TV's own marks (src/ytv-cues.js announces each one, read and as it plays)
   function channelName() { try { var e = document.querySelector(".ypc-network-logo"); return e ? (e.textContent || e.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().slice(0, 60) : ""; } catch (x) { return ""; } }
   function showTitle() { try { var e = document.querySelector("h1.ypc-video-title, .ypc-video-title-text"); return e ? (e.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120) : ""; } catch (x) { return ""; } }
@@ -147,7 +147,7 @@
   document.addEventListener("prism-ytv-cue", function (e) { try { var q = JSON.parse(e.detail); if (q && q.ev) { cues.push(q); if (cues.length > 40) cues.shift(); } } catch (x) {} });
   function takeCues() { var q = cues; cues = []; return q; }
 
-  // Captions as the Prism app keeps them (2026-11-06): on YouTube TV, while the picture is read, the captions are switched on if the
+  // Captions as the PRISM app keeps them (2026-11-06): on YouTube TV, while the picture is read, the captions are switched on if the
   // person has them off, and kept hidden; the person's own press of the CC button shows them (they asked for captions); reading stops
   // and they are switched back off and shown as before. The words feed the break watch either way.
   var CC_BTN = ".ypc-captions-button", ccOurs = false, ccStyle = null;
@@ -155,8 +155,8 @@
     if (on && !ccStyle) { ccStyle = document.createElement("style"); ccStyle.setAttribute("data-prism-ui", "1"); ccStyle.textContent = "html.prism-cc-hidden .ytp-caption-window-container{visibility:hidden !important}"; (document.head || document.documentElement).appendChild(ccStyle); }
     document.documentElement.classList.toggle("prism-cc-hidden", !!on);
   }
-  // YouTube TV remembers CC across reloads, so captions Prism turned on come back on with the next page (2026-11-06: after a reload they
-  // were taken for the person's and shown). Prism keeps a mark that the captions are its own until it turns them off or the person
+  // YouTube TV remembers CC across reloads, so captions PRISM turned on come back on with the next page (2026-11-06: after a reload they
+  // were taken for the person's and shown). PRISM keeps a mark that the captions are its own until it turns them off or the person
   // presses CC.
   var CC_MARK = "pv:cc-ours", ccMarked = null;
   try { chrome.storage.local.get(CC_MARK, function (r) { ccMarked = !!(r && r[CC_MARK] && Date.now() - r[CC_MARK] < 7 * 86400000); }); } catch (e) { ccMarked = false; }
@@ -166,7 +166,7 @@
     var b = document.querySelector(CC_BTN);
     if (!b || ccMarked === null) return;   // not there yet, or the mark not read yet
     var pressed = b.getAttribute("aria-pressed");
-    if (pressed === "true") { if (ccMarked && !ccOurs) { ccOurs = true; ccHide(true); } return; }   // on: Prism's from before, or the person's
+    if (pressed === "true") { if (ccMarked && !ccOurs) { ccOurs = true; ccHide(true); } return; }   // on: PRISM's from before, or the person's
     if (pressed !== "false") return;
     ccOurs = true; ccHide(true); ccMark(true);
     try { b.click(); } catch (e) {}
@@ -218,6 +218,7 @@
         if (err || !res) return;
         if (res.error) { if (/no stream/.test(res.error)) stop("ended"); return; }
         if (typeof res.noise === "number") spotted.noise = res.noise;
+        if (typeof res.gated === "boolean") gatedNow = res.gated;
         if (typeof res.up === "boolean") { var was = spotted.up; spotted.up = res.up; spotted.p = res.p || 0; spotted.why = res.why || ""; spotted.at = Date.now(); if (was !== res.up) note(); }
         if (!res.b64) return;
         frames++; if (frames % 10 === 1) note();
@@ -232,7 +233,7 @@
   // under an opaque veil. It needs the box made a stacking context of its own (isolation: isolate, the one style that sufficed on
   // div.ypl-video; nothing else of the page is changed, and it is put back when reading stops), a click on the page (the browser asks
   // only after one) and the person's Allow, once a visit. Sites without a known box use the tab-stream route below.
-  // The sound, measured as the Prism app's YouTube TV meter measures it (2026-11-06): the video's sound runs through Web Audio (it still
+  // The sound, measured as the PRISM app's YouTube TV meter measures it (2026-11-06): the video's sound runs through Web Audio (it still
   // plays as before), and every 50 ms its level is read: the mean dB of a look, its peak, and silences under -60 dB of 250 ms or more
   // (the model's cuts). Started on the button's click (a page may start audio only after one); the context is never closed while the
   // page lives, since the video's sound now runs through it. The share route only.
@@ -285,7 +286,7 @@
     var db = 10 * Math.log(s2 / au.buf.length + 1e-12) / Math.LN10, now = Date.now();
     au.sumDb += db; au.nDb++; if (db > au.peak) au.peak = db;
     if (db < -60) { if (!au.quietFrom) au.quietFrom = now; }
-    else { if (au.quietFrom && now - au.quietFrom >= 250 && now - au.started > 3000) au.sil.push({ at: au.quietFrom, ms: now - au.quietFrom }); au.quietFrom = 0; if (au.sil.length > 20) au.sil.shift(); }
+    else { if (au.quietFrom && now - au.quietFrom >= 150 && now - au.started > 3000) spliceSilence(au.quietFrom, now - au.quietFrom); if (au.quietFrom && now - au.quietFrom >= 250 && now - au.started > 3000) au.sil.push({ at: au.quietFrom, ms: now - au.quietFrom }); au.quietFrom = 0; if (au.sil.length > 20) au.sil.shift(); }
   }
   function soundTake() {
     if (!au.nDb) return null;
@@ -293,7 +294,55 @@
     au.sumDb = 0; au.nDb = 0; au.peak = -120; au.sil = []; au.fps = [];
     return r;
   }
+  // The splice (2026-11-08, the redesign's Phase D, behind ui.livePictureSplice): a break's edge is a black picture and silence together for
+  // 200 to 800 ms, invisible at one look a second. With the switch on, the shared stream runs at 10 frames a second and a 16 x 9 reading
+  // of it every 100 ms marks black runs (mean under 16 of 255) of 150 ms or more; the sound tick's quiet runs of 150 ms or more join them;
+  // a black run and a quiet run that overlap are one splice candidate, kept for the model's readings (PV.splice) and written to the veil
+  // log as a row the way covers are. Nothing is sent anywhere else.
+  var splice = { iv: 0, cv: null, g: null, blackFrom: 0, blacks: [], quiets: [], events: [], lastAt: 0 };
+  function spliceWanted() { return !!(lastUi && lastUi.livePictureSplice); }
+  function spliceStart(sv) {
+    if (splice.iv) return;
+    splice.cv = document.createElement("canvas"); splice.cv.width = 16; splice.cv.height = 9; splice.g = splice.cv.getContext("2d", { willReadFrequently: true });
+    splice.iv = setInterval(function () { spliceFrame(sv); }, 100);
+  }
+  function spliceStop() { if (splice.iv) clearInterval(splice.iv); splice.iv = 0; splice.blackFrom = 0; }
+  function spliceFrame(sv) {
+    if (!sv || !sv.videoWidth) return;
+    var now = Date.now();
+    try {
+      splice.g.drawImage(sv, 0, 0, 16, 9);
+      var d = splice.g.getImageData(0, 0, 16, 9).data, sum = 0;
+      for (var i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+      var mean = sum / (d.length / 4 * 3);
+      if (mean < 16) { if (!splice.blackFrom) splice.blackFrom = now; }
+      else if (splice.blackFrom) { var ms = now - splice.blackFrom; if (ms >= 150) spliceBlack(splice.blackFrom, ms); splice.blackFrom = 0; }
+    } catch (e) {}
+  }
+  function spliceBlack(at, ms) { splice.blacks.push({ at: at, ms: ms }); if (splice.blacks.length > 20) splice.blacks.shift(); spliceJoin(); }
+  function spliceSilence(at, ms) { if (!spliceWanted()) return; splice.quiets.push({ at: at, ms: ms }); if (splice.quiets.length > 20) splice.quiets.shift(); spliceJoin(); }
+  function spliceJoin() {
+    var now = Date.now();
+    for (var i = 0; i < splice.blacks.length; i++) {
+      var b = splice.blacks[i];
+      for (var j = 0; j < splice.quiets.length; j++) {
+        var q = splice.quiets[j], a0 = Math.max(b.at, q.at), a1 = Math.min(b.at + b.ms, q.at + q.ms);
+        if (a1 - a0 < 100 || a0 - splice.lastAt < 2000) continue;
+        splice.lastAt = a0; var ev = { at: a0, black: b.ms, silence: q.ms };
+        splice.events.push(ev); if (splice.events.length > 50) splice.events.shift();
+        try {
+          var rec = { ev: "splice", at: a0, site: location.hostname, black: b.ms, silence: q.ms };
+          var chan = PV.liveChannelName ? PV.liveChannelName() : ""; if (chan) rec.chan = chan;
+          chrome.runtime.sendMessage({ type: "pv:veil-log", rec: rec }, function () { void chrome.runtime.lastError; });
+        } catch (e) {}
+        if (devMode) { try { document.documentElement.setAttribute("data-prism-splice", a0 + "|" + b.ms + "|" + q.ms + "|" + splice.events.length); } catch (e2) {} }
+      }
+    }
+    void now;
+  }
+  PV.splice = function () { var now = Date.now(); return { lastAt: splice.lastAt, sinceMs: splice.lastAt ? now - splice.lastAt : -1, count10: splice.events.filter(function (e) { return now - e.at <= 10000; }).length }; };
   function soundStop() {
+    spliceStop();
     if (au.iv) clearInterval(au.iv); au.iv = 0;
     if (au.cur && au.an && au.src.get(au.cur)) { try { au.src.get(au.cur).disconnect(au.an); } catch (e) {} try { if (au.fan) au.src.get(au.cur).disconnect(au.fan); } catch (e) {} }
     au.cur = null; au.sumDb = 0; au.nDb = 0; au.sil = []; au.fps = []; au.prevE = null;
@@ -319,8 +368,8 @@
     if (!chip) {
       chip = document.createElement("button");
       chip.setAttribute("data-prism-ui", "1"); chip.type = "button";
-      chip.textContent = "Prism: read the picture";
-      chip.title = "Prism reads this channel's picture to spot commercial breaks. The browser asks to share this tab; nothing leaves the browser.";
+      chip.textContent = "PRISM: read the picture";
+      chip.title = "PRISM reads this channel's picture to spot commercial breaks. The browser asks to share this tab; nothing leaves the browser.";
       chip.style.cssText = "position:fixed;z-index:2147483600;top:76px;right:20px;padding:8px 14px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#0A0C0F;background:#F0A83C;border:0;border-radius:9px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5)";
       chip.addEventListener("click", function (ev) { ev.stopPropagation(); shareStart(); }, true);
       document.documentElement.appendChild(chip);
@@ -341,7 +390,7 @@
     if (share) return;
     soundStart();   // inside the click, while the page may still start audio
     note("asking");
-    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 2, width: { max: 1280 }, height: { max: 720 } }, audio: false,
+    navigator.mediaDevices.getDisplayMedia({ video: { frameRate: spliceWanted() ? 10 : 2, width: { max: 1280 }, height: { max: 720 } }, audio: false,
       preferCurrentTab: true, selfBrowserSurface: "include", surfaceSwitching: "exclude" })
       .then(function (s) {
         if (!wanted) { s.getTracks().forEach(function (t) { t.stop(); }); note("off"); return; }
@@ -351,6 +400,7 @@
         restrictBox();
         return sv.play().then(function () {
           showChip(false);
+          if (spliceWanted()) spliceStart(sv);
           chrome.runtime.sendMessage({ type: "pv:live-model" }, function () { void chrome.runtime.lastError; });
           chrome.runtime.sendMessage({ type: "pv:live-reading", on: true }, function () { void chrome.runtime.lastError; });
           note("on");
@@ -390,6 +440,7 @@
         if (err || !res || res.error) return;
         if (typeof res.noise === "number") spotted.noise = res.noise;
         if (devMode && typeof res.ocr === "string") { try { document.documentElement.setAttribute("data-prism-live-text", (res.diag ? res.diag + " | " : "") + res.ocr); } catch (e) {} }
+        if (typeof res.gated === "boolean") gatedNow = res.gated;
         if (typeof res.up === "boolean") { var was = spotted.up; spotted.up = res.up; spotted.p = res.p || 0; spotted.why = res.why || ""; spotted.at = Date.now(); if (was !== res.up) note(); }
         frames++; if (frames % 10 === 1) note();
         var f = { t: Date.now(), gray: gray, covered: inside, restricted: true, p: res.p, up: res.up };
@@ -441,14 +492,17 @@
 
   // the switch, live: off stops the stream at once (bg.js also unregisters this file); the panel's "start" retries after an invocation
   var wanted = false;
-  // the person's choice for this channel (2026-11-06, as the Prism app's ChannelCovers): all breaks, sure breaks only, or none
+  // the person's choice for this channel (2026-11-06, as the PRISM app's ChannelCovers): all breaks, sure breaks only, or none
   var lastUi = {};
-  function channelMode() { var n = channelName(), c = (lastUi && lastUi.liveChannels) || {}; return n && (c[n] === "sure" || c[n] === "off") ? c[n] : "all"; }
+  // "auto" is no choice made: all breaks, unless the model's channel gate holds the channel to sure breaks only (offscreen.js says so
+  // in its answer, kept in gatedNow for the panel)
+  var gatedNow = false;
+  function channelMode() { var n = channelName(), c = (lastUi && lastUi.liveChannels) || {}; return n && (c[n] === "sure" || c[n] === "off" || c[n] === "all") ? c[n] : "auto"; }
   function apply(ui) { lastUi = ui || {}; wanted = !!(ui && ui.livePicture) && onList(location.hostname, sitesOf(ui)); if (wanted) start(); else { showChip(false); if (state !== "off") stop("off"); } }
   chrome.storage.local.get("pv:ui", function (r) { apply(r && r["pv:ui"]); });
   chrome.storage.onChanged.addListener(function (ch, area) { if (area === "local" && ch["pv:ui"]) apply(ch["pv:ui"].newValue); });
   chrome.runtime.onMessage.addListener(function (msg, sender, reply) {
-    if (msg && msg.type === "pv:live-picture-start") { if (wanted && state !== "on") { state = "off"; start(); } var st = picture.state(); st.channel = channelName(); st.mode = channelMode(); reply(st); }
+    if (msg && msg.type === "pv:live-picture-start") { if (wanted && state !== "on") { state = "off"; start(); } var st = picture.state(); st.channel = channelName(); st.mode = channelMode() === "auto" ? (gatedNow ? "sure" : "all") : channelMode(); st.gated = channelMode() === "auto" && gatedNow; reply(st); }
   });
   note("off");
 })(typeof globalThis !== "undefined" ? globalThis : this);

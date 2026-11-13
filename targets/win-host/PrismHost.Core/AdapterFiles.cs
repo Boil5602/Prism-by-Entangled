@@ -3,12 +3,12 @@ using System.Text.Json;
 namespace PrismHost.Core;
 
 /// <summary>
-/// Where adapters and catalog entries come from (2026-09-29): the ones Prism ships (Assets/adapters, Assets/catalog beside the program) and the ones added on the device
+/// Where adapters and catalog entries come from (2026-09-29): the ones PRISM ships (Assets/adapters, Assets/catalog beside the program) and the ones added on the device
 /// (adapters/ and catalog/ in the data folder). A file dropped in the data folder is read at the next start.
 ///
 /// Which file stands for a name:
 ///  - an adapter both places name: the higher "version" (a newer one dropped over a shipped one); the same version, the shipped one;
-///  - a catalog entry both places name: the shipped one (a service Prism ships is described by Prism);
+///  - a catalog entry both places name: the shipped one (a service PRISM ships is described by PRISM);
 ///  - a file that is not a JSON object, an adapter with no "match" list, a catalog entry without an id, a name and an https address (a "{server}" template with an address block counts), and
 ///    a name beginning with "_" are left out, each with a line for the log.
 /// Nothing here reaches a network, and nothing is written.
@@ -43,7 +43,7 @@ public sealed class AdapterFiles
     public bool IsAdded(string? name) =>
         !string.IsNullOrEmpty(name) && ((Catalog.TryGetValue(name, out var c) && c.Added) || (Adapters.TryGetValue(name, out var a) && a.Added && !Catalog.ContainsKey(name)));
 
-    /// <summary>Read the folders again (a file was dropped while Prism ran).</summary>
+    /// <summary>Read the folders again (a file was dropped while PRISM ran).</summary>
     public void Refresh() { _adapters = null; _catalog = null; _notes.Clear(); }
 
     private Dictionary<string, Entry> Read(string kind, bool adapter)
@@ -88,7 +88,7 @@ public sealed class AdapterFiles
                 {
                     name = have.Name;   // the spelling the first file gave (an added Netflix.json is the netflix adapter, as the Apps name it)
                     if (!added) { Note(added, file, "another shipped file already names " + name); continue; }
-                    if (!adapter) { Note(added, file, have.Added ? "another added file already names " + name : name + " ships with Prism; the shipped entry stands"); continue; }
+                    if (!adapter) { Note(added, file, have.Added ? "another added file already names " + name : name + " ships with PRISM; the shipped entry stands"); continue; }
                     if (!Newer(version, versions.GetValueOrDefault(name, ""))) { Note(added, file, name + " " + (version.Length > 0 ? version : "(no version)") + " is not newer than the shipped " + versions.GetValueOrDefault(name, "") + "; the shipped one stands"); continue; }
                     _ = have;
                 }

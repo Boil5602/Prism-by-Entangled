@@ -1,13 +1,13 @@
-THIRD-PARTY NOTICES - Prism for Windows
+THIRD-PARTY NOTICES - PRISM for Windows
 
-Prism by Entangled is free software under the GNU General Public License, version 3 or later (LICENSE). Prism for Windows also carries
+PRISM by Entangled is free software under the GNU General Public License, version 3 or later (LICENSE). PRISM for Windows also carries
 the libraries below, each under its own licence. The full licence texts are in the licenses folder beside this file.
 
 
 1. LAME (libmp3lame.32.dll, libmp3lame.64.dll) - version 3.100
    Copyright (C) 1999-2011 The L.A.M.E. Team.
    Licence: GNU Library General Public License, version 2, or (at your option) any later version.
-   Prism uses LAME to encode the sound sent to a phone or another device for listening. LAME is carried as its own library files,
+   PRISM uses LAME to encode the sound sent to a phone or another device for listening. LAME is carried as its own library files,
    unmodified, as built and distributed with NAudio.Lame; you may replace them with your own build of LAME. The source of LAME 3.100
    is at https://sourceforge.net/projects/lame/files/lame/3.100/ and from the LAME project, https://lame.sourceforge.io/.
    The licence text: licenses/LAME-LGPL-2.0.txt (also at https://www.gnu.org/licenses/old-licenses/lgpl-2.0.html).
@@ -49,7 +49,7 @@ THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    Copyright (c) Microsoft Corporation. MIT License (licenses/System.Diagnostics.PerformanceCounter-LICENSE.txt, and its own
    third-party notices in licenses/System.Diagnostics.PerformanceCounter-THIRD-PARTY-NOTICES.txt).
 
-6. .NET runtime - version 8.0, carried inside Prism for Windows
+6. .NET runtime - version 8.0, carried inside PRISM for Windows
    Copyright (c) .NET Foundation and Contributors. MIT License (licenses/dotnet-LICENSE.txt); its third-party notices are in
    licenses/dotnet-ThirdPartyNotices.txt.
 
@@ -58,7 +58,7 @@ THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    (licenses/WindowsAppSDK-NOTICE.txt).
 
 8. Microsoft Edge WebView2 SDK - version 1.0.3719.77
-   Copyright (c) Microsoft Corporation. Licence: licenses/WebView2-LICENSE.txt, notices: licenses/WebView2-NOTICE.txt. Prism shows web
+   Copyright (c) Microsoft Corporation. Licence: licenses/WebView2-LICENSE.txt, notices: licenses/WebView2-NOTICE.txt. PRISM shows web
    pages through the WebView2 Runtime that Windows provides.
 
 9. Windows AI Machine Learning - version 2.1.74 (part of the Windows App SDK)
@@ -66,6 +66,6 @@ THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    licenses/Windows.AI.MachineLearning-ThirdPartyNotices.txt.
 
 
-Pictures, fonts and data sources: the source, author and licence of every picture Prism shows are in its picture credits (Prism menu,
+Pictures, fonts and data sources: the source, author and licence of every picture PRISM shows are in its picture credits (PRISM menu,
 Credits, and prototypes/prism-veil-art/pool/manifest.json in the source). Film and TV data come from TMDB, and where a title can be
-watched from JustWatch, each named on the Credits page; Prism is not endorsed by either.
+watched from JustWatch, each named on the Credits page; PRISM is not endorsed by either.

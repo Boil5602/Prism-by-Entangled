@@ -59,13 +59,13 @@ public sealed partial class MainWindow
             RootGrid.Children.Add(_skipChip);
         }
         _skipSlot = slot;
-        // the big window alone on the wall: top and centre, under the Prism menu (2026-10-06); multiview keeps it in the big window's
+        // the big window alone on the wall: top and centre, under the PRISM menu (2026-10-06); multiview keeps it in the big window's
         // lower right, where the small windows leave it room
         if (!_mvOn)
         {
             var below = 24.0;
             try { if (MenuGrip.ActualHeight > 0) below = MenuGrip.TransformToVisual(RootGrid).TransformPoint(new Windows.Foundation.Point(0, MenuGrip.ActualHeight)).Y + 14; } catch { }
-            //... and to the left of the Prism grip, not under it (2026-10-12,: the menu drops from the grip over the very spot)
+            //... and to the left of the PRISM grip, not under it (2026-10-12,: the menu drops from the grip over the very spot)
             _skipChip.HorizontalAlignment = HorizontalAlignment.Center;
             _skipChip.VerticalAlignment = VerticalAlignment.Top;
             _skipChip.Margin = new Thickness(0, below + 44, 0, 0);   // top and centre, clear of the grip and of the window's own title strip above it

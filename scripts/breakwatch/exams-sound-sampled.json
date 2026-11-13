@@ -1,0 +1,28 @@
+[
+ {
+  "name": "Evening with sound (sampled XL)",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL",
+  "from": "19:00:00",
+  "to": "23:00:00",
+  "frames": [
+   "190000399",
+   "225958975"
+  ],
+  "library": "185356",
+  "lead": 18
+ },
+ {
+  "name": "Evening with sound (sampled XL-w2)",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL-w2",
+  "from": "19:00:00",
+  "to": "23:00:00",
+  "frames": [
+   "190000087",
+   "225959922"
+  ],
+  "library": "185356",
+  "lead": 18
+ }
+]

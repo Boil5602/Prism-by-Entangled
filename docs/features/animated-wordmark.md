@@ -90,6 +90,6 @@ The spec above is kept as written. What the build does where the project differs
 ## Built: the Windows splash (2026-10-05) Core's generator (`packages/core/scripts/generate-wordmark.mjs`)
 emits `dist/prism-splash.html` beside the header snippet: one document, the boot cover's own dark background, the wordmark
 centred at a tenth of the window's width (48 to 180 px), playing once after the first paint. The host (`MainWindow.BootCover.cs`)
-shows it in a WebView2 over the cover from the moment the page has painted; the Prism mark stands alone until then, and alone
-when the page is missing. The "Loading Prism" line is gone: the word is the splash. The view closes with the cover. One run per
+shows it in a WebView2 over the cover from the moment the page has painted; the PRISM mark stands alone until then, and alone
+when the page is missing. The "Loading PRISM" line is gone: the word is the splash. The view closes with the cover. One run per
 launch, never a loop, as this page says.

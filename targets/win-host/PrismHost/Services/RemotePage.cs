@@ -10,7 +10,7 @@ public static class RemotePage
 {
     public const string Html = """
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Prism"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14171C"><title>Prism</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="PRISM"><meta name="mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14171C"><title>PRISM</title>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="apple-touch-icon" sizes="180x180" href="/remote/icon-180.png"><link rel="icon" href="/remote/icon.png"><link id="mf" rel="manifest" href="/remote/manifest.json?token=__TOKEN__">
 <style>
 :root{color-scheme:dark;--ink:#E8ECF2;--dim:#8A93A2;--amber:#F2B14C;--amber-ink:#14171C;--amber-on:#3A2E14;--ground:#14171C;--panel:#1C2129;--chip:#2C3442;--raised:#2A303A;--track:#2A3140;--well:#0E1218;--faint:#4A5262;--danger:#D06A5A}*{box-sizing:border-box}
@@ -76,8 +76,8 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 .simple #vCont .card{width:150px}.simple #vCont .card .art,.simple #vCont .card .pend{width:150px;height:225px}.simple #vCont .card .nm{width:150px;top:169px}.simple #vCont .card .ago,.simple #vCont .card .sc{top:199px}.card .pend{position:absolute;left:0;top:0;width:112px;height:168px;border-radius:10px;background:rgba(5,6,9,.74);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;box-sizing:border-box;color:var(--ink);font:600 12px/1.25 system-ui;text-align:center;white-space:normal}.card .pend svg{width:30px;height:30px;fill:var(--amber)}
 </style></head><body>
 <header>__WORDMARK__<span id="who">on this PC</span><button id="more" class="more" aria-label="Options">&#8943;</button></header>
-<div id="menu" class="menu"><div class="mhead"><b>Options</b><button id="menuX" aria-label="Close">&times;</button></div><div class="players"><span>Prism on PC</span><button id="plMusic">Music player</button><button id="plVideo">Video player</button></div><button id="fsBtn">Full screen on the PC</button><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="lpBtn">Listen page</button><div id="lpPanel" class="lp"><p class="note">A page for the house: what plays on the PC, its lounge scene and its sound, in any browser on your home Wi-Fi, with nothing to press. A kitchen tablet, an Echo Show's browser. Anyone with the address can listen, so it stays off until you turn it on.</p><button id="lpSwitch">Turn on</button><div id="lpOn" style="display:none"><p class="note">In the browser, open</p><b id="lpAddr" class="lpAddr"></b><p class="note">and type the house code</p><b id="lpCode" class="lpCode"></b><div class="row"><a id="lpLink" href="#" target="_blank" rel="noopener noreferrer">Open it here</a><button id="lpCopy">Copy the code</button><button id="lpNew">New code</button></div><p class="note">On the home Wi-Fi only. The sound runs a few seconds behind the PC, so it suits another room.</p></div><p class="note" id="lpNote"></p></div><button id="modeBtn"></button><button id="pipBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><p class="note give">Prism is free. If you'd like to support Entangled, you can on our site. It's entirely up to you. <a href="https://entangled.world/support" target="_blank" rel="noopener noreferrer">entangled.world/support</a> opens in your phone's browser.</p><button id="closeMenu">Close</button><button id="forget" class="danger">Forget this PC</button><p id="howHome" class="how"></p></div>
-<div id="banner" class="banner"><span id="bannerText">Prism on the PC was updated. This page refreshes in 5:00.</span><button id="refreshNow">Refresh now</button></div>
+<div id="menu" class="menu"><div class="mhead"><b>Options</b><button id="menuX" aria-label="Close">&times;</button></div><div class="players"><span>PRISM on PC</span><button id="plMusic">Music player</button><button id="plVideo">Video player</button></div><button id="fsBtn">Full screen on the PC</button><button id="addHome">Add to home screen</button><button id="bwBtn">Cover YouTube TV breaks: on</button><button id="wsBtn">Watch settings</button><button id="lpBtn">Listen page</button><div id="lpPanel" class="lp"><p class="note">A page for the house: what plays on the PC, its lounge scene and its sound, in any browser on your home Wi-Fi, with nothing to press. A kitchen tablet, an Echo Show's browser. Anyone with the address can listen, so it stays off until you turn it on.</p><button id="lpSwitch">Turn on</button><div id="lpOn" style="display:none"><p class="note">In the browser, open</p><b id="lpAddr" class="lpAddr"></b><p class="note">and type the house code</p><b id="lpCode" class="lpCode"></b><div class="row"><a id="lpLink" href="#" target="_blank" rel="noopener noreferrer">Open it here</a><button id="lpCopy">Copy the code</button><button id="lpNew">New code</button></div><p class="note">On the home Wi-Fi only. The sound runs a few seconds behind the PC, so it suits another room.</p></div><p class="note" id="lpNote"></p></div><button id="modeBtn"></button><button id="pipBtn"></button><label class="vol" id="volRow">Page volume<input id="vol" type="range" min="0" max="100" value="100"></label><p class="note" id="volNote" style="display:none">This phone keeps its volume on its own buttons; a page cannot set it.</p><p class="note give">PRISM is free. If you'd like to support Entangled, you can on our site. It's entirely up to you. <a href="https://entangled.world/support" target="_blank" rel="noopener noreferrer">entangled.world/support</a> opens in your phone's browser.</p><button id="closeMenu">Close</button><button id="forget" class="danger">Forget this PC</button><p id="howHome" class="how"></p></div>
+<div id="banner" class="banner"><span id="bannerText">PRISM on the PC was updated. This page refreshes in 5:00.</span><button id="refreshNow">Refresh now</button></div>
 <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs><symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol><symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></symbol><symbol id="i-start" viewBox="0 0 24 24"><path d="M5 6h2v12H5zm3 6l11-6v12z"/></symbol><symbol id="i-next" viewBox="0 0 24 24"><path d="M17 6h2v12h-2zM5 6l11 6-11 6z"/></symbol><symbol id="i-back10" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-fwd10" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6h2c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8z"/><text x="12" y="15.6" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></symbol><symbol id="i-skip" viewBox="0 0 24 24"><path d="M4 6l8 6-8 6zm8 0l8 6-8 6z"/></symbol><symbol id="i-cc" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3 5h18v14H3V5zm2 2v10h14V7H5zm3 2.5h3V11H9v2h2v1.5H8v-5zm6 0h3V11h-2v2h2v1.5h-3v-5z"/></symbol><symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></symbol><symbol id="i-unmute" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zm11 .3l1.4-1.4 2.4 2.4 2.4-2.4 1.4 1.4-2.4 2.4 2.4 2.4-1.4 1.4-2.4-2.4-2.4 2.4-1.4-1.4 2.4-2.4z"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></symbol><symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></symbol><symbol id="i-down" viewBox="0 0 24 24"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></symbol><symbol id="i-repeat" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></symbol><symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol><symbol id="i-order" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol><symbol id="i-reverse" viewBox="0 0 24 24"><path d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></symbol></defs></svg>
 <nav><button id="tabM" class="on">Music</button><button id="tabV" style="display:none">Video</button><button id="tabK">Keyboard</button><button id="tabL">Private Listening</button></nav>
 <main>
@@ -87,11 +87,11 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div class="seek mseek" id="npTimeRow" style="display:none"><div class="bar"><i id="npBar"></i></div><div class="times"><span id="npTime"></span><span id="npLeft"></span></div></div>
 <div class="svc upnext" id="upNext" style="display:none"><button class="head"><span class="chev">&#9654;</span><span>Up next</span><span class="st n" id="upNextSt"></span></button><div class="body"><div class="unRow"><img id="upNextArt" alt=""><div class="unT"><b id="upNextTitle"></b><span id="upNextArtist"></span></div></div></div></div>
 <div class="tr mtr"><button data-c="prev" id="trPrev" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button data-c="play" id="trPlay" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button data-c="next" id="trNext" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button></div>
-<div class="row vrow"><button data-c="thumbup" id="trUp" class="nolbl" aria-label="Like" title="Like"><svg class="ic"><use href="#i-up"/></svg></button><button data-c="thumbdown" id="trDown" class="nolbl" aria-label="Dislike" title="Dislike"><svg class="ic"><use href="#i-down"/></svg></button><button id="orderBtn" class="nolbl" aria-label="Play order" title="Play order"><svg class="ic"><use href="#i-order"/></svg></button><button data-c="mute" id="trMute" class="nolbl" aria-label="Mute Prism" title="Mute Prism"><svg class="ic"><use href="#i-mute"/></svg></button></div>
+<div class="row vrow"><button data-c="thumbup" id="trUp" class="nolbl" aria-label="Like" title="Like"><svg class="ic"><use href="#i-up"/></svg></button><button data-c="thumbdown" id="trDown" class="nolbl" aria-label="Dislike" title="Dislike"><svg class="ic"><use href="#i-down"/></svg></button><button id="orderBtn" class="nolbl" aria-label="Play order" title="Play order"><svg class="ic"><use href="#i-order"/></svg></button><button data-c="mute" id="trMute" class="nolbl" aria-label="Mute PRISM" title="Mute PRISM"><svg class="ic"><use href="#i-mute"/></svg></button></div>
 <div id="orderPanel" class="orderPanel"><div class="row vrow order" id="orderRow"><button data-o="normal"><svg class="ic"><use href="#i-order"/></svg><span>In order</span></button><button data-o="true-shuffle"><svg class="ic"><use href="#i-shuffle"/></svg><span>True shuffle</span></button><button data-o="reverse"><svg class="ic"><use href="#i-reverse"/></svg><span>Reverse</span></button><button id="repeatBtn"><svg class="ic"><use href="#i-repeat"/></svg><span>Repeat</span></button></div></div>
-<div class="work safariNote" id="safariNote"><span id="safariText">On iPhone, tapping the Now Playing title can open a different web app. If that bothers you, use Prism in Safari instead: copy this address and paste it into Safari.</span><input id="safariUrl" readonly><div class="row"><button id="safariCopy" class="go">Copy</button><button id="safariNo">Not now</button></div><p class="note" id="safariSay"></p></div>
+<div class="work safariNote" id="safariNote"><span id="safariText">On iPhone, tapping the Now Playing title can open a different web app. If that bothers you, use PRISM in Safari instead: copy this address and paste it into Safari.</span><input id="safariUrl" readonly><div class="row"><button id="safariCopy" class="go">Copy</button><button id="safariNo">Not now</button></div><p class="note" id="safariSay"></p></div>
 <p class="work" id="mwork"></p><p class="work" id="nextLine"></p>
-<div id="vizView"><canvas id="vizCanvas"></canvas><span id="vizNote"></span><div class="vizInfo"><span class="svc" id="vizSvc"></span><b id="vizTitle"></b><span id="vizLine2"></span><span id="vizAlbum"></span><span class="clk" id="vizClock"></span></div><div class="vizBar vizTr"><button id="vizPrev" type="button" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button id="vizPlay" type="button" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button id="vizNext" type="button" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button><button id="vizMute" type="button"><svg class="ic"><use href="#i-mute"/></svg><span>Mute Prism</span></button></div><div class="vizBar"><button id="vizStyle" type="button">Sunrise Meadow</button><button id="vizClose" type="button">Close</button></div></div>
+<div id="vizView"><canvas id="vizCanvas"></canvas><span id="vizNote"></span><div class="vizInfo"><span class="svc" id="vizSvc"></span><b id="vizTitle"></b><span id="vizLine2"></span><span id="vizAlbum"></span><span class="clk" id="vizClock"></span></div><div class="vizBar vizTr"><button id="vizPrev" type="button" aria-label="Previous track"><svg class="ic"><use href="#i-start"/></svg></button><button id="vizPlay" type="button" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button id="vizNext" type="button" aria-label="Next track"><svg class="ic"><use href="#i-next"/></svg></button><button id="vizMute" type="button"><svg class="ic"><use href="#i-mute"/></svg><span>Mute PRISM</span></button></div><div class="vizBar"><button id="vizStyle" type="button">Sunrise Meadow</button><button id="vizClose" type="button">Close</button></div></div>
 <div id="pickSheet" class="sheet"><b id="pickWhat"></b><button id="pickNow" class="go">Play now</button><button id="pickNext">Play after this track</button><button id="pickCancel">Cancel</button></div>
 <h3 class="qh">Quick play</h3>
 <div id="quick" class="quick"><p class="note">Reading your services' lists&hellip;</p></div>
@@ -100,12 +100,12 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 </section>
 <section id="V">
 <div class="np vnp" id="vnp"><img id="vArt" alt=""><div class="npt"><b id="vTitle">Nothing playing</b><span id="vSub"></span><span id="vSvc"></span></div></div>
-<p id="vIdle" class="note">Nothing playing on Prism. Pick something below.</p>
+<p id="vIdle" class="note">Nothing playing on PRISM. Pick something below.</p>
 <div id="vwins" class="vwins"><h3 class="qh">Play into</h3><div id="vwinList"></div><p class="note" id="vwinNote"></p></div>
 <div id="vErr" class="verr"><span id="vErrText"></span><button id="vRetry">Retry</button></div>
 <div class="seek" id="vSeekRow"><input id="vSeek" type="range" min="0" max="1000" value="0"><div class="times"><span id="vPos">0:00</span><span id="vDur"></span></div></div>
 <div class="tr vtr"><button data-v="restart" title="Start over (the previous episode in the first 5 seconds)" aria-label="Start over"><svg class="ic"><use href="#i-start"/></svg></button><button data-v="seekbackward" title="Back 10 seconds" aria-label="Back 10 seconds"><svg class="ic"><use href="#i-back10"/></svg></button><button data-v="play" id="vPlay" class="go" aria-label="Play or pause"><svg class="ic"><use href="#i-play"/></svg></button><button data-v="seekforward" title="Forward 10 seconds" aria-label="Forward 10 seconds"><svg class="ic"><use href="#i-fwd10"/></svg></button><button data-v="nextepisode" title="Next episode" aria-label="Next episode"><svg class="ic"><use href="#i-next"/></svg></button></div>
-<div class="row vrow"><button data-v="skipintro" id="vSkip"><svg class="ic"><use href="#i-skip"/></svg><span>Skip intro</span></button><button data-v="captions"><svg class="ic"><use href="#i-cc"/></svg><span>Captions</span></button><button data-v="mute" id="vMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute Prism</span></button></div>
+<div class="row vrow"><button data-v="skipintro" id="vSkip"><svg class="ic"><use href="#i-skip"/></svg><span>Skip intro</span></button><button data-v="captions"><svg class="ic"><use href="#i-cc"/></svg><span>Captions</span></button><button data-v="mute" id="vMute"><svg class="ic"><use href="#i-mute"/></svg><span>Mute PRISM</span></button></div>
 <div class="svc" id="vEpisodes" style="display:none"><button class="head"><span class="chev">&#9654;</span><span id="vEpHead">Episodes</span><span class="st" id="vEpSt"></span></button><div class="body" id="vEpBody"></div></div>
 <div class="search"><div class="sbox"><svg class="ic glass"><use href="#i-search"/></svg><input id="vq" type="search" placeholder="Search everywhere" autocomplete="off"><button id="vclear" class="clr" type="button" aria-label="Clear search">&#215;</button></div><button id="vgo" class="go">Search</button></div>
 <!-- where a tapped title opens (2026-10-10): on the PC as before, or on this phone in the service's own app, by the title's own address -->
@@ -114,11 +114,11 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <div id="vLenses"></div>
 <div class="svc" id="vPlaylists" style="display:none"><button class="head"><span class="chev">&#9654;</span><span>Playlists</span><span class="st" id="vPlSt"></span></button><div class="body" id="vPlBody"></div></div>
 <div class="svc" id="vLivePanel"><button class="head"><span class="chev">&#9654;</span><span>Live</span><span class="st" id="vLiveSt"></span></button><div class="body"><input id="vLiveQ" class="lq" type="search" placeholder="Find a channel or a program" autocomplete="off"><div id="vLive" class="quick"></div></div></div>
-<div class="svc" id="vServices"><button class="head"><span class="chev">&#9654;</span><span>Services</span><span class="st" id="vSvcSt"></span></button><div class="body"><div class="openOn"><span>A title you tap opens</span><button id="openPc">On the PC</button><button id="openPhone">On this phone</button></div><p class="note" id="openNote"></p><div id="vSvcBody"><p class="note">Every service Prism knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.</p></div></div></div>
+<div class="svc" id="vServices"><button class="head"><span class="chev">&#9654;</span><span>Services</span><span class="st" id="vSvcSt"></span></button><div class="body"><div class="openOn"><span>A title you tap opens</span><button id="openPc">On the PC</button><button id="openPhone">On this phone</button></div><p class="note" id="openNote"></p><div id="vSvcBody"><p class="note">Every service PRISM knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.</p></div></div></div>
 <p class="err" id="verr"></p>
 </section>
 <section id="K">
-<div class="target" id="target"><span class="tl">Nothing is focused in Prism</span><span class="ts">Press into a field there, then type here.</span></div>
+<div class="target" id="target"><span class="tl">Nothing is focused in PRISM</span><span class="ts">Press into a field there, then type here.</span></div>
 <textarea id="t" placeholder="Type here" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
 <form id="kform" class="kform" autocomplete="on" action="#" novalidate>
 <div id="unrow" class="unr"><input id="u" name="username" type="text" inputmode="email" placeholder="Type the email or username here" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
@@ -130,7 +130,7 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <p class="err" id="kerr"></p>
 </section>
 <section id="L">
-<p class="note">Prism's sound plays on this phone too, so you can listen with earbuds while the room hears the PC. This phone's buttons set your volume, the PC's set the room's.</p>
+<p class="note">PRISM's sound plays on this phone too, so you can listen with earbuds while the room hears the PC. This phone's buttons set your volume, the PC's set the room's.</p>
 <button id="listen" class="big">Listen on this phone</button>
 <p class="note" id="modeNote"></p>
 <button id="stepBtn">Room in step with this phone: on</button><p class="note" id="stepNote">While this phone listens to music, the PC plays the room a few seconds behind, in time with the phone. Video is left as it is.</p><p class="note" id="stepWho"></p>
@@ -139,13 +139,13 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <audio id="out" playsinline preload="none"></audio>
 <div class="row" id="pipRow" style="display:none"><button id="pipGo">Picture in Picture</button></div><p class="note" id="pipNote"></p>
 <p class="err" id="lerr"></p><p class="work" id="netNote"></p>
-<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute Prism in the room</button><button id="muteNo">Keep it playing</button></div></div>
-<div class="row"><button id="lMute"><span>Mute Prism</span></button></div>
+<div class="work muteNote" id="muteNote"><span id="muteNoteText"></span><div class="row" id="muteAsk"><button id="muteYes" class="go">Mute PRISM in the room</button><button id="muteNo">Keep it playing</button></div></div>
+<div class="row"><button id="lMute"><span>Mute PRISM</span></button></div>
 </section>
-<div id="install" class="install" role="dialog" aria-label="Add Prism to your Home Screen">
-<p>Add Prism to your Home Screen. It opens full-screen and stays signed in.</p>
+<div id="install" class="install" role="dialog" aria-label="Add PRISM to your Home Screen">
+<p>Add PRISM to your Home Screen. It opens full-screen and stays signed in.</p>
 <ol id="installSteps"></ol>
-<div class="row"><button class="go" id="installGo">Add Prism to Home Screen</button><button class="later" id="installLater">Not now</button></div>
+<div class="row"><button class="go" id="installGo">Add PRISM to Home Screen</button><button class="later" id="installLater">Not now</button></div>
 <button class="never" id="installNever">Don't show again</button>
 </div>
 <!-- the Captions sheet sits outside the tab sections: inside the Music section it opened display:none while the Video tab was on (2026-10-05, "Captions on the companion app still doesn't work") -->
@@ -153,18 +153,18 @@ label.vol{display:block;font-size:14px;padding:4px 2px}input[type=range]{width:1
 <!-- the search results (2026-10-14, "Search, just like details, should not allow full feed scrolling while it's up"): a full sheet over
      the tab, the page beneath held still; Details, a person or a channel opens over it and closes back to it -->
 <div id="srSheet" class="sheet full"><div class="top"><input id="srq" type="search" placeholder="Search everywhere" autocomplete="off" aria-label="Search everywhere"><button id="srClose">Close</button></div><div id="vResults"></div></div>
-<div id="chSheet" class="sheet full"><div class="top"><b>Channel</b><button id="chClose">Close</button></div><div class="dh"><img id="chArt" alt=""><div><b id="chName"></b><span id="chFacts"></span></div></div><p class="dv" id="chBio"></p><div class="cards" id="chLatest"></div><p class="note" id="chNote"></p><button id="chOpen" class="go">Open the channel on Prism</button></div>
+<div id="chSheet" class="sheet full"><div class="top"><b>Channel</b><button id="chClose">Close</button></div><div class="dh"><img id="chArt" alt=""><div><b id="chName"></b><span id="chFacts"></span></div></div><p class="dv" id="chBio"></p><div class="cards" id="chLatest"></div><p class="note" id="chNote"></p><button id="chOpen" class="go">Open the channel on PRISM</button></div>
 <div id="perSheet" class="sheet full"><div class="top"><b>Person</b><button id="perClose">Close</button></div><div class="dh"><img id="perArt" alt=""><div><b id="perName"></b><span id="perFacts"></span></div></div><p class="dv" id="perBio"></p><div class="psort"><span>Sort</span><button id="perByDate" class="on">Release date</button><button id="perByName">Name</button></div><div class="cards" id="perCredits"></div><p class="note" id="perNote"></p></div>
 <div id="zoom" class="zoom" role="dialog" aria-label="The picture, larger"><img id="zoomImg" alt=""><span>Tap to close</span></div>
-<div id="detSheet" class="sheet full"><div class="top"><b>Details</b><button id="detClose">Close</button></div><div class="dh"><img id="detArt" alt=""><div><b id="detTitle"></b><span id="detFacts"></span><span id="detRating"></span></div></div><div class="dbar"><button id="detPlay" class="go">Play on Prism</button><button id="detMore">Actions</button></div><div id="detActs" class="fold"></div><p class="note" id="detNote"></p><p class="dv" id="detOverview"></p><div class="dtags" id="detTags"></div><div class="dchan" id="detChan"></div><div class="dcast" id="detCast"></div><p class="dwhere" id="detWhere"></p></div>
+<div id="detSheet" class="sheet full"><div class="top"><b>Details</b><button id="detClose">Close</button></div><div class="dh"><img id="detArt" alt=""><div><b id="detTitle"></b><span id="detFacts"></span><span id="detRating"></span></div></div><div class="dbar"><button id="detPlay" class="go">Play on PRISM</button><button id="detMore">Actions</button></div><div id="detActs" class="fold"></div><p class="note" id="detNote"></p><p class="dv" id="detOverview"></p><div class="dtags" id="detTags"></div><div class="dchan" id="detChan"></div><div class="dcast" id="detCast"></div><p class="dwhere" id="detWhere"></p></div>
 <!-- Watch settings on the phone (2026-10-14): a full sheet, read from the PC and saved a piece at a time -->
 <div id="wsSheet" class="sheet full"><div class="top"><b>Watch settings</b><button id="wsClose">Close</button></div><p class="note" id="wsNote"></p><div id="wsBody"></div></div>
 <div id="ctxSheet" class="sheet full"><div class="top"><b id="ctxTitle"></b><button id="ctxClose">Close</button></div><div class="dh ctxHead"><img id="ctxArt" alt=""><div><b id="ctxName"></b><span id="ctxSvc"></span></div></div><div id="ctxTop"></div><div id="ctxRate"></div><div id="ctxActs"></div><p id="ctxNote" class="note"></p></div>
 <!-- the TMDB guide's last step (2026-10-10): the key is copied on this phone, so this phone sends it; the page opens with #tmdb from the guide's code -->
-<div id="keySheet" class="sheet"><b>Send your TMDB key to Prism</b>
+<div id="keySheet" class="sheet"><b>Send your TMDB key to PRISM</b>
 <span class="keyNote">On TMDB's API page, copy the long one called API Read Access Token (the shorter API Key works too). Paste it here.</span>
 <input id="tkey" type="password" placeholder="Paste the key here" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-<button id="tkeySend" class="go">Send to Prism</button><button id="tkeyClose">Close</button>
+<button id="tkeySend" class="go">Send to PRISM</button><button id="tkeyClose">Close</button>
 <span class="keyNote" id="tkeySaid"></span></div>
 </main>
 <script>
@@ -174,7 +174,7 @@ const SERVICES = __SERVICES__;
 const q = (s) => document.querySelector(s);
 if (!q('#mf').href.includes('token=') || q('#mf').href.includes('__TOKEN__')) q('#mf').href = '/remote/manifest.json?token=' + encodeURIComponent(token);
 // the mute buttons' word and icon (2026-10-11): the Video tab's carries an icon, the Music tab's is the word alone
-function muteLabel(el, on) { const t = on ? 'Unmute Prism' : 'Mute Prism'; const span = el.querySelector('span'); if (span) span.textContent = t; else { el.setAttribute('aria-label', t); el.title = t; } const use = el.querySelector('use'); if (use) use.setAttribute('href', on ? '#i-unmute' : '#i-mute'); }
+function muteLabel(el, on) { const t = on ? 'Unmute PRISM' : 'Mute PRISM'; const span = el.querySelector('span'); if (span) span.textContent = t; else { el.setAttribute('aria-label', t); el.title = t; } const use = el.querySelector('use'); if (use) use.setAttribute('href', on ? '#i-unmute' : '#i-mute'); }
 // the window the phone's picks play into, kept here on the phone (2026-10-15): each pick names it ({into}), as a drag onto a window does on the PC, so nothing on the PC can move it between the tap and
 // the pick. 0 the big window, n a small one, 'new' the next empty place. After a pick into a small window or a new one it steps to the next place
 let vPlace = 0, vCount = 1, vMax = 5;
@@ -327,16 +327,16 @@ function drawWs(s) {
   // as the guide's sheet sends it; the account link opens TMDB's approval page on this phone, then I approved it finishes it on the PC
   section('TMDB', () => {
     const t = Object.assign({}, s.tmdb || {}); if (s.tmdbKey === true) t.hasKey = true;   // the key's own flag is read at once; the account's state may still be loading
-    h('Your TMDB key'); sub(t.hasKey ? 'Set. Ratings, the catalog rows and search are on. Paste a new one to replace it.' : 'Not set. Prism works without one. A free TMDB account gives a key: paste it here.');
+    h('Your TMDB key'); sub(t.hasKey ? 'Set. Ratings, the catalog rows and search are on. Paste a new one to replace it.' : 'Not set. PRISM works without one. A free TMDB account gives a key: paste it here.');
     const key = document.createElement('input'); key.type = 'password'; key.placeholder = t.hasKey ? 'Replace the key (optional)' : 'Paste the API Read Access Token or API Key'; key.autocomplete = 'off'; key.autocapitalize = 'off'; key.spellcheck = false; key.style.width = '100%'; key.style.marginTop = '6px'; cur.appendChild(key);
-    const acts = [{ label: 'Send the key to Prism', go_: true, go: async () => { const v = key.value.trim(); if (!v) { q('#wsNote').textContent = 'Paste the key first.'; return; } q('#wsNote').textContent = 'Sending\u2026'; try { const r = await api('/tmdb/key', { apiKey: v }); if (r && r.error) throw new Error(r.error); key.value = ''; await loadWs(); q('#wsNote').textContent = 'The key is on the PC. Ratings, the catalog rows and search are on.'; } catch (e) { q('#wsNote').textContent = e.message; } } }];
+    const acts = [{ label: 'Send the key to PRISM', go_: true, go: async () => { const v = key.value.trim(); if (!v) { q('#wsNote').textContent = 'Paste the key first.'; return; } q('#wsNote').textContent = 'Sending\u2026'; try { const r = await api('/tmdb/key', { apiKey: v }); if (r && r.error) throw new Error(r.error); key.value = ''; await loadWs(); q('#wsNote').textContent = 'The key is on the PC. Ratings, the catalog rows and search are on.'; } catch (e) { q('#wsNote').textContent = e.message; } } }];
     if (t.hasKey) acts.push({ label: 'Clear the key', go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Clear it for sure?'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Clear the key'; }, 4000); return; } setWs('tmdb-key-clear', {}, 'The key is cleared.'); } });
     act(acts);
     h('Your TMDB account'); 
     if (t.linked) { sub('Linked as ' + (t.username || 'you') + '. Your stars on a title go to TMDB, and My watchlist is your TMDB watchlist.'); act([{ label: 'Unlink', go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Unlink for sure?'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Unlink'; }, 4000); return; } setWs('tmdb-unlink', {}, 'Unlinked. The ratings stay on your TMDB account.'); } }]); }
     else if (!t.hasKey) sub('Linking needs the key first.');
     else {
-      sub(t.url ? 'Approve Prism on TMDB, then press I approved it.' : 'Link it to rate from Prism and to use your TMDB watchlist. TMDB\u2019s approval page opens on this phone.');
+      sub(t.url ? 'Approve PRISM on TMDB, then press I approved it.' : 'Link it to rate from PRISM and to use your TMDB watchlist. TMDB\u2019s approval page opens on this phone.');
       if (!t.url) act([{ label: 'Link my TMDB account', go_: true, go: async (b) => { b.disabled = true; q('#wsNote').textContent = 'Asking TMDB\u2026'; try { await api('/video/settings/tmdb-link-start', {}); let st = null; for (let i = 0; i < 25; i++) { await new Promise((r) => setTimeout(r, 400)); st = await api('/video/settings/tmdb-state', {}); if (st && (st.url || st.error) && !st.busy) break; } if (!st || !st.url) throw new Error((st && st.error) || 'TMDB did not answer'); await loadWs(); q('#wsNote').textContent = ''; } catch (e) { q('#wsNote').textContent = e.message; b.disabled = false; } } }]);
       else {
         const open = document.createElement('a'); open.href = t.url; open.target = '_blank'; open.rel = 'noopener noreferrer'; open.className = 'wsLink'; open.textContent = 'Open TMDB to approve'; cur.appendChild(open);
@@ -354,30 +354,30 @@ function drawWs(s) {
     rowSec(rows.watchlist && rows.watchlist.active ? "My list (the services' own lists)" : 'My list', 'rows', rows.list, { row: 'list' });
   });
   section('Ads', () => {
-    h('Video ads'); sub('What a window shows while an ad plays. Prism never blocks or skips an ad.');
-    chips([{ id: 'veil', label: 'Veiled and muted', hint: 'The ad is covered with a picture and its sound is off.' }, { id: 'mute', label: 'Muted, picture visible', hint: 'You see the ad with its sound off.' }, { id: 'show', label: 'Show', hint: 'The ad plays as it comes, picture and sound.' }], s.adsLook || 'veil', (id) => setWs('ads', { look: id })); h('Cover pictures'); sub('The pictures on a covered ad. Turn on one or more.'); { const onSet = new Set(String(s.coverSource || 'photos').split(',').filter(Boolean)); const row = document.createElement('div'); row.className = 'chips'; const note = document.createElement('p'); note.className = 'sub'; for (const it of [{ id: 'photos', label: 'Nature photos', hint: 'Prism' + String.fromCharCode(39) + 's hand-picked nature photos, all public domain.' }, { id: 'cosmos', label: 'Cosmos', hint: 'NASA' + String.fromCharCode(39) + 's pictures of space, public domain.' }, { id: 'gallery', label: 'Museum art', hint: 'Paintings and prints from the Art Institute of Chicago and the Met, public domain.' }]) { const b = document.createElement('button'); b.textContent = it.label; b.title = it.hint; if (onSet.has(it.id)) b.className = 'on'; b.onclick = () => { if (onSet.has(it.id)) { if (onSet.size === 1) { note.textContent = 'Keep at least one set of pictures on.'; return; } onSet.delete(it.id); } else onSet.add(it.id); setWs('cover-source', { source: [...onSet].join(',') }); }; row.appendChild(b); } cur.appendChild(row); cur.appendChild(note); }
-    h('YouTube TV breaks'); sub('YouTube TV doesn\u2019t say when a channel\u2019s commercials play, so Prism watches the picture and covers them. The never-covered and sure-breaks lists are on the PC.');
-    chips([{ id: 'all', label: 'All breaks', hint: 'Every break Prism finds by watching the picture is covered.' }, { id: 'sure', label: 'Sure breaks only', hint: 'Only the ad slots YouTube TV marks itself, and paid programmes. It never covers the show by mistake, and misses the breaks YouTube TV doesn' + '\u2019t mark.' }, { id: 'off', label: 'Off', hint: 'YouTube TV' + '\u2019s channels are never covered.' }], bwMode, (v) => setBw(v));
-    sub(bwMode === 'all' ? 'Every break Prism finds by watching the picture is covered.' : bwMode === 'sure' ? 'Only the ad slots YouTube TV marks itself, and paid programmes. It never covers the show by mistake, and misses the breaks YouTube TV doesn'+'\u2019t mark.' : 'YouTube TV'+'\u2019s channels are never covered.');
+    h('Video ads'); sub('What a window shows while an ad plays. PRISM never blocks or skips an ad.');
+    chips([{ id: 'veil', label: 'Veiled and muted', hint: 'The ad is covered with a picture and its sound is off.' }, { id: 'mute', label: 'Muted, picture visible', hint: 'You see the ad with its sound off.' }, { id: 'show', label: 'Show', hint: 'The ad plays as it comes, picture and sound.' }], s.adsLook || 'veil', (id) => setWs('ads', { look: id })); h('Cover pictures'); sub('The pictures on a covered ad. Turn on one or more.'); { const onSet = new Set(String(s.coverSource || 'photos').split(',').filter(Boolean)); const row = document.createElement('div'); row.className = 'chips'; const note = document.createElement('p'); note.className = 'sub'; for (const it of [{ id: 'photos', label: 'Nature photos', hint: 'PRISM' + String.fromCharCode(39) + 's hand-picked nature photos, all public domain.' }, { id: 'cosmos', label: 'Cosmos', hint: 'NASA' + String.fromCharCode(39) + 's pictures of space, public domain.' }, { id: 'gallery', label: 'Museum art', hint: 'Paintings and prints from the Art Institute of Chicago and the Met, public domain.' }]) { const b = document.createElement('button'); b.textContent = it.label; b.title = it.hint; if (onSet.has(it.id)) b.className = 'on'; b.onclick = () => { if (onSet.has(it.id)) { if (onSet.size === 1) { note.textContent = 'Keep at least one set of pictures on.'; return; } onSet.delete(it.id); } else onSet.add(it.id); setWs('cover-source', { source: [...onSet].join(',') }); }; row.appendChild(b); } cur.appendChild(row); cur.appendChild(note); }
+    h('YouTube TV breaks'); sub('YouTube TV doesn\u2019t say when a channel\u2019s commercials play, so PRISM watches the picture and covers them. The never-covered and sure-breaks lists are on the PC.');
+    chips([{ id: 'all', label: 'All breaks', hint: 'Every break PRISM finds by watching the picture is covered.' }, { id: 'sure', label: 'Sure breaks only', hint: 'Only the ad slots YouTube TV marks itself, and paid programmes. It never covers the show by mistake, and misses the breaks YouTube TV doesn' + '\u2019t mark.' }, { id: 'off', label: 'Off', hint: 'YouTube TV' + '\u2019s channels are never covered.' }], bwMode, (v) => setBw(v));
+    sub(bwMode === 'all' ? 'Every break PRISM finds by watching the picture is covered.' : bwMode === 'sure' ? 'Only the ad slots YouTube TV marks itself, and paid programmes. It never covers the show by mistake, and misses the breaks YouTube TV doesn'+'\u2019t mark.' : 'YouTube TV'+'\u2019s channels are never covered.');
   });
   section('Updates', () => {
-    // this Prism (2026-10-15): the version, what the server offers, Check
+    // this PRISM (2026-10-15): the version, what the server offers, Check
     // now, Install now, Restart into the new version, and the changelog from the signed manifest (nothing fetched to show it)
     const sw = s.software || {}; const av = sw.available || null, stg = sw.staged || null;
     const trackLabel = sw.channel === 'alpha' ? 'Alpha' : sw.channel === 'beta' ? 'Beta' : 'Full';
     const whenOf = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'never'; };
-    h('This Prism'); const run = document.createElement('p'); run.className = 'ver'; run.textContent = 'Prism ' + (sw.currentVersion || '?') + ' on the ' + trackLabel + ' track'; cur.appendChild(run);
-    sub(stg ? 'Prism ' + stg.version + ' is installed and runs at the next start.' : av ? 'Prism ' + av.version + ' is ready to install. Last check ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'unreachable' ? 'The update server could not be reached. Last tried ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'invalid' ? 'The update server\u2019s answer did not verify, so nothing was taken from it.' : sw.lastCheck ? 'This is the newest version on the ' + trackLabel + ' track. Last check ' + whenOf(sw.lastCheck) + '.' : 'Not checked yet.');
+    h('This PRISM'); const run = document.createElement('p'); run.className = 'ver'; run.textContent = 'PRISM ' + (sw.currentVersion || '?') + ' on the ' + trackLabel + ' track'; cur.appendChild(run);
+    sub(stg ? 'PRISM ' + stg.version + ' is installed and runs at the next start.' : av ? 'PRISM ' + av.version + ' is ready to install. Last check ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'unreachable' ? 'The update server could not be reached. Last tried ' + whenOf(sw.lastCheck) + '.' : sw.lastResult === 'invalid' ? 'The update server\u2019s answer did not verify, so nothing was taken from it.' : sw.lastCheck ? 'This is the newest version on the ' + trackLabel + ' track. Last check ' + whenOf(sw.lastCheck) + '.' : 'Not checked yet.');
     const verbs = [{ label: 'Check now', go: (b) => { b.disabled = true; setWs('update-check', {}, 'Checked.'); } }];
     if (av && !stg) verbs.push({ label: 'Install ' + av.version, go_: true, go: async (b) => { b.disabled = true; q('#wsNote').textContent = 'Downloading and checking on the PC\u2026 its status line says how far.'; try { await api('/video/settings/update-install', {}); for (let i = 0; i < 300; i++) { await new Promise((r) => setTimeout(r, 3000)); const st = await api('/video/settings'); if (st && st.software && (st.software.staged || (!st.software.available && st.software.lastResult))) { wsState = st; drawWs(st); q('#wsNote').textContent = st.software.staged ? 'Installed. Restart into it when you like.' : 'The install did not finish. The PC\u2019s status line says why.'; return; } } } catch (e) { q('#wsNote').textContent = e.message; b.disabled = false; } } });
-    if (stg) verbs.push({ label: 'Restart into ' + stg.version, go_: true, go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Restart Prism now?'; q('#wsNote').textContent = 'Prism closes on the PC and opens again in the new version. Whatever is playing stops.'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Restart into ' + stg.version; }, 6000); return; } setWs('update-restart', {}, 'Prism is restarting on the PC. This page refreshes itself when it is back.'); } });
+    if (stg) verbs.push({ label: 'Restart into ' + stg.version, go_: true, go: (b) => { if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Restart PRISM now?'; q('#wsNote').textContent = 'PRISM closes on the PC and opens again in the new version. Whatever is playing stops.'; setTimeout(() => { b.dataset.sure = ''; b.textContent = 'Restart into ' + stg.version; }, 6000); return; } setWs('update-restart', {}, 'PRISM is restarting on the PC. This page refreshes itself when it is back.'); } });
     act(verbs);
-    if (sw.nextCheck) sub('Next check ' + whenOf(sw.nextCheck) + '. The track and the schedule are set on the PC.'); else if (sw.enabled === false) sub('Prism checks only when you press Check now. The schedule is set on the PC.');
-    // the changelog: newest first, the ones newer than this Prism marked New, this one Running now
+    if (sw.nextCheck) sub('Next check ' + whenOf(sw.nextCheck) + '. The track and the schedule are set on the PC.'); else if (sw.enabled === false) sub('PRISM checks only when you press Check now. The schedule is set on the PC.');
+    // the changelog: newest first, the ones newer than this PRISM marked New, this one Running now
     const src = av || sw.latest || null; let list = (src && src.history) || []; if (!list.length && src && src.notes) list = [{ version: src.version, date: src.date, notes: src.notes }];
     const cmp = (a, b) => { const pa = String(a).split('-')[0].split('.'), pb = String(b).split('-')[0].split('.'); for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const x = parseInt(pa[i] || '0', 10) || 0, y = parseInt(pb[i] || '0', 10) || 0; if (x !== y) return x > y ? 1 : -1; } return 0; };
     const log = document.createElement('div'); log.className = 'chlog'; log.style.display = wsShowLog ? '' : 'none';
-    for (const r of list) { const d = document.createElement('div'); d.className = 'rel'; const hd = document.createElement('b'); const c = cmp(r.version, sw.currentVersion || '0'); hd.textContent = 'Prism ' + r.version + (r.date ? ' \u00b7 ' + new Date(r.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '') + (c > 0 ? ' \u00b7 New' : c === 0 ? ' \u00b7 Running now' : ''); if (c > 0) hd.className = 'new'; d.appendChild(hd); const n = document.createElement('p'); n.textContent = r.notes; d.appendChild(n); log.appendChild(d); }
+    for (const r of list) { const d = document.createElement('div'); d.className = 'rel'; const hd = document.createElement('b'); const c = cmp(r.version, sw.currentVersion || '0'); hd.textContent = 'PRISM ' + r.version + (r.date ? ' \u00b7 ' + new Date(r.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '') + (c > 0 ? ' \u00b7 New' : c === 0 ? ' \u00b7 Running now' : ''); if (c > 0) hd.className = 'new'; d.appendChild(hd); const n = document.createElement('p'); n.textContent = r.notes; d.appendChild(n); log.appendChild(d); }
     if (!list.length) { const n = document.createElement('p'); n.className = 'sub'; n.textContent = 'The update server hasn\u2019t sent a changelog yet. Check now asks it.'; log.appendChild(n); }
     act([{ label: wsShowLog ? 'Hide what\u2019s changed' : 'What\u2019s changed', go: (b) => { wsShowLog = !wsShowLog; log.style.display = wsShowLog ? '' : 'none'; b.textContent = wsShowLog ? 'Hide what\u2019s changed' : 'What\u2019s changed'; } }]);
     cur.appendChild(log);
@@ -472,15 +472,15 @@ q('#addHome').onclick = async () => {
   const ua = navigator.userAgent;
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   q('#howHome').textContent = ios
-    ? 'On this phone: press the Share button at the bottom of Safari, then "Add to Home Screen". The icon opens this Prism already paired.'
-    : /Android/.test(ua) ? 'On this phone: open the browser menu (the three dots), then "Add to Home screen". The icon opens this Prism already paired.'
-    : 'In this browser: use its "Add to home screen" or "Install" item in the menu. The shortcut opens this Prism already paired.';
-  q('#howHome').textContent += ' If the PC ever gets a new address on your network, pair again from the Prism menu.';
+    ? 'On this phone: press the Share button at the bottom of Safari, then "Add to Home Screen". The icon opens this PRISM already paired.'
+    : /Android/.test(ua) ? 'On this phone: open the browser menu (the three dots), then "Add to Home screen". The icon opens this PRISM already paired.'
+    : 'In this browser: use its "Add to home screen" or "Install" item in the menu. The shortcut opens this PRISM already paired.';
+  q('#howHome').textContent += ' If the PC ever gets a new address on your network, pair again from the PRISM menu.';
 };
 q('#forget').onclick = async () => {
-  if (!confirm('Forget this PC? This phone will need a new code from the Prism menu to use it again.')) return;
+  if (!confirm('Forget this PC? This phone will need a new code from the PRISM menu to use it again.')) return;
   try { await fetch('/pairing?token=' + encodeURIComponent(token), { method: 'DELETE' }); } catch {}
-  q('#howHome').textContent = 'This phone has forgotten this PC. Pair again from the Prism menu when you want it back.';
+  q('#howHome').textContent = 'This phone has forgotten this PC. Pair again from the PRISM menu when you want it back.';
 };
 const TABS = [['tabM', 'M'], ['tabV', 'V'], ['tabK', 'K'], ['tabL', 'L']];
 let tabNow = 'M';
@@ -491,7 +491,7 @@ let liveAskedAt = 0;
 function liveReadAsk() { if (Date.now() - liveAskedAt < 15 * 60 * 1000) return; liveAskedAt = Date.now(); api('/video/live-read', {}).catch(() => {}); }
 setInterval(() => { if (tabNow === 'V') liveReadAsk(); }, 60 * 1000);
 for (const [tab, sec] of TABS) q('#' + tab).onclick = () => showTab(sec);
-// which player Prism on the PC shows: the menu says and switches it (the PC's own switch, by route); the Music tab is only there
+// which player PRISM on the PC shows: the menu says and switches it (the PC's own switch, by route); the Music tab is only there
 // while the Music lounge is (2026-10-04)
 let playerNow = null, playerWas = null;
 async function pollPlayers() {
@@ -528,7 +528,7 @@ let pageVersion = '__VERSION__', refreshAt = 0;
 async function checkVersion() {
   try {
     const r = await fetch('/remote/version', { cache: 'no-store' }); const v = (await r.json()).v;
-    if (v === 'closed') { location.reload(); return; }   // Prism closed on the PC: the phone launcher's page, with its Open Prism button
+    if (v === 'closed') { location.reload(); return; }   // PRISM closed on the PC: the phone launcher's page, with its Open PRISM button
     if (!pageVersion || pageVersion.indexOf('__') === 0) { pageVersion = v; return; }
     if (v !== pageVersion && !refreshAt) { refreshAt = Date.now() + 5 * 60 * 1000; q('#banner').classList.add('on'); tickBanner(); }
   } catch {}
@@ -537,7 +537,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 function tickBanner() {
   if (!refreshAt) return;
   const left = Math.max(0, Math.round((refreshAt - Date.now()) / 1000));
-  q('#bannerText').textContent = 'Prism on the PC was updated. This page refreshes in ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + '.';
+  q('#bannerText').textContent = 'PRISM on the PC was updated. This page refreshes in ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + '.';
   if (left <= 0) { location.reload(); return; }
   setTimeout(tickBanner, 1000);
 }
@@ -547,7 +547,7 @@ checkVersion(); setInterval(checkVersion, 20000);
 const mmss = (t) => { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0'); };
 let npPos = null, npDur = null, npPlaying = false, npAt = 0;
 let npCol = null, npSupport = null, nextOrder = null, work = null, lastNow = null;   // nextOrder null: the PC's plain press (carry on where it left off)   // work: {name, service, at, tile} while a pick is on its way
-let npTile = null, npSession = null, npService = '', wallMuted = false;   // the person's mute of Prism in the room (B-472: one mute, never the PC's device)
+let npTile = null, npSession = null, npService = '', wallMuted = false;   // the person's mute of PRISM in the room (B-472: one mute, never the PC's device)
 async function pollNow() {
   if (tabNow !== 'M' && !(listening && playerNow !== 'video')) return;   // while this phone listens the poll goes on under any tab: the lock screen reads it
   try {
@@ -887,9 +887,9 @@ function drawTime() {
 setInterval(drawTime, 1000);
 for (const b of document.querySelectorAll('[data-c]')) b.onclick = () => press(b.dataset.c);
 async function press(c) {   // a transport press, from the Music tab's buttons or the phone's lock screen
-  if (!npTile) { say('#merr', 'Nothing is playing in Prism'); return; }
+  if (!npTile) { say('#merr', 'Nothing is playing in PRISM'); return; }
   // a service that has signed the household out (or never let them in) will not take a press: say so, as the PC's own bar would
-  if (npSession === 'signed-out' && c !== 'mute') { say('#merr', npService + ' asks for a sign-in before it plays. Sign in on the PC (Prism menu, Set up services), then press again.'); return; }
+  if (npSession === 'signed-out' && c !== 'mute') { say('#merr', npService + ' asks for a sign-in before it plays. Sign in on the PC (PRISM menu, Set up services), then press again.'); return; }
   if (c === 'play') c = npPlaying ? 'pause' : 'play';
   if (c === 'mute') { toggleMute(npTile, pollNow); return; }
   // in the background sound mode the phone holds seconds of the stream, so a pause on the PC alone would play on here until the buffer
@@ -1144,8 +1144,8 @@ function hitCard(title, art, sub, amber, plays, details) {
   return el;
 }
 // Where a tapped title opens. On this phone: the title's own address on its service, opened as a link, which the phone hands to the
-// service's app when it is installed (its browser otherwise). Prism plays nothing and passes no sign-in, and the link carries no
-// referrer, so the service is not told the address of this page. A title Prism holds no address for can only play on the PC.
+// service's app when it is installed (its browser otherwise). PRISM plays nothing and passes no sign-in, and the link carries no
+// referrer, so the service is not told the address of this page. A title PRISM holds no address for can only play on the PC.
 let openOn = 'pc';
 try { openOn = localStorage.getItem('prism.videoOpen') === 'phone' ? 'phone' : 'pc'; } catch {}
 function drawOpenOn() {
@@ -1157,7 +1157,7 @@ q('#openPhone').onclick = () => { openOn = 'phone'; try { localStorage.setItem('
 drawOpenOn();
 function onPhone(url, title, service) {
   if (openOn !== 'phone') return false;
-  if (typeof url !== 'string' || url.indexOf('https://') !== 0) { say('#verr', 'Prism has no address for ' + (title || 'this one') + (service ? ' on ' + service : '') + ', so it can only play on the PC.'); return true; }
+  if (typeof url !== 'string' || url.indexOf('https://') !== 0) { say('#verr', 'PRISM has no address for ' + (title || 'this one') + (service ? ' on ' + service : '') + ', so it can only play on the PC.'); return true; }
   const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noreferrer noopener';
   document.body.appendChild(a); a.click(); a.remove();
   return true;
@@ -1522,7 +1522,7 @@ function longPress(b, c) {
 }
 async function openDetails(c) {
   const it = c.item || { title: c.title, kind: c.kind, artwork: c.artwork, id: c.id, url: null }; const run = ++detRun; const sh = q('#detSheet'); q('#perSheet').classList.remove('on'); q('#chSheet').classList.remove('on'); sh.classList.add('on'); sh.scrollTop = 0; sheetLock();
-  q('#detPlay').style.display = c.catalog ? 'none' : ''; q('#detPlay').textContent = 'Play on Prism'; q('#detActs').classList.remove('on'); q('#detMore').textContent = 'Actions'; q('#detNote').textContent = '';
+  q('#detPlay').style.display = c.catalog ? 'none' : ''; q('#detPlay').textContent = 'Play on PRISM'; q('#detActs').classList.remove('on'); q('#detMore').textContent = 'Actions'; q('#detNote').textContent = '';
   q('#detTitle').textContent = it.title; q('#detFacts').textContent = [c.service, it.subtitle].filter(Boolean).join(' \u00b7 '); q('#detRating').textContent = ''; q('#detOverview').textContent = ''; q('#detCast').innerHTML = ''; q('#detWhere').textContent = ''; q('#detChan').innerHTML = ''; q('#detTags').innerHTML = '';
   // a YouTube video's own description (2026-10-11): the channel, the length, the date, the words and the creator's tags, from its public page
   const ab = it.about;
@@ -1543,7 +1543,7 @@ async function openDetails(c) {
     let r; try { r = await api('/video/details', { title: it.title, kind: it.kind || '', app: c.app || '' }); } catch (e) { q('#detNote').textContent = e.message; return; }
     if (run !== detRun) return;
     if (r.status === 'working') { await new Promise((res) => setTimeout(res, 1500)); continue; }
-    if (r.status !== 'ready' || !r.details) { q('#detNote').textContent = ab ? '' : (it.kind === 'video' ? 'A video on ' + (c.service || 'its service') + ', not a film or a series: TMDB has no page for it.' + (it.subtitle ? '' : '') : (r.why || 'No details for this title. It may not be on TMDB, or Prism has no TMDB key yet.')); return; }
+    if (r.status !== 'ready' || !r.details) { q('#detNote').textContent = ab ? '' : (it.kind === 'video' ? 'A video on ' + (c.service || 'its service') + ', not a film or a series: TMDB has no page for it.' + (it.subtitle ? '' : '') : (r.why || 'No details for this title. It may not be on TMDB, or PRISM has no TMDB key yet.')); return; }
     const d = r.details; q('#detNote').textContent = '';
     q('#detTitle').textContent = (d.title || it.title) + (d.year ? ' (' + d.year + ')' : '');
     renderDetActs(c, it, run, d.actions || null).then(() => detRemove(c, it, run));   // the PC's own verbs for this title, from core
@@ -1561,7 +1561,7 @@ async function openDetails(c) {
     q('#detWhere').textContent = where.join('  \u00b7  ') + (where.length ? '  (US, as TMDB lists them)' : '');
     // Rent or buy on this phone (2026-10-14): each store's own page for the title,
     // opened here as a link the phone hands to the store's app when it is installed, signed in as you are there. No referrer, no sign-in
-    // passed, and Prism takes no part in the purchase (the PC's card shows the same address as a code for the phone to scan).
+    // passed, and PRISM takes no part in the purchase (the PC's card shows the same address as a code for the phone to scan).
     const stores = new Map();
     for (const k of ['rent', 'buy']) for (const o of (pv[k] || [])) if (o.buy && o.buy.url && !stores.has(o.buy.url)) stores.set(o.buy.url, o);
     for (const [url, o] of stores) {
@@ -1642,7 +1642,7 @@ async function fillChannelBlock(c, ab, run) {
   const h = document.createElement('div'); h.className = 'ch1'; const im = document.createElement('img'); im.alt = ''; h.appendChild(im);
   const w = document.createElement('div'); const nm = document.createElement('b'); nm.textContent = ab.channel; w.appendChild(nm); const fx = document.createElement('span'); fx.textContent = ab.channelUrl ? 'Reading the channel\u2026' : c.service; w.appendChild(fx); h.appendChild(w); row.appendChild(h);
   const bb = document.createElement('div'); bb.className = 'chb';
-  if (ab.channelUrl) { const op = document.createElement('button'); op.textContent = 'Open the channel on Prism'; op.onclick = () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); startVWork(ab.channel, c.service); api('/video/play', { facet: c.facet || '', kind: 'channel', id: ab.channelUrl, url: ab.channelUrl, name: ab.channel }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not open'); }).catch((e) => endVWork(e.message)); }; bb.appendChild(op); }
+  if (ab.channelUrl) { const op = document.createElement('button'); op.textContent = 'Open the channel on PRISM'; op.onclick = () => { q('#detSheet').classList.remove('on'); detRun++; sheetLock(); startVWork(ab.channel, c.service); api('/video/play', { facet: c.facet || '', kind: 'channel', id: ab.channelUrl, url: ab.channelUrl, name: ab.channel }).then((r) => { if (r && r.ok === false) endVWork(r.error || 'Could not open'); }).catch((e) => endVWork(e.message)); }; bb.appendChild(op); }
   row.appendChild(bb);
   if (!ab.channelUrl) return;
   let r; try { r = await api('/video/channel', { app: c.app, url: ab.channelUrl }); } catch (e) { fx.textContent = c.service; return; }
@@ -1664,7 +1664,7 @@ async function fillChannelBlock(c, ab, run) {
     row.insertBefore(cards, bb);
   }
 }
-// a channel's own page (2026-10-11): name, handle, counts, description, latest videos; Open the channel plays its page on Prism
+// a channel's own page (2026-10-11): name, handle, counts, description, latest videos; Open the channel plays its page on PRISM
 let chRun = 0;
 async function openChannel(app, service, name, url, facet) {
   const run = ++chRun; const sh = q('#chSheet'); sh.classList.add('on'); sh.scrollTop = 0; q('#detSheet').classList.remove('on'); detRun++; sheetLock();
@@ -1696,7 +1696,7 @@ async function drawServices(videoServices) {
   });
   const sig = JSON.stringify(rows); if (sig === svcSig) return; svcSig = sig;
   const box = q('#vSvcBody'); box.innerHTML = '';
-  const n = document.createElement('p'); n.className = 'note'; n.textContent = 'Every service Prism knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.'; box.appendChild(n);
+  const n = document.createElement('p'); n.className = 'note'; n.textContent = 'Every service PRISM knows, and whether it is set up and signed in here. A sign-in opens on the PC and you type into it from the Keyboard tab.'; box.appendChild(n);
   for (const r of rows) {
     const row = document.createElement('div'); row.className = 'srow';
     const b = document.createElement('b'); b.textContent = r.name; row.appendChild(b);
@@ -1840,7 +1840,7 @@ function drawCards(sel, cards, empty) {
     // fewer marks on a 112 px card (2026-10-17, the designer's pass, finding 20): the score in the busy page only, the "ago" on Continue watching only, and no
     // i button - the long press holds Details (openDetails) with the rest
     if (!document.body.classList.contains('simple')) addScore(b, c);
-    if (sel === '#vCont' && typeof c.lastWatched === 'number') { const a = document.createElement('span'); a.className = 'ago'; a.textContent = agoOf(c.lastWatched); b.appendChild(a); }   // the one time a card ever shows: Prism's own log (2026-10-14, the Last watched order)
+    if (sel === '#vCont' && typeof c.lastWatched === 'number') { const a = document.createElement('span'); a.className = 'ago'; a.textContent = agoOf(c.lastWatched); b.appendChild(a); }   // the one time a card ever shows: PRISM's own log (2026-10-14, the Last watched order)
     b.onclick = async () => { startVWork(it.title, c.service); try { const r = await api('/video/play', { facet: c.facet, kind: it.kind || 'title', id: it.id || it.url || it.title, url: it.url, name: it.title }); if (r && r.ok === false) endVWork(r.error || 'Could not play it', false); setTimeout(pollVideo, 1500); setTimeout(pollPlayers, 1500); } catch (e) { endVWork(e.message, false); } };
     longPress(b, c);
     box.appendChild(b);
@@ -2012,13 +2012,13 @@ q('#tkeySend').onclick = async () => {
   said.classList.remove('bad');
   if (!v) { said.classList.add('bad'); said.textContent = 'Paste the key first.'; return; }
   q('#tkeySend').disabled = true; said.textContent = 'Sending...';
-  try { await api('/tmdb/key', { apiKey: v }); q('#tkey').value = ''; said.textContent = 'Sent. Look at Prism on the PC for the next step.'; }
+  try { await api('/tmdb/key', { apiKey: v }); q('#tkey').value = ''; said.textContent = 'Sent. Look at PRISM on the PC for the next step.'; }
   catch (e) { said.classList.add('bad'); said.textContent = String((e && e.message) || e); }
   q('#tkeySend').disabled = false;
 };
 for (const b of document.querySelectorAll('[data-v]')) b.onclick = () => pressV(b.dataset.v);
 async function pressV(c) {   // a Video press, from the tab's buttons or the phone's lock screen
-  if (!vTile) { say('#verr', 'Nothing is playing in Prism'); return; }
+  if (!vTile) { say('#verr', 'Nothing is playing in PRISM'); return; }
   if (c === 'captions' && vCanTracks) { openTracks(); return; }
   if (c === 'play') c = vPlaying ? 'pause' : 'play';
   if (c === 'mute') { toggleMute(vTile, pollVideo); return; }
@@ -2085,7 +2085,7 @@ async function loadQuick() {
     quickSig = sig; quickSrcs = srcs; r.sources = srcs;
     const box = q('#quick'); box.innerHTML = '';
     q('#recent').innerHTML = '';
-    if (!r.sources || !r.sources.length) { box.innerHTML = '<p class="note">No music service is set up in Prism yet.</p>'; return; }
+    if (!r.sources || !r.sources.length) { box.innerHTML = '<p class="note">No music service is set up in PRISM yet.</p>'; return; }
     for (const s of r.sources) {
       if (openSvcs === null) openSvcs = new Set();   // the first paint: every entry closed; one opens for the list a chip asks for (2026-11-01)
       const out = s.session === 'signed-out', open = openSvcs.has(s.tile) && (out || (svcMode.get(s.tile) || 'actions') !== 'actions');
@@ -2244,7 +2244,7 @@ function drawSvcBody(s, body) {
   // the actions live on the bar (drawChips, 2026-11-01); the body is the list a chip asked for, or the one-line reason a dim chip has
   if (mode === 'actions') return;
   if (mode === 'add') {
-    // a verb the service's page cannot do from Prism is out, with the adapter's reason (2026-10-27, Pandora's free tier)
+    // a verb the service's page cannot do from PRISM is out, with the adapter's reason (2026-10-27, Pandora's free tier)
     if (!md) { note('Nothing is playing to add.'); return; }
     if (cannot.add && cannot.station) { note(cannot.add); return; }
     const lk = document.createElement('div'); lk.className = 'lk'; body.appendChild(lk); drawLookup(s, lk); return;
@@ -2286,7 +2286,7 @@ function drawLookup(s, box) {
     searching: 'Looking for ' + song + ' on ' + s.name + '\u2026', idle: 'Looking for ' + song + ' on ' + s.name + '\u2026',
     found: m ? (pct < 90 ? s.name + ' has ' : 'Found on ' + s.name + ': ') + lkSong(m) + (pct < 90 ? why : '') : 'Found on ' + s.name,
     ambiguous: s.name + ' has something like ' + song + '. Which one is it?', 'not-found': song + ' is not on ' + s.name,
-    unavailable: st.why === 'no-song' ? 'Nothing is playing on Prism to look up' : 'No cross-service search on ' + s.name + (st.reason ? ' (' + st.reason + ')' : ''),
+    unavailable: st.why === 'no-song' ? 'Nothing is playing on PRISM to look up' : 'No cross-service search on ' + s.name + (st.reason ? ' (' + st.reason + ')' : ''),
     error: 'Could not search ' + s.name + (st.reason ? ': ' + st.reason : '') };
   line(heads[st.status] || st.status, st.status === 'searching');
   if (st.status === 'ambiguous' || (st.status === 'found' && st.picked)) {
@@ -2332,7 +2332,7 @@ async function lkAct(s, path, body) {
     setTimeout(() => svcFold(s.tile), 1500);
   }
 }
-api('/state').then(s => { if (s && s.name) q('#who').textContent = s.name; installPaired = true; }).catch(() => { q('#who').textContent = 'not paired: scan Prism\'s code again'; });
+api('/state').then(s => { if (s && s.name) q('#who').textContent = s.name; installPaired = true; }).catch(() => { q('#who').textContent = 'not paired: scan PRISM\'s code again'; });
 const say = (el, m) => { q(el).textContent = m; if (m) setTimeout(() => { if (q(el).textContent === m) q(el).textContent = ''; }, 4000); };
 // the field on the wall, named as the page names it, so the phone says what it is typing into (never what the field holds)
 let targetOn = false;
@@ -2345,7 +2345,7 @@ async function pollTarget() {
       // the field's role as the wall's browser reads it (its password manager's view): username, password, or the field's kind
       const kind = f.role === 'password' ? 'password' : f.role === 'username' ? 'username' : f.kind === 'email' ? 'email' : f.kind === 'search' ? 'search' : f.kind === 'tel' ? 'phone number' : f.kind === 'number' ? 'number' : 'text';
       el.querySelector('.tl').textContent = (f.label || (kind.charAt(0).toUpperCase() + kind.slice(1) + ' field'));
-      el.querySelector('.ts').textContent = (f.page || f.host || 'Prism') + ' \u00b7 ' + kind + (f.length ? ' \u00b7 ' + f.length + ' character' + (f.length === 1 ? '' : 's') + ' there' : ' \u00b7 empty');
+      el.querySelector('.ts').textContent = (f.page || f.host || 'PRISM') + ' \u00b7 ' + kind + (f.length ? ' \u00b7 ' + f.length + ' character' + (f.length === 1 ? '' : 's') + ' there' : ' \u00b7 empty');
       // a password on the wall is typed into a masked box here, so this phone's keyboard neither learns nor suggests it; a username or a
       // password goes into a sign-in form's own boxes (autocomplete username / current-password), so the phone's password manager - Bitwarden,
       // 1Password, the phone's own - offers to fill it (2026-10-15). The manager fills the phone; the person presses Send, as for anything typed. A manager that fills both boxes at once
@@ -2354,7 +2354,7 @@ async function pollTarget() {
       document.body.classList.toggle('un', f.role === 'username');
     } else {
       document.body.classList.remove('pw'); document.body.classList.remove('un');
-      el.querySelector('.tl').textContent = 'Nothing is focused in Prism';
+      el.querySelector('.tl').textContent = 'Nothing is focused in PRISM';
       el.querySelector('.ts').textContent = (f && f.page ? f.page + ' \u00b7 ' : '') + 'Press into a field there, then type here.';
     }
     q('#send').disabled = q('#sendEnter').disabled = !targetOn;
@@ -2401,7 +2401,7 @@ let nudges = 0;
 async function fallbackToBackground() {
   if (mode === 'background') return;
   mode = 'background'; nudges = 0;
-  q('#lvlNote').textContent = 'This phone would not start the low-delay sound, so Prism switched to the background stream (a few seconds behind the picture). Tap Listen again if it stays quiet.';
+  q('#lvlNote').textContent = 'This phone would not start the low-delay sound, so PRISM switched to the background stream (a few seconds behind the picture). Tap Listen again if it stays quiet.';
   await stopListening(''); sayMode();
   q('#listen').click();
 }
@@ -2420,7 +2420,7 @@ let sessionGone = false, keepConsole = false;
 function askDevice() { if (Date.now() - deviceAskedAt < 5000) return; deviceAskedAt = Date.now(); api('/audio/device').then((d) => { noDevice = !!(d && d.ok && d.device === null); sessionGone = !!(d && d.session === 'disconnected'); keepConsole = !!(d && d.keepConsole); }).catch(() => {}); }
 // what to say for a PC with no sound device: a session a remote desktop left behind, and the media hub switch (docs/features/media-hub.md)
 function noDeviceNote() {
-  if (sessionGone) return 'A remote desktop left the PC signed in but off its screen, and Windows takes every audio device away from a session like that, so there is nothing to send. ' + (keepConsole ? 'Prism is putting the session back on the screen now: tap Listen again in a moment.' : 'Sign in at the PC itself, or turn on Remote Desktop Support in the Prism menu on the PC.');
+  if (sessionGone) return 'A remote desktop left the PC signed in but off its screen, and Windows takes every audio device away from a session like that, so there is nothing to send. ' + (keepConsole ? 'PRISM is putting the session back on the screen now: tap Listen again in a moment.' : 'Sign in at the PC itself, or turn on Remote Desktop Support in the PRISM menu on the PC.');
   return 'The PC has no sound device right now, so there is nothing to send. Is its speaker or TV connected and on?';
 }
 function noteLevel(peak) {
@@ -2440,7 +2440,7 @@ function noteStall(nowT) {
   stallTimes.push(nowT); while (stallTimes.length && nowT - stallTimes[0] > 30) stallTimes.shift();
   const n = q('#netNote');
   if (stallTimes.length >= 3 && player.info().lead >= leadCap() * 1000 - 1) {
-    n.textContent = 'The Wi-Fi is uneven right now. Prism is keeping the sound close to the picture, so it may skip for a moment now and then until the network settles.';
+    n.textContent = 'The Wi-Fi is uneven right now. PRISM is keeping the sound close to the picture, so it may skip for a moment now and then until the network settles.';
     n.className = 'work on';
     clearTimeout(noteStall.t); noteStall.t = setTimeout(() => { n.className = 'work'; }, 25000);
   }
@@ -2477,13 +2477,13 @@ async function readyTicket() {
   try { const t = await api('/audio/stream-ticket', {}); ticket = t.ticket; ticketAt = Date.now(); } catch {}
 }
 setInterval(readyTicket, 5000);
-// Prism muted in the room while this phone listens: asked each time listening starts (2026-10-23,; it
+// PRISM muted in the room while this phone listens: asked each time listening starts (2026-10-23,; it
 // had muted by itself since 2026-10-05, with a checkbox to turn that off). The sound starts first, so the tap that opens the audio is
 // untouched; the question waits under the button until answered, and the room plays on meanwhile. A mute the phone asked for goes back
 // when the listen ends.
 let mutedByMe = false;
-// One mute, one meaning (B-472, 2026-11-01): Mute Prism is Prism's own
-// sound in the room, whether or not this phone listens - the PC takes Prism's sessions to a floor the phone's stream undoes, so the phone
+// One mute, one meaning (B-472, 2026-11-01): Mute PRISM is PRISM's own
+// sound in the room, whether or not this phone listens - the PC takes PRISM's sessions to a floor the phone's stream undoes, so the phone
 // hears on, and other apps on the PC keep their sound. The playback device is never touched from here any more (2026-10-05 to 2026-10-31
 // the same switch muted the device while a phone listened, every app on the PC with it, and read Unmute for either).
 function paintMute(on) { for (const m of document.querySelectorAll('#trMute, #vMute, #vizMute, #lMute')) { muteLabel(m, on); m.classList.toggle('on', on); } }
@@ -2499,12 +2499,12 @@ function muteSay(text, hideAfterMs) {
 }
 q('#muteYes').onclick = async () => {
   if (!listening) { q('#muteNote').className = 'work muteNote'; return; }
-  try { await api('/audio/wall-mute', { on: true }); mutedByMe = true; wallMuted = true; paintMute(true); muteSay('Prism is muted in the room while this phone listens. It comes back when you stop.', 8000); }
-  catch { muteSay('Could not mute Prism in the room. Turn it down on the PC instead.', 8000); }
+  try { await api('/audio/wall-mute', { on: true }); mutedByMe = true; wallMuted = true; paintMute(true); muteSay('PRISM is muted in the room while this phone listens. It comes back when you stop.', 8000); }
+  catch { muteSay('Could not mute PRISM in the room. Turn it down on the PC instead.', 8000); }
 };
-q('#muteNo').onclick = () => { muteSay('Prism keeps playing in the room.', 5000); };
+q('#muteNo').onclick = () => { muteSay('PRISM keeps playing in the room.', 5000); };
 // the Listen tab's own switch (2026-11-01,: the Music tab's is an icon in its transport,
-// shown only while a title plays, and the Listen tab had only the question, which does not show while Prism is already muted). The same
+// shown only while a title plays, and the Listen tab had only the question, which does not show while PRISM is already muted). The same
 // one mute (B-472), by its own route, so it needs no playing title; off also lifts a mute this listen asked for.
 q('#lMute').onclick = async () => {
   const on = !wallMuted;
@@ -2514,7 +2514,7 @@ q('#lMute').onclick = async () => {
 async function muteForListen() {
   if (mutedByMe || wallMuted) return;   // already muted, for this listen or by the person (a mode switch starts again)
   clearTimeout(muteSay.t);
-  q('#muteNoteText').textContent = 'Mute Prism in the room while this phone listens? Other apps on this PC keep their sound.';   // Prism alone (B-472): the phone hears Prism before its mute
+  q('#muteNoteText').textContent = 'Mute PRISM in the room while this phone listens? Other apps on this PC keep their sound.';   // PRISM alone (B-472): the phone hears PRISM before its mute
   q('#muteAsk').style.display = 'flex';
   q('#muteNote').className = 'work muteNote on';
 }
@@ -2602,11 +2602,11 @@ async function stopListening(sayWhy) {
   q('#listen').textContent = 'Listen on this phone'; q('#listen').classList.remove('off');
   if (sayWhy) say('#lerr', sayWhy);
 }
-// The phone's lock screen and Control Center entry while it listens (2026-10-27): the song playing in Prism, with its art
+// The phone's lock screen and Control Center entry while it listens (2026-10-27): the song playing in PRISM, with its art
 // from the service's own artwork address, kept current by the poll above, and the entry's own buttons act on that song as the Music
-// tab's do. With nothing playing in Prism (the Video player's sound, say) the entry reads Prism, and its pause ends the listen.
+// tab's do. With nothing playing in PRISM (the Video player's sound, say) the entry reads PRISM, and its pause ends the listen.
 let msKey = '', msActs = '', msHist = [], msDelay = 0;   // msHist: the PC's state as the polls read it, {at, now, video}, for an entry as late as the sound
-const markedArt = new Map();   // a picture's address -> the same picture with the Prism mark, as a data address ('' while it is made)
+const markedArt = new Map();   // a picture's address -> the same picture with the PRISM mark, as a data address ('' while it is made)
 function markArt(src, icon, done) {
   if (markedArt.has(src)) { const c = markedArt.get(src); if (c) done(c); return; }
   if (markedArt.size > 40) markedArt.clear();
@@ -2658,7 +2658,7 @@ function syncMediaSession() {
   msDelay = mode === 'background' ? (lagNow() ?? msDelay) : 0;
   const cut = Date.now() - msDelay; while (msHist.length > 1 && msHist[1].at <= cut) msHist.shift();
   const snap = msHist[0];
-  let title = 'Prism', artist = 'the sound on the PC', album = '', art0 = '', playing = true, acts = '', pos = null, dur = null;
+  let title = 'PRISM', artist = 'the sound on the PC', album = '', art0 = '', playing = true, acts = '', pos = null, dur = null;
   if (playerNow === 'video') {
     const lv = snap.video, now = lv && lv.now, vid = now && now.video;
     if (vid && (vid.title || vid.series)) {
@@ -2684,7 +2684,7 @@ function syncMediaSession() {
   const key = [title, artist, album, art].join('|');
   if (key !== msKey) {
     msKey = key;
-    // the picture carries the Prism mark in its corner, an eighth of its area (2026-10-27), composed here once per picture; a picture its host will not
+    // the picture carries the PRISM mark in its corner, an eighth of its area (2026-10-27), composed here once per picture; a picture its host will not
     // share with a page stays plain. The size and type are declared: Android's notification asks for them.
     const pic = markedArt.get(art), artwork = pic ? [{ src: pic, sizes: '512x512', type: 'image/jpeg' }] : [{ src: art }];
     try { navigator.mediaSession.metadata = new MediaMetadata({ title, artist, album, artwork }); } catch {}
@@ -2731,7 +2731,7 @@ async function refetch(why) {
     await bgStart(t.ticket);
     const out = q('#out');
     setTimeout(() => { if (listening && !refetching && (out.paused || !(out.currentTime > 0))) stopListening('The sound did not come back. Tap Listen again.'); }, 20000);
-  } catch (e) { if (listening) stopListening('Prism stopped the stream'); }
+  } catch (e) { if (listening) stopListening('PRISM stopped the stream'); }
   finally { refetching = false; }
 }
 q('#listen').onclick = async () => {
@@ -2782,7 +2782,7 @@ q('#listen').onclick = async () => {
     // the sound leaves through a media element, not the audio context alone: a phone keeps a playing media element going when the page
     // is minimized or the screen locks (and shows it among its playing media), while bare Web Audio is paused (2026-10-04). The same arrangement on an iPhone as everywhere else (2026-10-05: the evening's detours, the
     // context's own output, a looped silent file, no element at all, were chasing a shadowed variable, not iOS; with the element gone,
-    // Control Center no longer listed Prism at all). The "interrupted" context seen then is what iOS does to Web Audio when the page is
+    // Control Center no longer listed PRISM at all). The "interrupted" context seen then is what iOS does to Web Audio when the page is
     // put away in this mode.
     gain = ctx.createGain(); gain.gain.value = q('#vol').value / 100;
     dest = ctx.createMediaStreamDestination(); gain.connect(dest);
@@ -2810,7 +2810,7 @@ q('#listen').onclick = async () => {
 };
 // ---- iOS and two home-screen web apps (docs/ios-now-playing.md, B-446, 2026-10-28): the Now Playing control opens the web app the
 // system's host showed last, not the one playing; nothing on this page decides it. Installed on an iPhone, a one-time note offers the
-// way around, Prism in Safari, which owns its own sound. Safari's x-safari-http scheme opens it there; if this page is still showing a
+// way around, PRISM in Safari, which owns its own sound. Safari's x-safari-http scheme opens it there; if this page is still showing a
 // second later, the address is shown to copy and paste. The iPhone check is by platform and touch points: the user agent's version is frozen.
 const isIosDevice = () => /iPhone|iPad|iPod/.test(navigator.platform || '') || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
 (function safariNote() {

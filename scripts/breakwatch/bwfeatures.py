@@ -72,7 +72,7 @@ def balanced(y):
     return np.where(y > 0, 0.5 / pos, 0.5 / (1 - pos))
 
 
-# ---- the caption classifier, in a form Prism reproduces exactly (2026-10-07): explicit words, no hashing ----
+# ---- the caption classifier, in a form PRISM reproduces exactly (2026-10-07): explicit words, no hashing ----
 import re as _re
 
 _URL = _re.compile(r"[a-z0-9]\.(com|net|org)", _re.I)
@@ -83,7 +83,7 @@ _WORD = _re.compile(r"[a-z0-9']+")
 
 def cap_tokens(x):
     """A caption line's tokens: its lowercase words (letters, digits, apostrophes) of two characters or more, each pair of neighbouring words,
-    and marks for an address, a phone number, a speaker change (>>), a question and a [tag]. Prism's LearnedBreak.CapTokens is the same."""
+    and marks for an address, a phone number, a speaker change (>>), a question and a [tag]. PRISM's LearnedBreak.CapTokens is the same."""
     words = [w for w in _WORD.findall(x.lower()) if len(w) >= 2]
     toks = set(words) | {words[i] + " " + words[i + 1] for i in range(len(words) - 1)}
     if _URL.search(x): toks.add("_url")

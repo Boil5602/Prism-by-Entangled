@@ -105,7 +105,7 @@ public sealed partial class SurfaceManager
         /// <summary>Slot tool: "select" (the pointer reaches the page) or "pan" (drag scrolls the page).</summary>
         public string Tool = "select";
         public CursorGrid? PanCatcher;
-        /// <summary>concept-scenes §5: Prism owns the single tap here (tapAction audio|both) - the page keeps everything else.</summary>
+        /// <summary>concept-scenes §5: PRISM owns the single tap here (tapAction audio|both) - the page keeps everything else.</summary>
         public CursorGrid? TapCatcher;
         public ChannelRect Rect;
         public Grid? Intermission;
@@ -138,6 +138,11 @@ public sealed partial class SurfaceManager
         public string? AdTimeLeft;          // "1:23 left" while the service says, for the collapsed icon
         public Microsoft.UI.Dispatching.DispatcherQueueTimer? PeekTimer;
         public int PeekRemaining;
+        /// <summary>The look under the cover (B-486): the panel under the corner symbol, the box the page is drawn into, where that box is in
+        /// the window, the page view's own transform while it is lent to the box, and the three clocks (rest, leave, the 20 s end).</summary>
+        public Grid? PeepPanel; public Border? PeepBox;
+        public bool PeepOn; public Windows.Foundation.Rect PeepRect; public Transform? PeepBase;
+        public Microsoft.UI.Dispatching.DispatcherQueueTimer? PeepRest, PeepLeave, PeepEnd;
         public Border[] SubSlabs = Array.Empty<Border>();
         public Image[] ArtSlabs = Array.Empty<Image>();
         /// <summary>Each slab's frame: it holds the clip, so the picture inside can drift while the cover's shape (and the skip hole) stays put.</summary>
@@ -172,7 +177,7 @@ public sealed partial class SurfaceManager
         public Button? CornerX;
         /// <summary>A small multiview window's card for the service's own gate (SetGate).</summary>
         public Border? GateCard;
-        /// <summary>Prism's loading mark over the window (core's surface.setLoading, 2026-10-16).</summary>
+        /// <summary>PRISM's loading mark over the window (core's surface.setLoading, 2026-10-16).</summary>
         public Border? LoadMark;
         /// <summary>Simple Watch's dim over a corner window while Watch's rows are browsed (MainWindow.SetDim, 2026-10-16).</summary>
         public Border? DimLayer;
@@ -333,6 +338,7 @@ public sealed partial class SurfaceManager
         {
             var src = tile.Viz.Source;
             AudioTarget?.Invoke(src.Length > 0 ? () => Get(src) is { BrowserPid: > 0 } t ? t.BrowserPid : null : null);
+            AudioOwner?.Invoke(src);   // the recording's audio.log names the tile whose sound it is (2026-11-08)
         }
     }
 
@@ -340,6 +346,8 @@ public sealed partial class SurfaceManager
     public Visualization.IVisualizationAudioSource? AudioSource { get; set; }
     /// <summary>B-152: tells the capture whose browser process to listen to (a resolver, read from the capture's own thread); null = the device.</summary>
     public Action<Func<uint?>?>? AudioTarget { get; set; }
+    /// <summary>The stage's audio source tile id whenever it changes (the golden recording's audio.log, 2026-11-08).</summary>
+    public Action<string>? AudioOwner { get; set; }
 
     public void SetVisualizationFeed(string id, string json)
     {
@@ -440,7 +448,7 @@ public sealed partial class SurfaceManager
         // cleared before the profile's browser starts.
         // the hidden pages are off the window, so Chromium counts them as background tabs and throttles their timers to one a minute after
         // five minutes (2026-10-13: YouTube's Watch Later page rendered its rows a minute after it loaded, so a removal pressed four seconds in
-        // found no rows and called the item gone; Netflix's My List page stood empty). Prism paces its own hidden work (the readers doze), so
+        // found no rows and called the item gone; Netflix's My List page stood empty). PRISM paces its own hidden work (the readers doze), so
         // the browser's backgrounding is turned off for its pages.
         envOptions.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required --disable-features=HardwareSecureDecryptionFallback --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows";
         if (tile.Env is null)
@@ -466,11 +474,11 @@ public sealed partial class SurfaceManager
         SessionMute.Track(tile.BrowserPid);          // B-176: the wall's volume reaches this browser too
         core.Settings.IsStatusBarEnabled = false;
         // the browser's own password manager (2026-10-03): Chromium remembers a sign-in
-        // after the first and offers it next time, encrypted to the Windows account the way Edge does; Prism never sees it. One profile now, so
+        // after the first and offers it next time, encrypted to the Windows account the way Edge does; PRISM never sees it. One profile now, so
         // one saved Apple password serves Apple TV and Apple Music.
         core.Settings.IsPasswordAutosaveEnabled = true;
         core.Settings.IsGeneralAutofillEnabled = true;
-        // Prism owns page zoom (surface.setViewport). WebView2's own zoom
+        // PRISM owns page zoom (surface.setViewport). WebView2's own zoom
         // (Ctrl+wheel / Ctrl+plus reaching the page) would silently rescale CSS
         // px against view px and break every layout/region calculation -
         // peacock sat at 110% after one stray Ctrl+wheel (2026-08-31).
@@ -478,7 +486,7 @@ public sealed partial class SurfaceManager
         core.Settings.IsPinchZoomEnabled = false;
         // B-125 (2026-09-07): a wall never asks a room whether to leave a site. The page's own script dialogs
         // are answered here, not shown: beforeunload (a music page mid-playback raises it on any navigation)
-        // is accepted - Prism's navigations are deliberate; alert and confirm are accepted as OK so no page
+        // is accepted - PRISM's navigations are deliberate; alert and confirm are accepted as OK so no page
         // flow stalls on a modal nobody can reach; a prompt has no answer and is cancelled. Each is logged.
         core.Settings.AreDefaultScriptDialogsEnabled = false;
         core.ScriptDialogOpening += (_, e) =>
@@ -521,7 +529,7 @@ public sealed partial class SurfaceManager
             // served from the app's own Assets/tiles. Zero network by construction -
             // there is nothing in that folder but the pages, their stylesheet, their
             // script and the §24 chime. The engine below attaches to these surfaces
-            // exactly as to any other: a Prism page is not an exception (win-host-spec §5).
+            // exactly as to any other: a PRISM page is not an exception (win-host-spec §5).
             core.SetVirtualHostNameToFolderMapping(TilesBridge.HostName, TilesRoot, CoreWebView2HostResourceAccessKind.Allow);
             // The folder mapping serves files, not directories, so the charter's
             // https://tiles.prism/chores/ would 404 on its own. Resolve a trailing
@@ -535,7 +543,7 @@ public sealed partial class SurfaceManager
         // the reading pages play nothing (2026-09-25): the hidden
         // work page reading Animal Control's episodes sat on Netflix's show page, whose preview started - and asked PlayReady 3000 for a second
         // hardware-protected session while the screen held one (host.log 15:26:05); the screen's picture went black until the window was redrawn.
-        // A page Prism only reads (app:<id>:lookup, app:<id>:work) is refused DRM and has any video paused before it plays, from its first line
+        // A page PRISM only reads (app:<id>:lookup, app:<id>:work) is refused DRM and has any video paused before it plays, from its first line
         if (tile.Id.EndsWith(":lookup", StringComparison.Ordinal) || tile.Id.EndsWith(":work", StringComparison.Ordinal))
             await core.AddScriptToExecuteOnDocumentCreatedAsync(ReaderQuietJs);
 
@@ -587,7 +595,7 @@ public sealed partial class SurfaceManager
             if (json.Contains("\"ad-break\"") && PageAdBreak(tile.Id, json)) return;
             ForwardWithId(tile.Id, json);
         };
-        // The page's own context menu is replaced by Prism's slot menu (tools +
+        // The page's own context menu is replaced by PRISM's slot menu (tools +
         // slot actions), at the pointer, in window coordinates.
         core.ContextMenuRequested += (_, e) =>
         {
@@ -642,6 +650,7 @@ public sealed partial class SurfaceManager
             // framing (injected on load-finished) composes with it
             if (tile.LayoutOverride) { try { await core.ExecuteScriptAsync(BodyZoomJs(LayoutOf(tile.Id).Fit)); } catch { } }
             if (tile.HiddenPresence) await DecorAsync(tile, true);   // a fresh document on a hidden surface: its decorative loops paused (2026-10-03)
+            if (!e.IsSuccess) _onStatus($"load failed {tile.Id}: {e.WebErrorStatus}");   // 2026-11-07: the doctor read 16 failed lookup loads a day with no cause named
             _forwardEvent(tile.Id, JsonSerializer.Serialize(new { type = SurfaceEvents.LoadFinished, id = tile.Id, ok = e.IsSuccess }));
         };
         core.SourceChanged += (_, __) =>
@@ -936,7 +945,7 @@ public sealed partial class SurfaceManager
     // screen's surface itself, moved and shrunk into the corner (its page and its player untouched, audio on), raised above the
     // other tiles, and put back where it was when the menu closes. A rect or z core sets meanwhile is kept for the return.
     private readonly Dictionary<string, (ChannelRect rect, int z, (double W, double H)? viewport)> _pip = new();
-    /// <summary>The reading pages' first line: no DRM sessions, and no video playing (see where it is added). Prism's own browser views only.
+    /// <summary>The reading pages' first line: no DRM sessions, and no video playing (see where it is added). PRISM's own browser views only.
     /// window.__prismReading marks the page as one no person sees (2026-10-06): an adapter may scroll it to load what it reads (YouTube TV's lazy shelf pictures).
     /// window.__prismMayPlay, set only by an adapter's remove script on the person's press (Twitch's Continue Watching, 2026-10-13), lets the page play muted:
     /// Twitch saves a place only while its player runs, and forgets it when the video is played from its start.</summary>
@@ -1004,7 +1013,98 @@ public sealed partial class SurfaceManager
         // with Watch open and the screen in its corner it still offers the way back, Return to video
         if (t.WatchChip is { } w) { w.Visibility = vp && corner ? Visibility.Visible : Visibility.Collapsed; w.Content = "Return to video"; }
         // 2026-09-23: the Video player's breaks start collapsed (ShowIntermission)
-        t.Intermission.Background = vp && corner ? ClearHit : null;   // hits pass through to the page, except in the corner
+        t.Intermission.Background = vp && corner ? ClearHit : null;   // in the corner the whole break is the way back
+        // on the stage the cover's ground takes the press (B-487): a press passed through to the page paused a player nobody could see
+        foreach (var slab in t.SubSlabs) slab.IsHitTestVisible = vp && !corner;
+    }
+
+    /// <summary>The frame around the look under the cover, in the window's units.</summary>
+    private const double PeepEdge = PeepGeometry.Edge;
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer PeepClock(Microsoft.UI.Dispatching.DispatcherQueueTimer? old, int ms, Action then)
+    {
+        old?.Stop();
+        var t = _canvas.DispatcherQueue.CreateTimer();
+        t.Interval = TimeSpan.FromMilliseconds(ms); t.IsRepeating = false;
+        t.Tick += (_, __) => then();
+        t.Start();
+        return t;
+    }
+
+    /// <summary>The pointer came onto the corner symbol or the panel, or left them: the look opens after a short rest and closes a
+    /// moment after the leave, so the way from the symbol down to the panel keeps it open (the extension's timings).</summary>
+    private void PeepHover(Tile tile, bool over)
+    {
+        if (over)
+        {
+            tile.PeepLeave?.Stop();
+            if (!tile.PeepOn) tile.PeepRest = PeepClock(tile.PeepRest, 200, () => StartPeep(tile));
+        }
+        else
+        {
+            tile.PeepRest?.Stop();
+            if (tile.PeepOn && tile.PeepLeave is not { IsRunning: true }) tile.PeepLeave = PeepClock(tile.PeepLeave, 250, () => StopPeep(tile));   // one clock a leave: a pointer moving on over the cover does not start it again
+        }
+    }
+
+    /// <summary>
+    /// The look under the cover opens (B-486): a box under the corner symbol, the cover opened behind it, and the page's own view drawn
+    /// small into the opening. The view itself is what shows, so a protected video is seen as any other is (a copy of one is black), and
+    /// no service needs a rule of its own. The sound stays as the cover left it. Not in Watch's corner or a window too small to hold it.
+    /// </summary>
+    private void StartPeep(Tile tile)
+    {
+        if (tile.PeepOn || tile.PeepPanel is not { } panel || tile.PeepBox is not { } box || tile.View is not { } v) return;
+        if (!tile.Covered || tile.Peeked || _adDebug || tile.Look != "veil" || !tile.CardMinimal || _pip.ContainsKey(tile.Id)) return;
+        if (tile.SubSlabs.Length != 4 || PeepGeometry.Picture(tile.Rect.W, tile.Rect.H, tile.ArtChipHost?.ActualHeight ?? 0) is not { } p) return;
+        panel.Margin = new Thickness(p.X - PeepEdge, p.Y - PeepEdge, 0, 0);
+        box.Width = p.W + PeepEdge * 2; box.Height = p.H + PeepEdge * 2;
+        tile.PeepRect = new Windows.Foundation.Rect(p.X, p.Y, p.W, p.H);
+        tile.PeepBase = v.RenderTransform;
+        tile.PeepOn = true;
+        SetPeepHole(tile);
+        SetPeepTransform(tile, v);
+        panel.Visibility = Visibility.Visible;
+        tile.PeepEnd = PeepClock(tile.PeepEnd, 20000, () => StopPeep(tile));
+        _onStatus($"peep open: {tile.Id} ({p.W:0}x{p.H:0})");
+    }
+
+    /// <summary>The page's view drawn into the box: its own fit (ApplyViewport's scale, when it has one) times the box's share of the window.</summary>
+    private static void SetPeepTransform(Tile tile, WebView2 v)
+    {
+        var fit = tile.PeepBase is ScaleTransform st ? st.ScaleX : 1;
+        var s = PeepGeometry.Scale(tile.PeepRect.Width, tile.Rect.W);
+        v.RenderTransformOrigin = new Windows.Foundation.Point(0, 0);
+        v.RenderTransform = new CompositeTransform { ScaleX = fit * s, ScaleY = fit * s, TranslateX = tile.PeepRect.X, TranslateY = tile.PeepRect.Y };
+    }
+
+    /// <summary>The cover opened at the box, over the whole window (a channel's open band is closed for the look: the page is not there).</summary>
+    private static void SetPeepHole(Tile tile)
+    {
+        var r = tile.PeepRect;
+        var around = PeepGeometry.Around((r.X, r.Y, r.Width, r.Height), tile.Rect.W, tile.Rect.H);
+        for (var i = 0; i < 4; i++)
+        {
+            var piece = new Windows.Foundation.Rect(around[i].X, around[i].Y, around[i].W, around[i].H);
+            tile.SubSlabs[i].Clip = new RectangleGeometry { Rect = piece };
+            tile.ArtFrames[i].Clip = new RectangleGeometry { Rect = piece };
+        }
+        tile.SkipHole = null;
+        if (tile.SkipRing is { } ring) { ring.Visibility = Visibility.Collapsed; tile.SkipRingPulse?.Stop(); }
+    }
+
+    /// <summary>The look closes: the page's view back at its own size, the cover whole again (or open where a paused look had it).</summary>
+    private void StopPeep(Tile tile)
+    {
+        tile.PeepRest?.Stop(); tile.PeepLeave?.Stop(); tile.PeepEnd?.Stop();
+        if (tile.PeepPanel is { } panel) panel.Visibility = Visibility.Collapsed;
+        if (!tile.PeepOn) return;
+        tile.PeepOn = false;
+        if (tile.View is { } v) v.RenderTransform = tile.PeepBase;
+        tile.PeepBase = null;
+        ClearHole(tile);
+        if (tile.SkipHoleTimer is { IsRunning: true }) _ = PollSkipHoleAsync(tile);
+        _onStatus($"peep closed: {tile.Id}");
     }
 
     public void SetRect(string id, ChannelRect rect)
@@ -1067,7 +1167,7 @@ public sealed partial class SurfaceManager
         }
         t.Container.Opacity = 0;
         t.Pinned = presence == "window";   // B-159
-        // B-167 (2026-09-08): the inline app window carries Prism's own bar above it - the floating title bar (drag handle, face,
+        // B-167 (2026-09-08): the inline app window carries PRISM's own bar above it - the floating title bar (drag handle, face,
         // dock, hide) only took space over the page's top, so it stays out; the corner grip still resizes
         if (t.FloatBar is not null) t.FloatBar.Visibility = t.Pinned ? Visibility.Collapsed : Visibility.Visible;
         PlaceHidden(t, false);
@@ -1093,7 +1193,7 @@ public sealed partial class SurfaceManager
     /// Decorative video on a surface nobody sees (2026-10-03): Apple Music's home
     /// page loops two muted animated-artwork videos, one 1662 by 2216 pixels, while parked hidden under the Video player - its profile's GPU
     /// process decoding at 13% for nobody. A page action: on a surface entering hidden presence every muted, looping video is paused, new
-    /// ones too as they appear (a mutation observer and the play event); on its way back to the screen the ones Prism paused play again.
+    /// ones too as they appear (a mutation observer and the play event); on its way back to the screen the ones PRISM paused play again.
     /// Sound is never touched: a video with its sound on is the surface's own business (the music player's hidden presence plays).
     /// </summary>
     private const string DecorJs = "(function(on){var W=window;if(!W.__prismDecor){W.__prismDecor=function(on){W.__prismDecorOn=on;var vs=document.querySelectorAll('video');for(var i=0;i<vs.length;i++){var v=vs[i];try{if(on){if(v.muted&&v.loop&&!v.paused){v.pause();v.__prismDecorPaused=true;}}else if(v.__prismDecorPaused){v.__prismDecorPaused=false;var p=v.play();if(p&&p.catch)p.catch(function(){});}}catch(e){}}};document.addEventListener('play',function(e){var v=e.target;if(W.__prismDecorOn&&v&&v.tagName==='VIDEO'&&v.muted&&v.loop){try{v.pause();v.__prismDecorPaused=true;}catch(e2){}}},true);try{new MutationObserver(function(){if(W.__prismDecorOn)W.__prismDecor(true);}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}}W.__prismDecor(on);return document.querySelectorAll('video').length;})(";
@@ -1359,6 +1459,47 @@ public sealed partial class SurfaceManager
             };
             chipHost.Tapped += (_, e) => { e.Handled = true; ToggleCardMinimal(tile.Id); };
             g.Children.Add(chipHost);
+            // The look under the cover (B-486, 2026-11-10): the pointer resting on the corner symbol opens a small panel under it with the
+            // page as it plays behind the cover, and Show ad. The extension has had it since 2026-11-07 (video.js peepStart); here the
+            // page's own view is drawn small into an opening of the cover, so a protected video shows as any other does.
+            var peepBox = new Border { BorderBrush = Tokens.Panel, BorderThickness = new Thickness(PeepEdge), Background = Tokens.Clear, CornerRadius = new CornerRadius(10, 10, 0, 0) };
+            var peepShow = new Button
+            {
+                Content = new TextBlock { Text = "Show ad", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Tokens.AmberInk },
+                Padding = new Thickness(12, 6, 12, 6), CornerRadius = new CornerRadius(8),
+                Background = new SolidColorBrush(Tokens.AmberColor), BorderThickness = new Thickness(0),
+            };
+            MainWindow.OwnHover(peepShow);
+            ToolTipService.SetToolTip(peepShow, "Lifts the cover for the rest of this break");
+            peepShow.Click += (_, __) => { StopPeep(tile); if (!tile.Peeked) TogglePeek(tile.Id); };
+            var peepFoot = new Border { Background = Tokens.Panel, CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(PeepEdge, 0, PeepEdge, PeepEdge), Child = peepShow };
+            var peepPanel = new Grid { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed };
+            peepPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            peepPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(peepFoot, 1);
+            peepPanel.Children.Add(peepBox); peepPanel.Children.Add(peepFoot);
+            g.Children.Add(peepPanel);
+            tile.PeepPanel = peepPanel; tile.PeepBox = peepBox;
+            foreach (var over in new FrameworkElement[] { chipHost, peepPanel })
+            {
+                // a finger's press is the tap that opens the card, not a rest
+                over.PointerEntered += (_, e) => { if (e.Pointer.PointerDeviceType != Microsoft.UI.Input.PointerDeviceType.Touch) PeepHover(tile, true); };
+                over.PointerExited += (_, __) => PeepHover(tile, false);
+            }
+            // In the Video player the cover's ground takes a press itself (B-487, 2026-11-10): passed through, it landed on a player nobody
+            // could see, and most players pause on a press. The press does what one on the stage does (the bar); a move shows the bar as
+            // one over the page does. An opening in the ground (a paused look's panel, a channel's ticker) still lets its presses through:
+            // a clipped slab takes none. SyncBreakCard turns this on and off.
+            long lastGroundMove = 0;
+            foreach (var slab in subSlabs)
+            {
+                slab.PointerPressed += (_, e) => { e.Handled = true; ShieldPressed?.Invoke(tile.Id); };
+                slab.PointerMoved += (_, __) =>
+                {
+                    if (tile.PeepOn) PeepHover(tile, false);   // a leave the panel was never told of
+                    var now = Environment.TickCount64; if (now - lastGroundMove > 1500) { lastGroundMove = now; PageInteraction?.Invoke(tile.Id); }
+                };
+            }
             // Not an ad is in the cover's own menu; the pill in the corner belongs to a cover lifted by hand (PeekNotAdFor, 2026-10-09)
             tile.Container.Children.Add(g);                          // above snapshot overlay
             tile.Intermission = g;
@@ -1482,6 +1623,7 @@ public sealed partial class SurfaceManager
     {
         var tile = Get(id);
         if (tile?.Intermission is null) return;
+        StopPeep(tile);                                              // the card opens where the look was
         tile.CardMinimal = !tile.CardMinimal;
         ApplyArtAttribution(tile);
         _onStatus($"intermission card: {id} {(tile.CardMinimal ? "minimized" : "expanded")}");
@@ -1535,7 +1677,7 @@ public sealed partial class SurfaceManager
             Visibility = Visibility.Collapsed,
         };
         MainWindow.OwnHover(b);
-        ToolTipService.SetToolTip(b, "This is the show, not an ad: the cover stays off, and Prism is told it got this wrong");
+        ToolTipService.SetToolTip(b, "This is the show, not an ad: the cover stays off, and PRISM is told it got this wrong");
         var id = tile.Id;
         b.Click += (_, __) => NotAnAdPressed?.Invoke(id);
         tile.Container.Children.Add(b);
@@ -1555,6 +1697,7 @@ public sealed partial class SurfaceManager
     {
         var tile = Get(id);
         if (tile?.Intermission is not { } g) return;
+        StopPeep(tile);
         tile.Peeked = !tile.Peeked;
         tile.PeekTimer?.Stop();
         // the ad shown stays shown for the rest of its break - no fifteen-second clock (2026-10-12): Hide ad
@@ -1628,7 +1771,12 @@ public sealed partial class SurfaceManager
     {
         await tile.ViewportGate.WaitAsync();
         try { await ApplyViewportCoreAsync(tile, v); }
-        finally { tile.ViewportGate.Release(); }
+        finally
+        {
+            // a fit applied while the look under the cover is open: the fit is the view's own again, and the look is drawn over it
+            if (tile.PeepOn) { tile.PeepBase = v.RenderTransform is CompositeTransform ? tile.PeepBase : v.RenderTransform; SetPeepTransform(tile, v); }
+            tile.ViewportGate.Release();
+        }
     }
 
     private async Task ApplyViewportCoreAsync(Tile tile, WebView2 v)
@@ -1755,7 +1903,7 @@ public sealed partial class SurfaceManager
         return (vx / fit + scrollX, vy / fit + scrollY, vw / fit, vh / fit);
     }
 
-    /// <summary>Prism's own keys pressed while a page had focus (Escape, F8, F10, F11).</summary>
+    /// <summary>PRISM's own keys pressed while a page had focus (Escape, F8, F10, F11).</summary>
     public event Action<string>? HostKey;
     /// <summary>A page's own report of a tap or a key on it (the prelude's 'interaction' post) - the WebView eats the pointer, so this is how the host knows.</summary>
     public event Action<string>? PageInteraction;
@@ -1903,7 +2051,7 @@ public sealed partial class SurfaceManager
     public event Action<string>? ItemTapped;
 
     /// <summary>
-    /// concept-scenes §5: turn Prism's claim on the single tap on or off for a
+    /// concept-scenes §5: turn PRISM's claim on the single tap on or off for a
     /// slot. Claimed only where the placement's standing instruction is
     /// <c>audio</c> or <c>both</c> — a tap there means "the sound comes here",
     /// not "play/pause this page". With <c>promote</c> (the §6a default) the
@@ -2025,7 +2173,7 @@ public sealed partial class SurfaceManager
     /// The service's own gate on a small multiview window (2026-10-15,: a Twitch video with a content
     /// disclaimer dropped into window 4 stood on Twitch's page, gate and all, since only the big window's curtain says a gate). The card hides the
     /// page and says the gate in the service's own words with its own verb; a press is the person's and goes to the service's button (core's
-    /// "gate" command) - Prism never presses it alone (third-party-services-policy rule 6). Under the corner X, over the page and the veil.
+    /// "gate" command) - PRISM never presses it alone (third-party-services-policy rule 6). Under the corner X, over the page and the veil.
     /// </summary>
     public void SetGate(string id, string? text, string? verb)
     {
@@ -2072,7 +2220,7 @@ public sealed partial class SurfaceManager
         }
         if (t.DimLayer.Visibility != Visibility.Visible) { t.DimLayer.Visibility = Visibility.Visible; Fade(t.DimLayer, 0, 1, 220); }
     }
-    /// <summary>Prism's loading mark (2026-10-16): the triangle, breathing, on the dark substrate over a window while
+    /// <summary>PRISM's loading mark (2026-10-16): the triangle, breathing, on the dark substrate over a window while
     /// core says it loads or waits for data; in at a short fade, out at once. It never takes a press (the page's own controls stay reachable).</summary>
     public void SetLoading(string id, bool on)
     {
@@ -2156,7 +2304,7 @@ public sealed partial class SurfaceManager
         Grid.SetColumn(dock, 2);
         bar.Children.Add(dock);
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var hide = Icon("", "Hide this window. It keeps playing, and you can bring it back from Prism menu → Floating facets.", () => TileCommand?.Invoke(t.Id, "hide"), 14);
+        var hide = Icon("", "Hide this window. It keeps playing, and you can bring it back from PRISM menu → Floating facets.", () => TileCommand?.Invoke(t.Id, "hide"), 14);
         hide.Padding = new Thickness(8, 4, 10, 4);
         Grid.SetColumn(hide, 3);
         bar.Children.Add(hide);
@@ -2342,7 +2490,7 @@ public sealed partial class SurfaceManager
             if (t.NpMuteIcon is not null) t.NpMuteIcon.Glyph = t.Muted ? "" : "";
             if (t.NpArt is not null && art != t.NpArtUrl)
             {
-                // the art the page itself offered (its CDN URL; no Prism identifier travels)
+                // the art the page itself offered (its CDN URL; no PRISM identifier travels)
                 t.NpArtUrl = art;
                 try { t.NpArt.Source = string.IsNullOrEmpty(art) || !art.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? null : new BitmapImage(new Uri(art)); }
                 catch { t.NpArt.Source = null; }
@@ -2590,6 +2738,8 @@ public sealed partial class SurfaceManager
     public string? SourceOf(string id) => Get(id)?.View?.CoreWebView2?.Source;
 
     public ChannelRect? RectOf(string id) => Get(id)?.Rect;
+    /// <summary>A visualization tile's own element, for the dev recording (MainWindow.DevRecord.cs).</summary>
+    public Microsoft.UI.Xaml.FrameworkElement? VizOf(string id) => Get(id)?.Viz;
 
     /// <summary>Run a diagnostic script in a tile's page; raw ExecuteScript
     /// result (JSON-encoded) or null. Report probes only - never behavior.</summary>
@@ -2847,6 +2997,7 @@ public sealed partial class SurfaceManager
         tile.SkipAvailable = false;
         tile.Covered = false;
         tile.ArtDrift?.Stop(); tile.ArtDrift = null;                 // the picture rests when the cover goes
+        StopPeep(tile);                                              // the look under the cover goes with the cover
         tile.Peeked = false;                                         // a peek never outlives its break
         tile.PeekTimer?.Stop();
         if (_peekBack.TryGetValue(tile.Id, out var backChip)) backChip.Visibility = Visibility.Collapsed; SyncPeekNotAd(tile.Id);   // the peek's own way back goes with it
@@ -2931,12 +3082,13 @@ public sealed partial class SurfaceManager
 
     private async Task PollSkipHoleAsync(Tile tile)
     {
+        if (tile.PeepOn) return;                                     // the opening is the look's for now; StopPeep asks again
         if (!tile.Covered || tile.PauseHoleSel is not { Length: > 0 } sel) { StopSkipHole(tile); return; }   // the paused look's open panel; a skip is the wall's button now
         var js = "(function(){var els=document.querySelectorAll(" + JsonSerializer.Serialize(sel) + ");"
             + "for(var i=0;i<els.length;i++){var e=els[i],r=e.getBoundingClientRect();"
             + "if(r.width>0&&r.height>0)return JSON.stringify({x:r.x,y:r.y,w:r.width,h:r.height});}return null;})()";
         var raw = await EvalOnTileAsync(tile.Id, js);
-        if (!tile.Covered) return;
+        if (!tile.Covered || tile.PeepOn) return;
         try
         {
             if (raw is null || raw == "null") { ClearHole(tile); return; }
@@ -2955,7 +3107,7 @@ public sealed partial class SurfaceManager
     /// layer is hit-test invisible - with an amber ring marking the opening.</summary>
     private void SetHole(Tile tile, double x, double y, double w, double h)
     {
-        if (tile.SubSlabs.Length != 4) return;
+        if (tile.SubSlabs.Length != 4 || tile.PeepOn) return;
         const double pad = 4;
         x -= pad; y -= pad; w += pad * 2; h += pad * 2;
         double cw = tile.Rect.W, ch = VeilBottom(tile);   // the veil ends where an open band begins
@@ -2986,7 +3138,7 @@ public sealed partial class SurfaceManager
     /// <summary>How far the Skip ring's glow reaches past its line, in steps of SkipGlowStep.</summary>
     private const double SkipGlowStep = 2, SkipGlow = 10;
 
-    /// <summary>The glow breathes once a second while the opening shows; held at full under Windows' own animations off (unless Prism's
+    /// <summary>The glow breathes once a second while the opening shows; held at full under Windows' own animations off (unless PRISM's
     /// Full motion is on, as the splash).</summary>
     private static Microsoft.UI.Xaml.Media.Animation.Storyboard? SkipPulse(UIElement glow)
     {
@@ -3038,6 +3190,7 @@ public sealed partial class SurfaceManager
 
     private void ClearHole(Tile tile)
     {
+        if (tile.PeepOn) return;                                     // the opening is the look's (StopPeep clears it)
         tile.SkipHole = null;
         if (tile.SubSlabs.Length != 4) return;
         if (tile.VeilBand > 0)
@@ -3058,7 +3211,7 @@ public sealed partial class SurfaceManager
     /// <summary>
     /// The wall shot as the wall looks (2026-09-23): the windows on screen in their
     /// stacking order - never a hidden work or lookup page, which had been drawn full size over everything - each window's own page
-    /// (a DRM-black frame gives way to the tile's poster), then Prism's own layers blended over it as they stand: a window's title bar and
+    /// (a DRM-black frame gives way to the tile's poster), then PRISM's own layers blended over it as they stand: a window's title bar and
     /// break card, the Watch page, and whatever the caller draws above the canvas (the stage bar, the menus, pop-ups).
     /// </summary>
     public async Task<string?> CaptureWallAsync(Func<byte[], int, int, Task>? above = null)
@@ -3072,7 +3225,7 @@ public sealed partial class SurfaceManager
         var layers = _canvas.Children.Select((c, i) => (c, i)).OrderBy(x => Canvas.GetZIndex(x.c)).ThenBy(x => x.i).Select(x => x.c).ToList();
         foreach (var layer in layers)
         {
-            if (!byContainer.TryGetValue(layer, out var tile)) { await BlendElementAsync(wall, cw, ch, layer); continue; }   // the Watch page and the rest of Prism's own
+            if (!byContainer.TryGetValue(layer, out var tile)) { await BlendElementAsync(wall, cw, ch, layer); continue; }   // the Watch page and the rest of PRISM's own
             if (tile.Kind == SurfaceKind.Hidden || tile.HiddenPresence || tile.Container.Visibility != Visibility.Visible || tile.Container.Opacity < 0.01) continue;
             var r = tile.Rect;
             int rx = (int)r.X, ry = (int)r.Y, rw = (int)r.W, rh = (int)r.H;
@@ -3110,8 +3263,8 @@ public sealed partial class SurfaceManager
                     }
                 }
             }
-            // Prism's own layers on the window - everything in it but the page: the snapshot while it loads, the break card, the title bar,
-            // a visualization's picture (a window with no page is all Prism's)
+            // PRISM's own layers on the window - everything in it but the page: the snapshot while it loads, the break card, the title bar,
+            // a visualization's picture (a window with no page is all PRISM's)
             foreach (var child in tile.Container.Children.ToList())
                 if (!ReferenceEquals(child, tile.ViewHost)) await BlendElementAsync(wall, cw, ch, child);
         }
@@ -3128,7 +3281,7 @@ public sealed partial class SurfaceManager
         return path;
     }
 
-    /// <summary>One of Prism's own XAML layers blended onto the wall shot where it stands (premultiplied alpha): a layer that holds no page.</summary>
+    /// <summary>One of PRISM's own XAML layers blended onto the wall shot where it stands (premultiplied alpha): a layer that holds no page.</summary>
     public async Task BlendElementAsync(byte[] wall, int cw, int ch, UIElement el)
     {
         if (el.Visibility != Visibility.Visible || el.Opacity < 0.01 || el is not FrameworkElement fe || fe.ActualWidth < 1 || fe.ActualHeight < 1) return;
@@ -3254,7 +3407,7 @@ public sealed partial class SurfaceManager
     }
     /// <summary>The break watch's look at a window (2026-10-06): the 320x180 grey frame the break model scores and, when asked, a
     /// 960x540 picture for the text reader - one capture for both.</summary>
-    public async Task<(byte[] Gray, SoftwareBitmap? Big, byte[]? BigGray)?> CaptureForWatchAsync(string id, bool withBig)
+    public async Task<(byte[] Gray, SoftwareBitmap? Big, byte[]? BigGray, byte[] Palette)?> CaptureForWatchAsync(string id, bool withBig)
     {
         if (Get(id) is not { } t || t.View?.CoreWebView2 is not { } core) return null;
         // a capture is given 2.5 s, and a window whose last capture never answered is passed over until it does (2026-10-07,: the Watch page hid the small windows at 16:08:16, a hidden window's capture never answered, and the watch, which
@@ -3278,7 +3431,12 @@ public sealed partial class SurfaceManager
             var data = await dec.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, VideoArea(dec.PixelWidth, dec.PixelHeight, (uint)BreakModel.W, (uint)BreakModel.H), ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
             var px = data.DetachPixelData();
             var g = new byte[BreakModel.W * BreakModel.H];
-            for (int i = 0, j = 0; j < g.Length; i += 4, j++) g[j] = (byte)((px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8);
+            // the palette (2026-11-08, the redesign's Phase D): a 4x4x4 RGB histogram of the same pixels, 64 counts scaled to bytes, before
+            // the capture becomes grey; a sidecar line beside the frames, never a change to them
+            var hist = new int[64];
+            for (int i = 0, j = 0; j < g.Length; i += 4, j++) { g[j] = (byte)((px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8); hist[((px[i + 2] >> 6) << 4) | ((px[i + 1] >> 6) << 2) | (px[i] >> 6)]++; }
+            var hmax = 1; foreach (var c in hist) if (c > hmax) hmax = c;
+            var palette = new byte[64]; for (var k = 0; k < 64; k++) palette[k] = (byte)(hist[k] * 255L / hmax);
             SoftwareBitmap? big = null; byte[]? bigGray = null;
             if (withBig)
             {
@@ -3289,7 +3447,7 @@ public sealed partial class SurfaceManager
                 bigGray = new byte[960 * 540];
                 for (int i = 0, j = 0; j < bigGray.Length; i += 4, j++) bigGray[j] = (byte)((bp[i] * 29 + bp[i + 1] * 150 + bp[i + 2] * 77) >> 8);
             }
-            return (g, big, bigGray);
+            return (g, big, bigGray, palette);
         }
         catch { return null; }
     }
@@ -3473,6 +3631,7 @@ public sealed partial class SurfaceManager
     private void ApplyRect(Tile tile, ChannelRect r)
     {
         DevTrace?.Invoke("rect " + tile.Id + " " + (int)r.X + "," + (int)r.Y + " " + (int)r.W + "x" + (int)r.H + (tile.Rect.X == r.X && tile.Rect.Y == r.Y && tile.Rect.W == r.W && tile.Rect.H == r.H ? " (same)" : ""));
+        if (tile.PeepOn && (tile.Rect.W != r.W || tile.Rect.H != r.H)) StopPeep(tile);   // the look was sized for the old window
         tile.Rect = r;
         Canvas.SetLeft(tile.Container, tile.HiddenPresence ? -(Math.Max(1, r.W) + 64) : r.X);   // hidden: parked left of the canvas, full size
         Canvas.SetTop(tile.Container, tile.HiddenPresence ? 0 : r.Y);
@@ -3578,7 +3737,7 @@ public sealed partial class SurfaceManager
       try { if (offDom.indexOf(this) < 0) { offDom.push(this); if (offDom.length > 24) offDom.shift(); } } catch (e) {}
       // B-471 (2026-10-31): under core's play gate (surface.setPlayGate) the page's own play is refused the way a browser's autoplay rule
       // refuses it - a NotAllowedError the page knows how to take (Pandora shows its Play button) - until a person asks for this page's music
-      if (window.__prismPlayGate) { try { this.pause(); } catch (e) {} return Promise.reject(new DOMException('Prism holds this page until a person plays it', 'NotAllowedError')); }
+      if (window.__prismPlayGate) { try { this.pause(); } catch (e) {} return Promise.reject(new DOMException('PRISM holds this page until a person plays it', 'NotAllowedError')); }
       return origPlay.apply(this, arguments);
     };
     document.addEventListener('play', function (e) { if (window.__prismPlayGate && e.target && e.target.pause) { try { e.target.pause(); } catch (x) {} } }, true);
@@ -3634,7 +3793,7 @@ public sealed partial class SurfaceManager
   var lastMove = 0;   // the stage bar rides a pointer MOVE too (a tap pauses most players): host-only, never an interaction for core's keeper
   addEventListener('pointermove', function () { var now = Date.now(); if (now - lastMove > 1500) { lastMove = now; post({ type: 'pointer-move' }); } }, true);
   // the video's own seeks, pauses and plays, for the ad debug recording (2026-10-07, the owner had seeked back to report an ad and asked that
-  // such control interactions be logged): whoever asked (a Prism control, the phone, a key on the page itself), the element
+  // such control interactions be logged): whoever asked (a PRISM control, the phone, a key on the page itself), the element
   // says what happened. A seek names the position it left (the last timeupdate) and the one it went to; a jump under 1.5 s is not a seek
   (function () {
     var at = new WeakMap();
@@ -3645,7 +3804,7 @@ public sealed partial class SurfaceManager
     ['pause', 'play', 'ratechange'].forEach(function (k) { document.addEventListener(k, function (e) { var m = e.target; if (ok(m)) post({ type: 'prism-media', what: k === 'ratechange' ? 'rate ' + m.playbackRate : k, to: r1(m.currentTime) }); }, true); });
   })();
   // Spec 32 Media Session capture: the page registers its own handlers for
-  // the OS media keys. Remembering them lets Prism's player control run the
+  // the OS media keys. Remembering them lets PRISM's player control run the
   // service's own next / previous / seek - the page's code, on a human's tap.
   var handlers = {};
   try {
@@ -3676,7 +3835,7 @@ public sealed partial class SurfaceManager
   var vctxNow = function () { try { return typeof window.__prismVideoContext === 'function' ? window.__prismVideoContext() : null; } catch (e) { return null; } };
   var vprofNow = function () { try { return typeof window.__prismVideoProfiles === 'function' ? window.__prismVideoProfiles() : null; } catch (e) { return null; } };
   var vliveNow = function () { try { var l = window.__prismVideoLive; return l && l.cache ? l.cache : null; } catch (e) { return null; } };
-  var npDiag = { runs: 0, posts: 0, lastErr: null, lastPlaying: null, beatRuns: 0 };
+  var npDiag = { runs: 0, posts: 0, lastErr: null, lastPlaying: null, beatRuns: 0, changes: {}, lastInfo: null };   // changes: which fields made a report (2026-11-07, a page reporting every 1.4 s)
   window.__prismNpDiag = npDiag;
   // B-198: every periodic scan is registered here. The host beats once a second (SurfaceManager._beat); a scan whose
   // own interval has not run for longer than its period (+1.5 s) runs from the beat instead - Pandora's first pause
@@ -3749,6 +3908,7 @@ public sealed partial class SurfaceManager
       var key = JSON.stringify(info);
       var now = Date.now();
       if (key !== lastNP || (info.playing && now - lastPosPost > 4000)) {
+        try { if (npDiag.lastInfo) { for (var ck in info) { if (JSON.stringify(info[ck]) !== JSON.stringify(npDiag.lastInfo[ck])) npDiag.changes[ck] = (npDiag.changes[ck] || 0) + 1; } } npDiag.lastInfo = JSON.parse(key); } catch (e) {}
         lastNP = key; lastPosPost = now;
         info.position = el && isFinite(el.currentTime) ? el.currentTime : null;
         info.duration = el && isFinite(el.duration) && el.duration > 0 ? el.duration : null;
@@ -3788,17 +3948,17 @@ public sealed partial class SurfaceManager
   // every few seconds instead.
   var lastTimeUpdate = 0;
   addEventListener('timeupdate', function () { var n = Date.now(); if (n - lastTimeUpdate > 3000) { lastTimeUpdate = n; window.__prismReportNow(); } }, true);
-  // Prism's own keys must work while the page has focus: Esc closes a Prism
+  // PRISM's own keys must work while the page has focus: Esc closes a PRISM
   // overlay, F8 / F10 / F11 are the host's. Forwarded, never swallowed - the
   // page still sees them (its own Esc handling keeps working).
   var lastKeyInteraction = 0;
   addEventListener('keydown', function (e) {
-    // a person's key only (2026-10-06: turning captions off from Prism's menu also opened Watch and made the video small): an
-    // adapter closing the service's own menu with a scripted Escape (Apple TV's tracks, Apple Music's row menu) is not the person's Esc for Prism
+    // a person's key only (2026-10-06: turning captions off from PRISM's menu also opened Watch and made the video small): an
+    // adapter closing the service's own menu with a scripted Escape (Apple TV's tracks, Apple Music's row menu) is not the person's Esc for PRISM
     if (e.isTrusted && (e.key === 'Escape' || e.key === 'F8' || e.key === 'F10' || e.key === 'F11')) post({ type: 'prism-hostkey', key: e.key });
     // Ctrl+Shift+W opens Watch (2026-09-28) - and is kept from the page (a browser closes its window on it)
     if (e.isTrusted && e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'W' || e.key === 'w')) { e.preventDefault(); e.stopImmediatePropagation(); post({ type: 'prism-hostkey', key: 'Ctrl+Shift+W' }); return; }
-    // the universal player (2026-09-21): while the player's own fullscreen is up (the stage), the transport keys are Prism's -
+    // the universal player (2026-09-21): while the player's own fullscreen is up (the stage), the transport keys are PRISM's -
     // Space, the arrows, Enter - taken from the page so it does not act on them too (its own controls are hidden then).
     // Only a person's key (isTrusted): an adapter's own key event is the wall's verb on its way to the player (Netflix and
     // Disney+ seek by their players' keys) - taken here it never arrived, and came back as a new stage key, a loop (B-261)
@@ -3840,7 +4000,7 @@ public sealed partial class SurfaceManager
   var lastSession = '';
   every(function () { try { var s = window.__prismSession || ''; if (s && s !== lastSession) { lastSession = s; post({ type: 'session', state: s }); } } catch (e) {} }, 1500);
   every(scan, 800);
-  // Prism's loading mark (2026-10-16): the page's largest video waiting for data while it should play - every page, every service; core
+  // PRISM's loading mark (2026-10-16): the page's largest video waiting for data while it should play - every page, every service; core
   // decides whether the window wears the mark (a video window, outside an ad)
   var lastBuf = false;
   var bufScan = function () {

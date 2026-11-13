@@ -8,10 +8,10 @@ using System.Text.Json.Nodes;
 namespace PrismHost.Services;
 
 /// <summary>
-/// Updates for Prism on Windows (docs/features/updates.md, dashboard-schema §28; 2026-10-05). Core owns the policy (when to check, what is newer, the night window); this is the bytes:
+/// Updates for PRISM on Windows (docs/features/updates.md, dashboard-schema §28; 2026-10-05). Core owns the policy (when to check, what is newer, the night window); this is the bytes:
 /// - the manifest fetched at exactly the configured address (no query, no identifying header) and its signature beside it
 /// (manifest.sig, ECDSA P-256 over the manifest bytes) checked against the configured public key - a manifest that does not
-/// verify is refused, so a fork's Prism takes only its own releases and ours takes only ours;
+/// verify is refused, so a fork's PRISM takes only its own releases and ours takes only ours;
 /// - a release downloaded to the data folder, its SHA-256 compared with the manifest's, unpacked beside the running version under
 /// the data folder's app\, and recorded as the current one; the running process is never overwritten;
 /// - at the next start the older exe hands off to the newest unpacked version (HandOffIfNewer) - the person's shortcut keeps working.
@@ -30,17 +30,17 @@ public static class Updates
     public static string Url { get => HostPrefs.GetString("update.url", DefaultUrl); set => HostPrefs.Set("update.url", value.Trim()); }
     public static string Key { get => HostPrefs.GetString("update.key", DefaultKey); set => HostPrefs.Set("update.key", value.Trim()); }
     /// <summary>The track this build is published on (2026-10-05):
-    /// alpha while Prism is built, beta for the candidate, stable for the full release. A Prism follows the track it was built for unless the
+    /// alpha while PRISM is built, beta for the candidate, stable for the full release. A PRISM follows the track it was built for unless the
     /// person picks another in the Updates dialog.</summary>
     public const string BuildTrack = "alpha";
     public static string Channel { get => AsTrack(HostPrefs.GetString("update.channel", BuildTrack)); set => HostPrefs.Set("update.channel", AsTrack(value)); }
     public static string AsTrack(string? v) => v is "alpha" or "beta" or "stable" ? v : BuildTrack;
     /// <summary>The track's name as a person reads it: Alpha, Beta, Full.</summary>
     public static string TrackLabel(string ch) => ch == "alpha" ? "Alpha" : ch == "beta" ? "Beta" : "Full";
-    /// <summary>True when the address or the key is not Entangled's: a fork's Prism, or one someone pointed elsewhere.</summary>
+    /// <summary>True when the address or the key is not Entangled's: a fork's PRISM, or one someone pointed elsewhere.</summary>
     public static bool ServerIsCustom => (Url != DefaultUrl && Url != BucketUrl) || Key != DefaultKey;
     public static bool Enabled { get => HostPrefs.GetBool("update.enabled", true); set => HostPrefs.Set("update.enabled", value); }
-    /// <summary>Install on its own (B-458, 2026-10-30): a release found is downloaded at once and Prism restarts into it at a quiet moment after
+    /// <summary>Install on its own (B-458, 2026-10-30): a release found is downloaded at once and PRISM restarts into it at a quiet moment after
     /// the check, otherwise at its next start; off, the flag waits for a press. Core holds the rule; this is the person's switch.</summary>
     public static bool Auto { get => HostPrefs.GetBool("update.auto", true); set => HostPrefs.Set("update.auto", value); }
     /// <summary>When the check runs (2026-10-06): a time of day on the PC's clock, "HH:MM"
@@ -117,7 +117,7 @@ public static class Updates
 
     private static readonly string Ell = ((char)0x2026).ToString();
 
-    /// <summary>Where Prism runs from, for good: %LOCALAPPDATA%\Programs\Prism (PRISM_INSTALL_DIR for a test). Apart from the data folder, so a
+    /// <summary>Where PRISM runs from, for good: %LOCALAPPDATA%\Programs\Prism (PRISM_INSTALL_DIR for a test). Apart from the data folder, so a
     /// reset to defaults never moves the program; the one path Windows' firewall rule names, so the rule is asked for once, not each update.</summary>
     public static string InstallDir
     {
@@ -163,9 +163,9 @@ public static class Updates
         {
             try
             {
-                status("Prism " + version + ": reading what changed" + Ell);
+                status("PRISM " + version + ": reading what changed" + Ell);
                 var r = await inst.StageFromListAsync(version, files, filesSha, source, status);
-                status("Prism " + version + " is ready: " + r.Downloaded + " changed files, " + (r.DownloadedBytes / 1048576.0).ToString("0.0") + " MB downloaded. It runs at the next start, or Restart now.");
+                status("PRISM " + version + " is ready: " + r.Downloaded + " changed files, " + (r.DownloadedBytes / 1048576.0).ToString("0.0") + " MB downloaded. It runs at the next start, or Restart now.");
                 return "staged";
             }
             catch (OperationCanceledException ex) { log("updates: " + version + ": " + ex.Message); return "failed"; }   // not wanted any more: no zip either
@@ -179,7 +179,7 @@ public static class Updates
             if (Directory.Exists(work)) Directory.Delete(work, true);
             Directory.CreateDirectory(work);
             var zip = Path.Combine(work, "Prism-" + version + ".zip");
-            status("Prism " + version + ": downloading" + Ell);
+            status("PRISM " + version + ": downloading" + Ell);
             using (var res = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
             {
                 res.EnsureSuccessStatusCode();
@@ -190,24 +190,24 @@ public static class Updates
                 while ((n = await src.ReadAsync(buf)) > 0)
                 {
                     await dst.WriteAsync(buf.AsMemory(0, n)); got += n;
-                    if ((DateTime.UtcNow - lastSaid).TotalSeconds >= 2) { lastSaid = DateTime.UtcNow; status("Prism " + version + ": downloading " + (got >> 20) + (total > 0 ? " of " + (total >> 20) + " MB" : " MB") + Ell); }
+                    if ((DateTime.UtcNow - lastSaid).TotalSeconds >= 2) { lastSaid = DateTime.UtcNow; status("PRISM " + version + ": downloading " + (got >> 20) + (total > 0 ? " of " + (total >> 20) + " MB" : " MB") + Ell); }
                 }
             }
-            status("Prism " + version + ": checking" + Ell);
+            status("PRISM " + version + ": checking" + Ell);
             string actual;
             await using (var f = File.OpenRead(zip)) actual = Convert.ToHexString(await SHA256.HashDataAsync(f)).ToLowerInvariant();
             if (actual != sha) { log("updates: " + version + " hash mismatch (" + actual[..12] + " vs " + sha[..12] + ") - the file is not the release, deleted"); try { Directory.Delete(work, true); } catch { } return "failed"; }
-            status("Prism " + version + ": unpacking" + Ell);
+            status("PRISM " + version + ": unpacking" + Ell);
             var unpacked = Path.Combine(work, "unpacked");
             ZipFile.ExtractToDirectory(zip, unpacked);
-            if (!File.Exists(Path.Combine(unpacked, "PrismHost.exe"))) { log("updates: " + version + " unpacked without PrismHost.exe - not a Prism release"); return "failed"; }
+            if (!File.Exists(Path.Combine(unpacked, "PrismHost.exe"))) { log("updates: " + version + " unpacked without PrismHost.exe - not a PRISM release"); return "failed"; }
             inst.StageFromUnpacked(version, unpacked);
             try { Directory.Delete(work, true); } catch { }
             log("updates: " + version + " staged at " + inst.NextDir + " from the zip");
-            status("Prism " + version + " is ready. It runs at the next start, or Restart now.");
+            status("PRISM " + version + " is ready. It runs at the next start, or Restart now.");
             return "staged";
         }
-        catch (Exception ex) { log("updates: " + version + " failed: " + ex.Message); status("Prism " + version + " could not be installed: " + ex.Message); return "failed"; }
+        catch (Exception ex) { log("updates: " + version + " failed: " + ex.Message); status("PRISM " + version + " could not be installed: " + ex.Message); return "failed"; }
     }
 
     public static Version? ParseVersion(string? s) { if (s is null) return null; var cut = s.IndexOfAny(new[] { '+', ' ', '-' }); if (cut >= 0) s = s[..cut]; return Version.TryParse(s, out var v) ? v : null; }
@@ -247,7 +247,7 @@ public static class Updates
         catch (Exception ex) { log("updates: discard " + ex.Message); return false; }
     }
 
-    /// <summary>Restart now: the staged copy is started to install itself once this process has gone (--prism-promote), then it starts Prism
+    /// <summary>Restart now: the staged copy is started to install itself once this process has gone (--prism-promote), then it starts PRISM
     /// from the install folder. True when started; the caller closes.</summary>
     public static bool StartPromotion(Action<string> log)
     {
@@ -273,11 +273,11 @@ public static class Updates
 
     /// <summary>
     /// What a start does (UpdateInstaller.Decide), before anything else opens. True when this process should leave:
-    ///   --prism-promote pid: this is a staged copy - wait for the old Prism to go, install over the install folder, start Prism there;
+    ///   --prism-promote pid: this is a staged copy - wait for the old PRISM to go, install over the install folder, start PRISM there;
     ///   from the install folder with a newer copy staged: start the staged copy to install itself, and leave;
-    ///   from anywhere else, an installed Prism as new or newer: hand off to it (an older update folder, the unzipped download);
+    ///   from anywhere else, an installed PRISM as new or newer: hand off to it (an older update folder, the unzipped download);
     ///   from anywhere else otherwise: install this copy into the install folder and start it from there - the first run of a download,
-    ///   and the first run of this version after an older Prism unpacked it under the data folder.
+    ///   and the first run of this version after an older PRISM unpacked it under the data folder.
     /// A debug build (a developer's) never installs or hands off; PRISM_NO_HANDOFF turns all of it off.
     /// </summary>
     public static bool AtStart(Action<string> log)
@@ -296,11 +296,11 @@ public static class Updates
         if (pi >= 0)
         {
             var rest = args.Where((_, i) => i != pi && i != pi + 1).ToList();
-            // the staged copy was let go (its tombstone), or never verified: it does not install itself; the installed Prism starts as it was
+            // the staged copy was let go (its tombstone), or never verified: it does not install itself; the installed PRISM starts as it was
             // (security review 2026-10-30, the second pass)
             if (File.Exists(inst.DiscardTomb) || !File.Exists(Path.Combine(myDir, Updating.UpdateInstaller.VerifiedName)))
             {
-                log("updates: the staged copy was let go before it could install; the installed Prism starts as it was");
+                log("updates: the staged copy was let go before it could install; the installed PRISM starts as it was");
                 Launch(InstallExe, rest, log);
                 return true;
             }
@@ -309,15 +309,15 @@ public static class Updates
                 try { using var old = System.Diagnostics.Process.GetProcessById(pid); old.WaitForExit(60_000); } catch { /* already gone */ }
             }
             PhoneLauncher.StopRunning(log);   // it runs from the install folder's exe: its files are replaced next
-            // looked at again now that the old Prism has gone: a discard it sent in its last moments stands (security review 2026-10-30, the third pass)
+            // looked at again now that the old PRISM has gone: a discard it sent in its last moments stands (security review 2026-10-30, the third pass)
             if (File.Exists(inst.DiscardTomb) || !File.Exists(Path.Combine(myDir, Updating.UpdateInstaller.VerifiedName)))
             {
-                log("updates: the staged copy was let go as the old Prism closed; the installed Prism starts as it was");
+                log("updates: the staged copy was let go as the old PRISM closed; the installed PRISM starts as it was");
                 Launch(InstallExe, rest, log);
                 return true;
             }
             try { inst.Promote(myDir, CurrentVersion); WriteLegacyPointer(log); EnsureShortcut(log); }
-            catch (Exception ex) { log("updates: the staged copy could not install itself (" + ex.Message + "); the installed Prism starts as it was"); }
+            catch (Exception ex) { log("updates: the staged copy could not install itself (" + ex.Message + "); the installed PRISM starts as it was"); }
             Launch(InstallExe, rest, log);
             return true;
         }
@@ -332,18 +332,18 @@ public static class Updates
                 log("updates: a newer version is staged; it installs itself as this one closes");
                 return Launch(Path.Combine(inst.NextDir, "PrismHost.exe"), new[] { "--prism-promote", Environment.ProcessId.ToString() }.Concat(args), log);
             case Updating.UpdateInstaller.StartAction.HandOffToInstall:
-                log("updates: handing off to the installed Prism at " + InstallExe);
+                log("updates: handing off to the installed PRISM at " + InstallExe);
                 return Launch(InstallExe, args, log);
             case Updating.UpdateInstaller.StartAction.InstallSelfThenLaunch:
                 PhoneLauncher.StopRunning(log);   // the phone launcher is a PrismHost from the install folder too, and holds its files
-                if (RunningFromInstall()) { log("updates: Prism is already running from " + InstallDir + "; this copy runs as it is"); return false; }
+                if (RunningFromInstall()) { log("updates: PRISM is already running from " + InstallDir + "; this copy runs as it is"); return false; }
                 try
                 {
                     log("updates: installing this copy (" + CurrentVersion + ") into " + InstallDir);
                     inst.Promote(myDir, CurrentVersion);
                     WriteLegacyPointer(log);
                     EnsureShortcut(log);
-                    // the installed copy says once where Prism now lives and that the downloaded folder can go (the first-run note)
+                    // the installed copy says once where PRISM now lives and that the downloaded folder can go (the first-run note)
                     return Launch(InstallExe, args.Concat(new[] { InstalledFromArg, myDir }), log);
                 }
                 catch (Exception ex) { log("updates: could not install into " + InstallDir + " (" + ex.Message + "); running from " + myDir); return false; }
@@ -357,7 +357,7 @@ public static class Updates
         }
     }
 
-    /// <summary>Another Prism running from the install folder (its files are in use).</summary>
+    /// <summary>Another PRISM running from the install folder (its files are in use).</summary>
     private static bool RunningFromInstall()
     {
         try
@@ -376,7 +376,7 @@ public static class Updates
         return false;
     }
 
-    /// <summary>The pointer an older Prism reads at its start (data folder app\current.json): it names the installed Prism, so a shortcut to an
+    /// <summary>The pointer an older PRISM reads at its start (data folder app\current.json): it names the installed PRISM, so a shortcut to an
     /// old unzipped copy, or an older update folder, hands off to the install folder.</summary>
     private static void WriteLegacyPointer(Action<string> log)
     {
@@ -392,7 +392,7 @@ public static class Updates
         catch (Exception ex) { log("updates: pointer " + ex.Message); }
     }
 
-    /// <summary>The update folders older Prisms unpacked under the data folder (app\0.23.0 and so on): the installed Prism replaces them.</summary>
+    /// <summary>The update folders older Prisms unpacked under the data folder (app\0.23.0 and so on): the installed PRISM replaces them.</summary>
     private static void RemoveOldUpdateFolders(Action<string> log)
     {
         try
@@ -401,18 +401,18 @@ public static class Updates
             foreach (var d in Directory.GetDirectories(AppRoot))
             {
                 if (ParseVersion(Path.GetFileName(d)) is null) continue;
-                try { Directory.Delete(d, true); log("updates: old update folder " + Path.GetFileName(d) + " removed (Prism runs from " + InstallDir + ")"); }
-                catch { /* in use (an older Prism still closing): next start */ }
+                try { Directory.Delete(d, true); log("updates: old update folder " + Path.GetFileName(d) + " removed (PRISM runs from " + InstallDir + ")"); }
+                catch { /* in use (an older PRISM still closing): next start */ }
             }
         }
         catch (Exception ex) { log("updates: tidy " + ex.Message); }
     }
 
-    /// <summary>Where a shortcut to Prism can live that Prism may write itself (the person's own folders; no administrator rights). The taskbar
+    /// <summary>Where a shortcut to PRISM can live that PRISM may write itself (the person's own folders; no administrator rights). The taskbar
     /// is not one: Windows lets only the person pin a desktop app there.</summary>
     public enum ShortcutPlace { StartMenu, Desktop }
     public static string ShortcutPath(ShortcutPlace place) =>
-        Path.Combine(Environment.GetFolderPath(place == ShortcutPlace.StartMenu ? Environment.SpecialFolder.Programs : Environment.SpecialFolder.DesktopDirectory), "Prism.lnk");
+        Path.Combine(Environment.GetFolderPath(place == ShortcutPlace.StartMenu ? Environment.SpecialFolder.Programs : Environment.SpecialFolder.DesktopDirectory), "PRISM.lnk");
     public static bool HasShortcut(ShortcutPlace place) { try { return File.Exists(ShortcutPath(place)); } catch { return false; } }
     private static bool ShortcutsOff => SelfTest || Environment.GetEnvironmentVariable("PRISM_INSTALL_DIR") is { Length: > 0 };
 
@@ -432,25 +432,38 @@ public static class Updates
                 dynamic shell = Activator.CreateInstance(type)!;
                 dynamic sc = shell.CreateShortcut(lnk);
                 var target = (string)sc.TargetPath;
-                if (string.Equals(target, InstallExe, StringComparison.OrdinalIgnoreCase)) continue;
-                if (!string.Equals(Path.GetFileName(target), "PrismHost.exe", StringComparison.OrdinalIgnoreCase)) continue;   // someone else's Prism.lnk
+                if (!string.Equals(Path.GetFileName(target), "PrismHost.exe", StringComparison.OrdinalIgnoreCase)) continue;   // another app's shortcut of the same name
+                var renamed = BrandShortcutName(lnk);
+                if (renamed) log("updates: the " + (place == ShortcutPlace.StartMenu ? "Start menu" : "desktop") + " shortcut is named PRISM");
+                if (!renamed && string.Equals(target, InstallExe, StringComparison.OrdinalIgnoreCase)) continue;
                 WriteShortcut(sc);
                 log("updates: the " + (place == ShortcutPlace.StartMenu ? "Start menu" : "desktop") + " shortcut points at " + InstallExe);
             }
             catch (Exception ex) { log("updates: shortcut " + ex.Message); }
         }
     }
+    /// <summary>The shortcut's name is the brand as it is written, PRISM (2026-11-10). One made under the name in mixed case is renamed, once:
+    /// the two names are one file to Windows, so only the spelling on disk changes. True when it was renamed.</summary>
+    private static bool BrandShortcutName(string lnk)
+    {
+        var dir = Path.GetDirectoryName(lnk); var want = Path.GetFileName(lnk);
+        if (dir is null) return false;
+        var have = Directory.GetFiles(dir, want);
+        if (have.Length != 1 || Path.GetFileName(have[0]) == want) return false;
+        File.Move(have[0], lnk);
+        return true;
+    }
     private static void WriteShortcut(dynamic sc)
     {
         sc.TargetPath = InstallExe;
         sc.WorkingDirectory = InstallDir;
-        sc.Description = "Prism by Entangled";
+        sc.Description = "PRISM by Entangled";
         sc.IconLocation = InstallExe + ",0";
         sc.Save();
     }
 
-    /// <summary>The person's choice: a shortcut to the installed Prism made, or taken away (only one that starts Prism, never another app's
-    /// Prism.lnk). True when the place now matches the choice.</summary>
+    /// <summary>The person's choice: a shortcut to the installed PRISM made, or taken away (only one that starts PRISM, never another app's
+    /// shortcut of the same name). True when the place now matches the choice.</summary>
     public static bool SetShortcut(ShortcutPlace place, bool on, Action<string> log)
     {
         if (ShortcutsOff) { log("updates: shortcuts are off for a test install"); return false; }
@@ -471,7 +484,7 @@ public static class Updates
             }
             if (!File.Exists(lnk)) return true;
             dynamic cur = shell.CreateShortcut(lnk);
-            if (!string.Equals(Path.GetFileName((string)cur.TargetPath), "PrismHost.exe", StringComparison.OrdinalIgnoreCase)) { log("updates: " + lnk + " is not Prism's; left"); return false; }
+            if (!string.Equals(Path.GetFileName((string)cur.TargetPath), "PrismHost.exe", StringComparison.OrdinalIgnoreCase)) { log("updates: " + lnk + " is not PRISM's; left"); return false; }
             File.Delete(lnk);
             log("updates: " + name + " shortcut removed");
             return true;

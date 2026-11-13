@@ -12,7 +12,7 @@
     "agenda-today": "section.today"
   },
   "verified": {
-    "chore-list": "true - the id belongs to Prism's own page (targets/win-host/PrismHost/Assets/tiles/chores/index.html), so it cannot drift without this repo changing",
+    "chore-list": "true - the id belongs to PRISM's own page (targets/win-host/PrismHost/Assets/tiles/chores/index.html), so it cannot drift without this repo changing",
     "chore-notes": "true - same page, same repo",
     "chore-board": "true - same page, same repo",
     "timer-remaining": "true - targets/win-host/PrismHost/Assets/tiles/timer/index.html",

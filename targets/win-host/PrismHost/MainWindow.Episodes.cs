@@ -256,9 +256,9 @@ public sealed partial class MainWindow
             try { raw = id.Length > 0 ? await ModelCallAsync("videoPlayEpisode", id) : await ModelCallAsync("videoPlayEpisodeNumber", epSeason.ToString(), epNumber.ToString()); } catch { }
             JsonObject? r = null;
             try { r = raw is null ? null : JsonNode.Parse(raw) as JsonObject; } catch { }
-            if (r?["ok"]?.GetValue<bool>() == true) { SetPill("Prism \u00B7 " + Shorten(series.Length > 0 ? series + " \u00B7 " + title : title, 60) + " on " + service); return; }
+            if (r?["ok"]?.GetValue<bool>() == true) { SetPill("PRISM \u00B7 " + Shorten(series.Length > 0 ? series + " \u00B7 " + title : title, 60) + " on " + service); return; }
             HideStageCurtain();
-            SetPill("Prism \u00B7 could not play " + Shorten(title, 40) + ": " + (r?["error"]?.GetValue<string>() ?? "no answer"));
+            SetPill("PRISM \u00B7 could not play " + Shorten(title, 40) + ": " + (r?["error"]?.GetValue<string>() ?? "no answer"));
         };
         col.Children.Add(play);
         Grid.SetColumn(col, 1);

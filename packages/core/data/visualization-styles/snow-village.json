@@ -1,7 +1,7 @@
 {
   "id": "snow-village",
   "name": "Snowfall Village",
-  "blurb": "Snow settling over a village; every window glows with a band, the flakes drift with the mids.",
+  "blurb": "A village in a snowy valley; every window is a band and throws its light on the snow, the flakes drift with the mids, a string of lights runs with the highs, and a beat rings the church bell.",
   "program": "snow-village",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

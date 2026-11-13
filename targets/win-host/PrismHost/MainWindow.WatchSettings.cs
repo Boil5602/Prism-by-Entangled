@@ -31,7 +31,7 @@ public sealed partial class MainWindow
         if (tab is not null) _settingsTab = tab == "hidden" ? "binge" : tab;   // the hidden titles sit under The Binge (2026-10-14)
         JsonObject? v = null;
         try { v = JsonNode.Parse(await ModelCallAsync("videoSettings") ?? "null") as JsonObject; } catch (Exception e) { LogLine("settings: " + e.Message); }
-        if (v is null) { SetPill("Prism" + Dot + "settings could not be read"); return; }
+        if (v is null) { SetPill("PRISM" + Dot + "settings could not be read"); return; }
         CloseWatchSettings();
         var run = ++_settingsRun;
         var scrim = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xD8, 0x05, 0x06, 0x09)) };
@@ -66,11 +66,11 @@ public sealed partial class MainWindow
             ("simple", "Simple Watch", "A calmer Watch page that makes choosing easy."),
             ("general", "TMDB", "Your TMDB key and account: ratings, the catalog rows, search, my watchlist."),
             ("ads", "Ads & breaks", "How a window looks while an ad plays, and the covering of YouTube TV's breaks."),
-            ("updates", "This Prism", "This PC's name, Prism's own updates and changelog, and when your services' lists are read again."),
+            ("updates", "This PRISM", "This PC's name, PRISM's own updates and changelog, and when your services' lists are read again."),
             ("services", "Services", "Each service, when its lists were last read, and a Refresh for it."),
             ("binge", "The Binge", "The Binge's limits, animation, Kids mode, and the titles you hid from it."),
             ("categories", "Categories", "Rows of titles from your services, chosen by hashtags or words."),
-            ("perf", "Performance", "What Prism is using on this PC."),
+            ("perf", "Performance", "What PRISM is using on this PC."),
         };
         var curLine = sections.FirstOrDefault(x => x.Item1 == _settingsTab).Item3 ?? "";
 
@@ -91,9 +91,9 @@ public sealed partial class MainWindow
         frame.Children.Add(head);
 
         // the list of sections on the left, in four groups (2026-10-17, the designer's pass, finding 11: the list had been in build order, software
-        // updates between ad covers and services): what the Watch page shows, the services it reads, what happens while a title plays, and Prism itself
+        // updates between ad covers and services): what the Watch page shows, the services it reads, what happens while a title plays, and PRISM itself
         var nav = new StackPanel { Spacing = 4, Padding = new Thickness(14, 2, 12, 14) };
-        var groups = new[] { ("Watch page", new[] { "simple", "binge", "categories" }), ("Services", new[] { "services", "general" }), ("Playing", new[] { "ads" }), ("Prism", new[] { "updates", "perf" }) };
+        var groups = new[] { ("Watch page", new[] { "simple", "binge", "categories" }), ("Services", new[] { "services", "general" }), ("Playing", new[] { "ads" }), ("PRISM", new[] { "updates", "perf" }) };
         foreach (var (group, ids) in groups)
         {
             nav.Children.Add(new TextBlock { Text = group, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, Opacity = 0.8, Margin = new Thickness(16, 10, 0, 2) });
@@ -118,7 +118,7 @@ public sealed partial class MainWindow
 
         // the Save & exit of each tab gathers its own changes
         Func<Task<List<string>>> saveTab;
-        // one subject a section: TMDB, Ads & breaks, Updates (This Prism first), Services, The Binge with its hidden titles, Categories, Performance
+        // one subject a section: TMDB, Ads & breaks, Updates (This PRISM first), Services, The Binge with its hidden titles, Categories, Performance
         if (_settingsTab == "ads") saveTab = BuildAdsTab(body, v);
         else if (_settingsTab == "updates")
         {
@@ -155,7 +155,7 @@ public sealed partial class MainWindow
         {
             var said = await saveTab();
             CloseWatchSettings();
-            if (said.Count > 0) SetPill("Prism" + Dot + string.Join(Dot, said));
+            if (said.Count > 0) SetPill("PRISM" + Dot + string.Join(Dot, said));
         };
         foot.Children.Add(save);
 
@@ -215,7 +215,7 @@ public sealed partial class MainWindow
         var tmdbHead = new TextBlock { Text = "TMDB key", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) };
         ToolTipService.SetToolTip(tmdbHead, "Optional: your own free TMDB account's API key (personal use), kept on this device and sent to TMDB alone. It turns on ratings on cards (TMDB members' mean vote with the vote count), the catalog rows, Browse, the catalog search and the Episodes list for services that cannot list their own.");
         body.Children.Add(tmdbHead);
-        body.Children.Add(new TextBlock { Text = hasKey ? "Set. Ratings, the catalog rows and search are on." : "Not set. Prism works without one. Press Get a free key and your phone does the rest.", FontSize = 13, Foreground = hasKey ? HubAmber : HubInk });
+        body.Children.Add(new TextBlock { Text = hasKey ? "Set. Ratings, the catalog rows and search are on." : "Not set. PRISM works without one. Press Get a free key and your phone does the rest.", FontSize = 13, Foreground = hasKey ? HubAmber : HubInk });
         var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var keyBox = new PasswordBox { PlaceholderText = hasKey ? "Replace the key (optional)" : "TMDB API key or read access token", Width = 380, FontSize = 13 };
         keyRow.Children.Add(keyBox);
@@ -223,14 +223,14 @@ public sealed partial class MainWindow
         {
             // from no account to a working key by phone, a code a step (MainWindow.TmdbGuide.cs, 2026-10-10)
             var guide = Chip(new TextBlock { Text = "Get a free key", FontSize = 13, Foreground = HubInk }, true);
-            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to Prism. About three minutes.");
+            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to PRISM. About three minutes.");
             guide.Click += (_, __) => _ = ShowTmdbGuideAsync();
             keyRow.Children.Add(guide);
         }
         if (hasKey)
         {
             var clear = Chip(new TextBlock { Text = "Clear the key", FontSize = 13, Foreground = HubDim }, false);
-            clear.Click += async (_, __) => { await ModelCallAsync("lensSetTmdbKey", (string?)null); SetPill("Prism" + Dot + "TMDB key cleared"); await ShowWatchSettingsAsync(); if (VideoHubOpen) _ = ShowVideoHubAsync(); };
+            clear.Click += async (_, __) => { await ModelCallAsync("lensSetTmdbKey", (string?)null); SetPill("PRISM" + Dot + "TMDB key cleared"); await ShowWatchSettingsAsync(); if (VideoHubOpen) _ = ShowVideoHubAsync(); };
             keyRow.Children.Add(clear);
         }
         body.Children.Add(keyRow);
@@ -280,7 +280,7 @@ public sealed partial class MainWindow
         body.Children.Add(pauseRow);
         var all = Chip(new TextBlock { Text = "Refresh everything now", FontSize = 13, Foreground = HubInk }, false);
         ToolTipService.SetToolTip(all, "Every service's lists, profiles page and Continue Watching read again now (not the owned libraries' long walks).");
-        all.Click += async (_, __) => { await ModelCallAsync("videoRefreshLists", true); SetPill("Prism" + Dot + "reading every service's lists"); };
+        all.Click += async (_, __) => { await ModelCallAsync("videoRefreshLists", true); SetPill("PRISM" + Dot + "reading every service's lists"); };
         body.Children.Add(all);
         _ = FollowUpdatesAsync(run, new Grid(), new Grid(), schedLine);   // the schedule line alone here; the services grid and the catalog rows are the Services tab's (2026-10-14)
 
@@ -297,7 +297,7 @@ public sealed partial class MainWindow
     {
         // Video ads (2026-10-07): how the Video player's breaks look, from the next break on
         var adsHead = new TextBlock { Text = "Video ads", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 6, 0, 0) };
-        ToolTipService.SetToolTip(adsHead, "What a window shows while an ad plays. Prism never blocks or skips an ad. Music services keep their own cover.");
+        ToolTipService.SetToolTip(adsHead, "What a window shows while an ad plays. PRISM never blocks or skips an ad. Music services keep their own cover.");
         body.Children.Add(adsHead);
         var look = v["adsLook"]?.GetValue<string>() ?? "veil";
         var adsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
@@ -336,7 +336,7 @@ public sealed partial class MainWindow
             pics.Add(r);
             return r;
         }
-        Pics("Nature photos", "photos", "Prism's hand-picked nature photos, all public domain. Hover the corner symbol on a cover for each one's credit.");
+        Pics("Nature photos", "photos", "PRISM's hand-picked nature photos, all public domain. Hover the corner symbol on a cover for each one's credit.");
         Pics("Cosmos", "cosmos", "NASA's pictures of space, public domain.");
         Pics("Museum art", "gallery", "Paintings and prints from the Art Institute of Chicago and the Met, public domain.");
         coverRow.Children.Add(coverNote);
@@ -351,7 +351,7 @@ public sealed partial class MainWindow
             rb.Checked += (_, __) => SetBreakWatchMode(mode, "");
             bwRow.Children.Add(rb);
         }
-        BwChoice("all", "All breaks", "YouTube TV doesn't say when most of a channel's commercials play. Prism watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen, and covers each break it finds. Everything is read on this PC.");
+        BwChoice("all", "All breaks", "YouTube TV doesn't say when most of a channel's commercials play. PRISM watches the picture instead: the channel's logo, cuts to black and web addresses or phone numbers on screen, and covers each break it finds. Everything is read on this PC.");
         BwChoice("sure", "Sure breaks only", "Only the breaks that need no guess: the ad slots YouTube TV marks itself, and paid programmes the guide or the screen names. It never covers the show by mistake, and it misses the breaks YouTube TV doesn't mark.");
         BwChoice("off", "Off", "YouTube TV's channels are never covered.");
         body.Children.Add(bwRow);
@@ -359,7 +359,7 @@ public sealed partial class MainWindow
         // a line naming the pack in force
         var packRow = new StackPanel { Spacing = 2, Margin = new Thickness(0, 10, 0, 0) };
         var packBox = new CheckBox { Content = new TextBlock { Text = "Get ad cover updates from Entangled", FontSize = 14, Foreground = HubInk }, IsChecked = Services.BreakPack.Enabled, MinWidth = 0 };
-        ToolTipService.SetToolTip(packBox, "Once a day Prism fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data. Nothing about this PC is sent: one plain request, no identifier. Off, the detections that came with this version are used.");
+        ToolTipService.SetToolTip(packBox, "Once a day PRISM fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data. Nothing about this PC is sent: one plain request, no identifier. Off, the detections that came with this version are used.");
         var packNote = new TextBlock { FontSize = 13, Foreground = HubDim, Margin = new Thickness(28, 0, 0, 0), TextWrapping = TextWrapping.Wrap };
         void PaintPack() { var p = s_pack; packNote.Text = p is null ? "Detections: the ones built into this version." : "Detections: " + p.Line + (string.IsNullOrEmpty(p.Notes) ? "" : ". " + p.Notes); }
         PaintPack();
@@ -398,7 +398,7 @@ public sealed partial class MainWindow
             foreach (var ch in sure)
             {
                 var chip = Chip(new TextBlock { Text = ch + "  \u00D7", FontSize = 12, Foreground = HubInk }, false);
-                ToolTipService.SetToolTip(chip, "Cover every break Prism finds on " + ch + " again");
+                ToolTipService.SetToolTip(chip, "Cover every break PRISM finds on " + ch + " again");
                 chip.Click += (_, __) => { SetChannelMode(ch, ChannelCovers.On); DrawSure(); };
                 sureRow.Children.Add(chip);
             }
@@ -418,7 +418,7 @@ public sealed partial class MainWindow
         }
         if (autoBox.SelectedItem is null) autoBox.SelectedIndex = 1;
         autoBox.SelectionChanged += (_, __) => { if (autoBox.SelectedItem is ComboBoxItem { Tag: int n }) { HostPrefs.Set("video.breakWatchAutoSure", (double)n); LogLine("break watch: sure breaks only after " + n + " Not an ad presses in a week (0 never)"); } };
-        ToolTipService.SetToolTip(autoBox, "Prism only knows a cover was wrong when you press Not an ad. After this many presses on one channel in a week, it covers that channel only where YouTube TV marks the break.");
+        ToolTipService.SetToolTip(autoBox, "PRISM only knows a cover was wrong when you press Not an ad. After this many presses on one channel in a week, it covers that channel only where YouTube TV marks the break.");
         autoRow.Children.Add(autoBox);
         body.Children.Add(autoRow);
         return async () =>
@@ -462,7 +462,7 @@ public sealed partial class MainWindow
     }
 
     private static readonly string ScheduleScope =
-        "Scheduled content updates: every 20 minutes while Prism is quiet, each service's Continue Watching, My List and profiles page are read again on hidden pages, "
+        "Scheduled content updates: every 20 minutes while PRISM is quiet, each service's Continue Watching, My List and profiles page are read again on hidden pages, "
         + "and every 6 hours the owned libraries (Fandango at Home, Movies Anywhere) are walked. A pause holds only these.\n\n"
         + "These still run during a pause, because you or Watch start them: Refresh now; opening Watch (a service not read in 10 minutes); half a minute after a title stops; "
         + "a profile switch; a My List add or remove; opening Library (owned libraries more than 3 hours old). The catalog rows (Most read, New episodes, New movies) "
@@ -501,7 +501,7 @@ public sealed partial class MainWindow
         var listsAt = sch?["listsAt"];
         var every = sch?["everyMs"] is JsonValue ev && ev.TryGetValue<double>(out var em) ? (int)(em / 60000) : 20;
         // three short lines, not one packed with middots (2026-10-17, finding 16)
-        schedLine.Text = (paused ? "Paused now (quiet hours)." + (char)10 : "") + "Last scheduled read: " + Ago(listsAt) + ", then every " + every + " min while Prism is quiet." + (char)10 + "Owned libraries: " + Ago(sch?["ownedAt"]) + ", every 6 h." + ((sch?["last"]?.GetValue<string>() ?? "") is { Length: > 0 } last ? (char)10 + "Last check: " + last + "." : "");
+        schedLine.Text = (paused ? "Paused now (quiet hours)." + (char)10 : "") + "Last scheduled read: " + Ago(listsAt) + ", then every " + every + " min while PRISM is quiet." + (char)10 + "Owned libraries: " + Ago(sch?["ownedAt"]) + ", every 6 h." + ((sch?["last"]?.GetValue<string>() ?? "") is { Length: > 0 } last ? (char)10 + "Last check: " + last + "." : "");
 
         // services
         grid.Children.Clear(); grid.RowDefinitions.Clear();
@@ -528,7 +528,7 @@ public sealed partial class MainWindow
                 var b = Chip(new TextBlock { Text = "Refresh", FontSize = 12, Foreground = HubInk }, false);
                 ToolTipService.SetToolTip(b, name + "'s pages read again now.");
                 var a2 = app;
-                b.Click += async (_, __) => { await ModelCallAsync("videoRefreshApp", a2); SetPill("Prism" + Dot + "reading " + name); };
+                b.Click += async (_, __) => { await ModelCallAsync("videoRefreshApp", a2); SetPill("PRISM" + Dot + "reading " + name); };
                 Put(grid, b, r, 4);
             }
             r++;

@@ -7,7 +7,7 @@ using System.Numerics;
 namespace PrismHost.Services;
 
 /// <summary>
-/// The ads Prism has seen (2026-10-06): commercials repeat - the same spots ran on FX, AMC,
+/// The ads PRISM has seen (2026-10-06): commercials repeat - the same spots ran on FX, AMC,
 /// BBC America and FOX 8 within the hour - so each picture of a break the watch is sure of is kept as a fingerprint, and a window
 /// showing a picture it has seen in a break before is showing an ad. A fingerprint is the frame's shape at a glance: a 16 x 17 grid of
 /// the 320 x 180 grey frame's averages, 496 bits for which way the brightness steps between neighbours. Matched on today's labelled

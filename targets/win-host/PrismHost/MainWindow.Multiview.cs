@@ -56,7 +56,7 @@ public sealed partial class MainWindow
     {
         if (!_mvOn || _mvTarget <= 0) return true;
         var n = _mvTarget;
-        SetPill("Prism \u00B7 " + Shorten(title, 40) + " \u2192 window " + (n + 1));
+        SetPill("PRISM \u00B7 " + Shorten(title, 40) + " \u2192 window " + (n + 1));
         _ = MvStepAfterAsync(n);
         return false;
     }
@@ -108,7 +108,7 @@ public sealed partial class MainWindow
         var had = _mvOn || _mvBigHas;
         var r = await MvCallAsync("clearAll");
         if (r?["sceneId"]?.GetValue<string>() is { } sid) await SceneAppliedAsync(sid, r.ToJsonString());
-        SetPill("Prism \u00B7 " + (had ? "screens cleared" : "nothing to clear"));
+        SetPill("PRISM \u00B7 " + (had ? "screens cleared" : "nothing to clear"));
         DrawMvStrip();
         // in place, never the page drawn again (2026-09-25): the corner's screens follow core's word (MvCallAsync above), the head says Nothing
         // playing, and the rows take the watched titles in as they follow the services (FollowHubAsync, in place)
@@ -275,9 +275,9 @@ public sealed partial class MainWindow
     {
         var name = MvWindowName(tile);
         var r = await MvCallAsync("remove", tile);
-        if (r?["ok"]?.GetValue<bool>() == false) { SetPill("Prism \u00B7 " + (r["error"]?.GetValue<string>() ?? "could not clear it")); return; }
+        if (r?["ok"]?.GetValue<bool>() == false) { SetPill("PRISM \u00B7 " + (r["error"]?.GetValue<string>() ?? "could not clear it")); return; }
         if (r?["sceneId"]?.GetValue<string>() is { } sid) await SceneAppliedAsync(sid, r.ToJsonString());
-        SetPill("Prism \u00B7 " + Shorten(name, 40) + " cleared" + (_mvWindows.Count == 0 ? ". Nothing is playing now" : ""));
+        SetPill("PRISM \u00B7 " + Shorten(name, 40) + " cleared" + (_mvWindows.Count == 0 ? ". Nothing is playing now" : ""));
         DrawMvStrip();
         if (StageBar.Visibility == Visibility.Visible) await ShowStageBarAsync(true);
     }
@@ -297,7 +297,7 @@ public sealed partial class MainWindow
         if (InRemoteSession())
         {
             LogLine("drm repair: " + tile + " - remote session, protected video unavailable");
-            SetPill("Prism \u00B7 " + Shorten(name, 40) + " can't play over Remote Desktop. Protected video needs the PC's own screen.");
+            SetPill("PRISM \u00B7 " + Shorten(name, 40) + " can't play over Remote Desktop. Protected video needs the PC's own screen.");
             await MvCallAsync("state");
             var lead = _mvWindows.OfType<JsonObject>().FirstOrDefault()?["tile"]?.GetValue<string>();
             if (_mvOn && lead != tile && _mvWindows.OfType<JsonObject>().Any(w => w["tile"]?.GetValue<string>() == tile)) await MvRemoveWindowAsync(tile);
@@ -307,12 +307,12 @@ public sealed partial class MainWindow
         {
             _drmRetried[tile] = DateTime.UtcNow;
             LogLine("drm repair: " + tile + " reloaded after DRM_NO_SUPPORTED_KEY_SYSTEM");
-            SetPill("Prism \u00B7 " + Shorten(name, 40) + ": its video protection failed, trying again");
+            SetPill("PRISM \u00B7 " + Shorten(name, 40) + ": its video protection failed, trying again");
             await _surfaces.EvalOnTileAsync(tile, "location.reload()");
             return;
         }
         LogLine("drm repair: " + tile + " failed again - reported");
-        SetPill("Prism \u00B7 " + Shorten(name, 40) + " couldn't start its video protection twice. Restarting Prism usually clears it.");
+        SetPill("PRISM \u00B7 " + Shorten(name, 40) + " couldn't start its video protection twice. Restarting PRISM usually clears it.");
         await MvCallAsync("state");
         var first = _mvWindows.OfType<JsonObject>().FirstOrDefault()?["tile"]?.GetValue<string>();
         if (_mvOn && first != tile && _mvWindows.OfType<JsonObject>().Any(w => w["tile"]?.GetValue<string>() == tile)) await MvRemoveWindowAsync(tile);
@@ -322,7 +322,7 @@ public sealed partial class MainWindow
     {
         var r = await MvCallAsync("close");
         if (r?["sceneId"]?.GetValue<string>() is { } sid) await SceneAppliedAsync(sid, r.ToJsonString());
-        SetPill("Prism \u00B7 multiview cleared. The big window keeps playing");
+        SetPill("PRISM \u00B7 multiview cleared. The big window keeps playing");
         DrawMvStrip();
         if (StageBar.Visibility == Visibility.Visible) await ShowStageBarAsync(true);
     }
@@ -352,7 +352,7 @@ public sealed partial class MainWindow
         if (!_mvOn || (cmd != "play" && cmd != "pause") || _mvWindows.Count < 2) return false;
         if ((Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) == 0) return false;
         foreach (var w in _mvWindows.OfType<JsonObject>()) if (w["tile"]?.GetValue<string>() is { } t) _brain.Call(HostCalls.TileCommand, t, cmd);
-        SetPill("Prism \u00B7 " + (cmd == "pause" ? "paused" : "playing") + " all " + _mvWindows.Count + " windows");
+        SetPill("PRISM \u00B7 " + (cmd == "pause" ? "paused" : "playing") + " all " + _mvWindows.Count + " windows");
         return true;
     }
     /// <summary>The Play / Pause tooltip's second line while Shift has something to reach.</summary>

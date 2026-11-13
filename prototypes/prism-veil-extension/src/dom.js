@@ -1,5 +1,5 @@
 /*
-  Prism Veil - DOM helpers shared by every module. Loaded first (after art.js).
+  PRISM Veil - DOM helpers shared by every module. Loaded first (after art.js).
 
   All modules run as classic content scripts in the same isolated world and
   talk through one namespace, PV (window.__prismVeilNS). Each file exports the
@@ -27,7 +27,7 @@
     addEventListener("unhandledrejection", function (e) { var r = e && e.reason; if (r && (r.stack || "").match(/chrome-extension:|moz-extension:/)) _rec("promise: " + (r.message || r)); }, true);
     window.__prismVeilNS = window.__prismVeilNS || {}; window.__prismVeilNS.recordError = _rec;
     // An embed frame announces itself to the parent the moment it loads, so a
-    // top-page report can say whether Prism is present in each iframe at all
+    // top-page report can say whether PRISM is present in each iframe at all
     // (Firefox + Google's YouTube embed: no frame trace by any route, 2026-08-29).
     if (window !== window.top) { try { window.parent.postMessage({ __prismFrameHello: 1, href: location.href.slice(0, 120) }, "*"); } catch (e) {} }
     // top page: keep embed frames' rings (diagnostic text only; shape-checked)
@@ -187,12 +187,12 @@
   PV.classStr = classStr;
   PV.mainVideo = mainVideo;
 
-  // Keep a Prism UI element (the pill, the Report chip) a top-most child of
+  // Keep a PRISM UI element (the pill, the Report chip) a top-most child of
   // <html>, above the page's own content AND any ad that appends itself late -
   // some floating video ads sit at the maximum z-index (2147483647), and at
   // equal z-index the LATER DOM sibling wins. Re-asserted on every <html>
   // mutation (synchronously, before the next input event) and on a slow timer.
-  // A Prism element only jumps ahead of NON-Prism nodes, so our own UI elements
+  // A PRISM element only jumps ahead of NON-PRISM nodes, so our own UI elements
   // and covers never shuffle each other into a loop.
   // PV.releaseOnTop(el) stops the watcher so the element can actually be
   // removed (the Report chip toggle); without it, fix() would re-append it.

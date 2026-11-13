@@ -26,5 +26,5 @@
       "selector": null
     }
   ],
-  "notes": "Your own media server. Jellyfin has no fixed address: Prism asks for your server's when you add it (http://192.168.1.20:8096 or the address you reach it at from outside), and opens its web pages there. Sign in on the page with the user your server knows. No ads, no DRM, nothing but your own library."
+  "notes": "Your own media server. Jellyfin has no fixed address: PRISM asks for your server's when you add it (http://192.168.1.20:8096 or the address you reach it at from outside), and opens its web pages there. Sign in on the page with the user your server knows. No ads, no DRM, nothing but your own library."
 }

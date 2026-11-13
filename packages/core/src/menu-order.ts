@@ -3,7 +3,7 @@
  *
  * A PURE function of the four §4 inputs and nothing else: the rows each service reported (in the service's own order),
  * the household's local watch log, the first-seen record of every title, and the moment "now". No ranking or
- * recommendation logic beyond the §4 recency rule and the person's own lists; nothing Prism invents. The fixture
+ * recommendation logic beyond the §4 recency rule and the person's own lists; nothing PRISM invents. The fixture
  * (menu-order.test.ts) holds it to that: same inputs, same order; an item with no real time carries no time.
  *
  * Recency, in priority:
@@ -96,7 +96,7 @@ export function sortTitle(title: string): string {
  * A title whose card carries the SERVICE'S OWN banner ("New Season", "New Season Coming Soon", "Recently Added",
  * "Leaving Soon" - whatever the page shows, read by the adapter into item.badge) comes first, A to Z among those
  * (2026-09-23). The banner is the service's
- * word, shown on the card; Prism ranks nothing itself.
+ * word, shown on the card; PRISM ranks nothing itself.
  */
 /**
  * TMDB's banner for a series with an episode out in the last week (2026-09-23): `aired` is TMDB's
@@ -149,14 +149,14 @@ export type ContinueOrder = "service" | "title" | "watched";
 export const CONTINUE_ORDERS: ReadonlyArray<{ id: ContinueOrder; label: string; hint: string }> = [
   { id: "title", label: "Alpha", hint: "Every title A to Z by name, whatever the service. A leading The, A or An is skipped. Reversed, Z to A." },   // "Alpha" (2026-10-14)
   { id: "service", label: "By service", hint: "Each service's titles together, A to Z, with the services A to Z. Reversed, both go Z to A." },
-  { id: "watched", label: "Last watched", hint: "What Prism played most recently first, with the time on the card. Titles Prism has never played sit below in each service's own order, the services A to Z. No service says when you watched something in its own app, so a title watched there sorts below until Prism plays it once. Reversed, the played ones oldest first and the services Z to A." },
+  { id: "watched", label: "Last watched", hint: "What PRISM played most recently first, with the time on the card. Titles PRISM has never played sit below in each service's own order, the services A to Z. No service says when you watched something in its own app, so a title watched there sorts below until PRISM plays it once. Reversed, the played ones oldest first and the services Z to A." },
 ];
 export function continueOrderOf(v: unknown): ContinueOrder { return v === "service" ? "service" : v === "watched" ? "watched" : "title"; }
 /**
- * Last watched (2026-10-14, the owner agreed): the titles Prism itself
+ * Last watched (2026-10-14, the owner agreed): the titles PRISM itself
  * saw playing, newest first by the local log's own time (the one time a card ever shows), then every title the log has no time for, grouped by
- * service A to Z in the service's own order (its idea of what is next; no time is guessed from it, section 4). No service tells Prism when a title was
- * watched elsewhere, so a title watched in a service's own app sorts below until Prism plays it once. Reversed: the played ones oldest first, then
+ * service A to Z in the service's own order (its idea of what is next; no time is guessed from it, section 4). No service tells PRISM when a title was
+ * watched elsewhere, so a title watched in a service's own app sorts below until PRISM plays it once. Reversed: the played ones oldest first, then
  * the rest with the services Z to A, each in its own order reversed. Pure.
  */
 export function orderByWatched(rows: readonly MenuServiceRow[], log: readonly MenuLogEntry[], seen: FirstSeen, now: number, reverse = false): MenuCard[] {

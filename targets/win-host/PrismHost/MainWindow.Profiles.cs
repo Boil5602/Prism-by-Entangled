@@ -38,7 +38,7 @@ public sealed partial class MainWindow
     {
         JsonObject? v = null;
         try { v = JsonNode.Parse(await ModelCallAsync("videoProfilesView") ?? "null") as JsonObject; } catch (Exception e) { LogLine("profiles: " + e.Message); }
-        if (v is null) { SetPill("Prism" + Dot + "profiles could not be read"); return; }
+        if (v is null) { SetPill("PRISM" + Dot + "profiles could not be read"); return; }
         _profView = v;
         try { _signInView = JsonNode.Parse(await ModelCallAsync("signInsView", WelcomeEntriesJson()) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-ins: " + e.Message); _signInView = null; }
         _draftSignIns.Clear();
@@ -127,7 +127,7 @@ public sealed partial class MainWindow
             del.Click += async (_, __) =>
             {
                 await ModelCallAsync("videoPresetDelete", pid);
-                SetPill("Prism" + Dot + pname + " deleted");
+                SetPill("PRISM" + Dot + pname + " deleted");
                 try { var nv = JsonNode.Parse(await ModelCallAsync("videoProfilesView") ?? "null") as JsonObject; if (nv is not null) { _profView["presets"] = nv["presets"]?.DeepClone(); } } catch { }
                 if (_draftPreset == pid) _draftPreset = null;
                 DrawProfilesWindow();
@@ -138,7 +138,7 @@ public sealed partial class MainWindow
                 if (await AskNameAsync("Rename " + pname, "A name for this preset", pname) is not { Length: > 0 } to || to == pname) return;
                 JsonObject? rr = null;
                 try { rr = JsonNode.Parse(await ModelCallAsync("videoPresetRename", pid, to) ?? "null") as JsonObject; } catch (Exception e) { LogLine("preset rename: " + e.Message); }
-                if (rr?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(rr?["error"]?.GetValue<string>() ?? "could not rename " + pname)); return; }
+                if (rr?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + Sentence(rr?["error"]?.GetValue<string>() ?? "could not rename " + pname)); return; }
                 LogLine("profiles: preset " + pname + " renamed " + to);
                 if (_triangleWho is not null && _triangleWho.Text == pname) _triangleWho.Text = to;
                 await ShowProfilesWindowKeepingDraftAsync();
@@ -188,7 +188,7 @@ public sealed partial class MainWindow
             ["signIns"] = new JsonObject(_draftSignIns.Select(kv => new KeyValuePair<string, JsonNode?>(kv.Key, kv.Value))),
         };
         var r = JsonNode.Parse(await ModelCallAsync("videoProfilesCommit", draft.ToJsonString()) ?? "null") as JsonObject;
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + (r?["error"]?.GetValue<string>() ?? "could not save the profiles")); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + (r?["error"]?.GetValue<string>() ?? "could not save the profiles")); return; }
         CloseProfilesWindow();
         var who = (r["preset"] as JsonObject)?["name"]?.GetValue<string>();
         var n = (r["switched"] as JsonArray)?.Count ?? 0;
@@ -411,11 +411,11 @@ public sealed partial class MainWindow
         JsonObject? added = null;
         try { added = JsonNode.Parse(await ModelCallAsync("signInAdd", app, who) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in add: " + e.Message); }
         var id = (added?["signIn"] as JsonObject)?["id"]?.GetValue<string>();
-        if (added?["ok"]?.GetValue<bool>() != true || id is null) { SetPill("Prism" + Dot + (added?["error"]?.GetValue<string>() ?? "could not add the sign-in")); DrawProfilesWindow(); return; }
+        if (added?["ok"]?.GetValue<bool>() != true || id is null) { SetPill("PRISM" + Dot + (added?["error"]?.GetValue<string>() ?? "could not add the sign-in")); DrawProfilesWindow(); return; }
         var used = JsonNode.Parse(await ModelCallAsync("signInUse", app, id) ?? "null") as JsonObject;
         who = (added?["signIn"] as JsonObject)?["name"]?.GetValue<string>() ?? who;
         LogLine("sign-in: " + app + " -> " + who + " (" + id + ") " + (used?.ToJsonString() ?? "null"));
-        if (used?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + "could not switch " + name + " to " + who); DrawProfilesWindow(); return; }
+        if (used?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + "could not switch " + name + " to " + who); DrawProfilesWindow(); return; }
         _draftSignIns[app] = id;
         // the list knows the new sign-in at once (it was drawn from what the window read when it opened)
         try { if (JsonNode.Parse(await ModelCallAsync("signInsView", WelcomeEntriesJson()) ?? "null") is JsonObject fresh) _signInView = fresh; } catch { }
@@ -425,7 +425,7 @@ public sealed partial class MainWindow
         // the person signs in, on the service's own page; the window comes back after
         CloseProfilesWindow();
         _editorContinuations["app-setup"] = (doneId, saved) => RootGrid.DispatcherQueue.TryEnqueue(() => { var again = AfterSignInAsync(); });
-        SetPill("Prism" + Dot + "Sign in to " + name);
+        SetPill("PRISM" + Dot + "Sign in to " + name);
         OpenRoute("prism://app/" + Uri.EscapeDataString(app) + "/setup?return=scene&signin=1");
     }
 
@@ -448,7 +448,7 @@ public sealed partial class MainWindow
         if (to is not { Length: > 0 } || to == was) return;
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("signInRename", app, id, to) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in rename: " + e.Message); }
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not rename " + was)); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not rename " + was)); return; }
         LogLine("sign-in: " + app + " " + id + " renamed " + to);
         await ShowProfilesWindowKeepingDraftAsync();
     }
@@ -458,10 +458,10 @@ public sealed partial class MainWindow
     {
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("signInHide", app, id) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in hide: " + e.Message); }
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not take " + name + " off the list")); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not take " + name + " off the list")); return; }
         LogLine("sign-in: " + app + " " + id + " off the list");
         if (_draftSignIns.TryGetValue(app, out var drafted) && drafted == id) _draftSignIns.Remove(app);   // never saved onto a sign-in just taken off the list (review)
-        SetPill("Prism" + Dot + name + " is off the list. Its login is kept; right-click a sign-in to bring it back");
+        SetPill("PRISM" + Dot + name + " is off the list. Its login is kept; right-click a sign-in to bring it back");
         await ShowProfilesWindowKeepingDraftAsync();
     }
     /// <summary>A hidden sign-in back on the list (core signInShow). Dev: hub.request "signin show app|id".</summary>
@@ -469,7 +469,7 @@ public sealed partial class MainWindow
     {
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("signInShow", app, id) ?? "null") as JsonObject; } catch (Exception e) { LogLine("sign-in show: " + e.Message); }
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not bring back " + name)); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + Sentence(r?["error"]?.GetValue<string>() ?? "could not bring back " + name)); return; }
         LogLine("sign-in: " + app + " " + id + " back on the list");
         await ShowProfilesWindowKeepingDraftAsync();
     }
@@ -524,7 +524,7 @@ public sealed partial class MainWindow
     private async Task ApplyProfilePresetAsync(string presetId, string name)
     {
         var r = JsonNode.Parse(await ModelCallAsync("videoPresetApply", presetId) ?? "null") as JsonObject;
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Dot + (r?["error"]?.GetValue<string>() ?? "could not switch to " + name)); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Dot + (r?["error"]?.GetValue<string>() ?? "could not switch to " + name)); return; }
         var switched = (r["switched"] as JsonArray)?.Count ?? 0;
         var moved = (r["moved"] as JsonArray)?.Count ?? 0;
         LogLine("profiles: preset " + name + " applied, " + switched + " switching, " + moved + " moved to another sign-in");
@@ -545,7 +545,7 @@ public sealed partial class MainWindow
     {
         var run = ++_profileSwitchRun;
         var label = who is null ? "profiles" : who;
-        if (count == 0) { ReleasePill("Prism" + Dot + (who is null ? "profiles saved" : "watching as " + who)); return; }
+        if (count == 0) { ReleasePill("PRISM" + Dot + (who is null ? "profiles saved" : "watching as " + who)); return; }
         for (var i = 0; i < 90 && run == _profileSwitchRun; i++)
         {
             List<string> working = new();
@@ -557,15 +557,15 @@ public sealed partial class MainWindow
             catch { }
             if (run != _profileSwitchRun) return;
             if (working.Count == 0) break;
-            SetPill("Prism" + Dot + "switching to " + label + Dot + string.Join(", ", working) + (char)0x2026, hold: true);   // (the rows follow in place as each service is read)
+            SetPill("PRISM" + Dot + "switching to " + label + Dot + string.Join(", ", working) + (char)0x2026, hold: true);   // (the rows follow in place as each service is read)
             KickLiveRows();
             await Task.Delay(2000);
         }
         if (run != _profileSwitchRun) return;
-        ReleasePill("Prism" + Dot + (who is null ? "profiles switched" : "watching as " + who) + Dot + "every service read");
+        ReleasePill("PRISM" + Dot + (who is null ? "profiles switched" : "watching as " + who) + Dot + "every service read");
     }
 
-    /// <summary>The large Prism triangle on the Watch header: the preset on now beside it, a press drops down the presets and the Profiles window.</summary>
+    /// <summary>The large PRISM triangle on the Watch header: the preset on now beside it, a press drops down the presets and the Profiles window.</summary>
     private Button PresetTriangle()
     {
         var icon = new Image { Width = 64, Height = 64, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };   // twice as large (2026-09-24); 64 since the heads grew to 22 px (2026-10-17)

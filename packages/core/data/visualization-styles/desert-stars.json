@@ -1,7 +1,7 @@
 {
   "id": "desert-stars",
   "name": "Desert Stars",
-  "blurb": "Dunes under a wide sky; stars, a low moon, and a shooting star on every beat.",
+  "blurb": "Dunes under the Milky Way; the arch of stars is the bands from one horizon to the other, a caravan walks the far crest, a camp fire burns with the lows, and a beat sends a shooting star.",
   "program": "desert-stars",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

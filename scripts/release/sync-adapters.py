@@ -1,8 +1,8 @@
 """The built-in services, said in one place and copied to the two that name them (2026-10-11, (asked whether to name all the built-in adapters so far) - 3: the website's Adapters page, after its legal review, with the full list, synced from the catalog like the tour).
 
-The source is prism-adapters/catalog/<id>.json (the service's name) with adapters/<id>.json (what Prism reads from it). Written:
+The source is prism-adapters/catalog/<id>.json (the service's name) with adapters/<id>.json (what PRISM reads from it). Written:
   - the tour's Add your services page: one point, "Built in today: ...", in targets/win-host/PrismHost/Assets/tutorial/tutorial.json
-    (Prism and the website's tour page both read that file; sync-tutorial.py carries it to the website)
+    (PRISM and the website's tour page both read that file; sync-tutorial.py carries it to the website)
   - the website's Adapters page data: src/data/adapters.json in the website's repository, one card a service, plain names only.
     The page shows them only once site.config's adaptersLive is switched on, after the review (docs/LEGAL-REVIEW.md there).
 
@@ -47,8 +47,8 @@ def services():
         if "videoOwnedUrls" in keys: brings.append("your purchases")
         if "videoLive" in keys: brings.append("live channels")
         if "videoSearch" in keys or "videoSearchUrl" in keys: brings.append("search")
-        if kind == "music": brings.append("your music, with play controls on the Prism screen and your phone" + (", and your playlists and stations by name" if "musicPlay" in keys else ""))
-        if not brings: brings.append("its page on the Prism screen")
+        if kind == "music": brings.append("your music, with play controls on the PRISM screen and your phone" + (", and your playlists and stations by name" if "musicPlay" in keys else ""))
+        if not brings: brings.append("its page on the PRISM screen")
         if kind == "other": continue
         out.append({"id": cid, "name": c.get("name") or cid, "kind": kind, "brings": ", ".join(brings)})
     return out
@@ -77,7 +77,7 @@ def write_tour(line):
 
 def site_doc(svcs):
     return {
-        "_comment": "Adapter cards for the Adapters page, written by scripts/release/sync-adapters.py in the Prism repo from its catalog: do not edit here. Only used when site.adaptersLive is true in src/site.config.ts (after the review in docs/LEGAL-REVIEW.md). status is 'ready' or 'soon'. Plain-text names only, no logos.",
+        "_comment": "Adapter cards for the Adapters page, written by scripts/release/sync-adapters.py in the PRISM repo from its catalog: do not edit here. Only used when site.adaptersLive is true in src/site.config.ts (after the review in docs/LEGAL-REVIEW.md). status is 'ready' or 'soon'. Plain-text names only, no logos.",
         "adapters": [{"name": s["name"], "brings": s["brings"], "status": "ready"} for s in svcs],
     }
 

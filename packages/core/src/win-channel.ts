@@ -66,7 +66,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // with peeking=true … peeking=false so the host can hold §16 across it: the still stays up until readiness,
   // and a freeze arriving from the PEEK_TIMEOUT_MS abort keeps the last still instead of capturing a blank.
   { op: "surface.setPeek", m1: true, fields: { id: "string", peeking: "boolean" } },
-  { op: "surface.setLoading", m1: true, fields: { id: "string", on: "boolean" } },   // Prism's loading mark over a video window (2026-10-16)
+  { op: "surface.setLoading", m1: true, fields: { id: "string", on: "boolean" } },   // PRISM's loading mark over a video window (2026-10-16)
   { op: "surface.showIntermission", m1: true, fields: { id: "string", source: "string", look: "string?" } },
   { op: "surface.hideIntermission", m1: true, fields: { id: "string" } },
   { op: "surface.setIntermissionSkip", m1: true, fields: { id: "string", available: "boolean", target: "string?" } },
@@ -84,7 +84,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   { op: "surface.hover", fields: { id: "string", x: "number", y: "number" }, m1: true },
   // a trusted pointer PRESS on a service's own scrubber (2026-09-23):
   // Peacock's player follows only its own scrubber, which takes no scripted press. Asked by core alone, only for the person's own drag of
-  // Prism's slider, at the point the adapter's videoSeekPoint names - never anything else
+  // PRISM's slider, at the point the adapter's videoSeekPoint names - never anything else
   // press false: the move alone - the scrubber's own preview thumbnail, drawn only under a real pointer (the slider's preview while dragging)
   { op: "surface.scrub", fields: { id: "string", x: "number", y: "number", press: "boolean" }, m1: true },
   { op: "surface.typeText", m1: true, fields: { id: "string", text: "string" } },   // the phone keyboard (2026-10-03): text into the focused field
@@ -108,7 +108,7 @@ export const COMMAND_SCHEMA: ChannelOp[] = [
   // a video pick from the phone (2026-10-05): the host closes its Watch screen and raises its curtain, as its own card press does
   { op: "ui.videoPick", m1: true, fields: { title: "string", service: "string", poster: "string?", window: "number" } },
   { op: "ui.screenClear", m1: true, fields: { tile: "string?" } },   // a screen cleared from the phone (2026-10-15): the PC's X on that window, null its Clear screens
-  { op: "ui.roomMute", m1: true, fields: { on: "boolean" } },   // the person's mute: Prism's own sessions to a floor the captures undo (B-472, 2026-11-01)
+  { op: "ui.roomMute", m1: true, fields: { on: "boolean" } },   // the person's mute: PRISM's own sessions to a floor the captures undo (B-472, 2026-11-01)
   { op: "ui.listenRoutes", m1: true, fields: { json: "string" } },
   { op: "ui.roomStep", m1: true, fields: { on: "boolean", delayMs: "number", who: "string" } },
   // the wall took a scene (2026-11-04, B-477): whoever asked (the phone, a dev eval, the host itself), the shell refreshes its player
@@ -357,7 +357,7 @@ export const HOST_CALLS: string[] = [
   "collapseMusic",         // () - back to hidden; audio never interrupted
   "restyleVisualization",  // (tileId, style, artwork|null) - rebuild ONLY that visualization surface with the new pack; the source's audio is never touched
   "musicRecent",           // (tileId) -> JSON RecentMusic[] (async) - quick play: the last five collections this tile played from
-  "playRecent",            // (tileId, url) - quick play: go to one of them and press the page's Play (only a page Prism saw play)
+  "playRecent",            // (tileId, url) - quick play: go to one of them and press the page's Play (only a page PRISM saw play)
   "musicLibrary",          // (tileId) -> JSON {playlists, stations} (sync) - the service's library as the page reported it
   "playCollection",        // (tileId, kind, id) - queue a LISTED collection through the adapter's musicPlay and play it
   "resumeService",         // (tileId) - B-205: switch the wall to this service - the stage follows, and it plays what it holds, else what it last played

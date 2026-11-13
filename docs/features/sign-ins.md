@@ -8,7 +8,7 @@ person's sign-in used for both players, while another member of the household ca
 ## The idea
 
 Some services keep their people inside one login (Netflix's profiles). Others have one person a login
-(Apple). Prism handles both with two things:
+(Apple). PRISM handles both with two things:
 
 - a **sign-in**: one login kept on this device, under a name a person gave it;
 - a **profile set**: for one person, the sign-in each service uses and, where the service has profiles, the
@@ -28,7 +28,7 @@ video and back asks nothing and moves nothing.
 
 ## What a person does
 
-Prism menu, **Profiles**, or the triangle on Watch.
+PRISM menu, **Profiles**, or the triangle on Watch.
 
 | To | Do |
 |---|---|
@@ -38,7 +38,7 @@ Prism menu, **Profiles**, or the triangle on Watch.
 | keep it as that person's set | type the name at the foot, **Save & exit** |
 | switch person | choose the set from the Profiles menu: every service moves, music and video |
 
-Before the first other person is added, Prism keeps the wall as it stands as a set called *Household*, so
+Before the first other person is added, PRISM keeps the wall as it stands as a set called *Household*, so
 there is one to switch back to.
 
 ## Rules
@@ -50,7 +50,7 @@ there is one to switch back to.
   other sign-in's is brought back. A sign-in with nothing kept shows nothing until its pages are read.
 - **A switch reloads the service's page**: it is another browser session. Its windows on the wall are made
   again, and its hidden pages the next time they are wanted.
-- **The sign-in is the person's.** Prism opens the service's own sign-in; no credentials pass through it.
+- **The sign-in is the person's.** PRISM opens the service's own sign-in; no credentials pass through it.
 - The profile a device began with is its first sign-in, named *Household*. A wall from before sign-ins
   changes nothing until a person adds one.
 - *Household* is only where the names begin: right-click a sign-in (or a preset) in the Profiles window to
@@ -100,7 +100,7 @@ Now:
 - A new App's profile is `shared`; a new sign-in takes the first slot its account does not hold.
 - The one-time move (`sharedPlan` in core, `profile.migrate` to the host, MainWindow.ProfileMove.cs):
   before the first surface of a boot, core plans each legacy folder's slot - the household's own legacy
-  sign-ins of one account ("Household", "Household (Apple TV)", Prism's ids, labelled from a page or not)
+  sign-ins of one account ("Household", "Household (Apple TV)", PRISM's ids, labelled from a page or not)
   all into the first slot, the extra records hidden - and the host copies each folder's sessions onto the
   shared folder: cookies through the DevTools protocol with every attribute (host-only and `__Host-`
   ones included; always set from the https address, since Chromium binds a cookie to the scheme it was

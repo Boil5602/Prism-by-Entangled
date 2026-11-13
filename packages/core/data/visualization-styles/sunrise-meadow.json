@@ -1,7 +1,7 @@
 {
   "id": "sunrise-meadow",
   "name": "Sunrise Meadow",
-  "blurb": "A sun climbing with the loudness over a meadow; rays turn slowly, the grass sways with the mids, clouds drift by and a flock crosses now and then, wings beating and colours turning with the music, a wake of light on the beat.",
+  "blurb": "A meadow at sunrise; every tall flower is a band and rises and opens with it, the sun climbs with the loudness and the day comes with it, the grass sways with the mids, and a beat sends a ring of light out from the sun.",
   "program": "sunrise-meadow",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

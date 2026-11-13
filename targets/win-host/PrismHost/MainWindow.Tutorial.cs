@@ -7,9 +7,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 namespace PrismHost;
 
 /// <summary>
-/// How Prism works (2026-10-10): a menu of subjects, each a short run of pages
+/// How PRISM works (2026-10-10): a menu of subjects, each a short run of pages
 /// with a picture, a few plain lines and, where there is one, a button that opens the real thing ((asked for the tutorial as a menu of subjects, to go on when one ends or stop there)). A subject's last
-/// page offers the next subject, the list, or Done. It opens once after the services are set up and from the Prism menu at any time,
+/// page offers the next subject, the list, or Done. It opens once after the services are set up and from the PRISM menu at any time,
 /// where it comes back to where it was left. The subjects and their words are in MainWindow.TutorialText.cs.
 ///
 /// The pictures are files beside the app (Assets/tutorial/NAME.png), one a page, each optional: a page with no picture shows its words
@@ -76,7 +76,7 @@ public sealed partial class MainWindow
         void DrawList()
         {
             var done = TutorialDone();
-            card.Children.Add(new TextBlock { Text = "How Prism works", FontSize = 22, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            card.Children.Add(new TextBlock { Text = "How PRISM works", FontSize = 22, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             card.Children.Add(new TextBlock { Text = "Pick a subject. Each takes a minute or two, and you can stop after any of them.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
             for (var i = 0; i < topics.Length; i++)
             {
@@ -120,12 +120,12 @@ public sealed partial class MainWindow
                 foreach (var line in p.Points) points.Children.Add(new TextBlock { Text = (char)0x2022 + "  " + line, FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
                 card.Children.Add(points);
             }
-            // the real thing, opened with the tour out of its way: the Prism menu's How Prism works comes back to this page
+            // the real thing, opened with the tour out of its way: the PRISM menu's How PRISM works comes back to this page
             if (p.Verb is { } verb && p.Do is { } act)
             {
                 var tryRow = Row();
                 var go = Verb(verb, false, () => { CloseTutorial(); LogLine("tutorial: " + verb); TourLaunched(); act(this); });   // the way back goes up with it (MainWindow.TutorialReturn.cs)
-                ToolTipService.SetToolTip(go, "This opens the real thing. Back to How Prism works, at the top of the screen, brings you back to this page.");
+                ToolTipService.SetToolTip(go, "This opens the real thing. Back to How PRISM works, at the top of the screen, brings you back to this page.");
                 tryRow.Children.Add(go);
                 card.Children.Add(tryRow);
             }

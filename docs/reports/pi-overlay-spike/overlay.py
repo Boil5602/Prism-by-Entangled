@@ -46,7 +46,7 @@ def draw(widget, cr):
         Gdk.cairo_set_source_pixbuf(cr, pix, 0, 0)
         cr.paint_with_alpha(opacity)
     else:
-        cr.set_source_rgba(0.94, 0.66, 0.24, opacity)   # Prism accent as a stand-in
+        cr.set_source_rgba(0.94, 0.66, 0.24, opacity)   # PRISM accent as a stand-in
         cr.rectangle(0, 0, w, h); cr.fill()
     # a moving marker so a screenshot proves the overlay is live, not a stale frame
     t = GLib.get_monotonic_time() / 1e6

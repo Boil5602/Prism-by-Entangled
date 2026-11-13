@@ -1,6 +1,6 @@
 #!/bin/sh
 # The owner's words never enter a commit of the archive (2026-11-05: quoted messages had reached the public repo through the files).
-# Every commit runs the checks the public snapshot runs: a line that may hold the owner's words, not yet described in Prism's own or
+# Every commit runs the checks the public snapshot runs: a line that may hold the owner's words, not yet described in PRISM's own or
 # judged by a person not to be theirs (scripts/release/quotes-ok.txt), refuses the commit; so do the household's details.
 # Switch it on once:  cp scripts/release/hooks/pre-commit .git/hooks/pre-commit
 # the local store of the owner's words (.private/) is never committed, even forced past .gitignore
@@ -9,7 +9,7 @@ if git diff --cached --name-only | grep -q '^\.private/'; then
   exit 1
 fi
 python scripts/release/strip-quotes.py --gate >&2 || {
-  echo "commit refused: describe the owner's words in Prism's own (CLAUDE.md), or after a hand check run strip-quotes.py --accept" >&2
+  echo "commit refused: describe the owner's words in PRISM's own (CLAUDE.md), or after a hand check run strip-quotes.py --accept" >&2
   exit 1
 }
 python scripts/release/public-snapshot.py check >/dev/null 2>&1

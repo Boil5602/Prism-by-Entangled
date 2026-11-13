@@ -3,7 +3,7 @@ import { providersOf } from "./catalog-search.js";
 
 /**
  * Buying and renting (2026-10-11): a title's Rent or Buy offer on a service becomes an address for the person's phone, where the price is shown and the
- * purchase is theirs to make. Prism takes no part in it: it never handles payment, takes no cut and adds no referral code, as it
+ * purchase is theirs to make. PRISM takes no part in it: it never handles payment, takes no cut and adds no referral code, as it
  * never signs anyone up (docs/third-party-services-policy.md).
  *
  * The address is the service's own search page for the title (the adapter's videoSearchUrl), never a third party's link: a link

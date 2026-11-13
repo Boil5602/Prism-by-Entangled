@@ -47,11 +47,11 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         BootTrace.Note("window: xaml loaded");
         InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   InitBigWindowFirst();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
-        ShowInstalledNoteIfAny();   // the first-run note: where Prism now lives, and that the downloaded folder can go (2026-10-06)
+        ShowInstalledNoteIfAny();   // the first-run note: where PRISM now lives, and that the downloaded folder can go (2026-10-06)
         InitReportFlag();   // the report flag in the top-right corner, on both players (docs/features/report-flag.md, 2026-10-06)
         InitBootCover();   // the Video player last on: a dark cover until Watch is drawn - never a service's home page (2026-09-24)
         InitPlaybackDoctor();   // says so on the wall when core reopens a failed video (MainWindow.PlaybackDoctor.cs)
-        // the Prism mark (2026-09-09): on the grip at the top, and as the window's icon for the taskbar and Alt+Tab
+        // the PRISM mark (2026-09-09): on the grip at the top, and as the window's icon for the taskbar and Alt+Tab
         try
         {
             var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png");
@@ -60,14 +60,14 @@ public sealed partial class MainWindow : Window
             if (File.Exists(ico)) AppWindow.SetIcon(ico);
         }
         catch { /* a missing mark is a plain grip, never a failed start */ }
-        Title = HostPaths.IsOverridden ? "Prism — fresh run (" + HostPaths.DataDir + ")" : "Prism — M1";
+        Title = HostPaths.IsOverridden ? "PRISM — fresh run (" + HostPaths.DataDir + ")" : "PRISM — M1";
         ApplyTitleBarColours();   // the window's own title bar in the host's dark ground (2026-10-22, MainWindow.TitleBar.cs)
 
         BootTrace.Note("window: first-run note, report flag, boot cover, doctor, icon, title bar");
         _store = new StoreService(HostPaths.DataDir, saveDelayMs: 4_000);   // saves coalesced off the UI thread (2026-09-28: a burst of lookups froze the window); four seconds since 2026-10-03 (perf.log: the whole store written 20 times a minute)
         // ... and written before a crash takes them (2026-09-28 review: the fail-fast the host has died of never runs ProcessExit)
         Application.Current.UnhandledException += (_, __) => { try { _store.Flush(); } catch { } };   // PRISM_DATA_DIR moves the whole host (store, profiles, prefs, log) for a from-scratch run
-        if (HostPaths.LastStartNote is { } startNote) { LogLine("start: " + startNote); SetPill("Prism · " + startNote); }
+        if (HostPaths.LastStartNote is { } startNote) { LogLine("start: " + startNote); SetPill("PRISM · " + startNote); }
         _surfaces = new SurfaceManager(TileCanvas, _store, new ArtService(_store),
             // the event is redacted before the cut too: a cut could strand part of a secret past the redactor's shapes (2026-09-30 review)
             forwardEvent: (_, eventJson) => { PerfNoteEvent(eventJson); LogRaw("-> " + PrismHost.Diagnostics.LogCompact.Event(PrismHost.Diagnostics.Redact.Line(eventJson))); NoteAmbientEvent(eventJson); NoteNavigated(eventJson); _brain?.Call(HostCalls.Event, eventJson); NoteSessionEvent(eventJson); },
@@ -80,6 +80,7 @@ public sealed partial class MainWindow : Window
         _fft = new WasapiLoopbackFft(LogLine);
         _surfaces.AudioSource = _fft;
         _surfaces.AudioTarget = r => _fft.SetTargetResolver(r);   // B-152: the stage's source, not the machine
+        _surfaces.AudioOwner = Services.GoldenAudio.Owner;         // the recording's audio.log (2026-11-08)
         _surfaces.CoverageChanged += () => RootGrid.DispatcherQueue.TryEnqueue(() => { if (_controls is not null) { ToggleControls(); ToggleControls(); } });
         _surfaces.FullscreenRequested += tid => RootGrid.DispatcherQueue.TryEnqueue(() => ToggleScreenFullscreen(tid));
         _surfaces.HostKey += key => RootGrid.DispatcherQueue.TryEnqueue(() => OnHostKey(key));
@@ -135,7 +136,7 @@ public sealed partial class MainWindow : Window
                     // dropped onto it); its X removes it
                     if (IsMultiviewWindow(tid)) { LogLine("dock ignored for multiview window " + tid); break; }
                     _brain.Call(HostCalls.UpdateTile, tid, "{\"kind\":null}"); break;
-                case "hide": _brain.Call(HostCalls.UpdateTile, tid, "{\"float\":{\"hidden\":true}}"); SetPill("Prism · " + tid + " is hidden. Prism menu → Floating facets brings it back"); break;
+                case "hide": _brain.Call(HostCalls.UpdateTile, tid, "{\"float\":{\"hidden\":true}}"); SetPill("PRISM · " + tid + " is hidden. PRISM menu → Floating facets brings it back"); break;
                 default: if (!MvAllCommand(cmd)) _brain.Call(HostCalls.TileCommand, tid, cmd); break;   // play | pause | next | prev | mute | unmute - the §6 path; Shift on a multiview window's play: all of them
             }
         };
@@ -173,7 +174,7 @@ public sealed partial class MainWindow : Window
             // than called from inside the handled Closed (a Close() from inside was ignored and the wall lived on headless)
             try { _surfaces.StopTimers(); _stallWatch?.Stop(); _breakWatch?.Stop(); SaveBreakWatches(); } catch { }
             try { _remote?.Dispose(); _fft.Dispose(); _surfaces.SessionMute.Dispose(); } catch { }
-            Services.PhoneLauncher.HostClosing();   // a close, not a crash: the phone launcher takes the port and leaves Prism closed
+            Services.PhoneLauncher.HostClosing();   // a close, not a crash: the phone launcher takes the port and leaves PRISM closed
             DispatcherQueue.TryEnqueue(Close);
         };
 
@@ -195,7 +196,7 @@ public sealed partial class MainWindow : Window
             {
                 if (WatchGrip.Visibility != Visibility.Visible || VideoHubOpen || _asSession) return;
                 var focused = FocusManager.GetFocusedElement(RootGrid.XamlRoot);
-                if (focused is Control && focused is not Microsoft.UI.Xaml.Controls.WebView2) return;   // a control of Prism's own has the key
+                if (focused is Control && focused is not Microsoft.UI.Xaml.Controls.WebView2) return;   // a control of PRISM's own has the key
                 var key = e.Key switch { VirtualKey.Space => "Space", VirtualKey.Left => "ArrowLeft", VirtualKey.Right => "ArrowRight", VirtualKey.Up => "ArrowUp", VirtualKey.Down => "ArrowDown", VirtualKey.Enter => "Enter", _ => null };
                 if (key is null) return;
                 e.Handled = true;
@@ -204,7 +205,7 @@ public sealed partial class MainWindow : Window
             var arrange = new KeyboardAccelerator { Key = VirtualKey.A, Modifiers = VirtualKeyModifiers.Control };
             arrange.Invoked += (_, e) => { e.Handled = true; ToggleArrange(); };
             RootGrid.KeyboardAccelerators.Add(arrange);
-            // the status pill no longer opens the veil Control Center (2026-09-24): a press on the status line had opened it; it stays in the Prism menu (Veils, Control Center...)
+            // the status pill no longer opens the veil Control Center (2026-09-24): a press on the status line had opened it; it stays in the PRISM menu (Veils, Control Center...)
             // Ctrl+1..9: maximize that slot to the window / restore (doc order)
             for (var digit = 1; digit <= 9; digit++)
             {
@@ -267,7 +268,7 @@ public sealed partial class MainWindow : Window
             // 2026-09-08: the count is the log's, not the wall's
             LogLine(armed.Count > 0 ? $"veil armed ({armed.Count}): {string.Join(", ", armed)}" : "no detection adapters loaded");
         }
-        catch { SetPill("Prism"); }
+        catch { SetPill("PRISM"); }
         // scene-model-spec §7: the one-shot first-boot migration (MainWindow.Migration.cs) - runs only while the
         // store has a `dashboard` and no `scene-model:migration` marker; writes new scene-model:* keys only
         _ = RunFirstBootMigrationAsync();
@@ -341,7 +342,7 @@ public sealed partial class MainWindow : Window
             _remote.Listen.TapsWanted += want => RootGrid.DispatcherQueue.TryEnqueue(() => _surfaces.SetTaps(want));
             _remote.Listen.StreamsChanged += (json, n) => RootGrid.DispatcherQueue.TryEnqueue(() => _brain.CallLoggedAs(HostCalls.ListenStreams, new object?[] { "<" + n + " stream(s)>" }, json));   // the room-in-step rule reads the streams (2026-10-31); the ids are pairing tokens, so the log sees a count
             _surfaces.SessionMute.Born += pid => _remote?.Listen?.CaptureAgain(pid);   // a session born while the capture hears nothing: the capture opened again (B-475, 2026-11-03)
-            _surfaces.SessionMute.LevelApplied += (pid, lvl) => { _remote?.Listen?.SourceLevel(pid, lvl); _fft.SourceLevel(pid, lvl); };   // the gains follow the level in force on the captured tree, never the wish
+            _surfaces.SessionMute.LevelApplied += (pid, lvl) => { _remote?.Listen?.SourceLevel(pid, lvl); _fft.SourceLevel(pid, lvl); Services.GoldenAudio.SourceLevel(pid, lvl); };   // the gains follow the level in force on the captured tree, never the wish
             PushRoomLevel();   // the room-in-step playback under the person's mute and volume from the start (B-472 review)
             _remote.Listen.StillOk = who => who.StartsWith("house:", StringComparison.Ordinal) ? HouseOn(who[6..]) : (_remote.TokenOk?.Invoke(who) ?? true);   // the house's streams end within seconds of the switch going off or the key changing, whoever did it; a forgotten phone's with the pairing (2026-10-31)
             _surfaces.TapFrames += (id, pcm) => _remote?.Listen?.OnTap(id, pcm);
@@ -377,13 +378,13 @@ public sealed partial class MainWindow : Window
             ? (_model.App(f.App)?.Name ?? f.Label) : id;
         SetPill(did switch
         {
-            "audio" => "Prism · sound: " + name,
-            "audio+promote" => "Prism · sound: " + name + " · full page",
-            "promote" => "Prism · " + name + " · full page",
-            _ when audio == "already-owner" => "Prism · sound is already on " + name,
-            _ when audio == "peeking" => "Prism · " + name + " is refreshing its still - tap again in a moment",
-            _ when error == "unavailable" => "Prism · " + name + " cannot be opened full page",
-            _ => "Prism · " + name,
+            "audio" => "PRISM · sound: " + name,
+            "audio+promote" => "PRISM · sound: " + name + " · full page",
+            "promote" => "PRISM · " + name + " · full page",
+            _ when audio == "already-owner" => "PRISM · sound is already on " + name,
+            _ when audio == "peeking" => "PRISM · " + name + " is refreshing its still - tap again in a moment",
+            _ when error == "unavailable" => "PRISM · " + name + " cannot be opened full page",
+            _ => "PRISM · " + name,
         });
     }
 
@@ -392,13 +393,14 @@ public sealed partial class MainWindow : Window
     {
         LogLine($"ui.route {route} ({source}{(id is null ? "" : " " + id)})");
         if (UiRouteRequested is { } h) h(route, source, id);
-        else SetPill("Prism · " + route.Replace("prism://", "") + " (" + source + ")");
+        else SetPill("PRISM · " + route.Replace("prism://", "") + " (" + source + ")");
     }
 
     /// <summary>For the host's own UI (rail, editors, sheets): report a route it opened so the flight recorder shows one shape for every deep link.</summary>
     public void ReportUiRoute(string route, string source) => _brain.Call(HostCalls.UiRoute, route, source);
 
     // ------------------------------------------------------------- channel
+    private readonly HashSet<string> _stubsSaid = new();   // 2026-11-07: a stub op (surface.setVisible, 71 a day) is said once
     private void OnCommand(string json)
     {
         RootGrid.DispatcherQueue.TryEnqueue(() =>
@@ -412,7 +414,7 @@ public sealed partial class MainWindow : Window
                     Execute(msg);
                     break;
                 case CommandRoute.StubIgnore:
-                    SetStatus($"stub op {msg.Op} (post-M1)");
+                    if (_stubsSaid.Add(msg.Op)) SetStatus($"stub op {msg.Op} (post-M1, said once)");
                     break;
                 case CommandRoute.StubResolveUnsupported:
                     _brain.Call(HostCalls.Resolve, msg.RequestId!.Value, null, "unsupported: not implemented in M1");
@@ -449,7 +451,7 @@ public sealed partial class MainWindow : Window
             case Ops.SurfaceResume: Chain(id, () => _surfaces.ResumeAsync(id)); break;
             // §25 living previews: core brackets one peek; the host holds the still across it (§16) and never runs two.
             case Ops.SurfaceSetPeek: Chain(id, () => { _surfaces.SetPeek(id, m.GetBool("peeking")); return Task.CompletedTask; }); break;
-            case Ops.SurfaceSetLoading: { var lon = m.GetBool("on"); DispatcherQueue.TryEnqueue(() => _surfaces.SetLoading(id, lon)); break; }   // Prism's loading mark (2026-10-16)
+            case Ops.SurfaceSetLoading: { var lon = m.GetBool("on"); DispatcherQueue.TryEnqueue(() => _surfaces.SetLoading(id, lon)); break; }   // PRISM's loading mark (2026-10-16)
             case Ops.SurfaceSetMuted: Chain(id, () => { _surfaces.SetMuted(id, m.GetBool("muted")); return Task.CompletedTask; }); break;
             case Ops.SurfaceSetPlayGate: Chain(id, () => _surfaces.SetPlayGateAsync(id, m.GetBool("on"))); break;   // B-471: the page's own play() refused until a person asks
             case Ops.SurfaceHover: Chain(id, () => _surfaces.HoverAsync(id, m.GetNumber("x", 0), m.GetNumber("y", 0))); break;
@@ -482,9 +484,9 @@ public sealed partial class MainWindow : Window
             // a screen cleared from the phone (2026-10-15): the PC's own X on that window, or its Clear
             // screens when the big screen is the only one - the same press, so the windows, the strip and the line follow as for a press here
             case Ops.UiScreenClear: { var ct = m.GetString("tile"); LogLine("screen cleared from the phone: " + (string.IsNullOrEmpty(ct) ? "the big screen" : ct)); if (string.IsNullOrEmpty(ct)) _ = ClearScreensAsync(); else _ = MvRemoveWindowAsync(ct); break; }
-            // the person's mute of Prism in the room (B-472, 2026-11-01): Prism's own sessions to the floor the captures undo; the pages, the other
+            // the person's mute of PRISM in the room (B-472, 2026-11-01): PRISM's own sessions to the floor the captures undo; the pages, the other
             // apps on the PC and the playback device untouched, so a listening phone, the listen page and the meters hear on
-            case Ops.UiRoomMute: { var rm = m.GetBool("on"); _surfaces.SessionMute.RoomMuted = rm; PushRoomLevel(); LogLine("room mute: " + (rm ? "on, Prism silent in the room" : "off")); break; }
+            case Ops.UiRoomMute: { var rm = m.GetBool("on"); _surfaces.SessionMute.RoomMuted = rm; PushRoomLevel(); LogLine("room mute: " + (rm ? "on, PRISM silent in the room" : "off")); break; }
             // the phone's Full screen on the PC (2026-10-31):
             // F11's own toggle; off also leaves a screen's Full Screen, so one press puts the window back whatever made it full
             case Ops.UiFullScreen:
@@ -501,7 +503,7 @@ public sealed partial class MainWindow : Window
             case Ops.UiListenRoutes: _remote?.Listen?.SetRoutes(m.GetString("json") ?? "{}"); break;   // each phone's window (2026-10-06)
             // the room in step with a listener (2026-10-31): the browser down to nothing, its capture played to the room the listener's lag later
             case Ops.UiListenShift: _remote?.Listen?.Shift(m.GetString("listener") ?? "", m.GetNumber("ms", 0)); break;   // a listener's live MP3 cut nearer the clock or held back (2026-11-03)
-            // the wall took a scene, whoever asked (B-477): the same refresh the Prism menu's own switch runs (player toggle, chrome, badges)
+            // the wall took a scene, whoever asked (B-477): the same refresh the PRISM menu's own switch runs (player toggle, chrome, badges)
             case Ops.UiSceneApplied: _ = SceneAppliedAsync(m.GetString("sceneId") ?? "", "{\"ok\":true,\"notes\":[]}"); break;
             case Ops.UiRoomStep:
             {
@@ -511,7 +513,7 @@ public sealed partial class MainWindow : Window
                 {
                     if (on) { _surfaces.SessionMute.RoomStep = true; _remote?.Listen?.RoomStep(true, ms); }   // the browser down first; the gain waits for the muter's word
                     else { _remote?.Listen?.RoomStep(false, ms); _surfaces.SessionMute.RoomStep = false; }   // the gain down first, then the browser back up
-                    SetPill("Prism" + Dot + (on ? "the room follows the listener, " + (ms / 1000.0).ToString("0.0") + " s behind" : "the room is live again"));
+                    SetPill("PRISM" + Dot + (on ? "the room follows the listener, " + (ms / 1000.0).ToString("0.0") + " s behind" : "the room is live again"));
                 }
                 LogLine("room step: " + (on ? "on, " + Math.Round(ms) + " ms behind" : "off, the room is live") + (who.Length > 0 ? " | " + who : ""));
                 break;
@@ -519,10 +521,10 @@ public sealed partial class MainWindow : Window
             case Ops.UiUpdateRestart: LogLine("updates: restart " + (m.GetString("reason") == "quiet" ? "at a quiet moment (install on its own)" : "from the phone")); DispatcherQueue.TryEnqueue(RestartIntoStaged); break;   // the phone's Restart into the new version (2026-10-15)
             case Ops.UiBreakWatch: { var bm = m.GetString("mode"); SetBreakWatchMode(bm is "all" or "sure" or "off" ? bm : m.GetBool("on") ? "all" : "off", " (the phone)"); break; }   // the phone's switch (2026-10-07)
             // a phone pick into a small window (2026-10-15, the phone's Play into): Watch and the big screen are left as they are, a word on the line
-            case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; var vw = (int)m.GetNumber("window", 0); LogLine("video pick from the phone: " + vt + " on " + vs + (vw > 0 ? " into window " + (vw + 1) : "")); if (vw > 0) { SetPill("Prism \u00B7 " + Shorten(vt, 40) + " \u2192 window " + (vw + 1)); _ = MvCallAsync("state"); break; } if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
+            case Ops.UiVideoPick: { var vt = m.GetString("title") ?? ""; var vs = m.GetString("service") ?? ""; var vw = (int)m.GetNumber("window", 0); LogLine("video pick from the phone: " + vt + " on " + vs + (vw > 0 ? " into window " + (vw + 1) : "")); if (vw > 0) { SetPill("PRISM \u00B7 " + Shorten(vt, 40) + " \u2192 window " + (vw + 1)); _ = MvCallAsync("state"); break; } if (PickLeavesWatch(vt)) { CloseVideoHub(); ShowStageCurtain(vt, vs, m.GetString("poster")); } break; }
             case Ops.HttpResponse: _remote?.OnResponse((int)m.GetNumber("requestId"), (int)m.GetNumber("status", 500), m.GetString("body") ?? "", m.GetString("contentType") ?? "application/json"); break;
             case Ops.RemotePairing: LogLine("pairing url minted (token withheld from status)"); OnPairingMinted(m.GetString("url") ?? ""); break;   // the QR card when the menu asked (MainWindow.PairPhone)
-            case Ops.RemotePaired: SetPill("Prism · phone paired"); ClosePairCard(); break;
+            case Ops.RemotePaired: SetPill("PRISM · phone paired"); ClosePairCard(); break;
             case Ops.RemotePairedCount: SetStatus($"remote: {m.GetNumber("n"):0} phone(s) paired"); break;
             case Ops.StoreSet:
                 var storedKey = m.GetString("key") ?? "";
@@ -546,7 +548,7 @@ public sealed partial class MainWindow : Window
                 SetStatus("core error: " + em);
                 // core's own word for the person rides the same line (runtime.ts mvSay, 2026-10-09: a window closed or tuned again says so)
                 var ni = em.IndexOf("notice: ", StringComparison.Ordinal);
-                if (ni >= 0) SetPill("Prism" + Dot + em.Substring(ni + 8).Trim());
+                if (ni >= 0) SetPill("PRISM" + Dot + em.Substring(ni + 8).Trim());
                 break;
             }
             default: SetStatus($"M1 op {m.Op} not wired"); break;
@@ -619,7 +621,7 @@ public sealed partial class MainWindow : Window
             var discardGenAtStart = System.Threading.Volatile.Read(ref _discardGen);
             await _applyGate.WaitAsync();
             string result;
-            try { result = await Task.Run(() => Services.Updates.ApplyAsync(release, LogLine, s => RootGrid.DispatcherQueue.TryEnqueue(() => SetPill("Prism · " + s)), () => System.Threading.Volatile.Read(ref _discardGen) == discardGenAtStart)); }
+            try { result = await Task.Run(() => Services.Updates.ApplyAsync(release, LogLine, s => RootGrid.DispatcherQueue.TryEnqueue(() => SetPill("PRISM · " + s)), () => System.Threading.Volatile.Read(ref _discardGen) == discardGenAtStart)); }
             finally { _applyGate.Release(); }
             // a failed apply leaves nothing promotable: the tombstone at once, whatever the folder holds, until core's discard clears it or a fresh staging replaces it
             if (result == "failed") Services.Updates.MarkDiscard(LogLine);
@@ -768,13 +770,14 @@ public sealed partial class MainWindow : Window
     private static string OpDetail(CommandMessage m) => m.Op switch
     {
         Ops.SurfaceSetMuted => " muted=" + m.GetBool("muted"),
+        Ops.RuntimeError => " " + (m.GetString("message") ?? ""),   // 2026-11-07: the doctor read 56 empty error lines before an outage
         Ops.SurfaceSetPlayGate => " on=" + m.GetBool("on"),
         Ops.SurfaceCreate => (m.GetString("kind") is { } k ? " kind=" + k : "") + (m.GetBool("placeholder") ? " placeholder" : ""),
         Ops.SurfaceCreateVisualization => $" style={m.GetString("style")} source={m.GetString("source")} artwork={m.GetString("artwork")}" + (m.GetBool("spill") ? " spill" : ""),
         Ops.SurfaceSetPresence => $" presence={m.GetString("presence")}",
         Ops.SurfaceSetChrome => $" {m.GetString("kind")}/{m.GetString("face")}{(m.GetBool("hidden") ? " hidden" : "")}",
         Ops.SurfaceSetZ => $" z={m.GetNumber("z"):0}",
-        // 2026-09-16: a one-shot script that drives one of Prism's own page hooks (__prismMusicPlay / __prismMusicCmd / a resume press)
+        // 2026-09-16: a one-shot script that drives one of PRISM's own page hooks (__prismMusicPlay / __prismMusicCmd / a resume press)
         // names itself - the boot-time "who unmuted Apple" question could not be answered from bare inject lines
         Ops.SurfaceInject => m.GetString("js") is { } js && js.Contains("__prism") && js.Length < 400 ? " " + js.Replace("\n", " ").Substring(0, Math.Min(90, js.Length)) : "",
         Ops.UiRoute => $" {m.GetString("route")} ({m.GetString("source")})",
@@ -823,7 +826,7 @@ public sealed partial class MainWindow : Window
         return filled;
     }
 
-    /// <summary>Adapters and catalog entries: the ones Prism ships and the ones added on this device (the data folder's adapters/ and
+    /// <summary>Adapters and catalog entries: the ones PRISM ships and the ones added on this device (the data folder's adapters/ and
     /// catalog/). Read at the start; a newer added adapter stands over a shipped one (PrismHost.Core.AdapterFiles).</summary>
     internal static readonly PrismHost.Core.AdapterFiles Sources = new(Path.Combine(AppContext.BaseDirectory, "Assets"), HostPaths.DataDir);
 
@@ -1039,7 +1042,7 @@ public sealed partial class MainWindow : Window
                     {
                         attribution = new
                         {
-                            name = "Prism baseline",
+                            name = "PRISM baseline",
                             maintainer = "PRISM by Entangled (prism-adapters)",
                             url = "https://github.com/Boil5602/Prism-by-Entangled",
                             license = "GPL-3.0-or-later",
@@ -1181,17 +1184,9 @@ public sealed partial class MainWindow : Window
             // constructor, on EVERY boot since the check arrived (2026-09-02) - and the catch below swallowed it, so no
             // window had been restored since. The Win32
             // monitor list needs no windowing runtime; the WinAppSDK one is tried first and stands in when it answers.
-            IEnumerable<WindowPlacement.Rect> displays;
-            try
-            {
-                displays = Microsoft.UI.Windowing.DisplayArea.FindAll()
-                    .Select(d => new WindowPlacement.Rect(d.OuterBounds.X, d.OuterBounds.Y, d.OuterBounds.Width, d.OuterBounds.Height)).ToList();
-            }
-            catch (Exception ex)
-            {
-                LogLine("window: DisplayArea.FindAll failed (" + ex.Message + ") - Win32 monitor list");
-                displays = WindowPlacement.Win32Monitors();
-            }
+            // 2026-11-07 (the doctor: a class-factory failure logged on every boot): the WinAppSDK call never answered here, and the
+            // Win32 list restored the same bounds each time, so it is the one list read.
+            IEnumerable<WindowPlacement.Rect> displays = WindowPlacement.Win32Monitors();
             if (!WindowPlacement.IsReachable(new WindowPlacement.Rect(x, y, w, h), displays))
             {
                 LogLine($"window: saved bounds {x},{y} {w}x{h} are on no connected display - default placement");
@@ -1264,7 +1259,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    // -------------------------------------------- Prism Control Center
+    // -------------------------------------------- PRISM Control Center
     // The pill opens wall-wide veil controls (spec 26/30): every slot's
     // cover state, per-slot Show ad / Re-veil, and all-slots-at-once.
     private void ToggleControls()
@@ -1285,7 +1280,7 @@ public sealed partial class MainWindow : Window
         };
         panel.Children.Add(new TextBlock
         {
-            Text = "Prism veils", FontSize = 12, Margin = new Thickness(12, 10, 12, 2),
+            Text = "PRISM veils", FontSize = 12, Margin = new Thickness(12, 10, 12, 2),
             Foreground = Tokens.Amber,
         });
         var any = false;
@@ -1422,10 +1417,10 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>The report as the panel described it (MainWindow.ReportPanel): the site's domain, the ad's details in the window (the probe's ad signs
-    /// and player), the kind, the note, Prism's version - and the full page address and the embedded players' addresses only with the box ticked.</summary>
+    /// and player), the kind, the note, PRISM's version - and the full page address and the embedded players' addresses only with the box ticked.</summary>
     private async Task SendReportAsync(string tileId, string site, string url, JsonElement? probe, string? probeNote, string kind, string note, bool full)
     {
-        SetPill("Prism \u00b7 sending the report\u2026");
+        SetPill("PRISM \u00b7 sending the report\u2026");
         try
         {
             var ver = AppVersion.Text;
@@ -1453,22 +1448,22 @@ public sealed partial class MainWindow : Window
             var res = await ReportHttp.PostAsync("https://reports.entangled.world/v1/report",   // Entangled's address for the inbox (2026-09-26)
                 new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json"));
             SetPill(res.IsSuccessStatusCode
-                ? "Prism \u00b7 \u2713 report sent. Thank you."
-                : "Prism \u00b7 the report didn't send (http " + (int)res.StatusCode + ")");
+                ? "PRISM \u00b7 \u2713 report sent. Thank you."
+                : "PRISM \u00b7 the report didn't send (http " + (int)res.StatusCode + ")");
         }
         catch (Exception ex)
         {
-            SetPill("Prism \u00b7 the report didn't send: " + ex.Message);
+            SetPill("PRISM \u00b7 the report didn't send: " + ex.Message);
         }
     }
 
-    /// <summary>Ctrl+Shift+S: Prism's own wall shot - DRM-black frames come
+    /// <summary>Ctrl+Shift+S: PRISM's own wall shot - DRM-black frames come
     /// out as the tile's poster on the substrate instead of black.</summary>
     private async Task CaptureWallShotAsync()
     {
         try
         {
-            // the shot is the wall as it looks: the windows, then Prism's own chrome above the canvas (the stage bar, the grips, the menus,
+            // the shot is the wall as it looks: the windows, then PRISM's own chrome above the canvas (the stage bar, the grips, the menus,
             // an open pop-up) - never the status pill that reports the shot itself (2026-09-23)
             var path = await _surfaces.CaptureWallAsync(async (wall, cw, ch) =>
             {
@@ -1477,7 +1472,7 @@ public sealed partial class MainWindow : Window
                 foreach (var popup in Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(RootGrid.XamlRoot))
                     if (popup.Child is UIElement pc) await _surfaces.BlendElementAsync(wall, cw, ch, pc);
             });
-            if (path is null) { SetPill("Prism · capture failed"); return; }
+            if (path is null) { SetPill("PRISM · capture failed"); return; }
             try
             {
                 var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
@@ -1486,9 +1481,9 @@ public sealed partial class MainWindow : Window
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(pkg);
             }
             catch { /* clipboard is a bonus; the file is the deliverable */ }
-            SetPill("Prism · Prism shot saved: " + System.IO.Path.GetFileName(path) + " (and on the clipboard)");
+            SetPill("PRISM · PRISM shot saved: " + System.IO.Path.GetFileName(path) + " (and on the clipboard)");
         }
-        catch (Exception ex) { SetPill("Prism · capture failed: " + ex.Message); }
+        catch (Exception ex) { SetPill("PRISM · capture failed: " + ex.Message); }
     }
 
     private string? _screenFsTile;
@@ -1525,7 +1520,7 @@ public sealed partial class MainWindow : Window
         try { _brain?.Call(HostCalls.Event, "{\"type\":\"window-fullscreen\",\"id\":\"\",\"on\":" + (on ? "true" : "false") + "}"); } catch { }
     }
 
-    /// <summary>The pill is transient (2026-09-08): a message shows for six seconds, then the corner is clear; a bare "Prism" never shows.</summary>
+    /// <summary>The pill is transient (2026-09-08): a message shows for six seconds, then the corner is clear; a bare "PRISM" never shows.</summary>
     private DispatcherTimer? _pillHide;
     private void SetPill(string text) => SetPill(text, hold: false);
     /// <summary>The status feed (2026-09-18): a line at the top that stands six seconds and slowly fades; a held line (work in hand) stands until the next line.</summary>
@@ -1535,7 +1530,7 @@ public sealed partial class MainWindow : Window
             PillLine.Text = text;
             // a line of its own takes the status line: an offer's button goes with the offer's words (2026-10-06)
             if (_pillAction is not null && text != _pillActionFor) { PillRow.Children.Remove(_pillAction); _pillAction = null; _pillActionFor = null; }
-            var idle = string.IsNullOrWhiteSpace(text) || text.Trim() == "Prism";
+            var idle = string.IsNullOrWhiteSpace(text) || text.Trim() == "PRISM";
             _pillFade?.Stop(); _pillFade = null;
             PillBorder.Opacity = 1;
             PillBorder.Visibility = idle ? Visibility.Collapsed : Visibility.Visible;

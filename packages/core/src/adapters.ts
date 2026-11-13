@@ -132,7 +132,7 @@ export interface AdapterSpec {
   /**
    * "Login tile": selector of the sign-in form on that page. While the tile
    * is on its login page, §17 region focus frames this element so the form
-   * fills the tile and Prism's chrome is the decor around it — the site's
+   * fills the tile and PRISM's chrome is the decor around it — the site's
    * own page, never a copy of it.
    */
   loginFocus?: string;
@@ -221,9 +221,9 @@ export interface AdapterSpec {
   musicRemove?: string;
   /** The address of one of the person's playlists, {id} for its id (the page musicRemove works on). */
   musicPlaylistUrl?: string;
-  /** musicRepeat (2026-09-18): window.__prismMusicRepeat(on) - the service's OWN repeat-all switch, for a play in the service's order. Prism's orders repeat by Prism's hand (the next pass appended), never the player's. */
+  /** musicRepeat (2026-09-18): window.__prismMusicRepeat(on) - the service's OWN repeat-all switch, for a play in the service's order. PRISM's orders repeat by PRISM's hand (the next pass appended), never the player's. */
   musicRepeat?: string;
-  /** musicStartOver (2026-09-19): window.__prismMusicStartOver(kind, id, shuffle) - a page-route service starts the collection it already holds over in the service's own order (in order: its first track; shuffle: a random one, the switch on), and stands down any Prism order driver. */
+  /** musicStartOver (2026-09-19): window.__prismMusicStartOver(kind, id, shuffle) - a page-route service starts the collection it already holds over in the service's own order (in order: its first track; shuffle: a random one, the switch on), and stands down any PRISM order driver. */
   musicStartOver?: string;
   /** musicCmd: window.__prismMusicCmd(cmd) -> true when the player itself took play|pause|next|prev|seekforward|seekbackward (B-127) */
   musicCmd?: string;
@@ -400,7 +400,7 @@ export interface AdapterSpec {
   tmdbProviders?: number[];
   /**
    * videoTracks (2026-09-21): the service's
-   * own subtitle and audio tracks, offered on Prism's stage bar instead of the service's panel (which the stage shield keeps
+   * own subtitle and audio tracks, offered on PRISM's stage bar instead of the service's panel (which the stage shield keeps
    * the pointer from). window.__prismVideoTracks() -> {subtitles:[{id, name, selected}], audio:[{id, name, selected}]} | null
    * as the player itself lists them; window.__prismVideoTrack(kind, id) -> true when the player took the choice (kind =
    * "subtitles" | "audio"). Read from the service's own player object, or from the service's own panel opened under the

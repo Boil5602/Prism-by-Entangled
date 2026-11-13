@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml.Media;
 namespace PrismHost;
 
 /// <summary>
-/// The short Prism menu at a size for the room (2026-10-10,). It is one menu
+/// The short PRISM menu at a size for the room (2026-10-10,). It is one menu
 /// for both players, so both get it: rows half as tall again with text read from the sofa, a wider card in the tab's own colours,
 /// and the picture dimmed softly behind it while it is open, so the menu reads as part of the scene and not as a list floating over
 /// it. The full menu (five presses on About's first line) keeps the compact size: it is a builder's tool with thirty rows.

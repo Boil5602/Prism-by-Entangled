@@ -1,7 +1,7 @@
 {
   "id": "storm-front",
   "name": "Storm Front",
-  "blurb": "A storm on the horizon: rain, cloud banks lit from within, lightning on a strong beat.",
+  "blurb": "A storm crossing an open plain; every curtain of rain is a band and falls further as it rises, the cloud lights from inside with the lows, a strong beat throws lightning to the ground, and a windmill turns with the loudness.",
   "program": "storm-front",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

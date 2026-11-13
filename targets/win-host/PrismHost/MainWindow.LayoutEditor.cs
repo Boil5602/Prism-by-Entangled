@@ -101,7 +101,7 @@ public sealed partial class MainWindow
         {
             var st = await ModelStateAsync();
             var l = st?.Layouts.FirstOrDefault(x => x.Id == layoutId);
-            if (l is not null) LoadModelLayout(l); else SetPill("Prism · layout " + layoutId + " isn't saved, so this is a new one");
+            if (l is not null) LoadModelLayout(l); else SetPill("PRISM · layout " + layoutId + " isn't saved, so this is a new one");
         }
         RenderLayoutEditor();
         _ = RefreshSavedLayoutsAsync();
@@ -663,7 +663,7 @@ public sealed partial class MainWindow
             var x = Math.Max(0, Math.Min(d.X, p.X)); var y = Math.Max(0, Math.Min(d.Y, p.Y));
             var x2 = Math.Min(preview.Width, Math.Max(d.X, p.X)); var y2 = Math.Min(preview.Height, Math.Max(d.Y, p.Y));
             if (x2 - x < 24 || y2 - y < 24) return;   // a click, not a sketch
-            if (_le.Mode != "drawn") { _le.Mode = "drawn"; SetPill("Prism · drawn Slot. The solver's rects are frozen into a Drawn layout"); }
+            if (_le.Mode != "drawn") { _le.Mode = "drawn"; SetPill("PRISM · drawn Slot. The solver's rects are frozen into a Drawn layout"); }
             var n = _le.Slots.Count + 1;
             var id = "slot-" + n;
             while (_le.Slots.Any(s => s.Id == id)) id = "slot-" + (++n);
@@ -700,7 +700,7 @@ public sealed partial class MainWindow
     private async Task SaveLeDraftAsync(string? replaceId = null, bool force = false)
     {
         if (_leSaving) return;
-        if (_le.Slots.Count(s => s.W > 0 && s.H > 0) == 0) { SetPill("Prism · add at least one Slot"); return; }
+        if (_le.Slots.Count(s => s.W > 0 && s.H > 0) == 0) { SetPill("PRISM · add at least one Slot"); return; }
         if (string.IsNullOrWhiteSpace(_le.Name))
         {
             var name = await PromptTextAsync("Name this Layout", "", "e.g. Movie night, Morning news", "Save");
@@ -730,7 +730,7 @@ public sealed partial class MainWindow
                 if (dups.Count > 0) { ShowDuplicateQuestion(dups); return; }
             }
             var res = await RuntimeEvalAsync("PrismRuntime.modelSaveLayout(" + Q(json) + ")");
-            if (res is null || !res.Contains("\"ok\":true")) { SetPill("Prism · could not save the Layout" + (res is null ? "" : ": " + Shorten(res, 80))); return; }
+            if (res is null || !res.Contains("\"ok\":true")) { SetPill("PRISM · could not save the Layout" + (res is null ? "" : ": " + Shorten(res, 80))); return; }
             try
             {
                 using var d = JsonDocument.Parse(res);
@@ -742,7 +742,7 @@ public sealed partial class MainWindow
             }
             catch { }
             _leSavedId = _le.Id;
-            SetPill("Prism · saved Layout \"" + _le.Name + "\"");
+            SetPill("PRISM · saved Layout \"" + _le.Name + "\"");
             RenderLeSlotList();
             DrawLePreview();
             await RefreshSavedLayoutsAsync();
@@ -774,7 +774,7 @@ public sealed partial class MainWindow
         row.Children.Add(replace);
         _leDupPanel.Children.Add(row);
         _leDupPanel.Visibility = Visibility.Visible;
-        SetPill("Prism · this may duplicate " + names + ". Choose below");
+        SetPill("PRISM · this may duplicate " + names + ". Choose below");
     }
 
     private void DuplicateLeDraft()
@@ -782,7 +782,7 @@ public sealed partial class MainWindow
         _le.Id = "";
         _le.Name = string.IsNullOrWhiteSpace(_le.Name) ? "" : _le.Name + " (copy)";
         if (_leName is not null) _leName.Text = _le.Name;
-        SetPill("Prism · continuing as a copy. Save Layout stores it as a new one");
+        SetPill("PRISM · continuing as a copy. Save Layout stores it as a new one");
         RenderLayoutEditor();
     }
 
@@ -791,7 +791,7 @@ public sealed partial class MainWindow
         if (restore) await RuntimeEvalAsync("PrismRuntime.modelArchiveLayout(" + Q(id) + ", false)");
         var st = await ModelStateAsync();
         var l = st?.Layouts.FirstOrDefault(x => x.Id == id);
-        if (l is null) { SetPill("Prism · that Layout is not saved"); return; }
+        if (l is null) { SetPill("PRISM · that Layout is not saved"); return; }
         LoadModelLayout(l);
         RenderLayoutEditor();
         await RefreshSavedLayoutsAsync();
@@ -826,7 +826,7 @@ public sealed partial class MainWindow
         _le = d;
         _leSel = -1;
         if (_leName is not null) _leName.Text = d.Name;
-        SetPill("Prism · editing Layout \"" + d.Name + "\"" + (l.Archived ? " (archived)" : ""));
+        SetPill("PRISM · editing Layout \"" + d.Name + "\"" + (l.Archived ? " (archived)" : ""));
     }
 
     private async Task RefreshSavedLayoutsAsync()

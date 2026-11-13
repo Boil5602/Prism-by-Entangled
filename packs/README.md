@@ -1,6 +1,6 @@
 # Imagery packs (`prism.imagery-pack/v0.1`)
 
-The pictures a Prism shows instead of an ad break (dashboard-schema §26) and in
+The pictures a PRISM shows instead of an ad break (dashboard-schema §26) and in
 place of a display-ad slot (§27). Two ship:
 
 | Pack | `source` id | What |

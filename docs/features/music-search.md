@@ -22,7 +22,7 @@ every signed-in service for that song on its hidden page, the row stays where it
 services' chips fill in on it as each answers (core puts the wanted song first in the merged list). An album or artist row searches the
 services for its name. Enter searches the services for the words as typed, which is also the whole of it when the catalog is off
 (`musicSetSuggestions(false)`, store `music:suggest` = "off") or has nothing for the words. Deezer is a music service, not a catalog
-company; what Prism uses is its open search alone, given the words and nothing else (docs/network.md). The open-data stack was measured
+company; what PRISM uses is its open search alone, given the words and nothing else (docs/network.md). The open-data stack was measured
 the same day (MusicBrainz 650 to 890 ms a query and a typo finds nothing, Cover Art Archive 3.4 s a picture, Odesli's public API retired,
 Discogs for details only) and stands in docs/roadmap.md.
 
@@ -47,8 +47,8 @@ pages carry them as sections; a Pandora artist becomes its station.
 Under the service with something loaded, a small "Up next ›" row opens the player's own queue from its position: the song playing now
 marked, then what follows, in the order the player holds (an album's order, a playlist's, the service's shuffle). It is read by the
 adapter's `musicQueueView` route (Apple Music: MusicKit's queue items, the same thing `musicContext` already reads for its "next" line); a
-service without the route says it does not show its queue to Prism yet. A play in Prism's own order (true shuffle, reverse) is named as
-such above the list, since the player's queue is Prism's window into it.
+service without the route says it does not show its queue to PRISM yet. A play in PRISM's own order (true shuffle, reverse) is named as
+such above the list, since the player's queue is PRISM's window into it.
 
 ## Core verbs (channel)
 
@@ -66,7 +66,7 @@ parity with the wall (docs/features/phone.md).
 ## Status (2026-11-04)
 
 Three cuts the same day. The first (grouped by service, Enter only) was seen live: the rows came, a press on Apple Music played nothing the
-person could see and Vibes landed on track 9 (Prism's standing true-shuffle order re-queued over the single song; the pending named a kind
+person could see and Vibes landed on track 9 (PRISM's standing true-shuffle order re-queued over the single song; the pending named a kind
 the page never reports), Pandora had no play route. The second: one row a song with the services as chips, as-you-type, artwork, paging,
 the standing order ended first, Pandora as a station; Spotify's and Pandora's routes verified from the hidden pages. The third: the catalog
 in front (Deezer), rows updated in place, albums and artists as rows. Core 1576 tests. The phone's row is next.

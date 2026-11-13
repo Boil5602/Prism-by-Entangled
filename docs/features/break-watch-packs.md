@@ -1,4 +1,4 @@
-# Break watch packs: one person's reports, every Prism's covers
+# Break watch packs: one person's reports, every PRISM's covers
 
 *Status: first cut built 2026-11-07 (the models, the picture network and the ad catalog as pack parts; rules, settings, channel logos,
 sounds and the revocation list still to come); the first pack, 2026-11-07.1, published that afternoon (4 files, 5.75 MB) and verified from
@@ -17,9 +17,9 @@ The break watch (`targets/win-host/PrismHost/Services/BreakModel.cs`, `MainWindo
 read off the picture, because YouTube TV's page and traffic say nothing about them (memory: ytv-linear-breaks-no-traffic). Everything it
 knows is either built in (word lists, timings) or learned on the one PC (a channel's logo, the fingerprints of ads it has seen). A pack
 moves the first kind out of the code and shares what we have checked of the second, so a fix made from one household's reports reaches
-every Prism in hours, without a release.
+every PRISM in hours, without a release.
 
-Prism covers ads; it never blocks or skips them (docs/third-party-services-policy.md). A pack changes what Prism covers, nothing else.
+PRISM covers ads; it never blocks or skips them (docs/third-party-services-policy.md). A pack changes what PRISM covers, nothing else.
 
 ## What a pack carries
 
@@ -71,7 +71,7 @@ At `https://prism.entangled.world/breakwatch/pack.json`, `pack.sig` beside it, a
   its own address and public key, as it does for updates.
 - **Every file a pack names is addressed by its sha256** and checked against it before use. A file already on the PC is not fetched again.
 - **`pack` is a serial**, newer is later. A pack older than the one held is ignored, and a refused pack (bad signature, bad hash, a pattern
-  that does not compile, `minPrism` above this Prism) leaves the held one in place. The status line says why, once.
+  that does not compile, `minPrism` above this PRISM) leaves the held one in place. The status line says why, once.
 
 ## On the PC
 
@@ -80,7 +80,7 @@ At `https://prism.entangled.world/breakwatch/pack.json`, `pack.sig` beside it, a
   named files only when their hashes are new. Added to docs/network.md in the commit that builds it.
 - **Applied without a restart:** a window's model picks the new rules at its next look; a running break is not re-judged mid-way.
 - **The built-in rules stay the floor:** the code ships today's lists as the defaults, and a pack replaces a list only as a whole, so a
-  Prism with no pack (offline, a fork without a server) works as it does now.
+  PRISM with no pack (offline, a fork without a server) works as it does now.
 - **The guards are code, never data.** A pack cannot change them:
   - an ad's words and a known ad count only with the channel's learned logo plainly away;
   - a shared fingerprint never keeps a cover going on its own, and never counts on a channel whose logo is set aside (C-SPAN2's slides
@@ -91,7 +91,7 @@ At `https://prism.entangled.world/breakwatch/pack.json`, `pack.sig` beside it, a
 - **Shared and local kept apart:** shared fingerprints sit in their own file beside the PC's own (`prints.bin`, `sounds.bin`), so a
   revoked one goes without touching what this PC learned, and what this PC learned is never overwritten. A logo from a pack is used until
   the PC has learned its own; the PC's own wins after that.
-- **A setting, off by default:** Watch settings, "Get ad cover updates from Entangled". *Decision (2026-10-07):* Until it is turned on Prism fetches no pack and runs on its built-in rules and what this PC learned, exactly as it
+- **A setting, off by default:** Watch settings, "Get ad cover updates from Entangled". *Decision (2026-10-07):* Until it is turned on PRISM fetches no pack and runs on its built-in rules and what this PC learned, exactly as it
   does today. The address and key sit beside the update server's for forks.
 
 ## Every release carries the newest pack
@@ -101,7 +101,7 @@ At `https://prism.entangled.world/breakwatch/pack.json`, `pack.sig` beside it, a
 - **Bundled at publish:** `publish-windows.py` copies the newest signed pack (`pack.json`, `pack.sig` and every file it names) into the
   build's `Assets/breakwatch/` before it builds, and refuses to publish if the pack does not verify. A fresh install starts with every
   rule, logo and fingerprint checked up to that day; nothing has to be fetched.
-- **The newer pack wins:** at start Prism holds two at most, the one in its own install and the one last downloaded (only with the
+- **The newer pack wins:** at start PRISM holds two at most, the one in its own install and the one last downloaded (only with the
   setting on), and uses the one with the later `pack` serial. A new version with the downloads off moves the person to the newest pack
   of its day; with the downloads on, a pack published after the release is used until the next release brings a newer one.
 - **Verified the same way:** the bundled pack is checked against the pack key like a downloaded one. A bundled pack that fails is
@@ -111,14 +111,14 @@ At `https://prism.entangled.world/breakwatch/pack.json`, `pack.sig` beside it, a
 So the opt-in is about timing, not about who gets the detections: everyone has the newest pack as of their version, and the setting adds
 the ones published between versions.
 
-## The learned models, and the Prism extension (draft 2026-11-06)
+## The learned models, and the PRISM extension (draft 2026-11-06)
 
-*Decision (2026-11-06):* the break watch's models reach the Prism extension as a signed data pack, not as extension releases. The extension carries the Prism
+*Decision (2026-11-06):* the break watch's models reach the PRISM extension as a signed data pack, not as extension releases. The extension carries the PRISM
 app's ad covering into browsers; this section extends the pack to the learned detector and to the extension; it is a design for review, nothing of it is built.
 
 **The models are a pack part.** `models` names two learned detectors, each a file addressed by its sha256 like the rest:
 
-- `prism`: the Prism app's model (today's `Assets/breakwatch/learned.json`), read by `LearnedBreak.cs`;
+- `prism`: the PRISM app's model (today's `Assets/breakwatch/learned.json`), read by `LearnedBreak.cs`;
 - `veil` (the file's key; the extension's model), trained on the same days in the same run but without the inputs a browser cannot read (on-screen text and
   QR codes; captions only when the person has them on; no sound), read by the browser port (`src/breakwatch/learned-break.js`).
 
@@ -131,11 +131,11 @@ not the ones it knows.
 election night, at least as much ad time covered and no more show wrongly covered. The extension's model also passes the port's parity test
 (`scripts/breakwatch/parity-js.mjs`: every input, the chance and every cover the same as the C# bench) before it is signed.
 
-**In the Prism extension:**
+**In the PRISM extension:**
 
 - **Bundled, then updated:** every extension release carries the newest signed pack's `veil` model (today `src/breakwatch/model.json`,
   unsigned and hand-copied; it becomes the bundled pack). The newer of the bundled and the downloaded one wins by the pack serial, as in
-  the Prism app.
+  the PRISM app.
 - **The fetch is the panel's opt-in**, off by default, beside the live TV picture options: "Get ad cover updates from Entangled". With it
   on, the extension fetches `pack.json` and `pack.sig` once a day and at start, from the address it already may reach (its manifest's
   `https://prism.entangled.world/*`; no new permission, no new install warning), with no cookies (`credentials: "omit"`), no query string
@@ -147,17 +147,17 @@ election night, at least as much ad time covered and no more show wrongly covere
   watch. A new model is picked up at the next channel's start, never in the middle of a break.
 - **Firefox** has no tab stream, so it never runs the model: its build leaves the model out and its fetch skips the `models` part.
 
-**Logos for a fresh install.** A channel's learned logo saves the eight minutes a new window spends learning it. The Prism app keys channels by
+**Logos for a fresh install.** A channel's learned logo saves the eight minutes a new window spends learning it. The PRISM app keys channels by
 YouTube TV's channel id; the extension by the live stream's watch address, which may not be the same for a channel across days. *Open:* map
 the two (the watch page names its channel) before the `channels` part is of use to the extension.
 
-**What the extension sends:** nothing, in this design. The opt-in uploads above are the Prism app's; the extension's "Not a break" stays on the PC.
+**What the extension sends:** nothing, in this design. The opt-in uploads above are the PRISM app's; the extension's "Not a break" stays on the PC.
 
 **Questions for the owner before it is built:**
 
 1. One opt-in for everything a pack carries in the extension (rules, model, later logos), or the model on its own switch?
 2. The fetch once a day: enough, given a model changes at most nightly?
-3. The pack key: the same key as the Prism app's packs (one pack, two readers), or one of the extension's own (a leaked
+3. The pack key: the same key as the PRISM app's packs (one pack, two readers), or one of the extension's own (a leaked
    extension key could not sign the app's covers)?
 
 ## What comes in, and how it goes out

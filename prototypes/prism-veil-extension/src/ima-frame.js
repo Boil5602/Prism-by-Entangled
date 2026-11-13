@@ -1,5 +1,5 @@
 /*
-  Prism - inside Google IMA's ad iframe (imasdk.googleapis.com). The page
+  PRISM - inside Google IMA's ad iframe (imasdk.googleapis.com). The page
   cannot see into this frame, so the Skip button IMA draws here is invisible
   to the veil's cutter. This script watches for it and tells the parent where
   it is (rect within the frame, corner radius, label); the parent cuts the

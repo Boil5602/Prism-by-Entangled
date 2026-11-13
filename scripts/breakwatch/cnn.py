@@ -78,6 +78,40 @@ def labelled(day):
     return out
 
 
+def nearest(fr, i, back, tol=0.7):
+    """The frame nearest `back` seconds before frame i (its path), within tol, else None."""
+    want = fr[i][0] - back; j = i
+    while j > 0 and fr[j - 1][0] >= want - tol: j -= 1
+    best = None
+    for k in range(j, i):
+        if abs(fr[k][0] - want) <= tol and (best is None or abs(fr[k][0] - want) < abs(fr[best][0] - want)): best = k
+    return fr[best][1] if best is not None else None
+
+
+# TEMPORAL=1 (2026-11-07, the strategy ledger's second untried row): a break is a rhythm one frame cannot show. Beside the frame and its
+# change from the frame before, two channels of the ten seconds behind it, at a two-second stride: the mean absolute change between
+# successive strides (cuts come every two to four seconds in a break) and the change from the frame six seconds before. A frame missing
+# from the recording leaves its stride out; with none, the channels are zero.
+TEMPORAL = os.environ.get("TEMPORAL") == "1"
+CH = 4 if TEMPORAL else 2
+
+
+def sample(fr, i):
+    t, f = fr[i]
+    prev = fr[i - 1][1] if i and t - fr[i - 1][0] < 3 else None
+    x = pair(prev, f)
+    if x is None or not TEMPORAL: return x
+    c = x[0].astype(np.float32) * 255
+    greys = [c]
+    for back in (2, 4, 6, 8, 10):
+        p = nearest(fr, i, back); g = small(p) if p else None
+        greys.append(g)
+    diffs = [np.abs(greys[k] - greys[k + 1]) for k in range(5) if greys[k] is not None and greys[k + 1] is not None]
+    energy = np.mean(diffs, axis=0) if diffs else np.zeros_like(c)
+    six = (c - greys[3]) if greys[3] is not None else np.zeros_like(c)
+    return np.concatenate([x, np.stack([energy / 255.0, six / 255.0]).astype(np.float16)])
+
+
 def build_window(args):
     day, w, step = args
     ads, info, rev, neu = labelled(day)[w]
@@ -86,32 +120,71 @@ def build_window(args):
     exam = LEAVE_SPANS.get((day, w), [])
     for i, (t, f) in enumerate(fr):
         if t - last < step or not inside(t, rev) or inside(t, neu) or inside(t, info) or inside(t, exam): continue
-        prev = fr[i - 1][1] if i and t - fr[i - 1][0] < 3 else None
-        x = pair(prev, f)
+        x = sample(fr, i)
         if x is None: continue
         last = t; X.append(x); Y.append(1 if inside(t, ads) else 0)
-    return day, w, (np.stack(X) if X else np.zeros((0, 2, H_, W_), np.float16)), np.array(Y, dtype=np.float32)
+    return day, w, (np.stack(X) if X else np.zeros((0, CH, H_, W_), np.float16)), np.array(Y, dtype=np.float32)
 
 
 def build(days, step, cap):
     from concurrent.futures import ProcessPoolExecutor
     jobs = [(d, w, step) for d in days for w in labelled(d)]
-    X, Y, per = [], [], {}
+    X, Y, D, per = [], [], [], {}
     with ProcessPoolExecutor(int(os.environ.get("WORKERS", "4"))) as ex:   # each window's frames read in its own process
         for day, w, x, y in ex.map(build_window, jobs):
-            X.append(x); Y.append(y); n = per.setdefault(day, [0, 0]); n[0] += len(y); n[1] += int(y.sum())
+            X.append(x); Y.append(y); D.append(np.full(len(y), days.index(day), np.int32)); n = per.setdefault(day, [0, 0]); n[0] += len(y); n[1] += int(y.sum())
     for day in days:
         if day in per: print(f"{day}: {per[day][0]} samples, {per[day][1]} ads", flush=True)
-    X, Y = np.concatenate(X), np.concatenate(Y)
+    X, Y, D = np.concatenate(X), np.concatenate(Y), np.concatenate(D)
     if len(Y) > cap:
-        k = np.random.default_rng(1).choice(len(Y), cap, replace=False); X, Y = X[k], Y[k]
-    return X, Y
+        k = np.random.default_rng(1).choice(len(Y), cap, replace=False); X, Y, D = X[k], Y[k], D[k]
+    return X, Y, D   # D: each sample's day, an index into days (the folds of HARDNEG / CALIB)
+
+
+# Phase 4 of the boundary-first redesign (2026-11-08): the network has no global pooling, so a corner logo keeps its place and the
+# network is partly a logo recognizer for the channels it trained on. Three variants, each a switch (off by default):
+#   MASKCORNERS=1  the four corner bands (a fifth of the height, a quarter of the width) zeroed in every channel of the input;
+#   CORNERSWAP=1   in each batch, the corner bands of ad frames and show frames are swapped at random (a logo band from a show frame
+#                  lands on an ad frame and vice versa), so the presence of a logo stops telling the two apart. The learned .logo
+#                  references are not read: the swap takes real corners from real frames, which carries their bugs, scores and tickers too;
+#   TICKER=1       with CORNERSWAP, a bright ticker band (the bottom eighth) with text-like noise and a small bug is composited onto a
+#                  third of the ad frames (the election-night case, B-476: the station's ticker stays through the ads).
+MASKCORNERS = os.environ.get("MASKCORNERS") == "1"; CORNERSWAP = os.environ.get("CORNERSWAP") == "1"; TICKER = os.environ.get("TICKER") == "1"
+CH_, CW_ = 12, 26   # the corner band in 3x3 blocks: 36 px high, 78 px wide on the 320x180 frame
+
+
+def augment(x, y):
+    """Batch augmentation for the Phase 4 variants; x: (n, ch, 60, 106) float tensor, y: (n,) labels."""
+    import torch
+    if MASKCORNERS:
+        x = x.clone(); x[:, :, :CH_, :CW_] = 0; x[:, :, :CH_, -CW_:] = 0; x[:, :, -CH_:, :CW_] = 0; x[:, :, -CH_:, -CW_:] = 0
+        return x
+    if CORNERSWAP:
+        x = x.clone(); ads = torch.nonzero(y > 0.5).flatten(); shows = torch.nonzero(y <= 0.5).flatten()
+        n = min(len(ads), len(shows))
+        if n > 0:
+            a = ads[torch.randperm(len(ads))[:n]]; b = shows[torch.randperm(len(shows))[:n]]
+            swap = torch.rand(n) < 0.5
+            a, b = a[swap], b[swap]
+            for (r0, r1, c0, c1) in ((0, CH_, 0, CW_), (0, CH_, -CW_, None), (-CH_, None, 0, CW_), (-CH_, None, -CW_, None)):
+                if torch.rand(1).item() < 0.7:
+                    ca = x[a, :, r0:r1, c0:c1].clone(); x[a, :, r0:r1, c0:c1] = x[b, :, r0:r1, c0:c1]; x[b, :, r0:r1, c0:c1] = ca
+        if TICKER:
+            ads = torch.nonzero(y > 0.5).flatten(); pick = ads[torch.rand(len(ads)) < 0.33]
+            if len(pick):
+                band = x[pick, 0, -8:, :]
+                noise = (torch.rand_like(band) < 0.15).float() * 0.9 + 0.08   # a bright strip with text-like speckle
+                x[pick, 0, -8:, :] = noise
+                x[pick, 0, -12:-8, :16] = 0.95   # a station bug above the strip's left end
+                if x.shape[1] > 1: x[pick, 1, -12:, :] = 0   # the band does not change frame to frame
+        return x
+    return x
 
 
 def net():
     import torch.nn as nn
     def blk(i, o, s): return [nn.Conv2d(i, o, 3, s, 1, bias=False), nn.BatchNorm2d(o), nn.ReLU(inplace=True)]
-    return nn.Sequential(*blk(2, 16, 2), *blk(16, 32, 2), *blk(32, 48, 2), *blk(48, 64, 2),   # 60x106 -> 4x7
+    return nn.Sequential(*blk(CH, 16, 2), *blk(16, 32, 2), *blk(32, 48, 2), *blk(48, 64, 2),   # 60x106 -> 4x7
                          nn.Flatten(), nn.Dropout(0.3), nn.Linear(64 * 4 * 7, 64), nn.ReLU(inplace=True), nn.Linear(64, 1))
 
 
@@ -123,25 +196,64 @@ def auc(p, y):
 
 def train(out):
     import torch
-    torch.manual_seed(1); torch.set_num_threads(int(os.environ.get("THREADS", max(1, (os.cpu_count() or 4) // 2))))   # half the cores unless told: the sampler and Prism keep theirs
+    torch.manual_seed(1); torch.set_num_threads(int(os.environ.get("THREADS", max(1, (os.cpu_count() or 4) // 2))))   # half the cores unless told: the sampler and PRISM keep theirs
     days = [os.path.basename(d) for d in sorted(glob.glob(os.path.join(GOLD, "2026-*"))) if os.path.basename(d) not in LEAVE]
     t0 = time.time()
-    X, Y = build(days, STEP, int(os.environ.get("CAP", "80000")))
+    X, Y, D = build(days, STEP, int(os.environ.get("CAP", "80000")))
     print(f"training on {len(Y)} samples ({Y.mean() * 100:.1f}% ads) from {', '.join(days)}, built in {time.time() - t0:.0f} s", flush=True)
-    m = net(); opt = torch.optim.AdamW(m.parameters(), 2e-3, weight_decay=1e-4)
-    pw = torch.tensor([(1 - Y.mean()) / max(1e-6, Y.mean())])
-    lossf = torch.nn.BCEWithLogitsLoss(pos_weight=pw)
     Xt, Yt = torch.from_numpy(X), torch.from_numpy(Y)
     E = int(os.environ.get("EPOCHS", "6"))
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 3e-3, total_steps=E * math.ceil(len(Y) / 128))
-    for ep in range(E):
-        m.train(); perm = torch.randperm(len(Y)); tot = 0
-        for b in range(0, len(Y), 128):
-            k = perm[b:b + 128]; x = Xt[k].float()
-            dx, dy = np.random.randint(-3, 4), np.random.randint(-2, 3)   # a little shift and brightness: recordings differ a little
-            x = torch.roll(x, (dy, dx), (2, 3)); x[:, 0] = x[:, 0] * float(np.random.uniform(0.85, 1.15))
-            loss = lossf(m(x).squeeze(1), Yt[k]); opt.zero_grad(); loss.backward(); opt.step(); sched.step(); tot += loss.item() * len(k)
-        print(f"epoch {ep + 1}: loss {tot / len(Y):.4f} ({time.time() - t0:.0f} s)", flush=True)
+
+    def fit(idx, w, epochs, tag):
+        """A network trained on the samples idx, each weighted w (ones for plain training)."""
+        m = net(); opt = torch.optim.AdamW(m.parameters(), 2e-3, weight_decay=1e-4)
+        ym = float(Y[idx].mean()); pw = torch.tensor([(1 - ym) / max(1e-6, ym)])
+        lossf = torch.nn.BCEWithLogitsLoss(pos_weight=pw, reduction="none"); Wt = torch.from_numpy(w)
+        sched = torch.optim.lr_scheduler.OneCycleLR(opt, 3e-3, total_steps=epochs * math.ceil(len(idx) / 128))
+        it = torch.from_numpy(idx)
+        for ep in range(epochs):
+            m.train(); perm = it[torch.randperm(len(idx))]; tot = 0
+            for b in range(0, len(idx), 128):
+                k = perm[b:b + 128]; x = Xt[k].float()
+                dx, dy = np.random.randint(-3, 4), np.random.randint(-2, 3)   # a little shift and brightness: recordings differ a little
+                x = torch.roll(x, (dy, dx), (2, 3)); x[:, 0] = x[:, 0] * float(np.random.uniform(0.85, 1.15))
+                x = augment(x, Yt[k])
+                loss = (lossf(m(x).squeeze(1), Yt[k]) * Wt[k]).mean(); opt.zero_grad(); loss.backward(); opt.step(); sched.step(); tot += loss.item() * len(k)
+            print(f"{tag} epoch {ep + 1}: loss {tot / len(idx):.4f} ({time.time() - t0:.0f} s)", flush=True)
+        return m
+
+    def logits(m, idx):
+        m.eval(); out_ = []
+        with torch.no_grad():
+            for k in range(0, len(idx), 512): out_.append(m(Xt[torch.from_numpy(idx[k:k + 512])].float()).squeeze(1).numpy())
+        return np.concatenate(out_) if out_ else np.zeros(0, np.float32)
+
+    # HARDNEG=1 / CALIB=1 (2026-11-07, the strategy ledger's third and fourth untried rows). Two folds by day: each half's samples are
+    # scored by a network that never saw them. HARDNEG weights the samples that network got wrong (a show frame over 0.5, an ad frame
+    # under) three times in the final training, so the network dwells on the scenes that fool it. CALIB fits a scale and a shift on
+    # the held-out logits (Platt), written to calibration.json and carried in the export, so the chance means what it says.
+    w = np.ones(len(Y), np.float32)
+    if os.environ.get("HARDNEG") == "1" or os.environ.get("CALIB") == "1":
+        held = np.zeros(len(Y), np.float32); fold = D % 2
+        for f_ in (0, 1):
+            tr = np.flatnonzero(fold != f_); te = np.flatnonzero(fold == f_)
+            held[te] = logits(fit(tr, w, max(2, E // 2), f"fold {f_}"), te)
+        p = 1 / (1 + np.exp(-held))
+        if os.environ.get("HARDNEG") == "1":
+            hard = ((Y == 0) & (p > 0.5)) | ((Y == 1) & (p < 0.5)); w[hard] = 3
+            print(f"hard samples: {int(hard.sum())} ({((Y == 0) & (p > 0.5)).sum() / max(1, (Y == 0).sum()) * 100:.1f}% of show frames over 0.5, "
+                  f"{((Y == 1) & (p < 0.5)).sum() / max(1, (Y == 1).sum()) * 100:.1f}% of ad frames under); held-out AUC {auc(p, Y):.3f}", flush=True)
+        if os.environ.get("CALIB") == "1":
+            a_ = torch.tensor(1.0, requires_grad=True); b_ = torch.tensor(0.0, requires_grad=True)
+            L_, Y_ = torch.from_numpy(held), torch.from_numpy(Y)
+            opt_ = torch.optim.LBFGS([a_, b_], max_iter=300)
+            def closure():
+                opt_.zero_grad(); loss = torch.nn.functional.binary_cross_entropy_with_logits(a_ * L_ + b_, Y_); loss.backward(); return loss
+            opt_.step(closure)
+            cal = {"a": a_.item(), "b": b_.item()}
+            json.dump(cal, open(os.path.join(out, "calibration.json"), "w"))
+            print(f"calibration from the held folds: logit' = {cal['a']:.3f} * logit + {cal['b']:.3f}", flush=True)
+    m = fit(np.arange(len(Y)), w, E, "final")
     os.makedirs(os.path.join(out, "par"), exist_ok=True)
     torch.save(m.state_dict(), os.path.join(out, "cnn.pt"))
     # the exams, every second, never seen in training
@@ -152,8 +264,7 @@ def train(out):
         rows, xs = [], []
         for i, (t, f) in enumerate(fr):
             if not (a <= t < b): continue
-            prev = fr[i - 1][1] if i and t - fr[i - 1][0] < 3 else None
-            x = pair(prev, f)
+            x = sample(fr, i)
             if x is None: continue
             xs.append(x); rows.append(t)
         ps = []
@@ -252,8 +363,10 @@ def export(out):
             layers.append({"type": "linear", "in": md.in_features, "out": md.out_features, "w": b64(md.weight.detach().numpy()), "b": b64(md.bias.detach().numpy()),
                            "relu": i + 1 < len(mods) and isinstance(mods[i + 1], torch.nn.ReLU)})
         i += 1
-    spec = {"version": 1, "kind": "picture-net", "input": {"w": W_, "h": H_, "block": 3, "channels": ["grey/255", "(grey - previous grey)/255, zero with no frame in the last 3 s"]},
+    cal_path = os.path.join(out, "calibration.json")
+    spec = {"version": 1, "kind": "picture-net", "input": {"w": W_, "h": H_, "block": 3, "channels": ["grey/255", "(grey - previous grey)/255, zero with no frame in the last 3 s"] + (["mean |grey(t-2k) - grey(t-2k-2)| over k=0..4, /255", "(grey - grey six seconds before)/255"] if TEMPORAL else [])},
             "trained": "2026-11-06, scripts/breakwatch/cnn.py", "layers": layers}
+    if os.path.exists(cal_path): spec["calibration"] = json.load(open(cal_path))   # logit' = a * logit + b, from the held folds (CALIB=1)
     json.dump(spec, open(os.path.join(out, "picture-net.json"), "w"), separators=(",", ":"))
     # parity: 400 frames of 10-08 (the exams' day), raw paths and the network's chance
     rows = []
@@ -261,10 +374,10 @@ def export(out):
     with torch.no_grad():
         for i, (t, f) in enumerate(fr):
             prev = fr[i - 1][1] if i and t - fr[i - 1][0] < 3 else None
-            x = pair(prev, f)
+            x = sample(fr, i)
             if x is None: continue
             p = float(torch.sigmoid(m(torch.from_numpy(x[None].astype(np.float32)))).item())
-            rows.append({"t": t, "frame": f, "prev": prev, "p": p})
+            rows.append({"t": t, "frame": f, "prev": prev, "p": p, **({"back": [nearest(fr, i, bk) for bk in (2, 4, 6, 8, 10)]} if TEMPORAL else {})})
     json.dump(rows, open(os.path.join(out, "picture-net-parity.json"), "w"))
     print("exported", len(layers), "layers,", os.path.getsize(os.path.join(out, "picture-net.json")), "bytes;", len(rows), "parity rows")
 

@@ -1,6 +1,6 @@
-# Contributing to Prism
+# Contributing to PRISM
 
-Thanks for helping. Prism by Entangled is free software from Entangled Labs LLC, and contributions
+Thanks for helping. PRISM by Entangled is free software from Entangled Labs LLC, and contributions
 are welcome: bug reports, adapters for more services, fixes and features.
 
 Security problems go to **security@entangled.world**, not a public issue. See [SECURITY.md](SECURITY.md).
@@ -10,7 +10,7 @@ Security problems go to **security@entangled.world**, not a public issue. See [S
 - **Read the spec first.** `docs/dashboard-schema.md` is the source of truth for behavior;
   `docs/win-host-spec.md` covers the Windows app, and `docs/scene-model-spec.md` the configuration
   model. A behavior question is answered there before any code is written.
-- **Read the services policy.** `docs/third-party-services-policy.md` sets how Prism treats the
+- **Read the services policy.** `docs/third-party-services-policy.md` sets how PRISM treats the
   services it shows: no credential handling, nothing that touches copy protection, page actions
   only, a person's pace, no disguises. A change that breaks it won't be merged.
 - **One brain, thin hands.** All behavior lives in prism-core (`packages/core`). The Windows app,
@@ -18,7 +18,7 @@ Security problems go to **security@entangled.world**, not a public issue. See [S
 
 ## License and sign-off
 
-Prism is licensed under the **GNU General Public License, version 3 or later** (see
+PRISM is licensed under the **GNU General Public License, version 3 or later** (see
 [LICENSE](LICENSE)). By contributing you agree that your contribution is licensed the same way.
 
 Every commit needs a sign-off line, certifying the
@@ -45,7 +45,7 @@ Signed-off-by: Your Name <you@example.com>
 
 - **Vocabulary.** App, Slot, Layout, Facet, Scene, Canvas class, Visualization. "Frame" means the
   physical device only. The vocabulary audit in the gate enforces it.
-- **Plain on-screen words.** Text Prism shows reads like a person wrote it: short sentences, no
+- **Plain on-screen words.** Text PRISM shows reads like a person wrote it: short sentences, no
   " - " joining clauses, no chains of semicolons.
 - **Readable from across a room.** Light ink `#E8ECF2` for information, amber `#F2B14C` for the
   thing to notice. Never show information in a control's disabled state.

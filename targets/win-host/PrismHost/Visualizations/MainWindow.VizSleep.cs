@@ -13,7 +13,7 @@ namespace PrismHost;
 /// and the track block never sleep: they are what the screen is for. The pointer's place is read from the system every half second
 /// (MainWindow.PointerCheck.cs: Entered / Exited cannot be trusted across a WebView2), so a pointer that left the window sleeps the
 /// player too. The rule itself is VisualizationChrome.Asleep / CursorHidden (tested); music.sleep (host-prefs.json) turns it off from
-/// the Prism menu. docs/concept-scenes.md, the 2026-10-22 decision.
+/// the PRISM menu. docs/concept-scenes.md, the 2026-10-22 decision.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -81,7 +81,7 @@ public sealed partial class MainWindow
         SetCursorHidden(false);
     }
 
-    /// <summary>The window's own furniture asleep with the stage - the Prism grip and the top-right corner (the Music / Video switch, the report
+    /// <summary>The window's own furniture asleep with the stage - the PRISM grip and the top-right corner (the Music / Video switch, the report
     /// flag) - each with the opacity and hit-test state it had when sleep came (2026-10-22).</summary>
     private readonly List<(UIElement el, double rest, bool hit)> _windowSleepers = new();
 
@@ -141,6 +141,6 @@ public sealed partial class MainWindow
         HostPrefs.Set(MusicSleepKey, on);
         LogLine("viz sleep: " + (on ? "on" : "off"));
         if (!on) { if (_vizAsleep) SetVizAsleep(false); SetCursorHidden(false); }
-        SetPill("Prism" + Mid + (on ? "the music player sleeps after 10 seconds" : "the music player stays awake"));
+        SetPill("PRISM" + Mid + (on ? "the music player sleeps after 10 seconds" : "the music player stays awake"));
     }
 }

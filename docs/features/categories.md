@@ -6,7 +6,7 @@ the owner asked that the selection be clear, chose clear rules only, and agreed 
 ## What a category is
 
 A row on Watch that the person made: a name, some hashtags, and one rule. It holds every title the household's services already
-list in Prism (Continue watching, the lists, the services' own rows such as YouTube's Subscriptions and Latest from your
+list in PRISM (Continue watching, the lists, the services' own rows such as YouTube's Subscriptions and Latest from your
 subscriptions, Twitch's followed channels) whose words carry one of the hashtags, across services, in the rule's order. Nothing is
 fetched for a category, no feed of anyone's is read, and it leaves the PC for nothing.
 
@@ -25,16 +25,16 @@ counted, who is counted, who decides, the source.
 | Rule | Order | Source |
 | --- | --- | --- |
 | Newest first | the date the service writes beside each title ("3 days ago"); undated last | the services' own pages |
-| Watched most recently by this household | when this PC last saw the title play; never played last | Prism's own log on this PC |
+| Watched most recently by this household | when this PC last saw the title play; never played last | PRISM's own log on this PC |
 | A to Z | the title's name, articles aside | the services' own pages |
-| The service's own order | as each service listed it, service after service | the services' own pages; Prism does not know their reason |
+| The service's own order | as each service listed it, service after service | the services' own pages; PRISM does not know their reason |
 
 No rule weighs, recommends, or learns. Adding one means adding a `RuleWords` entry with all four lines and a test.
 
 ## The hashtags offered
 
 "Popular recent hashtags" has one honest source: the household's own rows. `popularTags()` counts the words that recur across the
-titles Prism lists for this household (one count a title, two when the title writes it as a `#hashtag`), with joiners and the
+titles PRISM lists for this household (one count a title, two when the title writes it as a `#hashtag`), with joiners and the
 services' row words left out, and the badge (a rating, LIVE) never counted. The tab says so beside the chips. There is no trend feed from YouTube, Twitch or anyone, and none is planned without a nameable source.
 
 ## Where it lives
@@ -54,7 +54,7 @@ whose rule it follows, and the rule is one the service itself names on its page,
 
 | Service | Page (adapter `videoPoolUrl`) | What is listed | Whose rule |
 | --- | --- | --- | --- |
-| YouTube | `results?search_query=#tag`, then the page's own **Recently uploaded** chip pressed | up to 40 videos from every channel on YouTube carrying the hashtag | which videos: YouTube's search, a rule it does not publish; the filter: YouTube's own, named; the order: Prism's rule by the date shown |
+| YouTube | `results?search_query=#tag`, then the page's own **Recently uploaded** chip pressed | up to 40 videos from every channel on YouTube carrying the hashtag | which videos: YouTube's search, a rule it does not publish; the filter: YouTube's own, named; the order: PRISM's rule by the date shown |
 | Twitch | `directory/all/tags/<tag>?sort=RECENT` | up to 40 live streams tagged with it, from every streamer | the streamer, by tagging; the order: Twitch's stated **Recently started** sort |
 
 Since 2026-10-12 the pool's titles stand in
@@ -81,7 +81,7 @@ for the rows), kept a month per title under `video:tags`, at most 3000 titles:
 
 - **Twitch**: one hidden-page read of `/directory/following/live` gives every followed live stream's tag buttons and its category,
   keyed by the channel's login (`videoTagsUrl` + `videoTags`, op `tags`).
-- **YouTube**: an anonymous read of `www.youtube.com/watch/<id>` (no query string, no cookie, Prism's agent string) for a dozen
+- **YouTube**: an anonymous read of `www.youtube.com/watch/<id>` (no query string, no cookie, PRISM's agent string) for a dozen
   titles a pass, keeping the page's keywords meta, the creator's own tags (`videoTagsFetch`; `keywordsOf()` parses it). Nothing is
   played and nothing lands in the household's history, which a hidden-page watch would have done.
 

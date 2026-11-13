@@ -12,6 +12,7 @@
  *   channel repro        node scripts/generate-win-channel.mjs + git diff --exit-code on Channel.g.cs
  *   surface coverage     node scripts/verify-surface-coverage.mjs (win-host-spec §5 invariant)
  *   vocabulary           node scripts/audit-vocabulary.mjs --strict (CLAUDE.md vocabulary; strict since SM-6, --lenient-vocab to report only)
+ *   brand                node scripts/audit-brand.mjs             (the brand is written PRISM; paths, file names and the other named identifiers keep theirs)
  *   button hover         node scripts/audit-button-hover.mjs      (a host Button with its own colour owns its hover: Chip() or OwnHover - memory: hover-loss-tooltips)
  *   companion install    node scripts/verify-companion-install.mjs (the phone page's Home Screen nudge: when it shows, what it shows, what it never sends)
  *   adapter selectors    node scripts/audit-adapter-selectors.mjs (an adapter script's literal selectors are valid CSS - an unquoted value with / throws)
@@ -128,6 +129,10 @@ const steps = [
   {
     id: "vocabulary", title: `vocabulary audit (${strictVocab ? "strict" : "report-only for 'frame'; 'whitelist' always fails"})`,
     fn: () => { const r = run("node", ["scripts/audit-vocabulary.mjs", ...(strictVocab ? ["--strict"] : [])], root); const counts = r.out.split(/\r?\n/).filter((l) => /^  "(whitelist|frame|view)"/.test(l)).map((l) => l.trim()).join(" | "); return { code: r.code, detail: r.code === 0 ? counts : tail(r.out, 30) }; },
+  },
+  {
+    id: "brand", title: "brand audit (the name is written PRISM)",
+    fn: () => { const r = run("node", ["scripts/audit-brand.mjs"], root); return { code: r.code, detail: tail(r.out, 20) }; },
   },
   {
     id: "button-hover", title: "button hover audit (coloured host buttons own their hover)",

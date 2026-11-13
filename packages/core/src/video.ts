@@ -428,7 +428,7 @@ export class VideoController {
     this.noteStartPlayed(tileId, playing);
   }
   /** The page says an ad is running on this tile (the adapter's own named marker). The wall's seeks wait it out: on a
-   *  stitched stream a seek during the break is a skip past the ad, and Prism observes and covers, never interferes (section 26). */
+   *  stitched stream a seek during the break is a skip past the ad, and PRISM observes and covers, never interferes (section 26). */
   inAd(tileId: string): boolean { return this.contexts.get(tileId)?.ad === true; }
 
   /**
@@ -1028,7 +1028,7 @@ export class VideoController {
     for (const s of services) if (this.seen[s.adapter]) seen[s.app] = this.seen[s.adapter]!;
     // a My List card the service gave no banner may carry TMDB's (a new episode this week) - it then sorts with the bannered ones
     const listRows = listBadge ? rowsOf("list").map((r) => { const adapter = services.find((s) => s.app === r.app)?.adapter ?? r.app; return { ...r, items: r.items.map((it) => { if (it.badge) return it; const b = listBadge(it, adapter); return b ? { ...it, badge: b, badgeFrom: "tmdb" as const } : it; }) }; }) : rowsOf("list");
-    // the person's order for each row (2026-09-26): Continue watching by service or A to Z; My list Prism's order (banners first), by service or A to Z
+    // the person's order for each row (2026-09-26): Continue watching by service or A to Z; My list PRISM's order (banners first), by service or A to Z
     const cr = orders.continueReverse, lr = orders.listReverse;
     const cont = orders.continue === "service" ? orderByService(rowsOf("continue"), log, seen, now, cr) : orders.continue === "watched" ? orderByWatched(rowsOf("continue"), log, seen, now, cr) : orderContinueByTitle(orderByService(rowsOf("continue"), log, seen, now), cr);
     const list = orders.list === "service" ? orderByService(listRows, log, seen, now, lr) : orders.list === "title" ? orderContinueByTitle(orderByService(listRows, log, seen, now), lr) : orderAlphabetical(listRows, log, seen, now, lr);
@@ -1492,7 +1492,7 @@ export class VideoController {
 
   /**
    * The page's own controls woken with the wall's (2026-10-23). A service
-   * offers its Skip Intro for a few seconds and then again whenever its controls show; Prism hides those controls behind its own bar, so the
+   * offers its Skip Intro for a few seconds and then again whenever its controls show; PRISM hides those controls behind its own bar, so the
    * offer never came back. When the person opens the wall's bar, the adapter's videoCmd "controls" shows the page's (Netflix: a Shift key on the
    * player), and the skip offer is asked again at once, so a Skip the page offers with its controls is the wall's Skip too. An adapter with no
    * such verb answers false and nothing changes.

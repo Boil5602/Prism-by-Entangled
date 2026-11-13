@@ -6,11 +6,11 @@ using System.Text.Json.Nodes;
 namespace PrismHost.Updating;
 
 /// <summary>
-/// The fixed install folder and incremental updates (docs/features/updates.md, 2026-10-06). Every Prism runs from one folder that never moves (%LOCALAPPDATA%\Programs\Prism), so Windows' firewall rule, keyed on the
-/// exe's path, is asked for once in Prism's life instead of once an update; and an update fetches only the files that changed (about 2 MB
+/// The fixed install folder and incremental updates (docs/features/updates.md, 2026-10-06). Every PRISM runs from one folder that never moves (%LOCALAPPDATA%\Programs\Prism), so Windows' firewall rule, keyed on the
+/// exe's path, is asked for once in PRISM's life instead of once an update; and an update fetches only the files that changed (about 2 MB
 /// against a 127 MB zip, 10 of 660 files between 0.23.0 and 0.24.0).
 ///
-///   install   the folder Prism runs from. Its .files.json lists every file with its SHA-256, its install.json the version.
+///   install   the folder PRISM runs from. Its .files.json lists every file with its SHA-256, its install.json the version.
 ///   next      an update is staged here whole: unchanged files copied from the running copy, changed ones downloaded and checked.
 ///   previous  what a promotion replaced, kept for a rollback until the next update is staged.
 ///
@@ -174,7 +174,7 @@ public sealed class UpdateInstaller
         for (var i = 0; i < toFetch.Count; i++)
         {
             var f = toFetch[i];
-            status("Prism " + version + ": downloading " + (i + 1) + " of " + toFetch.Count + " changed files" + (got > 0 ? " (" + (got / 1048576.0).ToString("0.0") + " MB)" : "") + "\u2026");
+            status("PRISM " + version + ": downloading " + (i + 1) + " of " + toFetch.Count + " changed files" + (got > 0 ? " (" + (got / 1048576.0).ToString("0.0") + " MB)" : "") + "\u2026");
             got += await FetchBlobAsync(blobBase + f.Sha256 + ".gz", f, Full(NextDir, f.Path), ct);
             unpacked += f.Size;
         }

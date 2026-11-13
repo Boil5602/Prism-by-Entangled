@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             CloseTitleDetails();
             if (PickLeavesWatch(series)) { CloseVideoHub(); ShowStageCurtain(series, service, poster.Length > 0 ? poster : null); }
             _ = go();
-            SetPill("Prism " + (char)0xB7 + " " + Shorten(what, 60) + " on " + service);
+            SetPill("PRISM " + (char)0xB7 + " " + Shorten(what, 60) + " on " + service);
         }
         Button PlayChip(string label, string tip, Action click)
         {

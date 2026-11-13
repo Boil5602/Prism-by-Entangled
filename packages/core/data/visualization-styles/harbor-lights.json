@@ -1,7 +1,7 @@
 {
   "id": "harbor-lights",
   "name": "Harbor Lights",
-  "blurb": "A harbor at night; boats bob on the swell with the lows, a lighthouse beam sweeps, the lights double in the water.",
+  "blurb": "A fishing harbor at night; the swell rises with the lows and the boats ride it, every bulb on their rigging is a band, the lighthouse turns with the music, and the lights double in the water.",
   "program": "harbor-lights",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

@@ -1,4 +1,4 @@
-# Updates: the Windows download and how Prism keeps itself current
+# Updates: the Windows download and how PRISM keeps itself current
 
 2026-10-05: and
 
@@ -27,18 +27,18 @@ The publish script builds it from CHANGELOG.md, so the manifest, the changelog a
 the rest. An incremental update can skip several versions, so the feed shows each one's notes, not only the newest.
 
 On the PC, the Updates dialog's **Show what's changed** (off by default, the choice kept) opens a panel beside the settings: each release,
-the ones newer than this Prism in amber with *New*, this Prism's own marked *Running now*. Core keeps the track's entry from the last good
+the ones newer than this PRISM in amber with *New*, this PRISM's own marked *Running now*. Core keeps the track's entry from the last good
 check (`latest`) even when nothing is newer, so the panel always has the newest release to show. Nothing extra is fetched: the history
 comes in the manifest the daily check already reads. A manifest from before the feed shows its one release's notes.
 
 ### Tracks (2026-10-05)
 
 *Decision:* Three tracks, one entry each:
-**alpha** is what ships while Prism is built, **beta** the release candidate, **stable** the full release (shown as *Full*). A Prism
+**alpha** is what ships while PRISM is built, **beta** the release candidate, **stable** the full release (shown as *Full*). A PRISM
 follows the track it was built on (`Services.Updates.BuildTrack`, alpha today) unless the person picks another under Updates;
 the host hands core the track at every start, so a persisted choice from an older build does not pin it. A publisher may point
 two tracks at one release (`--also`): the first alpha publish after the rename carries `--also stable`, because every 0.22.0
-Prism was built looking at `stable`. When beta exists the website's Download moves to it (`HEADLINE` in the publish script),
+PRISM was built looking at `stable`. When beta exists the website's Download moves to it (`HEADLINE` in the publish script),
 and alpha keeps going for whoever chose it.
 
 *Decision (2026-10-06):* 0.22.0 and 0.23.0 are alpha releases: the
@@ -53,7 +53,7 @@ release, and no later publish passes `--also stable` until there is one.
 - The zips sit in the same bucket (Tigris, served at prism.entangled.world, the one the extension's art uses), never in a git tree. The website's
   Download page reads the version, date, size and hash from its own `releases.json`, which the publish script writes, so the page and
   the manifest cannot disagree; `/prism/download/windows` on the site 302s to the current zip.
-- The page's Size opens into what the download is made of (2026-10-09): `scripts/release/size_breakdown.py` puts every file in the zip in one named part (Prism itself, with its sounds and
+- The page's Size opens into what the download is made of (2026-10-09): `scripts/release/size_breakdown.py` puts every file in the zip in one named part (PRISM itself, with its sounds and
   pictures counted inside it and named in its note;.NET; the Windows App SDK...) and counts the bytes it takes in the zip, so the parts add up to the download's size exactly; the publish script
   writes them as `sizeParts` on the site's current release. A part the build stops carrying leaves the page by itself.
 
@@ -72,56 +72,56 @@ python scripts/release/publish-windows.py --notes "What changed." [--channel alp
 Reads the version from PrismHost.csproj and the commit, publishes (Release, x64, self-contained), zips, hashes, merges this channel into
 the current manifest (the other channel's entry kept), signs, uploads the zip first and the manifest after, and with `--site` writes the
 website's `src/data/releases.json` and `public/_redirects` (then `npm run deploy` there). `--dry-run` does everything but upload.
-`node scripts/release/sign-manifest.mjs --keygen` makes a key once; a fork runs it and pastes its JWK into its Prism.
+`node scripts/release/sign-manifest.mjs --keygen` makes a key once; a fork runs it and pastes its JWK into its PRISM.
 
 ## On the PC
 
 - Once a day core fetches the manifest at the configured address: no query string, no identifying header (the UA is "Prism/<version>").
   Entangled's address is a counter at reports.entangled.world (2026-10-21): it adds one to the day's number and sends the fetch on to the signed manifest in the
   bucket, keeping no address, version or time. It counts checks, not machines, and a PC checks once a day, so a day's count stands in
-  for the PCs running Prism that day; the website's download page shows yesterday's under the current release ("N PCs checked for
+  for the PCs running PRISM that day; the website's download page shows yesterday's under the current release ("N PCs checked for
   updates yesterday"). When the counter fails the host reads the bucket address directly (`Updates.BucketUrl`), so a counter can never
   hold an update back. A fork's address is whatever it sets. PCs on 0.37.0 and earlier still read the bucket and are not counted.
   The host reads `manifest.sig` beside it and verifies against the configured key; a manifest that does not verify is refused and the
   status says. An empty key skips the check (a fork testing locally), said in the log.
-- A newer version for the channel is `available`. The Prism menu's **Updates** line says so, as does the
+- A newer version for the channel is `available`. The PRISM menu's **Updates** line says so, as does the
   status line once after boot. The Updates dialog shows the notes, **Check now**, **Install now**, and for a staged version **Restart into
   the new version**. **Install on its own** (the dialog's switch, on by default; B-458, 2026-10-30): a release the check finds is downloaded and
-  staged at once, and Prism restarts into it at a quiet moment in the three hours after the check's time of day - nothing playing, nobody has
+  staged at once, and PRISM restarts into it at a quiet moment in the three hours after the check's time of day - nothing playing, nobody has
   used it for twenty minutes - or at its next start. Off, the flag waits for a press. (Until 0.40.2 the silent install hung off a §24 schedule
-  entry no Prism could make, so every release waited for a press.) Two installs never run at once, and a staged release the track no
+  entry no PRISM could make, so every release waited for a press.) Two installs never run at once, and a staged release the track no
   longer offers - withdrawn, or the track changed - is let go on the next check and its folder removed, so neither a start nor a quiet
   moment hands off into it. A release whose offer moved while it was downloading is never recorded as staged. The removal fails closed:
   a tombstone beside the staged folder is written first, then the verified mark, then the folder; a held folder is never promoted while the
   tombstone stands, the next start finishes the removal, and core asks again at its next check until the shell says it is gone. The
   tombstone is written the moment core lets go, before the removal waits its turn behind an apply; only a fresh staging clears it; a
-  staged copy started to install itself refuses when its tombstone stands or its verified mark is missing, and the installed Prism starts
+  staged copy started to install itself refuses when its tombstone stands or its verified mark is missing, and the installed PRISM starts
   as it was. An apply may take an hour before core calls it failed, and a pending discard is never asked against a release core records.
   A failed apply leaves nothing standing on either side: core lets go of its record and asks the shell at once, behind any apply still
   writing, to clear its folder, and the host writes the tombstone the moment an apply fails; whatever the track offers is found again at
   the next check. The staging asks the host whether the release is still wanted just before it writes the verified mark, so a copy a
-  discard crossed is never one a start could promote. The promote gate is looked at again once the old Prism has gone,
+  discard crossed is never one a start could promote. The promote gate is looked at again once the old PRISM has gone,
   and Promote itself refuses a staged copy without its file list, its verified mark, or with a tombstone standing. An apply that a discard
   crossed re-asserts the tombstone when it ends and is not offered to start.
 - **The fixed install folder** (2026-10-06,; `PrismHost.Core/UpdateInstaller.cs`,
-  `Services/Updates.cs` AtStart): Prism runs from `%LOCALAPPDATA%\Programs\Prism` and nowhere else, apart from the data folder (a reset
+  `Services/Updates.cs` AtStart): PRISM runs from `%LOCALAPPDATA%\Programs\Prism` and nowhere else, apart from the data folder (a reset
   to defaults never moves the program). Windows keys its firewall rule on the exe's path; while each update ran from its own
   `app\<version>` folder, Windows asked about the firewall once an update. Now the path never changes. What a start does, before
   anything opens:
   - run from the install folder: it runs; a newer whole release staged beside it starts instead with `--prism-promote <pid>`, waits for
-    this process to go, installs itself, and starts Prism from the install folder;
-  - run from anywhere else (the unzipped download, an older update folder, an old shortcut): an installed Prism as new or newer gets the
+    this process to go, installs itself, and starts PRISM from the install folder;
+  - run from anywhere else (the unzipped download, an older update folder, an old shortcut): an installed PRISM as new or newer gets the
     hand-off; otherwise this copy installs itself into the install folder and starts from there. The installed copy then asks once where
-    Prism should be started from (2026-10-06): Start menu (checked), Desktop, Taskbar. Prism writes the Start menu and desktop shortcuts in the person's own
-    folders (no administrator rights), and the first run applies the choice however the dialog closes, so Prism always has a way to start.
-    Windows gives a desktop app no way to pin itself to the taskbar, so Taskbar shows the presses that pin it (Start, right-click Prism,
+    PRISM should be started from (2026-10-06): Start menu (checked), Desktop, Taskbar. PRISM writes the Start menu and desktop shortcuts in the person's own
+    folders (no administrator rights), and the first run applies the choice however the dialog closes, so PRISM always has a way to start.
+    Windows gives a desktop app no way to pin itself to the taskbar, so Taskbar shows the presses that pin it (Start, right-click PRISM,
     Pin to taskbar). The Device page's Shortcuts section changes the choice later. An existing shortcut that starts an older copy is
     repointed at the install folder at every start, and none is made without asking. The unzipped folder can then be deleted, and the
     installed copy says so once (the first-run note): the status line, with
-    Show that folder beside it, for a minute. Someone moved over from an older Prism's update folder is not asked (their shortcut is
-    repointed) and is told only that Prism is installed (that folder is removed by Prism). The folder travels as `--prism-installed-from`, never passed on.
+    Show that folder beside it, for a minute. Someone moved over from an older PRISM's update folder is not asked (their shortcut is
+    repointed) and is told only that PRISM is installed (that folder is removed by PRISM). The folder travels as `--prism-installed-from`, never passed on.
   - older Prisms read `app\current.json` at their start; it names the install folder's exe, so their shortcuts land there too. The old
-    `app\<version>` folders are removed once Prism runs from the install folder.
+    `app\<version>` folders are removed once PRISM runs from the install folder.
   A debug build never installs or hands off; `PRISM_NO_HANDOFF=1` turns it all off; `PRISM_INSTALL_DIR` points it at a test folder and
   `PRISM_UPDATE_SELFTEST=1` logs each step instead of starting anything (how it was walked without a window).
 - **Install** (core's night window or Install now) stages the release whole in `Programs\Prism.next`:
@@ -139,13 +139,13 @@ website's `src/data/releases.json` and `public/_redirects` (then `npm run deploy
 ## From the phone (2026-10-15)
 
 : the phone's Watch settings, Updates,
-open on *This Prism* - the version and track, what the server offers, *Check now* (core's check, its answer awaited), *Install* (core's
+open on *This PRISM* - the version and track, what the server offers, *Check now* (core's check, its answer awaited), *Install* (core's
 install started; the phone follows the status until the release is staged), *Restart into* the staged version (asked once more; core sends
 `ui.updateRestart` and the PC restarts into it as its own Updates window does), and *What's changed*, the signed manifest's history, so showing
 it fetches nothing. The track and the schedule stay on the PC, which keeps them. Routes: `POST /video/settings/update-check`,
 `update-install`, `update-restart`; the state rides on `GET /video/settings` as `software`.
 
-## Settings (Prism menu, Updates, "Update server")
+## Settings (PRISM menu, Updates, "Update server")
 
 `update.url` (default the manifest above), `update.key` (public JWK; empty = unsigned), `update.channel` (alpha | beta | stable),
 `update.enabled` (on | never), `update.at` and `update.weekday` (the schedule), in host prefs.
@@ -157,7 +157,7 @@ the next start, otherwise the check waits for its time and runs at it. A change 
 that run on their own, and Check now still asks. The checker always starts, so Never can be turned back on without a restart. A fork sets the address and the key and ships its own default in Services/Updates.cs.
 
 The address and the key are *shown*, not edited (2026-10-05): whoever holds the private key for
-the key in that field decides what this Prism installs, so an open field would be the easiest social-engineering target in the app
+the key in that field decides what this PRISM installs, so an open field would be the easiest social-engineering target in the app
 ("paste this key and address"). **Change the update server** reveals the fields behind an amber warning that names the risk, with
 **Back to Entangled's** beside them; the expander's header says *not Entangled's* whenever either differs from the defaults. The
 track and the check cadence stay ordinary settings above the expander.
@@ -168,7 +168,7 @@ which read as "Last check never" right after a check (2026-10-05).
 
 ## The download count and the record (2026-10-05)
 
-- **The count is of downloads, not installs.** Prism never reports an install: that would be telemetry, which it promises not to do.
+- **The count is of downloads, not installs.** PRISM never reports an install: that would be telemetry, which it promises not to do.
   The website's Download button goes to `https://reports.entangled.world/v1/download/windows` (the reports service that already runs
   for the extension, prototypes/prism-veil-reports/server.mjs): it adds one to a number and sends the browser on to the current zip, read from
   the signed manifest. Nothing about the person is kept - no address, no browser string, no time - only the number, in the service's
@@ -183,7 +183,7 @@ which read as "Last check never" right after a check (2026-10-05).
 ## Code signing (2026-10-05, SmartScreen's on the first run; Azure Trusted Signing chosen 2026-10-17)
 
 An unsigned download with no reputation gets Windows' "Windows protected your PC" screen; More info, Run anyway gets past it, and the
-README and the website say so with the SHA-256 beside the button. The fix is an Authenticode signature on PrismHost.exe and Prism's own
+README and the website say so with the SHA-256 beside the button. The fix is an Authenticode signature on PrismHost.exe and PRISM's own
 DLLs, made by the publish script with signtool before the zip is built (SHA-256, timestamped, so the signature outlives the subscription;
 cancelling is not revocation). The publisher shown is Entangled Labs LLC. The manifest's ECDSA signature is a separate thing and stays.
 
@@ -219,17 +219,17 @@ and says so. Reputation with SmartScreen is earned per publisher as downloads ac
 remote nobody can answer a Windows prompt (an IR remote that types as a keyboard sometimes can, but not reliably). Everything that
 needs administrator rights is asked for together, once, while someone sets the PC up: the Set up services page's **This PC** block
 (`Services/DeviceSetup.cs`), also on the Device page:
-- **Let phones on your home network reach Prism**: a Windows Firewall rule, inbound TCP 8471, for the installed exe only, from the local
-  subnet only, named "Prism phone remote" (ticked by default);
+- **Let phones on your home network reach PRISM**: a Windows Firewall rule, inbound TCP 8471, for the installed exe only, from the local
+  subnet only, named "PRISM phone remote" (ticked by default);
 - **Remote Desktop Support** (docs/features/media-hub.md; not ticked by default).
 One elevated `cmd` runs `netsh` and `schtasks` for what is ticked; declining changes nothing. The task's definition is a temp file held
 open with no write sharing from its writing until Windows has read it.
 
-**Start Prism when I sign in to Windows** (2026-10-26): a third
+**Start PRISM when I sign in to Windows** (2026-10-26): a third
 switch in the same block, and under START WITH WINDOWS on the Device page. It needs no administrator rights, so it applies as it is pressed, apart
-from the one prompt: a value named `Prism` under this account's `HKCU\...\CurrentVersion\Run` naming the Prism that is running (for everyone but a
+from the one prompt: a value named `PRISM` under this account's `HKCU\...\CurrentVersion\Run` naming the PRISM that is running (for everyone but a
 developer, the installed copy). Windows runs it each time the account signs in. It is read back from Windows on every draw, and a value
-that names another exe (an older install, a folder since gone) reads as off until the switch is pressed again from the Prism in use. A restart brings Prism back only once the account is signed in, so the page says that a
+that names another exe (an older install, a folder since gone) reads as off until the switch is pressed again from the PRISM in use. A restart brings PRISM back only once the account is signed in, so the page says that a
 PC nobody touches also needs Windows set to sign in by itself (netplwiz, with "Only allow Windows Hello sign-in" off in Sign-in options);
-Prism does not change a sign-in setting. The spec's dedicated-box installer option (auto-login user, Prism as the shell, a watchdog task) is
+PRISM does not change a sign-in setting. The spec's dedicated-box installer option (auto-login user, PRISM as the shell, a watchdog task) is
 still the full answer for an appliance and is not built.

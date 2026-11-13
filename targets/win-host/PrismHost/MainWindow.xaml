@@ -32,7 +32,7 @@
                 Background="#CC12131A" CornerRadius="10" Padding="12,5,12,5">
             <!-- PillRow: the status line, and now and then one button beside it (a new version installed: Restart now, 2026-10-06) -->
             <StackPanel x:Name="PillRow" Orientation="Horizontal" Spacing="10">
-            <TextBlock x:Name="PillLine" Foreground="#F2B14C" FontSize="12" FontFamily="Consolas" Text="" VerticalAlignment="Center" /><!-- hidden until it has something to say: a bare "Prism" sat under the menu grip (2026-09-28) -->
+            <TextBlock x:Name="PillLine" Foreground="#F2B14C" FontSize="12" FontFamily="Consolas" Text="" VerticalAlignment="Center" /><!-- hidden until it has something to say: a bare "PRISM" sat under the menu grip (2026-09-28) -->
             </StackPanel>
         </Border>
         <!-- the app menu grip: hangs off the top-center edge, dim until hovered,
@@ -49,7 +49,7 @@
                 <TextBlock Text="Watch" Foreground="#F2B14C" FontSize="12" VerticalAlignment="Center" />
             </StackPanel>
         </Border>
-        <!-- The stage bar (2026-09-20): Prism's own transport over the service's player while the Video player is the wall -
+        <!-- The stage bar (2026-09-20): PRISM's own transport over the service's player while the Video player is the wall -
              the face, back / play / forward, next episode, captions, full screen, Watch. Shown on a tap on the screen or a
              hover on the Watch tab; hides after six seconds. Content is built in MainWindow.VideoHub.cs from core's videoState. -->
         <!-- The stage curtain (2026-09-21, "hopefully you're rendering the site code in the background and making the universal
@@ -72,10 +72,10 @@
         </Border>
         <Border x:Name="MenuGrip" VerticalAlignment="Top" HorizontalAlignment="Center" Canvas.ZIndex="1000"
                 Background="#CC12131A" BorderBrush="#3AF2B14C" BorderThickness="1,0,1,1" CornerRadius="0,0,10,10"
-                Padding="18,4,16,7" ToolTipService.ToolTip="Prism menu  (F10)">
+                Padding="18,4,16,7" ToolTipService.ToolTip="PRISM menu  (F10)">
             <StackPanel Orientation="Horizontal" Spacing="7">
                 <Image x:Name="GripIcon" Width="18" Height="18" VerticalAlignment="Center" />
-                <TextBlock Text="Prism" Foreground="#F2B14C" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock Text="PRISM" Foreground="#F2B14C" FontSize="14" VerticalAlignment="Center" />
                 <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#F2B14C" FontSize="10" VerticalAlignment="Center" />
             </StackPanel>
         </Border>

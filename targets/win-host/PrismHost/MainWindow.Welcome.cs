@@ -10,7 +10,7 @@ namespace PrismHost;
 /// <summary>
 /// The first-run page (2026-09-29). Two steps: choose the services, then sign in to each. Core makes
 /// the Music player and the Video player from the choice (playerSetup, player-setup.ts); the host draws the page and opens each service's own
-/// sign-in page in the sign-in window the rest of the wall uses. Open again any time from the Prism menu, Set up services.
+/// sign-in page in the sign-in window the rest of the wall uses. Open again any time from the PRISM menu, Set up services.
 /// This file is ASCII only.
 /// </summary>
 public sealed partial class MainWindow
@@ -82,7 +82,7 @@ public sealed partial class MainWindow
         _welcome = null;
         SyncEmptyStage();
         SyncEmptyWallNote();
-        TourNoticeIfOwed();   // the notice about How Prism works, once the services page is out of the way (2026-10-11: a notice and a short introduction, not the tour opened unasked)
+        TourNoticeIfOwed();   // the notice about How PRISM works, once the services page is out of the way (2026-10-11: a notice and a short introduction, not the tour opened unasked)
     }
 
     /// <summary>Dev (hub.request): "welcome" opens the page, "welcome 1|2" on a step, "welcome all", "welcome clear", "welcome pick a,b" choose,
@@ -125,8 +125,8 @@ public sealed partial class MainWindow
         // state on the right, one open at a time; the intro one sentence.
         var mine = services.Where(s => s.Added).ToList();
         var inNow = mine.Count(s => s.Status == "signed-in");
-        col.Children.Add(Line(mine.Count == 0 ? "Welcome to Prism" : "Your services", 40, HubInk, bold: true));
-        col.Children.Add(Line("Press a service to sign in on its own page. Prism never sees your password, and the sign-in stays on this PC.", 19, HubInk));
+        col.Children.Add(Line(mine.Count == 0 ? "Welcome to PRISM" : "Your services", 40, HubInk, bold: true));
+        col.Children.Add(Line("Press a service to sign in on its own page. PRISM never sees your password, and the sign-in stays on this PC.", 19, HubInk));
         // which part is open: the person's last choice, else the first player with a service to sign in to
         if (_welcomeOpen is null)
         {
@@ -280,7 +280,7 @@ public sealed partial class MainWindow
         Part("pc", "This PC", pcSum, thisPc);
         // more services arrive as files (2026-09-29): an adapter and its catalog entry in the data folder
         var more = new StackPanel { Spacing = 8 };
-        more.Children.Add(new TextBlock { Text = "Have files for another service? Put them in Prism's adapters and catalog folders, then start Prism again.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left });
+        more.Children.Add(new TextBlock { Text = "Have files for another service? Put them in PRISM's adapters and catalog folders, then start PRISM again.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left });
         var openFolder = Pill("Open the folder", false, "Opens " + HostPaths.DataDir + " with its adapters and catalog folders", () => OpenAdaptersFolder());
         openFolder.HorizontalAlignment = HorizontalAlignment.Left;
         more.Children.Add(openFolder);
@@ -288,10 +288,10 @@ public sealed partial class MainWindow
         Part("more", "Add another service", moreSum, more);
         col.Children.Add(accordion);
         var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(0, 12, 0, 0) };
-        // opened from How Prism works: the way back is on the page itself, beside Done (2026-10-11)
-        if (TourOwed) foot.Children.Add(Pill("Back to How Prism works", true, "Close this page and go back to the tour, at the page you left", TourReturn));
-        if (mine.Count > 0) foot.Children.Add(Pill("Done", !TourOwed, TourOwed ? "Close this page and go back to the tour" : "Close this page and go back to Prism", () => { HostPrefs.Set("welcome.open", false); if (TourOwed) { TourReturn(); return; } CloseWelcome(); if (WatchGrip.Visibility == Visibility.Visible) _ = ShowVideoHubAsync(); }));
-        else foot.Children.Add(Pill("Not now", false, "Close this page. It is in the Prism menu under Set up services", () => { HostPrefs.Set("welcome.dismissed", true); HostPrefs.Set("welcome.open", false); CloseWelcome(); }));
+        // opened from How PRISM works: the way back is on the page itself, beside Done (2026-10-11)
+        if (TourOwed) foot.Children.Add(Pill("Back to How PRISM works", true, "Close this page and go back to the tour, at the page you left", TourReturn));
+        if (mine.Count > 0) foot.Children.Add(Pill("Done", !TourOwed, TourOwed ? "Close this page and go back to the tour" : "Close this page and go back to PRISM", () => { HostPrefs.Set("welcome.open", false); if (TourOwed) { TourReturn(); return; } CloseWelcome(); if (WatchGrip.Visibility == Visibility.Visible) _ = ShowVideoHubAsync(); }));
+        else foot.Children.Add(Pill("Not now", false, "Close this page. It is in the PRISM menu under Set up services", () => { HostPrefs.Set("welcome.dismissed", true); HostPrefs.Set("welcome.open", false); CloseWelcome(); }));
         if (mine.Count > 0 && inNow < mine.Count) foot.Children.Add(new TextBlock { Text = "You can finish later. A service you have not signed in to fills in once you do.", FontSize = 15, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
         col.Children.Add(foot);
         overlay.Children.Add(new ScrollViewer { Content = col, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
@@ -324,7 +324,7 @@ public sealed partial class MainWindow
             LogLine("welcome: playerSetup -> " + Shorten(raw ?? "null", 400));
             JsonObject? r = null;
             try { r = raw is null ? null : JsonNode.Parse(raw) as JsonObject; } catch { }
-            if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Mid + "Could not set up the players" + (r?["error"]?.GetValue<string>() is { Length: > 0 } why ? ": " + why : "")); return false; }
+            if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Mid + "Could not set up the players" + (r?["error"]?.GetValue<string>() is { Length: > 0 } why ? ": " + why : "")); return false; }
             await ReadModelAsync();
             HostPrefs.Set("welcome.dismissed", false);   // players made: the page has done its work
             // the wall becomes a player at once, so the services' pages are up when their sign-in opens: the Video player when there is one
@@ -336,7 +336,7 @@ public sealed partial class MainWindow
             CloseVideoHub();
             return true;
         }
-        catch (Exception e) { LogLine("welcome add: " + e.Message); SetPill("Prism" + Mid + "Could not set up the players"); return false; }
+        catch (Exception e) { LogLine("welcome add: " + e.Message); SetPill("PRISM" + Mid + "Could not set up the players"); return false; }
         finally { _welcomeBusy = false; }
     }
 
@@ -348,9 +348,9 @@ public sealed partial class MainWindow
         {
             var raw = await ModelCallAsync("playerRemove", s.Id);
             LogLine("welcome: playerRemove " + s.Id + " -> " + Shorten(raw ?? "null", 300));
-            if (raw is null || JsonNode.Parse(raw) is not JsonObject r || r["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Mid + "Could not remove " + s.Name); return; }
+            if (raw is null || JsonNode.Parse(raw) is not JsonObject r || r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Mid + "Could not remove " + s.Name); return; }
             await ReadModelAsync();
-            SetPill("Prism" + Mid + s.Name + " is off your players. Its sign-in is kept, and Add more services brings it back");
+            SetPill("PRISM" + Mid + s.Name + " is off your players. Its sign-in is kept, and Add more services brings it back");
             _ = UpdateWatchGripAsync();
         }
         catch (Exception e) { LogLine("welcome remove: " + e.Message); }
@@ -366,7 +366,7 @@ public sealed partial class MainWindow
             Directory.CreateDirectory(Sources.AddedCatalogDir);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = HostPaths.DataDir, UseShellExecute = true });
         }
-        catch (Exception e) { LogLine("open adapters folder: " + e.Message); SetPill("Prism" + Mid + "Could not open " + HostPaths.DataDir); }
+        catch (Exception e) { LogLine("open adapters folder: " + e.Message); SetPill("PRISM" + Mid + "Could not open " + HostPaths.DataDir); }
     }
 
     /// <summary>A wall with nothing on it says where to begin (a new device after "Not now"): shown while the device has no scene and the
@@ -382,7 +382,7 @@ public sealed partial class MainWindow
         {
             var col = new StackPanel { Spacing = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             col.Children.Add(new TextBlock { Text = "Nothing is set up yet", FontSize = 34, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center });
-            col.Children.Add(new TextBlock { Text = "Choose your services and Prism sets up your Music player and your Video player.", FontSize = 18, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap });
+            col.Children.Add(new TextBlock { Text = "Choose your services and PRISM sets up your Music player and your Video player.", FontSize = 18, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, TextWrapping = TextWrapping.Wrap });
             var go = Chip(new TextBlock { Text = "Set up services", FontSize = 18, Foreground = HubInk }, true);
             go.HorizontalAlignment = HorizontalAlignment.Center;
             ToolTipService.SetToolTip(go, "Choose your music and video services and sign in to each");
@@ -439,17 +439,17 @@ public sealed partial class MainWindow
         TextBlock Ink(string t) => new() { Text = t, FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         if (summary is not null) { summary.Text = fwIn && rdIn ? "Ready" : "Windows asks once"; summary.Foreground = fwIn && rdIn ? HubInk : HubAmber; }
         // what is in place said as a line, never as a disabled checkbox (the host's contrast rule: no information in a control's disabled grey)
-        var fw = new CheckBox { IsChecked = true, Content = Ink("Let phones on your home network reach Prism (Windows Firewall)") };
-        ToolTipService.SetToolTip(fw, "Prism's phone remote listens on port " + Services.DeviceSetup.RemotePort + ". This adds a Windows Firewall rule for Prism alone, from your home network alone, so Windows never stops to ask.");
+        var fw = new CheckBox { IsChecked = true, Content = Ink("Let phones on your home network reach PRISM (Windows Firewall)") };
+        ToolTipService.SetToolTip(fw, "PRISM's phone remote listens on port " + Services.DeviceSetup.RemotePort + ". This adds a Windows Firewall rule for PRISM alone, from your home network alone, so Windows never stops to ask.");
         var rd = new CheckBox { IsChecked = false, Content = Ink(Services.MediaHub.MenuLabel + " (keep the sound and the screen when a remote desktop leaves)") };
         ToolTipService.SetToolTip(rd, Services.MediaHub.Explain);
-        block.Children.Add(fwIn ? Ink((char)0x2713 + "  Phones on your home network can reach Prism (Windows Firewall)") : fw);
+        block.Children.Add(fwIn ? Ink((char)0x2713 + "  Phones on your home network can reach PRISM (Windows Firewall)") : fw);
         block.Children.Add(rdIn ? Ink((char)0x2713 + "  " + Services.MediaHub.MenuLabel + " is on") : rd);
         // starting with Windows (2026-10-26): no Windows prompt,
-        // so its own switch, applied as it is pressed; the tooltip says a restart brings Prism back only once this account is signed in
-        var st = new CheckBox { IsChecked = Services.DeviceSetup.StartsAtSignIn(), Content = Ink("Start Prism when I sign in to Windows") };
-        ToolTipService.SetToolTip(st, "Windows starts Prism each time this account signs in, so after a restart Prism is back once you sign in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off).");
-        st.Click += (_, __) => { if (!Services.DeviceSetup.SetStartAtSignIn(st.IsChecked == true, LogLine)) { st.IsChecked = Services.DeviceSetup.StartsAtSignIn(); SetPill("Prism" + Mid + "Windows did not allow it. Nothing changed."); } };
+        // so its own switch, applied as it is pressed; the tooltip says a restart brings PRISM back only once this account is signed in
+        var st = new CheckBox { IsChecked = Services.DeviceSetup.StartsAtSignIn(), Content = Ink("Start PRISM when I sign in to Windows") };
+        ToolTipService.SetToolTip(st, "Windows starts PRISM each time this account signs in, so after a restart PRISM is back once you sign in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off).");
+        st.Click += (_, __) => { if (!Services.DeviceSetup.SetStartAtSignIn(st.IsChecked == true, LogLine)) { st.IsChecked = Services.DeviceSetup.StartsAtSignIn(); SetPill("PRISM" + Mid + "Windows did not allow it. Nothing changed."); } };
         block.Children.Add(st);
         if (fwIn && rdIn) return;
         var note = new TextBlock { FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
@@ -461,7 +461,7 @@ public sealed partial class MainWindow
             if (!wantFw && !wantRd) { note.Text = "Nothing is ticked."; return; }
             note.Text = "Windows is asking" + (char)0x2026;
             var ok = await Services.DeviceSetup.SetUpAsync(wantFw, wantRd, LogLine);
-            SetPill("Prism" + Mid + (ok ? "this PC is set up" : "Windows did not allow it. Nothing changed."));
+            SetPill("PRISM" + Mid + (ok ? "this PC is set up" : "Windows did not allow it. Nothing changed."));
             FillWelcomeThisPc(block, summary);
         };
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
@@ -480,28 +480,28 @@ public sealed partial class MainWindow
         if (!ReferenceEquals(_welcome, page)) return;
         var hasKey = v?["tmdbKey"]?.GetValue<bool>() == true;
         if (summary is not null) summary.Text = "Optional  " + (char)0x00B7 + "  " + (hasKey ? "key set" : "not set");   // the accordion bar's state
-        // what TMDB adds and how its data practices differ from Prism's (2026-10-06): a line always shown, the benefits on a chip's tooltip and on its press (a wall has no hover from across the room), and the
+        // what TMDB adds and how its data practices differ from PRISM's (2026-10-06): a line always shown, the benefits on a chip's tooltip and on its press (a wall has no hover from across the room), and the
         // differences said in amber with their own Details. Sourced from TMDB's privacy policy (effective 2026-08-24) and API terms
         // (2023-10-20); docs/features/tmdb-account.md.
-        block.Children.Add(new TextBlock { Text = "TMDB is the free film and TV database Prism reads for ratings, the catalog and search across your services. Prism works without it.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left });
+        block.Children.Add(new TextBlock { Text = "TMDB is the free film and TV database PRISM reads for ratings, the catalog and search across your services. PRISM works without it.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left });
         var bullet = " " + (char)0x2022 + " ";
-        var benefits = "With your own free TMDB key, Prism adds:\n"
+        var benefits = "With your own free TMDB key, PRISM adds:\n"
             + bullet + "Ratings on every card, with TMDB's vote count beside them\n"
             + bullet + "The catalog rows and Browse, by genre, rating, date and votes\n"
             + bullet + "Search everywhere: one search across your services, and which of them carries each title\n"
             + bullet + "The Episodes list for services that cannot list their own\n"
             + "With your TMDB account linked as well:\n"
-            + bullet + "Rating titles from Prism, under your name\n"
+            + bullet + "Rating titles from PRISM, under your name\n"
             + bullet + "Your TMDB watchlist as My List\n"
             + bullet + "Playlists that follow your account to any device\n"
-            + "Without a key, everything else in Prism works the same.";
-        var practices = "Prism shows no ads, tracks no one and sells nothing. TMDB's own privacy policy (effective 24 August 2026) says this about TMDB:\n"
+            + "Without a key, everything else in PRISM works the same.";
+        var practices = "PRISM shows no ads, tracks no one and sells nothing. TMDB's own privacy policy (effective 24 August 2026) says this about TMDB:\n"
             + bullet + "It keeps API usage data, your IP address and device identifiers.\n"
             + bullet + "Its website and apps use Google Analytics and advertising partners for interest-based ads, and it shares personal data with them in a way it says \"may be considered a sale\". The opt-out is Your Privacy Choices on themoviedb.org.\n"
-            + "What Prism sends TMDB, and only with your key:\n"
-            + bullet + "The titles on your rows and the words you search, to find ratings and matches. Your key ties these to your TMDB account. It is the one kind of request Prism makes that carries an identifier.\n"
+            + "What PRISM sends TMDB, and only with your key:\n"
+            + bullet + "The titles on your rows and the words you search, to find ratings and matches. Your key ties these to your TMDB account. It is the one kind of request PRISM makes that carries an identifier.\n"
             + bullet + "With your account linked: the ratings you give, your watchlist and your playlists. They live on your TMDB account. A list can be public or private, and TMDB may show public content to others.\n"
-            + "Nothing else from your services, Prism or this PC goes to TMDB, and nothing passes through Entangled. Clear the key to stop all of it.\n"
+            + "Nothing else from your services, PRISM or this PC goes to TMDB, and nothing passes through Entangled. Clear the key to stop all of it.\n"
             + "This product uses the TMDB API but is not endorsed or certified by TMDB.";
         var infoRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var benefitsText = new TextBlock { Text = benefits, FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, MaxWidth = 760, Visibility = Visibility.Collapsed, HorizontalAlignment = HorizontalAlignment.Left };
@@ -509,8 +509,8 @@ public sealed partial class MainWindow
         var adds = Chip(new TextBlock { Text = "What TMDB adds", FontSize = 13, Foreground = HubInk }, false);
         ToolTipService.SetToolTip(adds, benefits);
         adds.Click += (_, __) => benefitsText.Visibility = benefitsText.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        var differs = Chip(new TextBlock { Text = "How TMDB's data practices differ from Prism's", FontSize = 13, Foreground = HubAmber }, false);
-        ToolTipService.SetToolTip(differs, "TMDB keeps usage data and works with advertising partners, unlike Prism. Press for what Prism sends TMDB and what TMDB does with data.");
+        var differs = Chip(new TextBlock { Text = "How TMDB's data practices differ from PRISM's", FontSize = 13, Foreground = HubAmber }, false);
+        ToolTipService.SetToolTip(differs, "TMDB keeps usage data and works with advertising partners, unlike PRISM. Press for what PRISM sends TMDB and what TMDB does with data.");
         differs.Click += (_, __) => practicesText.Visibility = practicesText.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         infoRow.Children.Add(adds); infoRow.Children.Add(differs);
         block.Children.Add(infoRow);
@@ -529,7 +529,7 @@ public sealed partial class MainWindow
             await ModelCallAsync("lensSetTmdbKey", key);
             keyBox.Password = "";
             note.Text = "Saved."; note.Foreground = HubInk;
-            SetPill("Prism" + Mid + "TMDB key saved");
+            SetPill("PRISM" + Mid + "TMDB key saved");
             if (VideoHubOpen) _ = ShowVideoHubAsync();
             // the account's approval asked for right away, as Watch settings does (2026-10-03), unless it is linked already
             await Task.Delay(300);
@@ -541,7 +541,7 @@ public sealed partial class MainWindow
         {
             // from no account to a working key by phone, a code a step (MainWindow.TmdbGuide.cs, 2026-10-10)
             var guide = Chip(new TextBlock { Text = "Get a free key", FontSize = 14, Foreground = HubInk }, true);
-            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to Prism. About three minutes.");
+            ToolTipService.SetToolTip(guide, "A short guide: your phone opens TMDB's sign-up and API pages from codes on this screen, then sends the key to PRISM. About three minutes.");
             guide.Click += (_, __) => _ = ShowTmdbGuideAsync();
             row.Children.Add(guide);
         }
@@ -549,7 +549,7 @@ public sealed partial class MainWindow
         if (hasKey)
         {
             var clear = Chip(new TextBlock { Text = "Clear the key", FontSize = 13, Foreground = HubInk }, false);
-            clear.Click += async (_, __) => { await ModelCallAsync("lensSetTmdbKey", (string?)null); SetPill("Prism" + Mid + "TMDB key cleared"); if (VideoHubOpen) _ = ShowVideoHubAsync(); _ = ShowWelcomeAsync(); };
+            clear.Click += async (_, __) => { await ModelCallAsync("lensSetTmdbKey", (string?)null); SetPill("PRISM" + Mid + "TMDB key cleared"); if (VideoHubOpen) _ = ShowVideoHubAsync(); _ = ShowWelcomeAsync(); };
             row.Children.Add(clear);
         }
         block.Children.Add(row);

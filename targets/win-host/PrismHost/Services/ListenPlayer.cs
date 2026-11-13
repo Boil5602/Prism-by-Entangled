@@ -110,7 +110,7 @@ function makeListenPlayer(o) {
       P.ticket = tk; P.clk = null; P.clkRtt = 1e9; syncClock(); setTimeout(syncClock, 1000);
     };
     s.onmessage = function (ev) { onMessage(s, ev); };
-    s.onclose = function () { if (P.ws === s && P.listening) end('Prism stopped the stream', true); };
+    s.onclose = function () { if (P.ws === s && P.listening) end('PRISM stopped the stream', true); };
     s.onerror = function () { if (P.ws === s && P.listening) end('Could not reach the sound on the PC', true); };
     P.ws = s;
   }

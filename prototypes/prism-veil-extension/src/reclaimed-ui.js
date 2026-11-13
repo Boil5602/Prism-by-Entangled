@@ -1,7 +1,7 @@
 /*
-  Prism - the time-reclaimed ledger (spec §26) in the extension. Records time
+  PRISM - the time-reclaimed ledger (spec §26) in the extension. Records time
   spent behind a veil and exposes the three windows (this week / this month /
-  all time) to the Prism pill's panel. Local only (§19/§22) - the store never
+  all time) to the PRISM pill's panel. Local only (§19/§22) - the store never
   leaves this browser.
 
   Counting rules (§26):

@@ -1,4 +1,4 @@
-/* Prism break watch, browser port: AdPrints, PrintRuns and AdSounds (2026-11-06).
+/* PRISM break watch, browser port: AdPrints, PrintRuns and AdSounds (2026-11-06).
  * Line-for-line ports of the Windows host's picture fingerprints (targets/win-host/PrismHost/Services/AdPrints.cs: a 16 x 17 grid
  * of the 320 x 180 grey frame, 496 bits, a match within 60 bits; the shipped catalog read alongside, never written) and its sound
  * fingerprints (AdSounds.cs: 64 Haitsma-Kalker words found again with a quarter of their bits differing at most). A fingerprint is

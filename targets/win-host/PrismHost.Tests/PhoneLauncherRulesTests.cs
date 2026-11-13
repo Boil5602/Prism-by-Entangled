@@ -5,7 +5,7 @@ using Xunit;
 namespace PrismHost.Tests;
 
 /// <summary>The phone launcher's decisions (2026-10-23): a phone is paired by core's own record as it is on disk, read without
-/// writing anything, and a Prism that keeps stopping is started again only so often.</summary>
+/// writing anything, and a PRISM that keeps stopping is started again only so often.</summary>
 public sealed class PhoneLauncherRulesTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "prism-launcher-test-" + Guid.NewGuid().ToString("N"));

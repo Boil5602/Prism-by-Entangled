@@ -1,7 +1,7 @@
 # Security policy
 
-Prism by Entangled is made by Entangled Labs LLC. We take security reports seriously and want to
-hear about anything that could put Prism's users at risk.
+PRISM by Entangled is made by Entangled Labs LLC. We take security reports seriously and want to
+hear about anything that could put PRISM's users at risk.
 
 ## Reporting a vulnerability
 
@@ -10,7 +10,7 @@ for a security problem until it has been fixed.
 
 A useful report includes:
 
-- what is affected: the Windows app, the Prism browser extension (and which browser), prism-core,
+- what is affected: the Windows app, the PRISM browser extension (and which browser), prism-core,
   an adapter, or the ad-report inbox;
 - the version (the About box in the Windows app, or the extension's version in its popup);
 - steps to reproduce, and what an attacker could do with it;
@@ -30,17 +30,17 @@ There is no paid bug bounty.
 In scope:
 
 - the Windows app (`targets/win-host`) and prism-core (`packages/core`);
-- the Prism browser extension (`prototypes/prism-veil-extension`);
+- the PRISM browser extension (`prototypes/prism-veil-extension`);
 - the adapters shipped in this repository (`prism-adapters`);
 - the ad-report inbox Entangled runs (`prototypes/prism-veil-reports`).
 
-Out of scope: problems in the streaming and music services Prism shows (Netflix, Hulu, Spotify
+Out of scope: problems in the streaming and music services PRISM shows (Netflix, Hulu, Spotify
 and the rest). Report those to the service itself. Findings that need physical access to an
 unlocked computer, or that only affect a copy someone has modified, are also out of scope.
 
 ## Supported versions
 
-Security fixes go into the latest release of the Windows app and of the Prism extension. Please
+Security fixes go into the latest release of the Windows app and of the PRISM extension. Please
 update to the latest version before reporting.
 
 ## Good-faith research

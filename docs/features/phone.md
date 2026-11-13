@@ -4,7 +4,7 @@
 
 ## What a person does
 
-1. Prism menu, **Pair a phone…** A QR code over the wall (MainWindow.PairPhone.cs). Scan it with the phone's camera; the page the
+1. PRISM menu, **Pair a phone…** A QR code over the wall (MainWindow.PairPhone.cs). Scan it with the phone's camera; the page the
    host serves opens (Services/RemotePage.cs), with the pairing token in its address. The card closes when the phone connects.
 2. **Keyboard.** Press into a field on the wall (a sign-in page's email box, a search box), type on the phone, press Send or Send +
    Enter. The text lands in the focused field; the arrows, Enter, Backspace and Tab are keys below the box. Above the box the phone
@@ -19,12 +19,12 @@
    A username or password on the wall is typed into a sign-in form's own boxes on the phone (autocomplete `username` and
    `current-password`, inside a form), so the phone's password manager - Bitwarden, 1Password, the phone's own - offers to fill it
    (2026-10-15). The manager fills the phone and
-   the person presses Send (or Go, which is Send + Enter), one field at a time as for anything typed; Prism fills nothing itself and
+   the person presses Send (or Go, which is Send + Enter), one field at a time as for anything typed; PRISM fills nothing itself and
    keeps nothing. The page is served from the PC's address, not the service's, so a manager matches no login by itself: the person
-   searches the vault for the service, or adds the Prism page's address to the item once. A manager that fills both boxes at once
+   searches the vault for the service, or adds the PRISM page's address to the item once. A manager that fills both boxes at once
    leaves the password waiting in its box until the wall's password field is focused.
 3. **Listen.** Earbuds in, press *Listen on this phone*. The wall's sound plays on the phone. The wall keeps playing for the room at
-   Prism's own mute and volume, which the phone's stream undoes, so the phone hears Prism at full and has its own volume
+   PRISM's own mute and volume, which the phone's stream undoes, so the phone hears PRISM at full and has its own volume
    (2026-10-04,; B-472, 2026-11-01: by the captures' gain, never by the playback device). Two ways to carry the sound, swapped under the page's options
    (the ⋯ menu): *keeps playing in the background*, a live MP3 the phone's own player fetches, which goes on with the page put away
    or the screen locked, a few seconds behind the wall (the default on an iPhone); or *low delay*, a tenth of a second behind, which
@@ -37,35 +37,35 @@
    to play on muted, and iOS put the muted player away within seconds). A stream that ends or errs is fetched again at once with a
    fresh ticket, and a player the phone paused on its own (the earbuds out) fetches it again on the lock screen's Play, which leaves
    the PC alone while it plays; more than three fetches in two minutes end the listen and say so (2026-11-01 evening, "Fix it": the
-   day's two listens ended on the player's own pause and on a dropped connection, Safari dropping the stream within seconds either way). When listening starts the page asks *Mute Prism in the room while this phone listens? Other apps on this PC keep their sound.*
-   under the button, with *Mute Prism in the room* and *Keep it playing* (2026-10-23; it had muted by itself with a checkbox to turn
-   that off). It is Prism's own mute, the one switch (B-472 below); the phone hears on. The sound starts first and the room plays on
+   day's two listens ended on the player's own pause and on a dropped connection, Safari dropping the stream within seconds either way). When listening starts the page asks *Mute PRISM in the room while this phone listens? Other apps on this PC keep their sound.*
+   under the button, with *Mute PRISM in the room* and *Keep it playing* (2026-10-23; it had muted by itself with a checkbox to turn
+   that off). It is PRISM's own mute, the one switch (B-472 below); the phone hears on. The sound starts first and the room plays on
    until the answer; a mute the phone asked for goes back when the listen ends (`POST /audio/wall-mute`).
-   While the phone listens, its lock screen and Control Center show the song playing in Prism, with its art from the service's own
+   While the phone listens, its lock screen and Control Center show the song playing in PRISM, with its art from the service's own
    artwork address, and their play, pause, previous and next act on that song as the Music tab's buttons do (2026-10-27). The entry follows the phone's own sound: it shows what the
    PC played as many seconds ago as the phone is behind, from the polls' reads kept that long, so a change of song reaches the title
    and the earbuds together (2026-11-01,: the phone heard the PC eleven seconds late and the entry showed the PC's present). The Music tab stays the PC's present,
    since its buttons act there. With the Video player on the PC the entry carries the title on
    screen, its episode and poster, with play, pause and the 15-second skips.
-   With nothing playing in Prism the entry reads Prism, and its pause ends the listen. The entry's pause and play act on the PC only in
+   With nothing playing in PRISM the entry reads PRISM, and its pause ends the listen. The entry's pause and play act on the PC only in
    the background sound mode: iOS fires the pause for its own interruptions too (the page put away in low delay, a call, another app's
    sound), and in low delay any of those ends what the phone hears, so there the lock screen's pause ends the listen, as before,
    and never touches the PC (2026-10-27). Previous, next and the skips are
    presses only, so they act on the PC in both modes (2026-10-28). The picture on the lock screen carries a
-   Prism mark in its bottom-right corner, an eighth of its area, about a third of its width (2026-10-27,); it is
+   PRISM mark in its bottom-right corner, an eighth of its area, about a third of its width (2026-10-27,); it is
    composed on the phone from the service's picture, and a picture whose host will not share it with a page stays plain. Android's
    notification reads the same data (Chrome's Media Session), with the picture's size and type declared as it asks. The entry's
    clock is the PC's elapsed and total each poll, run on by the phone between polls (2026-10-27).
-   *Mute Prism* on the Music, Video and Listen tabs and the visual is one switch (the Listen tab's own button since 2026-11-01,: the Music tab's is an icon in its transport, shown only while a title plays) with one meaning (B-472, 2026-11-01,; before it, 2026-10-27, the same button muted the PC's playback device while this phone
-   listened, every app on the PC with it, and read Unmute for either): Prism's own sound in the room, whether or not a phone listens.
-   The PC takes Prism's audio sessions to the floor the room in step uses (SessionMuter.RoomMuted, `ui.roomMute`), and the captures a
+   *Mute PRISM* on the Music, Video and Listen tabs and the visual is one switch (the Listen tab's own button since 2026-11-01,: the Music tab's is an icon in its transport, shown only while a title plays) with one meaning (B-472, 2026-11-01,; before it, 2026-10-27, the same button muted the PC's playback device while this phone
+   listened, every app on the PC with it, and read Unmute for either): PRISM's own sound in the room, whether or not a phone listens.
+   The PC takes PRISM's audio sessions to the floor the room in step uses (SessionMuter.RoomMuted, `ui.roomMute`), and the captures a
    phone, the listen page and the visualizations hear multiply it back up, so the listeners and the meters hear the music while the
    room hears nothing; other apps on the PC and the playback device are never touched. Like every app on a desktop, and on a TV box
-   Prism's mute simply is the room's. The page mutes are audio focus, the breaks and the holds, and stay what they were: a page muted
+   PRISM's mute simply is the room's. The page mutes are audio focus, the breaks and the holds, and stay what they were: a page muted
    for those is silent for the listeners too. `/now-playing` carries `wallMuted`; there is no device mute or `device-mute` event.
 4. **Music.** While the Music lounge is on: the card (the service and the collection it holds, the track with its art from the service's
    own artwork address, "0:20 of 1:40" with what is left and a thin bar advanced each second between polls), the transport (previous,
-   play/pause, next, thumbs, Mute Prism on PC - the buttons read the PC's real mute), the order chips (In order / True shuffle / Reverse
+   play/pause, next, thumbs, Mute PRISM on PC - the buttons read the PC's real mute), the order chips (In order / True shuffle / Reverse
    and a standing Repeat, the PC's own choices and limits: a station has no order, a service without track lists has no true shuffle)
    and the services' Quick play as an accordion (`GET /music/quick`, `POST /music/play`, `POST /music/repeat`; 2026-10-04).
    The service playing now leads the list, its head saying *Now Playing* beside a five-bar meter drawn from the PC's own bands
@@ -89,7 +89,7 @@
    Open in Safari (docs/ios-now-playing.md, B-446). The stage's source can be another service's facet than the one playing (Apple Music's, idle, while Pandora plays), and
    that feed carries no art: the phone then shows the playing song's own art in the stage's mode (2026-10-28); the details sit at the bottom left as the PC's chrome has them (the service and collection, the title, the artist with the
    state, the album, the clock run on between polls; "Should show the details normally at the bottom left"), rising above the buttons
-   while they show (a tap on the scene brings up the transport with them: Previous, Play or pause, Next and Mute Prism, the Music
+   while they show (a tap on the scene brings up the transport with them: Previous, Play or pause, Next and Mute PRISM, the Music
    tab's own presses with its state; 2026-10-28); there
    is no Full screen button, since an iPhone puts only a video full screen and from the home-screen icon the
    page already fills the screen; Full screen, Close and the style under the picture, fading after a few
@@ -116,25 +116,25 @@
      Apple Music: …". *Play after this track* queues one pick in core (`POST /music/play {"when":"next"}`, `DELETE /music/next`), shown
      under the card as "Next: … Drop"; it starts when the playing page names another title or stops at its end, never on a pause.
    - The chips act on the pick in flight before the card's source (a reverse pressed while a pick still loads goes to that pick); the lit
-     chip is the PC's standing order only when it is for the collection playing now. While a Prism-made queue plays (true shuffle,
+     chip is the PC's standing order only when it is for the collection playing now. While a PRISM-made queue plays (true shuffle,
      reverse) the page names no playlist, so the card's collection falls back to the standing order.
    - "Up next on Apple Music: … by …" under the card while no pick is queued: Apple Music's player holds its queue, so the next track is
      readable; Spotify, Pandora and Amazon Music show none on the page without their queue panels.
    - **Restore the previous session** (2026-10-04): what the audible source held is written to the store as it plays (collection, order,
      repeat, track, spot; `music:last-session`); while nothing plays the Music tab offers it ("Restore the previous session? Vibes on Apple
-     Music, reverse. So Tired by Spazm at 2:21"). Restore plays the collection in its order (a standing Prism order carries on at its
+     Music, reverse. So Tired by Spazm at 2:21"). Restore plays the collection in its order (a standing PRISM order carries on at its
      saved spot), then asks the service's own player to jump to the track and seek to the spot (Apple Music adapter verbs `jumpto:` and
-     `seekto:`); a station starts where the station starts; Spotify and Pandora have no player verbs Prism can reach, so they come back
+     `seekto:`); a station starts where the station starts; Spotify and Pandora have no player verbs PRISM can reach, so they come back
      to the collection and order only. Verified live 2026-10-05:. `POST /music/restore`, `DELETE
      /music/restore`.
    - **After a restart no music starts by itself** (B-471, 2026-10-31). Every page came back on its last address, and Pandora's is a
      station play address, which autoplays, so an ad ran under the boot hold, muted, after every restart. Now only the music page that
-     had the sound when Prism closed (`music:owner:<dash>`, written as the audio moves) comes back on its last address, held paused as
+     had the sound when PRISM closed (`music:owner:<dash>`, written as the audio moves) comes back on its last address, held paused as
      before; every other music page comes back on its home page. Pandora's home page starts the last station by itself all the same (and
      its collection page too, probed the same night, with an ad first), so a service whose adapter says `resumesOnLoad` is play-gated when
      it is not the owner: the shell refuses the page's own play as a browser's autoplay rule would (`surface.setPlayGate`, kept across
      the page's navigations), and the gate lifts the moment a person asks for that service's music, a pick, Play, or a touch in the
-     page, before Prism's own click lands. Restore the previous session is the way the music comes back.
+     page, before PRISM's own click lands. Restore the previous session is the way the music comes back.
    - A signed-out service's row opens its sign-in on the PC (`prism://app/:id/setup`) and brings up the Keyboard tab; a press on a
      signed-out source says so instead of sending into the service's gate (Pandora's).
    - The card is the stage's source, else a source that plays, else "Nothing playing" with the stage's service named; a paused leftover
@@ -145,7 +145,7 @@
    next episode, skip intro (shown only while the service offers a skip, 2026-10-05, and for an ad's Skip the break knows of, 2026-10-29), captions (a sheet of the service's own
    subtitle and audio tracks as the PC's menu lists them, the one in use marked, a tap picks it on the PC, Close lets a service's own
    panel close - `POST /video/tracks`, `/video/track`, `/video/tracks-done`; a service without a tracks script gets its own captions
-   button pressed on the PC instead, 2026-10-05), mute Prism on PC. The page's own error under the card in amber with a Retry
+   button pressed on the PC instead, 2026-10-05), mute PRISM on PC. The page's own error under the card in amber with a Retry
    button (2026-10-05, Netflix's and its screens: Retry is the `retry` tile
    command, which presses the page's own Retry through the adapter's videoCmd, or opens the title again where the page has none;
    the Upgrade button is never pressed). A service's own gate over its player (2026-10-13, Twitch's content disclaimer) shows in the same place in the service's words, its button's verb on the phone's button (`gate` tile
@@ -154,7 +154,7 @@
    service's live events (Apple TV's Formula 1 and MLS) among its rows as on the PC's tab, the series before the event's name
    (2026-10-05,: the list had come from the channel guides alone). A press
    plays on the PC through the same calls the PC's own cards make (`GET /video`, `POST /video/play`, `/video/tune`, `/video/seek`,
-   `/video/start-over`, and `/tiles/{id}/command` for the verbs). Never a picture: the services' video is DRM and Prism does not
+   `/video/start-over`, and `/tiles/{id}/command` for the verbs). Never a picture: the services' video is DRM and PRISM does not
    touch it (docs/third-party-services-policy.md); the sound comes by Private Listening.
 4c. **Playlists** (2026-10-12). An accordion under the Video tab's rows,
    shown when the PC shows its Playlists tab (a TMDB account with lists linked, or lists already on the PC), its line saying how many playlists there are or which one plays. The lists with their completion ("3 of 12 completed · next: …") and a
@@ -173,11 +173,11 @@
    Taken off, from one read 1.5 s after the press. Since 2026-10-14 the sheet draws the PC's own Details verbs from the details'
    `actions` block, which core decides once (runtime.ts withPlay) for the PC's card and the phone alike: Play on each service that carries
    the title (the same candidate the PC's Watch on sends), the trailer, the list the PC offers (the TMDB watchlist while an account is
-   linked, else each service's own list that Prism can change), Send to playlist only while playlists are on and with the source the PC
+   linked, else each service's own list that PRISM can change), Send to playlist only while playlists are on and with the source the PC
    sends, and the facts and rating lines in the PC's words. The card's own words stand in until the details arrive, or for a title TMDB
    has no page for. A Rent or Buy offer that one of the household's stores carries is a button, *Rent or buy on <store>* (2026-10-14):
    the store's own page for the title, opened on the phone as a link (its app when installed, else the browser), signed in as the person
-   is there, with no referrer and no sign-in passed; Prism takes no part in the purchase. The same address the PC's purchase card shows
+   is there, with no referrer and no sign-in passed; PRISM takes no part in the purchase. The same address the PC's purchase card shows
    as a code.
 4d. **Search everywhere** (2026-10-14). The phone reads the search as the PC's Search draws it: one view in core (search-view.ts, the PC's
    `videoLookupView`; `GET /video/search`, `POST /video/search/view {genre?, app?}` under a filter chip) with the household's own
@@ -185,13 +185,13 @@
    their work: `POST /video/search {person: {id, name}}`), and the genre and service chips. Every word is core's - the lines under the
    cards, the "Play on X · offer" labels, the headings, the status line, why there is nothing - so a rule changed in core changes both
    screens; the PC's C# and the phone's JS only draw. Not yet walked on a phone.
-5. **Options (⋯).** *Prism on PC: Music player | Video player* (the PC's own names for them, settled 2026-10-29) switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
-   dispatched through the PC's own player switch; `GET /players` says which exist and which is on). *Full screen on the PC* (2026-10-31) is the PC's own F11: the Prism window borderless
+5. **Options (⋯).** *PRISM on PC: Music player | Video player* (the PC's own names for them, settled 2026-10-29) switches the PC's player (`POST /ui/route {"route":"prism://player/music"}`,
+   dispatched through the PC's own player switch; `GET /players` says which exist and which is on). *Full screen on the PC* (2026-10-31) is the PC's own F11: the PRISM window borderless
    across its monitor, or windowed again (`POST /video/full-screen {"on"}`); the button reads *Leave full screen on the PC* while the window
    is full, however it got there (F11 at the PC, a screen's Full Screen, this button), because the PC reports where its window stands and
    `GET /video/screens` carries it; one press of Leave puts the window back whatever made it full. The Music tab is only shown while
    the Music lounge is on. Add to home screen (the phone's own instructions; the icon opens the wall already paired through the manifest's
-   start address), the sound mode, the page's volume, Refresh this page, Forget this PC. A support line (2026-10-21, donations live): one sentence that Prism is free, and entangled.world/support as a link that
+   start address), the sound mode, the page's volume, Refresh this page, Forget this PC. A support line (2026-10-21, donations live): one sentence that PRISM is free, and entangled.world/support as a link that
    opens in the phone's own browser, never inside the companion page, so the Ko-fi button runs there too. *Watch settings* (2026-10-14) opens a full sheet of what core keeps, read in one (`GET /video/settings`)
    and saved a piece at a time (`POST /video/settings/<what>`, through the same core calls the PC's Watch settings make): the rows' orders
    and reverses, the ads look, the suggestion rows, the update pause and a refresh, The Binge's limits, animation and Kids mode, every
@@ -205,7 +205,7 @@
 - **Details from the phone** (2026-10-11): every card on the Video tab
   (Continue watching, My list, the lens rows and the categories) carries an i in its corner. It opens a sheet with the title's TMDB
   details as the PC's Details card has them: poster, year, certification, runtime or seasons, genres, TMDB's rating with its vote
-  count, the overview, the cast, and where it streams, is free, or rents and buys in the US as TMDB lists them. Play on Prism plays
+  count, the overview, the cast, and where it streams, is free, or rents and buys in the US as TMDB lists them. Play on PRISM plays
   the card. `POST /video/details {title, kind?, app?}` answers working until core's read lands (the phone asks again every 1.5 s),
   then ready with the details, or none with the reason (no TMDB key, not on TMDB). The same read the PC makes, nothing new leaves. Search everywhere's results carry a Details button too, the household's own titles and the catalog's.
 
@@ -219,7 +219,7 @@
 - **A video's own description** (2026-10-11): a YouTube video has no TMDB page, so its Details
   sheet shows the service's own: the channel, the length, the date, the description and the creator's tags, from the same public page
   the tags come from, with About this channel opening the channel's page (`POST /video/channel {app, url}`: name, handle, counts,
-  description, latest videos, each playable) and Open the channel playing its page on Prism. The PC's Details card shows the same.
+  description, latest videos, each playable) and Open the channel playing its page on PRISM. The PC's Details card shows the same.
   A Twitch video says its channel in its own line.
 - **Posters** (2026-10-11): every card carries TMDB's poster beside the service's own picture, and the phone draws
   the poster first, since it draws every card tall; the service's picture is the fallback.
@@ -243,12 +243,12 @@
 - A title on this phone (2026-10-10): the Video tab's
   switch, A title you tap opens On the PC / On this phone, kept in the phone's own storage. On this phone, a tap opens the title's
   own address on its service as a plain link with no referrer: the phone hands it to the service's app when one is installed, to
-  its browser otherwise. Prism plays nothing and passes no sign-in. It covers what carries an address: Continue watching, My list,
+  its browser otherwise. PRISM plays nothing and passes no sign-in. It covers what carries an address: Continue watching, My list,
   the services' rows, search results and live channels. A catalog title (found through a service's own search on the PC) has
   none, and the page says it can only play on the PC. Page-side only, no route. Not tried on a phone yet: which services open
   their app, land on the title, or resume where the PC left off is each service's own doing and needs a walk on iOS and Android.
 - The TMDB key: `POST /tmdb/key {apiKey}` (core remote.ts) keeps the person's own TMDB key where a key typed on the PC is kept.
-  The TMDB guide's last code opens this page with `#tmdb`, which shows a sheet with one box and Send to Prism: the key was copied
+  The TMDB guide's last code opens this page with `#tmdb`, which shows a sheet with one box and Send to PRISM: the key was copied
   on the phone a moment before, and a long key is nothing to type with a remote. The box is emptied when it is sent and the
   phone keeps nothing. The answer says only whether a key is set. The key crosses the home network as the rest of the phone's
   requests do, in plain HTTP (section 6); a person who would rather not can type it on the PC, in the guide or in Watch settings.
@@ -273,7 +273,7 @@
   which is the one kind of sound a phone keeps playing in the background; a phone that cannot take a chunk within a second is
   dropped. The process loopback taps AFTER a page's own mute and a session's volume and BEFORE the device volume: the person's mute
   and volume are the sessions' level (the mute is the room step's floor, SessionMuter.Step, B-472), and ListenStream multiplies the
-  capture by the inverse of the level the muter confirms in force (LevelApplied, never the wish), so a phone hears Prism at full
+  capture by the inverse of the level the muter confirms in force (LevelApplied, never the wish), so a phone hears PRISM at full
   whatever the room hears. The playback device is never touched (2026-10-04 to 2026-10-31 it carried the person's mute and volume
   while a phone listened, SurfaceManager.PrivateListening.cs, and muted every app on the PC with it).
 - Measured 2026-10-04 (desktop client): 200 frames in 4 seconds, real time; the capture starts with the first phone and stops with
@@ -281,20 +281,20 @@
   gesture). The MP3 route: 80 KB in six seconds, valid frames from the first byte. Still to hear on the phone: the MP3 mode with the
   page minimized and the screen locked, and the mute separation.
 
-## When Prism is closed (2026-10-23)
+## When PRISM is closed (2026-10-23)
 
-The phone's page lives on Prism, so a closed Prism used to leave the phone with nothing to load. The phone launcher answers in its
-place: Prism's own exe run with `--launcher`, started by Prism each time it opens and still running after it closes. With Prism closed,
-the phone's address (and its home-screen icon) shows **Prism is closed** and, for a paired phone, an **Open Prism** button. A tap starts
-Prism on the PC; the page waits and loads Prism's own page once it answers. A phone page left open when Prism closes reloads into the
+The phone's page lives on PRISM, so a closed PRISM used to leave the phone with nothing to load. The phone launcher answers in its
+place: PRISM's own exe run with `--launcher`, started by PRISM each time it opens and still running after it closes. With PRISM closed,
+the phone's address (and its home-screen icon) shows **PRISM is closed** and, for a paired phone, an **Open PRISM** button. A tap starts
+PRISM on the PC; the page waits and loads PRISM's own page once it answers. A phone page left open when PRISM closes reloads into the
 closed page at its next version check (each minute, and whenever it comes back to the front).
 
-- A Prism that stops without closing (a crash) is started again after fifteen seconds, at most three times an hour. One a person
+- A PRISM that stops without closing (a crash) is started again after fifteen seconds, at most three times an hour. One a person
   closed stays closed until someone opens it.
 - It cannot help a PC that is asleep or off, and it is home-network only, like the rest of the phone remote.
-- Starting the launcher at Windows sign-in as well (so it is there before Prism has opened once) is not done yet: it is an entry in
+- Starting the launcher at Windows sign-in as well (so it is there before PRISM has opened once) is not done yet: it is an entry in
   Windows' startup list and waits on a yes.
-- Host pref `phone.launcher` (default on) turns it off; Prism then stops a running one at its next start.
+- Host pref `phone.launcher` (default on) turns it off; PRISM then stops a running one at its next start.
 
 ## Decisions
 
@@ -377,7 +377,7 @@ the last stream leaving, or the switch off puts the room live again.
   level, and the samples are clamped before the room hears them; turning off lowers the gain before the browser comes back up.
 - **Ads stay silent.** A music ad break mutes the page at the same ten-thousandth the room step uses, and the first evening the stream
   multiplied the ad back up for the phones and the room (2026-10-31). A muted pass now tells
-  the stream the level is not confirmed, so the gain is one for the break: the ad is silence on the stream and in the room. Prism's own
+  the stream the level is not confirmed, so the gain is one for the break: the ad is silence on the stream and in the room. PRISM's own
   intermission sound (the soundscape a person chose for the service's breaks) reaches the phones and the listen page too (2026-10-31 evening): the soundscape is a hidden page in the
   prism-ambient profile's own browser process, which the stream never captured; `ListenStream` now captures that process beside the
   services' browser while a break has made one, and the pacer adds its frames to the shared ones, each at its own tree's room-step gain.

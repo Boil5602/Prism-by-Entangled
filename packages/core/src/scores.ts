@@ -32,7 +32,7 @@ export const SCORE_SOURCE = "ESPN";
 /**
  * ESPN's scoreboard header: the strip of the day's games across the leagues in season that tops ESPN's own pages - its pick of the key
  * games, one bare address. (The per-league scoreboard addresses answer 403 to anything but a handful of known clients; this one answers
- * Prism as itself.)
+ * PRISM as itself.)
  */
 export const SCORE_URL = "https://site.web.api.espn.com/apis/v2/scoreboard/header";
 
@@ -92,7 +92,7 @@ export function gamesOfTheDay(all: readonly ScoreGame[], dayStart: number, dayEn
 
 /**
  * ESPN's per-league scoreboard pages: a whole day of one league, by date ("?dates=YYYYMMDD"). They refuse any client that is not a browser, so
- * Prism reads them in a hidden page of its own browser, which is what it is (2026-10-01). Today's and yesterday's pages, hourly, make the last day whole - every final included - whatever the header strip lists now.
+ * PRISM reads them in a hidden page of its own browser, which is what it is (2026-10-01). Today's and yesterday's pages, hourly, make the last day whole - every final included - whatever the header strip lists now.
  */
 export const SCORE_DAY_LEAGUES: ReadonlyArray<{ league: string; leagueName: string; path: string }> = [
   { league: "NFL", leagueName: "National Football League", path: "football/nfl" },
@@ -163,7 +163,7 @@ export function mergeKept(kept: readonly ScoreGame[], read: readonly ScoreGame[]
 }
 
 /**
- * Who carries a game, as ESPN names them, to the service on the wall (2026-10-01). Only services Prism has an adapter for; ESPN's own networks are not among them.
+ * Who carries a game, as ESPN names them, to the service on the wall (2026-10-01). Only services PRISM has an adapter for; ESPN's own networks are not among them.
  */
 /**
  * Which services carry a game: each adapter names the networks it carries live as ESPN writes them (`broadcasters`, 2026-10-02 - service

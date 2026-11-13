@@ -1,7 +1,7 @@
 {
   "id": "spectrum",
   "name": "Spectrum",
-  "blurb": "Classic bars, tasteful: rounded, evenly spaced, the palette running low to high.",
+  "blurb": "Bars in the palette low to high, each with a cap that holds its peak, standing over their own reflection. Beside a cover in the middle they stand in two wings.",
   "program": "bars",
   "bands": 48,
   "palette": ["#F0A83C", "#5CC8C0", "#C86CF0", "#F05C7A"],

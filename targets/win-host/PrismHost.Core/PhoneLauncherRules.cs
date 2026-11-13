@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 namespace PrismHost.Launching;
 
 /// <summary>
-/// The phone launcher's decisions, apart from its sockets and processes so they run headless in the tests (2026-10-23). The launcher is Prism's own exe started with
-/// --launcher at sign-in: while Prism is closed it answers the phone on Prism's port, and a paired phone can open Prism from it.
+/// The phone launcher's decisions, apart from its sockets and processes so they run headless in the tests (2026-10-23). The launcher is PRISM's own exe started with
+/// --launcher at sign-in: while PRISM is closed it answers the phone on PRISM's port, and a paired phone can open PRISM from it.
 /// </summary>
 public static class PhoneLauncherRules
 {
@@ -32,8 +32,8 @@ public static class PhoneLauncherRules
 }
 
 /// <summary>
-/// How often the launcher starts Prism again after it stops without closing (a crash): at most Max times in Window. A Prism that
-/// keeps falling over is left closed, and the phone's Open Prism button is still there.
+/// How often the launcher starts PRISM again after it stops without closing (a crash): at most Max times in Window. A PRISM that
+/// keeps falling over is left closed, and the phone's Open PRISM button is still there.
 /// </summary>
 public sealed class RestartBudget
 {

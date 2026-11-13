@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-  Prism for Windows - kiosk profile installer (win-host-spec §8 / §5).
+  PRISM for Windows - kiosk profile installer (win-host-spec §8 / §5).
 
 .DESCRIPTION
   Idempotent. Steps:
     1. Evergreen WebView2 runtime present (never Fixed - it lacks PlayReady, §2/§11).
     2. The data folder %LOCALAPPDATA%\Prism exists (profiles are never touched - §10).
-    3. Edge hand-off profile: the Prism veil extension installed and verified in the
+    3. Edge hand-off profile: the PRISM veil extension installed and verified in the
        user-data-dir a §29 hand-off window runs in (%LOCALAPPDATA%\Prism\edge-handoff),
        so a hand-off can never silently mean "ads came back" (win-host-spec §5).
        TODO(B-24): the host has no Edge hand-off path yet (no Media.launch / --app=
@@ -54,7 +54,7 @@ function Get-HandoffStatus($udd) {
         if (-not $settings) { return 'ExtensionMissing' }
         foreach ($p in $settings.PSObject.Properties) {
             $name = $p.Value.manifest.name
-            $known = ($p.Name -eq 'prism-veil') -or ($name -match 'Prism' -and $name -match 'Veil')
+            $known = ($p.Name -eq 'prism-veil') -or ($name -match 'PRISM' -and $name -match 'Veil')
             if ($known -and ($p.Value.state -eq 1 -or $null -eq $p.Value.state)) { return 'Verified' }
         }
         return 'ExtensionMissing'
@@ -64,7 +64,7 @@ $hs = Get-HandoffStatus $handoff
 switch ($hs) {
     'HandoffNotPresent' { Step 'Edge hand-off + veil extension' 'not applicable' 'the host has no Edge hand-off yet (B-24); nothing to install or verify' }
     'ProfileMissing'    { Step 'Edge hand-off + veil extension' 'PROFILE MISSING' "run Edge once with --user-data-dir=$handoff --load-extension=<repo>\prototypes\prism-veil-extension, then -Verify" }
-    'ExtensionMissing'  { Step 'Edge hand-off + veil extension' 'EXTENSION MISSING' 'a hand-off window would show ads unveiled - install the Prism veil extension in that profile' }
+    'ExtensionMissing'  { Step 'Edge hand-off + veil extension' 'EXTENSION MISSING' 'a hand-off window would show ads unveiled - install the PRISM veil extension in that profile' }
     'Verified'          { Step 'Edge hand-off + veil extension' 'ok' $handoff }
 }
 

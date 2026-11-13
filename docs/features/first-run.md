@@ -7,7 +7,7 @@ The ask (2026-09-29: on a new computer the menu showed the music and video playe
 ## What a person sees
 
 One page (2026-10-03):
-**Welcome to Prism**, the catalog's services as the Watch page's own service cards, A to Z under MUSIC PLAYER and VIDEO PLAYER, as many
+**Welcome to PRISM**, the catalog's services as the Watch page's own service cards, A to Z under MUSIC PLAYER and VIDEO PLAYER, as many
 a row as the window holds and a page at a time (‹ 1 of 2 ›) when a player has more than two rows' worth
 ("Alphabetical and paged, grouped on music v video"). A press on a card adds the service to its player (the
 players are made the first time) and opens the service's own sign-in in the sign-in window the rest of the
@@ -21,16 +21,16 @@ the card expands to the whole window in a third of a second and fades as the pag
 sign-in kept. Nothing is chosen first and there is no Continue: choosing is signing in. **Done** goes to
 the wall once a service is set up; **Not now** before that. A sign-in cancelled stays on the player, not
 signed in, and its rows fill in once it is. Once something is set up the page is titled *Your services*,
-which is also what *Set up services* in the Prism menu opens.
+which is also what *Set up services* in the PRISM menu opens.
 
 **Music | Video** (2026-10-03): a toggle hangs from the top-right edge of the window on both players,
 above every page, the wall's player lit in amber. A press on the other side switches the wall the way the
-Prism menu's Music player / Video player items do; a player that does not exist opens this page. It is
+PRISM menu's Music player / Video player items do; a player that does not exist opens this page. It is
 hidden until a player exists (MainWindow.PlayerGrip.cs).
 
 The page comes up by itself on a wall with no Music player and no Video player, whatever scenes it has
 (2026-09-29: the laptop had scenes from an earlier build and no player, and never saw the page). Not now is
-remembered until a player exists. It is in the Prism menu as *Set up services*, and a player that does not
+remembered until a player exists. It is in the PRISM menu as *Set up services*, and a player that does not
 exist yet opens it. Running it again adds services; it removes nothing.
 
 ## What is made
@@ -64,11 +64,11 @@ that owns the sound (`audio: exclusive`). A page with no sound of its own is nei
   the migrated wall over both players.)
 - **A new device's wall starts empty** (`Assets/first-run-dashboard.json`, no tiles). With no scene and the
   welcome page down it says *Nothing is set up yet*, with a Set up services button.
-- **Sign in only, never sign up** (2026-09-29). Prism opens sign-in pages and presses Sign In controls. It never
+- **Sign in only, never sign up** (2026-09-29). PRISM opens sign-in pages and presses Sign In controls. It never
   opens a registration page or presses a control that says sign up, register, join or start a trial. The
   sign-in list tells a person new to a service to create the account in their browser first.
 - **Nothing signs anybody in.** The sign-in is the person's, on the service's own page. No credentials
-  pass through Prism (third-party-services-policy).
+  pass through PRISM (third-party-services-policy).
 
 ## Sign in, one rule
 
@@ -116,7 +116,7 @@ services taken off is kept under `players:removed`.
 
 ## Services added on the device
 
-Prism reads adapters and catalog entries from two places: the ones it ships (`Assets/adapters`,
+PRISM reads adapters and catalog entries from two places: the ones it ships (`Assets/adapters`,
 `Assets/catalog` beside the program) and the ones added on the device (`adapters/` and `catalog/` in the
 data folder, `%LOCALAPPDATA%\Prism`). A service needs both files: the adapter, and the catalog entry that
 names it. They are read at the start. The first page has **Open the folder**.
@@ -133,7 +133,7 @@ and an https address, and a name beginning with `_` are left out, each with a li
 
 An adapter carries page scripts. One dropped into the folder runs on that service's pages with the same
 reach as a shipped one, so the folder is for files from a source the person trusts. Nothing is fetched:
-Prism downloads no adapters.
+PRISM downloads no adapters.
 
 ## The setup window's bar
 

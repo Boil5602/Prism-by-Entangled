@@ -1,7 +1,7 @@
 {
   "id": "campfire-circle",
   "name": "Campfire Circle",
-  "blurb": "People around a fire; the flames leap with the mids and highs, sparks rise on the beat, the circle glows with the lows.",
+  "blurb": "Family and friends around a fire in a forest clearing; every flame follows the music, a beat flares the fire and throws sparks, and the firelight plays on everyone.",
   "program": "campfire-circle",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

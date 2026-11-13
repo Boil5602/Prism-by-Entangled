@@ -75,7 +75,7 @@ public sealed partial class SurfaceManager
             Visibility = Visibility.Collapsed,
         };
         MainWindow.OwnHover(notAd);
-        ToolTipService.SetToolTip(notAd, "This is the show, not an ad: give its sound back, and tell Prism it got this wrong");
+        ToolTipService.SetToolTip(notAd, "This is the show, not an ad: give its sound back, and tell PRISM it got this wrong");
         notAd.Click += (_, __) => NotAnAdPressed?.Invoke(id);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
         row.Children.Add(sound);

@@ -1,5 +1,5 @@
 /*
-  Prism - input guard for the Prism button (spec section 30). Isolated world,
+  PRISM - input guard for the PRISM button (spec section 30). Isolated world,
   document_start, so its window-capture listeners are registered BEFORE any
   page script's - a popunder's document-level mousedown catcher included.
 

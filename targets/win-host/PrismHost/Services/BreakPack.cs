@@ -81,7 +81,7 @@ public static class BreakPack
             if (!r.TryGetProperty("format", out var f) || f.GetInt32() != 1) { Say(log, dir, "a format this build does not read"); return null; }
             var serial = r.GetProperty("pack").GetString() ?? "";
             var minPrism = r.TryGetProperty("minPrism", out var mp) ? mp.GetString() ?? "" : "";
-            if (minPrism.Length > 0 && !VersionAtLeast(AppVersion.Text, minPrism)) { Say(log, dir, "it needs Prism " + minPrism); return null; }
+            if (minPrism.Length > 0 && !VersionAtLeast(AppVersion.Text, minPrism)) { Say(log, dir, "it needs PRISM " + minPrism); return null; }
             string? Part(JsonElement e)
             {
                 var file = e.GetProperty("file").GetString() ?? ""; var sha = e.GetProperty("sha256").GetString() ?? "";
@@ -141,7 +141,7 @@ public static class BreakPack
                 if (!r.TryGetProperty("format", out var f) || f.GetInt32() != 1) { log("break watch pack: a format this build does not read"); return false; }
                 serial = r.GetProperty("pack").GetString() ?? "";
                 var minPrism = r.TryGetProperty("minPrism", out var mp) ? mp.GetString() ?? "" : "";
-                if (minPrism.Length > 0 && !VersionAtLeast(AppVersion.Text, minPrism)) { log("break watch pack " + serial + " needs Prism " + minPrism + "; kept for a later version"); return false; }
+                if (minPrism.Length > 0 && !VersionAtLeast(AppVersion.Text, minPrism)) { log("break watch pack " + serial + " needs PRISM " + minPrism + "; kept for a later version"); return false; }
                 void Add(JsonElement e) { var fl = e.GetProperty("file").GetString() ?? ""; var sh = e.GetProperty("sha256").GetString() ?? ""; if (fl.Length > 0 && sh.Length > 0) files.Add((fl, sh)); }
                 if (r.TryGetProperty("models", out var models)) foreach (var m in models.EnumerateObject()) Add(m.Value);
                 if (r.TryGetProperty("pictureNet", out var pn)) Add(pn);

@@ -4,9 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 namespace PrismHost;
 
 /// <summary>
-/// The player toggle (2026-10-03): Music | Video at the top-right of the window, hanging from the edge like the Prism menu grip at the
+/// The player toggle (2026-10-03): Music | Video at the top-right of the window, hanging from the edge like the PRISM menu grip at the
 /// top-centre, present on both players and above every page. The wall's player is lit in amber; a press on the other switches through the
-/// same path as the Prism menu (core switchPlayer; a player that does not exist opens Set up services). Refilled whenever the Watch grip is.
+/// same path as the PRISM menu (core switchPlayer; a player that does not exist opens Set up services). Refilled whenever the Watch grip is.
 /// </summary>
 public sealed partial class MainWindow
 {

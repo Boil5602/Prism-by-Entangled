@@ -1,7 +1,7 @@
 {
   "id": "stadium-wave",
   "name": "Stadium Wave",
-  "blurb": "A stadium at night; floodlights breathe with the loudness and a wave of light runs through the crowd on every beat.",
+  "blurb": "A full stadium at night; every block of the far stand is a band and lights its rows from the front row up, the big screen shows the levels, a wave runs round the bowl on the beat, and a strong beat throws confetti.",
   "program": "stadium-wave",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

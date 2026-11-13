@@ -5,9 +5,9 @@ dismissible nudge to put it on their Home Screen. No store, no profile,
 no account.
 
 ## Installability
-- Web app manifest: name "Prism", short_name "Prism", an explicit id
+- Web app manifest: name "PRISM", short_name "PRISM", an explicit id
   ("prism-companion": with another home-screen web app on the phone, iOS
-  opened that one from the Now Playing control while Prism played, WebKit
+  opened that one from the Now Playing control while PRISM played, WebKit
   bug 267810, and an explicit id in the playing app's manifest is the
   workaround a reader there found; iOS reads it at install, so an app added
   before it must be removed and added again; B-446, 2026-10-28), display
@@ -16,7 +16,7 @@ no account.
   dark surface tokens, icons at 192 and 512 px plus a maskable 512.
 - iOS head tags: apple-touch-icon (180 px), apple-mobile-web-app-capable,
   apple-mobile-web-app-status-bar-style "black-translucent",
-  apple-mobile-web-app-title "Prism".
+  apple-mobile-web-app-title "PRISM".
 - Icons come from the existing static logo assets. Do not create new
   artwork; export sizes from what exists.
 - Served over HTTPS where the companion already is; where it is LAN
@@ -30,14 +30,14 @@ no account.
   (icon) → "Add to Home Screen". Detect Safari vs. other iOS browsers;
   for non-Safari iOS browsers show the same steps (they share the Share
   sheet) with the Share icon only.
-- Android/Chromium: capture `beforeinstallprompt`, show one "Add Prism
+- Android/Chromium: capture `beforeinstallprompt`, show one "Add PRISM
   to Home Screen" button that calls `prompt()`. If the event never
   fires, show nothing.
 - Timing: appears after the user has been on the page for 10 seconds or
   after a successful pairing, whichever is first. Never on first paint.
 - Dismiss: "Not now" hides it for 14 days (localStorage). Installing
   hides it for good. "Don't show again" hides it for good.
-- Copy, plain and short: "Add Prism to your Home Screen. It opens
+- Copy, plain and short: "Add PRISM to your Home Screen. It opens
   full-screen and stays signed in." Steps as above.
 - Reduced motion: no slide-in animation.
 - Nothing is sent anywhere. The prompt state lives in localStorage

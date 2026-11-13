@@ -1,4 +1,4 @@
-# Prism for Windows — Host Shell Specification v0.1
+# PRISM for Windows — Host Shell Specification v0.1
 
 *The Phase-1 flagship: a native Windows app hosting web tiles in WebView2, running prism-core, rendering the §26 veil at the compositor level. Confirmed by POCs 1–2 (Netflix + Hulu embedded, simultaneous DRM playback, host overlay over protected video, page-invisible mute).*
 
@@ -48,12 +48,12 @@ Core ↔ host messaging: one JSON channel (`PostWebMessageAsJson` / `WebMessageR
 | `Surface.create(kind)` | `kind` = `slot` \| `floating` \| `hidden`; every kind attaches through ONE seam, `SurfaceManager.AttachEngineAsync` (the only `new WebView2` in the host) | the §5 coverage invariant as code: bootstrap, events to core, inject path, composition overlay, popup doctrine, page-invisible mute, fullscreen auto-grant - a new surface kind cannot skip them; `scripts/verify-surface-coverage.mjs --no-known-gaps` asserts it |
 | hidden presence (§32 music facets) | the container keeps its rect and parks LEFT of the canvas (x = −(w+64)), never `Collapsed`, never 0×0; core lays a hidden page out at its window-reveal size (three quarters of the wall), so the service renders its desktop player - Spotify's sidebar, and with it Your Library, is gone below about a thousand pixels of width (B-173) | measured 2026-09-01 (`targets/win-poc-music --hidden-test`): `Collapsed`/0×0 flips the page to `visibilityState: hidden` and Chromium pauses muted-element media there; off-canvas the page stays "visible" and every variant (muted element, control-muted, audible) keeps advancing at 1.0× |
 | `surface.setPresence(id, hidden\|panel\|hero, rect, ms)` | move + resize + §16 fade of the SAME control; the renderer is never recreated | §32 reveal/collapse: audio uninterrupted; core picks the rect (panel = the float place, hero = the largest slot) and z 35 (slots 0 < floating 30 < revealed 35 < takeover 40 < popups 950 < pill) |
-| `surface.createVisualization(id, style, source, artwork)` + `setVisualizationFeed(id, json)` | `VisualizationHost` (no web view) → `IVisualizationRenderer` chosen by `VisualizationStyles` (Agent 3 registers Prism Beams / Spectrum / Ribbon / Bloom; `BarsRenderer` is the host's fallback); 30 Hz tick while the feed is active, 10 Hz + fewer bands under reduced motion; idles dark | the FFT never crosses the seam: `IVisualizationAudioSource.Bands(n)` is `Services/Audio/WasapiLoopbackFft` (NAudio loopback of the render device, 2048-pt Hann FFT, log bands 40 Hz–16 kHz, attack/decay + slow AGC, capture only while a visualization is active). Process-scoped loopback is the planned upgrade (ledger B-33) |
+| `surface.createVisualization(id, style, source, artwork)` + `setVisualizationFeed(id, json)` | `VisualizationHost` (no web view) → `IVisualizationRenderer` chosen by `VisualizationStyles` (Agent 3 registers PRISM Beams / Spectrum / Ribbon / Bloom; `BarsRenderer` is the host's fallback); 30 Hz tick while the feed is active, 10 Hz + fewer bands under reduced motion; idles dark | the FFT never crosses the seam: `IVisualizationAudioSource.Bands(n)` is `Services/Audio/WasapiLoopbackFft` (NAudio loopback of the render device, 2048-pt Hann FFT, log bands 40 Hz–16 kHz, attack/decay + slow AGC, capture only while a visualization is active). Process-scoped loopback is the planned upgrade (ledger B-33) |
 | popup child surfaces (§30) | a `Tile` of kind `popup` (`<opener>#popup-N`) in the opener's profile, attached through `AttachEngineAsync`, hosted in the sheet over the wall | inherits the opener's `IsMuted` (§3), closes with the opener on destroy/suspend, excluded from boot cache/snapshots, reported to core as `popup {open}` events; a popup's `window.open` is a §30 backstop (no chains) |
 | `ContainsFullScreenElementChanged` | auto-granted on every surface (WebView2 fills the surface's rect with the fullscreen element); the host posts `fullscreen-element {contains}` | §26 presentation keeping reads the state from core; promotion to the window is core's decision |
 | `ui.route(route, source, id?)` | `MainWindow.UiRouteRequested` (the rail / editors subscribe); until a router subscribes the pill names the route | §6a deep links from the phone (`POST /items/{id}/action`, `/ui/route`), a held remote key (`*_LONG` → `context-sheet`), or core; the host's own UI reports routes it opens via `ReportUiRoute` → `uiRoute` so the flight recorder shows one shape |
 | remote API listener | `Services/RemoteServer` (TcpListener HTTP/1.1 on 8471, LAN + loopback) → `PrismRuntime.http` → `http.response` | bytes only: core routes and authenticates (§6 tokens); boot mints a pairing URL `onlyIfUnpaired`; `/remote` is a placeholder page until the PWA lands; `/audio/stream` answers 501 until §14 capture is served |
-| Edge hand-off verification (§5) | `Services/HandoffCheck.Verify` + `kiosk/Install-PrismKiosk.ps1` step 3 | the host has no hand-off today (B-24) → `HandoffNotPresent`, reported not warned; when `Media.launch` lands the check reads the hand-off profile's `Preferences` for the Prism extension and the host warns on `ProfileMissing` / `ExtensionMissing` |
+| Edge hand-off verification (§5) | `Services/HandoffCheck.Verify` + `kiosk/Install-PrismKiosk.ps1` step 3 | the host has no hand-off today (B-24) → `HandoffNotPresent`, reported not warned; when `Media.launch` lands the check reads the hand-off profile's `Preferences` for the PRISM extension and the host warns on `ProfileMissing` / `ExtensionMissing` |
 
 ## 4. Tile lifecycle on WebView2
 
@@ -78,7 +78,7 @@ A fourth corner button on the stage opens the **mini player**: a second window o
 
 Conformance addition (§12): a coverage test enumerates every surface-creation path in the host and asserts engine injection + composition hookup on each; a new surface type that skips the engine fails the kit.
 
-- Sits above every tile in the visual tree; hit-testing passes through except on its own controls (intermission card, pill, peek target).
+- Sits above every tile in the visual tree; hit-testing passes through except on its own controls (intermission card, pill, peek target). In the Video player the intermission cover's ground takes the press too and shows the stage bar (B-487, 2026-11-10): a press passed to a page nobody can see paused its player. The cover's openings (a paused look's panel, a channel's ticker band) still pass presses to the page.
 - Renders: §16 crossfades (snapshot ↔ live), hero reflow animations (220ms ease), §26 intermission scenery + card (minimal mode, pause-after-break, chime, peek), §27 partial/gallery veils computed from injected element rects, §30 pill + Control Center panel.
 - Element-rect tracking for veils: injected observer posts rects on layout change; host maps CSS px → control px → screen px (DPI-aware, per-monitor v2).
 - Reduced-motion honored system-wide (Windows setting) → dissolves.
@@ -110,7 +110,7 @@ outside the sheet. The visualizations' art palettes are pictures and keep their 
 
 ## 8. Kiosk profile
 
-- Installer option "Dedicated Prism box": creates auto-login local user `prism`, sets its shell to `PrismHost.exe` (custom shell key; Assigned Access where edition supports), disables sleep/fast-startup, enables BIOS-restore reminder, installs watchdog as a scheduled task at logon.
+- Installer option "Dedicated PRISM box": creates auto-login local user `prism`, sets its shell to `PrismHost.exe` (custom shell key; Assigned Access where edition supports), disables sleep/fast-startup, enables BIOS-restore reminder, installs watchdog as a scheduled task at logon.
 - Boot experience: black substrate → persisted snapshots of last dashboard within ~2s → tiles revive behind crossfades (§16). Never a Windows desktop flash.
 - Escape hatch: a documented key chord + phone-remote action to exit to desktop (settings-gated).
 - Optimizer (baselines doc) offered as step one; manifest-driven, reversible.
@@ -159,7 +159,7 @@ What the first night found and fixed (2026-10-03 to 02:25, three windows playing
   Apple TV's lookup page had been the busiest renderer on the wall (5% CPU, 1 MB/s) for nobody.
 - **Decorative loops paused on hidden surfaces** (SurfaceManager.DecorJs): Apple Music's home page looped two muted animated-artwork
   videos, one 1662 by 2216, under the Video player - its profile's GPU process at 13% decoding for nobody. A page action on a surface
-  entering hidden presence pauses every muted looping video (new ones too) and resumes the ones Prism paused when it comes back.
+  entering hidden presence pauses every muted looping video (new ones too) and resumes the ones PRISM paused when it comes back.
 - **Store writes coalesced per key** (runtime.ts store.set): the watch log, the recents and the resume point were set 54 times a minute by
   three playing windows; a changing value now reaches the host after a quiet five seconds, thirty at the most (the brain's snapshot takes
   it at once, so a read sees it); the host waits four seconds, twenty at the most, before writing the file.

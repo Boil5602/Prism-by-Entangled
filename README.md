@@ -28,10 +28,10 @@ Needs Windows 11, 64-bit. Everything else comes inside the download.
 4. Windows may say "Windows protected your PC" because this build is not code-signed
    yet. Press **More info**, then **Run anyway**.
 
-Prism installs itself into `%LOCALAPPDATA%\Programs\Prism` (no administrator rights),
+PRISM installs itself into `%LOCALAPPDATA%\Programs\Prism` (no administrator rights),
 adds itself to the Start menu and runs from there from then on. The unzipped folder can
 be deleted. Your data stays in `%LOCALAPPDATA%\Prism`. Updates arrive through
-Prism menu > Updates, and only the files that changed are downloaded.
+PRISM menu > Updates, and only the files that changed are downloaded.
 
 ## What it does
 
@@ -40,21 +40,21 @@ Prism menu > Updates, and only the files that changed are downloaded.
 - **You already have it.** A heads-up when a title you are about to rent or buy is
   included in something you already pay for.
 - **Ads covered.** Video, picture, text and music ads are covered with nature scenes
-  and quiet. Prism observes only; it never signs in for you, breaks DRM or disguises
-  itself. See [how Prism treats the services it shows](docs/third-party-services-policy.md).
+  and quiet. PRISM observes only; it never signs in for you, breaks DRM or disguises
+  itself. See [how PRISM treats the services it shows](docs/third-party-services-policy.md).
 - **Music with a view.** A music player with audio-reactive scenes and private
   listening to your phone.
 - **Your phone is the remote.** Pair by QR code. It is a keyboard for the screen, a
   remote, and a pair of headphones.
 - **Nothing leaves your PC.** No identifiers in any network call. Every connection
-  Prism makes is listed in [docs/network.md](docs/network.md).
+  PRISM makes is listed in [docs/network.md](docs/network.md).
 
 ![The PRISM music player: a sunrise scene behind the song playing on Apple Music.](targets/win-host/PrismHost/Assets/tutorial/music-player.png)
 
 ## For developers
 
 Open-source dashboard frames: DIY hardware builds running web-tile dashboards. The
-Windows app is the first. A browser extension (the Prism extension, which carries the app's ad covering into browsers) is
+Windows app is the first. A browser extension (the PRISM extension, which carries the app's ad covering into browsers) is
 in development, and a Linux image for small boxes is planned.
 
 ### Repo shape (spec §23)
@@ -66,9 +66,9 @@ packages/
   core/               prism-core — the shared TypeScript brain; shells decide nothing
   editor/             prism-editor — the web designer (reference renderer)
   remote-ui/          (planned) phone remote PWA
-  conformance/        prism-conformance — the kit that defines "is a Prism"
+  conformance/        prism-conformance — the kit that defines "is a PRISM"
 targets/
-  win-host/           Prism for Windows — WinUI 3 + WebView2 tiles, prism-core as the brain
+  win-host/           PRISM for Windows — WinUI 3 + WebView2 tiles, prism-core as the brain
 shells/
   android/            Kotlin shell — core in a hidden WebView, tiles as WebViews (parked)
   daemon/             prism-daemon — core in Node, tiles as Chromium windows via
@@ -115,19 +115,19 @@ npm run build
 node packages/conformance/dist/cli.js http://<frame>:8471 <token> <bundle.json>
 ```
 
-A shell that passes is a Prism (§23).
+A shell that passes is a PRISM (§23).
 
 ### Building, contributing, security
 
 - **Build the Windows app:** [docs/building-windows.md](docs/building-windows.md)
 - **Contribute:** [CONTRIBUTING.md](CONTRIBUTING.md) (GPLv3-or-later, signed-off commits, the gate `node scripts/verify.mjs`)
 - **Report a security problem:** security@entangled.world, see [SECURITY.md](SECURITY.md)
-- **How Prism treats the services it shows:** [docs/third-party-services-policy.md](docs/third-party-services-policy.md)
+- **How PRISM treats the services it shows:** [docs/third-party-services-policy.md](docs/third-party-services-policy.md)
 
 ## License
 
-Prism is free software: you can redistribute it and/or modify it under the terms of the
+PRISM is free software: you can redistribute it and/or modify it under the terms of the
 GNU General Public License as published by the Free Software Foundation, either version 3
 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
 
-Copyright (C) 2026 Entangled Labs LLC. Prism by Entangled is a trademark of Entangled Labs LLC.
+Copyright (C) 2026 Entangled Labs LLC. PRISM by Entangled is a trademark of Entangled Labs LLC.

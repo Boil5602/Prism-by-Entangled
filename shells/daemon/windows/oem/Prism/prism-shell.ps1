@@ -1,5 +1,5 @@
 <#
-  Prism kiosk launcher - the process Windows runs INSTEAD of explorer.exe for
+  PRISM kiosk launcher - the process Windows runs INSTEAD of explorer.exe for
   the "prism" user. Supervises the daemon: waits for the network, starts it,
   restarts it if it ever exits, logs everything under C:\Prism\logs.
 

@@ -6,8 +6,8 @@ namespace PrismHost;
 /// <summary>
 /// The big window first (2026-10-07): every ten seconds the page process that draws the big window runs above normal and a
 /// process that draws only small windows below normal, so when the PC is busy the big window's video is served first. A process that draws
-/// anything else (the shared browser and GPU processes, a hidden page) is left at normal, and one Prism lowered is put back when it no
-/// longer draws only small windows. Only Prism's own WebView2 processes are touched.
+/// anything else (the shared browser and GPU processes, a hidden page) is left at normal, and one PRISM lowered is put back when it no
+/// longer draws only small windows. Only PRISM's own WebView2 processes are touched.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -34,7 +34,7 @@ public sealed partial class MainWindow
             if (big is not null && p.Surfaces.Contains(big)) want[p.Pid] = ProcessPriorityClass.AboveNormal;
             else if (p.Surfaces.All(small.Contains)) want[p.Pid] = ProcessPriorityClass.BelowNormal;
         }
-        // set what changed; put back to normal what Prism set before and no longer wants
+        // set what changed; put back to normal what PRISM set before and no longer wants
         foreach (var (pid, cls) in want)
             if (!_setPriority.TryGetValue(pid, out var had) || had != cls) { if (SetPriority(pid, cls)) _setPriority[pid] = cls; }
         foreach (var pid in _setPriority.Keys.Where(k => !want.ContainsKey(k)).ToList()) { SetPriority(pid, ProcessPriorityClass.Normal); _setPriority.Remove(pid); }

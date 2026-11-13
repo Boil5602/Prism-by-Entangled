@@ -1,6 +1,6 @@
-# Prism Photos — Concept (phase two)
+# PRISM Photos — Concept (phase two)
 
-*The first landing of ENTANGLED's values inside Prism: own your bytes, share deliberately, read your algorithms.*
+*The first landing of ENTANGLED's values inside PRISM: own your bytes, share deliberately, read your algorithms.*
 
 ## Why photos first
 
@@ -14,9 +14,9 @@ Photo storage is where the extraction model is most visible: libraries mined for
 
 ## Architecture sketch
 
-- **Library client:** PWA + the Prism photos tile. Import from phone camera roll; encrypt (per-user key, per-album shared keys); chunked upload to the configured backend. Local thumbnail index; originals fetched on demand.
+- **Library client:** PWA + the PRISM photos tile. Import from phone camera roll; encrypt (per-user key, per-album shared keys); chunked upload to the configured backend. Local thumbnail index; originals fetched on demand.
 - **Backends:** any S3-compatible endpoint · WebDAV/NAS · Entangled at-cost hosted (same client code, different endpoint) · local-only mode for a frame with a big SD card.
-- **Sharing:** album-level shared keys wrapped to recipients' keys (recipients are Merge/Prism identities — the pairing infrastructure already exists). Revocation = key rotation forward; already-downloaded copies are honestly outside anyone's control, and the docs say so.
+- **Sharing:** album-level shared keys wrapped to recipients' keys (recipients are Merge/PRISM identities — the pairing infrastructure already exists). Revocation = key rotation forward; already-downloaded copies are honestly outside anyone's control, and the docs say so.
 - **The frame as endpoint:** shared albums appear as photo tiles on recipients' frames via the standard slot mechanism (§15). "Send to grandma's kitchen" is the flagship gesture — Skylight's entire subscription feature as a free consequence of the architecture.
 - **Client-side intelligence:** face/scene clustering and highlights via on-device models only (never server-side, never on unencrypted bytes off-device). Every model and ranking function versioned in the open repo.
 
@@ -57,15 +57,15 @@ member rate ($/TB/mo) = provider cost + DR overhead + capex amortization
 
 A PWA cannot read the iPhone photo library (no PhotoKit on the web, no share-sheet registration), so iOS photo flows are staged:
 
-**Now (ships with Prism v1): iCloud Shared Albums.** Shared Albums have public web URLs; a photos tile pointed at one (standard §15 slot) renders the family's album, and everyone adds photos through the native Photos app they already use. Apple carries the sync; Prism just displays. This covers the core frame use case with zero new code and zero native surface.
+**Now (ships with PRISM v1): iCloud Shared Albums.** Shared Albums have public web URLs; a photos tile pointed at one (standard §15 slot) renders the family's album, and everyone adds photos through the native Photos app they already use. Apple carries the sync; PRISM just displays. This covers the core frame use case with zero new code and zero native surface.
 
 **Noted for later (not committed):**
-- *Share extension:* a minimal free iOS companion app adding "Send to Prism" to the share sheet — per-photo deliberate push, encrypted to the family backend. Small native surface, fits the deliberate-sharing philosophy exactly; free app, sells nothing (stays inside the safe App Store pattern).
+- *Share extension:* a minimal free iOS companion app adding "Send to PRISM" to the share sheet — per-photo deliberate push, encrypted to the family backend. Small native surface, fits the deliberate-sharing philosophy exactly; free app, sells nothing (stays inside the safe App Store pattern).
 - *Full library sync:* the companion grown up — PhotoKit + change tracking + client-side encryption. iOS's background execution limits mean honest UX is "syncs when opened, background catch-up when allowed"; Android's companion can do true background sync. The asymmetry gets documented, not hidden.
 
 ## Phasing
 
-1. **Now (Prism v1):** photos tile reads existing sources (folder, shared album URL slot). Nothing new built.
+1. **Now (PRISM v1):** photos tile reads existing sources (folder, shared album URL slot). Nothing new built.
 2. **Phase two:** library client + BYO-bucket sync + album sharing to frames.
 3. **Phase three:** algorithm store, on-device clustering, and the storage pool (cooperative at-cost hosting with member governance).
-4. **Beyond:** this layer is the bridge — Prism frames as the first ENTANGLED terminals in people's homes. The multiverse arrives to a device already on the kitchen wall, already trusted, already speaking its values.
+4. **Beyond:** this layer is the bridge — PRISM frames as the first ENTANGLED terminals in people's homes. The multiverse arrives to a device already on the kitchen wall, already trusted, already speaking its values.

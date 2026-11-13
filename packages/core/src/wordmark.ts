@@ -66,7 +66,7 @@ export function wordmarkHtml(o: WordmarkOptions = {}): string {
   });
   const cls = ["pw", o.autoplay ? "pw-auto" : "", o.className ?? ""].filter(Boolean).join(" ");
   const style = o.size ? ` style="font-size:${esc(o.size)}"` : "";
-  return `<span class="${cls}" role="img" aria-label="${esc(o.label ?? "Prism")}" tabindex="0"${style}>${letters.join("")}</span>`;
+  return `<span class="${cls}" role="img" aria-label="${esc(o.label ?? "PRISM")}" tabindex="0"${style}>${letters.join("")}</span>`;
 }
 
 /** The CSS: the registered custom property, the stack, the run, the reduced-motion rule. The font is the page's display face. */

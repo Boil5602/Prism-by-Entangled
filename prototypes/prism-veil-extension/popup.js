@@ -1,8 +1,8 @@
 /*
-  Prism - toolbar popup: the SETTINGS home (everything Prism-wide, once) plus
+  PRISM - toolbar popup: the SETTINGS home (everything PRISM-wide, once) plus
   this site's popup summary. Short labels; the explanation of every control
   is its tooltip. Reads and writes storage directly (pv:ui and friends), so
-  it works on any page; the on-page Prism button is this-site-only and links
+  it works on any page; the on-page PRISM button is this-site-only and links
   here. Presentation only: the page's content script owns the visit ledger,
   core owns policy, bg.js owns fetching.
 */
@@ -43,7 +43,7 @@
   // ---- this site's popups (the page's visit ledger) --------------------------
   function render(v) {
     var view = $("view"); view.textContent = "";
-    if (!v) { $("site").textContent = ""; view.appendChild(el("div", "empty", "Prism isn't running on this page (browser pages, the store, PDFs).")); $("open-here").disabled = true; return; }
+    if (!v) { $("site").textContent = ""; view.appendChild(el("div", "empty", "PRISM isn't running on this page (browser pages, the store, PDFs).")); $("open-here").disabled = true; return; }
     $("site").textContent = v.site; curSite = v.site; try { paintLiveSites(); } catch (e) {}
     var pf0 = policy.prefs(v.site); $("pill-on").checked = !pf0.hidden;
     var total = 0; v.rows.forEach(function (r) { total += r.count; });
@@ -111,7 +111,7 @@
     });
   }
 
-  // ---- Prism-wide prefs (pv:ui) - the content scripts apply changes live ----
+  // ---- PRISM-wide prefs (pv:ui) - the content scripts apply changes live ----
   var ui = {}, uiLoaded = false;
   // Written at once from the copy the popup holds (read at boot, kept current
   // by onChanged): a read-then-write could be cut off by Firefox closing the
@@ -126,6 +126,8 @@
   function paintUi() {
     $("veil-on").checked = !ui.veilOff;
     $("ai-veil").checked = !!ui.aiVeil;
+    $("suggested-veil").checked = !!ui.suggestedVeil;
+    $("small-view").checked = ui.smallView !== false;   // on unless switched off
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
     $("sound-row").hidden = !chrome.offscreen;   // Firefox has no offscreen page to play it from
@@ -149,6 +151,8 @@
   }
   $("veil-on").addEventListener("change", function () { setUi("veilOff", !$("veil-on").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
+  $("suggested-veil").addEventListener("change", function () { setUi("suggestedVeil", $("suggested-veil").checked); });
+  $("small-view").addEventListener("change", function () { setUi("smallView", $("small-view").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) {
     l.addEventListener("click", function () { setUi("breakSound", l.dataset.snd || undefined); });
   });
@@ -211,7 +215,7 @@
   $("live-site-here").addEventListener("click", function () { addSite(siteOf(curSite)); });
   // Chromium hands a tab's stream only once Veil was invoked on that tab: opening this panel is that, so a YouTube TV tab waiting on it starts
   // ... and the panel says when this tab's picture is being read (the browser's own sharing mark names no one)
-  // the channel on this tab and the person's choice for it (all breaks / sure breaks only / none), as the Prism app's channel covers
+  // the channel on this tab and the person's choice for it (all breaks / sure breaks only / none), as the PRISM app's channel covers
   var liveChannel = "";
   function paintChannel(name, mode) {
     liveChannel = name || "";
@@ -225,7 +229,7 @@
     l.addEventListener("click", function () {
       if (!liveChannel) return;
       var n = {}, cur = ui.liveChannels || {}; for (var k in cur) n[k] = cur[k];
-      if (l.dataset.mode === "all") delete n[liveChannel]; else n[liveChannel] = l.dataset.mode;
+      n[liveChannel] = l.dataset.mode;   // "all" is kept too: a choice the channel gate leaves alone
       setUi("liveChannels", n); paintChannel(liveChannel);
     });
   });
@@ -252,7 +256,7 @@
       rows.forEach(function (r) { r.addEventListener("change", function () { rows.forEach(function (x) { x.classList.remove("hl"); }); }); });
     }
   } catch (e) {}
-  // The veil log (2026-11-07): the records bg.js keeps (pv:veil-log), copied as one line a record, newest last, like the Prism app's
+  // The veil log (2026-11-07): the records bg.js keeps (pv:veil-log), copied as one line a record, newest last, like the PRISM app's
   // calls.log: the date and time, up or down, marked or spotted, the channel and site, then at a raise the chance and the rule, at a
   // drop how long the veil stood and the reason in brackets.
   function veilLogLine(r) {
@@ -281,7 +285,7 @@
   });
   Array.prototype.forEach.call(document.querySelectorAll("#hud input"), function (r) { r.addEventListener("change", function () { if (r.checked) setUi("hud", r.value); }); });
   $("art-weekly").addEventListener("change", function () { setUi("artWeekly", $("art-weekly").checked); });
-  // the picture sets (2026-10-15): nature on by default, Cosmos and Museum art from Prism's server, never none; photos already fetched from the
+  // the picture sets (2026-10-15): nature on by default, Cosmos and Museum art from PRISM's server, never none; photos already fetched from the
   // server are fetched again from the new sets
   Array.prototype.forEach.call(document.querySelectorAll("#art-sets input"), function (i) {
     i.addEventListener("change", function () {
@@ -300,7 +304,7 @@
     $("photos-get").textContent = n ? "Get 24 new" : "Get 24 photos";
     $("photos-get").title = n ? "Swap these for a different random 24 from the pool" : "Fetch 24 random photos from the signed pool on prism.entangled.world";
     $("photos-reset").hidden = !n;
-    $("photos-reset").title = "Back to the 24 photos that ship inside Prism (no server involved)";
+    $("photos-reset").title = "Back to the 24 photos that ship inside PRISM (no server involved)";
   }
   $("photos-get").addEventListener("click", function () {
     var b = $("photos-get"); b.disabled = true; b.textContent = "Fetching…"; $("photos-err").hidden = true;
@@ -346,7 +350,7 @@
     window.close();
   });
 
-  // ---- Prism page (opt-in; "tabs" is an optional permission asked on the click)
+  // ---- PRISM page (opt-in; "tabs" is an optional permission asked on the click)
   function withTabs(cb) { try { chrome.permissions.request({ permissions: ["tabs"] }, function (g) { cb(!!g); }); } catch (e) { cb(false); } }
   $("startpage-on").addEventListener("change", function () {
     var on = $("startpage-on").checked;

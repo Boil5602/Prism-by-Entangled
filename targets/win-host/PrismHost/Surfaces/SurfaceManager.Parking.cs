@@ -18,7 +18,7 @@ namespace PrismHost.Surfaces;
 /// </summary>
 public sealed partial class SurfaceManager
 {
-    /// <summary>Renderer processes eased by Prism, with the surfaces they drew when eased.</summary>
+    /// <summary>Renderer processes eased by PRISM, with the surfaces they drew when eased.</summary>
     private readonly Dictionary<uint, string[]> _easedRenderers = new();
 
     private static void ParkMemory(Tile t, bool parked)
@@ -38,7 +38,7 @@ public sealed partial class SurfaceManager
             if (ids.Contains(t.Id)) { Ease(pid, false); _easedRenderers.Remove(pid); }
     }
 
-    /// <summary>Every renderer that draws only parked pages eased; any other renderer Prism eased before put back.</summary>
+    /// <summary>Every renderer that draws only parked pages eased; any other renderer PRISM eased before put back.</summary>
     private async Task EaseRenderersAsync()
     {
         var parked = _tiles.Values.Where(x => x.Dozing).Select(x => x.Id).ToHashSet();

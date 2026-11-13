@@ -9,22 +9,22 @@ its left. It fades with the other grips while a video plays and comes back with 
 
 ## The form
 
-- **What is it?** Ads are on my screen / Something isn't working / An idea or an improvement / Something else (ideas since 2026-10-06,: the question under it becomes). With *Ads*, a link offers the Prism app's own ad report
-  instead: point at the ad on the wall and its structure goes to the ad reports, so Prism can learn to cover it (Prism menu, Veil,
+- **What is it?** Ads are on my screen / Something isn't working / An idea or an improvement / Something else (ideas since 2026-10-06,: the question under it becomes). With *Ads*, a link offers the PRISM app's own ad report
+  instead: point at the ad on the wall and its structure goes to the ad reports, so PRISM can learn to cover it (PRISM menu, Veil,
   Report an ad).
-- **Where?** The Music player / The Video player / Somewhere else in Prism. The player on now is chosen.
-- **Which service?** Prism itself, or one of the services of the player chosen above: the Music player's for music, the Video
+- **Where?** The Music player / The Video player / Somewhere else in PRISM. The player on now is chosen.
+- **Which service?** PRISM itself, or one of the services of the player chosen above: the Music player's for music, the Video
   player's for video, every one for elsewhere (2026-10-06);
   the one on the screen (Video) or playing (Music) chosen.
 - **What did you see? What were you doing?** The person's words. Send stays off until there are some.
 - **Include the page's address** (on by default when the service has a page open): its origin and path only, never the query or the
   fragment. The inbox strips them again whatever it is sent.
-- **Include Prism's recent log** (off by default): about the last 24 KB of host.log, each line passed through the redactor again
+- **Include PRISM's recent log** (off by default): about the last 24 KB of host.log, each line passed through the redactor again
   (passwords, tokens and keys are never written to it).
 - **What is sent** shows the exact report before Send. Underneath: it goes to Entangled's report inbox, which keeps no name, account,
   IP address or device id.
 
-What a report carries: kind, player, service, its adapter and the adapter's version, Prism's version and update track, the Windows
+What a report carries: kind, player, service, its adapter and the adapter's version, PRISM's version and update track, the Windows
 edition and build (Windows 11 named as such; it reports itself as 10.0), the WebView2 runtime version, the words, and the two optional parts. Core gathers the context (`reportContext`); the
 host draws the form and sends.
 

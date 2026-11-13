@@ -1,18 +1,18 @@
-# The live TV picture in the Prism extension
+# The live TV picture in the PRISM extension
 
 *Status: built 2026-11-06 (extension 0.7.216 to 0.7.254), off by default. Seen working on Edge on a YouTube TV channel that night:
 the real picture read under the extension's own veil, spotted and marked veils, the screen's words read. Not yet judged over a whole
 evening against marked breaks.*
 
-The Prism app covers a live channel's commercials by reading its picture (the break watch: `BreakModel.cs`, `LearnedBreak.cs`,
+The PRISM app covers a live channel's commercials by reading its picture (the break watch: `BreakModel.cs`, `LearnedBreak.cs`,
 `MainWindow.BreakWatch.cs`). YouTube TV's page says nothing about a network's own commercials, so an extension that only reads the page
-can cover just the ad slots YouTube TV inserts and marks. The Prism extension carries the app's ad covering into browsers; this is how
+can cover just the ad slots YouTube TV inserts and marks. The PRISM extension carries the app's ad covering into browsers; this is how
 it reads the picture too.
 
 ## The options
 
 *Decision (2026-11-07):* the safe detection is on by default and the advanced one off, in both products. In the extension, **Veil
-marked ad slots in live TV** (the service's own marks) is on unless switched off, and **Read the live TV picture** (Prism's own
+marked ad slots in live TV** (the service's own marks) is on unless switched off, and **Read the live TV picture** (PRISM's own
 judgement) is off until switched on. In the app a new install's break watch starts at **Sure breaks only** (marked slots, paid
 programming, nothing that guesses) and the person turns on All breaks; an install that had the earlier on/off switch keeps its choice.
 A spotted veil's card carries **Turn this detection off**, which opens the panel's page at the two live TV switches, lit.
@@ -25,7 +25,8 @@ In the extension's panel:
   offscreen page while a veil covers a break (the tab itself is muted).
 - **Veil marked ad slots in live TV.** YouTube TV marks the slots it adds to a channel (`Cuepoint-Event` in the stream data its page
   hands the player) and shows a Sponsored tray while one plays. `src/ytv-cues.js` reads the marks, `video.js` the tray, and the slot
-  gets a **marked** veil. YouTube TV only: the marks are its format.
+  gets a **marked** veil. YouTube TV only: the marks are its format. The marks are read from the player on show only: the page's
+  preview tiles are players with channels of their own, and a tile's slot is not the channel's (B-484, 2026-11-10).
 - **Read the live TV picture.** The break watch reads the channel's picture once a second and, when it judges a commercial break is on,
   the slot gets a **spotted** veil. It reads the sites in the panel's **Live TV sites** list (tv.youtube.com to start with; a person can
   add another live TV service to try the detection there). On such a channel the panel also offers **All breaks / Sure only / None**
@@ -35,7 +36,7 @@ A marked veil wins over a spotted one: the service's own word is certain, the br
 
 ## How the picture is read
 
-- **Started from the page.** On YouTube TV a Prism button appears on the watch page; a click on it lets the browser ask to share the
+- **Started from the page.** On YouTube TV a PRISM button appears on the watch page; a click on it lets the browser ask to share the
   tab (once a visit; the dialog names the site, which no extension can change). The tab shows the browser's sharing mark while it runs,
   and the extension says it in its own places: the toolbar button's title on that tab and a line in the panel.
 - **Only the player's box, the veil left out** (Element Capture). The shared stream is restricted to the player's box (`div.ypl-video`),
@@ -64,7 +65,11 @@ A marked veil wins over a spotted one: the service's own word is certain, the br
   and 1.76% of show wrongly covered (three looks: 18, 93.1%, 1.92%). Since 0.7.267 (2026-11-07) the model's policy also asks for
   **agreement to start** (`agree`, `treeMin` and `netMin` 0.5): a veil begins only when the trees' own chance and the network's both
   lean to a break; up, the blend alone holds it. Seven exams: 90.4% of ad time, 1.72% of show, 10 pop-ups (13 without); the
-  ordinary evening 90.3%, 3.13%, 15 (91.6%, 4.12%, 30 without). The same flag is read by the app's break watch. The app's own v6 was tried the same night and put up no
+  ordinary evening 90.3%, 3.13%, 15 (91.6%, 4.12%, 30 without). The same flag is read by the app's break watch. The picture network
+  that ships had the ordinary evening in its training (it was recorded before that evening became an exam), so its figures on that set
+  are open-book; the network retrained without those hours (2026-11-07 evening, AUC 0.920 against 0.926 on the seven exams) scored
+  89.9% / 4.02% there with the extension's model and 90.1% / 2.73% with the app's, the honest baseline, and nothing beat what ships, so
+  the shipped network stays until more labelled evenings exist. The app's own v6 was tried the same night and put up no
   spotted veil in 45 minutes on Food Network: it leans on the screen's words as Windows' reader gives them, and Tesseract's differ.
 - **The cover is composed as the app's:** the learned call with its guards (the rules decide a channel's first 45 s; no cover begun while
   the show is plainly on or on a dark scene alone), joined with the rules that do not guess (a marked slot, one read and coming, an
@@ -89,7 +94,8 @@ A marked veil wins over a spotted one: the service's own word is certain, the br
 The same veil as a marked one, its picture held still. Every video veil's corner glyph opens the peep (0.7.266, 2026-11-07): rest the
 pointer on it and a small panel shows the video as it plays behind the veil, sound off, with a Reveal 15 s button under it. A page's own
 unprotected video is copied (captureStream); a protected one is shown through a keyhole in the veil, the page's video drawn small
-inside it and put back when the pointer leaves. Its card says it looks like a commercial break, and its tooltip names Prism's
+inside it and put back when the pointer leaves. The PRISM app has the same look on its covers (B-486, 2026-11-10): the cover opens
+under the symbol and the page's own view is drawn small into the opening, for every service, with **Show ad** under it. Its card says it looks like a commercial break, and its tooltip names PRISM's
 break watch. **Not a break** lifts it and leaves the channel uncovered for five minutes; **Show ad** reveals the rest of the break (the
 corner chip brings the veil back). Tried and dropped the same day: a see-through veil (the art at 90% opacity, subtracted again so the
 model could see; a still picture with the show moving behind it is hard to look at) and a blind veil on a time limit (on the seven
@@ -97,7 +103,7 @@ exams 9.9% of the show covered at a 90 s limit, against 2.1% with sight).
 
 ## The veil log
 
-Since 0.7.263 (2026-11-07) the extension keeps a record of every video veil over an ad break, as the Prism app keeps its calls.log:
+Since 0.7.263 (2026-11-07) the extension keeps a record of every video veil over an ad break, as the PRISM app keeps its calls.log:
 when it went up and came down, the site and the channel, marked or spotted, the break watch's chance and the rule that called it
 (learned, marked slot, slot coming, infomercial, ad line, paid programming, inset picture; for a marked veil the service's own signal),
 and at the drop the reason and how long it stood. The newest thousand records stay in the extension's storage (`pv:veil-log`, written

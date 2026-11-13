@@ -2,7 +2,7 @@
 
 Rows: one per window per frame (~1 s), the break model's readings after the frame (bwtest bench with FEATCSV=...). Labels: the person's
 marks (labels.json from the marking page). A logistic model over the readings, their recency and their recent history; each channel is
-scored by a model trained on the other channels only, so the score is the one a channel Prism has never seen would get. The same rows
+scored by a model trained on the other channels only, so the score is the one a channel PRISM has never seen would get. The same rows
 scored by the hand rules (the "active" column) are the baseline.
 
     python scripts/breakwatch/train.py <feat.csv> <labels.json> [logistic|trees]
@@ -98,7 +98,7 @@ def build(win):
     gap = np.zeros(len(t), bool)
     for i in np.where(np.diff(t) > 20)[0]:
         gap |= (t > t[i]) & (t <= t[i + 1] + 90)
-    for r0 in RESTARTS:                               # ... and Prism's own restarts (the recording goes on through them, dark and loading)
+    for r0 in RESTARTS:                               # ... and PRISM's own restarts (the recording goes on through them, dark and loading)
         gap |= (t >= r0 - 20) & (t <= r0 + 180)
     keep = rev & ~neu & ~gap
     ch = channel_at(win, t)

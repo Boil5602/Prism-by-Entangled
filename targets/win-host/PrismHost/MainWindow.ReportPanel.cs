@@ -25,7 +25,7 @@ public sealed partial class MainWindow
 
     private static string ReportWhatSent(string site, bool full) =>
         "Sends the site (" + (site.Length > 0 ? site : "this window's site") + "), the ad's details in the window (which known ad signs show, and the player's type and size), " +
-        "the kind of ad, your note if you write one, and Prism's version" +
+        "the kind of ad, your note if you write one, and PRISM's version" +
         (full ? ", plus the full page address and the addresses of the video players embedded in the page" : "") + ". No page text, no account, no cookies.";
 
     /// <summary>After the window is picked: probe it, then show what will be sent, with the kind, a note and the full-address box.</summary>
@@ -62,9 +62,9 @@ public sealed partial class MainWindow
         var scrim = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC8, 0x05, 0x06, 0x09)) };
         Canvas.SetZIndex(scrim, 970);
         var esc = new KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape };
-        esc.Invoked += (_, e) => { e.Handled = true; CloseReportPanel(); SetPill("Prism \u00b7 report discarded"); };
+        esc.Invoked += (_, e) => { e.Handled = true; CloseReportPanel(); SetPill("PRISM \u00b7 report discarded"); };
         scrim.KeyboardAccelerators.Add(esc);
-        scrim.PointerPressed += (_, __) => { CloseReportPanel(); SetPill("Prism \u00b7 report discarded"); };
+        scrim.PointerPressed += (_, __) => { CloseReportPanel(); SetPill("PRISM \u00b7 report discarded"); };
         var body = new StackPanel { Spacing = 12, Margin = new Thickness(26, 22, 26, 22) };
         var card = new Border
         {
@@ -98,10 +98,10 @@ public sealed partial class MainWindow
         body.Children.Add(what);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var send = Chip(new TextBlock { Text = "Send to Prism", FontSize = 13, Foreground = HubAmber }, true);
+        var send = Chip(new TextBlock { Text = "Send to PRISM", FontSize = 13, Foreground = HubAmber }, true);
         var cancel = Chip(new TextBlock { Text = "Cancel", FontSize = 13, Foreground = HubInk }, false);
         send.Click += (_, __) => { var n = (note.Text ?? "").Trim(); var f = full.IsChecked == true; CloseReportPanel(); _ = SendReportAsync(tileId, site, url, probe, probeNote, kind, n, f); };
-        cancel.Click += (_, __) => { CloseReportPanel(); SetPill("Prism \u00b7 report discarded"); };
+        cancel.Click += (_, __) => { CloseReportPanel(); SetPill("PRISM \u00b7 report discarded"); };
         row.Children.Add(send); row.Children.Add(cancel);
         body.Children.Add(row);
 
@@ -112,7 +112,7 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// After Not an ad (2026-10-06): the correction already tunes this PC;
-    /// a report lets Prism's makers see the mistake and fix it for everyone. The panel says exactly what goes: the channel, Prism's readings of the
+    /// a report lets PRISM's makers see the mistake and fix it for everyone. The panel says exactly what goes: the channel, PRISM's readings of the
     /// last forty seconds (its chance of a break and why), a note, and the version. No picture, no account, no page address.
     /// </summary>
     private void ShowNotAdReport(string tileId, string channel, List<string> readings)
@@ -130,7 +130,7 @@ public sealed partial class MainWindow
         card.PointerPressed += (_, e) => e.Handled = true;
         scrim.Children.Add(card);
         body.Children.Add(new TextBlock { Text = "Covered by mistake", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
-        body.Children.Add(new TextBlock { Text = "The cover is off, and Prism won't cover " + (channel.Length > 0 ? channel : "this channel") + " again for five minutes. You can also tell us, so we can fix it for everyone.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = "The cover is off, and PRISM won't cover " + (channel.Length > 0 ? channel : "this channel") + " again for five minutes. You can also tell us, so we can fix it for everyone.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         var note = new TextBox { PlaceholderText = "What was on (optional)", MaxLength = 280, FontSize = 13 };
         body.Children.Add(note);
         if (channel.Length > 0)
@@ -140,7 +140,7 @@ public sealed partial class MainWindow
             never.Unchecked += (_, __) => SetChannelOff(channel, false);
             body.Children.Add(never);
         }
-        body.Children.Add(new TextBlock { Text = "Sends the channel" + (channel.Length > 0 ? " (" + channel + ")" : "") + ", what Prism read over the last forty seconds (how sure it was of a break and why), your note if you write one, and Prism's version. No picture, no account, no page address.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = "Sends the channel" + (channel.Length > 0 ? " (" + channel + ")" : "") + ", what PRISM read over the last forty seconds (how sure it was of a break and why), your note if you write one, and PRISM's version. No picture, no account, no page address.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var send = Chip(new TextBlock { Text = "Send report", FontSize = 13, Foreground = HubAmber }, true);
         var skip = Chip(new TextBlock { Text = "Not now", FontSize = 13, Foreground = HubInk }, false);

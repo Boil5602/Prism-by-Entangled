@@ -233,7 +233,7 @@ tier is available if Premium requests it.
    (`page.media.playing` carries the tag); anything in the veil engine keyed on
    `<audio>` alone would miss them.
 5. **First negotiation latency ~3 s on a fresh profile** while the Widevine
-   CDM loads. Prism profiles persist, so this is a first-run cost per App, not
+   CDM loads. PRISM profiles persist, so this is a first-run cost per App, not
    per boot — but it is long enough that a facet marked "ready" at first paint
    is not yet able to play; the host's 12-second post-reveal EME probe
    (`SurfaceManager.ProbeEmeAsync`) sits safely after it.

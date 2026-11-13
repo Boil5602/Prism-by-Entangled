@@ -1,4 +1,4 @@
-# The Prism extension
+# The PRISM extension
 
 Turns video **ad breaks** into chosen imagery (spec §26/§27). Observe-only: nothing
 is clicked and no ad is blocked from loading — the ad plays underneath while art,
@@ -47,7 +47,7 @@ Classic content scripts sharing one namespace (`PV`), loaded in this order:
 | `src/rules.js` | **detection**: `SLOT_SELECTORS`, `SITE_RULES` (per-site rows), label walker, dedupe → `collectTargets()` |
 | `src/covers.js` | display covers: placement modes, sweep, row-shared art, sticky-bar clip, mute-under |
 | `src/video.js` | video breaks: `SSAI_AD_SOURCES` registry, Intermission card, Skip hole, the fixed veil |
-| `src/report.js` | Report an ad, from the Prism button's panel (names the rule that placed a veil) |
+| `src/report.js` | Report an ad, from the PRISM button's panel (names the rule that placed a veil) |
 | `src/main.js` | observers, timers, Escape / hold-to-reveal, start |
 
 `ima-hook.js` (main world, `document_start`) is unchanged: it publishes the IMA/DAI SDK's
@@ -116,7 +116,7 @@ page (`ntp.html`). Everything on it is local except three opt-in fetches, each
 
 - **Weather** - Open-Meteo, keyless; sends only a lat/lon rounded to ~1 km; 15-min cache.
 - **Today** - the user's own `.ics` feed URL (kept in `chrome.storage.local`, never in the repo); 10-min cache.
-- **Prism frames** - the user's paired frames (`Name | http://ip:8471 | token`), spec section 6 API:
+- **PRISM frames** - the user's paired frames (`Name | http://ip:8471 | token`), spec section 6 API:
   `GET /state` every 20 s while visible, play/pause on the audible tile, sleep/wake, send a URL to a web tile.
 
 Each configured origin is requested via `optional_host_permissions` when saved (since 0.8.0 the manifest's all-sites host permission already covers them, so the request is granted at once).
@@ -133,7 +133,7 @@ functional allowlist (sign-in brokers, payment processors), then the human's
 own per-destination / per-site / global decisions. Unknowns are intercepted
 into a local per-site ledger.
 
-The **Prism button** (`src/popups-ui.js`, Shadow DOM, bottom-right) is a
+The **PRISM button** (`src/popups-ui.js`, Shadow DOM, bottom-right) is a
 subscriber to core's events: it morphs to "N popups blocked" (bursts
 coalesce, one morph per ~10 s, ~3 s hold, aria-live, dissolve under reduced
 motion), collapses to an edge tab per site, hides in fullscreen/PiP, dodges

@@ -227,7 +227,7 @@ describe("a scheduled check (2026-10-06, \"Let the user check for updates at a s
 });
 
 // B-458 (2026-10-30): the section-28 night window
-// had no door - the silent install hung off a section-24 schedule entry no Prism could make, so every release waited for a press.
+// had no door - the silent install hung off a section-24 schedule entry no PRISM could make, so every release waited for a press.
 describe("install on its own (B-458)", () => {
   it("a release found by a check is staged at once; with the switch off the flag waits as before", async () => {
     const on = rig({ manifest: () => JSON.stringify(manifest), apply: "staged" });
@@ -287,7 +287,7 @@ describe("install on its own (B-458)", () => {
     await vi.advanceTimersByTimeAsync(new Date(2026, 7, 25, 4, 30).getTime() - Date.now());
     expect(restarted).toEqual([]);
     expect(applied).toHaveLength(1);   // the 04:00 check found the staged release and left it be
-    // the title ends: within a minute Prism restarts into the staged release
+    // the title ends: within a minute PRISM restarts into the staged release
     quiet = true;
     await vi.advanceTimersByTimeAsync(61_000);
     expect(restarted).toHaveLength(1);
@@ -349,7 +349,7 @@ describe("install on its own: one apply at a time, and a staged release let go (
     await r.u.check();
     expect(r.u.status()).toMatchObject({ staged: null, available: null });
     expect(r.discarded).toBe(1);
-    // the track moved back to an older release: let go too, and the older one (still newer than this Prism) is staged in its place
+    // the track moved back to an older release: let go too, and the older one (still newer than this PRISM) is staged in its place
     m.text = JSON.stringify(manifest);
     await r.u.check(); r.pending[1]!("staged"); await vi.advanceTimersByTimeAsync(0);
     expect(r.u.status()).toMatchObject({ staged: { version: "1.1.0" } });

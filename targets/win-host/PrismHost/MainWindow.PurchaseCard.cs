@@ -9,7 +9,7 @@ namespace PrismHost;
 /// <summary>
 /// Renting and buying, by the phone (2026-10-11): a Rent or Buy logo under a title's Where to watch opens this card. Its code is the service's own page for the
 /// title (core purchase.ts: the service's search address, never a third party's link), where the price is shown and the purchase is
-/// the person's to make, with the account and the payment they already use there. Prism takes no part: it never handles payment, takes
+/// the person's to make, with the account and the payment they already use there. PRISM takes no part: it never handles payment, takes
 /// no cut and adds no referral code, as it never signs anyone up (docs/third-party-services-policy.md).
 ///
 /// Where a service sells is that service's own fact (some services are fine to point to in their native apps, some sell only through
@@ -56,7 +56,7 @@ public sealed partial class MainWindow
             : where == "browser" ? service + " sells in a browser, not in its app. If the code opens the app, open the same address in your phone's browser."
             : where == "app" ? "The " + service + " app on your phone can make the purchase itself."
             : "If your phone opens " + service + "'s app and it shows no way to rent or buy, open the same address in your phone's browser.", 16, HubInk));
-        card.Children.Add(Words("Prism takes no part in the purchase. It adds no referral code, takes no cut and never sees your payment.", 16, HubInk));
+        card.Children.Add(Words("PRISM takes no part in the purchase. It adds no referral code, takes no cut and never sees your payment.", 16, HubInk));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
         Button Verb(string text, bool main, Action press)
         {
@@ -72,7 +72,7 @@ public sealed partial class MainWindow
                 ClosePurchaseCard();
                 _ = ModelCallAsync("videoRefreshApp", app, true);   // its owned pages too: a bought title never started is on no Continue row
                 if (openHere is not null) openHere();
-                else SetPill("Prism" + Dot + "reading " + service + "'s lists again. It shows under New in your library on Watch within a few minutes");
+                else SetPill("PRISM" + Dot + "reading " + service + "'s lists again. It shows under New in your library on Watch within a few minutes");
             });
             ToolTipService.SetToolTip(bought, (openHere is not null ? "Plays the title on " + service + " in the big window, and reads " : "Reads ") + service + "'s lists again, so it shows under New in your library on Watch.");
             row.Children.Add(bought);

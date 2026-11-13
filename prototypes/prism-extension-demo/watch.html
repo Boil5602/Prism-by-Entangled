@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lanterns of Sable Reach, episode 4 - Halcyard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A made-up streaming service for pictures of the PRISM extension at work. The service, the series and the advertised products are
+     invented, and the moving picture is drawn by this page (a canvas played through the video element), so no real video is used.
+     The player marks its ad break the way Video.js players do: the class "vjs-ad-playing" on the player while an ad runs, and the
+     ad's count and time left in ".vjs-ad-countdown". The extension's video rule reads those two things; nothing else tells it.
+     ?break=<seconds> sets how long the show plays before the break (4 by default); ?ads=<seconds> the length of each of the two ads. -->
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#0b0d12; color:#e8ecf2; font:15px/1.5 "Segoe UI", Arial, sans-serif; }
+  header { height:60px; display:flex; align-items:center; gap:30px; padding:0 34px; }
+  .logo { font:800 22px/1 "Segoe UI", Arial, sans-serif; letter-spacing:.14em; text-transform:uppercase; color:#f2b14c; }
+  header nav { display:flex; gap:24px; color:#aab3c0; font-weight:600; font-size:14px; }
+  header nav .on { color:#fff; }
+  header .me { margin-left:auto; width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg,#f2b14c,#c2553a); }
+  .stage { width:1180px; margin:6px auto 0; }
+  .video-js { position:relative; width:1180px; height:664px; background:#000; border-radius:10px; overflow:hidden; }
+  .video-js video { position:absolute; inset:0; width:100%; height:100%; display:block; object-fit:cover; }
+  .vjs-ad-countdown { position:absolute; left:18px; bottom:64px; padding:6px 12px; border-radius:6px; background:rgba(0,0,0,.72); color:#fff; font-weight:600; font-size:14px; }
+  .vjs-ad-countdown[hidden] { display:none; }
+  .controls { position:absolute; left:0; right:0; bottom:0; height:54px; padding:0 18px; display:flex; align-items:center; gap:16px; background:linear-gradient(transparent,rgba(0,0,0,.78)); }
+  .controls .btn { width:0; height:0; border-style:solid; border-width:9px 0 9px 15px; border-color:transparent transparent transparent #fff; }
+  .controls .track { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.28); position:relative; }
+  .controls .track i { position:absolute; left:0; top:0; bottom:0; width:29%; border-radius:2px; background:#f2b14c; display:block; }
+  .vjs-ad-playing .controls .track i { width:38%; background:#ffd84d; }
+  .controls .when { font-size:13px; color:#d7dce3; font-variant-numeric:tabular-nums; }
+  .meta { display:flex; gap:40px; padding:18px 4px 0; }
+  .meta h1 { margin:0 0 4px; font-size:24px; }
+  .meta .ep { color:#aab3c0; font-size:14px; }
+  .meta p { margin:0; color:#aab3c0; max-width:520px; font-size:14px; }
+  .next { display:flex; gap:14px; margin-left:auto; }
+  .next div { width:150px; height:84px; border-radius:8px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Halcyard</div>
+  <nav><span>Home</span><span class="on">Series</span><span>Films</span><span>Live</span><span>My list</span></nav>
+  <div class="me"></div>
+</header>
+<div class="stage">
+  <div id="player" class="video-js">
+    <video id="v" playsinline></video>
+    <div id="count" class="vjs-ad-countdown" hidden></div>
+    <div class="controls"><span class="btn"></span><span class="track"><i></i></span><span class="when" id="when">12:41 / 44:10</span></div>
+  </div>
+  <div class="meta">
+    <div><h1>Lanterns of Sable Reach</h1><div class="ep">Season 1, episode 4: The Night Tide</div></div>
+    <p>Mirren rows out to the far marker to relight the lamp before the fleet comes home, and finds she is not the only one on the water.</p>
+    <div class="next"><div style="background:linear-gradient(135deg,#243b55,#141e30)"></div><div style="background:linear-gradient(135deg,#3a2f4f,#161225)"></div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var SHOW = Number(q.get("break") || 4), ADLEN = Number(q.get("ads") || 30);
+  var cv = document.createElement("canvas"); cv.width = 1280; cv.height = 720;
+  var g = cv.getContext("2d"), t0 = performance.now();
+  var player = document.getElementById("player"), v = document.getElementById("v"), count = document.getElementById("count");
+  var mode = "show", ad = 0, adEnds = 0;
+
+  function show(t) {
+    var sky = g.createLinearGradient(0, 0, 0, 720); sky.addColorStop(0, "#0a1230"); sky.addColorStop(.6, "#1d2c56"); sky.addColorStop(1, "#33406b");
+    g.fillStyle = sky; g.fillRect(0, 0, 1280, 720);
+    g.fillStyle = "#f4ecd2"; g.beginPath(); g.arc(1010, 150, 46, 0, 7); g.fill();
+    g.fillStyle = "#10172f"; g.beginPath(); g.moveTo(0, 430); g.lineTo(190, 330); g.lineTo(330, 400); g.lineTo(520, 300); g.lineTo(700, 410); g.lineTo(900, 350); g.lineTo(1280, 440); g.lineTo(1280, 720); g.lineTo(0, 720); g.fill();
+    var sea = g.createLinearGradient(0, 450, 0, 720); sea.addColorStop(0, "#16264a"); sea.addColorStop(1, "#070b18");
+    g.fillStyle = sea; g.fillRect(0, 450, 1280, 270);
+    for (var i = 0; i < 9; i++) {   // lanterns on the water
+      var x = 110 + i * 135 + 20 * Math.sin(t / 1900 + i), y = 500 + 22 * (i % 3) + 6 * Math.sin(t / 700 + i * 1.7);
+      var glow = g.createRadialGradient(x, y, 2, x, y, 60); glow.addColorStop(0, "rgba(255,196,96,.95)"); glow.addColorStop(1, "rgba(255,196,96,0)");
+      g.fillStyle = glow; g.fillRect(x - 60, y - 60, 120, 120);
+      g.fillStyle = "rgba(255,196,96,.25)"; g.fillRect(x - 3, y + 10, 6, 90);
+    }
+    var bx = 520 + 30 * Math.sin(t / 2600), by = 560 + 5 * Math.sin(t / 900);   // the rowing boat
+    g.fillStyle = "#05070d"; g.beginPath(); g.moveTo(bx - 90, by); g.lineTo(bx + 90, by); g.lineTo(bx + 62, by + 26); g.lineTo(bx - 62, by + 26); g.fill();
+    g.beginPath(); g.arc(bx - 8, by - 26, 13, 0, 7); g.fill(); g.fillRect(bx - 20, by - 14, 24, 18);
+  }
+  function advert(t, n) {
+    var hue = n === 0 ? ["#06b6d4", "#0e7490", "#083344", "ZEPHYRINE", "The quiet air purifier. 40% off today."] : ["#ff7a18", "#ffd200", "#1a1205", "BRIGHTKETTLE", "Boils in 40 seconds. Order now!"];
+    var bg = g.createLinearGradient(0, 0, 1280, 720); bg.addColorStop(0, hue[0]); bg.addColorStop(1, hue[1]);
+    g.fillStyle = bg; g.fillRect(0, 0, 1280, 720);
+    var s = 1 + .04 * Math.sin(t / 400);
+    g.save(); g.translate(930, 360); g.scale(s, s); g.fillStyle = "#fff"; g.beginPath(); g.roundRect(-120, -170, 240, 340, 44); g.fill();
+    g.fillStyle = hue[0]; g.beginPath(); g.arc(0, -20, 70, 0, 7); g.fill(); g.restore();
+    g.fillStyle = hue[2]; g.font = "900 96px Segoe UI, Arial"; g.fillText(hue[3], 80, 320);
+    g.font = "600 38px Segoe UI, Arial"; g.fillText(hue[4], 84, 392);
+    g.beginPath(); g.roundRect(84, 440, 300, 84, 42); g.fill(); g.fillStyle = "#fff"; g.font = "800 34px Segoe UI, Arial"; g.fillText("BUY NOW", 152, 494);
+  }
+  function mmss(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function draw() {
+    var now = performance.now(), t = now - t0;
+    if (mode === "show" && t > SHOW * 1000 && ad === 0) { mode = "ad"; ad = 1; adEnds = now + ADLEN * 1000; player.classList.add("vjs-ad-playing"); count.hidden = false; }
+    if (mode === "ad" && now >= adEnds) {
+      if (ad === 1) { ad = 2; adEnds = now + ADLEN * 1000; }
+      else { mode = "show"; ad = 3; player.classList.remove("vjs-ad-playing"); count.hidden = true; }
+    }
+    if (mode === "ad") { advert(t, ad - 1); count.textContent = "Ad " + ad + " of 2 · " + mmss((adEnds - now) / 1000); }
+    else show(t);
+  }
+  draw(); setInterval(draw, 40);
+  var stream = cv.captureStream(25);
+  try {   // a quiet tone, so the page has sound for the extension to turn off
+    var ac = new AudioContext(), osc = ac.createOscillator(), gain = ac.createGain(), out = ac.createMediaStreamDestination();
+    osc.frequency.value = 196; gain.gain.value = 0.03; osc.connect(gain); gain.connect(out); osc.start();
+    out.stream.getAudioTracks().forEach(function (a) { stream.addTrack(a); });
+  } catch (e) {}
+  v.srcObject = stream;
+  var p = v.play(); if (p && p.catch) p.catch(function () { v.muted = true; v.play(); });
+})();
+</script>
+</body>
+</html>

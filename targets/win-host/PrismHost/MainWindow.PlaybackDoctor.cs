@@ -46,7 +46,7 @@ public sealed partial class MainWindow
             var gaveUp = rec["gaveUp"]?.GetValue<bool>() == true;
             var name = (t["pending"] as JsonObject)?["name"]?.GetValue<string>() ?? (t["video"] as JsonObject)?["title"]?.GetValue<string>() ?? "the video";
             var svc = t["adapter"]?.GetValue<string>() ?? "";
-            SetPill("Prism \u00B7 " + (svc.Length > 0 ? svc + ": " : "") + Shorten(why, 60) + (gaveUp
+            SetPill("PRISM \u00B7 " + (svc.Length > 0 ? svc + ": " : "") + Shorten(why, 60) + (gaveUp
                 ? " - tried " + attempt + (attempt == 1 ? " time" : " times") + "; Retry is on Watch"
                 : " - reopening " + Shorten(name, 36) + " (try " + attempt + " of 2)"));
             LogLine("playback doctor " + id + ": " + (gaveUp ? "gave up" : "try " + attempt) + " - " + why);

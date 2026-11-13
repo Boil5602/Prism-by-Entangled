@@ -6,10 +6,10 @@ decided, and what it would take. The build order itself is in the spec (dashboar
 ## Sign-in and sessions
 
 - **The browser's password manager** (on since 2026-10-03): Chromium's own, in the shared profile; a re-sign-in after a signout is a
-  tap. Prism never sees a password. The first sign-in stays on the service's page.
-- **Sharing sign-ins and saved passwords between Prism boxes in a household** (asked 2026-10-03). Not by copying the profile: Chromium encrypts its cookies and
+  tap. PRISM never sees a password. The first sign-in stays on the service's page.
+- **Sharing sign-ins and saved passwords between PRISM boxes in a household** (asked 2026-10-03). Not by copying the profile: Chromium encrypts its cookies and
   saved passwords with DPAPI, keyed to the Windows account of that machine, so a folder copied to another box cannot be read there, and
-  decrypting them to move them would make Prism a credential handler, which the services policy rules out. The clean route is a
+  decrypting them to move them would make PRISM a credential handler, which the services policy rules out. The clean route is a
   password manager the household already uses, as a browser extension in the shared profile (WebView2 runs extensions): Bitwarden or
   1Password keep the passwords, sync them between boxes themselves, and fill the service's own login page; each box still signs in
   once, which is a tap with the manager. What it takes: extension loading in the host (`AreBrowserExtensionsEnabled`, a place to put
@@ -18,7 +18,7 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   one.
 - **A keyboard on the phone** (build order 3, the remote PWA): what you type on the phone lands in the field focused on the wall, a TV
   remote's keyboard. Nothing stored. Makes the first sign-in painless on a wall with no keyboard.
-- **A standardized login modal that fills the services' fields** - asked and declined (2026-10-03): Prism would hold passwords, most
+- **A standardized login modal that fills the services' fields** - asked and declined (2026-10-03): PRISM would hold passwords, most
   services' logins have a second step (Apple's code, Amazon's code, Disney's OneID frame), and scripted typing is what their bot
   detection looks for.
 
@@ -30,9 +30,9 @@ decided, and what it would take. The build order itself is in the spec (dashboar
 
 ## Covering ads
 
-- **Break watch packs: what one person's reports teach, every Prism gets** (asked 2026-10-07,; *Decision:* agreed; add it here and draft the format). A signed pack in the bucket beside the update manifest: the break
+- **Break watch packs: what one person's reports teach, every PRISM gets** (asked 2026-10-07,; *Decision:* agreed; add it here and draft the format). A signed pack in the bucket beside the update manifest: the break
   watch's word lists and bounded settings as data, channel logos learned on our own recordings, and the ad fingerprints we have checked.
-  With the person's opt-in (off by default, *Decision:*), Prism fetches it every few hours with
+  With the person's opt-in (off by default, *Decision:*), PRISM fetches it every few hours with
   nothing about the person in the request and applies it without a restart. Every release carries the newest pack in its install, so a
   person who leaves the downloads off still gets the detections with each new version (*Decision:*); the newer pack wins. The reports (and,
   opt-in, fingerprints of ads that named themselves) come in through the inbox, are checked against our recordings each day, and go out
@@ -54,21 +54,21 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   begun late 510 s, kept on after a break 581 s, lifted early 124 s). *Decision:* the big screen only; multiview stays live; a setting
   the person turns off, which also turns itself off on sports channels (a delay spoils a game the phone already scored). It costs a
   second stream: YouTube TV allows 3 at once on the base plan (4K Plus lifts that at home, but only in its own app, so a web page
-  likely stays at 3), and Prism never reads the plan from the account pages; the hidden window backs off by itself when the service
-  says too many streams are playing, and the delay is off for that session. The live-edge rule counts Prism's own delay as live. Never
+  likely stays at 3), and PRISM never reads the plan from the account pages; the hidden window backs off by itself when the service
+  says too many streams are playing, and the delay is off for that session. The live-edge rule counts PRISM's own delay as live. Never
   by holding back and replaying the picture itself: that would be re-showing protected video (the third-party services policy). What
   it takes: the look-ahead measured on the bench first (the gain at 5, 10, 20 and 30 s), then the hidden live window and its tune,
   the big window's own seek behind live, the covers timed from the hidden window's calls, the back-off on the too-many-streams
-  message, the setting and its sports rule, and docs/network.md for the extra stream. Prism for Windows only; the extension would need a
+  message, the setting and its sports rule, and docs/network.md for the extra stream. PRISM for Windows only; the extension would need a
   second tab.
 
 ## Buying and renting
 
 - **A code for the phone in place of buying on the PC** (talked through 2026-10-11): pressing Rent or Buy under a title's Where to watch shows a card with a
   code for the service's own page, an Open here instead (today's behaviour: the service's page in the big window) and an I've
-  bought it that reads the service's library again. Prism never handles payment, takes no cut and adds no referral code, as it never
+  bought it that reads the service's library again. PRISM never handles payment, takes no cut and adds no referral code, as it never
   signs anyone up. **Built 2026-10-11** (; docs/features/purchases.md): the card is the default press, a service
-  Prism has an adapter for gets a code whether or not the household has set it up, and it goes out with the next release.
+  PRISM has an adapter for gets a code whether or not the household has set it up, and it goes out with the next release.
 - **Where a service sells is the service's own fact, kept in its adapter** (same day): each adapter says whether a purchase is made in the service's app or only in a
   browser, with the source it was read from, and the card's words follow it. A code is a web address, and a phone with the service's
   app installed may hand the address to the app, where a browser-only service shows no way to buy: the card has to say so, and each
@@ -90,7 +90,7 @@ decided, and what it would take. The build order itself is in the spec (dashboar
 
 - **Built 2026-10-11**: `docs/features/categories.md`. Watch settings > Categories: a name, hashtags
   and one of four rules (newest first, watched most recently by this household, A to Z, the service's own order), each said in full on
-  the row's disclosure and in the tab. The hashtags offered are the words that recur across the household's own rows in Prism, counted
+  the row's disclosure and in the tab. The hashtags offered are the words that recur across the household's own rows in PRISM, counted
   there, nobody's trend feed. Still open: a title's own hashtags are read only where the service writes them in its name or line under
   (YouTube's description hashtags are not read), and Twitch's stream tags are not yet in its rows.
 - **The open pool by YouTube's API, with the person's own key** (asked 2026-10-11): `search.list`
@@ -109,15 +109,15 @@ decided, and what it would take. The build order itself is in the spec (dashboar
 
 - **PrismOS daemon and image** (Pi, mini PC): build order 4, after the Windows host is proven.
 - **Android shell**: parked, a dead end (WebView DRM); no feature owes it anything (decision 2026-09-09).
-- **Prism Photos**: phase two/three (docs/prism-photos-concept.md).
+- **PRISM Photos**: phase two/three (docs/prism-photos-concept.md).
 - **Odesli (song.link) for the music search's service list** (2026-11-04): one request per pressed song
   would name every service that carries it with that service's own id, replacing the hidden-page searches (five to ten seconds). Its
-  public API answered "PUBLIC_API_ACCESS_DEPRECATED" that day and a key comes by mail from developers@song.link; one key for all of Prism is fine
+  public API answered "PUBLIC_API_ACCESS_DEPRECATED" that day and a key comes by mail from developers@song.link; one key for all of PRISM is fine
   (2026-11-04,: the person's own key was a cost call, not a rule);
-  built behind the same switch when Prism has one, if Odesli grants it free. Songwhip is gone. Discogs (details, works without a token) would be a details card for a song, if
+  built behind the same switch when PRISM has one, if Odesli grants it free. Songwhip is gone. Discogs (details, works without a token) would be a details card for a song, if
   one is ever wanted; MusicBrainz + Cover Art Archive measured too slow for suggestions (docs/features/music-search.md).
-- **Prisms that know each other on the home network** (2026-10-21): the PC's name (docs/features/this-pc-name.md) is the first piece, the name a household gives each Prism. Later each Prism announces
-  that name on the home network and lists the others by it, so the phone remote and a scene can pick a Prism by name and a household's sign-ins,
+- **Prisms that know each other on the home network** (2026-10-21): the PC's name (docs/features/this-pc-name.md) is the first piece, the name a household gives each PRISM. Later each PRISM announces
+  that name on the home network and lists the others by it, so the phone remote and a scene can pick a PRISM by name and a household's sign-ins,
   scenes or playlists can move between them. Box work (memory: app features parked until the box): nothing is built from this note alone, and
   any announcement stays on the local network and carries the name and nothing else.
 
@@ -127,15 +127,30 @@ Asked:, for music only. Two routes failed first - a session at
 zero or muted leaves the process loopback silent, and WebView2's share picker offers no tab, so Chromium's tab capture with its own
 playback suppressed is not there - and then the measurement that opened it: the per-app volume scales the capture before the tap and
 loses nothing, down to a ten-thousandth. So the browser sits at -80 dB while a listener listens to music, the host multiplies its
-capture back up, and plays it to the room the slowest listener's lag later. Video is left as it is. A Prism audio device of its own
+capture back up, and plays it to the room the slowest listener's lag later. Video is left as it is. A PRISM audio device of its own
 (a signed driver) would be the cleaner general answer and stays out of scope for the host.
+
+## Convergence: listening together (noted 2026-11-12; not started)
+
+A plan carried over from the earlier Entangled project, to be built in the town of the Seasons visual (docs/features/seasons.md; under construction and held back from releases since 2026-11-12).
+
+- One song plays for everyone who joins, at the same moment, and a five-minute meditation follows, also in step.
+- The scene shows a count of the people who listen now, and a globe on which their places light up.
+- "Convergence" is the name of the town (chosen 2026-11-12; it is on a board in the square).
+
+Open before any of it is built:
+
+- **Privacy (spec 19/22).** A count and lit places need a server that knows who is present. It has to be opt-in, with no
+  identifier, a place no finer than a region, and a row in docs/network.md.
+- **The song.** A stream to everyone needs music PRISM has the right to send; a person's own service plays only for that person.
+- **Time in step.** The room-step work (docs/features/phone.md) keeps one house on one clock; many houses need a shared clock.
 
 ## A model on the dev side (ranked 2026-11-03; nothing in a shipped build calls a model)
 
 Asked:, then, then (*Decision:* "Go"). The ranking, by impact against the effort to
 get there. The guardrails are the same for every item: it runs from the developer's own machine with their own key, it is handed
 structure and logs, never a person's content and nothing about the household, every change it proposes arrives as a diff proven
-before it ships, and no shipped build of the Prism app or the Prism extension calls a model.
+before it ships, and no shipped build of the PRISM app or the PRISM extension calls a model.
 
 Start now:
 
@@ -144,7 +159,7 @@ Start now:
    players and the ad slots, from the Firefox BiDi harness, headless, never the screen), proposes the site's rules as a diff, and
    proves the proposal on the same dump before it is accepted by hand. **First cut built 2026-11-03** (docs/doctor.md): `scripts/doctor/`
    dump, ask and prove; the dump and the proof ran on MSN the same evening, and the first ask went out at 23:09: no rule warranted, MSN's feed already covered (docs/doctor.md, Status).
-2. **Adapter doctor for Prism**: the same pipeline pointed at the host's adapters, proven on a hidden page in place of the harness. **Built 2026-11-03** (docs/doctor.md): `dump-tile.mjs` reads a hidden page through the dev eval hook in strict mode, `prove-adapter.mjs` counts the adapter's selectors before and after a proposal and doubles as the health check (item 7); the first adapter ask (23:33) found Apple Music's dead header Play and proposed dropping it, declined on reading core and repointed instead (0.1.16).
+2. **Adapter doctor for PRISM**: the same pipeline pointed at the host's adapters, proven on a hidden page in place of the harness. **Built 2026-11-03** (docs/doctor.md): `dump-tile.mjs` reads a hidden page through the dev eval hook in strict mode, `prove-adapter.mjs` counts the adapter's selectors before and after a proposal and doubles as the health check (item 7); the first adapter ask (23:33) found Apple Music's dead header Play and proposed dropping it, declined on reading core and repointed instead (0.1.16).
    One tool with two rule formats, not two tools.
 3. **Nightly log triage**: the day's host.log through the existing redaction, back as a few lines of anomalies. The smallest effort on
    the list; it would have named the silent capture of 2026-11-03 (B-475) in one line. **Built 2026-11-04** (docs/doctor.md): `scripts/doctor/triage.mjs`, the day's log as its shape (counts per hour, gaps, templates), the host's redactor ported plus a content scrub, ten anomalies on the first night and the silent capture among them, about fifty cents a night.

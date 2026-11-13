@@ -4,7 +4,7 @@ import { sortTitle } from "./menu-order.js";
 
 /**
  * Categories of the person's own (2026-10-11, the owner chose clear rules only): a category is a name,
- * some hashtags and one rule. It fills from what the household's services already list in Prism (Continue watching, the lists, the
+ * some hashtags and one rule. It fills from what the household's services already list in PRISM (Continue watching, the lists, the
  * services' own rows: YouTube's subscriptions and their latest videos, Twitch's followed channels and their videos), across services,
  * with every title whose words carry one of the hashtags, in the rule's order. Nothing is fetched for it, nobody's feed is read, and
  * the row says what is counted, who is counted, who decides and the source, as every row does. Pure: the definitions and the rules.
@@ -34,20 +34,20 @@ export const CATEGORY_RULES: readonly RuleWords[] = [
   { id: "newest", name: "Newest first",
     counted: "When each title was published, as its service says beside it (3 days ago, 2 weeks ago). A title with no date goes last.",
     who: "Nobody is counted: it is a date.", decides: "The channel or network that published it.",
-    source: "The services' own pages, as Prism read them for its rows.", formula: "the titles with one of the hashtags, by the date beside each, newest first",
+    source: "The services' own pages, as PRISM read them for its rows.", formula: "the titles with one of the hashtags, by the date beside each, newest first",
     simple: "Titles on your services tagged one of the hashtags, newest first by the date each service shows.", sourceShort: "The services' own pages" },
   { id: "watched", name: "Watched most recently by this household",
     counted: "When this PC last saw each title play. A title never played here goes last.",
     who: "This household, on this PC. Nobody else.", decides: "Whoever pressed play.",
-    source: "Prism's own log on this PC. It leaves the PC for nothing.", formula: "the titles with one of the hashtags, by when this PC last played each, latest first",
-    simple: "Titles on your services tagged one of the hashtags, the ones this PC played most recently first.", sourceShort: "The services' own pages, and Prism's own log on this PC" },
+    source: "PRISM's own log on this PC. It leaves the PC for nothing.", formula: "the titles with one of the hashtags, by when this PC last played each, latest first",
+    simple: "Titles on your services tagged one of the hashtags, the ones this PC played most recently first.", sourceShort: "The services' own pages, and PRISM's own log on this PC" },
   { id: "az", name: "A to Z",
     counted: "The title's own name, articles aside (The, A, An).", who: "Nobody is counted.", decides: "Whoever named the title.",
     source: "The services' own pages.", formula: "the titles with one of the hashtags, by name",
     simple: "Titles on your services tagged one of the hashtags, A to Z.", sourceShort: "The services' own pages" },
   { id: "service", name: "The service's own order",
     counted: "Nothing: each service's items stand as that service listed them, service after service.",
-    who: "Nobody is counted.", decides: "Each service, by whatever its page does. Prism does not know its reason.",
+    who: "Nobody is counted.", decides: "Each service, by whatever its page does. PRISM does not know its reason.",
     source: "The services' own pages, in their order.", formula: "the titles with one of the hashtags, as their services list them",
     simple: "Titles on your services tagged one of the hashtags, in the order each service lists them.", sourceShort: "The services' own pages" },
 ];
@@ -229,7 +229,7 @@ export function withinDays(item: Pick<VideoItem, "subtitle" | "badge">, days: nu
 const RATING = /^(tv-(y|y7|y7-fv|g|pg|14|ma)|pg-13|nc-17|18\+|16\+|13\+|7\+|unrated)$/;
 
 /** The hashtags worth offering when a category is made (2026-10-11): the
- *  words that recur across what this household's services list in Prism, a literal #hashtag counting double. The source is the
+ *  words that recur across what this household's services list in PRISM, a literal #hashtag counting double. The source is the
  *  household's own rows, nobody's trend feed. Pure. */
 export function popularTags(items: ReadonlyArray<Pick<VideoItem, "title" | "subtitle" | "badge"> & { series?: string | null }>, max = 30): Array<{ tag: string; n: number }> {
   const n = new Map<string, number>();

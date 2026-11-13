@@ -1,4 +1,4 @@
-/* Prism break watch, browser port: BreakModel (2026-11-06).
+/* PRISM break watch, browser port: BreakModel (2026-11-06).
  * A line-for-line port of the Windows host's per-window break model (targets/win-host/PrismHost/Services/BreakModel.cs): a live
  * channel's commercial break read off a 320x180 grey picture, the channel's learned corner logo, cuts, blacks, credits, the bottom
  * band, the inset picture, the captions' words (Text with spoken: true), the page's meter, silences, the stream's ad cue, and the

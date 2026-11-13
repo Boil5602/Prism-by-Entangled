@@ -1,5 +1,5 @@
 /*
-  Prism - source reliability marks on ANY page (spec section 5, "Credibility
+  PRISM - source reliability marks on ANY page (spec section 5, "Credibility
   labeling": label, never censor).
 
   THE GLYPH: a small cylinder of three stacked disks, one per source, top to
@@ -10,10 +10,10 @@
   all three lines; clicking the glyph opens the discussion/review behind the
   first source that has one.
 
-  With the Prism-wide switch on (pv:ui.srcMarks, OFF by default), every link
+  With the PRISM-wide switch on (pv:ui.srcMarks, OFF by default), every link
   that leaves the current site for a listed outlet gets the glyph; the site
-  you are on gets it on the Prism pill and, line by line with Why? buttons, in
-  the Prism panel. Sources are individually switchable (pv:ui.credSrc).
+  you are on gets it on the PRISM pill and, line by line with Why? buttons, in
+  the PRISM panel. Sources are individually switchable (pv:ui.credSrc).
 
   Rules of the road:
     - nothing is hidden, dimmed, reordered or blocked; unlisted = grey disk
@@ -240,7 +240,7 @@
     try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (e) {}
   }
 
-  // This site's own marks -> the Prism pill and the toolbar tooltip (per tab).
+  // This site's own marks -> the PRISM pill and the toolbar tooltip (per tab).
   function announceSite() {
     var ms = PV.credSite();
     if (PV.setPillMark) { try { PV.setPillMark(ms); } catch (e) {} }

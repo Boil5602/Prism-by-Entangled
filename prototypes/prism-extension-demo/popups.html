@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>One-pan lemon and thyme chicken - Sorrelbrook Kitchen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A made-up recipe site for pictures of the PRISM extension at work. Soon after it loads, with no press from the person, the page
+     tries to open two windows on other (invented, never registered: the reserved .example names) hosts. The extension's pop-up rule
+     stops a window a page opens by itself. ?wait=<ms> sets the delay before the first one (900 by default). -->
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fffaf2; color:#2a2118; font:17px/1.6 "Segoe UI", Arial, sans-serif; }
+  header { display:flex; align-items:center; gap:30px; padding:0 40px; height:70px; background:#fff; border-bottom:1px solid #efe4d2; }
+  .logo { font:800 24px/1 Georgia, serif; color:#b4532a; }
+  .logo span { color:#5d7a3a; }
+  header nav { display:flex; gap:24px; font-weight:600; font-size:14.5px; color:#5c5145; }
+  header .find { margin-left:auto; width:240px; height:38px; border-radius:19px; border:1px solid #e5d8c3; display:flex; align-items:center; padding:0 16px; color:#9a8c7a; font-size:14px; }
+  main { max-width:1180px; margin:0 auto; padding:34px 20px 80px; display:grid; grid-template-columns:1fr 440px; gap:54px; align-items:start; }
+  .crumb { font-size:13px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#5d7a3a; }
+  h1 { font:700 46px/1.1 Georgia, serif; margin:10px 0 14px; }
+  .lede { font-size:20px; color:#5c5145; margin:0 0 20px; }
+  .facts { display:flex; gap:12px; margin-bottom:26px; }
+  .facts div { background:#fff; border:1px solid #efe4d2; border-radius:12px; padding:10px 18px; font-size:14px; color:#5c5145; }
+  .facts b { display:block; font-size:19px; color:#2a2118; }
+  h2 { font:700 24px/1.2 Georgia, serif; margin:26px 0 10px; }
+  ul, ol { margin:0; padding-left:22px; } li { margin-bottom:6px; }
+  .plate svg { display:block; width:100%; height:auto; border-radius:18px; }
+  .note { margin-top:18px; background:#fff; border:1px solid #efe4d2; border-radius:14px; padding:16px 18px; font-size:15px; color:#5c5145; }
+  .note b { color:#2a2118; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Sorrelbrook <span>Kitchen</span></div>
+  <nav><span>Dinners</span><span>Baking</span><span>Quick</span><span>Vegetarian</span><span>Seasonal</span></nav>
+  <div class="find">Search 2,400 recipes</div>
+</header>
+<main>
+  <div>
+    <div class="crumb">Dinners &middot; One pan</div>
+    <h1>One-pan lemon and thyme chicken with new potatoes</h1>
+    <p class="lede">Everything roasts together, the potatoes drink up the lemon, and there is one tin to wash. From Hesper Lindqvist's Tuesday column.</p>
+    <div class="facts"><div><b>15 min</b>to prepare</div><div><b>45 min</b>in the oven</div><div><b>4</b>people</div><div><b>Easy</b>skill</div></div>
+    <h2>You need</h2>
+    <ul><li>8 chicken thighs, skin on</li><li>750 g new potatoes, halved</li><li>2 lemons, one sliced and one juiced</li><li>A small bunch of thyme</li><li>6 cloves of garlic, left in their skins</li><li>3 tablespoons of olive oil</li></ul>
+    <h2>Method</h2>
+    <ol><li>Heat the oven to 200 C. Toss the potatoes in the tin with the oil, garlic and half the thyme.</li><li>Sit the chicken on top, skin up. Tuck the lemon slices around it and pour over the juice.</li><li>Roast for 45 minutes, turning the potatoes once, until the skin is crisp and deep gold.</li></ol>
+  </div>
+  <aside class="plate">
+    <svg viewBox="0 0 440 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A drawing of a roasting tin with chicken, potatoes and lemon"><rect width="440" height="440" fill="#f3e3c8"/><rect x="50" y="90" width="340" height="260" rx="34" fill="#3d3a38"/><rect x="66" y="106" width="308" height="228" rx="24" fill="#57514c"/>
+      <g fill="#d9953f"><ellipse cx="150" cy="180" rx="46" ry="34"/><ellipse cx="270" cy="170" rx="48" ry="36"/><ellipse cx="200" cy="262" rx="50" ry="36"/><ellipse cx="310" cy="262" rx="40" ry="30"/></g>
+      <g fill="#f1d9a0"><circle cx="110" cy="250" r="18"/><circle cx="130" cy="290" r="16"/><circle cx="330" cy="200" r="17"/><circle cx="252" cy="300" r="15"/><circle cx="212" cy="204" r="14"/></g>
+      <g fill="#f7e36a" stroke="#e2c84a" stroke-width="3"><circle cx="100" cy="150" r="20"/><circle cx="340" cy="304" r="20"/><circle cx="236" cy="130" r="18"/></g>
+      <g stroke="#5d7a3a" stroke-width="4" stroke-linecap="round"><path d="M170 226l34-14M286 222l30 18M140 136l22 12"/></g></svg>
+    <div class="note"><b>Cook's note.</b> No new potatoes? Cut floury ones into thumb-sized pieces and give them ten minutes in the oven before the chicken goes on.</div>
+  </aside>
+</main>
+<script>
+(function () {
+  var wait = Number(new URLSearchParams(location.search).get("wait") || 900);
+  // the two windows nobody asked for
+  setTimeout(function () { try { window.open("https://win.prizewheel-offers.example/spin?from=sorrelbrook", "_blank", "width=520,height=640"); } catch (e) {} }, wait);
+  setTimeout(function () { try { window.open("https://get.speedyclean-app.example/download", "_blank", "width=520,height=640"); } catch (e) {} }, wait);
+})();
+</script>
+</body>
+</html>

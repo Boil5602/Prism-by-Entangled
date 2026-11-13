@@ -1,4 +1,4 @@
-# Prism — Windows Hardware Baselines (Phase 1)
+# PRISM — Windows Hardware Baselines (Phase 1)
 
 Two products, two baselines. Criteria over models: listings churn, these requirements don't.
 
@@ -23,15 +23,15 @@ Chromium (Chrome/Edge/Brave) + Firefox. Installed PWAs are covered on Chromium �
 
 **Practical note:** the extension itself never requires the 4K checklist — it's only what determines the resolution under the veil.
 
-## Baseline 2 — The Prism Box (dedicated Windows machine behind a TV)
+## Baseline 2 — The PRISM Box (dedicated Windows machine behind a TV)
 
 Runs the extension in Edge kiosk + the compositor companion (topmost overlay, WASAPI per-app mute); later the full dashboard daemon. Flat form factors preferred.
 
-**Memory, measured (Prism for Windows host, 2026-10-03, perf.log on the development wall):** with every service in the one shared
-browser profile and idle pages parked, the whole of Prism - the host and each service's pages - idles at about 1.8 GB with nothing
+**Memory, measured (PRISM for Windows host, 2026-10-03, perf.log on the development wall):** with every service in the one shared
+browser profile and idle pages parked, the whole of PRISM - the host and each service's pages - idles at about 1.8 GB with nothing
 playing and about 2.6 GB with one window playing; three windows playing and every reader awake reached about 4 GB. Windows itself
 wants 3 to 4 GB. So **8 GB works** for a one-window wall and **16 GB is comfortable** for multiview and many services; 32 GB buys
-nothing Prism uses. (Before the shared profile the same wall needed 5.5 to 9 GB, which is where the older figures below came from.)
+nothing PRISM uses. (Before the shared profile the same wall needed 5.5 to 9 GB, which is where the older figures below came from.)
 
 **Minimum (1080p box):**
 - Any 7th-gen+ Intel / Zen+ AMD mini PC, 8GB RAM, 128GB SSD
@@ -49,7 +49,7 @@ nothing Prism uses. (Before the shared profile the same wall needed 5.5 to 9 GB,
 - **No native HDMI-CEC on PCs.** TV-remote control of the box needs a USB-CEC adapter (Pulse-Eight class, ~$40–60) — optional; the 8BitDo Micro / phone remote path needs nothing
 - **Input:** 8BitDo Micro (keyboard mode) and/or phone remote; BT built into all recommended classes
 - **Power behavior:** BIOS "restore AC power" ON (survives outages), Windows fast startup OFF, sleep disabled in kiosk profile (display sleep handled by schedule)
-- **The Prism Box Optimizer (software component, not a doc).** First-run tooling that configures the box for one job — running Prism — by disabling telemetry and trimming background load. Rules, same posture as §19/§22/§30:
+- **The PRISM Box Optimizer (software component, not a doc).** First-run tooling that configures the box for one job — running PRISM — by disabling telemetry and trimming background load. Rules, same posture as §19/§22/§30:
   - **Manifest-driven and fully disclosed:** every change is a named entry (what, why, resource/privacy effect) shown *before* applying — telemetry/diagnostic data to minimum, advertising ID off, tips/suggestions/widgets off, Copilot/web-search integrations off, consumer app preinstalls removed, background apps disabled, unneeded scheduled tasks and services (Xbox, maps, fax, etc.) off, search indexing scoped down, startup items cleared, update deferral windows, power profile for always-on duty.
   - **Reversible by construction:** the optimizer records prior state and offers per-item and full restore. No registry mystery — the manifest ships in the repo, community-reviewable like filter lists.
   - **Honest ceilings, stated in the UI:** Windows Home/Pro telemetry floors at "Required," not zero — this box is *privacy-leaning*, the Pi remains the zero-telemetry story. Defender and security updates stay ON by default; disabling security is opt-in only, with the tradeoff stated, never silently bundled.

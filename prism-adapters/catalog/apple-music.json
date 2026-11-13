@@ -41,7 +41,7 @@
       "url": "https://music.apple.com/us/library/songs"
     }
   ],
-  "notes": "§32 floating player: Prism's own control up, the Apple Music page beneath. Flip to the page to sign in and pick music; flip back to listen. Next / previous run the site's own Media Session handlers. Facets default to the LIBRARY page, not the site root: music.apple.com/ is a marketing page whose only media element is a short promo loop, which the §32 observer reports as now-playing (found on the wall 2026-09-03).",
+  "notes": "§32 floating player: PRISM's own control up, the Apple Music page beneath. Flip to the page to sign in and pick music; flip back to listen. Next / previous run the site's own Media Session handlers. Facets default to the LIBRARY page, not the site root: music.apple.com/ is a marketing page whose only media element is a short promo loop, which the §32 observer reports as now-playing (found on the wall 2026-09-03).",
   "facetPresets": {
     "16:9·XL": [
       {

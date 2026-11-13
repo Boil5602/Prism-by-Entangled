@@ -1,4 +1,4 @@
-"""Prism toolbar / listing icon: an amber prism on the dark wall, a white beam
+"""PRISM toolbar / listing icon: an amber prism on the dark wall, a white beam
 entering from the left, splitting into a warm fan on the right. Rendered at
 4x and downsampled so it stays crisp at 16 px. Run: python make-icons.py
 -> icons/icon-{16,32,48,128}.png (referenced from manifest.json)."""

@@ -7,7 +7,7 @@
     "\\bon (this|the) frame\\b",
     "\\bframe's (QR|shell|screen|display)\\b",
     "\\bPrism frame\\b",
-    "\\bevery Prism frame\\b",
+    "\\bevery PRISM frame\\b",
     "\\bframes? (reboots?|restarts?|boots?|sleeps?)\\b"
   ],
   "viewPatterns": [

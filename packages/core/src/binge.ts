@@ -13,7 +13,7 @@ export const BINGE_EARLIEST_YEAR = 1888;
 // top 0 = no limit: every eligible series (2026-09-24,; the spec had said top 50)
 export const BINGE_DEFAULTS: BingeThresholds = { maxRuntime: 30, minEpisodes: 80, minRating: 7.0, minVotes: 500, top: 0, minYear: BINGE_EARLIEST_YEAR };
 
-/** Kids mode's ages and the US TV ratings each allows (the spec's table; TV-PG has no official age - Prism's editable default). */
+/** Kids mode's ages and the US TV ratings each allows (the spec's table; TV-PG has no official age - PRISM's editable default). */
 export type KidsAge = "under7" | "under10" | "under14" | "under17";
 export const KIDS_AGES: ReadonlyArray<{ id: KidsAge; label: string; ratings: readonly string[] }> = [
   { id: "under7", label: "Under 7", ratings: ["TV-Y", "TV-G"] },

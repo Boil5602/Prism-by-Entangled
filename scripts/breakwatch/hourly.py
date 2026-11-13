@@ -1,5 +1,5 @@
 """Hourly break-watch check (read-only): per channel over the last hour - covers started, covered time, and the person's reports - and
-how often the break watch looked at each window (56-59 a minute is normal; fewer means the PC, or a job beside Prism, is in its way).
+how often the break watch looked at each window (56-59 a minute is normal; fewer means the PC, or a job beside PRISM, is in its way).
 
     python scripts/breakwatch/hourly.py
 

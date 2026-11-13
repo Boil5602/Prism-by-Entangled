@@ -13,15 +13,15 @@ beside TMDB's public mean. Nothing else rates anything: a rating is a press on a
 TMDB's v3 flow, three calls under the person's key (core `tmdb-account.ts`, `lenses.ts` linkStart / linkFinish; host
 `MainWindow.TmdbAccount.cs`):
 
-1. **Link my TMDB account** (settings, under the key): Prism asks TMDB for a request token and shows the approval page as a QR for the
+1. **Link my TMDB account** (settings, under the key): PRISM asks TMDB for a request token and shows the approval page as a QR for the
    phone and an *Open here* for the wall (the link window, which allows `www.themoviedb.org/authenticate/` for this alone). The person
    signs in to TMDB there and presses Approve.
-2. **I approved it**: Prism trades the token for a session and reads the account's name. Pressed too soon, TMDB answers 401 and the
+2. **I approved it**: PRISM trades the token for a session and reads the account's name. Pressed too soon, TMDB answers 401 and the
    card says so; the token stands.
 3. The session is kept on the device beside the key (`lens:tmdb:session:<dash>`), sent to TMDB alone, only with a rating or its
    read-back. **Unlink** ends the session on TMDB's side and forgets it; the ratings stay on the account.
 
-No account is ever created: TMDB has no API for that, and Prism signs in, never up (docs/third-party-services-policy.md).
+No account is ever created: TMDB has no API for that, and PRISM signs in, never up (docs/third-party-services-policy.md).
 
 **From the phone** (2026-10-14): the phone's Watch settings open on a
 TMDB panel. The key pasted there goes to the PC (`POST /tmdb/key`, the guide's route), *Clear the key* clears it, and *Link my TMDB account*
@@ -57,7 +57,7 @@ TMDB's approval page opens on the phone itself, where the person is most likely 
 ## My list is the TMDB watchlist (2026-10-03)
 
 (2026-10-03) Asked that the person can add titles to their TMDB watchlist and have it replace the services' own My List rows, with an offer to
-add every title from the services' lists; if the TMDB link is removed, the per-service My List comes back. It saves Prism work.
+add every title from the services' lists; if the TMDB link is removed, the per-service My List comes back. It saves PRISM work.
 
 - While an account is linked, Watch's My list row is **My Watchlist**: the account's TMDB watchlist, both kinds, newest added first,
   read every ten minutes and kept on the device (`lens:tmdb:watchlist:<dash>`). Each title is a card the way Browse makes them - the
@@ -91,7 +91,7 @@ access token (the v4 key, a JWT) links through TMDB's v4 sign-in: one approval g
 converted from it for the ratings and the watchlist. A v3 key links as before and has no lists. The primitives are in `lenses.ts`
 (`listCreate`, `listGet`, `listUpdate`, `listDelete`, `listItems`, `listsOfAccount`), always under the user's token, never the key.
 
-Measured on a private "Prism test" list the wall made and deleted each run (the one write test the person approved), 2026-10-03:
+Measured on a private "PRISM test" list the wall made and deleted each run (the one write test the person approved), 2026-10-03:
 
 - An item's **comment is kept**, set through the update call (`PUT /4/list/{id}/items` with `comment`; the add call ignores it, as
   TMDB's reference says). Three quirks, each seen more than once:
@@ -122,16 +122,16 @@ link from a read token (the approval page, the access token, the converted sessi
 
 "It was supposed to have the details on adding TMDB as a resource with a tooltip informing what benefits it adds to the app. Also
 note about any data practices that are in conflict with our own." The TMDB block (`MainWindow.Welcome.cs`, FillWelcomeTmdbAsync)
-says in one always-shown line what TMDB is and that Prism works without it. Two chips under it: **What TMDB adds** (the benefits
+says in one always-shown line what TMDB is and that PRISM works without it. Two chips under it: **What TMDB adds** (the benefits
 on its tooltip and, pressed, written out: ratings with vote counts, the catalog rows and Browse, Search everywhere, the Episodes
 list; linked, rating from the wall, the watchlist as My List, Playlists) and, in amber, **How TMDB's data practices differ from
-Prism's**, which written out says:
+PRISM's**, which written out says:
 
 - From TMDB's privacy policy (effective 2026-08-24): TMDB keeps API usage data, IP addresses and device identifiers; its website
   and apps use Google Analytics and advertising partners for interest-based ads, and it shares personal data with them in a way it
   says (opt-out: Your Privacy Choices on themoviedb.org).
-- What Prism sends, only with the person's key: the titles on their rows and their search words (the key ties them to the TMDB
-  account, the one request kind Prism makes that carries an identifier, as docs/network.md records); linked, the ratings, the
+- What PRISM sends, only with the person's key: the titles on their rows and their search words (the key ties them to the TMDB
+  account, the one request kind PRISM makes that carries an identifier, as docs/network.md records); linked, the ratings, the
   watchlist and the playlists, which live on the TMDB account (a list public or private; TMDB may show public content to others).
 - Nothing else goes to TMDB and nothing passes through Entangled; clearing the key stops all of it. The notice TMDB's terms require
   closes it: "This product uses the TMDB API but is not endorsed or certified by TMDB."
@@ -148,13 +148,13 @@ Get a free key, beside the key box in Watch settings and on the Set up services 
 the page (`MainWindow.TmdbGuide.cs`). Each step is a code for the phone:
 
 1. What a key turns on (details pages with the cast and where to watch, a cast member's other titles, one search across the
-   services, ratings and playlists once the account is linked), and that Prism works in full without one. Start, I already have a
+   services, ratings and playlists once the account is linked), and that PRISM works in full without one. Start, I already have a
    key, Not now.
-2. Create your TMDB account: a code to themoviedb.org/signup. Prism never signs anyone up
+2. Create your TMDB account: a code to themoviedb.org/signup. PRISM never signs anyone up
    (docs/third-party-services-policy.md); the page opens on the person's own phone, and TMDB's confirming email is theirs to open.
 3. Get your key: a code to themoviedb.org/settings/api, with what TMDB asks the first time (Developer, the terms, a short form)
    and which value to copy: the API Read Access Token.
-4. Send the key to Prism: a code that pairs the phone and opens Prism's page on it at a sheet with one box and Send to Prism
+4. Send the key to PRISM: a code that pairs the phone and opens PRISM's page on it at a sheet with one box and Send to PRISM
    (`POST /tmdb/key`, docs/features/phone.md). A box on the PC takes a typed or pasted key too, and is the only way when the phone
    remote is not running.
 5. Your key works, and Link my account for the approval above.

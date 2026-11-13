@@ -198,7 +198,7 @@ public sealed partial class MainWindow
         hide.Click += async (_, __) =>
         {
             await ModelCallAsync("videoBingeHide", cardId, true, title);
-            SetPill("Prism \u00B7 " + Shorten(title, 40) + " hidden from The Binge");
+            SetPill("PRISM \u00B7 " + Shorten(title, 40) + " hidden from The Binge");
             _ = ShowVideoHubAsync();
         };
         fly.Items.Add(hide);

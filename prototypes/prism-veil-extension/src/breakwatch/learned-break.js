@@ -1,4 +1,4 @@
-/* Prism break watch, browser port: LearnedBreak (2026-11-06).
+/* PRISM break watch, browser port: LearnedBreak (2026-11-06).
  * A line-for-line port of the Windows host's learned break detector (targets/win-host/PrismHost/Services/LearnedBreak.cs):
  * gradient-boosted trees over a BreakModel's readings - each "seconds since" as recency kernels, the picture's and the logo's
  * rolling means (by seconds or by looks, as the model file says), the caption classifier's view of the last 20 s - and the cover
@@ -36,6 +36,9 @@
     this._on = +r.policy.on; this._off = +r.policy.off; this._hold = r.policy.hold | 0;
     this._offHold = typeof r.policy.offHold === 'number' ? r.policy.offHold : 0;
     this._offDeep = typeof r.policy.offDeep === 'number' ? r.policy.offDeep : 0;
+    // policy.softRefractory / softOn (2026-11-08): within softRefractory s of a cover going down, a new one needs the chance above softOn
+    this._softRefractory = typeof r.policy.softRefractory === 'number' ? r.policy.softRefractory : 0;
+    this._softOn = typeof r.policy.softOn === 'number' ? r.policy.softOn : 0.9;
     this.Trained = typeof r.trained === 'number' ? r.trained | 0 : 0;
     this._vocabExtra = new Set();
     var maxW = -Infinity; for (var i = 0; i < this._rollWindows.length; i++) if (this._rollWindows[i] > maxW) maxW = this._rollWindows[i];
@@ -45,7 +48,7 @@
   LearnedBreak.fromJson = function (obj) { try { return new LearnedBreak(typeof obj === 'string' ? JSON.parse(obj) : obj); } catch (e) { return null; } };
 
   /** One window's running state (JSON-able). */
-  LearnedBreak.prototype.NewState = function () { return { hist: {}, histT: {}, caps: [], run: 0, belowSince: -1, up: false, lastP: 0 }; };
+  LearnedBreak.prototype.NewState = function () { return { hist: {}, histT: {}, caps: [], run: 0, belowSince: -1, up: false, lastP: 0, downAt: -1e9 }; };
 
   /** The caption classifier's tokens of a line, in the order the host's HashSet holds them. */
   LearnedBreak.CapTokens = function (x) {
@@ -147,13 +150,15 @@
     if (t === undefined) t = NaN;
     var bs = !!strict && ns.BreakModel.BandStrict;
     var on = bs ? Math.min(0.95, this._on + 0.1) : this._on, hold = bs ? this._hold * 2 : this._hold;
+    if (s.downAt === undefined) s.downAt = -1e9;
+    if (this._softRefractory > 0 && !s.up && t === t && t - s.downAt < this._softRefractory) on = Math.max(on, this._softOn);
     s.run = p > on ? s.run + 1 : 0;
     if (!s.up) { s.belowSince = -1; if (s.run >= hold) s.up = true; }
     else if (p >= this._off) s.belowSince = -1;
-    else if (this._offHold <= 0 || t !== t || p < this._offDeep) { s.up = false; s.belowSince = -1; }
+    else if (this._offHold <= 0 || t !== t || p < this._offDeep) { s.up = false; s.belowSince = -1; if (t === t) s.downAt = t; }
     else {
       if (s.belowSince < 0) s.belowSince = t;
-      if (t - s.belowSince >= this._offHold) { s.up = false; s.belowSince = -1; }
+      if (t - s.belowSince >= this._offHold) { s.up = false; s.belowSince = -1; s.downAt = t; }
     }
     return s.up;
   };

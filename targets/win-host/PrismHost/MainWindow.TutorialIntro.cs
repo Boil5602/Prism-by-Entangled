@@ -10,7 +10,7 @@ namespace PrismHost;
 
 /// <summary>
 /// The tour's notice and its introduction (2026-10-11, asked for a notice in the status area at the top centre that the tour was added, with a pill on the same
-/// line to enter it, left up until pressed; an introduction that animates opening the Prism menu with that part of the screen lit and
+/// line to enter it, left up until pressed; an introduction that animates opening the PRISM menu with that part of the screen lit and
 /// the rest dimmed, then a second cursor pressing the tutorial button, then the tour, shown once; later asked to treat it as a first-run
 /// event, with an option to turn the notice back on).
 ///
@@ -18,16 +18,16 @@ namespace PrismHost;
 /// through restarts, and steps down a line while the status line has something of its own to say. It waits for the Set up services
 /// page to be closed. Shown once for a data folder (host-prefs tutorial.noticeDone); the tour's list of subjects can bring it back.
 ///
-/// The introduction: the screen dims but for the Prism tab, a drawn pointer travels to the tab and presses it, the real menu opens
-/// and stays bright, the pointer travels to How Prism works and presses it, and the tour opens. It teaches where the tour lives by
+/// The introduction: the screen dims but for the PRISM tab, a drawn pointer travels to the tab and presses it, the real menu opens
+/// and stays bright, the pointer travels to How PRISM works and presses it, and the tour opens. It teaches where the tour lives by
 /// going there. The pointer is a drawing: the person's own pointer is never moved and nothing is pressed for them but the two things
 /// shown. A press anywhere, or Escape, goes straight to the tour. With motion turned down in Windows (and Full motion not chosen in
-/// Prism) the pointer does not travel: each step is shown still.
+/// PRISM) the pointer does not travel: each step is shown still.
 /// </summary>
 public sealed partial class MainWindow
 {
     private StackPanel? _tourNotice;
-    private MenuFlyoutItem? _tourMenuItem;   // How Prism works in the open Prism menu (set where the menu is built)
+    private MenuFlyoutItem? _tourMenuItem;   // How PRISM works in the open PRISM menu (set where the menu is built)
     private bool _tourIntroPlaying;
     private DispatcherTimer? _tourNoticeTimer;
     private bool _tourNoticeFollowsPill;
@@ -54,10 +54,10 @@ public sealed partial class MainWindow
         if (_tourNotice is not null) return;
         var words = new TextBlock { FontSize = 15, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
         words.Inlines.Add(new Run { Text = "New", Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        words.Inlines.Add(new Run { Text = "   How Prism works, a short tour of what Prism can do" });
+        words.Inlines.Add(new Run { Text = "   How PRISM works, a short tour of what PRISM can do" });
         var line = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0x12, 0x13, 0x1A)), BorderBrush = Tokens.AmberAt(0x3A), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(16, 7, 16, 7), Child = words };
         var go = Chip(new TextBlock { Text = "Show me", FontSize = 15, Foreground = HubInk }, true);
-        ToolTipService.SetToolTip(go, "A few seconds showing where the tour lives, then the tour itself. It is in the Prism menu any time, under How Prism works.");
+        ToolTipService.SetToolTip(go, "A few seconds showing where the tour lives, then the tour itself. It is in the PRISM menu any time, under How PRISM works.");
         go.Click += (_, __) => { TourNoticeDone(); _ = PlayTourIntroAsync(); };
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top };
         Canvas.SetZIndex(row, 951);   // the status area, just over the status line's own layer
@@ -107,7 +107,7 @@ public sealed partial class MainWindow
             double w = RootGrid.ActualWidth, h = RootGrid.ActualHeight;
             MenuGrip.Opacity = 1;
 
-            // the shade: everything dimmed but a hole, under the Prism tab and its menu
+            // the shade: everything dimmed but a hole, under the PRISM tab and its menu
             var shade = new Microsoft.UI.Xaml.Shapes.Path { Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0xC8, 0x05, 0x06, 0x09)) };
             scrim = new Grid { Children = { shade } };
             Canvas.SetZIndex(scrim, 998);
@@ -177,9 +177,9 @@ public sealed partial class MainWindow
             Rect Bounds(FrameworkElement el) => el.TransformToVisual(null).TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight));
             static Rect Grow(Rect r, double by) => new(r.X - by, r.Y - by, r.Width + 2 * by, r.Height + 2 * by);
 
-            // 1. the Prism tab
+            // 1. the PRISM tab
             var grip = Bounds(MenuGrip);
-            Hole(Grow(grip, 10), "The Prism menu is always up here.");
+            Hole(Grow(grip, 10), "The PRISM menu is always up here.");
             At(px, py);
             top.IsOpen = true;
             await Hold(900);
@@ -198,10 +198,10 @@ public sealed partial class MainWindow
             var menuBox = itemBox;
             for (DependencyObject? d = item; d is not null; d = VisualTreeHelper.GetParent(d)) if (d is MenuFlyoutPresenter mp) { menuBox = Bounds(mp); break; }
             var both = new Rect(Math.Min(grip.X, menuBox.X), grip.Y, Math.Max(grip.Right, menuBox.Right) - Math.Min(grip.X, menuBox.X), menuBox.Bottom - grip.Y);
-            Hole(Grow(both, 8), "How Prism works opens the tour whenever you want it.");
+            Hole(Grow(both, 8), "How PRISM works opens the tour whenever you want it.");
             await Hold(700);
 
-            // 3. How Prism works
+            // 3. How PRISM works
             itemRing.Width = itemBox.Width; itemRing.Height = itemBox.Height; Canvas.SetLeft(itemRing, itemBox.X); Canvas.SetTop(itemRing, itemBox.Y);
             itemRing.Visibility = Visibility.Visible;
             await Glide(itemBox.X + Math.Min(150, itemBox.Width / 2), itemBox.Y + itemBox.Height / 2, 900);

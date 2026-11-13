@@ -1,7 +1,7 @@
 {
   "id": "ocean-moon",
   "name": "Moonlit Ocean",
-  "blurb": "A moon over open water; the swell rolls with the lows, the halo breathes with the loudness, the reflection shimmers.",
+  "blurb": "A full moon over open water; the moon's path is a row of light for every band, wide and bright with its level, the swell rolls with the lows, the halo breathes with the loudness, and a beat sends a dolphin over the path.",
   "program": "ocean-moon",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

@@ -41,7 +41,7 @@ public sealed class PictureNet
     {
         var bytes = Convert.FromBase64String(b64);
         var f = new float[bytes.Length / 4];
-        Buffer.BlockCopy(bytes, 0, f, 0, f.Length * 4);   // little-endian, as every PC Prism runs on
+        Buffer.BlockCopy(bytes, 0, f, 0, f.Length * 4);   // little-endian, as every PC PRISM runs on
         return f;
     }
 
@@ -61,10 +61,44 @@ public sealed class PictureNet
     /// <summary>The chance of an ad for one frame; prev is null when there was no frame in the last three seconds.</summary>
     public double Chance(byte[] grey, byte[]? prev)
     {
+        if (InChannels != 2) throw new InvalidOperationException("this picture network wants " + InChannels + " channels: call Chance(grey, prev, back)");
         var c = Blocks(grey); var p = prev is null ? null : Blocks(prev);
         var x = new float[2 * H * W];
         for (var k = 0; k < H * W; k++) { x[k] = (float)(Half)(c[k] / 255.0); x[H * W + k] = p is null ? 0f : (float)(Half)((c[k] - p[k]) / 255.0); }
-        int ch = 2, h = H, w = W;
+        return Run(x, 2);
+    }
+
+    /// <summary>The channels the network was trained on: 2 (the frame and its change), or 4 with the ten seconds behind it.</summary>
+    public int InChannels => _layers[0].In;
+
+    /// <summary>The temporal network's chance (2026-11-07, cnn.py TEMPORAL=1): beside the frame and its change from the frame before,
+    /// the mean absolute change between successive frames two seconds apart over the last ten seconds, and the change from the frame six
+    /// seconds before. back[k] is the frame nearest 2(k+1) seconds back (within 0.7 s), null where the recording has none; a missing frame
+    /// leaves its stride out, and with none the channels are zero - as the training built them.</summary>
+    public double Chance(byte[] grey, byte[]? prev, byte[]?[] back)
+    {
+        if (InChannels != 4) throw new InvalidOperationException("this picture network wants " + InChannels + " channels");
+        if (back.Length != 5) throw new ArgumentException("five frames back, two seconds apart", nameof(back));
+        var c = Blocks(grey); var p = prev is null ? null : Blocks(prev);
+        var greys = new float[]?[6]; greys[0] = c; for (var k = 0; k < 5; k++) greys[k + 1] = back[k] is null ? null : Blocks(back[k]!);
+        var n = H * W; var energy = new float[n]; var pairs = 0;
+        for (var k = 0; k < 5; k++)
+            if (greys[k] is { } a && greys[k + 1] is { } b) { pairs++; for (var i = 0; i < n; i++) energy[i] += Math.Abs(a[i] - b[i]); }
+        var six = greys[3];
+        var x = new float[4 * n];
+        for (var k = 0; k < n; k++)
+        {
+            x[k] = (float)(Half)(c[k] / 255.0);
+            x[n + k] = p is null ? 0f : (float)(Half)((c[k] - p[k]) / 255.0);
+            x[2 * n + k] = pairs == 0 ? 0f : (float)(Half)(energy[k] / pairs / 255.0);
+            x[3 * n + k] = six is null ? 0f : (float)(Half)((c[k] - six[k]) / 255.0);
+        }
+        return Run(x, 4);
+    }
+
+    private double Run(float[] x, int ch)
+    {
+        int h = H, w = W;
         foreach (var L in _layers)
         {
             if (L.Conv)

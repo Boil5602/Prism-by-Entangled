@@ -97,5 +97,5 @@
       }
     ]
   },
-  "notes": "Prism's own timer, served locally at https://tiles.prism/timer/ from the host's Assets/tiles. Countdown and interval modes, minute presets, and the §24 chime at zero - a bundled local tone (scripts/make-chime.mjs writes it, so its licence is ours), played at the level set on the page and never louder. Chime off is silent. It runs on device time: the deadline is stored (§10), so a reload or a restart picks the run back up and says so. No account, no sign-in, no network."
+  "notes": "PRISM's own timer, served locally at https://tiles.prism/timer/ from the host's Assets/tiles. Countdown and interval modes, minute presets, and the §24 chime at zero - a bundled local tone (scripts/make-chime.mjs writes it, so its licence is ours), played at the level set on the page and never louder. Chime off is silent. It runs on device time: the deadline is stored (§10), so a reload or a restart picks the run back up and says so. No account, no sign-in, no network."
 }

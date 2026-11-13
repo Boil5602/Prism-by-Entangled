@@ -18,7 +18,7 @@
  *     (scene-model spec §5) and the demo needs no sign-in. Family Hub is
  *     instantiated at a PORTRAIT canvas (9:16), the other four at 16:9.
  *   - Music Lounge (charter §2.5) among them, and IDLE: its hidden `source`
- *     role takes the same placeholder, so the wall shows the Prism Beams
+ *     role takes the same placeholder, so the wall shows the PRISM Beams
  *     stage drifting on the ambient signal with an empty metadata line and
  *     the dark substrate behind it (§2.5.2 point 6). No service, no login,
  *     no third-party name presented as signed in. `DEMO_TRACK` below is

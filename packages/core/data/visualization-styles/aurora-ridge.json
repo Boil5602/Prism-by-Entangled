@@ -1,7 +1,7 @@
 {
   "id": "aurora-ridge",
   "name": "Aurora Ridge",
-  "blurb": "Curtains of aurora waving over a mountain ridge; the stars twinkle with the highs, the curtains breathe with the mids.",
+  "blurb": "The northern lights over a mountain lake; every ray stands as tall and as bright as the band under it, the curtains drift with the mids and mirror in the water, the stars twinkle with the highs, and a strong beat sends a shooting star.",
   "program": "aurora-ridge",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

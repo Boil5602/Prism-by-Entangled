@@ -6,9 +6,9 @@ namespace PrismHost;
 
 /// <summary>
 /// This PC's name (2026-10-21):
-/// a household with a Prism in the kitchen and one in the den can tell them apart from across the room. The name sits top and
-/// centre of the music player's chrome (over the muted banner, which steps under it) and of Watch's header. It is set from the Prism
-/// menu (both players), the Device page and Watch settings' This Prism tab, and it is a host preference (host-prefs.json, "machine.name"):
+/// a household with a PRISM in the kitchen and one in the den can tell them apart from across the room. The name sits top and
+/// centre of the music player's chrome (over the muted banner, which steps under it) and of Watch's header. It is set from the PRISM
+/// menu (both players), the Device page and Watch settings' This PRISM tab, and it is a host preference (host-prefs.json, "machine.name"):
 /// a thing about this PC, never part of the household's scenes, and it never leaves the PC - the phone page, the update check and the
 /// reports carry nothing of it.
 /// </summary>
@@ -62,12 +62,12 @@ public sealed partial class MainWindow
         };
     }
 
-    /// <summary>Watch settings, This Prism tab: the name in a box, saved with the tab's Save and exit.</summary>
+    /// <summary>Watch settings, This PRISM tab: the name in a box, saved with the tab's Save and exit.</summary>
     private Func<List<string>> BuildMachineNameSection(StackPanel body)
     {
         var was = MachineName;
         body.Children.Add(new TextBlock { Text = "This PC's name", FontSize = 17, Foreground = HubInk });
-        body.Children.Add(new TextBlock { Text = "Shown at the top of the music player and of Watch, so a household with more than one Prism can tell them apart. It stays on this PC.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        body.Children.Add(new TextBlock { Text = "Shown at the top of the music player and of Watch, so a household with more than one PRISM can tell them apart. It stays on this PC.", FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         var box = new TextBox { Text = was, PlaceholderText = "Living room", MaxLength = MachineNameMax, Width = 380, FontSize = 15, HorizontalAlignment = HorizontalAlignment.Left };
         body.Children.Add(box);
         return () =>
@@ -81,7 +81,7 @@ public sealed partial class MainWindow
         };
     }
 
-    /// <summary>The Prism menu's and the Device page's way: one box in a dialog. Empty clears the name.</summary>
+    /// <summary>The PRISM menu's and the Device page's way: one box in a dialog. Empty clears the name.</summary>
     private async Task PromptMachineNameAsync()
     {
         var was = MachineName;
@@ -107,6 +107,6 @@ public sealed partial class MainWindow
         catch (Exception ex) { SetStatus("dialog: " + ex.Message); return; }
         var name = CleanMachineName(box.Text);
         SetMachineName(name);
-        SetPill("Prism" + Mid + (name.Length > 0 ? "this PC is " + name : "this PC has no name"));
+        SetPill("PRISM" + Mid + (name.Length > 0 ? "this PC is " + name : "this PC has no name"));
     }
 }

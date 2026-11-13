@@ -114,7 +114,7 @@ export type TapAction = "promote" | "audio" | "both";
 
 /**
  * §32 a floating facet's place: fractions of the wall (0–1), so the place
- * survives a resize. `face`: Prism's own player control (default) or the
+ * survives a resize. `face`: PRISM's own player control (default) or the
  * service's page (sign in, browse) — the page is alive beneath either.
  */
 export interface FloatSpec {
@@ -155,7 +155,7 @@ export interface MasterLayout {
 }
 
 /**
- * §34 an app as Prism knows it: the base tile a scene builds from (page,
+ * §34 an app as PRISM knows it: the base tile a scene builds from (page,
  * adapter, audio, veil…, and the §10 profile every tile of this app shares),
  * remembered from the first time the app was added - on the wall or not.
  */
@@ -199,7 +199,7 @@ export const SLOT_PURPOSES: ReadonlyArray<{ id: string; label: string; aspect: s
   { id: "vertical", label: "Vertical video 9:16", aspect: "9:16", blurb: "Shorts, reels, portrait streams" },
   { id: "web", label: "Web page 16:10", aspect: "16:10", blurb: "Dashboards, news and mail on a laptop-shaped page" },
   { id: "square", label: "Square 1:1", aspect: "1:1", blurb: "Album art, clocks, weather, a camera" },
-  { id: "control", label: "Music control (floating)", aspect: "16:5", blurb: "A floating player over the screen. It's Prism's own control, with the service beneath", floating: true },
+  { id: "control", label: "Music control (floating)", aspect: "16:5", blurb: "A floating player over the screen. It's PRISM's own control, with the service beneath", floating: true },
   { id: "custom", label: "Custom W:H", aspect: null, blurb: "Any shape you name" },
 ];
 
@@ -229,7 +229,7 @@ export interface NowPlaying {
    * the adapter's `window.__prismMusicContext` (Apple Music: MusicKit's nowPlayingItem.container).
    * The Media Session never says which playlist or station a track came from; only the page can.
    */
-  context?: { url?: string; label?: string; kind?: string; id?: string; /** the track after this one as the player's own queue has it (Apple Music; 2026-10-04, the phone's Up next line) */ next?: { title: string; artist?: string; /** its album art, an address the phone fetches itself (2026-10-31) */ art?: string } | null; /** the track's own id in the player's queue (Apple: the catalog song id) - the saved spot in a Prism-ordered play (2026-09-17) */ trackId?: string | null; /** the track, when the page names it and the Media Session does not (Pandora) */ title?: string; artist?: string; /** the page's own transport says playing (B-132) */ playing?: boolean; /** the page's own clock, seconds (B-148: Pandora's playing element can be the pre-buffered next track) */ position?: number | null; duration?: number | null; /** B-155: the service's own rating of the current track: 1 thumbs up, -1 down, 0 none */ rating?: number; /** the track's artwork when the page shows it and the Media Session does not (Pandora's tuner image, 2026-09-13) */ artwork?: string | null; /** the service's own offer on screen (Pandora's "Get more skips" at the skip limit, 2026-09-14): its label; pressing it is tileCommand("offer") */ offer?: { label: string } | null; /** the adapter's declared controls the page has hidden or disabled right now (Pandora hides Skip during an ad, 2026-09-14): control names - next, prev, play, pause */ unavailable?: string[] } | null;
+  context?: { url?: string; label?: string; kind?: string; id?: string; /** the track after this one as the player's own queue has it (Apple Music; 2026-10-04, the phone's Up next line) */ next?: { title: string; artist?: string; /** its album art, an address the phone fetches itself (2026-10-31) */ art?: string } | null; /** the track's own id in the player's queue (Apple: the catalog song id) - the saved spot in a PRISM-ordered play (2026-09-17) */ trackId?: string | null; /** the track, when the page names it and the Media Session does not (Pandora) */ title?: string; artist?: string; /** the page's own transport says playing (B-132) */ playing?: boolean; /** the page's own clock, seconds (B-148: Pandora's playing element can be the pre-buffered next track) */ position?: number | null; duration?: number | null; /** B-155: the service's own rating of the current track: 1 thumbs up, -1 down, 0 none */ rating?: number; /** the track's artwork when the page shows it and the Media Session does not (Pandora's tuner image, 2026-09-13) */ artwork?: string | null; /** the service's own offer on screen (Pandora's "Get more skips" at the skip limit, 2026-09-14): its label; pressing it is tileCommand("offer") */ offer?: { label: string } | null; /** the adapter's declared controls the page has hidden or disabled right now (Pandora hides Skip during an ad, 2026-09-14): control names - next, prev, play, pause */ unavailable?: string[] } | null;
   /** The service's library as the page reports it (the adapter's musicLibrary script): playlists and stations to pick from without setting foot on the page. */
   library?: { playlists?: LibraryItem[]; stations?: LibraryItem[] } | null;
   /** What the adapter's musicPlay script last did (queued | ok | error:...), so a pick that failed says so on the wall. */
@@ -243,7 +243,7 @@ export interface NowPlaying {
   /** What the adapter's videoPlay script last did, so a pick that failed says so on the wall. */
   videoPlayState?: { kind?: string; id?: string; status?: string } | null;
   /** the service's own gate over the player, in its words, with the verb on its button (2026-10-13, Twitch's content disclaimer): the person
-   *  reads it and presses, Prism never does on its own */
+   *  reads it and presses, PRISM never does on its own */
   videoGate?: { text: string; verb?: string } | null;
   /** VP-3 (2026-09-19): the service's profile gate as the adapter's videoProfiles script reads it. */
   videoProfiles?: VideoProfiles | null;

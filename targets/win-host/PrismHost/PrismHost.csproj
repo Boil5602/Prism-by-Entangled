@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.43.0</Version>
+    <Version>0.44.0</Version>
     <!-- Program.cs is the entry point (2026-10-23): the same exe runs as the phone launcher with -launcher, before any XAML starts -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
@@ -28,7 +28,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
     <!-- the SDK's machine-learning runtime is not carried (2026-10-09, "the 128 mb size is surprising"): ONNX Runtime and DirectML come in
-         with the Windows App SDK package, were 38 MB of the build, and nothing in Prism calls them (the break detector's trees run in C#) -->
+         with the Windows App SDK package, were 38 MB of the build, and nothing in PRISM calls them (the break detector's trees run in C#) -->
     <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.1.74" ExcludeAssets="all" PrivateAssets="all" />
     <PackageReference Include="NAudio.Lame" Version="2.1.0" />
     <!-- §32 Layer 1 / win-host-spec §6: WASAPI loopback capture for the visualizer FFT (Services/Audio) -->
@@ -48,7 +48,7 @@
          in packages/core). The bundle is REFERENCED from core's dist — the one
          brain, never forked into the host tree (§23). -->
     <Content Include="Assets\brain\brain.html" CopyToOutputDirectory="PreserveNewest" />
-    <!-- the Prism mark (the extension's icon, the same prism): the grip at the top, the window and the taskbar (2026-09-09) -->
+    <!-- the PRISM mark (the extension's icon, the same prism): the grip at the top, the window and the taskbar (2026-09-09) -->
     <Content Include="Assets\prism-icon.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism-icon-180.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\prism-icon-192.png" CopyToOutputDirectory="PreserveNewest" />
@@ -75,7 +75,7 @@
          reach no network at all, which scripts/verify-tile-assets.mjs enforces. -->
     <Content Include="Assets\tiles\**\*.*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\credits\*.*" CopyToOutputDirectory="PreserveNewest" />
-    <!-- How Prism works (MainWindow.Tutorial.cs): one picture a step, each optional; a step with no picture shows its words alone -->
+    <!-- How PRISM works (MainWindow.Tutorial.cs): one picture a step, each optional; a step with no picture shows its words alone -->
     <Content Include="Assets\tutorial\*.*" CopyToOutputDirectory="PreserveNewest" />
     <!-- scene-model-spec §6a: the prism:// route registry (generated from core's routes.ts; the host router matches against it) -->
     <Content Include="..\..\..\packages\core\routes.registry.json" Link="Assets\routes.registry.json" CopyToOutputDirectory="PreserveNewest" />
@@ -124,6 +124,6 @@
       <_PrismXaml Include="$(OutDir)*.xbf;$(OutDir)$(TargetName).pri" />
     </ItemGroup>
     <Copy SourceFiles="@(_PrismXaml)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Prism: XAML and PRI copied to the publish (@(_PrismXaml-&gt;Count()) files)" />
+    <Message Importance="high" Text="PRISM: XAML and PRI copied to the publish (@(_PrismXaml-&gt;Count()) files)" />
   </Target>
 </Project>

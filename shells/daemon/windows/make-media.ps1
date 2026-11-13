@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-  Build a Prism kiosk USB installer from a stock Windows 11 ISO.
+  Build a PRISM kiosk USB installer from a stock Windows 11 ISO.
 
 .DESCRIPTION
   Produces a bootable stick that installs Windows 11 Pro unattended and boots
-  straight into the Prism dashboard - no OOBE, no login, no desktop.
+  straight into the PRISM dashboard - no OOBE, no login, no desktop.
 
   The stick = the ISO's files + autounattend.xml at the root + our payload
   under sources\$OEM$\$1\Prism (Windows copies that to C:\Prism during setup):
@@ -57,7 +57,7 @@ try {
 
 # ---------------------------------------------------------------- 2. Payload
 Step "Staging payload"
-$P = Join-Path $Stage "Prism"
+$P = Join-Path $Stage "PRISM"
 Copy-Item (Join-Path $Here "oem\Prism\*") $P -Recurse -Force
 $assetsSrc = Join-Path $Repo "shells\android\app\src\main\assets"
 $assetsDst = Join-Path $P "shells\android\app\src\main\assets"
@@ -112,10 +112,10 @@ try {
   }
 } finally { Dismount-DiskImage -ImagePath (Resolve-Path $Iso) | Out-Null }
 
-Step "Adding Prism payload"
+Step "Adding PRISM payload"
 Copy-Item (Join-Path $Stage "autounattend.xml") "$Usb\autounattend.xml" -Force
 $oem = "$Usb\sources\`$OEM`$\`$1"
 New-Item -ItemType Directory -Force -Path $oem | Out-Null
-robocopy (Join-Path $Stage "Prism") "$oem\Prism" /E /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null
+robocopy (Join-Path $Stage "PRISM") "$oem\Prism" /E /R:1 /W:1 /NFL /NDL /NJH /NJS | Out-Null
 
-Write-Host "`nDone. Boot the target from $Usb (UEFI). It will wipe disk 0, install, and come up as a Prism frame with no interaction." -ForegroundColor Green
+Write-Host "`nDone. Boot the target from $Usb (UEFI). It will wipe disk 0, install, and come up as a PRISM frame with no interaction." -ForegroundColor Green

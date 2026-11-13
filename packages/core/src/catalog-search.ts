@@ -5,7 +5,7 @@
  * TMDB's watch-providers data (JustWatch's, for the household's region): which services carry it, and how - a
  * subscription, free with ads, a rental or a purchase. A title is kept only where one of the household's OWN signed-in
  * services carries it; the rest is discarded. What is pure lives here: the provider ids each adapter claims, the
- * offer's word, and the rows in TMDB's own order (the title that IS the words first). Prism ranks nothing else.
+ * offer's word, and the rows in TMDB's own order (the title that IS the words first). PRISM ranks nothing else.
  *
  * A press asks that one service's own search for the title in the background and plays the exact match the service
  * itself answers with - the "only what the service gave" guard of video-lookup.ts stands. Without a key, or when TMDB

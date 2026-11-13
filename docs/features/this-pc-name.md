@@ -2,12 +2,12 @@
 
 2026-10-21:
 
-A household with a Prism in the kitchen and one in the den can tell them apart from across the room. The name is the
+A household with a PRISM in the kitchen and one in the den can tell them apart from across the room. The name is the
 household's own words ("Living room", "Kitchen"), at most forty characters, one line.
 
 ## Where it shows
 
-- **The music player's chrome:** top and centre of the visualization, under the Prism grip, in ink (Segoe UI 26, semibold). The MUTED
+- **The music player's chrome:** top and centre of the visualization, under the PRISM grip, in ink (Segoe UI 26, semibold). The MUTED
   banner, which also lives top and centre, stacks under the name instead of on it.
 - **Watch:** the same block in the same place, drawn on the Watch overlay, and the header starts lower to leave it room; the
   chrome's copy steps aside while Watch is up. It was first placed beside the tabs, but on a 1273-wide screen the tabs and the
@@ -20,8 +20,8 @@ Nothing is shown when there is no name. There is no default: the Windows compute
 
 ## Where it is set
 
-- **The Prism menu** (both players, the short menu too): "Name this PC…" opens a dialog with one box. Empty clears the name.
-- **Watch settings → This Prism** (the tab that was "Updates"): the name in a box at the top, saved with Save and exit.
+- **The PRISM menu** (both players, the short menu too): "Name this PC…" opens a dialog with one box. Empty clears the name.
+- **Watch settings → This PRISM** (the tab that was "Updates"): the name in a box at the top, saved with Save and exit.
 - **Device…** (the full menu's rail page): the name and the same dialog under THIS PC.
 
 A change shows at once wherever the chrome or Watch is up.

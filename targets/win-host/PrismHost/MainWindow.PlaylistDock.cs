@@ -207,7 +207,7 @@ public sealed partial class MainWindow
         var hasPrev = run["hasPrevious"]?.GetValue<bool>() == true; var hasNext = run["hasNext"]?.GetValue<bool>() == true;
         async Task MoveAsync(string dir)
         {
-            try { if (JsonNode.Parse(await ModelCallAsync("playlistMove", dir) ?? "{}") is JsonObject r && r["ok"]?.GetValue<bool>() != true && r["error"]?.GetValue<string>() is { Length: > 0 } why) SetPill("Prism" + Mid + char.ToUpperInvariant(why[0]) + why[1..]); } catch { }
+            try { if (JsonNode.Parse(await ModelCallAsync("playlistMove", dir) ?? "{}") is JsonObject r && r["ok"]?.GetValue<bool>() != true && r["error"]?.GetValue<string>() is { Length: > 0 } why) SetPill("PRISM" + Mid + char.ToUpperInvariant(why[0]) + why[1..]); } catch { }
             await refresh();
         }
         var prev = Small(T("Previous", 12, HubInk), false, hasPrev ? "Play the one before this in the playlist" : "This is the first one in the playlist", () => MoveAsync("previous"));

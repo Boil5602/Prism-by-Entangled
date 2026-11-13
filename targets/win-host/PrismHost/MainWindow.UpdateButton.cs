@@ -5,7 +5,7 @@ using Microsoft.UI.Xaml.Media;
 namespace PrismHost;
 
 /// <summary>
-/// The update beside the report flag (2026-10-07): shown while updates are checked for and a newer Prism is offered, or one is installed and waits for a restart. A press
+/// The update beside the report flag (2026-10-07): shown while updates are checked for and a newer PRISM is offered, or one is installed and waits for a restart. A press
 /// downloads and installs the offered one (the status line follows it, and offers Restart now when it is ready); with one waiting, a press
 /// restarts into it. The Updates dialog does the same with more to say.
 /// </summary>
@@ -48,16 +48,16 @@ public sealed partial class MainWindow
         var show = Services.Updates.Enabled && (staged is not null || av is { Length: > 0 });
         _updateWaiting = show;   // drawn by the pulse, only while the controls are up
         if (!show) return;
-        ToolTipService.SetToolTip(b, staged is { } st ? "Prism " + st.version + " is installed. Press to restart into it."
-            : _updateRunning ? "Downloading Prism " + av + Mid + "the status line says how far"
-            : Services.Updates.Auto ? "Prism " + av + " is ready and downloads on its own. Press to install it now. Prism asks before it restarts."
-            : "Prism " + av + " is ready. Press to download and install it. Prism asks before it restarts.");
+        ToolTipService.SetToolTip(b, staged is { } st ? "PRISM " + st.version + " is installed. Press to restart into it."
+            : _updateRunning ? "Downloading PRISM " + av + Mid + "the status line says how far"
+            : Services.Updates.Auto ? "PRISM " + av + " is ready and downloads on its own. Press to install it now. PRISM asks before it restarts."
+            : "PRISM " + av + " is ready. Press to download and install it. PRISM asks before it restarts.");
     }
 
     private async Task UpdateButtonPressedAsync()
     {
         if (Services.Updates.Staged() is not null) { RestartIntoStaged(); return; }
-        if (_updateRunning) { SetPill("Prism" + Mid + "the update is downloading. The status line says how far"); return; }
+        if (_updateRunning) { SetPill("PRISM" + Mid + "the update is downloading. The status line says how far"); return; }
         _updateRunning = true; SyncUpdateButton();
         LogLine("updates: install pressed beside the flag");
         try { _updateStatus = System.Text.Json.Nodes.JsonNode.Parse(await ModelCallAwaitAsync("updateInstallNow", 15 * 60_000) ?? "null") as System.Text.Json.Nodes.JsonObject; }

@@ -242,7 +242,7 @@ public sealed partial class MainWindow
             var err = tile?["error"]?.GetValue<string>();
             var failed = (tile?["pending"] as JsonObject)?["failed"]?.GetValue<string>();
             // the service's own gate (2026-10-13, Twitch's content disclaimer): its words on the
-            // curtain, its own verb for the person to press, never pressed by Prism; Close lifts the curtain onto the page as it is
+            // curtain, its own verb for the person to press, never pressed by PRISM; Close lifts the curtain onto the page as it is
             var gateText = (tile?["gate"] as JsonObject)?["text"]?.GetValue<string>();
             if (gateText is { Length: > 0 })
             {
@@ -288,7 +288,7 @@ public sealed partial class MainWindow
             var playingNow = tile?["playing"]?.GetValue<bool>() == true;
             // no title to wait for: the service did not find it by itself (2026-10-16, Chicago Med on YouTube TV). The curtain says so and stays;
             // the service's search page is never shown in the viewer (2026-11-05, the owner's rule: video or nothing there - a Prime Video search
-            // page had stood on the big screen). Close lifts the curtain onto Prism's dark mark, and the screen goes back to Watch.
+            // page had stood on the big screen). Close lifts the curtain onto PRISM's dark mark, and the screen goes back to Watch.
             if (tile?["opened"] is JsonObject && !playingNow && slot is not null && _navAt.TryGetValue(slot, out var openAt) && openAt > _curtainUpAt && (DateTime.UtcNow - openAt).TotalSeconds > 1.5)
             {
                 line.Children.OfType<ProgressRing>().ToList().ForEach(r => r.IsActive = false);
@@ -334,7 +334,7 @@ public sealed partial class MainWindow
         HideStageBar();
         try { if (toWatch) await ShowVideoHubAsync(); else { _stayOnVideo = true; await MvCallAsync("state"); } }   // left on the screen: the empty stage when nothing is on it
         finally { StageCurtain.Visibility = Visibility.Collapsed; StageCurtain.Opacity = 1; }
-        SetPill("Prism \u00B7 cancelled " + Shorten(title, 40));
+        SetPill("PRISM \u00B7 cancelled " + Shorten(title, 40));
     }
     /// <summary>The curtain's Details: the start goes on, Watch opens, and the title's Details page over it - named as the service names the show (a
     /// series, not an episode's label), else the pick's name without its "S2 E3".</summary>
@@ -504,8 +504,8 @@ public sealed partial class MainWindow
             var frac = FracAt(e); Show(frac); HidePreview();
             _seekHoldUntil = DateTime.Now.AddSeconds(3);
             var r = (await ModelCallAsync("videoSeek", tileId, (frac * dur).ToString(System.Globalization.CultureInfo.InvariantCulture)))?.Trim().Trim('"');
-            if (r == "ad") SetPill("Prism \u00B7 not during an ad. It's covered until it ends");
-            else if (r is not null && r != "ok") SetPill("Prism \u00B7 could not seek (" + r + ")");
+            if (r == "ad") SetPill("PRISM \u00B7 not during an ad. It's covered until it ends");
+            else if (r is not null && r != "ok") SetPill("PRISM \u00B7 could not seek (" + r + ")");
             RestartStageBarTimer();
         };
         host.PointerCaptureLost += (_, __) => { _seekDragging = false; HidePreview(); };
@@ -581,7 +581,7 @@ public sealed partial class MainWindow
         }
         catch { }
     }
-    /// <summary>Prism's transport over the service's player: the face and the verbs, from core's videoState for the screen slot. Hides after six seconds.</summary>
+    /// <summary>PRISM's transport over the service's player: the face and the verbs, from core's videoState for the screen slot. Hides after six seconds.</summary>
     public async Task ShowStageBarAsync(bool force = false)
     {
         if (WatchGrip.Visibility != Visibility.Visible || VideoHubOpen || _asSession || _stageBarBuilding) return;
@@ -654,7 +654,7 @@ public sealed partial class MainWindow
             var fill = new Border { Background = HubAmber }; line.Children.Add(fill);
             var times = new TextBlock { Text = pos >= 0 ? Clock(pos) + (dur > 0 ? "  /  " + Clock(dur) : "") : "", FontSize = 11, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center };
             var timeRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-            // the slider (2026-09-23,): Prism's own, the same on every service - the grab area around the
+            // the slider (2026-09-23,): PRISM's own, the same on every service - the grab area around the
             // line, a handle; the time heading to shows while it moves; let go and the service's own seek goes there (core videoSeek, the adapter's)
             var canSeek = ((tile?["can"] as JsonObject)?["seek"]?.GetValue<bool>() == true) && dur > 0;
             var canPreview = (tile?["can"] as JsonObject)?["preview"]?.GetValue<bool>() == true;
@@ -662,7 +662,7 @@ public sealed partial class MainWindow
             var seekHost = new Grid { Width = 360, Height = 20, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), VerticalAlignment = VerticalAlignment.Center };
             seekHost.Children.Add(line);
             // the service's own ad breaks on the line (2026-09-23): a mark per break - bright ahead,
-            // dim once watched; the service says where (the reader's adBreaks), Prism only draws it
+            // dim once watched; the service says where (the reader's adBreaks), PRISM only draws it
             if (dur > 0 && video?["adBreaks"] is JsonArray breaks)
                 foreach (var br in breaks.OfType<JsonObject>())
                 {
@@ -704,7 +704,7 @@ public sealed partial class MainWindow
                 JsonObject? so = null;
                 try { so = JsonNode.Parse(await ModelCallAsync("videoStartOver") ?? "null") as JsonObject; } catch { }
                 var did = so?["did"]?.GetValue<string>();
-                SetPill("Prism \u00B7 " + (did == "previous" ? "previous episode, S" + so!["season"] + " E" + so["episode"] : did == "start" ? "back to the start" : "could not go back" + (so?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + Shorten(er, 60) : "")));
+                SetPill("PRISM \u00B7 " + (did == "previous" ? "previous episode, S" + so!["season"] + " E" + so["episode"] : did == "start" ? "back to the start" : "could not go back" + (so?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + Shorten(er, 60) : "")));
             };
             if (liveNow) { startOver.IsEnabled = false; ToolTipService.SetToolTip(startOver, "Back to the start. A live channel has no start or previous episode to go back to"); }
             StageBarBody.Children.Add(startOver);
@@ -729,7 +729,7 @@ public sealed partial class MainWindow
             Verb("\uEB9D", "Forward 10 s", "seekforward", true);
             Verb("\uE893", "Next episode", "nextepisode", canCmd && !liveNow);
             var canTracks = (tile?["can"] as JsonObject)?["tracks"]?.GetValue<bool>() == true;
-            if (canTracks) TracksVerb(screenSlot, 15, b => StageBarBody.Children.Add(b), RestartStageBarTimer);   // the service's own tracks in Prism's chrome
+            if (canTracks) TracksVerb(screenSlot, 15, b => StageBarBody.Children.Add(b), RestartStageBarTimer);   // the service's own tracks in PRISM's chrome
             else Verb("\uED1E", "Captions", "captions", canCmd);
             // Re-sync (2026-09-25):
             // a press is the pause and play that brings sound and picture together; pressed again within 10 s, the title opens again at its place
@@ -742,12 +742,12 @@ public sealed partial class MainWindow
                     JsonObject? rs = null;
                     try { rs = JsonNode.Parse(await ModelCallAsync("videoResync") ?? "null") as JsonObject; } catch { }
                     var did = rs?["did"]?.GetValue<string>();
-                    SetPill("Prism \u00B7 " + (did == "nudged" ? "re-syncing: paused and playing. Press again within 10 s to open it again" : did == "reopened" ? "opening it again where it was" : "could not re-sync" + (rs?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : "")));
+                    SetPill("PRISM \u00B7 " + (did == "nudged" ? "re-syncing: paused and playing. Press again within 10 s to open it again" : did == "reopened" ? "opening it again where it was" : "could not re-sync" + (rs?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : "")));
                 };
                 StageBarBody.Children.Add(resync);
             }
             // Full screen is the WALL's (2026-09-23): the player already fills its window, so the page's own fullscreen changed nothing - the
-            // whole Prism window goes borderless across the monitor (F11's toggle), every window of multiview in its place, Watch opening over it
+            // whole PRISM window goes borderless across the monitor (F11's toggle), every window of multiview in its place, Watch opening over it
             var fsIcon = new FontIcon { Glyph = _wallFs ? "\uE73F" : "\uE740", FontSize = 15 };
             var fs = Chip(fsIcon, _wallFs);
             ToolTipService.SetToolTip(fs, _wallFs ? "Leave full screen (F11)" : "Full screen: the video fills the monitor, multiview and all (F11)");
@@ -764,7 +764,7 @@ public sealed partial class MainWindow
             // answers at once; hover raises the wall's volume slider over it (B-176); the bar holds while the slider is up
             var muteIcon = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = 15, Foreground = _wallMuted ? HubAmber : HubInk };
             var mute = Chip(muteIcon, _wallMuted);
-            ToolTipService.SetToolTip(mute, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute Prism. Hover for the volume.");
+            ToolTipService.SetToolTip(mute, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute PRISM. Hover for the volume.");
             mute.Click += (_, __) => { SetWallMutedFromWall(screenSlot, !_wallMuted); muteIcon.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon.Foreground = _wallMuted ? HubAmber : HubInk; RestartStageBarTimer(); };
             mute.PointerEntered += (_, __) => { ShowVolumeSlider(mute, screenSlot); _stageBarTimer?.Stop(); };
             mute.PointerExited += (_, __) => { _volumeClose?.Start(); RestartStageBarTimer(); };
@@ -865,7 +865,7 @@ public sealed partial class MainWindow
         if (_overStageBar || SwapChoosing || _volumePopup is { IsOpen: true } || _episodesPanel is { IsOpen: true }) { RestartStageBarTimer(); return; }   // and while a swap is being chosen
         HideStageBar(); FadeGrips(true);
     }   // the bar holds while the mouse is on it   // the bar holds while the volume slider or the Episodes pop-up is up   // the bar holds while the volume slider is up
-    /// <summary>The corner grips (the Prism menu, the Music | Video toggle) fade with the bar when the pointer has been still over a playing
+    /// <summary>The corner grips (the PRISM menu, the Music | Video toggle) fade with the bar when the pointer has been still over a playing
     /// video (2026-10-05), and come back
     /// with it; a pointer over a faded grip brings it back alone (its own hover). Never while the menu is open.</summary>
     private bool _gripsFaded;
@@ -932,7 +932,7 @@ public sealed partial class MainWindow
         StageNext.Visibility = Visibility.Visible;
     }
 
-    /// <summary>The Watch tab beside the Prism pill: shown while the Video player is the wall (core's players), hidden otherwise.</summary>
+    /// <summary>The Watch tab beside the PRISM pill: shown while the Video player is the wall (core's players), hidden otherwise.</summary>
     private async Task UpdateWatchGripAsync()
     {
         try
@@ -1195,7 +1195,7 @@ public sealed partial class MainWindow
             vs = JsonNode.Parse(await ModelCallAsync("videoState") ?? "[]") as JsonArray;
         }
         catch (Exception e) { LogLine("video hub: " + e.Message); }
-        if (menu?["services"] is not JsonArray services || services.Count == 0) { SetPill("Prism · no video service yet. Add one from Apps"); return; }
+        if (menu?["services"] is not JsonArray services || services.Count == 0) { SetPill("PRISM · no video service yet. Add one from Apps"); return; }
         Lap("menu");
         await MvCallAsync("state");
         Lap("multiview");
@@ -1358,7 +1358,7 @@ public sealed partial class MainWindow
                 tabs.Children.Add(_playlistsTabTag);
             }
         }
-        // the Prism triangle, large, first on the header: its drop-down is the profile presets (2026-09-24); the preset on now named beside it
+        // the PRISM triangle, large, first on the header: its drop-down is the profile presets (2026-09-24); the preset on now named beside it
         tabs.Children.Insert(0, PresetTriangle());
         head.Children.Add(tabs);
         // the Watch page's tools beside the tabs (2026-09-23)
@@ -1409,7 +1409,7 @@ public sealed partial class MainWindow
         headRight.Children.Add(gear);
         // Credits (2026-09-24): the sources behind Watch's numbers, TMDB's and JustWatch's marks
         var credits = Chip(new FontIcon { Glyph = "\uE946", FontSize = 14 }, false);
-        ToolTipService.SetToolTip(credits, "Credits: Prism by Entangled, plus TMDB, JustWatch and Wikipedia.");
+        ToolTipService.SetToolTip(credits, "Credits: PRISM by Entangled, plus TMDB, JustWatch and Wikipedia.");
         credits.Margin = new Thickness(8, 0, 0, 0);
         credits.Click += (_, __) => ShowCredits();
         headRight.Children.Add(credits);
@@ -1417,7 +1417,7 @@ public sealed partial class MainWindow
         Grid.SetColumn(headRight, 2);
         head.Children.Add(headRight);
         // this PC's name, top and centre of the screen (2026-10-21, MainWindow.MachineName.cs): the same block in the same place as the music
-        // player's chrome draws it, under the Prism grip, and the header starts lower to leave it the room. It was first placed beside the tabs,
+        // player's chrome draws it, under the PRISM grip, and the header starts lower to leave it the room. It was first placed beside the tabs,
         // but on a 1273-wide screen the tabs and the chips fill the header and left it none (2026-10-22)
         if (MachineName.Length > 0)
         {
@@ -1459,7 +1459,7 @@ public sealed partial class MainWindow
                 var btn = new Button { Content = cell, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(6) };
                 ToolTipService.SetToolTip(btn, "Watch as " + pname + " on " + onName + " from now on. Change it any time under Services (right-click the poster, or its profile chip).");
                 var (a2, p2, n2) = (onApp, pid, pname);
-                btn.Click += (_, __) => { _ = ModelCallAsync("videoProfileChoose", a2, p2); CloseVideoHub(); SetPill("Prism · watching as " + n2 + " on " + onName); };
+                btn.Click += (_, __) => { _ = ModelCallAsync("videoProfileChoose", a2, p2); CloseVideoHub(); SetPill("PRISM · watching as " + n2 + " on " + onName); };
                 row.Children.Add(btn);
             }
             gateRow.Children.Add(row);
@@ -1728,9 +1728,9 @@ public sealed partial class MainWindow
                 var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
                 var keyBox = new PasswordBox { PlaceholderText = "TMDB API key or read access token", Width = 420, FontSize = 13 };
                 var save = Chip(new TextBlock { Text = "Save", FontSize = 13, Foreground = HubInk }, false);
-                save.Click += (_, __) => { var k = keyBox.Password?.Trim() ?? ""; if (k.Length == 0) return; _hubKeyEntry = false; _ = ModelCallAsync("lensSetTmdbKey", k).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("Prism · TMDB key saved on this device"); _ = ShowVideoHubAsync(); })); };
+                save.Click += (_, __) => { var k = keyBox.Password?.Trim() ?? ""; if (k.Length == 0) return; _hubKeyEntry = false; _ = ModelCallAsync("lensSetTmdbKey", k).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("PRISM · TMDB key saved on this device"); _ = ShowVideoHubAsync(); })); };
                 var clear = Chip(new TextBlock { Text = "Clear", FontSize = 13, Foreground = HubDim }, false); clear.IsEnabled = hasKey;
-                clear.Click += (_, __) => { _hubKeyEntry = false; _ = ModelCallAsync("lensSetTmdbKey", (string?)null).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("Prism · TMDB key cleared"); _ = ShowVideoHubAsync(); })); };
+                clear.Click += (_, __) => { _hubKeyEntry = false; _ = ModelCallAsync("lensSetTmdbKey", (string?)null).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("PRISM · TMDB key cleared"); _ = ShowVideoHubAsync(); })); };
                 keyRow.Children.Add(keyBox); keyRow.Children.Add(save); keyRow.Children.Add(clear);
                 keyRow.Children.Add(new TextBlock { Text = "A free personal key from your own TMDB account: themoviedb.org → Settings → API. " + (lensBlock["attribution"]?.GetValue<string>() ?? ""), FontSize = 11, Foreground = HubDim, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 700 });
                 rows.Children.Add(keyRow);
@@ -1790,14 +1790,14 @@ public sealed partial class MainWindow
                     var it = new ToggleMenuFlyoutItem { Text = "Watch as " + pname, IsChecked = choice is not null && S(choice, "id") == pid };
                     if (avatar is { Length: > 0 }) { try { it.Icon = new BitmapIcon { UriSource = new Uri(avatar), ShowAsMonochrome = false }; } catch { } }
                     var (a3, p3, n3) = (app, pid, pname);
-                    it.Click += (_, __) => { _ = ModelCallAsync("videoProfileChoose", a3, p3).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("Prism · " + name + " watches as " + n3 + " from now on"); _ = ShowVideoHubAsync(); })); };
+                    it.Click += (_, __) => { _ = ModelCallAsync("videoProfileChoose", a3, p3).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("PRISM · " + name + " watches as " + n3 + " from now on"); _ = ShowVideoHubAsync(); })); };
                     flyout.Items.Add(it);
                 }
                 flyout.Items.Add(new MenuFlyoutSeparator());
                 var ask = new MenuFlyoutItem { Text = "Ask each time", IsEnabled = choice is not null, Icon = new FontIcon { Glyph = "\uE897" } };
                 ToolTipService.SetToolTip(ask, "The choice is forgotten: " + name + " asks who is watching, and you answer on its page or here.");
                 var a4 = app;
-                ask.Click += (_, __) => { _ = ModelCallAsync("videoProfileAsk", a4).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("Prism · " + name + " will ask who is watching"); _ = ShowVideoHubAsync(); })); };
+                ask.Click += (_, __) => { _ = ModelCallAsync("videoProfileAsk", a4).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => { SetPill("PRISM · " + name + " will ask who is watching"); _ = ShowVideoHubAsync(); })); };
                 flyout.Items.Add(ask);
                 b.ContextFlyout = flyout;   // right-click / the remote's menu key on the poster
                 var chip = Chip(new TextBlock { Text = chosen.Length > 0 ? "as " + chosen : "Who's watching?", FontSize = 11, Foreground = chosen.Length > 0 ? HubAmber : HubDim }, chosen.Length > 0);
@@ -1838,7 +1838,7 @@ public sealed partial class MainWindow
             var sv = (menu["suggestions"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(x => S(x, "app") == _svcSuggApp);
             var svName = (menu["services"] as JsonArray)?.OfType<JsonObject>().FirstOrDefault(x => S(x, "app") == _svcSuggApp) is { } so2 ? S(so2, "name") : _svcSuggApp;
             var shelves = (sv?["shelves"] as JsonArray)?.OfType<JsonObject>().Where(sh => sh["items"] is JsonArray its && its.Count > 0).ToList() ?? new List<JsonObject>();
-            if (shelves.Count == 0) { svcSugg.Children.Add(new TextBlock { Text = "No suggestions from " + svName + " yet. Prism reads its home page in the background; they'll be here in a few minutes.", FontSize = 14, Foreground = HubInk }); return; }
+            if (shelves.Count == 0) { svcSugg.Children.Add(new TextBlock { Text = "No suggestions from " + svName + " yet. PRISM reads its home page in the background; they'll be here in a few minutes.", FontSize = 14, Foreground = HubInk }); return; }
             foreach (var sh in shelves)
             {
                 var cards2 = ((JsonArray)sh["items"]!).OfType<JsonObject>().Take(24).Select(i => new JsonObject { ["app"] = _svcSuggApp, ["service"] = svName, ["facet"] = S(sv!, "facet"), ["item"] = i.DeepClone(), ["recency"] = new JsonObject { ["kind"] = "rank" } }).ToList();
@@ -2064,7 +2064,7 @@ public sealed partial class MainWindow
         }
         }
         Lap("suggestions");
-        if (_hubTab == "watch" && rows.Children.Count <= 2) rows.Children.Add(new TextBlock { Text = "Watch something on a service once and it appears here. Nothing is ranked or recommended by Prism: rows are your own lists and what you watched, newest first.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+        if (_hubTab == "watch" && rows.Children.Count <= 2) rows.Children.Add(new TextBlock { Text = "Watch something on a service once and it appears here. Nothing is ranked or recommended by PRISM: rows are your own lists and what you watched, newest first.", FontSize = 13, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
         if (_hubTab == "watch") AddPerfPanel(rows);   // the performance stats at the foot, when on (MainWindow.PerfPanel, 2026-10-03)
         Lap("perf panel");
         var scroller = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(-HubSide, 0, -HubSide, 0) };   // edge to edge (the rows pad themselves)
@@ -2105,7 +2105,7 @@ public sealed partial class MainWindow
                     if (!origRight.TryGetValue(e, out var orig)) { orig = e.Margin.Right; origRight[e] = orig; }
                     var want = inBand ? orig + pipW + 8 : orig;
                     if (Math.Abs(e.Margin.Right - want) <= 0.5) continue;
-                    // bounded (2026-10-17, a layout cycle crashed Prism: a row's margin flipped 0 -> 448 -> 0 on every layout pass after More to watch
+                    // bounded (2026-10-17, a layout cycle crashed PRISM: a row's margin flipped 0 -> 448 -> 0 on every layout pass after More to watch
                     // was pressed, its height following its width and the page's scroll following its height): a margin written four times within
                     // a second is in a loop, and from then on that element only widens its clearance - it keeps the corner clear and the page stands still
                     var now = Environment.TickCount64;
@@ -2164,7 +2164,7 @@ public sealed partial class MainWindow
         RootGrid.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (!ReferenceEquals(_videoHub, overlay) || first is null) return;
-            s_autoFocused = first;   // Simple Watch: this focus is Prism's, not the person's - the card keeps its details quiet
+            s_autoFocused = first;   // Simple Watch: this focus is PRISM's, not the person's - the card keeps its details quiet
             var ok = first.Focus(FocusState.Keyboard);
             if (!ok) { overlay.UpdateLayout(); ok = first.Focus(FocusState.Keyboard); }
             LogLine("video hub: focus on the first card " + (ok ? "taken" : "REFUSED"));
@@ -2463,7 +2463,7 @@ public sealed partial class MainWindow
         // the wall's mute and volume here too, the same look and the same switch as on the stage bar and the music player
         var muteIcon2 = new FontIcon { Glyph = _wallMuted ? "\uE74F" : "\uE767", FontSize = size, Foreground = _wallMuted ? HubAmber : HubInk };
         var mute2 = Chip(muteIcon2, _wallMuted);
-        ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute Prism. Hover for the volume.");
+        ToolTipService.SetToolTip(mute2, _wallMuted ? "Muted. Press to unmute, or hover for the volume." : "Mute PRISM. Hover for the volume.");
         mute2.Click += (_, __) => { SetWallMutedFromWall(screenSlot, !_wallMuted); muteIcon2.Glyph = _wallMuted ? "\uE74F" : "\uE767"; muteIcon2.Foreground = _wallMuted ? HubAmber : HubInk; };
         mute2.PointerEntered += (_, __) => ShowVolumeSlider(mute2, screenSlot);
         mute2.PointerExited += (_, __) => _volumeClose?.Start();
@@ -2715,11 +2715,11 @@ public sealed partial class MainWindow
                     {
                         // the card turns to dust at the press, as a My list or Continue watching removal does (2026-10-13); gone for good on the page's word, back in the row if the page refuses
                         HideCardForRemoval(btn);
-                        SetPill("Prism \u00B7 unfollowing " + cTitle + " on " + service + "\u2026");
+                        SetPill("PRISM \u00B7 unfollowing " + cTitle + " on " + service + "\u2026");
                         JsonObject? r = null;
                         try { r = JsonNode.Parse(await ModelCallAwaitAsync("videoChannelUnfollow", 50000, cApp, cUrl) ?? "null") as JsonObject; } catch { }
-                        if (r?["ok"]?.GetValue<bool>() == true) { if (btn.Parent is Panel bp) bp.Children.Remove(btn); ReleasePill("Prism \u00B7 unfollowed " + cTitle + " on " + service); }
-                        else { btn.Visibility = Visibility.Visible; btn.IsHitTestVisible = true; ReleasePill("Prism \u00B7 could not unfollow " + cTitle + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e2 ? ": " + e2 : "")); }
+                        if (r?["ok"]?.GetValue<bool>() == true) { if (btn.Parent is Panel bp) bp.Children.Remove(btn); ReleasePill("PRISM \u00B7 unfollowed " + cTitle + " on " + service); }
+                        else { btn.Visibility = Visibility.Visible; btn.IsHitTestVisible = true; ReleasePill("PRISM \u00B7 could not unfollow " + cTitle + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e2 ? ": " + e2 : "")); }
                     };
                     cf.Items.Add(unf);
                 }
@@ -2772,7 +2772,7 @@ public sealed partial class MainWindow
             // a channel that is off the air (Twitch's Followed row, kind "channel", 2026-10-05) opens its page, where nothing plays: no curtain to
             // wait on a play that will not come - the hub closes and the page shows
             // a channel of the Live page's On now view (2026-10-12): the card tunes it, as its row in the timetable would
-            else if (card["__tune"]?.GetValue<bool>() == true) btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); SetPill("Prism \u00B7 tuning " + Shorten(t2, 40) + " on " + s2 + "\u2026"); _ = TuneAsync(f2, i2, u2, t2); };
+            else if (card["__tune"]?.GetValue<bool>() == true) btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); SetPill("PRISM \u00B7 tuning " + Shorten(t2, 40) + " on " + s2 + "\u2026"); _ = TuneAsync(f2, i2, u2, t2); };
             else if (k2 == "channel") btn.Click += (_, __) => { if (PickLeavesWatch(t2)) CloseVideoHub(); _ = PlayOnAsync(f2, k2, i2, u2, t2); };
             // a series of a library row that opens in place (MainWindow.SeriesRow.cs, 2026-10-14): its recordings take the row
             else if (k2 == "series" && card["__pickRow"]?.GetValue<string>() is { Length: > 0 } pickRow) btn.Click += (_, __) => { if (_rowPicks.TryGetValue(pickRow, out var pickFn)) pickFn(card); else { if (PickLeavesWatch(t2)) { CloseVideoHub(); ShowStageCurtain(t2, s2, a2); } _ = PlayOnAsync(f2, k2, i2, u2, t2); } };
@@ -2858,7 +2858,7 @@ public sealed partial class MainWindow
 
     /// <summary>§4a: a card's rating disclosure - what / who / decides, the source, the date - and its Details window (TMDB; no outbound IMDb / Letterboxd,
     /// Letterboxd links, navigation only. Built when opened, from core's word (lensDisclosure).</summary>
-    /// <summary>The service's own subtitle and audio tracks as a Prism menu (2026-09-21): the stage shield keeps the pointer from the page, so the service's own panel could be opened but not touched.
+    /// <summary>The service's own subtitle and audio tracks as a PRISM menu (2026-09-21): the stage shield keeps the pointer from the page, so the service's own panel could be opened but not touched.
     /// The lists are read from the page through the adapter's videoTracks script when the menu opens (a read); a pick goes through core.</summary>
     private const string TracksJs = "(function(){try{var r=window.__prismVideoTracks&&window.__prismVideoTracks();return r?JSON.stringify(r):null;}catch(e){return null;}})()";
     private void TracksVerb(string slot, double size, Action<Button> place, Action? hold)
@@ -2895,7 +2895,7 @@ public sealed partial class MainWindow
                     if (id.Length == 0) continue;
                     var it = new ToggleMenuFlyoutItem { Text = name, IsChecked = tr["selected"]?.GetValue<bool>() == true };
                     var (k2, id2) = (kind, id);
-                    it.Click += (_, ___) => { _ = ModelCallAsync("videoTrack", slot, k2, id2); SetPill("Prism \u00B7 " + (k2 == "audio" ? "audio: " : "subtitles: ") + name); hold?.Invoke(); };
+                    it.Click += (_, ___) => { _ = ModelCallAsync("videoTrack", slot, k2, id2); SetPill("PRISM \u00B7 " + (k2 == "audio" ? "audio: " : "subtitles: ") + name); hold?.Invoke(); };
                     fly.Items.Add(it);
                 }
             }
@@ -2914,7 +2914,7 @@ public sealed partial class MainWindow
         fly.Opening += async (_, __) =>
         {
             fly.Items.Clear();
-            // the title's details from TMDB, in Prism's own window (2026-09-23 - no outbound IMDb / Letterboxd links)
+            // the title's details from TMDB, in PRISM's own window (2026-09-23 - no outbound IMDb / Letterboxd links)
             var details = new MenuFlyoutItem { Text = "Details" + (char)0x2026, Icon = new FontIcon { Glyph = "\uE946" } };
             ToolTipService.SetToolTip(details, "Cast, where to watch, the trailer and more, from TMDB.");
             details.Click += (_, ___) => ShowTitleDetails(title, kind, app);
@@ -2943,7 +2943,7 @@ public sealed partial class MainWindow
             LogLine("links app: " + Shorten(made ?? "?", 60));
             await Task.Delay(200);
         }
-        SetPill("Prism · " + name);
+        SetPill("PRISM · " + name);
         OpenRoute("prism://app/links/setup?url=" + Uri.EscapeDataString(url) + "&return=scene");
     }
 
@@ -3147,10 +3147,10 @@ public sealed partial class MainWindow
         if (r?["ok"]?.GetValue<bool>() == true)
         {
             if (r["switched"]?.GetValue<bool>() == true && r["sceneId"]?.GetValue<string>() is { } sceneId) await SceneAppliedAsync(sceneId, raw!);
-            SetPill("Prism · tuning " + name);
+            SetPill("PRISM · tuning " + name);
             return;
         }
-        SetPill("Prism · could not tune " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not tune " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
 
     /// <summary>Search everywhere: core asks every signed-in service on hidden surfaces; this polls the state and redraws the results row until every service has answered (or a limit passes). The rows come ordered from core.</summary>
@@ -3159,7 +3159,7 @@ public sealed partial class MainWindow
         string S(JsonNode? n, string k) => (n as JsonObject)?[k]?.GetValue<string>() ?? "";
         JsonObject? st = null;
         try { st = JsonNode.Parse(await (personId is { } pid ? ModelCallAsync("videoLookupPerson", pid, q) : ModelCallAsync("videoLookup", q)) ?? "null") as JsonObject; } catch (Exception e) { LogLine("video lookup: " + e.Message); }
-        if (st?["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not search" + (st is null ? "" : ": " + S(st, "error"))); return; }
+        if (st?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · could not search" + (st is null ? "" : ": " + S(st, "error"))); return; }
         var token = S(st, "token");
         LogLine("video lookup: " + q + " (" + token + ")");
         _lookupGenre = null; _lookupApp = null; _lookupKind = null;   // a new search starts unfiltered
@@ -3259,7 +3259,7 @@ public sealed partial class MainWindow
                 var id = S(so, "id"); var on = id == _hubSort;
                 var can = hasKey || id == "own" || id == "newest" || id == "oldest";   // a date can come from Wikidata without a key; a rating is TMDB's alone
                 var chip = Chip(new TextBlock { Text = S(so, "label"), FontSize = 12, Foreground = on ? HubAmber : can ? HubInk : HubDim }, on);
-                ToolTipService.SetToolTip(chip, S(so, "hint") + (can ? "" : "\n\nNeeds a TMDB key (Prism menu > TMDB key)."));
+                ToolTipService.SetToolTip(chip, S(so, "hint") + (can ? "" : "\n\nNeeds a TMDB key (PRISM menu > TMDB key)."));
                 chip.IsEnabled = can;
                 var id2 = id;
                 chip.Click += (_, __) => { if (_hubSort != id2) { _hubSort = id2; _ = DrawLibraryAsync(panel, overlay, now); } };
@@ -3807,10 +3807,10 @@ public sealed partial class MainWindow
         if (r?["ok"]?.GetValue<bool>() == true)
         {
             if (r["resolving"]?.GetValue<bool>() == true) _ = AfterResolveAsync(app);
-            SetPill("Prism · " + Shorten(title, 40) + " on " + service);
+            SetPill("PRISM · " + Shorten(title, 40) + " on " + service);
             return;
         }
-        SetPill("Prism · could not play " + Shorten(title, 40) + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not play " + Shorten(title, 40) + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
     /// <summary>The Browse rows drawn while they were still being read: the panel is drawn again once they are in - the panel alone, never the page.</summary>
     private async Task FollowBrowseAsync(StackPanel panel, Grid overlay, double now)
@@ -3838,10 +3838,10 @@ public sealed partial class MainWindow
             // a catalog card (2026-09-21): core asks the service's own search first and switches the screen itself once it has
             // the title - the model is re-read when the screen has become the service, so the chrome follows
             if (r["resolving"]?.GetValue<bool>() == true) _ = AfterResolveAsync(app);
-            SetPill("Prism · " + Shorten(title, 40) + " on " + service);
+            SetPill("PRISM · " + Shorten(title, 40) + " on " + service);
             return;
         }
-        SetPill("Prism · could not play " + Shorten(title, 40) + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not play " + Shorten(title, 40) + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
     private async Task AfterResolveAsync(string app)
     {
@@ -3863,9 +3863,9 @@ public sealed partial class MainWindow
         if (r?["ok"]?.GetValue<bool>() == true)
         {
             if (r["switched"]?.GetValue<bool>() == true && r["sceneId"]?.GetValue<string>() is { } sceneId) await SceneAppliedAsync(sceneId, raw!);
-            SetPill("Prism · searching " + name + " for " + q);
+            SetPill("PRISM · searching " + name + " for " + q);
             return;
         }
-        SetPill("Prism · could not search " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not search " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
 }

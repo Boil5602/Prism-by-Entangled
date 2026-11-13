@@ -1,4 +1,4 @@
-/* Prism — "report an ad that slipped through" (console fallback for the
+/* PRISM — "report an ad that slipped through" (console fallback for the
    built-in chip). Paste this whole thing into the browser DevTools Console
    (F12 -> Console) on the page with the ad, press Enter. A small "⚑ Report ad"
    chip appears bottom-left: click it, then click the ad. A JSON report is

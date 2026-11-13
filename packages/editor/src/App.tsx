@@ -17,7 +17,7 @@ import {
 } from "prism-core";
 
 /* ================================================================
-   Prism Editor — the reference renderer (spec §23).
+   PRISM Editor — the reference renderer (spec §23).
    Ported from prototypes/frame-editor.jsx; the solver and fit math
    now come from prism-core, so this preview is pixel-identical to
    every shell. Adds §20 fit badges and §15 sanitized share export.
@@ -349,7 +349,7 @@ export function App() {
 
       <header style={{ display: "flex", alignItems: "baseline", gap: 14, padding: "18px 22px 10px", borderBottom: `1px solid ${T.panelEdge}` }}>
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: T.accent, letterSpacing: "0.08em" }}>frame.dashboard/v0.1</span>
-        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 600, margin: 0 }}>Prism Editor</h1>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 19, fontWeight: 600, margin: 0 }}>PRISM Editor</h1>
         <span style={{ fontSize: 12, color: T.inkFaint, marginLeft: "auto" }}>drag the amber edge · tap a tile to select · powered by prism-core</span>
       </header>
 

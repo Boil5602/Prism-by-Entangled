@@ -1,7 +1,7 @@
 {
   "id": "ribbon",
   "name": "Ribbon",
-  "blurb": "A smooth waveform trail sweeping across the surface, older passes fading behind.",
+  "blurb": "Five silk ribbons crossing the stage, each as thick as the music under it, with a bright leading edge and drifting sparks.",
   "program": "ribbon",
   "bands": 64,
   "palette": ["#5CC8C0", "#C86CF0", "#F0A83C", "#F05C7A"],

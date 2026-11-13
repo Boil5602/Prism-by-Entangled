@@ -1,7 +1,7 @@
 {
   "id": "forest-fireflies",
   "name": "Firefly Forest",
-  "blurb": "Fireflies drifting between dark trees, flickering with the highs; a warm glow behind the treeline breathes with the lows.",
+  "blurb": "A clearing in an old forest; every swarm of fireflies is a band and lights from the forest floor upward, the glow behind the trees breathes with the lows, the flies blink faster with the highs, and the mushrooms pulse on the beat.",
   "program": "forest-fireflies",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

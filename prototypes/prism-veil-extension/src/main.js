@@ -1,5 +1,5 @@
 /*
-  Prism Veil - entry. Wires observers, timers, the human overrides (Escape,
+  PRISM Veil - entry. Wires observers, timers, the human overrides (Escape,
   hold-to-reveal) and starts the sweep. Loaded last.
 */
 (function () {
@@ -76,7 +76,7 @@
   var holdTimer = 0, holdHint = null;
   function overVeil(x, y) {
     var n = document.elementFromPoint(x, y);
-    // Prism UI (Report chip, pick catcher, toasts, pill) is data-prism-ui, never
+    // PRISM UI (Report chip, pick catcher, toasts, pill) is data-prism-ui, never
     // a veil: pressing it must not start the hold-to-reveal countdown.
     while (n) {
       if (n.hasAttribute && n.hasAttribute("data-prism-ui")) return false;

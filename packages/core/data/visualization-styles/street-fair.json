@@ -1,7 +1,7 @@
 {
   "id": "street-fair",
   "name": "Street Fair",
-  "blurb": "A street fair; string lights chase with the bands, a ferris wheel turns with the loudness, the stalls glow.",
+  "blurb": "A street fair at night; the big wheel is a round sound meter with a band on every spoke, the carousel horses ride their bands, the strength tower climbs with the lows and rings its bell, and the crowd jumps on the beat.",
   "program": "street-fair",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

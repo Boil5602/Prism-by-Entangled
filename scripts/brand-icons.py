@@ -1,4 +1,4 @@
-"""The Prism mark, once, and every app icon cut from it.
+"""The PRISM mark, once, and every app icon cut from it.
 
 Source of truth: assets/brand/prism-logo.png (RGBA, the mark on transparency, trimmed).
 Run this after the mark changes; it rewrites every derived icon:

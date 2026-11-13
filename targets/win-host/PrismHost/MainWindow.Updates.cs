@@ -30,7 +30,7 @@ public sealed partial class MainWindow
         // staged: the notice is the restart offer, with its button (2026-10-06); ready to install: the line alone, as before
         if (Services.Updates.Staged() is not null) { OfferRestartIfStaged(); return; }
         var note = UpdateMenuNote();
-        if (note.Length > 0) SetPill("Prism" + Mid + note + ". Prism menu, Updates.");
+        if (note.Length > 0) SetPill("PRISM" + Mid + note + ". PRISM menu, Updates.");
     }
 
     private async Task PollUpdateStatusAsync()
@@ -42,7 +42,7 @@ public sealed partial class MainWindow
     {
         await PollUpdateStatusAsync();
         // in three parts (2026-10-07):
-        // this Prism and what the server offers, with its verbs; which track and when to check, taken the moment they change; the update
+        // this PRISM and what the server offers, with its verbs; which track and when to check, taken the moment they change; the update
         // server for a fork, saved on its own. The column has a width of its own, so the notes wrap, and the changelog feed sits beside it.
         var ell = ((char)0x2026).ToString();
         var body = new StackPanel { Spacing = 16, Width = 600 };
@@ -55,10 +55,10 @@ public sealed partial class MainWindow
             BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF)),
         };
 
-        // 1. this Prism, and what the update server offers
+        // 1. this PRISM, and what the update server offers
         var now = new StackPanel { Spacing = 10 };
         var running = new TextBlock { FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
-        void SayRunning() => running.Text = "Prism " + AppVersion.Text + " on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track";
+        void SayRunning() => running.Text = "PRISM " + AppVersion.Text + " on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track";
         SayRunning();
         var line = new TextBlock { FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         var notes = new TextBlock { FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
@@ -76,7 +76,7 @@ public sealed partial class MainWindow
         // the changelog feed beside the dialog (2026-10-07): off by default, the choice kept; the releases come
         // in the signed manifest's history (docs/features/updates.md), so showing them fetches nothing
         var showChanges = new CheckBox { Content = new TextBlock { Text = "Show what's changed", FontSize = 14, Foreground = HubInk }, IsChecked = HostPrefs.GetBool("updates.showChanges", false), MinWidth = 0 };
-        now.Children.Add(Section("This Prism"));
+        now.Children.Add(Section("This PRISM"));
         now.Children.Add(running); now.Children.Add(line); now.Children.Add(notesCard); now.Children.Add(verbs); now.Children.Add(showChanges);
         body.Children.Add(Card(now));
 
@@ -106,7 +106,7 @@ public sealed partial class MainWindow
             {
                 var cmp = CompareVersions(v, runningVersion);
                 var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-                head.Children.Add(new TextBlock { Text = "Prism " + v, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = cmp > 0 ? HubAmber : HubInk });
+                head.Children.Add(new TextBlock { Text = "PRISM " + v, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = cmp > 0 ? HubAmber : HubInk });
                 if (DateTime.TryParse(d, out var dd)) head.Children.Add(new TextBlock { Text = dd.ToString("MMM d"), FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Bottom });
                 if (cmp > 0) head.Children.Add(new TextBlock { Text = "New", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Bottom });
                 else if (cmp == 0) head.Children.Add(new TextBlock { Text = "Running now", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Bottom });
@@ -125,12 +125,12 @@ public sealed partial class MainWindow
             var last = st?["lastCheck"]?.GetValue<string>();
             var res = st?["lastResult"]?.GetValue<string>();
             string when = last is { Length: > 0 } && DateTime.TryParse(last, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToLocalTime().ToString("ddd HH:mm") : "never";
-            if (staged is { } s2) line.Text = "Prism " + s2.version + " is installed and runs at the next start.";
-            else if (av is not null) line.Text = "Prism " + (av["version"]?.GetValue<string>() ?? "?") + " is ready to install. Last check " + when + ".";
+            if (staged is { } s2) line.Text = "PRISM " + s2.version + " is installed and runs at the next start.";
+            else if (av is not null) line.Text = "PRISM " + (av["version"]?.GetValue<string>() ?? "?") + " is ready to install. Last check " + when + ".";
             else line.Text = (res is "unreachable" ? "The update server could not be reached. Last tried " + when + "."
                 : res is "invalid" ? "The update server's answer did not verify, so nothing was taken from it. Last tried " + when + "."
                 : last is { Length: > 0 } ? "This is the newest version on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track. Last check " + when + "."
-                : "Not checked yet. Prism checks on its schedule, and Check now asks right away.");
+                : "Not checked yet. PRISM checks on its schedule, and Check now asks right away.");
             // the release's notes in a card under the line, unless the feed beside the dialog already shows them
             var n = av?["notes"]?.GetValue<string>();
             notes.Text = n ?? "";
@@ -165,7 +165,7 @@ public sealed partial class MainWindow
         dlg.Resources["ContentDialogMaxWidth"] = 1160.0;   // room for the feed beside the three parts
         _updatesDlg = dlg;
         try { await dlg.ShowAsync(); } catch (Exception ex) { SetStatus("updates: " + ex.Message); }
-        finally { _updatesDlg = null; if (TourOwed) TourReturn(); }   // closed after How Prism works opened it: back to the tour
+        finally { _updatesDlg = null; if (TourOwed) TourReturn(); }   // closed after How PRISM works opened it: back to the tour
     }
 
     /// <summary>The track, the check's schedule and the update server: in the Updates window and on Watch settings' Updates section alike
@@ -177,7 +177,7 @@ public sealed partial class MainWindow
         // which track, and when to check: taken the moment they change
         var checking = new StackPanel { Spacing = 10 };
         var track = new ComboBox { Header = "Track", FontSize = 13, MinWidth = 300 };
-        foreach (var (id, label, note) in new[] { ("alpha", "Alpha", "what ships while Prism is built"), ("beta", "Beta", "the release candidate"), ("stable", "Full", "the full release") })
+        foreach (var (id, label, note) in new[] { ("alpha", "Alpha", "what ships while PRISM is built"), ("beta", "Beta", "the release candidate"), ("stable", "Full", "the full release") })
             track.Items.Add(new ComboBoxItem { Content = label + Mid + note, Tag = id });
         track.SelectedIndex = Services.Updates.Channel == "alpha" ? 0 : Services.Updates.Channel == "beta" ? 1 : 2;
         track.SelectionChanged += async (_, __) =>
@@ -207,7 +207,7 @@ public sealed partial class MainWindow
         void SayNext()
         {
             var nx = _updateStatus?["nextCheck"]?.GetValue<string>();
-            nextLine.Text = !Services.Updates.Enabled ? "Prism checks only when you press Check now."
+            nextLine.Text = !Services.Updates.Enabled ? "PRISM checks only when you press Check now."
                 : nx is { Length: > 0 } && DateTime.TryParse(nx, null, System.Globalization.DateTimeStyles.RoundtripKind, out var nd) ? "Next check " + Nearest5(nd.ToLocalTime()).ToString("dddd") + " " + Nearest5(nd.ToLocalTime()).ToString("t") + "."
                 : "";
         }
@@ -234,12 +234,12 @@ public sealed partial class MainWindow
         SayNext();
         checking.Children.Add(track); checking.Children.Add(whenRow); checking.Children.Add(nextLine);
         // install on its own (B-458, 2026-10-30: the night window had no door, every release waited for a press): a release found is downloaded
-        // at once and Prism restarts into it at a quiet moment in the three hours after the check (nothing playing, nobody about), otherwise at
+        // at once and PRISM restarts into it at a quiet moment in the three hours after the check (nothing playing, nobody about), otherwise at
         // its next start; off, the flag waits for a press as before. Taken at once, no restart.
         var auto = new ToggleSwitch { Header = "Install on its own", OnContent = "On", OffContent = "Off", IsOn = Services.Updates.Auto, FontSize = 13 };
         var autoLine = new TextBlock { FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         void SayAuto() => autoLine.Text = Services.Updates.Auto
-            ? "A new version is downloaded as soon as it is found. Prism restarts into it at a quiet moment after the check, when nothing is playing and nobody has used it for a while, or the next time it starts."
+            ? "A new version is downloaded as soon as it is found. PRISM restarts into it at a quiet moment after the check, when nothing is playing and nobody has used it for a while, or the next time it starts."
             : "A new version waits for you. Install now and Restart are here, and the flag beside the menu.";
         auto.Toggled += async (_, __) =>
         {
@@ -251,18 +251,18 @@ public sealed partial class MainWindow
         SayAuto();
         checking.Children.Add(auto); checking.Children.Add(autoLine);
 
-        // the update server: shown, not edited (2026-10-05): the key decides which releases this Prism will
+        // the update server: shown, not edited (2026-10-05): the key decides which releases this PRISM will
         // install, so a page or a message saying "paste this" must not find an open field. Change the update server reveals the fields, for a
-        // fork of Prism someone runs themselves, with the warning first; its Save saves those two alone.
+        // fork of PRISM someone runs themselves, with the warning first; its Save saves those two alone.
         var fork = new Expander { Header = new TextBlock { Text = "Update server" + (Services.Updates.ServerIsCustom ? "  " + Mid + "  not Entangled's" : ""), FontSize = 14, Foreground = Services.Updates.ServerIsCustom ? HubAmber : HubInk }, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         var inner = new StackPanel { Spacing = 10 };
-        inner.Children.Add(new TextBlock { Text = "Prism checks one static file at this address, with nothing about this machine in the request, and takes a release only when the file's signature matches this key. A fork of Prism sets its own address and key here.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        inner.Children.Add(new TextBlock { Text = "PRISM checks one static file at this address, with nothing about this machine in the request, and takes a release only when the file's signature matches this key. A fork of PRISM sets its own address and key here.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         var shown = new StackPanel { Spacing = 4 };
         shown.Children.Add(new TextBlock { Text = "Address: " + Services.Updates.Url, FontSize = 12, Foreground = HubInk, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
         shown.Children.Add(new TextBlock { Text = "Key: " + (Services.Updates.Key.Length > 0 ? Services.Updates.Key : "none (no signature check)"), FontSize = 12, Foreground = Services.Updates.Key.Length > 0 ? HubInk : HubAmber, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
         var change = Chip(new TextBlock { Text = "Change the update server", FontSize = 13, Foreground = HubInk }, false);
         var editor = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
-        editor.Children.Add(new TextBlock { Text = "Only for a fork of Prism you run yourself. Whoever holds the private key for the key below decides what this Prism installs. Never change these because a page, a message or a caller told you to.", FontSize = 13, Foreground = HubAmber, TextWrapping = TextWrapping.Wrap });
+        editor.Children.Add(new TextBlock { Text = "Only for a fork of PRISM you run yourself. Whoever holds the private key for the key below decides what this PRISM installs. Never change these because a page, a message or a caller told you to.", FontSize = 13, Foreground = HubAmber, TextWrapping = TextWrapping.Wrap });
         var url = new TextBox { Text = Services.Updates.Url, Header = "Manifest address", FontSize = 13 };
         var key = new TextBox { Text = Services.Updates.Key, Header = "Public key (JWK). Empty: no signature check", FontSize = 12, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true };
         var reset = Chip(new TextBlock { Text = "Back to Entangled's", FontSize = 13, Foreground = HubInk }, false);
@@ -308,10 +308,10 @@ public sealed partial class MainWindow
     private void RestartIntoStaged()
     {
         var st = Services.Updates.Staged();
-        if (st is null) { SetPill("Prism" + Mid + "nothing is staged"); return; }
-        // the staged copy installs itself into the install folder once this one has closed (--prism-promote), then starts Prism from there
+        if (st is null) { SetPill("PRISM" + Mid + "nothing is staged"); return; }
+        // the staged copy installs itself into the install folder once this one has closed (--prism-promote), then starts PRISM from there
         if (Services.Updates.StartPromotion(LogLine)) Close();
-        else SetPill("Prism" + Mid + "could not start " + st.Value.version);
+        else SetPill("PRISM" + Mid + "could not start " + st.Value.version);
     }
 
     // ---- the restart offer (2026-10-06): when a
@@ -325,7 +325,7 @@ public sealed partial class MainWindow
     {
         if (Services.Updates.Staged() is not { } st || st.version == _restartOffered) return;
         _restartOffered = st.version;
-        ShowPillOffer("Prism" + Mid + st.version + " is installed. " + (Services.Updates.Auto ? "Prism switches to it at a quiet moment, or restart now" : "Restart to switch to it"), "Restart now", RestartIntoStaged, 45);
+        ShowPillOffer("PRISM" + Mid + st.version + " is installed. " + (Services.Updates.Auto ? "PRISM switches to it at a quiet moment, or restart now" : "Restart to switch to it"), "Restart now", RestartIntoStaged, 45);
         LogLine("updates: " + st.version + " installed, restart offered");
     }
 
@@ -349,23 +349,23 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// The first-run note (2026-10-06): a download installs itself silently into the fixed folder on its first run, so
-    /// the installed copy says once where Prism now lives - the Start menu - and that the folder it was unzipped into can be deleted, with a
-    /// button that opens that folder. Someone moved over from an older Prism's update folder gets the first half only: that folder is
-    /// removed by Prism itself. Shown a few seconds into the start, after the splash, for a minute.
+    /// the installed copy says once where PRISM now lives - the Start menu - and that the folder it was unzipped into can be deleted, with a
+    /// button that opens that folder. Someone moved over from an older PRISM's update folder gets the first half only: that folder is
+    /// removed by PRISM itself. Shown a few seconds into the start, after the splash, for a minute.
     /// </summary>
     private void ShowInstalledNoteIfAny()
     {
         if (Services.Updates.InstalledFrom() is not { } from) return;
         var oldUpdate = Services.Updates.IsOldUpdateFolder(from);
         LogLine("updates: first-run note (installed from " + (oldUpdate ? "an older update folder" : from) + ")");
-        // the shortcuts asked first (2026-10-06); someone moved over from an older Prism's update folder already had theirs, repointed at the install folder
+        // the shortcuts asked first (2026-10-06); someone moved over from an older PRISM's update folder already had theirs, repointed at the install folder
         _ = Task.Delay(TimeSpan.FromSeconds(6)).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(async () =>
         {
             if (!oldUpdate) await AskShortcutsAsync(true);
             if (oldUpdate || !System.IO.Directory.Exists(from))
-                SetPill("Prism" + Mid + "installed. It updates itself from now on.");
+                SetPill("PRISM" + Mid + "installed. It updates itself from now on.");
             else
-                ShowPillOffer("Prism" + Mid + "installed. You can delete the folder you downloaded it to.", "Show that folder", () => OpenPath(from), 60);
+                ShowPillOffer("PRISM" + Mid + "installed. You can delete the folder you downloaded it to.", "Show that folder", () => OpenPath(from), 60);
         }));
     }
 }

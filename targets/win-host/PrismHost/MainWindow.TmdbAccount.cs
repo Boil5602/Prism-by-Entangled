@@ -25,7 +25,7 @@ public sealed partial class MainWindow
         var state = await TmdbLinkStateAsync();
         if (state?["loading"]?.GetValue<bool>() == true) { await Task.Delay(400); state = await TmdbLinkStateAsync(); }
         var head = new TextBlock { Text = "TMDB account", FontSize = 17, Foreground = HubInk, Margin = new Thickness(0, 14, 0, 0) };
-        ToolTipService.SetToolTip(head, "Optional: the same TMDB account your key came from, approved once on TMDB's own site. With it, a star pressed on a title's details page is a rating on TMDB under your name, and your own ratings show on Prism. Prism keeps the session on this device and sends it to TMDB alone, only when you rate.");
+        ToolTipService.SetToolTip(head, "Optional: the same TMDB account your key came from, approved once on TMDB's own site. With it, a star pressed on a title's details page is a rating on TMDB under your name, and your own ratings show on PRISM. PRISM keeps the session on this device and sends it to TMDB alone, only when you rate.");
         body.Children.Add(head);
         var linked = state?["linked"]?.GetValue<bool>() == true;
         var user = S(state, "username");
@@ -36,7 +36,7 @@ public sealed partial class MainWindow
             line.Children.Add(new TextBlock { Text = "Linked as " + user + ". Your stars on a title's page go to TMDB.", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
             var unlink = Chip(new TextBlock { Text = "Unlink", FontSize = 13, Foreground = HubInk }, false);
             ToolTipService.SetToolTip(unlink, "Ends the session on TMDB's side and forgets it here. The ratings you gave stay on your TMDB account.");
-            unlink.Click += async (_, __) => { await ModelCallAsync("tmdbUnlink"); await Task.Delay(800); SetPill("Prism" + Dot + "TMDB account unlinked"); await ShowWatchSettingsAsync(); };
+            unlink.Click += async (_, __) => { await ModelCallAsync("tmdbUnlink"); await Task.Delay(800); SetPill("PRISM" + Dot + "TMDB account unlinked"); await ShowWatchSettingsAsync(); };
             line.Children.Add(unlink);
             // linked, and playlists still out of reach: said here, under the key it is about (2026-10-09)
             if (state?["lists"]?.GetValue<bool>() != true)
@@ -51,7 +51,7 @@ public sealed partial class MainWindow
         else
         {
             // the note a person needs when the key is in but the approval is not (2026-10-03): amber, the thing to notice
-            line.Children.Add(new TextBlock { Text = "Ratings approval not granted yet. You see TMDB's ratings, but can't rate from Prism until you approve Prism on your TMDB account.", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 });
+            line.Children.Add(new TextBlock { Text = "Ratings approval not granted yet. You see TMDB's ratings, but can't rate from PRISM until you approve PRISM on your TMDB account.", FontSize = 13, Foreground = HubAmber, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 });
             var link = Chip(new TextBlock { Text = "Approve now", FontSize = 13, Foreground = HubInk }, true);
             ToolTipService.SetToolTip(link, "TMDB shows an approval page: scan it with your phone or open it here, sign in to TMDB, press Approve, then come back and press I approved it.");
             link.Click += async (_, __) => { await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync(); };
@@ -68,15 +68,15 @@ public sealed partial class MainWindow
         JsonObject? state = null;
         for (var i = 0; i < 25 && (state is null || S(state, "url").Length == 0); i++) { await Task.Delay(300); state = await TmdbLinkStateAsync(); if (S(state, "error").Length > 0) break; }
         var url = S(state, "url");
-        if (url.Length == 0) { SetPill("Prism" + Dot + (S(state, "error") is { Length: > 0 } e ? e : "TMDB gave no approval page")); return; }
+        if (url.Length == 0) { SetPill("PRISM" + Dot + (S(state, "error") is { Length: > 0 } e ? e : "TMDB gave no approval page")); return; }
         var scrim = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE0, 0x05, 0x06, 0x09)) };
         Canvas.SetZIndex(scrim, 985);
         var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 560 };
-        card.Children.Add(new TextBlock { Text = "Approve Prism on TMDB", FontSize = 20, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        card.Children.Add(new TextBlock { Text = "Your key is in. One more step lets you rate titles from Prism: scan this with the phone you're signed in to TMDB on and press Approve, or press Open here to do it on this PC. Then come back and press I approved it. Not now is fine; the link waits under the key in Watch settings.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        card.Children.Add(new TextBlock { Text = "Approve PRISM on TMDB", FontSize = 20, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        card.Children.Add(new TextBlock { Text = "Your key is in. One more step lets you rate titles from PRISM: scan this with the phone you're signed in to TMDB on and press Approve, or press Open here to do it on this PC. Then come back and press I approved it. Not now is fine; the link waits under the key in Watch settings.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         try
         {
-            card.Children.Add(await QrWithMarkAsync(url, 250));   // the code with the Prism mark in its middle (MainWindow.Qr.cs)
+            card.Children.Add(await QrWithMarkAsync(url, 250));   // the code with the PRISM mark in its middle (MainWindow.Qr.cs)
         }
         catch (Exception ex) { LogLine("tmdb link: qr " + ex.Message); }
         card.Children.Add(new TextBlock { Text = "themoviedb.org " + (char)0x2192 + " approve", FontSize = 12, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center });
@@ -104,7 +104,7 @@ public sealed partial class MainWindow
             // answer (2026-10-09,: the
             // account was linked two seconds after the press; the window read the in-between word, and said so on a line under its own scrim)
             for (var i = 0; i < 30; i++) { await Task.Delay(400); st = await TmdbLinkStateAsync(); if (st?["busy"]?.GetValue<bool>() != true && st?["loading"]?.GetValue<bool>() != true) break; }
-            if (st?["linked"]?.GetValue<bool>() == true) { Close(); CloseLinkModal(); SetPill("Prism" + Dot + "TMDB account linked as " + S(st, "username")); await ShowWatchSettingsAsync(); }
+            if (st?["linked"]?.GetValue<bool>() == true) { Close(); CloseLinkModal(); SetPill("PRISM" + Dot + "TMDB account linked as " + S(st, "username")); await ShowWatchSettingsAsync(); }
             else
             {
                 done.IsEnabled = true;
@@ -178,7 +178,7 @@ public sealed partial class MainWindow
                 }
                 working = false; Draw();
                 var st = await TmdbLinkStateAsync();
-                SetPill("Prism" + Dot + (S(st, "error") is { Length: > 0 } e ? e : take ? "rating taken back on TMDB" : "rated " + value + " of 10 on TMDB"));
+                SetPill("PRISM" + Dot + (S(st, "error") is { Length: > 0 } e ? e : take ? "rating taken back on TMDB" : "rated " + value + " of 10 on TMDB"));
             };
             buttons.Add((b, icon));
             stars.Children.Add(b);

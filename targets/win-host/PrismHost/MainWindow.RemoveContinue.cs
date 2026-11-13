@@ -34,7 +34,7 @@ public sealed partial class MainWindow
             undo.Click += async (_, __) =>
             {
                 await ModelCallAsync("videoUndoRemoveContinue", app, id);
-                ReleasePill("Prism \u00B7 " + Shorten(title, 40) + " stays in Continue Watching");
+                ReleasePill("PRISM \u00B7 " + Shorten(title, 40) + " stays in Continue Watching");
             };
             fly.Items.Add(undo);
             return;
@@ -45,19 +45,19 @@ public sealed partial class MainWindow
         {
             // a service whose site cannot remove it (Fandango - only its phone app can): the card can be hidden on the wall (2026-09-23)
             var hide = new MenuFlyoutItem { Text = "Hide from Continue Watching", Icon = new FontIcon { Glyph = "\uED1A" } };
-            ToolTipService.SetToolTip(hide, service + "'s website cannot remove a title from its Continue Watching (its phone app can). This hides " + title + " on Prism only. " + service + " still lists it, and it comes back here if you watch more of it.");
+            ToolTipService.SetToolTip(hide, service + "'s website cannot remove a title from its Continue Watching (its phone app can). This hides " + title + " on PRISM only. " + service + " still lists it, and it comes back here if you watch more of it.");
             hide.Click += async (_, __) =>
             {
                 HideCardForRemoval(card);
                 await ModelCallAsync("videoHideContinue", app, id);
-                SetPill("Prism \u00B7 " + title + " hidden from Continue Watching (still listed on " + service + ")");
+                SetPill("PRISM \u00B7 " + title + " hidden from Continue Watching (still listed on " + service + ")");
             };
             fly.Items.Add(hide);
             return;
         }
         var warning = info["warning"]?.GetValue<string>();
         var it = new MenuFlyoutItem { Text = "Remove from " + service + "'s Continue Watching\u2026", Icon = new FontIcon { Glyph = "\uE738" } };
-        ToolTipService.SetToolTip(it, "Asks first. Removes " + title + " on " + service + " itself, not only on Prism.");
+        ToolTipService.SetToolTip(it, "Asks first. Removes " + title + " on " + service + " itself, not only on PRISM.");
         it.Click += (_, __) => ShowRemoveConfirm(app, service, id, title, warning, card);
         fly.Items.Add(it);
     }
@@ -91,7 +91,7 @@ public sealed partial class MainWindow
             var st = r?["status"]?.GetValue<string>();
             if (st is "done" or "failed" or "queued") break;
             var ahead = r?["ahead"] is JsonValue av && av.TryGetValue<double>(out var ad) ? (int)ad : 0;
-            if (ahead != lastAhead) { lastAhead = ahead; if (ahead > 0) SetPill("Prism \u00B7 removing " + Shorten(title, 40) + " (" + ahead + " ahead of it)"); }
+            if (ahead != lastAhead) { lastAhead = ahead; if (ahead > 0) SetPill("PRISM \u00B7 removing " + Shorten(title, 40) + " (" + ahead + " ahead of it)"); }
             await Task.Delay(700);
         }
         if (r?["status"]?.GetValue<string>() == "queued")
@@ -99,20 +99,20 @@ public sealed partial class MainWindow
             // still live: marked for removal, back in the row at its end, faded, until the broadcast ends (2026-10-16)
             LogLine("remove continue: queued " + title + " (still live)");
             card.Visibility = Visibility.Visible; card.IsHitTestVisible = true; card.Opacity = 1;
-            ReleasePill("Prism \u00B7 " + Shorten(title, 40) + " will be removed when the live broadcast ends");
+            ReleasePill("PRISM \u00B7 " + Shorten(title, 40) + " will be removed when the live broadcast ends");
             return;
         }
         if (r?["status"]?.GetValue<string>() == "done")
         {
             LogLine("remove continue: done " + title);
             if (card.Parent is Panel p) p.Children.Remove(card);
-            ReleasePill("Prism \u00B7 removed " + Shorten(title, 40) + " from " + service + "'s Continue Watching");
+            ReleasePill("PRISM \u00B7 removed " + Shorten(title, 40) + " from " + service + "'s Continue Watching");
             return;
         }
         var err = r?["error"]?.GetValue<string>() ?? "the service did not answer in time";
         LogLine("remove continue: failed " + title + ": " + err);
         card.Visibility = Visibility.Visible;   // back in the row where it was
-        ReleasePill("Prism \u00B7 could not remove " + Shorten(title, 40) + " from " + service + ": " + err);
+        ReleasePill("PRISM \u00B7 could not remove " + Shorten(title, 40) + " from " + service + ": " + err);
     }
 
     private void CloseRemovePanel()
@@ -125,12 +125,12 @@ public sealed partial class MainWindow
 
     private void ShowRemoveConfirm(string app, string service, string id, string title, string? warning, Button card) =>
         ShowAskPanel("Remove from " + service + "'s Continue Watching?",
-            "\u201C" + title + "\u201D leaves Continue Watching on " + service + " itself: everywhere you use this " + service + " profile, not only on Prism.", warning, "Remove",
+            "\u201C" + title + "\u201D leaves Continue Watching on " + service + " itself: everywhere you use this " + service + " profile, not only on PRISM.", warning, "Remove",
             () =>
             {
                 // the music player's way (2026-09-22): the question closes, the card leaves the row now, the feed holds the work in hand and then says how it went
                 HideCardForRemoval(card);
-                SetPill("Prism \u00B7 removing " + Shorten(title, 40) + " from " + service + "'s Continue Watching\u2026", hold: true);
+                SetPill("PRISM \u00B7 removing " + Shorten(title, 40) + " from " + service + "'s Continue Watching\u2026", hold: true);
                 _ = FollowRemovalAsync(app, service, id, title, card);
             });
 

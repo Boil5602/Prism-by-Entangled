@@ -6,14 +6,14 @@ Assistant report, and what a real fix looks like.
 
 ## The symptom
 
-An iPhone on iOS 27 with two home-screen web apps installed, Prism's companion app and another web app.
-While Prism plays sound, tapping the Now Playing control (the pill at the top of the home screen, or the
-title on the lock screen) opens whichever web app was in front last, not Prism. The control's own buttons
-act on Prism correctly; only the tap on the title is misrouted. Music and video streams behave the same,
-in both of Prism's sound modes.
+An iPhone on iOS 27 with two home-screen web apps installed, PRISM's companion app and another web app.
+While PRISM plays sound, tapping the Now Playing control (the pill at the top of the home screen, or the
+title on the lock screen) opens whichever web app was in front last, not PRISM. The control's own buttons
+act on PRISM correctly; only the tap on the title is misrouted. Music and video streams behave the same,
+in both of PRISM's sound modes.
 
 Note on versions: since iOS 26 WebKit reports a frozen `CPU iPhone OS 18_7` in every page's user agent, so
-Prism's log and any analytics show 18.7 for a phone on iOS 27.
+PRISM's log and any analytics show 18.7 for a phone on iOS 27.
 
 ## The mechanism, in plain words
 
@@ -33,20 +33,20 @@ not reach home-screen web apps, which all have the same host.
 
 iOS reads the manifest only at install. None of these changed anything.
 
-1. An explicit `id` in Prism's manifest (`prism-companion`).
+1. An explicit `id` in PRISM's manifest (`prism-companion`).
 2. An explicit `id` in the other app's manifest too, verified in the live served JSON, with the build,
    the manifest link and the service worker checked so no stale copy could be served.
-3. Prism registered by the manifest alone, the legacy `apple-mobile-web-app-capable` and `-title` tags
+3. PRISM registered by the manifest alone, the legacy `apple-mobile-web-app-capable` and `-title` tags
    removed, the other app keeping its tags. It still installed full screen. The tags are back.
-4. Both apps removed and added again, Prism last, so the most recent install and the most recent open
-   were Prism.
+4. Both apps removed and added again, PRISM last, so the most recent install and the most recent open
+   were PRISM.
 5. Both sound modes, a music stream and a video stream.
 
-Ruled out: the Media Session side (metadata, art, position, buttons all reach iOS and act on Prism);
+Ruled out: the Media Session side (metadata, art, position, buttons all reach iOS and act on PRISM);
 pairing, networking and the page's state; cached manifests.
 
 Considered and declined (2026-10-29): the other web app's manifest set to `"display": "browser"`, so it
-opens in Safari and leaves Prism as the host's only web app. The only page-side change that reaches the
+opens in Safari and leaves PRISM as the host's only web app. The only page-side change that reaches the
 mechanism, and it costs the other app its own window; the person said no. Clearing the other app's Media
 Session at boot (null metadata, playback state none, handlers removed) changes nothing: that app never
 registers an entry, and the title tap resolves to the host's bundle id regardless.
@@ -56,7 +56,7 @@ apps on sibling subdomains of one site) is a same-site case. It does not apply t
 matches the result here. The iOS 27 NowPlaying framework is a Swift layer for native apps over the same
 daemon WebKit already talks to through MediaRemote; it changes nothing for a page.
 
-## What Prism does about it
+## What PRISM does about it
 
 - **The escape hatch** (phone page, installed on an iPhone): a one-time note on the Music tab says the
   Now Playing title can open a different web app and offers *Open in Safari*. Safari owns its own sound,
@@ -79,20 +79,20 @@ daemon WebKit already talks to through MediaRemote; it changes nothing for a pag
   attached, is not built.
 - **The repro** in `tools/ios-nowplaying-repro/`: two static pages, Repro A (plays a quiet tone with
   Media Session metadata) and Repro B (a heading), served on two ports by `serve.sh`, so the bug can be
-  shown with nothing of Prism's involved.
+  shown with nothing of PRISM's involved.
 
 ## Phone test plan
 
-Fill in the last column. Prism's phone page is the paired address on port 8471; the repro pages come from
+Fill in the last column. PRISM's phone page is the paired address on port 8471; the repro pages come from
 `serve.sh`.
 
 | Step | Setup | Do | Expected | Result |
 |---|---|---|---|---|
-| a | Repro A and Repro B installed; Prism and the other app closed | Play A, open B, tap the pill | B opens: the bug with two static pages | |
+| a | Repro A and Repro B installed; PRISM and the other app closed | Play A, open B, tap the pill | B opens: the bug with two static pages | |
 | b | As a | Play A, open B, swipe B away in the app switcher, tap the pill | Tells whether SpringBoard remembers a last web app without a running process | |
-| c | Prism open in a Safari tab, not installed; the other app installed | Play in Prism, open the other app, tap the pill | Safari opens (validates the escape hatch) | |
-| d | Prism installed; the other app added again with "Open as Web App" off (iOS 26 and later) | Play in Prism, open the other app, tap the pill | Prism opens, the only web app | |
-| e | Prism installed, the Picture in Picture test on | Listen, press Picture in Picture, put the page away, press the window's return button | Prism opens, if the phone offered a window at all | |
+| c | PRISM open in a Safari tab, not installed; the other app installed | Play in PRISM, open the other app, tap the pill | Safari opens (validates the escape hatch) | |
+| d | PRISM installed; the other app added again with "Open as Web App" off (iOS 26 and later) | Play in PRISM, open the other app, tap the pill | PRISM opens, the only web app | |
+| e | PRISM installed, the Picture in Picture test on | Listen, press Picture in Picture, put the page away, press the window's return button | PRISM opens, if the phone offered a window at all | |
 
 ## Ready to paste
 
@@ -124,7 +124,7 @@ Fill in the last column. Prism's phone page is the paired address on port 8471; 
 
 ## What a real fix looks like
 
-A thin native shell for Prism's companion, a bare WKWebView app or a Capacitor project, gives WebKit a
+A thin native shell for PRISM's companion, a bare WKWebView app or a Capacitor project, gives WebKit a
 host of its own with a unique bundle id, so the Now Playing title opens the shell. The page needs nothing
 new: the shell loads the paired address, forwards the Media Session as it does today, and keeps the
 sound alive in the background through the app's audio session. The work is about a day for a first

@@ -57,6 +57,7 @@ public sealed partial class MainWindow
         public bool BehindNoted;
         public bool BehindLive;               // the viewer is behind YouTube TV's live edge or on a recording: no cover (2026-11-06)
         public bool SureOnly;                 // the person set this channel to sure breaks only (ChannelCovers.Sure)
+        public bool Gated;                    // ... or the channel gate did (LearnedBreak.Measured), as last logged
         public bool Withheld;                 // ... and the watch has found a break it is not covering (said once in the log)
         public bool AdLine;
         public bool CueComing;
@@ -64,6 +65,28 @@ public sealed partial class MainWindow
         public bool Inset;
         public double LearnedFrom = -1;   // when the learned detector began on this window: the rules decide its first 45 s (its history is empty)
         public byte[]? PicPrev; public double PicPrevAt = -999;   // the frame before, for the picture network's change input (within three seconds)
+        public List<(double T, byte[] G)> PicRing = new();   // the last eleven seconds of frames, for a temporal picture network (2026-11-07; about 0.6 MB a window)
+        public RepFeatures? Rep;                                 // the repetition readings, when a library is loaded (2026-11-08)
+        public readonly Queue<(double At, ulong H)> RecentHashes = new();   // the last 15 looks' frame hashes, for a Not-an-ad press (E4)
+    }
+
+    /// <summary>The picture network's chance for a frame: the two-channel network reads the frame and the frame before; the temporal one
+    /// (four channels, 2026-11-07) also the window's last eleven seconds of frames, kept in PicRing, as the bench and the trainer build them.</summary>
+    private static double PicChance(BreakWatchState st, byte[] g, double now)
+    {
+        var prev = now - st.PicPrevAt < 3 ? st.PicPrev : null;
+        if (s_picNet!.InChannels != 4) return s_picNet.Chance(g, prev);
+        st.PicRing.RemoveAll(e => now - e.T > 11);
+        var back = new byte[]?[5];
+        for (var k = 0; k < 5; k++)
+        {
+            var want = now - 2 * (k + 1); (double T, byte[] G)? best = null;
+            foreach (var e in st.PicRing) if (Math.Abs(e.T - want) <= 0.7 && (best is null || Math.Abs(e.T - want) < Math.Abs(best.Value.T - want))) best = e;
+            back[k] = best?.G;
+        }
+        var q = s_picNet.Chance(g, prev, back);
+        st.PicRing.Add((now, g));
+        return q;
     }
 
     private DispatcherTimer? _breakWatch;
@@ -101,6 +124,10 @@ public sealed partial class MainWindow
     // the hand rules still run (they make its readings) and decide alone without it
     private static LearnedBreak? s_learned;
     private static PictureNet? s_picNet;   // Assets/breakwatch/picture-net.json, when the model's policy weighs it (2026-11-07)
+    // the repetition readings (2026-11-08, the redesign's E1): a library of frame hashes in the data folder (breakwatch/replib.bin, a pack's
+    // later) makes rep_near and rep_count15 real; without it they read 0, as a model naming them always could. known-show.json (E4) holds
+    // the hashes of what the person said was not an ad; a frame near one of them never reads as a repeat
+    private static RepLibrary? s_repLib; private static readonly KnownShow s_knownShow = new();
     private static bool LearnedOn => s_learned is not null && HostPrefs.GetBool("video.breakWatchLearned", true);
     private static string BreakWatchDir => Path.Combine(HostPaths.DataDir, "breakwatch");
 
@@ -158,6 +185,9 @@ public sealed partial class MainWindow
     private void InitBreakWatch()
     {
         LoadDetectors(LogLine);
+        s_repLib = RepLibrary.Load(Path.Combine(BreakWatchDir, "replib.bin"));
+        if (s_repLib is not null) LogLine("break watch: a repetition library of " + s_repLib.Count + " frames (breakwatch/replib.bin)");
+        s_knownShow.Load(Path.Combine(BreakWatchDir, "known-show.json"), LogLine);
         _ = PackChecksAsync();
         _notAdHandler = id =>
         {
@@ -165,6 +195,7 @@ public sealed partial class MainWindow
             Correction(id, st.ChannelName, "not an ad");
             NotAdCounted(st.ChannelName);
             Bench(id, now, null, "notanad");
+            s_knownShow.Add(st.ChannelName, st.RecentHashes.Select(h => h.H), Path.Combine(BreakWatchDir, "known-show.json"));   // E4: this was the show
             ShowNotAdReport(id, st.ChannelName, st.Recent.ToList());
         };
         // a look a second (2026-10-06: two seconds made each break's start wait longer; the screen's words then cover at once)
@@ -212,7 +243,7 @@ public sealed partial class MainWindow
                 st = new BreakWatchState { Model = BreakModel.Load(ModelPath(channel)), Channel = channel, L = s_learned?.NewState() };
                 _watches[id] = st;
                 LogLine("break watch " + id + ": channel " + channel + (st.Model.HasLogo ? " (logo known)" : " (learning its logo)"));
-                // in a break when Prism closed a moment ago, on this channel: the cover goes straight back up
+                // in a break when PRISM closed a moment ago, on this channel: the cover goes straight back up
                 if (st.Model.HasLogo && BreakWasUp(id, channel)) { st.Model.ResumeBreak(_watchClock.Elapsed.TotalSeconds); st.Covered = true; if (st.L is not null) st.L.Up = true; _surfaces.WatchAdBreak(id, true); _surfaces.SetNotAnAd(id, true); LogLine("break watch " + id + ": the break that was up before the restart is covered again"); }
                 Bench(id, _watchClock.Elapsed.TotalSeconds, null, "channel " + channel);
             }
@@ -230,6 +261,10 @@ public sealed partial class MainWindow
             var dt = st.LastT > 0 ? Math.Clamp(now - st.LastT, 0.5, 6) : 2;
             st.LastT = now;
             Bench(id, now, shot.Value.Gray, null);
+            if (BenchOn && (s_adDebug || s_record)) Bench(id, now, null, "palette " + Convert.ToHexString(shot.Value.Palette));   // the Phase D sidecar, one line a frame
+            if (shot.Value.Gray is { Length: 320 * 180 } hg) { st.RecentHashes.Enqueue((now, FrameHash.Of(hg))); while (st.RecentHashes.Count > 15) st.RecentHashes.Dequeue(); }
+            // the recording's sound beside its frames (Services/GoldenAudio.cs, 2026-11-08): on while frames are recorded, off otherwise
+            if (BenchOn && (s_adDebug || s_record)) Services.GoldenAudio.Ensure(_surfaces.AnyBrowserPid(), LogLine); else Services.GoldenAudio.Stop();
             if (shot.Value.BigGray is { } bg && st.Model.Qr(bg, 960, 540, now))
             {
                 Bench(id, now, null, "qr");
@@ -396,6 +431,11 @@ public sealed partial class MainWindow
             st.Model.EdgeKnown = st.EdgeStart > 0;
             st.Model.AdFreeChannel = AdFree.IsMatch(st.ChannelName) || ChannelOff(st.ChannelName);   // and the channels the person turned off
             st.SureOnly = !st.Model.AdFreeChannel && (BreakWatchMode == "sure" || ChannelsSure().Contains(st.ChannelName, StringComparer.OrdinalIgnoreCase));
+            // the channel gate (LearnedBreak.Measured): a channel the model was not measured on, or measured badly on, is covered in sure
+            // breaks only, unless the person set it to On themselves
+            var gated = !st.Model.AdFreeChannel && !st.SureOnly && ChannelGated(st.ChannelName);
+            if (gated != st.Gated) { st.Gated = gated; if (gated) LogLine("break watch " + id + ": " + st.ChannelName + " has no measured rate good enough in this model (sure breaks only)"); }
+            st.SureOnly |= gated;
             var hadLogo = st.Model.HasLogo;
             var changed = st.Model.Step(shot.Value.Gray, now, dt);
             st.Recent.Enqueue(DateTime.Now.ToString("HH:mm:ss") + " " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " covered" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : "") + (st.Model.NearEdge ? " near edge" : ""));
@@ -427,11 +467,13 @@ public sealed partial class MainWindow
             var covered = st.Model.Active;
             if (LearnedOn && st.L is not null)
             {
-                var lp = s_learned!.Score(st.L, st.Model.Features(now), printSeenNow ? 1 : 0, now, 0, DateTime.Now.TimeOfDay.TotalSeconds);
+                Dictionary<string, double>? repNow = null;
+                if (s_repLib is not null && shot.Value.Gray is { Length: 320 * 180 } rg) { st.Rep ??= new RepFeatures(s_repLib, 6, s_knownShow); st.Rep.Step(rg, now); repNow = st.Rep.Readings(); }
+                var lp = s_learned!.Score(st.L, st.Model.Features(now), printSeenNow ? 1 : 0, now, 0, DateTime.Now.TimeOfDay.TotalSeconds, repNow);
                 // the picture network's chance for this frame, added in logit at the policy's weight (as the bench's PICW and the extension)
                 if (s_picNet is not null && shot.Value.Gray is { Length: 320 * 180 } g)
                 {
-                    var q = Math.Clamp(s_picNet.Chance(g, now - st.PicPrevAt < 3 ? st.PicPrev : null), 0.001, 0.999); var l0 = Math.Clamp(lp, 0.001, 0.999);
+                    var q = Math.Clamp(PicChance(st, g, now), 0.001, 0.999); var l0 = Math.Clamp(lp, 0.001, 0.999);
                     var blended = 1 / (1 + Math.Exp(-(Math.Log(l0 / (1 - l0)) + s_learned.PictureWeight * Math.Log(q / (1 - q)))));
                     // agreement to start (policy "agree", 2026-11-07): no cover begins unless both detectors lean to a break
                     if (s_learned.Agree && !st.L.Up && (lp < s_learned.TreeMin || q < s_learned.NetMin)) blended = 0;
@@ -542,7 +584,7 @@ public sealed partial class MainWindow
                 if (withheld != st.Withheld) { st.Withheld = withheld; if (withheld) LogLine("break watch " + id + ": a break the watch found is not covered (sure breaks only on " + st.ChannelName + ")"); }
             }
             else st.Withheld = false;
-            // Covered only while watched live (2026-11-06, Prism and Veil alike): rewound, paused behind or a recording, the viewer can skip an
+            // Covered only while watched live (2026-11-06, PRISM and Veil alike): rewound, paused behind or a recording, the viewer can skip an
             // ad themselves and undo a wrong cover by scanning back. The adapter's meter reads it from the video's clock. The watch goes on reading
             // and learning; only the cover is held back.
             if (st.BehindLive != st.BehindNoted) { st.BehindNoted = st.BehindLive; LogLine("break watch " + id + ": " + (st.BehindLive ? "behind the live edge or a recording - no cover" : "at the live edge")); }
@@ -619,7 +661,7 @@ public sealed partial class MainWindow
     /// <summary>Channels that carry no commercials: never covered (C-SPAN2 was covered ten minutes, 2026-10-06).</summary>
     private static readonly Regex AdFree = new(@"^(C-SPAN\d?|PBS( Kids)?|PBS .*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    /// <summary>Channels the person asked Prism never to cover (2026-10-06): kept by name.</summary>
+    /// <summary>Channels the person asked PRISM never to cover (2026-10-06): kept by name.</summary>
     private static List<string> ChannelsOff() => HostPrefs.GetString("video.breakWatchOff", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
     private static bool ChannelOff(string name) => name.Length > 0 && ChannelsOff().Contains(name, StringComparer.OrdinalIgnoreCase);
     private void SetChannelOff(string name, bool off) => SetChannelMode(name, off ? ChannelCovers.Off : ChannelCovers.On);
@@ -628,6 +670,12 @@ public sealed partial class MainWindow
     /// YouTube TV's own marked ad slot, and a paid programme the guide or the screen names. Off: never. Kept by channel name; the channels
     /// turned off stay in the list they always were in (video.breakWatchOff), the sure ones beside it (video.breakWatchSure).</summary>
     internal enum ChannelCovers { On, Sure, Off }
+    /// <summary>The channels the person set to On themselves (video.breakWatchOn, 2026-11-11): the channel gate leaves these alone.</summary>
+    private static List<string> ChannelsOn() => HostPrefs.GetString("video.breakWatchOn", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
+    /// <summary>The channel gate holds this channel to sure breaks only: the learned detector is on, its model has no measured rate good
+    /// enough for the channel, and the person has not set the channel to On.</summary>
+    internal static bool ChannelGated(string name) =>
+        name.Length > 0 && LearnedOn && s_learned is { } lb && !lb.Measured(name) && !ChannelsOn().Contains(name, StringComparer.OrdinalIgnoreCase);
     private static List<string> ChannelsSure() => HostPrefs.GetString("video.breakWatchSure", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
     private static ChannelCovers ChannelMode(string name) =>
         name.Length == 0 ? ChannelCovers.On : ChannelOff(name) ? ChannelCovers.Off : ChannelsSure().Contains(name, StringComparer.OrdinalIgnoreCase) ? ChannelCovers.Sure : ChannelCovers.On;
@@ -637,12 +685,15 @@ public sealed partial class MainWindow
         var off = ChannelsOff(); off.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
         var sure = ChannelsSure(); sure.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
         if (mode == ChannelCovers.Off) off.Add(name); else if (mode == ChannelCovers.Sure) sure.Add(name);
+        var on = ChannelsOn(); on.RemoveAll(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+        if (mode == ChannelCovers.On) on.Add(name);
+        HostPrefs.Set("video.breakWatchOn", string.Join("|", on));
         HostPrefs.Set("video.breakWatchOff", string.Join("|", off));
         HostPrefs.Set("video.breakWatchSure", string.Join("|", sure));
         LogLine("break watch: " + name + (mode == ChannelCovers.Off ? " won't be covered" : mode == ChannelCovers.Sure ? " is covered in sure breaks only" : " is covered again"));
     }
 
-    /// <summary>A channel whose covers the person keeps calling wrong drops to sure breaks only (2026-10-10). Prism only knows a cover was wrong when it is told, so the count is of
+    /// <summary>A channel whose covers the person keeps calling wrong drops to sure breaks only (2026-10-10). PRISM only knows a cover was wrong when it is told, so the count is of
     /// Not an ad presses on the channel in the last seven days: video.breakWatchAutoSure of them (3 unless set, 0 for never). It says so
     /// on the status line; the channel's menu in Live and Watch settings put it back.</summary>
     private void NotAdCounted(string name)
@@ -660,7 +711,7 @@ public sealed partial class MainWindow
         if (n < limit) return;
         SetChannelMode(name, ChannelCovers.Sure);
         LogLine("break watch: " + name + " said Not an ad " + n + " times in a week - sure breaks only from here");
-        SetPill("Prism" + Mid + name + " is now covered only in breaks YouTube TV marks, after " + n + " Not an ad presses this week. Right-click the channel in Live to change it");
+        SetPill("PRISM" + Mid + name + " is now covered only in breaks YouTube TV marks, after " + n + " Not an ad presses this week. Right-click the channel in Live to change it");
     }
 
     private static string ModelPath(string channel) => Path.Combine(BreakWatchDir, channel + ".logo");
@@ -675,7 +726,7 @@ public sealed partial class MainWindow
     /// Dev only (PRISM_FRAME_SAMPLER=1): the test bench's recording (2026-10-07, the owner agreed - a change is replayed on everything recorded
     /// before it goes live). Each look's 320x180 grey frame as diagnostics\bench\window\HHmmssfff.gray, and every reading - the screen's
     /// words, a QR code, captions, silences, the program edge, the channel, the watch's own calls - as lines of events.log, on the same
-    /// clock (seconds since Prism started, and the wall time). An hour a window is kept.
+    /// clock (seconds since PRISM started, and the wall time). An hour a window is kept.
     /// </summary>
     private static readonly bool BenchOn = Environment.GetEnvironmentVariable("PRISM_FRAME_SAMPLER") == "1";
     // a count for each window (2026-10-08): with one count for all, a window was trimmed only when it happened to write the 600th frame -
@@ -684,7 +735,7 @@ public sealed partial class MainWindow
     /// <summary>Ad debug is on: the full ad watching and, on a dev machine, the bench's recording (set as the switch changes).</summary>
     private static bool s_adDebug;
     /// <summary>
-    /// Keep recording (2026-10-08): the bench records with Ad debug off too, so the PC can be used as Prism, covers drawn, while the
+    /// Keep recording (2026-10-08): the bench records with Ad debug off too, so the PC can be used as PRISM, covers drawn, while the
     /// recordings for training go on. Until now a recording meant Ad debug, and Ad debug means no covers: the PC either gathered data or
     /// was a viewer. A dev machine's switch only (PRISM_FRAME_SAMPLER=1). While it is on every window is looked at each second, as the
     /// kept recordings all were. The frames are the page's own picture and the sound is the page's own meter, so a drawn cover and its
@@ -781,7 +832,7 @@ public sealed partial class MainWindow
                 // redacted like every diagnostics write (B-91, section 22), but for the sound's fingerprint: its line is a run of hex words,
                 // which is what the redactor takes a secret to look like, and the replay matches ads by it
                 var body = evt.Replace('\n', ' ').Replace('\r', ' ');
-                File.AppendAllText(Path.Combine(dir, "events.log"), wall.ToString("HHmmssfff") + " " + t.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " " + (body.StartsWith("afp ", StringComparison.Ordinal) ? body : PrismHost.Diagnostics.Redact.Line(body)) + Environment.NewLine);
+                File.AppendAllText(Path.Combine(dir, "events.log"), wall.ToString("HHmmssfff") + " " + t.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + " " + (body.StartsWith("afp ", StringComparison.Ordinal) || body.StartsWith("palette ", StringComparison.Ordinal) ? body : PrismHost.Diagnostics.Redact.Line(body)) + Environment.NewLine);   // the palette (2026-11-08) is 64 counts as hex, the same shape as the sound print
             }
         }
         catch { }

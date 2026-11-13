@@ -67,6 +67,8 @@ public static class Tokens
     /// <summary>Amber at an alpha: the borders and washes the rail, the wizard and the menu draw (0x18 to 0x66), and a lit edge (0xB0).</summary>
     public static Color AmberColorAt(byte alpha) => Color.FromArgb(alpha, 0xF2, 0xB1, 0x4C);
     public static SolidColorBrush AmberAt(byte alpha) => new(AmberColorAt(alpha));
+    /// <summary>The ground at an alpha: a shade laid behind text that stands on a picture (the song's label on a visual).</summary>
+    public static Color GroundColorAt(byte alpha) => Color.FromArgb(alpha, GroundColor.R, GroundColor.G, GroundColor.B);
     public static Color DimColorAt(byte alpha) => Color.FromArgb(alpha, 0x8A, 0x93, 0xA2);
     public static Color TealColorAt(byte alpha) => Color.FromArgb(alpha, 0x5C, 0xC8, 0xC0);
     public static Color PanelColorAt(byte alpha) => Color.FromArgb(alpha, 0x12, 0x13, 0x1A);

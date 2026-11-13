@@ -10,30 +10,30 @@
 - For one of the household's own services the card also has **Open here instead** (the title on the service's page in the big
   window, which is what the press did before 2026-10-11) and **I've bought it** (the service's lists are read again, so the title
   shows in the Library).
-- A service Prism has an adapter for but the household has not set up shows the code alone. A service Prism has no adapter for has
+- A service PRISM has an adapter for but the household has not set up shows the code alone. A service PRISM has no adapter for has
   no card: its logo is information, as before.
 
 ## After the purchase (2026-10-11)
 
-- Prism has no feed from a service: it learns of a purchase by reading the service's own pages on a hidden surface, the lists and
+- PRISM has no feed from a service: it learns of a purchase by reading the service's own pages on a hidden surface, the lists and
   Continue Watching every twenty minutes and the owned pages (the long walk) every six hours. A title bought and never started is
   on no Continue row, so on the timed schedule alone it could take hours to appear.
 - **I've bought it, play it**: the service's own page knows a purchase the instant it is made, so the card's button opens the title
   there in the big window, where it plays, and reads the service's owned pages again behind it (`videoRefreshApp(app, true)`).
-- **New in your library**: a title that joins a library Prism already knows is new to it for a week (`video.ts` keepOwned,
+- **New in your library**: a title that joins a library PRISM already knows is new to it for a week (`video.ts` keepOwned,
   newlyOwned; `new-owned` in the store), and the Watch page leads with those, newest first, before Continue watching. The first
   read of a library makes nothing new, and only the first eight of a read can be: a service lists what was added last first, and
   a title an earlier partial read of a large library had missed turns up anywhere (The Guard, 2011, a YouTube TV purchase, read
   as new by the first walk after this was built, 2026-10-11). Tests: `video-new-owned.test.ts`.
-- Prime Video reports no library to Prism, so a purchase there shows only once it is played there. Reading its purchases page is
+- Prime Video reports no library to PRISM, so a purchase there shows only once it is played there. Reading its purchases page is
   an adapter of its own, not written.
 
 ## The rules it keeps
 
-- **Prism takes no part in the purchase.** It never handles payment, takes no cut and adds no referral code, and the card says so.
+- **PRISM takes no part in the purchase.** It never handles payment, takes no cut and adds no referral code, and the card says so.
   It never signs anyone up either (docs/third-party-services-policy.md).
 - **The code is the service's own address**: its search page for the title (the adapter's `videoSearchUrl`), never a link through an
-  availability service, which would carry that service's own tracking. Prism makes no request for it. The phone opens it.
+  availability service, which would carry that service's own tracking. PRISM makes no request for it. The phone opens it.
 - **No price is shown.** The availability data (JustWatch, through TMDB) says who sells a title, not for how much. The service's page
   shows the price.
 - **Where a service sells is the service's own fact**, kept in its adapter with the source it was read from (`purchase: { where,

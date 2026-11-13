@@ -4,7 +4,7 @@ using Xunit;
 namespace PrismHost.Tests;
 
 /// <summary>
-/// Adapters and catalog entries from two places (2026-09-29): the ones Prism ships and the ones added on the device. The rules are
+/// Adapters and catalog entries from two places (2026-09-29): the ones PRISM ships and the ones added on the device. The rules are
 /// AdapterFiles' own: a newer added adapter stands over a shipped one, a shipped catalog entry always stands, a bad file is left out
 /// with a line for the log and never breaks the rest.
 /// </summary>
@@ -56,7 +56,7 @@ public sealed class AdapterFilesTests : IDisposable
         Write(Added, "adapters", "netflix", "{\"version\":\"0.4.10\",\"match\":[\"www.netflix.com\"]}");
         var f = Files();
         Assert.EndsWith(Path.Combine("data", "adapters", "netflix.json"), f.AdapterPath("netflix"));
-        Assert.False(f.IsAdded("netflix"));   // the service is Prism's own; only its adapter is newer
+        Assert.False(f.IsAdded("netflix"));   // the service is PRISM's own; only its adapter is newer
 
         Write(Added, "adapters", "netflix", "{\"version\":\"0.4.2\",\"match\":[\"www.netflix.com\"]}");
         f = Files();
@@ -70,7 +70,7 @@ public sealed class AdapterFilesTests : IDisposable
         Write(Added, "catalog", "netflix", "{\"id\":\"netflix\",\"name\":\"Not Netflix\",\"url\":\"https://example.com/\"}");
         var f = Files();
         Assert.EndsWith(Path.Combine("assets", "catalog", "netflix.json"), f.Catalog["netflix"].Path);
-        Assert.Contains(f.Notes, n => n.Contains("ships with Prism"));
+        Assert.Contains(f.Notes, n => n.Contains("ships with PRISM"));
     }
 
     [Fact]

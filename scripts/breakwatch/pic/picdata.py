@@ -1,5 +1,5 @@
 """The picture study's data (2026-10-08): every marked second's kept frame, halved to 160x90, with its mark, its channel, and whether it is
-a second the live trees were trained on (trained.json) or an exam's (exams.json). Nothing here is read by Prism.
+a second the live trees were trained on (trained.json) or an exam's (exams.json). Nothing here is read by PRISM.
 
     python scripts/breakwatch/pic/picdata.py <out.npz>
 

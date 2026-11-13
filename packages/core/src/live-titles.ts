@@ -2,7 +2,7 @@
  * The Live tab's titles from TMDB (docs/features/live.md, 2026-10-02, Entertainment mode: and): a channel named after one series ("Are We There Yet?", "Below Deck"), or the program a channel has on, looked up on
  * TMDB by its exact name. What comes back is a named source's word, shown as such: the show's poster, year and TMDB's rating on the
  * Now-on strip, and - for a channel the service gave no category - a Live type from TMDB's first genre for the show, labelled "by TMDB's
- * genre for <show>". Prism's own rules on the name stand where TMDB names nothing.
+ * genre for <show>". PRISM's own rules on the name stand where TMDB names nothing.
  *
  * Pure: which names are looked up, how a search answer is accepted, and the genre-to-type mapping. The orchestrator asks TMDB (one
  * search at a time, the answers kept on the device for a week), the runtime applies the answers, the host draws.

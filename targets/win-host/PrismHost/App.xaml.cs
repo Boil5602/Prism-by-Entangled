@@ -84,9 +84,9 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Fail("Prism requires the Microsoft Edge WebView2 EVERGREEN runtime.\n\n" +
+            Fail("PRISM requires the Microsoft Edge WebView2 EVERGREEN runtime.\n\n" +
                  "It was not found on this machine (a Fixed Version runtime does not count — " +
-                 "it lacks PlayReady DRM).\n\nInstall it from https://developer.microsoft.com/microsoft-edge/webview2/ and start Prism again.\n\n" +
+                 "it lacks PlayReady DRM).\n\nInstall it from https://developer.microsoft.com/microsoft-edge/webview2/ and start PRISM again.\n\n" +
                  "Detail: " + ex.Message);
             return;
         }
@@ -96,8 +96,8 @@ public partial class App : Application
             return;
         }
 
-        // the phone launcher (Services/PhoneLauncher, 2026-10-23): Prism says it is running, and the launcher that answers the phone while
-        // Prism is closed is started if it is not running
+        // the phone launcher (Services/PhoneLauncher, 2026-10-23): PRISM says it is running, and the launcher that answers the phone while
+        // PRISM is closed is started if it is not running
         Services.PhoneLauncher.HostStarted(HostPrefs.GetBool("phone.launcher", true), HostPaths.IsOverridden,
             line => { try { File.AppendAllText(Path.Combine(HostPaths.Diagnostics, "host.log"), PrismHost.Diagnostics.Redact.Line(DateTime.Now.ToString("HH:mm:ss.fff") + " " + line) + "\n"); } catch { } });
 
@@ -109,7 +109,7 @@ public partial class App : Application
 
     private static void Fail(string message)
     {
-        _ = MessageBoxW(IntPtr.Zero, message, "Prism cannot start", 0x00000010 /* MB_ICONERROR */);
+        _ = MessageBoxW(IntPtr.Zero, message, "PRISM cannot start", 0x00000010 /* MB_ICONERROR */);
         Environment.Exit(1);
     }
 

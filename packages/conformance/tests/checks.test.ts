@@ -73,7 +73,7 @@ describe("conformance kit (§23)", () => {
     for (const r of results) {
       expect(r.pass, `${r.name}: ${r.detail}`).toBe(true);
     }
-    expect(formatReport(results)).toContain("this shell is a Prism");
+    expect(formatReport(results)).toContain("this shell is a PRISM");
   });
 
   it("a shell with wrong rects fails rects-solver-identical", async () => {

@@ -53,7 +53,7 @@ public sealed partial class MainWindow
         if (tile is null) return;
         LogLine("swap: window " + (pick + 1) + " (" + tile + ") to the big screen");
         await MvCallAsync("focus", tile);
-        SetPill("Prism" + Mid + Shorten(MvWindowName(tile), 40) + " on the big screen");
+        SetPill("PRISM" + Mid + Shorten(MvWindowName(tile), 40) + " on the big screen");
         if (StageBar.Visibility == Visibility.Visible) await ShowStageBarAsync(true);
         DrawMvStrip();
     }

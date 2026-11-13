@@ -26,6 +26,91 @@ if (args.Length >= 4 && args[0] == "known")
     return;
 }
 var root = (Environment.GetEnvironmentVariable("BENCHROOT") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "diagnostics", "bench"));
+if (args.Length >= 2 && args[0] == "verifycost")
+{
+    // the end verifier's cost under ONNX Runtime (2026-11-08, the addendum's Phase C): verifycost <verifier.onnx> [calls]; five frames of
+    // 106x60 and the hand readings, one call at a time as the watch would make them, every five seconds under a cover
+    var calls = args.Length > 2 ? int.Parse(args[2]) : 200;
+    using var sess = new Microsoft.ML.OnnxRuntime.InferenceSession(args[1]);
+    var nfeat = (int)sess.InputMetadata["features"].Dimensions[1];
+    var frames = new Microsoft.ML.OnnxRuntime.Tensors.DenseTensor<float>(new[] { 1, 5, 60, 106 }); var feats = new Microsoft.ML.OnnxRuntime.Tensors.DenseTensor<float>(new[] { 1, nfeat });
+    var rnd = new Random(1); for (var i = 0; i < 5 * 60 * 106; i++) frames.SetValue(i, (float)rnd.NextDouble()); for (var i = 0; i < nfeat; i++) feats.SetValue(i, (float)rnd.NextDouble());
+    var inputs = new List<Microsoft.ML.OnnxRuntime.NamedOnnxValue> { Microsoft.ML.OnnxRuntime.NamedOnnxValue.CreateFromTensor("frames", frames), Microsoft.ML.OnnxRuntime.NamedOnnxValue.CreateFromTensor("features", feats) };
+    for (var i = 0; i < 10; i++) using (sess.Run(inputs)) { }
+    var sw = System.Diagnostics.Stopwatch.StartNew(); var times = new List<double>();
+    for (var i = 0; i < calls; i++) { var t0 = sw.Elapsed.TotalMilliseconds; using (sess.Run(inputs)) { } times.Add(sw.Elapsed.TotalMilliseconds - t0); }
+    times.Sort();
+    Console.WriteLine($"verifier: {calls} calls, median {times[times.Count / 2]:0.00} ms, p90 {times[(int)(times.Count * 0.9)]:0.00} ms, max {times[^1]:0.00} ms (CPU, ONNX Runtime {typeof(Microsoft.ML.OnnxRuntime.InferenceSession).Assembly.GetName().Version}); process {Environment.WorkingSet / 1048576} MB");
+    return;
+}
+if (args.Length == 3 && args[0] == "fpparity")
+{
+    // the C# audio landmarks against fingerprint.py's dump (2026-11-08, E3): fpparity <pcm.f32> <dump.csv of hash,frame>
+    var raw = File.ReadAllBytes(args[1]); var pcm = new float[raw.Length / 4]; Buffer.BlockCopy(raw, 0, pcm, 0, pcm.Length * 4);
+    var sw = System.Diagnostics.Stopwatch.StartNew(); var lm = AudioLandmarks.Of(pcm); var ms = sw.Elapsed.TotalMilliseconds;
+    var want = new HashSet<(uint, int)>(); foreach (var line in File.ReadLines(args[2])) { var sp = line.Split(','); if (sp.Length == 2) want.Add((uint.Parse(sp[0]), int.Parse(sp[1]))); }
+    var have = new HashSet<(uint, int)>(); foreach (var (h, t) in lm) have.Add((h, t));
+    var both = 0; foreach (var x in have) if (want.Contains(x)) both++;
+    Console.WriteLine($"C#: {have.Count} landmarks, python: {want.Count}, shared {both} ({100.0 * both / Math.Max(1, want.Count):0.0}% of python's), {pcm.Length / 16000.0:0.0} s of sound in {ms:0} ms ({ms / (pcm.Length / 16000.0):0.00} ms a second)");
+    return;
+}
+if (args.Length == 2 && args[0] == "phashparity")
+{
+    // the C# frame hash against phash.py's dump (2026-11-08, E1): phashparity <dump.csv of path,hex>
+    int n = 0, same = 0, worst = 0; var sw = System.Diagnostics.Stopwatch.StartNew();
+    foreach (var line in File.ReadLines(args[1]))
+    {
+        var sp = line.Split(','); if (sp.Length < 2) continue;
+        var h = FrameHash.Of(File.ReadAllBytes(sp[0])); var want = Convert.ToUInt64(sp[1], 16); var d = FrameHash.Bits(h ^ want);
+        n++; if (d == 0) same++; if (d > worst) worst = d;
+    }
+    Console.WriteLine($"{n} frames: {same} identical, largest difference {worst} bits, {sw.Elapsed.TotalMilliseconds / Math.Max(1, n):0.00} ms a frame");
+    return;
+}
+if (args.Length == 3 && args[0] == "mp3pcm")
+{
+    // an MP3 to 16 kHz mono float32 PCM (2026-11-08, the fingerprinter's prototype reads it): mp3pcm <in.mp3> <out.f32>
+    using var mp3 = new FileStream(args[1], FileMode.Open, FileAccess.Read, FileShare.ReadWrite);   // the hour being written is readable too
+    using var reader = new NAudio.Wave.Mp3FileReader(mp3);
+    var mono = NAudio.Wave.WaveExtensionMethods.ToSampleProvider(reader);
+    if (reader.WaveFormat.Channels == 2) mono = new NAudio.Wave.SampleProviders.StereoToMonoSampleProvider(mono);
+    var res = reader.WaveFormat.SampleRate == 16000 ? mono : new NAudio.Wave.SampleProviders.WdlResamplingSampleProvider(mono, 16000);
+    using var outf = new BinaryWriter(File.Create(args[2])); var buf = new float[16000]; int got; long total = 0;
+    while ((got = res.Read(buf, 0, buf.Length)) > 0) { for (var i = 0; i < got; i++) outf.Write(buf[i]); total += got; }
+    Console.WriteLine($"{total} samples, {total / 16000.0:0.0} s at 16 kHz mono");
+    return;
+}
+if (args.Length == 3 && args[0] == "decideparity")
+{
+    // the cover policy alone on a sequence of chances (2026-11-08, the soft refractory's parity with the JS port): decideparity <model.json> <seq.csv of t,p>
+    var lb = LearnedBreak.Load(args[1]) ?? throw new Exception("not a model"); var st = lb.NewState(); var outp = new List<string>();
+    foreach (var line in File.ReadLines(args[2]).Skip(1)) { var sp = line.Split(','); var tt = double.Parse(sp[0], System.Globalization.CultureInfo.InvariantCulture); var pp = double.Parse(sp[1], System.Globalization.CultureInfo.InvariantCulture); outp.Add(lb.Decide(st, pp, tt) ? "1" : "0"); }
+    Console.WriteLine(string.Join("", outp)); return;
+}
+if (args.Length == 3 && args[0] == "picparity")
+{
+    // the C# picture network against the trainer's parity rows (2026-11-07): picparity <picture-net.json> <picture-net-parity.json>;
+    // a temporal row names the frames behind it (back), the two-channel rows the frame before alone
+    var pn = PictureNet.Load(args[1]) ?? throw new Exception("not a picture network");
+    using var pd = System.Text.Json.JsonDocument.Parse(File.ReadAllText(args[2]));
+    double worst = 0; int n = 0, side = 0; var sw = System.Diagnostics.Stopwatch.StartNew();
+    foreach (var row in pd.RootElement.EnumerateArray())
+    {
+        var g = File.ReadAllBytes(row.GetProperty("frame").GetString()!);
+        var prev = row.TryGetProperty("prev", out var pv) && pv.ValueKind == System.Text.Json.JsonValueKind.String ? File.ReadAllBytes(pv.GetString()!) : null;
+        double q;
+        if (pn.InChannels == 4)
+        {
+            var back = new byte[]?[5]; var k = 0;
+            foreach (var bk in row.GetProperty("back").EnumerateArray()) back[k++] = bk.ValueKind == System.Text.Json.JsonValueKind.String ? File.ReadAllBytes(bk.GetString()!) : null;
+            q = pn.Chance(g, prev, back);
+        }
+        else q = pn.Chance(g, prev);
+        var want = row.GetProperty("p").GetDouble(); var d = Math.Abs(q - want); if (d > worst) worst = d; if ((q > 0.5) != (want > 0.5)) side++; n++;
+    }
+    Console.WriteLine($"{n} frames: largest difference {worst:0.00e0}, {side} on the other side of 0.5, {sw.Elapsed.TotalMilliseconds / Math.Max(1, n):0.0} ms a frame");
+    return;
+}
 if (args.Length == 2 && args[0] == "setaside")
 {
     var path = Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), args[1] + ".logo");
@@ -294,20 +379,58 @@ if (args.Length >= 4 && args[0] == "bench")
     // the test bench (2026-10-07): replay the recorded frames and readings of every window between two wall times through today's model,
     // writing its calls as host.log lines for rates2.py. Known ads from the library as it stands (an optimistic read for breaks it learned from).
     var bench = (Environment.GetEnvironmentVariable("BENCHROOT") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "diagnostics", "bench"));
-    var lib = new AdPrints(Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), "prints.bin"), Environment.GetEnvironmentVariable("CATALOG"));   // CATALOG: the shipped catalog, as Prism reads it
+    var lib = new AdPrints(Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), "prints.bin"), Environment.GetEnvironmentVariable("CATALOG"));   // CATALOG: the shipped catalog, as PRISM reads it
     var snd = new AdSounds(Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), "sounds.bin"));
     string from = args[1], to = args[2];
     static double Sec(string hms) => int.Parse(hms[..2]) * 3600 + int.Parse(hms[2..4]) * 60 + int.Parse(hms[4..6]) + (hms.Length >= 9 ? int.Parse(hms[6..9]) / 1000.0 : 0);
     using var outw = new StreamWriter(args[3]);
     // the learned detector's training rows (2026-10-07): one a frame, every window, the model's readings after the frame
     using var feat = Environment.GetEnvironmentVariable("FEATCSV") is { Length: > 0 } fpath ? new StreamWriter(fpath) : null;
-    // the learned detector run as Prism runs it (LMODEL=model.json): every row's chance (LPARITY=...csv) and its covers as calls (LCALLS=...log)
+    // the learned detector run as PRISM runs it (LMODEL=model.json): every row's chance (LPARITY=...csv) and its covers as calls (LCALLS=...log)
     var learned = Environment.GetEnvironmentVariable("LMODEL") is { Length: > 0 } lm ? LearnedBreak.Load(lm) : null;
     // PICNET=<picture-net.json> PICW=<weight> (2026-11-06, the feature review's item 3): the picture network's chance added in logit to
     // the learned chance, as the app and the extension would; each window's frame before, if within three seconds, is its second input
     var picNet = Environment.GetEnvironmentVariable("PICNET") is { Length: > 0 } pn ? PictureNet.Load(pn) : null;
+    // PICNET2=<picture-net.json> (2026-11-08, the addendum's Phase F): the network for a window whose channel is NOT known - known being
+    // a runtime-observable fact, the channel has a logo reference in the library in use (m.HasLogo); PICNET serves the known ones
+    var picNet2 = Environment.GetEnvironmentVariable("PICNET2") is { Length: > 0 } pn2 ? PictureNet.Load(pn2) : null;
+    long netKnownLooks = 0, netUnknownLooks = 0;
     var picW = double.TryParse(Environment.GetEnvironmentVariable("PICW"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pw) ? pw : 0.75;
     var picPrev = new Dictionary<string, (double T, byte[] G)>();
+    var picRing = new Dictionary<string, List<(double T, byte[] G)>>();   // the last eleven seconds of a window's frames, for a temporal network (2026-11-07)
+    // PICMED=N (2026-11-07, the strategy ledger's first untried row): the network's chance is the median of its last N looks in the
+    // window (a gap over six seconds starts the run again) before it joins the blend, against single-frame pop-ups
+    var picMed = int.TryParse(Environment.GetEnvironmentVariable("PICMED"), out var pmN) && pmN > 1 ? pmN : 1;
+    // PICA=<scale> PICB=<shift> (2026-11-07, the calibration row): the network's logit is scaled and shifted before the blend, the
+    // Platt fit cnn.py writes to calibration.json from its held folds (CALIB=1); 1 and 0 leave it as it is
+    var picA = double.TryParse(Environment.GetEnvironmentVariable("PICA"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pa) ? pa : 1.0;
+    var picB = double.TryParse(Environment.GetEnvironmentVariable("PICB"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pb) ? pb : 0.0;
+    var picRun = new Dictionary<string, (double T, List<double> Q)>();
+    // EXTRAFEAT=<folder> (2026-11-08, the redesign's E1): per-window CSVs (t,rep_near,rep_count15) read as extra named readings for the trees
+    var extraDir = Environment.GetEnvironmentVariable("EXTRAFEAT");
+    // REPLIB=<library file> (2026-11-08, E1 as the product computes it): the repetition readings from the frame hash against a library,
+    // one RepFeatures per window; it takes precedence over the sidecar
+    var repLib = Environment.GetEnvironmentVariable("REPLIB") is { Length: > 0 } rl ? RepLibrary.Load(rl) : null;
+    if (Environment.GetEnvironmentVariable("REPLIB") is { Length: > 0 } && repLib is null) throw new Exception("REPLIB: not a library");
+    var repOf = new Dictionary<string, RepFeatures>();
+    var extraRows = new Dictionary<string, (double[] T, double[] A, double[] B)>();
+    (double[] T, double[] A, double[] B)? ExtraOf(string w)
+    {
+        if (string.IsNullOrEmpty(extraDir)) return null;
+        if (extraRows.TryGetValue(w, out var have)) return have.T.Length == 0 ? null : have;
+        var path = Path.Combine(extraDir, w + ".csv");
+        if (!File.Exists(path)) { extraRows[w] = (Array.Empty<double>(), Array.Empty<double>(), Array.Empty<double>()); return null; }
+        var tt = new List<double>(); var aa = new List<double>(); var bb = new List<double>();
+        foreach (var line in File.ReadLines(path).Skip(1)) { var sp = line.Split(','); if (sp.Length < 3) continue; tt.Add(double.Parse(sp[0], System.Globalization.CultureInfo.InvariantCulture)); aa.Add(double.Parse(sp[1], System.Globalization.CultureInfo.InvariantCulture)); bb.Add(double.Parse(sp[2], System.Globalization.CultureInfo.InvariantCulture)); }
+        var r = (tt.ToArray(), aa.ToArray(), bb.ToArray()); extraRows[w] = r; return r;
+    }
+    Dictionary<string, double>? ExtraAt(string w, double t)
+    {
+        var r = ExtraOf(w); if (r is null) return null;
+        var k = Array.BinarySearch(r.Value.T, t); if (k < 0) k = ~k;
+        var best = -1; foreach (var j in new[] { k - 1, k }) if (j >= 0 && j < r.Value.T.Length && Math.Abs(r.Value.T[j] - t) <= 1.5 && (best < 0 || Math.Abs(r.Value.T[j] - t) < Math.Abs(r.Value.T[best] - t))) best = j;
+        return best < 0 ? new Dictionary<string, double> { ["rep_near"] = 0, ["rep_count15"] = 0 } : new Dictionary<string, double> { ["rep_near"] = r.Value.A[best], ["rep_count15"] = r.Value.B[best] };
+    }
     var agree = Environment.GetEnvironmentVariable("AGREE") == "1";
     var treeMin = double.TryParse(Environment.GetEnvironmentVariable("TREEMIN"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tm) ? tm : 0.5;
     var netMin = double.TryParse(Environment.GetEnvironmentVariable("NETMIN"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var nm) ? nm : 0.5;
@@ -318,7 +441,12 @@ if (args.Length >= 4 && args[0] == "bench")
     // day differ by themselves when the library they read is the live one, still learning)
     using var lcalls0 = learned is not null && Environment.GetEnvironmentVariable("LCALLS0") is { Length: > 0 } lc0 ? new StreamWriter(lc0) : null;
     var lpSure = Environment.GetEnvironmentVariable("LPSURE") == "1";
-    lpar?.WriteLine(lpSure ? "win,t,p,trees,sure_ad,sure_show" : "win,t,p");
+    // LPWIDE=1 (2026-11-07, the boundary-first redesign's offline sweeps): beside the blended chance, the trees' own, the network's, the
+    // time since black and since a hard cut, the minute of the hour, whether the learned cover was up, and the sure-ad / sure-show flags
+    var lpWide = Environment.GetEnvironmentVariable("LPWIDE") == "1";
+    var ixBlack = Array.IndexOf(BreakModel.FeatureNames, "since_black"); var ixCut = Array.IndexOf(BreakModel.FeatureNames, "since_cut");
+    long costTrees = 0, costNet = 0, costLooks = 0; var costSw = new System.Diagnostics.Stopwatch();   // ms a look, for the report's cost table
+    lpar?.WriteLine(lpWide ? "win,t,p,trees,q,since_black,since_cut,minute,up,sure_ad,sure_show,cue_on" : lpSure ? "win,t,p,trees,sure_ad,sure_show" : "win,t,p");
     feat?.WriteLine("win,t," + string.Join(",", BreakModel.FeatureNames) + ",print_seen" + (Environment.GetEnvironmentVariable("COVERSIGHT") is { Length: > 0 } ? ",cover_up" : ""));
     foreach (var dir in Directory.GetDirectories(bench))
     {
@@ -351,7 +479,7 @@ if (args.Length >= 4 && args[0] == "bench")
         items = items.OrderBy(x => x.at, StringComparer.Ordinal).ThenBy(x => x.frame is null ? 0 : 1).ToList();   // stable: equal times keep their order
         BreakModel? m = chan is null ? null : BreakModel.Load(Path.Combine(Environment.GetEnvironmentVariable("BWDIR") ?? Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA")!, "Prism", "breakwatch"), chan + ".logo"));
         double last = 0; var name = ""; var sound = new List<uint>();
-        // HEARD=<folder>: the seconds at which this window's sound was a learned ad's (repeats.py --heard: a Prism that learns an ad's
+        // HEARD=<folder>: the seconds at which this window's sound was a learned ad's (repeats.py --heard: a PRISM that learns an ad's
         // sound from its repeats, played forward), one a line in <folder>/<window>.heard - counted as AdSounds hearing it
         var heardAt = new HashSet<int>();
         if (Environment.GetEnvironmentVariable("HEARD") is { Length: > 0 } hd && File.Exists(Path.Combine(hd, win + ".heard")))
@@ -367,9 +495,9 @@ if (args.Length >= 4 && args[0] == "bench")
         var ccBlind = int.TryParse(Environment.GetEnvironmentVariable("CCBLIND"), out var cb_) ? cb_ : 0; var ccLineAt = Array.IndexOf(BreakModel.FeatureNames, "since_cc_line");
         var half = Environment.GetEnvironmentVariable("HALF") == "1"; var skips = 0;
         // COVERSIGHT (2026-11-06, the extension's spotted veil): what the model sees while a cover is up, when the cover is in the picture
-        // it reads (a browser tab's own stream records Veil's cover; Prism's own capture never holds its cover): art = an opaque cover, its picture still; corner = the cover leaves
+        // it reads (a browser tab's own stream records Veil's cover; PRISM's own capture never holds its cover): art = an opaque cover, its picture still; corner = the cover leaves
         // the learned logo's corner (80x45) open and the rest is the cover's art; see:<opacity>[:<noise>] = a see-through cover whose art
-        // Veil subtracts again, in whole grey steps with the stream's noise. COVERART = the art as raw 320x180 grey. Unset: Prism's sight.
+        // Veil subtracts again, in whole grey steps with the stream's noise. COVERART = the art as raw 320x180 grey. Unset: PRISM's sight.
         var coverSight = Environment.GetEnvironmentVariable("COVERSIGHT") is { Length: > 0 } csv ? csv : null;
         var coverArt = coverSight is not null && Environment.GetEnvironmentVariable("COVERART") is { Length: > 0 } cap && File.Exists(cap) ? File.ReadAllBytes(cap) : new byte[BreakModel.W * BreakModel.H];
         var coverRng = new Random(1);
@@ -393,7 +521,7 @@ if (args.Length >= 4 && args[0] == "bench")
                     if (lv.Length >= 2 && double.TryParse(lv[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ldb))
                         m.Level(ldb, lv.Length >= 3 && double.TryParse(lv[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lpk) ? lpk : ldb, t);
                 }
-                else if (evt.StartsWith("silence "))   // a silence "ago" seconds before the look, as Prism reads it
+                else if (evt.StartsWith("silence "))   // a silence "ago" seconds before the look, as PRISM reads it
                 {
                     if (double.TryParse(evt.AsSpan(8), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sago)) m.Silence(t - sago);
                 }
@@ -424,12 +552,36 @@ if (args.Length >= 4 && args[0] == "bench")
                 // show (Comedy Central 11:26:42 and 12:20:26: a captioned ad after uncaptioned ones lifted the cover at 0.49 and 0.54,
                 // with the rules at 99% and the ad's own words on screen three seconds before)
                 if (lst.Up && (ccBlind == 1 ? m.HasLogo && !m.LogoUpNow : ccBlind == 2 ? !m.LogoUpNow : ccBlind == 3 && !m.HasLogo)) f2[ccLineAt] = 120;
-                var lp2 = learned!.Score(lst, f2, seenNow ? 1 : 0, t, coveredNow ? 1 : 0, t);
-                var lpTrees = lp2;
+                Dictionary<string, double>? extraNow;
+                if (repLib is not null) { if (!repOf.TryGetValue(win, out var rf)) repOf[win] = rf = new RepFeatures(repLib); rf.Step(g, t); extraNow = rf.Readings(); }
+                else extraNow = ExtraAt(win, t);
+                costSw.Restart(); var lp2 = learned!.Score(lst, f2, seenNow ? 1 : 0, t, coveredNow ? 1 : 0, t, extraNow); costTrees += costSw.ElapsedTicks; costLooks++;
+                var lpTrees = lp2; double qOut = -1;
                 if (picNet is not null)
                 {
+                    var netUse = picNet2 is not null && !m.HasLogo ? picNet2 : picNet;
+                    if (picNet2 is not null) { if (ReferenceEquals(netUse, picNet2)) netUnknownLooks++; else netKnownLooks++; }
                     var prevG = picPrev.TryGetValue(win, out var pp) && t - pp.T < 3 ? pp.G : null;
-                    var q = Math.Clamp(picNet.Chance(g, prevG), 0.001, 0.999); var l0 = Math.Clamp(lp2, 0.001, 0.999);
+                    double qRaw; costSw.Restart();
+                    if (netUse.InChannels == 4)
+                    {
+                        var ring = picRing.TryGetValue(win, out var rg) ? rg : picRing[win] = new();
+                        ring.RemoveAll(e => t - e.T > 11); var back = new byte[]?[5];
+                        for (var k = 0; k < 5; k++) { var want = t - 2 * (k + 1); (double T, byte[] G)? best = null; foreach (var e in ring) if (Math.Abs(e.T - want) <= 0.7 && (best is null || Math.Abs(e.T - want) < Math.Abs(best.Value.T - want))) best = e; back[k] = best?.G; }
+                        qRaw = netUse.Chance(g, prevG, back); ring.Add((t, g));
+                    }
+                    else qRaw = netUse.Chance(g, prevG);
+                    costNet += costSw.ElapsedTicks;
+                    var q = Math.Clamp(qRaw, 0.001, 0.999); var l0 = Math.Clamp(lp2, 0.001, 0.999); qOut = q;
+                    if (picA != 1.0 || picB != 0.0) q = Math.Clamp(1 / (1 + Math.Exp(-(picA * Math.Log(q / (1 - q)) + picB))), 0.001, 0.999);
+                    if (picMed > 1)
+                    {
+                        var run = picRun.TryGetValue(win, out var pr) && t - pr.T < 6 ? pr.Q : new List<double>();
+                        run.Add(q); if (run.Count > picMed) run.RemoveAt(0);
+                        picRun[win] = (t, run);
+                        var sorted = run.OrderBy(v => v).ToList();
+                        q = sorted.Count % 2 == 1 ? sorted[sorted.Count / 2] : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2;
+                    }
                     var blended = 1 / (1 + Math.Exp(-(Math.Log(l0 / (1 - l0)) + picW * Math.Log(q / (1 - q)))));
                     // AGREE=1 (2026-11-07, the pop-ups): a cover may BEGIN only when both detectors lean to a break - the trees' own
                     // chance at least TREEMIN (0.5) and the network's at least NETMIN (0.5) - the blend then crossing the policy's
@@ -443,7 +595,10 @@ if (args.Length >= 4 && args[0] == "bench")
                 // whether the look was a sure ad (a marked slot playing, a known ad, an infomercial) or a sure show (every rule says show):
                 // the labelled seconds a channel gives for free, which a calibration could learn its threshold from
                 lpar?.WriteLine(win + "," + t.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + "," + lp2.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)
-                    + (lpSure ? "," + lpTrees.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture) + "," + ((m.CueOnAt(t) || seenNow || m.InfomercialAt(t)) ? 1 : 0) + "," + (m.PlainShow(t) ? 1 : 0) : ""));
+                    + (lpWide ? "," + lpTrees.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture) + "," + qOut.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture)
+                        + "," + (ixBlack >= 0 ? f2[ixBlack] : -1).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "," + (ixCut >= 0 ? f2[ixCut] : -1).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+                        + "," + ((int)(t / 60) % 60) + "," + (lst.Up ? 1 : 0) + "," + ((m.CueOnAt(t) || seenNow || m.InfomercialAt(t)) ? 1 : 0) + "," + (m.PlainShow(t) ? 1 : 0) + "," + (m.CueOnAt(t) ? 1 : 0)
+                    : lpSure ? "," + lpTrees.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture) + "," + ((m.CueOnAt(t) || seenNow || m.InfomercialAt(t)) ? 1 : 0) + "," + (m.PlainShow(t) ? 1 : 0) : ""));
                 var was2 = lst.Up; var up2 = learned.Decide(lst, lp2, t, m.LogoInBand);
                 if (Environment.GetEnvironmentVariable("LVETO") == "1" && up2 && !was2 && m.PlainShow(t)) { up2 = false; lst.Up = false; }
                 // PLAINLIFT=n (a trial, 2026-10-09): a cover the learned detector holds lifts once every rule has said
@@ -477,6 +632,8 @@ if (args.Length >= 4 && args[0] == "bench")
             last = t;
         }
     }
+    if (picNet2 is not null) Console.WriteLine($"networks: known-channel looks {netKnownLooks}, unknown-channel looks {netUnknownLooks}");
+    if (costLooks > 0) Console.WriteLine($"cost looks {costLooks} trees ms {costTrees * 1000.0 / System.Diagnostics.Stopwatch.Frequency / costLooks:0.00} net ms {costNet * 1000.0 / System.Diagnostics.Stopwatch.Frequency / costLooks:0.00} peak MB {System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64 / 1048576}");
     return;
 }
 if (args.Length >= 3 && args[0] == "sim")
@@ -568,7 +725,7 @@ if (args.Length == 3 && args[0] == "seedlabels")
         // PROMOS=show (2026-11-04): the network promos promos.mjs found are cut out of the marked breaks, so no promo print or sound is kept
         var spansHere = new List<(string A, string Z)>();
         foreach (var span in ads.EnumerateArray()) spansHere.Add((Hms9(span[0].GetString()!), Hms9(span[1].GetString()!)));
-        if (Environment.GetEnvironmentVariable("PROMOS") == "show")
+        if (Environment.GetEnvironmentVariable("PROMOS") is "show" or "neutral")   // neutral (2026-11-08): the same cut, the scorer then leaves the promo seconds out
         {
             var pf = Path.Combine(args[1], "labels.promos.json");
             if (File.Exists(pf))

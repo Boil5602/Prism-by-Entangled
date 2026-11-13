@@ -199,7 +199,7 @@ export interface PrismRuntimeApi {
   modelApplyScene(sceneId: string): string;
   /** Sync JSON: the two players (players.ts) - {active: "music"|"video"|null, music: {id, name}|null, video: {id, name}|null}. */
   players(): string;
-  /** Prism silent in the room (B-472), for the break-watch sampler's daytime runs (2026-11-05): with no argument the state, with one it is set the
+  /** PRISM silent in the room (B-472), for the break-watch sampler's daytime runs (2026-11-05): with no argument the state, with one it is set the
    *  way the phone's mute sets it. Sync JSON {muted}. */
   wallMute(on?: boolean | null): string;
   /** Sync JSON (2026-10-06, the report flag): what a report may carry - the player on now, each service with its adapter, the adapter's version and the page its tile is on (origin and path, never the query), and the service to preselect. {active, services:[{app,name,kind,adapter,version,page}], selected}. */
@@ -562,7 +562,7 @@ export interface PrismRuntimeApi {
   playCollection(tileId: string, kind: string, id: string, order?: string): void;
   /** Read this collection's track list ahead of any order (the order menu opening), so a true shuffle or reverse picked next starts at once. */
   musicPrepareOrder(tileId: string, kind: string, id: string): void;
-  /** The standing repeat switch beside the order (2026-09-18): on, the list plays again when it ends - the service's own repeat for its orders, Prism's next pass (a fresh draw for true shuffle) for its own. */
+  /** The standing repeat switch beside the order (2026-09-18): on, the list plays again when it ends - the service's own repeat for its orders, PRISM's next pass (a fresh draw for true shuffle) for its own. */
   musicRepeat(tileId: string, on: boolean): void;
   /** B-205: switch the wall to this music service - the stage follows it and it plays on: what it holds, else what it last played. */
   resumeService(tileId: string): void;
@@ -574,7 +574,7 @@ export interface PrismRuntimeApi {
   musicLookupPick(tileId: string, songId: string): void;
   /** Add the found song to one of the service's own playlists (ids the page itself listed / returned). */
   musicAddToPlaylist(tileId: string, playlistId: string, songId: string): void;
-  /** Sync JSON (2026-10-06): the track playing on a music tile and the collections Prism has read that hold it - {songId, title, artist, lists} | null. */
+  /** Sync JSON (2026-10-06): the track playing on a music tile and the collections PRISM has read that hold it - {songId, title, artist, lists} | null. */
   musicPlayingIn(tileId: string): string;
   /** Remove the track playing now from one of the person's own playlists, by the playlist page's own control on a hidden page; dry stops before the press. Sync JSON {ok, asked} | {ok:false, error}. */
   musicRemovePlaying(tileId: string, playlistId: string, dry?: boolean): string;
@@ -956,7 +956,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (restoreOffered && !restoring) restoreOffered = null;
     const cx = info.context;
     const o = orchestrator.musicOrderOf(ev.id);
-    // the collection: the page's own word for what it holds, else Prism's standing order (a Prism-made queue - true shuffle, reverse - is a list
+    // the collection: the page's own word for what it holds, else PRISM's standing order (a PRISM-made queue - true shuffle, reverse - is a list
     // of songs to the page, which then names no playlist; 2026-10-04: the record froze before a reverse and Restore came back in order)
     let kind: string, id: string, label: string | null, order: string;
     if (cx?.kind && cx.id) { kind = cx.kind; id = cx.id; label = cx.label ?? null; order = o && o.kind === kind && o.id === id ? o.order : "normal"; }
@@ -985,7 +985,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const s = restoreOffered;
       if (!s) return { ok: false, error: "nothing to restore" };
       restoreOffered = null; restoring = true;
-      // a Prism order (true shuffle, reverse) still standing for this collection carries on at its saved spot through "auto"; one no longer
+      // a PRISM order (true shuffle, reverse) still standing for this collection carries on at its saved spot through "auto"; one no longer
       // standing is named outright and starts afresh (the track and spot are then found by name below); a station starts where the station starts
       const standing = orchestrator.musicOrderOf(s.tile);
       const stands = !!standing && standing.kind === s.kind && standing.id === s.id && standing.order === s.order;
@@ -1091,7 +1091,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     return { ok: true, notes: m.notes };
   };
   // The two players (players.ts, 2026-09-19): the household's Music Lounge and its Movie Night, switched from the
-  // Prism menu. The Video player keeps the lounge's sources warm on the wall; the switch to it pauses the one that was
+  // PRISM menu. The Video player keeps the lounge's sources warm on the wall; the switch to it pauses the one that was
   // playing (2026-10-05), and the way back resumes it.
   const playersNow = () => {
     const snap = model.snapshot();
@@ -1375,7 +1375,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       if (ch && now - (mvRetuneAt.get(w.tile) ?? -MV_RETUNE_MS) >= MV_RETUNE_MS) {
         mvRetuneAt.set(w.tile, now); mvEmptySince.delete(w.tile);
         mvNote("multiview: window " + w.tile + " went quiet on " + ch.name + ": tuning it again");
-        mvSay(ch.name + " stopped playing in window " + (wins.indexOf(w) + 1) + ", so Prism is tuning it again");
+        mvSay(ch.name + " stopped playing in window " + (wins.indexOf(w) + 1) + ", so PRISM is tuning it again");
         orchestrator.videoTune(w.tile, ch.id, ch.name, null).then((r) => { if (r !== "ok") report(new Error("multiview retune " + w.tile + ": " + r)); }, report);
         continue;
       }
@@ -1515,7 +1515,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const s = sv.services.find((x) => x.app === sv.screen!.app);
     return s && s.status !== "signed-in" ? null : sv.screen.slot;
   };
-  setInterval(() => { try { orchestrator.videoLoadingTick(); } catch (e) { report(e); } }, 300);   // Prism's loading mark (2026-10-16)
+  setInterval(() => { try { orchestrator.videoLoadingTick(); } catch (e) { report(e); } }, 300);   // PRISM's loading mark (2026-10-16)
   setInterval(() => { try { if (orchestrator.videoMultiviewState().on) { mvPruneEmpty(); orchestrator.videoStageKeep(); } } catch (e) { report(e); } }, 5000);
   // the wall's cover over the service's pages while a press moves the screen to another episode (2026-10-06: start-over's previous episode,; the next episode): the same word a phone pick sends; the screen only, and not while multiview's small windows are up (that word
   // steps their target, and the wall is not one screen then)
@@ -1774,7 +1774,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     try { videoRefreshLists(false); } catch (e) { report(e); }   // the lists as of now, for the next open (stale-guarded)
     const sv = videoServices();
     // the merge takes the services in the order the household added them (the App list) - a fact of the household, not a
-    // Prism choice, and never what happens to be on the screen; ties inside a recency class keep that order (§4 Decision)
+    // PRISM choice, and never what happens to be on the screen; ties inside a recency class keep that order (§4 Decision)
     const order = model.snapshot().apps.map((a) => a.id);
     const names = [...sv.services].sort((a, b) => order.indexOf(a.app) - order.indexOf(b.app)).map((s) => ({ app: s.app, name: s.name, facet: s.facet, adapter: s.adapter }));
     const rows = orchestrator.videoMenuRows(names);
@@ -2234,7 +2234,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); } finally { tagsRun = null; }
     })();
   };
-  /** Every title the household's services list in Prism, as cards: Continue watching, the lists, the services' own rows and shelves, each with the
+  /** Every title the household's services list in PRISM, as cards: Continue watching, the lists, the services' own rows and shelves, each with the
    *  tags its creator wrote where those have been read. Asking for them starts the next pass of reads when one is due. */
   const categoryItems = (pass = true): CategoryCard[] => {
     const out: CategoryCard[] = []; const seen = new Set<string>();
@@ -2521,7 +2521,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       write(set, (x) => x.why === "hidden", !!n && n.why === "hidden");
     } else write(BINGE_HIDDEN_KEY, () => true, !!n);
   };
-  const BINGE_CAVEAT = "Each network sets its own ratings. TV-PG has no official age, so where it falls here is Prism's own choice. Unrated titles are hidden while Kids mode is on.";
+  const BINGE_CAVEAT = "Each network sets its own ratings. TV-PG has no official age, so where it falls here is PRISM's own choice. Unrated titles are hidden while Kids mode is on.";
   const bingeHead = () => {
     const { thresholds } = bingeSettingsNow();
     const w = bingeWords(thresholds);
@@ -2740,8 +2740,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     if (r.ok && typeof r.slot === "string") orchestrator.videoPlayWhenUp(r.slot, { kind, id, url, ...(name ? { name } : {}) });
     return { ...r, switched: true };
   };
-  // ---- no spot keeper: the service's own position wins, as a rule (B-318, 2026-10-06). Prism had kept where a title was left and sought there when a replay began near the top; that fought a
-  // service resuming itself to a newer point (watched further on a TV app). Prism never seeks to a spot of its own now; the record it kept
+  // ---- no spot keeper: the service's own position wins, as a rule (B-318, 2026-10-06). PRISM had kept where a title was left and sought there when a replay began near the top; that fought a
+  // service resuming itself to a newer point (watched further on a TV app). PRISM never seeks to a spot of its own now; the record it kept
   // (video:spots) stays in the store unread (section 10).
   // ---- a cold deep link the service bounced (2026-10-05, Show video after a restart): the screen's
   // page went to the resume point's own address and the service sent it to its home within seconds (Apple TV does this on a cold load);
@@ -3800,7 +3800,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     liveNowOn(type) {
       try {
         // what is on across a mode's channels, as TMDB knows it (2026-10-02, Entertainment mode): the program on now, or the show
-        // a loop channel is named after; a card where TMDB matched the name exactly, in the guide's own order - Prism ranks nothing
+        // a loop channel is named after; a card where TMDB matched the name exactly, in the guide's own order - PRISM ranks nothing
         const sv = videoServices();
         const services = sv.services.filter((s) => s.status === "signed-in" || s.live.length > 0).map((s) => ({ app: s.app, name: s.name, facet: s.facet, channels: s.live.map(withTmdbWord) }));
         const g = liveGuide(services, Date.now(), { type: type ? String(type) : null, q: null });
@@ -4083,7 +4083,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         const sv = videoServices();
         if (!sv.screen) return json({ ok: false, error: "no Video player screen" });
         const r = orchestrator.videoResync(sv.screen.slot);
-        return json(r === "unavailable" ? { ok: false, error: "this service's player cannot be paused from Prism" } : { ok: true, did: r });
+        return json(r === "unavailable" ? { ok: false, error: "this service's player cannot be paused from PRISM" } : { ok: true, did: r });
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoNextEpisode(tileId) { try { const r = orchestrator.videoNextEpisode(tileId); const a = orchestrator.videoState().find((x) => x.id === tileId)?.adapter; return json({ ...r, service: hiddenServices().find((x) => x.adapter === a)?.name ?? null }); } catch (e) { report(e); return json({ ready: true, next: null, series: null }); } },
@@ -4500,7 +4500,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   };
   // the phone's Video tab (2026-10-04): the Watch screen's two rows and the live channels,
   // the big window's state with its art, and the plays the PC's own bar makes - never a picture (the services' video is DRM, and
-  // Prism does not touch it: docs/third-party-services-policy.md)
+  // PRISM does not touch it: docs/third-party-services-policy.md)
   const channelCache = new Map<string, { at: number; r: unknown }>();
   // the phone's playlists (2026-10-12): the runtime verbs the PC's Playlists tab calls, their JSON answers parsed for the route
   const plParse = (s: string): unknown => { try { return JSON.parse(s) as unknown; } catch { return { ok: false, error: "bad answer" }; } };
@@ -4535,7 +4535,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const off = excludedNow();
       const card = (c: { app: string; service: string; facet: string; item: VideoItem; lastWatched?: number; rating?: string | null; mine?: number | null; tmdb?: { kind: string; id: number } | null }) => ({
         app: c.app, service: c.service, facet: c.facet, ...(typeof c.lastWatched === "number" ? { lastWatched: c.lastWatched } : {}),
-        rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null,   // the score bottom right and the card menu's stars, as on the PC (2026-10-15)   // the one time a card ever shows: Prism's own log (2026-10-14, the Last watched order)
+        rating: c.rating ?? null, mine: c.mine ?? null, tmdb: c.tmdb ?? null,   // the score bottom right and the card menu's stars, as on the PC (2026-10-15)   // the one time a card ever shows: PRISM's own log (2026-10-14, the Last watched order)
         // TMDB's poster beside the service's own picture (2026-10-11): the phone draws every card tall, so the poster comes first where there is one
         item: { id: c.item.id, title: c.item.title, subtitle: c.item.subtitle ?? null, kind: c.item.kind, url: c.item.url ?? null, artwork: c.item.artwork ?? null, poster: orchestrator.posterFor(c.item.title, c.item.kind), progress: c.item.progress ?? null, about: aboutOf(c.app, c.item), ...(c.item.live ? { live: true } : {}), ...(c.item.removing ? { removing: true } : {}) },   // a removal waiting on the broadcast's end, as on the PC (2026-10-16)
       });
@@ -4705,7 +4705,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
           binge: { thresholds: (bv.head as Record<string, unknown> | undefined)?.thresholds ?? bingeSettingsNow().thresholds, defaults: BINGE_DEFAULTS, kids: bv.kids, animation: bv.animation, ages: bv.ages },
           categories: cats.categories, rules: cats.rules, poolServices: cats.poolServices, hidden: hid.items,
           updates: J(api.videoUpdatesStatus()),   // each service's parts and when they were read, the catalog rows, the schedule (the PC's Services tab)
-          software: J(api.updateStatus()),   // this Prism: its version and track, what the update server offers, a staged release, the changelog (2026-10-15)
+          software: J(api.updateStatus()),   // this PRISM: its version and track, what the update server offers, a staged release, the changelog (2026-10-15)
           tmdb: J(api.tmdbLinkState()) };   // the key and the account: linked, username, pending, hasKey, url (the approval page while a link is under way), busy, error
       } catch (e) { report(e); return { ok: false, error: String(e) }; }
     },
@@ -4728,7 +4728,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
           case "hidden": return J(api.videoBingeHide(str(b.id), b.on === true, str(b.title) || null));
           // the TMDB account from the phone (2026-10-14): the same three calls the PC's card makes, and the key cleared
           case "tmdb-state": return J(api.tmdbLinkState());
-          // Prism's own updates from the phone (2026-10-15): a check (its
+          // PRISM's own updates from the phone (2026-10-15): a check (its
           // answer), an install (started; the phone follows the status until it is staged), the restart into what is staged (the PC's own)
           case "update-check": return api.updateCheck().then(J);
           case "update-install": void api.updateInstallNow().catch(report); return { status: "working" };

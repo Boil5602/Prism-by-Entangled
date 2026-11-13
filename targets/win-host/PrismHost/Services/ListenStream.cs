@@ -82,7 +82,7 @@ public sealed class ListenStream : IDisposable
         }
     }
     /// <summary>The level the muter has in force on the browser (SessionMuter.LevelApplied): the gain is its inverse - the room step's and the
-    /// person's mute's floor (B-472) and the wall's volume alike - so the phones hear Prism at full whatever the room hears, never before the
+    /// person's mute's floor (B-472) and the wall's volume alike - so the phones hear PRISM at full whatever the room hears, never before the
     /// sessions are confirmed at that level (review 2026-10-31). A pass that could not confirm (-1) leaves the gain as it was.</summary>
     public static float GainFor(float level) => level < 0f ? float.NaN : level >= 1f ? 1f : 1f / Math.Max(level, SessionMuter.Step);
     public void SourceLevel(uint browserPid, float level)
@@ -141,7 +141,7 @@ public sealed class ListenStream : IDisposable
             var refuse = Encoding.ASCII.GetBytes("HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: 62\r\nConnection: close\r\n\r\n{\"error\":\"no valid stream ticket: ask for one with your token\"}");
             await stream.WriteAsync(refuse); return;
         }
-        await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nCache-Control: no-store\r\nAccept-Ranges: none\r\nConnection: close\r\nicy-name: Prism\r\n\r\n"));
+        await stream.WriteAsync(Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nCache-Control: no-store\r\nAccept-Ranges: none\r\nConnection: close\r\nicy-name: PRISM\r\n\r\n"));
         var phone = new Phone { Stream = stream, Who = who, Mp3 = true, Ticket = ticket };
         try { phone.Encoder = new NAudio.Lame.LameMP3FileWriter(new PhoneSink(this, phone), new NAudio.Wave.WaveFormat(48000, 16, 2), 128); }
         catch (Exception ex) { _log("listen: mp3 encoder failed: " + ex.Message); return; }

@@ -1,5 +1,5 @@
 /**
- * Prism conformance checks (spec §23): a shell that passes is a Prism.
+ * PRISM conformance checks (spec §23): a shell that passes is a PRISM.
  *
  * Everything runs through the one documented remote API (§6) — no
  * privileged channel — so any shell on any platform can self-verify. The
@@ -289,7 +289,7 @@ export function formatReport(results: CheckResult[]): string {
   lines.push("");
   lines.push(
     failed === 0
-      ? `All ${results.length} checks passed — this shell is a Prism.`
+      ? `All ${results.length} checks passed — this shell is a PRISM.`
       : `${failed}/${results.length} checks FAILED — not conformant.`,
   );
   return lines.join("\n");

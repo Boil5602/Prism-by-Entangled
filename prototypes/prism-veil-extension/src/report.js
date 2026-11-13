@@ -1,7 +1,7 @@
 /*
-  Prism Veil - the "Report ad" tool. Report an ad in the Prism button's
+  PRISM Veil - the "Report ad" tool. Report an ad in the PRISM button's
   panel (one button on the page since 2026-10-27, "the report ad and the
-  Prism buttons should be combined into the Prism button"), then click an
+  PRISM buttons should be combined into the PRISM button"), then click an
   ad (or a veil). Produces a compact, PII-free description of the element,
   its ancestry across shadow boundaries, any nearby ad label, and - when the
   pick lands on a veil - WHICH rule placed it. Copied to the clipboard.
@@ -75,7 +75,7 @@
     var out = { site: location.hostname, url: location.href.slice(0, 120), version: PV.VERSION || "", coveredByPrism: inVeil(el), veil: veil, nearbyAdLabel: label, target: desc(el), chain: chain, card: out_card };
     // Everything UNDER the click, top to bottom (the same label-grade shape):
     // a player's full-size click-cover is what the pick lands on, and the ad
-    // it hides is a sibling beneath (SOOP, 2026-08-29). Prism's own layers skipped.
+    // it hides is a sibling beneath (SOOP, 2026-08-29). PRISM's own layers skipped.
     try {
       if (pt) {
         var st = document.elementsFromPoint(pt.x, pt.y), stack = [];
@@ -139,6 +139,7 @@
           d.cover = { levelsUp: up2, mode: ct2.__mode, fixed: !!ct2.__fixed, connected: ct2.isConnected, rect: { x: Math.round(cr.left), y: Math.round(cr.top), w: Math.round(cr.width), h: Math.round(cr.height) },
                       display: ccs.display, opacity: ccs.opacity, clipPath: ct2.style.clipPath || ccs.clipPath, z: ccs.zIndex, position: ccs.position, parent: ct2.parentElement && ct2.parentElement.tagName,
                       bg: (ccs.backgroundImage || "").slice(0, 40), atPoint: (function () { var m = document.elementFromPoint(cr.left + cr.width / 2, cr.top + Math.min(cr.height / 2, innerHeight / 2)); return m ? (m.tagName + (m.hasAttribute("data-prism-veil") ? "#veil" : "")) : null; })() };
+          d.cover.look = ct2.__lookDiag || null;   // the last small view of this cover: what it scaled and where (covers.js)
         } else d.cover = null;
         d.topBar = PV.topBar ? { top: PV.topBar.top, el: PV.topBar.el && (PV.topBar.el.tagName + "." + PV.classStr(PV.topBar.el).slice(0, 40)), containsTarget: !!(PV.topBar.el && PV.deepContains(PV.topBar.el, el)) } : null;
       } catch (e5) { d.coverErr = "" + e5; }
@@ -181,7 +182,7 @@
   }
   // A cover on the page's top layer sits at the highest z-index there is, above the catcher, so a click on it never reached the pick
   // (2026-11-04, Reddit: a veil near the top of the screen could not be reported). While picking, covers take no clicks; the click falls
-  // through the catcher to the ad itself, which is what the report wants (the stack skips Prism's own layers anyway).
+  // through the catcher to the ad itself, which is what the report wants (the stack skips PRISM's own layers anyway).
   var pickStyle = null;
   function coversClickThrough(on) {
     if (on) {
@@ -214,15 +215,26 @@
     console.log("%cPRISM AD REPORT:", "color:#F0A83C;font-weight:bold;font-size:13px");
     console.log(json);
     var lbl = (report && report.nearbyAdLabel) ? (" “" + report.nearbyAdLabel + "”") : "";
-    offerSend(report, json, "✓ Ad captured" + lbl);
+    offerSend(report, json, (covered(report) ? "✓ Cover captured" : "✓ Ad captured") + lbl);
   }
   // Sending is a per-report choice (spec section 19/22: nothing leaves the
   // machine unasked). What is sent matches what the panel says, and nothing more
   // (2026-09-26). Copy to clipboard still gives the whole local report:
   // it never leaves the machine unless the person pastes it somewhere.
-  var AD_KINDS = [["video", "Video ad"], ["display", "Banner or display ad"], ["sponsored", "Sponsored post or result"], ["popup", "Pop-up"], ["other", "Something else"]];
+  // What the report is about (2026-11-12, asked for categories that also take a fault of PRISM's own, such as a missing small view):
+  // an ad PRISM missed, by its kind, or a problem with a cover PRISM made. The values are the server's list (prism-veil-reports).
+  var AD_KINDS = [
+    ["An ad PRISM missed", [["video", "Video ad"], ["display", "Banner or display ad"], ["sponsored", "Sponsored post or result"], ["popup", "Pop-up"], ["sound", "Sound ad"]]],
+    ["A problem with a cover", [["not-an-ad", "This is not an ad"], ["cover-stayed", "The cover stayed after the ad"], ["small-view", "The small view of the ad is missing or wrong"],
+      ["sound-wrong", "The sound is wrong"], ["player", "The video stopped or did not come back"]]],
+    ["", [["other", "Something else"]]]
+  ];
+  PV.reportKinds = AD_KINDS;   // tests
+  // a pick goes through a cover to the ad under it (coversClickThrough), so the cover is known by the element's diagnostics
+  function covered(r) { return !!(r && (r.coveredByPrism || (r.diag && r.diag.cover))); }
   function guessKind(r) {
     try {
+      if (covered(r)) return "other";   // a cover is reported for many reasons: the person says which
       if ((r.veil && r.veil.mode === "video") || (r.diag && r.diag.vidVeil) || (r.target && r.target.tag === "VIDEO")) return "video";
       if (/sponsor|promot|paid/i.test(r.nearbyAdLabel || "")) return "sponsored";
     } catch (e) {}
@@ -247,7 +259,7 @@
     return p;
   }
   function whatSent(site, full) {
-    return "Sends the site (" + (site || "this site") + "), the ad's element details (its tags, classes and sizes, and the short labels and domains inside it), the kind of ad, your note if you write one, and Prism's version" +
+    return "Sends the site (" + (site || "this site") + "), the ad's element details (its tags, classes and sizes, and the short labels and domains inside it), what you chose above, your note if you write one, and PRISM's version" +
       (full ? ", plus the full page address and the addresses of the video players embedded in the page" : "") + ". No page text, no account, no cookies.";
   }
   function offerSend(report, json, headline) {
@@ -257,9 +269,12 @@
     var h = document.createElement("div"); h.style.cssText = "color:#7fd08a;font-weight:600;margin-bottom:6px"; h.textContent = headline;
     var ctl = "background:#1c1e27;color:#e8ecf2;border:1px solid #ffffff33;border-radius:6px;padding:4px 6px;font:12px system-ui,sans-serif;";
     var kindRow = document.createElement("label"); kindRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:6px";
-    kindRow.appendChild(document.createTextNode("Kind of ad"));
+    kindRow.appendChild(document.createTextNode("What is it"));
     var kind = document.createElement("select"); kind.style.cssText = ctl;
-    AD_KINDS.forEach(function (k) { var o = document.createElement("option"); o.value = k[0]; o.textContent = k[1]; kind.appendChild(o); });
+    AD_KINDS.forEach(function (g) {
+      var into = kind; if (g[0]) { into = document.createElement("optgroup"); into.label = g[0]; kind.appendChild(into); }
+      g[1].forEach(function (k) { var o = document.createElement("option"); o.value = k[0]; o.textContent = k[1]; into.appendChild(o); });
+    });
     kind.value = guessKind(report);
     kindRow.appendChild(kind);
     var note = document.createElement("input"); note.type = "text"; note.maxLength = 280; note.placeholder = "A note (optional)";
@@ -273,7 +288,7 @@
     var say = function () { p.textContent = whatSent(report.site, full.checked); };
     say(); full.addEventListener("change", say);
     var row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px";
-    var send = document.createElement("button"); send.textContent = "Send to Prism";
+    var send = document.createElement("button"); send.textContent = "Send to PRISM";
     send.style.cssText = "background:#F0A83C;color:#12131a;border:0;border-radius:6px;padding:6px 10px;font:600 12px system-ui,sans-serif;cursor:pointer";
     var no = document.createElement("button"); no.textContent = "Copy to clipboard";
     no.style.cssText = "background:transparent;color:#c9cbd6;border:1px solid #ffffff33;border-radius:6px;padding:6px 10px;font:12px system-ui,sans-serif;cursor:pointer";
@@ -292,13 +307,13 @@
       // (2026-08-29). Detect it up front and say what fixes it.
       var payload, wantFull = full.checked;
       try { payload = sendable(report, { kind: kind.value, note: (note.value || "").trim(), full: wantFull }, (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || ""); }
-      catch (eCtx) { t.remove(); toast("Couldn't send - Prism was updated under this page. Reload the page (F5) and report again.", "#F0A83C"); return; }
+      catch (eCtx) { t.remove(); toast("Couldn't send - PRISM was updated under this page. Reload the page (F5) and report again.", "#F0A83C"); return; }
       // A tab still running the PREVIOUS build after an extension reload has
       // no background to talk to: sendMessage never answers ("Sending…"
       // forever, 2026-08-29). Time out, say so, and say what fixes it.
       var done = false, to = setTimeout(function () {
         if (done) return; done = true; t.remove();
-        toast("Couldn't send - Prism was updated under this page. Reload the page (F5) and report again.", "#F0A83C");
+        toast("Couldn't send - PRISM was updated under this page. Reload the page (F5) and report again.", "#F0A83C");
       }, 12000);
       var go = function () {
         chrome.runtime.sendMessage({ type: "prism-report-send", report: payload }, function (r) {
@@ -345,7 +360,7 @@
       var el = PV.deepElementFromPoint(x, y);
       c.style.pointerEvents = "";
       exitPick();
-      // A click on Prism's own UI (pill, chip, panel) is a way OUT, not a pick.
+      // A click on PRISM's own UI (pill, chip, panel) is a way OUT, not a pick.
       if (el && el.closest && el.closest("[data-prism-ui]")) { toast("Report cancelled", "#A3ABB7"); return; }
       if (el) doReport(el, { x: x, y: y }); else toast("Couldn't read that spot - try again", "#F0A83C");
     }, true);
@@ -357,13 +372,13 @@
     if (PV.onReportPick) { try { PV.onReportPick(true); } catch (e1) {} }
     toast("Click the ad to report it · Esc to cancel", "#F0A83C");
   }
-  // The Prism button's panel starts a report; the button itself (reading meanwhile), Esc or a right-click ends it.
+  // The PRISM button's panel starts a report; the button itself (reading meanwhile), Esc or a right-click ends it.
   PV.enterReportPick = enterPick;
   PV.inReportPick = function () { return !!pick; };
   PV.cancelReportPick = function () { if (!pick) return false; exitPick(); toast("Report cancelled", "#A3ABB7"); return true; };
   addEventListener("keydown", function (e) { if (e.key === "Escape" && pick) exitPick(); }, true);
 
-  // Prism-wide UI prefs (chrome.storage.local "pv:ui"). Live-toggled: the
+  // PRISM-wide UI prefs (chrome.storage.local "pv:ui"). Live-toggled: the
   // main switch and the intermission layout apply the moment they change.
   PV.uiPrefs = {};
   function applyUiPrefs() {

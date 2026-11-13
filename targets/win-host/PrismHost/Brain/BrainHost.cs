@@ -81,7 +81,7 @@ public sealed class BrainHost
         {
             if (!e.IsSuccess) { _onStatus($"brain failed to load ({e.WebErrorStatus})"); return; }
             Ready = true;
-            _onStatus("brain ready - Prism " + AppVersion.Text);
+            _onStatus("brain ready - PRISM " + AppVersion.Text);
             FlushPending();
             OnReady?.Invoke();
         };

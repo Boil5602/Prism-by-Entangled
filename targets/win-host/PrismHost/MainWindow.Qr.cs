@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 namespace PrismHost;
 
 /// <summary>
-/// The QR codes the wall shows (pairing a phone, approving Prism on TMDB), with the Prism mark in the middle (2026-10-05). The code is made at error-correction level H, which survives 30% of its modules
+/// The QR codes the wall shows (pairing a phone, approving PRISM on TMDB), with the PRISM mark in the middle (2026-10-05). The code is made at error-correction level H, which survives 30% of its modules
 /// being unreadable; the mark sits on a white tile covering about a fifth of the width, well inside that, so a phone's camera reads it as
 /// before. The mark is the same prism-icon.png the app icon and the phone's home-screen icon derive from (B-190).
 /// Level H costs modules (a pairing address: 49 a side where level M took 37), so the cards grew from 260 and 220 px to 300 and 250 so

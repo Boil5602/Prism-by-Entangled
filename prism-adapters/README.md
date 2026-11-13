@@ -97,7 +97,7 @@ Merge has a public web client), and the two first-party pages below.
 
 ## catalog/ — first-party entries (`account: "none"`)
 
-`prism-chores` and `prism-timer` (docs/concept-scenes.md §6) are Prism's own
+`prism-chores` and `prism-timer` (docs/concept-scenes.md §6) are PRISM's own
 pages, served by the host at `https://tiles.prism/chores/` and
 `https://tiles.prism/timer/` from `targets/win-host/PrismHost/Assets/tiles`.
 They share one adapter (`prism-tiles`) because they share a host, and they
@@ -108,6 +108,6 @@ carry two fields the third-party entries do not:
   "signed-in"`), shows no sign-in button in App setup, and never wears a
   needs-attention badge for an account that does not exist. It is also what
   lets a Scene Template role naming one of them pre-resolve (charter §1).
-- `firstParty: true` — the page ships with Prism and reaches no network at all;
+- `firstParty: true` — the page ships with PRISM and reaches no network at all;
   its state lives in this device's store (§10). Enforced, not asserted:
   `scripts/verify-tile-assets.mjs` fails the gate on any external origin.

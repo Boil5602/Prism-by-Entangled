@@ -388,7 +388,7 @@ export function stableSelector(el: Element, doc: Document): { selector: string; 
  * on `window.__prismFacetPick` and stops. The shell polls that value.
  * `window.__prismFacetPickStop()` cancels. The click that picks never
  * reaches the page (the human is choosing a region, not pressing a button),
- * and the picker ignores Prism's own veil / UI elements.
+ * and the picker ignores PRISM's own veil / UI elements.
  */
 function facetPickerMain(stable: (el: Element, doc: Document) => { selector: string; unique: boolean } | null): void {
   const w = window as unknown as { __prismFacetPick?: unknown; __prismFacetPickStop?: (() => void) | undefined; __prismFacetPicking?: boolean };

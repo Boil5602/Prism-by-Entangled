@@ -1,0 +1,15 @@
+[
+ {
+  "name": "Second evening with sound (screen)",
+  "day": "2026-11-09",
+  "window": "screen",
+  "from": "20:00:00",
+  "to": "23:00:00",
+  "frames": [
+   "200000492",
+   "225959360"
+  ],
+  "library": "195434",
+  "lead": 18
+ }
+]

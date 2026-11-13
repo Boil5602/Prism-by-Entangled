@@ -4,9 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 namespace PrismHost;
 
 /// <summary>
-/// The way back to the tour (2026-10-10). A page of How Prism works can open the real thing: Set up
+/// The way back to the tour (2026-10-10). A page of How PRISM works can open the real thing: Set up
 /// services, the TMDB guide, Watch settings, Pair a phone, Profiles, Updates. While that is up, a button at the top of the screen says
-/// Back to How Prism works. Pressing it puts away whatever the tour opened and shows the tour at the page it was left on. Closing the
+/// Back to How PRISM works. Pressing it puts away whatever the tour opened and shows the tour at the page it was left on. Closing the
 /// pairing card or the Updates dialog by their own Close does the same. The small X beside the button is for someone who would
 /// rather stay where the tour took them.
 /// </summary>
@@ -22,11 +22,11 @@ public sealed partial class MainWindow
     {
         TourForget();
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 46, 0, 0) };
-        Canvas.SetZIndex(row, 990);   // over every page the tour opens, under the Prism tab and its menu
-        var back = Chip(new TextBlock { Text = (char)0x2039 + "  Back to How Prism works", FontSize = 17, Foreground = HubInk }, true);
+        Canvas.SetZIndex(row, 990);   // over every page the tour opens, under the PRISM tab and its menu
+        var back = Chip(new TextBlock { Text = (char)0x2039 + "  Back to How PRISM works", FontSize = 17, Foreground = HubInk }, true);
         back.Click += (_, __) => TourReturn();
         var stay = Chip(new TextBlock { Text = ((char)0x2715).ToString(), FontSize = 15, Foreground = HubInk }, false);
-        ToolTipService.SetToolTip(stay, "Stay here. Prism menu, then How Prism works, opens the tour again at the page you left.");
+        ToolTipService.SetToolTip(stay, "Stay here. PRISM menu, then How PRISM works, opens the tour again at the page you left.");
         stay.Click += (_, __) => TourForget();
         row.Children.Add(back); row.Children.Add(stay);
         RootGrid.Children.Add(row);

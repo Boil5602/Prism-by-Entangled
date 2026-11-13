@@ -17,7 +17,7 @@ import type { MaybePromise, StoreDriver } from "./drivers.js";
 
 /**
  * The tracks a release is published on (2026-10-05):
- * `alpha` is what ships while Prism is built, `beta` the candidate, `stable` the full release. A shell starts on the track it was
+ * `alpha` is what ships while PRISM is built, `beta` the candidate, `stable` the full release. A shell starts on the track it was
  * built for and follows it; the manifest names a release per track, and a publisher may point two tracks at one release.
  */
 export type UpdateChannel = "alpha" | "beta" | "stable";
@@ -95,7 +95,7 @@ export interface UpdateConfig {
   enabled?: boolean;
   /**
    * Install on its own (B-458, 2026-10-30: the section-28 night window had no door - the silent install hung off a section-24 schedule entry
-   * no Prism could make, so every release waited for a press). True (the default): a newer release a check finds is staged at once, and the
+   * no PRISM could make, so every release waited for a press). True (the default): a newer release a check finds is staged at once, and the
    * shell restarts into it at a quiet moment in the three hours after the check's time of day (nothing playing, nobody about), otherwise at
    * its next start. False: the flag waits for a press, as before.
    */
@@ -157,7 +157,7 @@ export interface UpdateStatus {
   /** The schedule in force, and whether checks run on their own. */
   schedule?: UpdateSchedule | null;
   enabled?: boolean;
-  /** The track's newest release as the last good check saw it, newer than this Prism or not: the changelog feed's source when up to date. */
+  /** The track's newest release as the last good check saw it, newer than this PRISM or not: the changelog feed's source when up to date. */
   latest?: ReleaseInfo | null;
   /** Install on its own (B-458). */
   auto?: boolean;
@@ -415,7 +415,7 @@ export class UpdateChecker {
         // a staged release the track no longer offers - withdrawn, or the track moved back - is let go and removed by the shell, on every
         // good check and so before any quiet moment could start it (security review 2026-10-30); a newer one offered replaces it below
         if (this.state.staged && (!release || compareVersions(release.version, this.state.staged.version) < 0)) await this.dropStaged();
-        // newer than this Prism, and newer than what is already staged: the staged release is not found again at the next check (B-458)
+        // newer than this PRISM, and newer than what is already staged: the staged release is not found again at the next check (B-458)
         const staged = this.state.staged;
         this.state.available =
           release && compareVersions(release.version, this.cfg.currentVersion) > 0 && !(staged && compareVersions(release.version, staged.version) <= 0) ? release : null;

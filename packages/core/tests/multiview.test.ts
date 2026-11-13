@@ -200,7 +200,7 @@ describe("multiview", () => {
     expect(ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js ?? "").includes("__prismStageTry"))).toBe(true);
   });
 
-  it("Prism's loading mark (2026-10-16): a small window's pick shows it after a moment and drops it on play; a page that waits for data shows it, an ad does not", async () => {
+  it("PRISM's loading mark (2026-10-16): a small window's pick shows it after a moment and drops it on play; a page that waits for data shows it, an ad does not", async () => {
     const { rt, drivers } = await setup();
     const marks: Array<[string, boolean]> = [];
     drivers.surface.setLoading = (id: string, on: boolean) => void marks.push([id, on]);
@@ -224,12 +224,12 @@ describe("multiview", () => {
     expect(marks[marks.length - 1]).toEqual([w, false]);   // gone at once
     marks.length = 0;
     rt.event(JSON.stringify({ type: "now-playing", id: w, info: { playing: true, title: "", artist: "", album: "", artwork: null, video: { kind: "title", title: "Grace", url: "https://www.netflix.com/watch/81", ad: true } } }));
-    rt.event(JSON.stringify({ type: "buffering", id: w, on: true }));   // an ad waiting is the ad's, never Prism's mark
+    rt.event(JSON.stringify({ type: "buffering", id: w, on: true }));   // an ad waiting is the ad's, never PRISM's mark
     await vi.advanceTimersByTimeAsync(1000);
     expect(marks.some(([, on]) => on)).toBe(false);
   });
 
-  it("the video viewer shows video or nothing: a window with no player up is under Prism's mark, never the service's own page; a gate the person must answer is not covered (2026-11-05)", async () => {
+  it("the video viewer shows video or nothing: a window with no player up is under PRISM's mark, never the service's own page; a gate the person must answer is not covered (2026-11-05)", async () => {
     const { rt, drivers } = await setup();
     const marks: Array<[string, boolean]> = [];
     drivers.surface.setLoading = (id: string, on: boolean) => void marks.push([id, on]);
@@ -650,6 +650,28 @@ describe("multiview", () => {
       const paused = b.ops.some((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('"pause"'));
       expect(paused).toBe(!person);
     }
+  });
+
+  it("a title paused in a break is kept as paused, and one played on in the break is kept as playing (2026-11-10)", async () => {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv);
+    const up = () => Object.values(JSON.parse(kv.get("video:up:wall") ?? "{}"));
+    const say = (playing: boolean, position: number, ad: boolean) => rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing, video: { kind: "movie", title: "Grace", playing, position, duration: 3600, ...(ad ? { ad: true } : {}) } } }));
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/watch/abc" }));
+    say(true, 600, false);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(up()).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Grace", pos: 600 }]);
+    say(true, 12, true);   // a break: the record stands, the ad's clock is not the title's
+    await vi.advanceTimersByTimeAsync(50);
+    expect(up()).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Grace", pos: 600 }]);
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: false }));
+    say(false, 14, true);   // paused in the break
+    await vi.advanceTimersByTimeAsync(50);
+    expect(up()).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Grace", pos: 600, paused: true }]);
+    rt.event(JSON.stringify({ type: "playback", id: "screen", playing: true }));
+    say(true, 15, true);   // played on, still in the break
+    await vi.advanceTimersByTimeAsync(50);
+    expect(up()).toEqual([{ url: "https://www.hulu.com/watch/abc", name: "Grace", pos: 600 }]);
   });
 
   it("a video service's page draws no browser controls: the wall's rule rides its adapter's css (2026-09-25, Apple TV's fullscreen <video>)", async () => {

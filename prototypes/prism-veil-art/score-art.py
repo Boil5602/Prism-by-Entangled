@@ -1,5 +1,5 @@
 """
-How vivid a photo is, by numbers (2026-10-15, the pictures chosen for Prism and the extensions were judged very dull).
+How vivid a photo is, by numbers (2026-10-15, the pictures chosen for PRISM and the extensions were judged very dull).
 
     python score-art.py <folder-or-list.json> <out.json>
 

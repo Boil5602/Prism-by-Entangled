@@ -52,7 +52,7 @@ public sealed partial class MainWindow
     private double _plNewsSeen;
 
     /// <summary>The search box let go of the keyboard (2026-09-27): Focus(FocusState.Unfocused) is refused by WinUI (ArgumentException) and it was
-    /// unhandled - a press on Watch away from open search results closed Prism. The keyboard goes to the page itself.</summary>
+    /// unhandled - a press on Watch away from open search results closed PRISM. The keyboard goes to the page itself.</summary>
     private void DropSearchFocus(Control box)
     {
         try { if (_videoHub is { } hub && FindChild<Control>(hub) is { } any && !ReferenceEquals(any, box)) any.Focus(FocusState.Programmatic); } catch { }
@@ -125,7 +125,7 @@ public sealed partial class MainWindow
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("playlistSend", target.ToJsonString(), source.ToJsonString()) ?? "null") as JsonObject; } catch { }
         var job = S(r, "job");
-        if (job.Length == 0) { SetPill("Prism" + Mid + "that couldn't be sent to a playlist"); return; }
+        if (job.Length == 0) { SetPill("PRISM" + Mid + "that couldn't be sent to a playlist"); return; }
         await FollowPlaylistJobAsync(job);
     }
 
@@ -139,14 +139,14 @@ public sealed partial class MainWindow
             JsonObject? j = null;
             try { j = JsonNode.Parse(await ModelCallAsync("playlistJob", job) ?? "null") as JsonObject; } catch { }
             var status = S(j, "status"); var msg = S(j, "message");
-            if (status == "reading") { if (msg != last && msg.Length > 0) { SetPill("Prism" + Mid + msg + (char)0x2026); last = msg; } await Task.Delay(700); continue; }
+            if (status == "reading") { if (msg != last && msg.Length > 0) { SetPill("PRISM" + Mid + msg + (char)0x2026); last = msg; } await Task.Delay(700); continue; }
             if (status == "confirm")
             {
                 var n = j?["count"]?.GetValue<int>() ?? 0;
                 ShowAskPanel("Add " + n + " episodes?", "That's a lot for one playlist. They'll go in as one block, and you can move or remove them later.", null, "Add all " + n, () => _ = ConfirmPlaylistJobAsync(job));
                 return;
             }
-            SetPill("Prism" + Mid + (msg.Length > 0 ? msg : status == "error" ? "that couldn't be added" : "done"));
+            SetPill("PRISM" + Mid + (msg.Length > 0 ? msg : status == "error" ? "that couldn't be added" : "done"));
             if (_hubTab == "playlists") _plRedraw?.Invoke();   // the Playlists panel alone, never the whole page (several sends at once each redrew it)
             return;
         }
@@ -188,7 +188,7 @@ public sealed partial class MainWindow
             if (v is not null) FillPlaylistDock(v);
             if (tag != _plRunTag) { _plRunTag = tag; if (_playlistsTabTag is not null) { _playlistsTabTag.Text = tag ?? ""; _playlistsTabTag.Visibility = tag is null ? Visibility.Collapsed : Visibility.Visible; } }
             var note = S(r, "note");
-            if (note.Length > 0 && note != _plLastNote) { _plLastNote = note; SetPill("Prism" + Mid + note + ". Pick it in the service's player; the playlist carries on from there."); }
+            if (note.Length > 0 && note != _plLastNote) { _plLastNote = note; SetPill("PRISM" + Mid + note + ". Pick it in the service's player; the playlist carries on from there."); }
             if (r is null) return;
             await Task.Delay(2000);
         }
@@ -208,7 +208,7 @@ public sealed partial class MainWindow
         var possible = g?["listsPossible"]?.GetValue<bool>() == true;
         var box = new StackPanel { Spacing = 10, MaxWidth = 760 };
         box.Children.Add(new TextBlock { Text = "Playlists live on your TMDB account", FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk });
-        box.Children.Add(new TextBlock { Text = "Each playlist is a list on TMDB, private unless you make it public, so it follows you to any device signed in to your account. Prism keeps your place in each show and episode in the list itself.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        box.Children.Add(new TextBlock { Text = "Each playlist is a list on TMDB, private unless you make it public, so it follows you to any device signed in to your account. PRISM keeps your place in each show and episode in the list itself.", FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         var step = !hasKey ? "Put your TMDB API read access token in Watch settings, then link your account there."
             : !possible ? "Your TMDB key is the older v3 kind. Lists need the API read access token from the same TMDB page. Put it in Watch settings and link your account again."
             : !linked ? "Link your TMDB account in Watch settings: approve it once on TMDB's site."
@@ -239,7 +239,7 @@ public sealed partial class MainWindow
             if (at <= _plNewsSeen) continue;
             _plNewsSeen = at;
             var c = n["count"]?.GetValue<int>() ?? 0;
-            SetPill("Prism" + Mid + c + " new " + (c == 1 ? "episode" : "episodes") + " of " + S(n, "show") + " added to " + S(n, "list"));
+            SetPill("PRISM" + Mid + c + " new " + (c == 1 ? "episode" : "episodes") + " of " + S(n, "show") + " added to " + S(n, "list"));
         }
         void Redraw() => _ = DrawPlaylistsAsync(panel, overlay);
         _plRedraw = Redraw;
@@ -248,7 +248,7 @@ public sealed partial class MainWindow
         {
             JsonObject? r = null;
             try { r = JsonNode.Parse(await ModelCallAsync("playlistEdit", listId, op.ToJsonString()) ?? "null") as JsonObject; } catch { }
-            if (r?["ok"]?.GetValue<bool>() == false && S(r, "error").Length > 0) SetPill("Prism" + Mid + S(r, "error"));
+            if (r?["ok"]?.GetValue<bool>() == false && S(r, "error").Length > 0) SetPill("PRISM" + Mid + S(r, "error"));
             Redraw();
         }
         Button SmallChip(string text, bool on, string tip, Action click)
@@ -604,7 +604,7 @@ public sealed partial class MainWindow
     {
         JsonObject? r = null;
         try { r = JsonNode.Parse(await ModelCallAsync("playlistPlay", listId, key ?? "") ?? "null") as JsonObject; } catch { }
-        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("Prism" + Mid + (S(r, "error").Length > 0 ? S(r, "error") : "that couldn't start")); return; }
+        if (r?["ok"]?.GetValue<bool>() != true) { SetPill("PRISM" + Mid + (S(r, "error").Length > 0 ? S(r, "error") : "that couldn't start")); return; }
         _ = FollowPlaylistRunAsync();
         if (_hubTab == "playlists") _plRedraw?.Invoke();
         _ = FillPlaylistDockAsync();

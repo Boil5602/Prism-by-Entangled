@@ -10,7 +10,7 @@ namespace PrismHost.Surfaces;
 /// <summary>
 /// The loading mark (2026-10-07): the ring was the YouTube TV page's own, drawn inside the page, and a
 /// window still loading is black under the host's dark substrate (section 16), where the page draws nothing. The host's mark sits on that
-/// substrate: Prism's triangle, dimmed, with a light running around its edges. It runs only on a visible window whose page is live and still
+/// substrate: PRISM's triangle, dimmed, with a light running around its edges. It runs only on a visible window whose page is live and still
 /// covered; parked and hidden windows run nothing.
 /// </summary>
 public sealed partial class SurfaceManager

@@ -29,5 +29,5 @@
       "selector": null
     }
   ],
-  "notes": "\u00a732 floating player: Prism's own control up, the Amazon Music web player beneath. Flip to the page to sign in and pick music; flip back to listen. Added as a source on request (2026-09-09); the adapter's page-side selectors are unverified until a signed-in run on the wall."
+  "notes": "\u00a732 floating player: PRISM's own control up, the Amazon Music web player beneath. Flip to the page to sign in and pick music; flip back to listen. Added as a source on request (2026-09-09); the adapter's page-side selectors are unverified until a signed-in run on the wall."
 }

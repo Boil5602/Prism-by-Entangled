@@ -270,7 +270,7 @@ public sealed partial class MainWindow
                     await Task.Delay(1000);
                 }
             LogLine("sign in: " + tileId + " -> no Sign In control seen on the page");
-            SetPill("Prism" + Mid + "Use " + name + "'s own Sign In button on the page");
+            SetPill("PRISM" + Mid + "Use " + name + "'s own Sign In button on the page");
             return;
         }
         if (baseUrl is { Length: > 0 } && IsHttpUrl(baseUrl)) { LogLine("sign in: " + tileId + " -> " + baseUrl); _surfaces.Navigate(tileId, baseUrl); }

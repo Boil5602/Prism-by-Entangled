@@ -1,0 +1,28 @@
+[
+ {
+  "name": "Second evening with sound (sampled XL)",
+  "day": "2026-11-09",
+  "window": "youtube-tv-home-16x9-XL",
+  "from": "20:00:00",
+  "to": "23:00:00",
+  "frames": [
+   "200000591",
+   "225959459"
+  ],
+  "library": "195434",
+  "lead": 18
+ },
+ {
+  "name": "Second evening with sound (sampled XL-w2)",
+  "day": "2026-11-09",
+  "window": "youtube-tv-home-16x9-XL-w2",
+  "from": "20:00:00",
+  "to": "23:00:00",
+  "frames": [
+   "200000818",
+   "225959541"
+  ],
+  "library": "195434",
+  "lead": 18
+ }
+]

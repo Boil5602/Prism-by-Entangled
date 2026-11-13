@@ -9,7 +9,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 namespace PrismHost;
 
 /// <summary>
-/// Pair a phone (2026-10-03): the Prism menu's item mints a
+/// Pair a phone (2026-10-03): the PRISM menu's item mints a
 /// pairing address (core, section 6) and shows it as a QR over the wall; the phone opens the page the host serves (Services/RemotePage.cs) -
 /// a keyboard for the wall and private listening. The card closes itself when the phone connects. The token is in the QR alone: never
 /// on the status line, never in the log.
@@ -21,7 +21,7 @@ public sealed partial class MainWindow
 
     private void PairPhone()
     {
-        if (_remote is null) { SetPill("Prism" + Dot + "the phone remote is not running on this device"); return; }
+        if (_remote is null) { SetPill("PRISM" + Dot + "the phone remote is not running on this device"); return; }
         _pairCardWanted = true;
         _brain.Call(HostCalls.MintPairing, _remote.BaseUrl(), false);   // a fresh code each time the menu asks
     }
@@ -39,10 +39,10 @@ public sealed partial class MainWindow
         var card = new StackPanel { Spacing = 14, Padding = new Thickness(28), Background = HubCard, CornerRadius = new CornerRadius(12), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 660 };
         // read from the sofa, phone in hand (2026-10-10)
         card.Children.Add(new TextBlock { Text = "Pair your phone", FontSize = 28, Foreground = HubInk, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        card.Children.Add(new TextBlock { Text = "Scan this with the phone's camera. The page that opens types into whatever is focused in Prism, and plays Prism's sound on the phone while the PC stays quiet. The phone must be on the same network as this PC.", FontSize = 20, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
+        card.Children.Add(new TextBlock { Text = "Scan this with the phone's camera. The page that opens types into whatever is focused in PRISM, and plays PRISM's sound on the phone while the PC stays quiet. The phone must be on the same network as this PC.", FontSize = 20, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
         try
         {
-            card.Children.Add(await QrWithMarkAsync(url, 300));   // the code with the Prism mark in its middle (MainWindow.Qr.cs)
+            card.Children.Add(await QrWithMarkAsync(url, 300));   // the code with the PRISM mark in its middle (MainWindow.Qr.cs)
         }
         catch (Exception ex) { LogLine("pair phone: qr " + ex.Message); }
         card.Children.Add(new TextBlock { Text = "Waiting for the phone" + (char)0x2026, FontSize = 18, Foreground = HubAmber, HorizontalAlignment = HorizontalAlignment.Center });
@@ -70,7 +70,7 @@ public sealed partial class MainWindow
                     if (!sure) { sure = true; ((TextBlock)forget.Content).Text = "Forget " + name + " for sure?"; ((TextBlock)forget.Content).Foreground = HubAmber; return; }
                     try { await ModelCallAsync("remoteForget", name, created, seen.Length > 0 ? seen : null); } catch { }
                     LogLine("pair phone: forgot " + name + " (" + created + ")");
-                    SetPill("Prism" + Dot + name + " forgotten");
+                    SetPill("PRISM" + Dot + name + " forgotten");
                     await DrawPairedAsync();
                 };
                 row.Children.Add(forget);
@@ -81,8 +81,8 @@ public sealed partial class MainWindow
         var close = Chip(new TextBlock { Text = "Close", FontSize = 18, Foreground = HubInk }, false);
         close.Click += (_, __) => ClosePairCard();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
-        // opened from How Prism works: the card says the way back itself (2026-10-10)
-        if (TourOwed) { var back = Chip(new TextBlock { Text = "Back to How Prism works", FontSize = 18, Foreground = HubInk }, true); back.Click += (_, __) => TourReturn(); buttons.Children.Add(back); }
+        // opened from How PRISM works: the card says the way back itself (2026-10-10)
+        if (TourOwed) { var back = Chip(new TextBlock { Text = "Back to How PRISM works", FontSize = 18, Foreground = HubInk }, true); back.Click += (_, __) => TourReturn(); buttons.Children.Add(back); }
         buttons.Children.Add(close);
         card.Children.Add(buttons);
         scrim.PointerPressed += (_, __) => ClosePairCard();
@@ -119,12 +119,12 @@ public sealed partial class MainWindow
     {
         RootGrid.DispatcherQueue.TryEnqueue(() =>
         {
-            // volume separation (2026-10-04; B-472, 2026-11-01): the wall keeps playing for the room at Prism's own mute and volume, which the
-            // phone's stream undoes - the phone hears Prism at full and has its own volume; the playback device is never touched
-            if (n > 0 && _listenSavedVolume is null) { _listenSavedVolume = 1; _surfaces.PrivateListening = true; SetPill("Prism" + Dot + "a phone is listening. Mute Prism here and the phone still hears it"); }
+            // volume separation (2026-10-04; B-472, 2026-11-01): the wall keeps playing for the room at PRISM's own mute and volume, which the
+            // phone's stream undoes - the phone hears PRISM at full and has its own volume; the playback device is never touched
+            if (n > 0 && _listenSavedVolume is null) { _listenSavedVolume = 1; _surfaces.PrivateListening = true; SetPill("PRISM" + Dot + "a phone is listening. Mute PRISM here and the phone still hears it"); }
             else if (n == 0 && _listenSavedVolume is not null)
             {
-                _surfaces.PrivateListening = false; _listenSavedVolume = null; SetPill("Prism" + Dot + "no phone is listening now");
+                _surfaces.PrivateListening = false; _listenSavedVolume = null; SetPill("PRISM" + Dot + "no phone is listening now");
                 _ = ModelCallAwaitAsync("listenWindow", 5000, (string?)null);   // the window a phone chose to hear (2026-10-05) gives the sound back to the big one
             }
         });

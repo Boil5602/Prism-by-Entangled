@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CATEGORY_RULES, cleanCategory, cleanTag, creatorTags, keywordsOf, matches, orderCategory, pageInfoOf, poolWords, popularTags, publishedAt, recordingAsLive, withinDays, wordsOf, type CategoryCard } from "../src/categories.js";
 import { topArticles } from "../src/most-read.js";
 
-// Categories of the person's own (2026-10-11): hashtags and one clear rule, across services, from what Prism already lists.
+// Categories of the person's own (2026-10-11): hashtags and one clear rule, across services, from what PRISM already lists.
 describe("categories by hashtags, with a clear rule (categories.ts)", () => {
   const item = (title: string, subtitle: string | null = null, extra: Partial<CategoryCard["item"]> = {}) => ({ id: title, title, kind: "video", url: null, artwork: null, subtitle, progress: null, ...extra });
   const card = (app: string, title: string, subtitle: string | null = null): CategoryCard => ({ app, service: app, facet: app + "-f", item: item(title, subtitle) });

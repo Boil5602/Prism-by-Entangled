@@ -71,7 +71,7 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(o.currentSong()).toMatchObject({ title: "Shame", artist: "Lauren Mayberry", from: "sp" });
     // a service with no lookup script says so, naming the song it would have looked for
     expect(await o.musicLookup("sp")).toBe("unavailable");
-    expect(o.musicLookupState("sp")).toMatchObject({ status: "unavailable", song: { title: "Shame" }, reason: "this service cannot be searched from Prism yet" });
+    expect(o.musicLookupState("sp")).toMatchObject({ status: "unavailable", song: { title: "Shame" }, reason: "this service cannot be searched from PRISM yet" });
     // ... and with its own note, that note is the reason (Amazon Music: "Unavailable" with a ? that explains why, 2026-09-16)
     o.setAdapters({ "apple-music": { id: "apple-music", controls: { play: ".play" }, musicLookup: "/*lookup*/" } as never, spotify: { id: "spotify", controls: { play: ".play" }, musicLookupNote: "No way in from outside." } as never });
     await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: true, title: "Shame", artist: "Lauren Mayberry", album: "Vicious Creature" } });
@@ -235,7 +235,7 @@ describe("Quick play: the song playing now, on another service", () => {
     } finally { vi.useRealTimers(); }
   });
 
-  it("play orders (2026-09-17, spec 32 layer 5): the service's shuffle switch, Prism's true shuffle and reverse through the page's track list, a standing order the state names", async () => {
+  it("play orders (2026-09-17, spec 32 layer 5): the service's shuffle switch, PRISM's true shuffle and reverse through the page's track list, a standing order the state names", async () => {
     const { drivers, calls } = fakeDrivers();
     (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
     const o = new Orchestrator(drivers);
@@ -337,13 +337,13 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(await o.playCollection("am", "playlist", "p.1")).toBe("ok");
     expect(injects("__prismMusicPlay").length).toBe(1);
     expect(injects("__prismMusicQueue").length).toBe(0);
-    // a station has no order; a service without the hooks cannot do Prism's orders
+    // a station has no order; a service without the hooks cannot do PRISM's orders
     expect(await o.playCollection("am", "station", "ra.1", "reverse")).toBe("unsupported");
     await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: false, title: "", artist: "", library: { playlists: [{ id: "s1", name: "Mix", kind: "playlist", url: "https://open.spotify.com/playlist/s1" }], stations: [] } } });
     expect(await o.playCollection("sp", "playlist", "s1", "true-shuffle")).toBe("unsupported");
   });
 
-  it("a page-route service (2026-09-18, Spotify): its shuffle and repeat follow once its page plays; Prism's orders run through its list and queue like any other", async () => {
+  it("a page-route service (2026-09-18, Spotify): its shuffle and repeat follow once its page plays; PRISM's orders run through its list and queue like any other", async () => {
     const { drivers, calls } = fakeDrivers();
     (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
     const o = new Orchestrator(drivers);
@@ -413,7 +413,7 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(await o.playCollection("sp", "album", "nope", "reverse")).toBe("unknown");   // a collection nobody named stays unknown
   });
 
-  it("repeat (2026-09-18): a switch beside the order - the service's repeat-all for its orders, Prism's next pass for its own, a fresh draw for true shuffle", async () => {
+  it("repeat (2026-09-18): a switch beside the order - the service's repeat-all for its orders, PRISM's next pass for its own, a fresh draw for true shuffle", async () => {
     const { drivers, calls } = fakeDrivers();
     (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
     const o = new Orchestrator(drivers);
@@ -428,12 +428,12 @@ describe("Quick play: the song playing now, on another service", () => {
     await o.setMusicRepeat("am", true);
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicRepeat).toBe(true);
     expect(await drivers.store!.get("music:repeat:lounge:am")).toBe("1");
-    expect(injects("__prismMusicRepeat(true)").length).toBe(1);   // no Prism order stands: the service's switch, now
+    expect(injects("__prismMusicRepeat(true)").length).toBe(1);   // no PRISM order stands: the service's switch, now
     // a play in the service's order carries the switch
     calls.length = 0;
     expect(await o.playCollection("am", "playlist", "p.1", "normal")).toBe("ok");
     expect(injects("__prismMusicRepeat(true)").length).toBe(1);
-    // a Prism order: the list of three, a window of two; at the end of the list the next pass joins - reverse repeats the same way round
+    // a PRISM order: the list of three, a window of two; at the end of the list the next pass joins - reverse repeats the same way round
     calls.length = 0;
     const rev = o.playCollection("am", "playlist", "p.1", "reverse");
     await tick();
@@ -698,7 +698,7 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(injects("__prismMusicQueue").length).toBe(0);
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.stall).toMatchObject({ strikes: 3, spot: null });
     // B-233: a track played from another collection does not move the spot, even when the order holds the same song; and
-    // Start over on a Prism-ordered play is the same order from its first track, not the page's remembered collection
+    // Start over on a PRISM-ordered play is the same order from its first track, not the page's remembered collection
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "A", artist: "x", position: 5, duration: 100, context: { trackId: "1", kind: "station", id: "ra.9", label: "Some Station", playing: true, position: 5 } } });
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicOrder).toMatchObject({ spot: 1 });   // where the last stalled face (track 3, the first of the order) left it - not "A" at 3
     calls.length = 0;
@@ -858,7 +858,7 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(o.musicLookupState("am")).toMatchObject({ status: "found", picked: true, match: { id: "b" } });
     expect(o.musicLookupPick("am", "zzz")).toBe(false);
   });
-  it("a Prism order read while the other source plays on (2026-10-05): the audio changes hands only when the ordered list is ready", async () => {
+  it("a PRISM order read while the other source plays on (2026-10-05): the audio changes hands only when the ordered list is ready", async () => {
     const { drivers, calls } = fakeDrivers();
     (drivers.surface as unknown as { createVisualization: (o: unknown) => void }).createVisualization = (o) => void calls.push({ op: "createVisualization", o });
     const o = new Orchestrator(drivers);

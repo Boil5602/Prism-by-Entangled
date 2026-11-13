@@ -5,7 +5,7 @@ and a plain classifier is fitted on those - channels held out for the training s
     <venv>/python scripts/breakwatch/pic/picembed.py <frames.npz> <out folder> [model ...]
 
 Models: mobilenet (MobileNetV3-small, 2.5 M numbers: what could ship), resnet18 (11 M), clip (ViT-B/32, 88 M: the ceiling, too heavy
-to ship, a teacher at most). Nothing here runs in Prism."""
+to ship, a teacher at most). Nothing here runs in PRISM."""
 import os
 import sys
 import time
@@ -59,7 +59,7 @@ for name in models:
             for i in range(N):
                 g = np.fromfile(path(i), np.uint8)
                 if g.size == 57600: frames[i] = g.reshape(180, 320)
-                if i % 200 == 0: time.sleep(0.25); wait_if_busy()                 # some 800 files a second at most, and none while Prism lags
+                if i % 200 == 0: time.sleep(0.25); wait_if_busy()                 # some 800 files a second at most, and none while PRISM lags
                 if i % 20000 == 0: print(f"   reading frames {i}/{N} ({time.time() - t0:.0f} s)", flush=True)
         f, size, mean, std = build(name); out = []; t0 = time.time()
         mu = torch.tensor(mean, device=dev).view(1, 3, 1, 1); sd = torch.tensor(std, device=dev).view(1, 3, 1, 1)

@@ -1,4 +1,4 @@
-# Prism — Concept Scenes v0.1
+# PRISM — Concept Scenes v0.1
 
 *Four household concepts become shipped **Scene Templates**, plus the data and
 mechanics they need to be real: attributed imagery packs, living previews,
@@ -92,7 +92,7 @@ Same ruling for Family Hub's `agenda` and Kitchen Classic's `calendar`. The blur
 above is unchanged — it ships verbatim and the maintainer owns its words.
 
 **Known gap (do not block on it):** ICS subscription (work calendars) is a
-Merge roadmap item, not Prism. The blurb names it; the template ships without
+Merge roadmap item, not PRISM. The blurb names it; the template ships without
 it.
 
 ### 2.2 Sports Multiview — `sports-multiview`, 16:9
@@ -185,7 +185,7 @@ the veil. Anything else a household wants (a clock in the corner, a music
 facet hidden for the credits) is added in the scene builder afterwards.
 
 *Decision (2026-09-19):* Movie Night is the household's **Video player** and Music Lounge its
-**Music player**; the Prism menu switches between them. When the wall goes to the Video player,
+**Music player**; the PRISM menu switches between them. When the wall goes to the Video player,
 the lounge's hidden music sources are carried into the Movie Night scene's `hidden` list (same
 facets, same audio policies) so the switch keeps them warm: the music plays on until a video
 takes the sound, and the way back resumes it. The template itself stays one role; the carried
@@ -232,7 +232,7 @@ Family Hub has **no** exclusive role, so `templateAudioOwner` returns null,
 and that is legal for a template with no video hero. CS-1 states this in a
 test rather than treating null as a bug.
 
-Photos has no first-party app yet (Prism Photos is phase two): the role takes
+Photos has no first-party app yet (PRISM Photos is phase two): the role takes
 any app, and the demo household fills it with a placeholder hero.
 
 Blurb: *"A portrait panel for the hallway: photos, the week, the family list,
@@ -293,7 +293,7 @@ is hidden, which is new and legal.
 
 Blurb: **
 
-#### 2.5.2 Composition (Prism Beams, normative for the renderer)
+#### 2.5.2 Composition (PRISM Beams, normative for the renderer)
 
 *Amended 2026-09-03 by the mock-4 audit (§2.5.4): points 1, 3, 5 and the new
 point 8 carry the adopted proposals P1, P4, P5b, P3. The palette is
@@ -409,13 +409,13 @@ itself.
 
 *Decision (2026-10-22) — the player sleeps.* Ten seconds after the pointer last moved (read from the system every half second, so a pointer that
 left the window counts as still), the transport, the clock, the top-left column (Intermission, Next visual,
-Quick play, Mini player), the progress bar, the top-centre block (this PC's name, MUTED), the Prism grip and the
+Quick play, Mini player), the progress bar, the top-centre block (this PC's name, MUTED), the PRISM grip and the
 top-right corner (the Music / Video switch, the report flag) fade out, and the cursor hides while it rests over the
-stage. A move counts only inside the Prism window: a mouse at work in another window lets the player rest. The visual, the poster and the track block stay: they are what the
+stage. A move counts only inside the PRISM window: a mouse at work in another window lets the player rest. The visual, the poster and the track block stay: they are what the
 screen is for. The first move of the mouse brings everything back at once. The player never sleeps while the
 soundscape wheel, the volume slider, Quick play or the order is open, nor while the chrome has stepped aside
 for a revealed player. Point 4's rule (disabled, never hidden) is about a control the page did not register;
-sleep is the whole row resting with the room, and `music.sleep` (host-prefs.json, on; Prism menu → Music
+sleep is the whole row resting with the room, and `music.sleep` (host-prefs.json, on; PRISM menu → Music
 player sleep, full menu) turns it off. `VisualizationChrome.Asleep` / `CursorHidden` hold the rule, tested;
 MainWindow.VizSleep.cs does the fading.
 
@@ -434,8 +434,12 @@ in their shipped order and writes the choice into the scene's visualization,
 so it sticks. The builder's *Style…* sheet remains the place to pick one by
 name; this is the across-the-room version of the same choice.
 
+*Decision (2026-11-10) — the control says which visual is on.* Its face is a picture with a small
+next arrow, not two arrows; its tooltip names the visual on screen, its place in the list and the one a
+press brings.
+
 *Decision (2026-09-06) — twenty packs, two new families.* The four originals
-(Prism Beams, Spectrum, Ribbon, Bloom) are joined by sixteen **tableaus**: composed
+(PRISM Beams, Spectrum, Ribbon, Bloom) are joined by sixteen **tableaus**: composed
 scenes whose lights and movement answer the music, never a bar chart. Eight are
 **environment** (Aurora Ridge, Moonlit Ocean, Firefly Forest, Rain on the Window,
 Snowfall Village, Desert Stars, Storm Front, Sunrise Meadow) and eight are
@@ -444,14 +448,14 @@ Harbor Lights, Night Train, Street Fair, Stadium Wave). Each is data
 (`packages/core/data/visualization-styles/<id>.json`, `program` = the tableau) over
 one drawing class in the host (`Tableaus.cs`): every shape built once, every frame
 only moved and re-lit, nothing allocated while drawing. The §2.5.2 composition
-rules stay Prism Beams' own; a tableau honours reduced motion (drift, no beat) and
+rules stay PRISM Beams' own; a tableau honours reduced motion (drift, no beat) and
 point 6 (idle is a slow scene, never a black screen). *Next visual* cycles all
 twenty in this order.
 
 *Decision (2026-09-06) — Play resumes.* On a wall where nothing is queued, the
 transport's Play goes back to the page the source last **played from** (the
 album, playlist or station) and presses that page's own Play control - the one
-the adapter names. Prism remembers only what it has seen play, so the first
+the adapter names. PRISM remembers only what it has seen play, so the first
 play of a household still happens on the revealed page; every play after that
 is one tap from the wall. This is also the mechanism a future `onActivate:
 play` ruling would use, which is why that field stayed unused: a Media Session
@@ -481,7 +485,7 @@ gains a small spaced line above the title naming the **service** (the App the
 hidden facet belongs to). And the transport row gains **Quick play**: the last
 **five** collection pages - albums, playlists, stations - this source played
 from, one tap each, kept by core from what it saw play (`music:recent`). A pick
-goes to that page and presses its own Play; only a page Prism saw play can be
+goes to that page and presses its own Play; only a page PRISM saw play can be
 chosen, never an arbitrary address. Labels are the album's name or the page's
 slug - what the address says, never a guess.
 
@@ -561,12 +565,12 @@ whatever is playing: **In order**,
 and named for what it is: it comes from the music service, and music services
 shuffle with non-transparent algorithms that often weigh listening habits,
 track popularity, recent play history and skip rates to curate the queue),
-**True shuffle** (Prism's: every track once, in a uniformly random
+**True shuffle** (PRISM's: every track once, in a uniformly random
 order, before any repeat; a fresh draw each pass - the rule is published,
-nothing is weighted; algorithmic transparency is the point) and **In reverse**. The last two are Prism's
+nothing is weighted; algorithmic transparency is the point) and **In reverse**. The last two are PRISM's
 order handed to the player's own queue (spec §32 layer 5); a verb a service
 cannot do reads grey with the reason; the standing one is marked. *The spot is
-saved:* the player names the track it is on, and a Prism-ordered play keeps its
+saved:* the player names the track it is on, and a PRISM-ordered play keeps its
 place - the block reads
 "Vibes · true shuffle · 412 of 1612", the plain press on that playlist, a Play
 with nothing loaded and a switch to the service all carry on from there, and the
@@ -577,10 +581,10 @@ source that loses the audio to another service is paused, not left streaming in
 silence (a service that is not actively playing is paused, not muted and left
 streaming - spec §3, amended 2026-09-17), so
 every road back lands on the track you left. *Spotify (2026-09-18)* takes the same orders through its page: its own
-shuffle and repeat buttons, and for Prism's orders the playlist page's rows read
+shuffle and repeat buttons, and for PRISM's orders the playlist page's rows read
 once and a one-ahead queue (the next track added to Spotify's queue as each one
 starts). *Repeat (2026-09-18)* is a switch beside the order, not an order -: the service's own repeat-all
-under its orders, Prism's next pass under its own (a fresh draw for true shuffle,
+under its orders, PRISM's next pass under its own (a fresh draw for true shuffle,
 the same way round for reverse); the block counts the pass. *And a stalled player is caught
 (2026-09-18):* a player that says playing while its clock stands still for ten
 seconds - Apple's media source looping on its last fragment after an overnight
@@ -631,7 +635,7 @@ has loaded — the same function the OS media keys call, and the same one §32
 transport pass-through already uses. It fires at most once per document, so a
 reload or an SPA navigation does not fight a human who just paused.
 
-The open question is whether Prism may invoke it without a tap. §32 says
+The open question is whether PRISM may invoke it without a tap. §32 says
 transport is pass-through **on a human action**. The argument for yes: §4
 schedules and §24 alarms already start and stop things with nobody in the room,
 and choosing a scene is a human action — the delay between the tap and the effect
@@ -662,12 +666,12 @@ reject (then the mockup is redrawn to match the wall).
 | §2.5.2 | Mock 4 shows | Verdict |
 |---|---|---|
 | 1 Beams — white input beam, prism, four `PRISM_BANDS` beams bent by energy | White line from the left edge to x≈0.47, prism triangle **centred at (0.50, 0.44)**, four beams from x≈0.52 to the right edge, each fanning with a slow sine and pulsing in width | Geometry agrees. **Position differs:** the renderer places the prism at 0.42w (CS-8). *Proposal P1:* make the position normative — prism centred at (0.50, 0.44). |
-| 1 Beams — palette | `T.beams = #E8654F · #F0A83C · #8FBF6B · #5B9BD5` (red-orange, amber, green, blue) | **Palette differs** from `PRISM_BANDS` (`#F0A83C · #5CC8C0 · #C86CF0 · #F05C7A`: amber, teal, violet, rose), which SM-3 shipped as the brand's four bands and every style pack, the Prism extension and the wizard use. *Proposal P2 (recommend reject):* the mockup adopts `PRISM_BANDS`; the brand palette is not changed by a marketing draft. |
+| 1 Beams — palette | `T.beams = #E8654F · #F0A83C · #8FBF6B · #5B9BD5` (red-orange, amber, green, blue) | **Palette differs** from `PRISM_BANDS` (`#F0A83C · #5CC8C0 · #C86CF0 · #F05C7A`: amber, teal, violet, rose), which SM-3 shipped as the brand's four bands and every style pack, the PRISM extension and the wizard use. *Proposal P2 (recommend reject):* the mockup adopts `PRISM_BANDS`; the brand palette is not changed by a marketing draft. |
 | — | **A spectrum floor**: 42 rounded bars along the bottom (x 90→720 of 800, base y=400, heights 14–60, coloured by band, opacity 0.5), rising with the audio | **Missing from §2.5.2.** *Proposal P3:* add point 8 — a low bar field across the bottom sixth, band-coloured at 50 % opacity, driven by the same smoothed bands; idle: settles to its floor with the ambient drift; reduced motion: static at the floor. |
 | 2 Backdrop — art blurred and dimmed, palette tinted | Conic-gradient art layer, `blur(38px) brightness(.55) opacity .8`, over a radial base | Agrees; the blur/dim magnitudes are a reasonable default for CS-8's layer. No change. |
 | 3 Metadata line — bottom-left, **monospace**, `title — artist`, then dimmer state | **Two lines**: title in Space Grotesk 600 (13 px), then `The Refractions · hidden facet · ♪ exclusive` — artist in dim sans, the state in mono | **Typography and shape differ.** Charter: one mono line. Mock: a two-line block, only the state in mono. *Proposal P4:* adopt the mock — line 1 title (grotesk semibold, `LeInk`), line 2 `artist · state` (artist dim sans, state dim mono). Note the fixture strings in CS-9 (`Aurora Skies — The Refractions`) would become `Aurora Skies` / `The Refractions · hidden facet · ♪ exclusive`. |
 | 4 Transport — bottom-right, prev · play/pause · next, pass-through, disabled-not-hidden | `⏮ ⏸ ⏭` bottom-right, the middle glyph brighter | Agrees. No change. |
-| 5 Style label — top-right, `Prism Beams · backdrop`, edit mode only | `PRISM BEAMS · backdrop: album art`, mono, faint, top-right — always visible (a static mock cannot show modes) | Placement agrees. *Proposal P5:* label text becomes `PRISM BEAMS · backdrop: album art` (uppercase style name, mode spelled out); and for the **shot** the label must be visible — take it in edit mode, or (P5b) show the label for 4 s after a scene applies and on every style change, then hide. |
+| 5 Style label — top-right, `PRISM Beams · backdrop`, edit mode only | `PRISM BEAMS · backdrop: album art`, mono, faint, top-right — always visible (a static mock cannot show modes) | Placement agrees. *Proposal P5:* label text becomes `PRISM BEAMS · backdrop: album art` (uppercase style name, mode spelled out); and for the **shot** the label must be visible — take it in edit mode, or (P5b) show the label for 4 s after a scene applies and on every style change, then hide. |
 | 6 Idle — ambient drift, empty line, substrate, never black | Not depicted (the mock is the playing state) | §2.5.2 stands. |
 | 7 Reduced motion | Not depicted | §2.5.2 stands. |
 | — Typefaces | Space Grotesk (headings) + IBM Plex Mono (mono) — the design tokens of the site | The host chrome uses **Consolas** (CS-8). *Proposal P6:* bundle the two token faces locally with the host (zero network, §19/§22) and use them in the visualization chrome and the micro-facets; until then Consolas / Segoe UI are the honest fallbacks and the shot will not match pixel-for-pixel. |
@@ -677,7 +681,7 @@ reject (then the mockup is redrawn to match the wall).
 - *Decision: **P1 adopted.*** The prism is centred at (0.50, 0.44). §2.5.2
   point 1 amended; `DrawBeams` moves off 0.42w.
 - *Decision: **P2 rejected.*** `PRISM_BANDS` stays — amber, teal, violet,
-  rose are the brand's four bands, shipped across the style packs, the Prism extension
+  rose are the brand's four bands, shipped across the style packs, the PRISM extension
   and the wizard, and a marketing draft does not move them. **The mockup is
   wrong and gets redrawn** to the brand bands (`T.beams` in
   `prototypes/prism-website-mockups.jsx`).
@@ -959,7 +963,7 @@ offered only as hidden (§32: music facets are never slot candidates).
 | CS-4 | Host/runtime wiring of §25 peek and audio-follows-tap (seam, channel, remote parity) | Agent 4 |
 | CS-5 | The Parkers seed + reset + golden-path fixture | Agent 5 |
 | CS-7 | Music Lounge template (§2.5.1) + the §7a schema extension + the wizard's pick-service → sign-in → facet-and-visualization-together flow | Agent 1 |
-| CS-8 | Prism Beams composition parity (§2.5.2) + reveal wiring (§2.5.3) on the host | Agent 3 |
+| CS-8 | PRISM Beams composition parity (§2.5.2) + reveal wiring (§2.5.3) on the host | Agent 3 |
 | CS-9 | Music Lounge in the Parkers seed (idle; "Aurora Skies" / "The Refractions" as the synthetic Media Session fixture) + the §2.5 fixtures | Agent 5 |
 
 Gate, unchanged: `node scripts/verify.mjs --no-known-gaps --require-all` must
@@ -987,7 +991,7 @@ shows which ones the website mockups depend on.
 
 | Scene | Library said | Charter shipped | Note |
 |---|---|---|---|
-| Kitchen Command | calendar `3:4·M`; no chores role; intermission from the family's shared album (Photos phase 1) | calendar `4:3·M` (a three-up right column with chores); `pack:cosmos` | chores was the work order's addition; the album source waits on Prism Photos |
+| Kitchen Command | calendar `3:4·M`; no chores role; intermission from the family's shared album (Photos phase 1) | calendar `4:3·M` (a three-up right column with chores); `pack:cosmos` | chores was the work order's addition; the album source waits on PRISM Photos |
 | Sports Multiview | game hero `16:9·XL` + 2–3 secondaries `16:9·M` (living previews) + scoreboard strip + optional fantasy tracker `3:4·M` | hero `4:3·XL` + two secondaries `3:2·M` + scores ticker | **resolved by CS-10.2 (§2.2)** — the library and mock 3 win: hero-plus-two. The 2×2 was the charter's reading of "four games", and four concurrent games broke §18's budget anyway. The classes are the derived ones, not `16:9` — see §2.2 |
 | Movie Night | hero + **hidden music facet idle**; pause-after-break on; intermission = family album; night dim scheduled after | one role, `pack:gallery`, keepPresentation | hidden extras are scene-level; the §7a hidden-role schema (CS-7) now makes the idle music facet expressible in a template |
 | Family Hub | Merge week `9:16·XL` upper · photos `3:2·M` · weather-to-wear `4:3·S` · chores `3:4·M` | photos `4:3·XL` upper · agenda/chores `1:1·M` · timer/weather `16:9·M` · ticker | the library leads with the calendar; the charter led with photos and added timer + ticker |

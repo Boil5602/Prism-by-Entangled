@@ -3,7 +3,7 @@
  * site the way a browser's "install app" does, never bundled. This module is
  * the pure logic: given a page's HTML (fetched by the shell — core never
  * fetches), produce the ordered icon candidates; given nothing usable,
- * produce the wordmark fallback (service name in Prism type on a hue derived
+ * produce the wordmark fallback (service name in PRISM type on a hue derived
  * from the site's theme-color).
  *
  * Order (normative): web-app manifest icons → apple-touch-icon → og:image →
@@ -22,7 +22,7 @@ export interface PosterCandidate {
 
 export interface WordmarkFallback {
   kind: "wordmark";
-  /** The text rendered in the Prism type. */
+  /** The text rendered in the PRISM type. */
   name: string;
   /** Background hue: the page's theme-color when sane, else derived from the name. */
   background: string;

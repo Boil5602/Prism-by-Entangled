@@ -1,4 +1,4 @@
-// The live TV picture for the break watch (src/live-picture.js, opt-in pv:ui.livePicture, 2026-11-06): the frame is the one Prism for
+// The live TV picture for the break watch (src/live-picture.js, opt-in pv:ui.livePicture, 2026-11-06): the frame is the one PRISM for
 // Windows scores (SurfaceManager.CaptureForWatchAsync / VideoArea): the middle 16:9 of the video's area, grey = (B*29 + G*150 + R*77) >> 8.
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";

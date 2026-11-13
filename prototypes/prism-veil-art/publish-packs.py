@@ -1,4 +1,4 @@
-"""Serve Prism's Cosmos and Museum art packs to the Veil extension (2026-10-15, (the owner chose serving the packs from the server)): each pack goes to
+"""Serve PRISM's Cosmos and Museum art packs to the Veil extension (2026-10-15, (the owner chose serving the packs from the server)): each pack goes to
 its own folder beside the photo pool - https://prism.entangled.world/veil/art/cosmos/ and .../gallery/ - with a list.json ({v:1, files:[{f,
 sha256}]}, the pool's own format) signed by the same key (sign-list.mjs), and the pack's provenance as manifest.json. The pool's list.json is
 untouched, so an extension that knows nothing of the sets keeps showing nature photos only.

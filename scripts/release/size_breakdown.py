@@ -64,7 +64,7 @@ def breakdown(zip_path):
     for k in sorted(exact, key=lambda k: exact[k] - tenths[k], reverse=True)[: max(0, want - sum(tenths.values()))]:
         tenths[k] += 1
     out = [{"key": key, "label": label, "note": note, "mb": tenths[key] / 10, "files": sums[key][1]} for key, label, note, _ in PARTS if key in tenths and key != "prism" and key not in WITHIN_PRISM]
-    # the sounds and the pictures are Prism's own ("Shouldnt prism sounds and pictures be considered part of prism?"): one part, its note
+    # the sounds and the pictures are PRISM's own ("Shouldnt prism sounds and pictures be considered part of prism?"): one part, its note
     # saying how much of it each is
     inside = [k for k in ("prism",) + WITHIN_PRISM if k in tenths]
     if inside:

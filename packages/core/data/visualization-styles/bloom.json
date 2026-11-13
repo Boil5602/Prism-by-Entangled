@@ -1,7 +1,7 @@
 {
   "id": "bloom",
   "name": "Bloom",
-  "blurb": "Particle pulses on the beat, blooming from the center and drifting out.",
+  "blurb": "A flower of light: a petal a band, opening as far as its band is loud, with a ring of light and pollen on each beat. A cover in the middle becomes the flower's heart.",
   "program": "particles",
   "bands": 24,
   "palette": ["#C86CF0", "#F05C7A", "#F0A83C", "#5CC8C0"],

@@ -65,7 +65,7 @@ public sealed partial class MainWindow
         var kOther = Radio("Something else", "rk", false);
         body.Children.Add(kAd); body.Children.Add(kBug); body.Children.Add(kIdea); body.Children.Add(kOther);
         // an ad on a page: Veil's own report lets the person point at it and sends what it is made of, so Veil can learn to cover it
-        var pointAt = new HyperlinkButton { Content = "Point at the ad on the screen instead (helps Prism learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
+        var pointAt = new HyperlinkButton { Content = "Point at the ad on the screen instead (helps PRISM learn to cover it)", Padding = new Thickness(28, 0, 0, 4), Visibility = Visibility.Collapsed };
         body.Children.Add(pointAt);
         kAd.Checked += (_, __) => pointAt.Visibility = Visibility.Visible;
         kBug.Checked += (_, __) => pointAt.Visibility = Visibility.Collapsed;
@@ -75,12 +75,12 @@ public sealed partial class MainWindow
         body.Children.Add(Label("Where?"));
         var pMusic = Radio("The Music player", "rp", active == "music");
         var pVideo = Radio("The Video player", "rp", active == "video");
-        var pOther = Radio("Somewhere else in Prism", "rp", active is not ("music" or "video"));
+        var pOther = Radio("Somewhere else in PRISM", "rp", active is not ("music" or "video"));
         body.Children.Add(pMusic); body.Children.Add(pVideo); body.Children.Add(pOther);
 
         body.Children.Add(Label("Which service?"));
         var svc = new ComboBox { MinWidth = 320 };
-        // the services of the player chosen above (2026-10-06): the Music player's for music, the Video player's for video, every one for elsewhere; Prism itself always first
+        // the services of the player chosen above (2026-10-06): the Music player's for music, the Video player's for video, every one for elsewhere; PRISM itself always first
         var wantApp = selected;
         void FillServices()
         {
@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             wantApp = null;
             var only = pMusic.IsChecked == true ? "music" : pVideo.IsChecked == true ? "video" : null;
             svc.Items.Clear();
-            svc.Items.Add(new ComboBoxItem { Content = "Prism itself", Tag = null });
+            svc.Items.Add(new ComboBoxItem { Content = "PRISM itself", Tag = null });
             foreach (var s in services.Where(x => only is null || (x["kind"]?.GetValue<string>() == "video" ? "video" : "music") == only).OrderBy(x => x["name"]?.GetValue<string>()))
             {
                 var name = s["name"]?.GetValue<string>() ?? s["app"]?.GetValue<string>() ?? "";
@@ -104,19 +104,19 @@ public sealed partial class MainWindow
 
         var noteHead = Label("What did you see? What were you doing?");
         body.Children.Add(noteHead);
-        var note = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 110, PlaceholderText = "For example: an ad played before the episode and Prism didn't cover it" };
+        var note = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 110, PlaceholderText = "For example: an ad played before the episode and PRISM didn't cover it" };
         body.Children.Add(note);
         void Wording()
         {
             var idea = kIdea.IsChecked == true;
-            noteHead.Text = idea ? "What would you like Prism to do?" : "What did you see? What were you doing?";
-            note.PlaceholderText = idea ? "For example: let me pick the order of the services on the Watch screen" : kAd.IsChecked == true ? "For example: an ad played before the episode and Prism didn't cover it" : "For example: the song changed but the picture stayed on the last one";
+            noteHead.Text = idea ? "What would you like PRISM to do?" : "What did you see? What were you doing?";
+            note.PlaceholderText = idea ? "For example: let me pick the order of the services on the Watch screen" : kAd.IsChecked == true ? "For example: an ad played before the episode and PRISM didn't cover it" : "For example: the song changed but the picture stayed on the last one";
         }
         foreach (var rb in new[] { kAd, kBug, kIdea, kOther }) rb.Checked += (_, __) => Wording();
 
         var withPage = new CheckBox { IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
-        var withLog = new CheckBox { IsChecked = false, Content = new TextBlock { Text = "Include Prism's recent log", Foreground = HubInk, FontSize = 14 } };
-        ToolTipService.SetToolTip(withLog, "What Prism did in the last few minutes: pages opened, what played, errors. Passwords, tokens and keys are never written to it.");
+        var withLog = new CheckBox { IsChecked = false, Content = new TextBlock { Text = "Include PRISM's recent log", Foreground = HubInk, FontSize = 14 } };
+        ToolTipService.SetToolTip(withLog, "What PRISM did in the last few minutes: pages opened, what played, errors. Passwords, tokens and keys are never written to it.");
         body.Children.Add(withPage); body.Children.Add(withLog);
 
         var previewText = new TextBlock { Foreground = HubInk, FontSize = 12, FontFamily = new FontFamily("Consolas"), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
@@ -179,15 +179,15 @@ public sealed partial class MainWindow
 
         var report = Build(false).ToJsonString();
         LogLine("report: " + KindOf() + " on the " + PlayerOf() + " player for " + (Chosen()?["app"]?.GetValue<string>() ?? "prism"));
-        SetPill("Prism" + Mid + "sending your report" + (char)0x2026, hold: true);
-        if (await SendReportAsync(report)) { ReleasePill("Prism" + Mid + "thanks, your report is in"); _ = FlushReportOutboxAsync(); return; }
+        SetPill("PRISM" + Mid + "sending your report" + (char)0x2026, hold: true);
+        if (await SendReportAsync(report)) { ReleasePill("PRISM" + Mid + "thanks, your report is in"); _ = FlushReportOutboxAsync(); return; }
         try
         {
             System.IO.Directory.CreateDirectory(ReportOutbox);
             System.IO.File.WriteAllText(System.IO.Path.Combine(ReportOutbox, "report-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ".json"), report, new UTF8Encoding(false));
-            ReleasePill("Prism" + Mid + "your report is saved, and Prism sends it when it can reach the inbox");
+            ReleasePill("PRISM" + Mid + "your report is saved, and PRISM sends it when it can reach the inbox");
         }
-        catch (Exception e) { LogLine("report: outbox " + e.Message); ReleasePill("Prism" + Mid + "the report could not be sent or saved"); }
+        catch (Exception e) { LogLine("report: outbox " + e.Message); ReleasePill("PRISM" + Mid + "the report could not be sent or saved"); }
     }
 
     private static async Task<bool> SendReportAsync(string json)

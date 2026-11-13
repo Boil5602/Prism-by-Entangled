@@ -1,7 +1,7 @@
 /**
  * Compatibility reports (spec §19 — opt-in, per-incident, inspectable).
  *
- * There is no ambient telemetry in Prism — nothing phones home, ever. The
+ * There is no ambient telemetry in PRISM — nothing phones home, ever. The
  * one exception is user-initiated: when a compatibility failure repeats,
  * the shell may offer — once, quietly, in edit mode — to send an anonymous
  * report so the community can fix it.

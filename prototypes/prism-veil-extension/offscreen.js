@@ -1,6 +1,6 @@
 /*
-  Prism - Veil's offscreen page (2026-11-06): holds each live TV tab's own stream, so the browser's sharing notice names the extension,
-  not the site the tab is on, and runs Prism's break watch on it (the browser port in src/breakwatch). bg.js opens it and hands it a
+  PRISM - Veil's offscreen page (2026-11-06): holds each live TV tab's own stream, so the browser's sharing notice names the extension,
+  not the site the tab is on, and runs PRISM's break watch on it (the browser port in src/breakwatch). bg.js opens it and hands it a
   stream id for a tab (pv:live-open); the tab's page (src/live-picture.js) then sends once a second where its video is, its channel,
   whether it is at the live edge, any new caption words and whether a spotted veil is up (pv:live-look); the answer is the
   frame (320x180 grey, base64) and the break watch's word: its chance and whether a spotted veil is up. pv:live-notabreak is the
@@ -15,7 +15,7 @@
   var canvas = document.createElement("canvas"); canvas.width = P.W; canvas.height = P.H;
   var g = canvas.getContext("2d", { willReadFrequently: true });
   var learned = null;
-  // Known ads (2026-11-06, as the Prism app keeps them): the pictures of breaks the watch is sure of are learned on this PC and a picture
+  // Known ads (2026-11-06, as the PRISM app keeps them): the pictures of breaks the watch is sure of are learned on this PC and a picture
   // seen again is a known ad (the model's print_seen); the library is kept in the extension's storage through bg.js and never leaves it.
   var prints = new NS.AdPrints(null), printsSavedAt = 0;
   // ... and their sounds (AdSounds, the app's sounds.bin format), learned from a sure break's sound all but its last twenty seconds
@@ -45,9 +45,35 @@
   // the picture network (2026-11-06, scripts/breakwatch/cnn.py): its chance is added in logit to the learned one at the model's
   // policy.picture weight; a model without that weight, or a package without picture-net.json, leaves it out
   var picNet = null, picW = 0;
+  // the picture network's chance for a frame: the two-channel network reads the frame and the frame before; the temporal one (four
+  // channels, 2026-11-07) also the tab's last eleven seconds of frames, kept in c.picRing, as the bench and the trainer build them
+  function picChance(c, gray, now) {
+    var prev = c.picPrev && now - c.picPrevAt < 3 ? c.picPrev : null;
+    if (picNet.inChannels() !== 4) return picNet.Chance(gray, prev);
+    c.picRing = (c.picRing || []).filter(function (e) { return now - e.t <= 11; });
+    var back = [];
+    for (var k = 0; k < 5; k++) {
+      var want = now - 2 * (k + 1), best = null;
+      c.picRing.forEach(function (e) { if (Math.abs(e.t - want) <= 0.7 && (!best || Math.abs(e.t - want) < Math.abs(best.t - want))) best = e; });
+      back.push(best ? best.g : null);
+    }
+    var q = picNet.ChanceTemporal(gray, prev, back);
+    c.picRing.push({ t: now, g: gray });
+    return q;
+  }
   // policy.agree (2026-11-07, the pop-ups): a cover may begin only when the trees' own chance and the network's are both at least
   // policy.treeMin / policy.netMin (0.5 each); up, the blend alone holds it. As the bench's AGREE=1. Off unless the model says so.
   var agree = false, treeMin = 0.5, netMin = 0.5;
+  // The channel gate (2026-11-11, as the app's LearnedBreak.Measured): the model lists the channels it was measured on while held out
+  // of its own training ("channels": name -> ads %, wrong %), and policy.gate is the most show time, in percent, a channel may have
+  // lost there. A channel not listed or over the gate is covered in sure breaks only, unless the person chose All breaks for it.
+  // A model with no list, or a gate of 0, gates nothing.
+  var gateMax = 0, gateChannels = null;
+  function gated(name) {
+    if (!gateChannels || !(gateMax > 0) || !name) return false;
+    var c = gateChannels[String(name).toLowerCase()];
+    return !(c && c.wrong <= gateMax);
+  }
   // The model and the network: the bundled files, or the downloaded pack's when it is newer by serial (bg.js keeps pv:pack and its parts
   // in storage; docs/features/break-watch-packs.md, 2026-11-07). Read once, when this page starts: a new pack is picked up at the next
   // channel's start, never in the middle of a break.
@@ -56,6 +82,8 @@
     learned = NS.LearnedBreak.fromJson(j);
     var w = j && j.policy && +j.policy.picture;
     agree = !!(j && j.policy && j.policy.agree);
+    gateMax = j && j.policy && typeof j.policy.gate === "number" ? j.policy.gate : 0; gateChannels = null;
+    if (j && j.channels && typeof j.channels === "object") { gateChannels = {}; for (var gk in j.channels) gateChannels[gk.toLowerCase()] = j.channels[gk]; }
     if (j && j.policy && typeof j.policy.treeMin === "number") treeMin = j.policy.treeMin;
     if (j && j.policy && typeof j.policy.netMin === "number") netMin = j.policy.netMin;
     if (!(w > 0 && NS.PictureNet)) return;
@@ -133,7 +161,7 @@
     if (!c.lst && learned) c.lst = learned.NewState();
     return c;
   }
-  // The screen's words (2026-11-06): the Prism app reads them with Windows' own text reader every other look; a browser has none, so the
+  // The screen's words (2026-11-06): the PRISM app reads them with Windows' own text reader every other look; a browser has none, so the
   // extension carries Tesseract.js (Apache-2.0, vendor/tesseract: its worker, its SIMD core and the English data, nothing fetched from
   // the web) and reads the same 960x540 picture every other look, one reading at a time. Lines Tesseract is unsure of (under 55) are
   // left out: on a picture without text it makes letters up. The words go to the model as the app's (BreakModel.Text).
@@ -284,12 +312,12 @@
     else while (c.pending.length && now - c.pending[0].at >= 20) { var pp = c.pending.shift(); prints.Learn(pp.fp, c.clip, c.clip === 0 ? 0 : pp.at - c.clipStart); }
     keepPrints(now); keepSounds(now);
     if (!learned || !c.lst) return { b64: P.toB64(gray), noise: noiseNow(t) };
-    // The Prism app's cover, as MainWindow.BreakWatch composes it (2026-11-06): the learned call, held to its guards, joined with the
+    // The PRISM app's cover, as MainWindow.BreakWatch composes it (2026-11-06): the learned call, held to its guards, joined with the
     // rules that do not guess
     var dn = new Date(), clockSec = dn.getHours() * 3600 + dn.getMinutes() * 60 + dn.getSeconds() + dn.getMilliseconds() / 1000;
     var p = learned.Score(c.lst, m.Features(now), printSeen, now, coverUp, clockSec);
     if (picNet && picW > 0) {
-      var q = Math.min(0.999, Math.max(0.001, picNet.Chance(gray, c.picPrev && now - c.picPrevAt < 3 ? c.picPrev : null))), l0 = Math.min(0.999, Math.max(0.001, p));
+      var q = Math.min(0.999, Math.max(0.001, picChance(c, gray, now))), l0 = Math.min(0.999, Math.max(0.001, p));
       var blended = 1 / (1 + Math.exp(-(Math.log(l0 / (1 - l0)) + picW * Math.log(q / (1 - q)))));
       if (agree && !(c.lst && c.lst.up) && (p < treeMin || q < netMin)) blended = 0;   // no start unless both lean to a break
       p = blended;
@@ -324,8 +352,9 @@
     if (!up && (m.InsetBreakAt(now) || m.InsetTailAt(now)) && !m.AdFreeChannel && !m.DismissedAt(now)) { up = true; why = "inset picture"; }
     // the person's choice for this channel, as the app's: off never covers; sure breaks only covers what does not guess (YouTube TV's own
     // slot as it plays, one coming while a cover is up, a paid programme the title or the screen names), the watch reading on as ever
+    var isGated = msg.mode === "auto" && gated(m.ChannelName);
     if (msg.mode === "off") { up = false; why = ""; }
-    else if (msg.mode === "sure") {
+    else if (msg.mode === "sure" || isGated) {
       var paidNow = String(m.ShowTitle || "").trim().toLowerCase() === "paid programming" || clock < c.paidUntil;
       up = !m.DismissedAt(now) && (m.CueOnAt(now) || (c.covered && m.CueComingAt(now)) || paidNow);
       why = !up ? "" : m.CueOnAt(now) ? "marked slot" : paidNow ? "paid programming" : "slot coming";
@@ -335,9 +364,9 @@
     // the cover goes up only at the live edge (2026-11-06); rewound or a recording, the watch keeps reading and learning
     var diag = (m.HasLogo ? "logo " + (m.LogoScore == null ? "-" : (m.LogoScore / (m._level || 1)).toFixed(2)) + (m.LogoUpNow ? " up" : m.LogoAwayNow ? " away" : "") : "no logo yet") +
       ", rules " + (m.Active ? "break" : "show") + " " + Math.round(m.Chance * 100) + "%" + (m.NearEdge ? ", near an edge" : "") + (m.AdFreeChannel ? ", ad-free" : "");
-    return { b64: P.toB64(gray), p: p, up: up && !!msg.live, why: why, noise: noiseNow(t), diag: diag, ocr: ocrFailed ? "(text reader failed to start: " + ocrErr + ")" : ocrAsked + " asked, " + ocrReads + " read, " + ocrSeen + " lines in the last (" + ocrRaw + ")" + (ocrErr ? ", error: " + ocrErr : "") + ", last kept: " + ocrLast };
+    return { b64: P.toB64(gray), p: p, up: up && !!msg.live, why: why, gated: isGated, noise: noiseNow(t), diag: diag, ocr: ocrFailed ? "(text reader failed to start: " + ocrErr + ")" : ocrAsked + " asked, " + ocrReads + " read, " + ocrSeen + " lines in the last (" + ocrRaw + ")" + (ocrErr ? ", error: " + ocrErr : "") + ", last kept: " + ocrLast };
   }
-  // the channels the Prism app never covers (MainWindow.BreakWatch.AdFree)
+  // the channels the PRISM app never covers (MainWindow.BreakWatch.AdFree)
   var AD_FREE = /^(C-SPAN\d?|PBS( Kids)?|PBS .*)$/i;
   // A channel's learned logo kept across restarts (2026-11-06; the app keeps its .logo files): saved through bg.js into the extension's
   // storage when it is learned and every ten minutes after, and asked for when the channel is first seen.

@@ -24,7 +24,7 @@ public interface IVisualizationAudioSource
 // PrismHost.Core/VisualizationFeed.cs: pure parsing, no WinUI, asserted in CI.
 
 /// <summary>
-/// What a visualization style implements (Agent 3 plugs Prism Beams / Spectrum /
+/// What a visualization style implements (Agent 3 plugs PRISM Beams / Spectrum /
 /// Ribbon / Bloom in here; the host ships a plain bars renderer so the surface is
 /// never empty). Attached once to the host panel; Render is called ~30 Hz while
 /// the feed is active and once with zero bands when it goes idle.
@@ -124,8 +124,28 @@ public sealed class VisualizationHost : Grid, IDisposable
     /// <summary>Live feed at the pack's rate; idle at the ambient rate - the tick never stops while the surface is alive.</summary>
     private void StartTick()
     {
-        _timer.Interval = TimeSpan.FromMilliseconds(_demand && !_reducedMotion ? 33 : 100);
-        _timer.Start();
+        // 2026-11-11 (reported: the motion was close to choppy): the live rate is paced by the screen's own refresh, not by a 33 ms
+        // timer. A timer's ticks came 33 to 50 ms apart while the renderer moves every frame by a fixed thirtieth of a second, so the
+        // motion sped up and slowed down. Now a frame is drawn on the first screen refresh at least a thirtieth after the last one:
+        // every second refresh of a 60 Hz screen, evenly. The slow ambient rate keeps the timer.
+        var live = _demand && !_reducedMotion;
+        if (live) { _timer.Stop(); if (!_paced) { _paced = true; _nextFrame = TimeSpan.Zero; Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += OnRendering; } }
+        else { if (_paced) { _paced = false; Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnRendering; } _timer.Interval = TimeSpan.FromMilliseconds(100); _timer.Start(); }
+    }
+
+    private bool _paced;
+    private TimeSpan _nextFrame;
+    private int _framesDrawn;
+    private double _drawMs;
+    private static readonly TimeSpan FrameStep = TimeSpan.FromSeconds(1 / 30.0);
+
+    private void OnRendering(object? sender, object e)
+    {
+        var now = _clock.Elapsed;
+        if (now + TimeSpan.FromMilliseconds(4) < _nextFrame) return;   // not yet: this refresh is the one between two frames
+        // the next frame is due a step after this one was due, so the rate holds at thirty; after a stall, start again from now
+        _nextFrame = _nextFrame + FrameStep < now - FrameStep ? now + FrameStep : _nextFrame + FrameStep;
+        Tick();
     }
 
     private static bool _reducedMotion => MotionReduced;   // live: the rail toggle takes effect at once
@@ -134,7 +154,7 @@ public sealed class VisualizationHost : Grid, IDisposable
 
     /// <summary>
     /// Motion policy for the wall. The system's reduced-motion setting is the
-    /// DEFAULT, not the law: a Prism frame is an appliance, and someone who turns
+    /// DEFAULT, not the law: a PRISM frame is an appliance, and someone who turns
     /// animation effects off on their desktop has not asked the wall in their
     /// kitchen to stop moving. Measured on a real wall 2026-09-04 - with
     /// ClientAreaAnimation=False the renderer ran at 10fps with no beat and
@@ -189,10 +209,13 @@ public sealed class VisualizationHost : Grid, IDisposable
             _lastBandReport = _clock.Elapsed;
             float lo = 1f, hi = 0f, sum = 0f;
             foreach (var b in bands) { if (b < lo) lo = b; if (b > hi) hi = b; sum += b; }
-            report($"bands live={live} n={bands.Length} min={lo:F3} max={hi:F3} avg={(bands.Length > 0 ? sum / bands.Length : 0):F3} demand={_demand}");
+            report($"bands live={live} n={bands.Length} min={lo:F3} max={hi:F3} avg={(bands.Length > 0 ? sum / bands.Length : 0):F3} demand={_demand} frames={_framesDrawn} drawMs={_drawMs:F0}");
+            _framesDrawn = 0; _drawMs = 0;
+            try { var skip = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Prism", "diagnostics", "viz-skip.txt"); PrismHost.Visualizations.Tableau.DevSkip = System.IO.File.Exists(skip) ? System.IO.File.ReadAllText(skip) : ""; } catch { }
         }
 
-        try { _renderer.Render(bands, ActualWidth, ActualHeight); }
+        _framesDrawn++; var t0 = _clock.Elapsed;
+        try { _renderer.Render(bands, ActualWidth, ActualHeight); _drawMs += (_clock.Elapsed - t0).TotalMilliseconds; }
         catch (System.Runtime.InteropServices.COMException ex)
         {
             // 2026-09-08: a COM failure inside the draw (E_UNEXPECTED, seen once during a fake break) was followed by the
@@ -236,6 +259,7 @@ public sealed class VisualizationHost : Grid, IDisposable
     {
         BandDiagnostic?.Invoke("visualization host disposed: " + Source);
         _timer.Stop();
+        if (_paced) { _paced = false; Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnRendering; }
         if (_demand) _audio?.SetDemand(false);
         _renderer.Detach(this);
     }

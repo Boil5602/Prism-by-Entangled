@@ -64,7 +64,7 @@ One JSON document describes everything a device renders. The Android shell and t
 
 ## 3. Audio focus rules (normative)
 
-1. At most one `exclusive` tile audible at a time. Play event (or in-page unmute of a playing player) in an exclusive tile ⇒ MUTE all other exclusive tiles — they keep playing silently (the wall keeps moving; only the audio migrates), duck nothing, pause nothing. (Amended 2026-08-31: the earlier pause/mute reading was a functionality loss.) *Amended 2026-09-17 for music sources:* a **music source** (a hidden music facet, §32) that loses the audio is **paused** through its own player as well as muted — a service that is not actively playing is paused, not muted and left streaming. A silent music player spends skips and ad breaks for no one and walks a Prism-ordered play (§32 layer 5) forward behind the person's back. Video and every other exclusive tile keep the mute-only rule: a muted live stream keeps moving.
+1. At most one `exclusive` tile audible at a time. Play event (or in-page unmute of a playing player) in an exclusive tile ⇒ MUTE all other exclusive tiles — they keep playing silently (the wall keeps moving; only the audio migrates), duck nothing, pause nothing. (Amended 2026-08-31: the earlier pause/mute reading was a functionality loss.) *Amended 2026-09-17 for music sources:* a **music source** (a hidden music facet, §32) that loses the audio is **paused** through its own player as well as muted — a service that is not actively playing is paused, not muted and left streaming. A silent music player spends skips and ad breaks for no one and walks a PRISM-ordered play (§32 layer 5) forward behind the person's back. Video and every other exclusive tile keep the mute-only rule: a muted live stream keeps moving.
 2. `mix` tiles are unaffected by exclusive transitions and by each other.
 3. UI must show a per-tile mute toggle and a global mute.
 5. Boot is silent: every tile starts muted regardless of policy; the first human play (or in-page unmute) lifts exactly the tile it happened in. (Added 2026-08-31.)
@@ -466,7 +466,7 @@ Dashboards are just schema documents, so they're inherently shareable — and si
 
 **Import = fill the slots.** Opening a shared layout prompts per slot: "This layout has a Calendar tile — connect yours." Known slot types auto-fill from the user's existing tiles; custom slots ask for a URL. One shared layout thus works for every household despite everyone's accounts being different.
 
-**Distribution:** a layout is a small JSON blob — shareable as a link (`entangled.world/l/<id>`; prism.entangled.world is the Prism extension's storage, not the website - decision 2026-09-26), a QR on someone's actual frame, or a file in the repo. The gallery is the browsable index: screenshots (rendered by the reference solver, so previews are pixel-accurate), device profile, tile list, remix count. Importing then re-sharing preserves an attribution chain ("remixed from…"). Gallery submissions are licensed CC0 by default — layouts are arrangements, not works, and frictionless remixing is the point.
+**Distribution:** a layout is a small JSON blob — shareable as a link (`entangled.world/l/<id>`; prism.entangled.world is the PRISM extension's storage, not the website - decision 2026-09-26), a QR on someone's actual frame, or a file in the repo. The gallery is the browsable index: screenshots (rendered by the reference solver, so previews are pixel-accurate), device profile, tile list, remix count. Importing then re-sharing preserves an attribution chain ("remixed from…"). Gallery submissions are licensed CC0 by default — layouts are arrangements, not works, and frictionless remixing is the point.
 
 **Moderation floor:** gallery listings are reviewed for URL safety (no malware/abuse domains — checked against the same attributed filter lists in §5) but never for taste; direct link/QR sharing is unmoderated peer-to-peer.
 
@@ -531,7 +531,7 @@ Default is **off**, forever — no dark patterns, no pre-checked boxes, no naggi
 
 - Shell version, platform (tablet/pi/tv/windows), device profile class, display class (bucketed: <12″/12–16″/tv), RAM bucket
 - Feature usage as booleans/counts: hero vs grid, tile count bucket (1–3/4–5/6–7), carousel used, private listening used, BT remote paired (count only), region-focus used
-- Health: crash signatures (stack frames from Prism code only — app paths, URLs, and page content scrubbed before write), tile-revive latency buckets, refresh-failure *counts*
+- Health: crash signatures (stack frames from PRISM code only — app paths, URLs, and page content scrubbed before write), tile-revive latency buckets, refresh-failure *counts*
 - Adapter health: adapter name + failed/succeeded counts. This names sites in aggregate (e.g., "youtube adapter"), so it is a **separate, individually-listed toggle** under the main opt-in.
 
 **What may never be sent — the blind spots are structural, not policy:**
@@ -539,13 +539,13 @@ URLs, page titles, selectors' matched content, layout documents, tile names, pro
 
 **No identity:** no device ID, no install ID, no cookies. Payloads are unlinkable across days by construction; we accept imprecise device counts as the cost of unlinkability. (If dedup ever becomes necessary, the ceiling is a random token rotated every 24h, and that change requires a new consent.)
 
-**Radical legibility:** the opt-in screen shows the *actual next payload*, pretty-printed, before consent — not a description, the bytes. A "View what Prism sent" screen shows every payload ever transmitted from this device (kept locally). The ingest server is open source in the repo; aggregate dashboards are public, so users see exactly what the data becomes. Self-hosted/PrismOS builds ship with the telemetry endpoint empty — opting in requires choosing a destination, which may be the user's own.
+**Radical legibility:** the opt-in screen shows the *actual next payload*, pretty-printed, before consent — not a description, the bytes. A "View what PRISM sent" screen shows every payload ever transmitted from this device (kept locally). The ingest server is open source in the repo; aggregate dashboards are public, so users see exactly what the data becomes. Self-hosted/PrismOS builds ship with the telemetry endpoint empty — opting in requires choosing a destination, which may be the user's own.
 
 **Consent lifecycle:** asked once at setup, one screen, "No thanks" equally prominent; revocable anytime; revocation stops transmission immediately (nothing server-side to delete — there is no per-user data to find).
 
 ## 19. Compatibility reports (opt-in, per-incident, inspectable)
 
-There is no ambient telemetry in Prism — nothing phones home, ever. The one exception is user-initiated: when a *compatibility failure* occurs (adapter selector missing after N retries, tile render failure, DRM/Widevine init failure, readiness timeout on a known domain), the shell may offer — once, quietly, in edit mode, never as an interruption — "This tile is broken. Send an anonymous compatibility report so the community can fix it?"
+There is no ambient telemetry in PRISM — nothing phones home, ever. The one exception is user-initiated: when a *compatibility failure* occurs (adapter selector missing after N retries, tile render failure, DRM/Widevine init failure, readiness timeout on a known domain), the shell may offer — once, quietly, in edit mode, never as an interruption — "This tile is broken. Send an anonymous compatibility report so the community can fix it?"
 
 **Payload (normative whitelist — anything not listed cannot be sent):**
 
@@ -603,7 +603,7 @@ Frames can route all traffic through a user-supplied VPN. This is device-level, 
 
 Design rule: legal process can only compel what exists, so the architecture minimizes what exists. The complete inventory of what Entangled holds, published on the site as such — "here is everything a court order could yield":
 
-- **Prism:** nothing. No accounts, no server-side state; compatibility reports are anonymous by schema (§19) and already public. There is no Prism user database.
+- **PRISM:** nothing. No accounts, no server-side state; compatibility reports are anonymous by schema (§19) and already public. There is no PRISM user database.
 - **Merge (deliberate, stated tradeoff):** the sync server holds calendar data in plaintext to serve multi-tenant sync and calendar integrations. This is the one meaningful data store in the stack, and the privacy page says so plainly rather than implying otherwise. Minimization around it: deleted items purged on a short published schedule, no access-pattern logging, license records are key+email only (alias emails welcome; no names, no addresses, no history beyond key validity). The sync protocol is designed so client-side E2E is reachable in a future major version if demand justifies the feature cost.
 - **Storage pool:** ciphertext only — no order can yield a photo. What exists is billing metadata (member identity, bytes stored, payments), already visible in the co-op's open books.
 - **Payments:** processed by Stripe, which holds what payment processors hold, under its own policies; Entangled retains only the license linkage above.
@@ -638,7 +638,7 @@ Store:    profile storage guarantees (§10) · snapshot persistence
 
 **Protocol as the second unifier.** Every component — shells, phone remote, editor, future clients — speaks the one documented remote API (§6). The shells' UI, the PWA, and the editor are all clients of the same state model; there is no privileged internal channel to drift.
 
-**Conformance kit.** A test suite drives any shell via the remote API and golden-tests the observable contracts: solver rects identical to reference, no-white-frame timings (§16), audio exclusivity, storage persistence across restart (§10), report schema (§19). A shell that passes is a Prism; this is how community ports (new platforms, forks) self-verify without permission.
+**Conformance kit.** A test suite drives any shell via the remote API and golden-tests the observable contracts: solver rects identical to reference, no-white-frame timings (§16), audio exclusivity, storage persistence across restart (§10), report schema (§19). A shell that passes is a PRISM; this is how community ports (new platforms, forks) self-verify without permission.
 
 **Repo shape:** monorepo `prism` (packages: core, editor, remote-ui, conformance; shells: android, linux+image, windows-recipe) · separate community repos: `prism-adapters`, `prism-layouts` (gallery), `prism-parts` (sourcing). Merge remains its own product/codebase, sharing only the design tokens and any tile URL contracts.
 
@@ -754,8 +754,8 @@ The Intermission idea applied to page ads: ad slots display nature, cosmos, art,
 - **Continuity guarantees:** §10 storage persistence holds across every update (migrate, never wipe); §16 applies to the update moment — the frame comes back to its last snapshots, not a boot screen; a failed update is a rollback, never a bricked wall.
 - **Channels:** `stable` (default) and `beta` (opt-in, edit mode). Release notes rendered on-frame after update, dismissible, never blocking.
 
-**Identity (Prism needs none; Entangled ID is optional; SSO is transparent).**
-- **Prism requires no account, ever.** Pairing, layouts, remotes, updates — all local or anonymous. This is load-bearing (§22) and does not change.
+**Identity (PRISM needs none; Entangled ID is optional; SSO is transparent).**
+- **PRISM requires no account, ever.** Pairing, layouts, remotes, updates — all local or anonymous. This is load-bearing (§22) and does not change.
 - **Entangled ID** exists only for things that genuinely need identity: Merge licenses, Photos/pool membership, the off-network relay, gallery submissions. First-class method: **email + passkey** — no password, no third party, alias emails welcome. This is the default the UI leads with.
 - **Third-party SSO** (Sign in with Apple / Google) is offered for convenience, gated by a plain-language transparency card shown *before* the button works, e.g. The card is specific per provider, kept current, and linked from the §22 inventory.
 - SSO is never required, never the default, and unlinking (converting an SSO account to passkey) is a supported one-click path — no identity lock-in, consistent with every other exit hatch in this document.
@@ -797,9 +797,9 @@ Complement to §26/§27, with an explicitly different rule, principled not ad ho
 - **Stub WindowProxy:** intercepted `window.open` returns a mock window object (supports `.focus`, `.closed`, etc.) so the launching page's scripts proceed without error paths or nagging. This deceives only the launcher's error handling — no window exists, no navigation occurs, no impression is fabricated.
 - **Backstop:** tab-creation/opener tracking catches evasions (form targets, `about:blank` bounce redirects — the *final* URL is what's evaluated and logged).
 
-**The Prism button (on-page presence).** The Control Center's front door is a small translucent pill anchored bottom-right of the page:
+**The PRISM button (on-page presence).** The Control Center's front door is a small translucent pill anchored bottom-right of the page:
 
-- **Idle:** semi-transparent "Prism" label at low opacity; **collapsed state** docks it to a slim tab at the bottom-right corner, set in from the edge by the pill's own margin so an overlay scrollbar never covers it (2026-10-27) (one tap re-expands; collapse state remembered per site).
+- **Idle:** semi-transparent "PRISM" label at low opacity; **collapsed state** docks it to a slim tab at the bottom-right corner, set in from the edge by the pill's own margin so an overlay scrollbar never covers it (2026-10-27) (one tap re-expands; collapse state remembered per site).
 - **Status morph:** on interception events the pill morphs its label to the update — "3 popups blocked" — holds ~3s, then morphs back. Event-driven only, rate-limited (bursts coalesce into one count; max one morph per ~10s), announced via aria-live for screen readers. The pill must never become the distraction it removes: no color alarms, motion honors reduced-motion (dissolve instead of morph). *Decision 2026-10-27*: for the hold (5 s) the pill comes out of its edge tab and its edge glows amber, the same breathing ring a cover's close hole wears, then rests and docks again; a tap during the hold opens the Control Center and keeps the pill out. That is the one unprompted expansion and the one glow it is allowed.
 - **Tap → Control Center** opens as an in-page panel above the pill (ledger, Open / Always allow, per-site controls); tap-away closes.
 - **Stays out of the way:** auto-hides in fullscreen video and picture-in-picture; repositions above site cookie bars/players when overlap is detected; per-site "hide the button here" in the panel (interception continues, toolbar badge remains the fallback surface).
@@ -838,7 +838,7 @@ Picking what goes in a slot should feel like choosing an app on a TV — a poste
 }
 ```
 
-- **Posters are fetched, not bundled.** `source: "site"` means the shell pulls the service's own icon the way a browser's "install app" does — web-app manifest icons, `apple-touch-icon`, or `og:image` — cached locally per profile. No vendor logo files ship in the repo (brand-asset licensing stays untouched; nominative reference by the site's own served artwork is the standard launcher posture). `fallback: "wordmark"` renders the service name in the Prism type on a hue derived from the site's theme-color when no icon is available. Community can't "improve" a poster by committing a logo — CI rejects binary brand assets in the catalog.
+- **Posters are fetched, not bundled.** `source: "site"` means the shell pulls the service's own icon the way a browser's "install app" does — web-app manifest icons, `apple-touch-icon`, or `og:image` — cached locally per profile. No vendor logo files ship in the repo (brand-asset licensing stays untouched; nominative reference by the site's own served artwork is the standard launcher posture). `fallback: "wordmark"` renders the service name in the PRISM type on a hue derived from the site's theme-color when no icon is available. Community can't "improve" a poster by committing a logo — CI rejects binary brand assets in the catalog.
 - **Focus presets** are named `focus` (§17) configurations per site — "YouTube · Subscriptions," "Hulu · Live guide," "Twitch · Following" — maintained with the adapter's selectors, so a preset is a one-tap choice, not a selector hunt.
 - **DRM tier per platform** recorded from evidence (POC reports), shown in the picker as a small badge ("no DRM") so expectations are set before a tile exists.
 
@@ -868,7 +868,7 @@ One experience, any service — built as layers from unbreakable to optional, us
 
 **Layer 1 — Visualizer (zero page coupling).** The host's WASAPI loopback (already capturing for §14) feeds an FFT; the composition layer renders the visualization. Works for every service and station identically; cannot break.
 
-*Styles (local packs, per placement):* v1 ships four — **Prism Beams** (the signature: a beam split through a prism into the brand's four bands, refracting with the audio), **Spectrum** (classic bars, tasteful), **Ribbon** (smooth waveform trail), **Bloom** (particle pulses on beats). Community styles are pack data (shader/canvas presets), same repo posture as imagery packs.
+*Styles (local packs, per placement):* v1 ships four — **PRISM Beams** (the signature: a beam split through a prism into the brand's four bands, refracting with the audio), **Spectrum** (classic bars, tasteful), **Ribbon** (smooth waveform trail), **Bloom** (particle pulses on beats). Community styles are pack data (shader/canvas presets), same repo posture as imagery packs.
 
 *Artwork modes (per placement, from Media Session artwork — service-served now-playing art, nothing bundled):* **off** · **backdrop** (album art blurred and dimmed behind the visualization, slow drift, palette of the visualization tinted from the art's dominant colors) · **focal** (art sharp and centered, visualization framing it). Track changes crossfade the art through the §16 path; no art → style's default palette. All modes honor reduced-motion (static art, gentle levels).
 
@@ -878,14 +878,14 @@ One experience, any service — built as layers from unbreakable to optional, us
 
 **Layer 4 — Reveal the native player** (transient overlay per the placement model above): playlists, search, shuffle, repeat happen in the service's own UI the user already knows; collapse tucks it away. This is the answer for everything beyond transport — deliberately unmapped.
 
-**Layer 5 (v2, only if demanded):** full MediaController contract per service and `reverse order` emulation (playlist/album only, `previous`-at-`ended` as a standing instruction). *Demanded 2026-09-17 (+), built as **play orders**: a playlist in Quick play plays *in order* / *shuffle* (the service's own switch, through the adapter's `musicShuffle`) / *true shuffle* / *in reverse* (Prism's: the collection's track list from the adapter's `musicTracks`, put in order in core - `play-order.ts`, true shuffle a uniform Fisher-Yates permutation from the cryptographic source, every track once before any repeat - and handed to the player's own queue through `musicQueue`). The order is a standing instruction per source (restored on restart) and the block names it. The `previous`-at-`ended` emulation was not built: it rides the player's three-second rule for what previous means and fails quietly. Apple Music first (MusicKit: shuffleMode, the library tracks endpoint, setQueue by song id); the page-driven services follow.*
+**Layer 5 (v2, only if demanded):** full MediaController contract per service and `reverse order` emulation (playlist/album only, `previous`-at-`ended` as a standing instruction). *Demanded 2026-09-17 (+), built as **play orders**: a playlist in Quick play plays *in order* / *shuffle* (the service's own switch, through the adapter's `musicShuffle`) / *true shuffle* / *in reverse* (PRISM's: the collection's track list from the adapter's `musicTracks`, put in order in core - `play-order.ts`, true shuffle a uniform Fisher-Yates permutation from the cryptographic source, every track once before any repeat - and handed to the player's own queue through `musicQueue`). The order is a standing instruction per source (restored on restart) and the block names it. The `previous`-at-`ended` emulation was not built: it rides the player's three-second rule for what previous means and fails quietly. Apple Music first (MusicKit: shuffleMode, the library tracks endpoint, setQueue by song id); the page-driven services follow.*
 
 **Cross-cutting:** audio focus (§3) and audio intermission (host-spec §5) apply — service ad breaks mute on the adapter's break signal with optional ambient; controls live in the visualization's chrome, the pill/Control Center, and the phone remote; per-service notes live in catalog data (Spotify on-demand needs Premium — surfaced, not fought; Pandora is adapter-only by design; embed vs offscreen-Edge hand-off per the Widevine-audio POC).
 
-**Video, the same layers (VP-2, 2026-09-19).** A video service's face is read the same way: layer 2 from the Media Session where the page publishes one, and the adapter's `videoContext` script for what the Media Session never says (the series, the episode, the id); the library (Continue Watching, My List) from `videoLibrary`; a Quick play through `videoPlay`; the wall's verbs through `videoCmd` first (Skip Intro, next episode, captions are verbs only the service's own page has), then the declared control, then the element. The video player is the household's Movie Night scene, switched from the Prism menu (scene-model-spec §6); the DRM posture of §13 stands (in-tile at the policy cap; the Edge hand-off is B-24). Core `video.ts`; the contract in `packages/core/src/adapters.ts`; nothing of it touches the music model.
+**Video, the same layers (VP-2, 2026-09-19).** A video service's face is read the same way: layer 2 from the Media Session where the page publishes one, and the adapter's `videoContext` script for what the Media Session never says (the series, the episode, the id); the library (Continue Watching, My List) from `videoLibrary`; a Quick play through `videoPlay`; the wall's verbs through `videoCmd` first (Skip Intro, next episode, captions are verbs only the service's own page has), then the declared control, then the element. The video player is the household's Movie Night scene, switched from the PRISM menu (scene-model-spec §6); the DRM posture of §13 stands (in-tile at the policy cap; the Edge hand-off is B-24). Core `video.ts`; the contract in `packages/core/src/adapters.ts`; nothing of it touches the music model.
 
 ## Future directions
 
 - **Moments packs** (§26 adjunct, future): optional break content beyond art — a breathing cue, a stretch prompt, "refill your water." Strictly opt-in, understated, never interactive-engaging (no trivia/games — rebuilding the attention trap with nicer wallpaper is the counterfeit of this tool). Deferred until the core intermission experience is shipped and stable.
 
-- **Prism Photos** (separate concept doc): user-owned encrypted photo storage at wholesale cost, deliberate sharing to frames via §15 slots, client-side legible algorithms. Phase two; the bridge between Prism and the broader ENTANGLED platform.
+- **PRISM Photos** (separate concept doc): user-owned encrypted photo storage at wholesale cost, deliberate sharing to frames via §15 slots, client-side legible algorithms. Phase two; the bridge between PRISM and the broader ENTANGLED platform.

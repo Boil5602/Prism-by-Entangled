@@ -69,3 +69,64 @@ describe("YouTube TV ad slot marks", () => {
     expect(flag()).toBe("idle");
   });
 });
+
+// 2026-11-10: the page's preview tiles are players too, each with a channel of its own. A mark is read only from the buffers of the
+// player on show (the widest <video> with a source); a buffer traced to another player, or to none on the page, is left alone.
+describe("YouTube TV ad slot marks: only the player on show", () => {
+  let n, oldUrl;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    try { window.happyDOM.setURL("https://tv.youtube.com/watch/abc"); } catch (e) {}
+    window.__prismYtvCues = undefined;
+    document.body.innerHTML = "";
+    window.SourceBuffer = function () {};
+    window.SourceBuffer.prototype.appendBuffer = function () {};
+    globalThis.SourceBuffer = window.SourceBuffer;
+    window.MediaSource = function () {};
+    window.MediaSource.prototype.addSourceBuffer = function () { const b = new window.SourceBuffer(); b.buffered = { length: 0 }; return b; };
+    globalThis.MediaSource = window.MediaSource;
+    n = 0; oldUrl = URL.createObjectURL;
+    URL.createObjectURL = () => "blob:https://tv.youtube.com/" + (++n);
+    document.documentElement.removeAttribute("data-prism-ad");
+    document.documentElement.setAttribute("data-prism-ytv", "on");
+    (0, eval)(CODE);
+  });
+  afterEach(() => { vi.useRealTimers(); URL.createObjectURL = oldUrl; delete window.MediaSource; delete globalThis.MediaSource; });
+  const flag = () => document.documentElement.getAttribute("data-prism-ad");
+  // a player: a MediaSource, its address on a <video> of the given width (width null: on no <video> of the page)
+  function player(width) {
+    const ms = new window.MediaSource(), u = URL.createObjectURL(ms);
+    if (width !== null) {
+      const v = document.createElement("video");
+      Object.defineProperty(v, "src", { value: u }); Object.defineProperty(v, "offsetWidth", { value: width });
+      document.body.appendChild(v);
+    }
+    return ms.addSourceBuffer("video/mp4");
+  }
+
+  it("the widest player's mark puts the flag up", () => {
+    const main = player(628); player(261);
+    main.appendBuffer(cueBytes("EVENT_START", 30, 0));
+    vi.advanceTimersByTime(300);
+    expect(flag()).toBe("active");
+  });
+  it("a preview tile's mark is not read", () => {
+    player(628); const tile = player(261);
+    tile.appendBuffer(cueBytes("EVENT_START", 90, 0));
+    vi.advanceTimersByTime(300);
+    expect(flag()).toBe(null);
+  });
+  it("a mark from a player that is not on the page is not read", () => {
+    player(628); const gone = player(null);
+    gone.appendBuffer(cueBytes("EVENT_START", 90, 0));
+    vi.advanceTimersByTime(300);
+    expect(flag()).toBe(null);
+  });
+  it("a buffer with no trace is read as before", () => {
+    player(628);
+    const b = new window.SourceBuffer(); b.buffered = { length: 0 };
+    b.appendBuffer(cueBytes("EVENT_START", 30, 0));
+    vi.advanceTimersByTime(300);
+    expect(flag()).toBe("active");
+  });
+});

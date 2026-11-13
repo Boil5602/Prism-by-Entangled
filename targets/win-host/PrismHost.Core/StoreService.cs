@@ -237,7 +237,7 @@ public sealed class StoreService
 
     /// <summary>
     /// One key as the store holds it on disk, read by another process without loading the store (the phone launcher, 2026-10-23: it
-    /// checks a phone's pairing while Prism is closed). The same precedence as Load: the key's own file when it is at least as new as
+    /// checks a phone's pairing while PRISM is closed). The same precedence as Load: the key's own file when it is at least as new as
     /// the snapshot, else the snapshot's value. Read only: a file that does not parse is skipped, never set aside, so nothing here
     /// moves or writes anything of the household's.
     /// </summary>

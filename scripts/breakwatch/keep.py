@@ -1,6 +1,6 @@
 """Keeps the bench's recording (2026-10-07, (the owner asked how to help the model along)): the bench prunes each window to its
 last frames, so this copies what is new into diagnostics/golden/<day> for marking and training - frames not yet kept, each window's
-events.log lines newer than the last kept one, and Prism's own calls (covers, restarts) from host.log. Safe to run again and again.
+events.log lines newer than the last kept one, and PRISM's own calls (covers, restarts) from host.log. Safe to run again and again.
 
     python scripts/breakwatch/keep.py            once
     python scripts/breakwatch/keep.py --every 1800   every half hour, for as long as it runs
@@ -115,7 +115,7 @@ def keep_once():
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 with open(out, "a", encoding="utf-8") as f:
                     f.writelines(new)
-    # Prism's calls for each date (covers, lifts, restarts), the marking page's amber stretches
+    # PRISM's calls for each date (covers, lifts, restarts), the marking page's amber stretches
     by_day = {}
     # host.log.prev too: the host rotates host.log by size, and the calls between the last keep and the rotation were in no file this
     # read (2026-11-04: a 36 s cover on WTAJ scored as eighteen minutes because its "show" line was never kept); the lines are
@@ -133,6 +133,29 @@ def keep_once():
             for l in lines:
                 if l not in have:
                     f.write(l + "\n")
+    # the recording's sound (2026-11-08): the closed MP3 files under bench/_audio (an hour each; the open one is still being written) and
+    # audio.log's lines, into <golden>/<day>/audio/ by each file's own date
+    try:
+        adir = os.path.join(BENCH, "_audio")
+        for f in os.listdir(adir) if os.path.isdir(adir) else []:
+            p = os.path.join(adir, f)
+            if f.endswith(".mp3") and now - os.path.getmtime(p) > 90:
+                day = day_name(os.path.getmtime(p)); out = os.path.join(GOLDEN, day, "audio")
+                os.makedirs(out, exist_ok=True)
+                if not os.path.exists(os.path.join(out, f)):
+                    shutil.copy2(p, os.path.join(out, f)); copied[day + " audio"] = copied.get(day + " audio", 0) + 1
+        for name in ("audio.log", "splice.log"):   # their lines begin HH:MM:SS.fff; splice.log is the silence detector's (Phase D)
+            by_day = {}
+            for day, l in dated_lines(os.path.join(adir, name), CALL):
+                by_day.setdefault(day, []).append(l)
+            for day, lines in by_day.items():
+                out = os.path.join(GOLDEN, day, "audio", name)
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                last = last_stamp(out); new = [l for l in lines if l[:12] > last]
+                if new:
+                    with open(out, "a", encoding="utf-8") as f: f.writelines(new)
+    except OSError:
+        pass
     lib = keep_library(now)
     print(time.strftime("%H:%M:%S"), "kept", ", ".join(f"{n} frames into {d}" for d, n in sorted(copied.items())) or "no new frames", "| library", lib, flush=True)
 
@@ -142,7 +165,7 @@ LIBRARY = os.path.join(os.environ["LOCALAPPDATA"], "Prism", "breakwatch")
 
 def keep_library(now):
     """The break watch's own memory as it stands - the ads it knows by picture and by sound, each channel's learned logo - copied to
-    golden/<day>/library/<HHMMSS>. A replay must use what Prism knew BEFORE the stretch it replays (2026-10-08): replayed with the
+    golden/<day>/library/<HHMMSS>. A replay must use what PRISM knew BEFORE the stretch it replays (2026-10-08): replayed with the
     library of the moment, which has since learned those very breaks, the known-ad readings come out better than they were live -
     in training and in an exam alike. exam.py --library names the copy to hand the replay as BWDIR. Skipped while nothing has changed."""
     try:

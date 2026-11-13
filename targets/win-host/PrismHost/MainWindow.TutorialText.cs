@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace PrismHost;
 
 /// <summary>
-/// The subjects of How Prism works and their words (the frame is MainWindow.Tutorial.cs), read from Assets/tutorial/tutorial.json:
+/// The subjects of How PRISM works and their words (the frame is MainWindow.Tutorial.cs), read from Assets/tutorial/tutorial.json:
 /// the one source, which the website's tour page reads a copy of (2026-10-11,; scripts/release/sync-tutorial.py copies it there at every release and checks the two agree).
 /// Every label the file names was read from the code: a label that changes there changes in the file in the same commit. A page's
 /// picture is Assets/tutorial/NAME.png. What a page can open is named in the file by an action, and the actions are here.
@@ -47,11 +47,11 @@ public sealed partial class MainWindow
             }
         }
         catch (Exception ex) { s_devLog?.Invoke("tutorial: its pages could not be read: " + ex.GetType().Name + ": " + ex.Message); }
-        // a copy of Prism without the file still says where the tour is, and never an empty list
+        // a copy of PRISM without the file still says where the tour is, and never an empty list
         if (topics.Count == 0)
-            topics.Add(new TutorialTopic("missing", "How Prism works", "The tour's pages are missing from this copy of Prism.", new[]
+            topics.Add(new TutorialTopic("missing", "How PRISM works", "The tour's pages are missing from this copy of PRISM.", new[]
             {
-                new TutorialPage("", "The tour's pages are missing", "This copy of Prism came without the tour's pages. The same tour is on Prism's website, under Tour.", Array.Empty<string>()),
+                new TutorialPage("", "The tour's pages are missing", "This copy of PRISM came without the tour's pages. The same tour is on PRISM's website, under Tour.", Array.Empty<string>()),
             }));
         return s_tutorialTopics = topics.ToArray();
     }

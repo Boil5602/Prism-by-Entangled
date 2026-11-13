@@ -29,7 +29,7 @@ public sealed partial class MainWindow
     private void SayCannotPause(string tile)
     {
         LogLine("live pause: " + tile + " cannot pause, Mute offered");
-        if (_wallMuted) { SetPill("Prism" + Mid + "live TV on this service can't be paused. The sound is already off."); return; }
-        ShowPillOffer("Prism" + Mid + "live TV on this service can't be paused. Mute it instead?", "Mute", () => SetWallMutedFromWall(tile, true), 12);
+        if (_wallMuted) { SetPill("PRISM" + Mid + "live TV on this service can't be paused. The sound is already off."); return; }
+        ShowPillOffer("PRISM" + Mid + "live TV on this service can't be paused. Mute it instead?", "Mute", () => SetWallMutedFromWall(tile, true), 12);
     }
 }

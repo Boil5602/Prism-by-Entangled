@@ -303,7 +303,7 @@ internal sealed class BreakModel
         else if (t - _showTextAt <= 5) { llr -= 3.0; why.Add("show text"); if (t - _showCardAt <= 5 && _showCardAt > _showTextUsed) { _showTextUsed = _showCardAt; _pb = Math.Min(_pb, 0.2); _endedAt = -999; } }   // the show's own card: no quick re-cover after it (FX's rating card, 2026-10-06, came before its logo)
         // a QR code on screen: an ad's (they asked to be scanned in a third of the breaks read; a show almost never carries one)
         if (t - _qrAt <= 5 && t - _adTextAt > 5 && !logoUp) { llr += 2.0; why.Add("qr code"); }
-        // a picture seen in a break before, twice within eight seconds, with the channel's logo away: an ad Prism knows (AdPrints)
+        // a picture seen in a break before, twice within eight seconds, with the channel's logo away: an ad PRISM knows (AdPrints)
         var known = (KnownAd(t) || t - _soundAt <= 3) && HasLogo && !_suspended;
         if (known && !logoUp) { llr += 3.0; why.Add("known ad"); }
 
@@ -665,7 +665,7 @@ internal sealed class BreakModel
         if (ev == "EVENT_STOP") { _cueStopAt = t; _cueReadUntil = t; }
     }
     // One stream's own look-ahead (2026-10-09). The page reads a slot's marker 11 to 31 s before the slot plays, and its announcement
-    // up to 15 s before that: for those seconds Prism knows an ad slot is about to start. A slot does not follow the show's return
+    // up to 15 s before that: for those seconds PRISM knows an ad slot is about to start. A slot does not follow the show's return
     // within half a minute, so a cover that is up stays up until the slot arrives - the break is not over. On CNN, FX and Comedy
     // Central the slot sits inside the break and the learned detector let go in the seconds before it (CNN 09:59, 26 s; Comedy Central
     // 14:02, 31 s). It never starts a cover: where a slot opens the break (NBC Sports) the show is on until it does.
@@ -690,7 +690,7 @@ internal sealed class BreakModel
     public bool LogoAwayNow => HasLogo && !_suspended && LogoScore is { } lz && lz / _level < 0.3;
     public bool LearnableAt(double t) => Active && t - _since >= 15 && t - _wordSeenAt <= 20 && !_suspended && LogoScore is { } lz && lz / _level < 0.3;
 
-    /// <summary>A break that was up when Prism closed, taken up again on the same channel (2026-10-07: every restart threw the running covers
+    /// <summary>A break that was up when PRISM closed, taken up again on the same channel (2026-10-07: every restart threw the running covers
     /// away and the windows' breaks played uncovered a minute while the watch began again). The logo plainly back still lifts it at once.</summary>
     public void ResumeBreak(double t) { Active = true; _since = t; _changedAt = t; _pb = 0.95; _adSeenAt = t; _wordSeenAt = t; _sureSince = t; }
 
@@ -993,7 +993,7 @@ internal sealed class BreakModel
         return n;
     }
     // ---- the window's loudness as the trees' input (2026-11-04: sound was the first pick for the break watch's late starts and late ends;
-    // the page's meter had been recorded a second at a time since 2026-10-08 and never read). In the model, not the trainer, so Prism and
+    // the page's meter had been recorded a second at a time since 2026-10-08 and never read). In the model, not the trainer, so PRISM and
     // the bench compute the same numbers. dB as the meter gives it (-120 is silence); db_seen says whether a reading is fresh (3 s), so a
     // recording without a meter reads as "no sound reading", not as silence.
     private double _db = -120, _peakDb = -120, _dbAt = -999;

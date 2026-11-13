@@ -41,7 +41,7 @@ describe("menu-order §4 - the merge is a pure function of the four inputs", () 
     expect(orderByService(mixed, [], {}, NOW).map((c) => c.item.title)).toEqual(["The Americans", "Mad Men", "Zorro"]);   // A to Z inside the service, not its own order
   });
 
-  it("Last watched (2026-10-14): what Prism played newest first, with its time; the rest by service A to Z in each service's own order; reversed oldest first, services Z to A", () => {
+  it("Last watched (2026-10-14): what PRISM played newest first, with its time; the rest by service A to Z in each service's own order; reversed oldest first, services Z to A", () => {
     const log: MenuLogEntry[] = [{ app: "hulu", id: "h2", title: "Shrill", at: NOW - DAY }, { app: "netflix", id: "n3", title: "Tires", at: NOW - 3 * DAY }];
     const out = orderByWatched(rows, log, {}, NOW);
     expect(out.map((c) => c.item.id)).toEqual(["h2", "n3", "h1", "n1", "n2"]);

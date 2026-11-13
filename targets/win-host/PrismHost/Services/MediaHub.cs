@@ -6,7 +6,7 @@ namespace PrismHost.Services;
 
 /// <summary>
 /// The media hub switch (docs/features/media-hub.md, 2026-10-05): when a Remote Desktop connection to this PC is closed,
-/// Windows leaves the sign-in session off the console and takes every audio device away from it - Prism goes dark and silent, a phone
+/// Windows leaves the sign-in session off the console and takes every audio device away from it - PRISM goes dark and silent, a phone
 /// listening hears level-zero frames. Windows itself cannot be told otherwise; what can be done is to put the session back on the console
 /// the moment the remote desktop leaves. That is one scheduled task (Windows' own tscon on the session-disconnect trigger), registered and
 /// removed here through one UAC prompt each way. Off by default: a PC whose console comes back signed in is the person's choice.
@@ -17,7 +17,7 @@ public static class MediaHub
     /// <summary>The switch's name everywhere it shows (2026-10-06).</summary>
     public const string MenuLabel = "Remote Desktop Support";
     /// <summary>What the switch does, for the tooltips.</summary>
-    public const string Explain = "When a Remote Desktop connection to this PC is closed, Windows takes the sound and the screen away from this sign-in, so Prism goes silent and dark. With Remote Desktop Support on, Prism puts the session back on the PC's own screen the moment the remote desktop leaves, and Prism carries on. The PC's screen then shows the desktop signed in, not the sign-in screen.";
+    public const string Explain = "When a Remote Desktop connection to this PC is closed, Windows takes the sound and the screen away from this sign-in, so PRISM goes silent and dark. With Remote Desktop Support on, PRISM puts the session back on the PC's own screen the moment the remote desktop leaves, and PRISM carries on. The PC's screen then shows the desktop signed in, not the sign-in screen.";
 
     /// <summary>The switch as last read (the scheduled task exists); refreshed at the menu and when the phone asks.</summary>
     public static bool On { get; private set; }
@@ -106,9 +106,9 @@ public static class MediaHub
 
     /// <summary>What the task runs: the person's own session, found disconnected, put back on the console.</summary>
     private static string Script(string user) => """
-        # Prism: put this PC's sign-in session back on its own screen after a Remote Desktop connection leaves
-        # (docs/features/media-hub.md). Windows takes every audio device away from a disconnected session; Prism
-        # on the console keeps its sound and its screen. Registered by Prism's menu, inline in the task; removed there too.
+        # PRISM: put this PC's sign-in session back on its own screen after a Remote Desktop connection leaves
+        # (docs/features/media-hub.md). Windows takes every audio device away from a disconnected session; PRISM
+        # on the console keeps its sound and its screen. Registered by PRISM's menu, inline in the task; removed there too.
         $me = '__USER__'
         Start-Sleep -Milliseconds 1500
         $lines = & query session 2>$null
@@ -122,7 +122,7 @@ public static class MediaHub
         <?xml version="1.0" encoding="UTF-16"?>
         <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
           <RegistrationInfo>
-            <Description>Prism: puts the sign-in session back on this PC's screen when a Remote Desktop connection leaves, so Prism keeps its sound and its screen. Turned on and off from Prism's menu.</Description>
+            <Description>PRISM: puts the sign-in session back on this PC's screen when a Remote Desktop connection leaves, so PRISM keeps its sound and its screen. Turned on and off from PRISM's menu.</Description>
           </RegistrationInfo>
           <Triggers>
             <SessionStateChangeTrigger>

@@ -60,7 +60,7 @@ public sealed partial class MainWindow
         _devHubWatcher = new FileSystemWatcher(dir, "hub.request") { EnableRaisingEvents = true, NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite };
         _devHubWatcher.Created += (_, __) => RootGrid.DispatcherQueue.TryEnqueue(() => DevHub(dir));
         _devHubWatcher.Changed += (_, __) => RootGrid.DispatcherQueue.TryEnqueue(() => DevHub(dir));
-        // 2026-09-20: `menu.request` opens the Prism menu (any content), "close" closes it - the main menu driven from a script
+        // 2026-09-20: `menu.request` opens the PRISM menu (any content), "close" closes it - the main menu driven from a script
         _devMenuWatcher = new FileSystemWatcher(dir, "menu.request") { EnableRaisingEvents = true, NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite };
         _devMenuWatcher.Created += (_, __) => RootGrid.DispatcherQueue.TryEnqueue(() => DevMenu(dir));
         _devMenuWatcher.Changed += (_, __) => RootGrid.DispatcherQueue.TryEnqueue(() => DevMenu(dir));
@@ -77,7 +77,7 @@ public sealed partial class MainWindow
         try { if (!File.Exists(req)) return; text = File.ReadAllText(req).Trim(); File.Delete(req); } catch { return; }
         try
         {
-            if (text == "hide") { _appMenuFlyout?.Hide(); LogLine("dev menu: hidden"); return; }   // the Prism menu put away: Escape from a script does not reach a flyout (2026-10-10)
+            if (text == "hide") { _appMenuFlyout?.Hide(); LogLine("dev menu: hidden"); return; }   // the PRISM menu put away: Escape from a script does not reach a flyout (2026-10-10)
             if (text == "close") { EscapePressed(); LogLine("dev menu: escape"); return; }
             if (text.StartsWith("key ", StringComparison.Ordinal) && _videoHub is not null)   // "key Right": the Watch page's arrow walk, from a script
             {
@@ -171,24 +171,34 @@ public sealed partial class MainWindow
             if (text == "updates") { _ = ShowUpdatesAsync(); return; }
             if (text.StartsWith("tune ", StringComparison.Ordinal)) { _ = DevTuneAsync(text.Substring(5).Trim()); return; }   // "tune <window 1-5> <channel>": the Live guide's own tune (2026-10-07)
             if (text == "swap show") { if (_mvOn && _mvWindows.Count >= 2) { _swapPick = 0; DrawSwapBadges(); } return; }   // the numbers drawn, window 1 picked: no swap follows (2026-10-07)
-            if (text == "swap hide") { EndSwapChoice(); return; }   // the Updates dialog, as the Prism menu opens it (2026-10-07)
+            if (text == "swap hide") { EndSwapChoice(); return; }   // the Updates dialog, as the PRISM menu opens it (2026-10-07)
             if (text == "updates close") { _updatesDlg?.Hide(); return; }
             if (text == "shortcuts") { _ = AskShortcutsAsync(false); return; }   // the Shortcuts dialog, as the Device page opens it (2026-10-06)   // the welcome page, driven (2026-09-29)
             if (text == "show video") { _stayOnVideo = true; CloseVideoHub(); return; }   // Show video as pressed (2026-09-25)
             if (text == "readers on" || text == "readers off") { SetReadersDark(text == "readers on"); return; }   // readers dark (2026-10-03)
             if (text.StartsWith("signin add ", StringComparison.Ordinal)) { var sp = text.Substring(11).Split('|'); if (sp.Length == 2) _ = AddSignInAsync(sp[0].Trim(), sp[0].Trim(), sp[1].Trim()); return; }   // (2026-09-29)
+            if (text.StartsWith("vizlog ", StringComparison.Ordinal))   // "vizlog <file>|off": every frame a scene is given, written to a file (2026-11-11)
+            {
+                var vf = text.Substring(7).Trim();
+                try { Visualizations.StyleRenderer.FrameLog?.Dispose(); } catch { }
+                Visualizations.StyleRenderer.FrameLog = null; Visualizations.StyleRenderer.FrameLogOwner = null;
+                if (vf != "off") { try { Visualizations.StyleRenderer.FrameLog = new StreamWriter(vf, false) { AutoFlush = true }; } catch (Exception ex) { LogLine("vizlog failed: " + ex.Message); } }
+                LogLine("vizlog: " + vf);
+                return;
+            }
+            if (text.StartsWith("record ", StringComparison.Ordinal)) { _ = DevRecordAsync(text.Substring(7).Trim()); return; }   // the window's own drawing recorded to raw frames (MainWindow.DevRecord.cs, 2026-11-11)
             if (text.StartsWith("standin ", StringComparison.Ordinal)) { DevStandIn(text.Substring(8).Trim()); return; }   // stand-ins for pictures (2026-10-10)
             if (text.StartsWith("tutorial ", StringComparison.Ordinal) && text != "tutorial close") { var tp = text.Substring(9).Split(' '); if (tp.Length == 2 && int.TryParse(tp[0], out var tt) && int.TryParse(tp[1], out var tg)) { _tutorialTopic = tt; _tutorialPage = tg; ShowTutorial(); } return; }   // "tutorial <subject> <page>"
             if (text.StartsWith("person ", StringComparison.Ordinal)) { var pp = text.Substring(7).Split('|'); if (pp.Length == 2 && double.TryParse(pp[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ppid)) { var ppn = pp[1].Trim(); NavigateDetails(ppn, () => RenderPersonPage(ppid, ppn)); } return; }   // "person <TMDB id>|<name>": a cast member's page, over an open Details (2026-10-10)
             if (text.StartsWith("top scroll ", StringComparison.Ordinal) && double.TryParse(text.Substring(11), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tsy)) { DevTopScroll(tsy); return; }   // the topmost page that scrolls, moved to an offset
-            if (text == "tour intro") { _ = PlayTourIntroAsync(); return; }   // the introduction played: the Prism menu, How Prism works, the tour (2026-10-11)
+            if (text == "tour intro") { _ = PlayTourIntroAsync(); return; }   // the introduction played: the PRISM menu, How PRISM works, the tour (2026-10-11)
             if (text == "tour notice") { TourNoticeAgain(); return; }   // the notice about the tour put back in the status area
             if (text == "purchase demo") { ShowPurchaseCard("The Lantern Coast", "Fandango At Home", new System.Text.Json.Nodes.JsonObject { ["url"] = "https://athome.fandango.com/content/browse/search?searchString=The%20Lantern%20Coast" }, null, null); return; }   // the Rent or Buy card with a made-up title (2026-10-11)
             if (text == "purchase close") { ClosePurchaseCard(); return; }
             if (text.StartsWith("channel ", StringComparison.Ordinal)) { var cp = text.Substring(8).Split('|'); if (cp.Length >= 3) _ = ShowChannelCardAsync(cp[0].Trim(), cp[1].Trim(), cp[2].Trim(), cp.Length > 3 ? cp[3].Trim() : cp[2].Trim(), cp.Length > 4 ? cp[4].Trim() : null); return; }   // (2026-10-11)
             if (text == "channel close") { CloseChannelCard(); return; }
             if (text == "tutorial close") { CloseTutorial(); return; }
-            if (text == "tutorial") { ShowTutorial(); return; }   // How Prism works (2026-10-10)
+            if (text == "tutorial") { ShowTutorial(); return; }   // How PRISM works (2026-10-10)
             if (text == "tmdb guide close") { CloseTmdbGuide(); return; }
             if (text.StartsWith("tmdb guide", StringComparison.Ordinal)) { _ = ShowTmdbGuideAsync(int.TryParse(text.Substring(10).Trim(), out var gs) ? gs : 0); return; }   // "tmdb guide [0-4]": the TMDB guide, opened at a step (2026-10-10)
             if (text.StartsWith("covers ", StringComparison.Ordinal)) { var cp = text.Substring(7).Split('='); if (cp.Length == 2) SetChannelMode(cp[0].Trim(), cp[1].Trim() == "off" ? ChannelCovers.Off : cp[1].Trim() == "sure" ? ChannelCovers.Sure : ChannelCovers.On); return; }   // "covers <channel>=on|sure|off": a channel's ad covers, as its menu in Live sets them (2026-10-10)

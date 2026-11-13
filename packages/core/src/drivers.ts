@@ -66,7 +66,7 @@ export interface VisualizationSurfaceOptions {
 }
 
 /** §32 reveal states of a hidden facet: never a placement, never persisted. */
-/** "window" (B-146, 2026-09-08): the page as an inline window in the middle of the wall, a menu bar of Prism's own above it. */
+/** "window" (B-146, 2026-09-08): the page as an inline window in the middle of the wall, a menu bar of PRISM's own above it. */
 export type SurfacePresence = "hidden" | "panel" | "hero" | "window";
 
 /**
@@ -122,7 +122,7 @@ export interface SurfaceDriver {
    * it simply shows the ordinary revive crossfade.
    */
   setPeek?(id: string, peeking: boolean): MaybePromise<void>;
-  /** Prism's loading mark over a video window (2026-10-16): on while a pick has not started or the page's player waits for data, off on play. */
+  /** PRISM's loading mark over a video window (2026-10-16): on while a pick has not started or the page's player waits for data, off on play. */
   setLoading?(id: string, on: boolean): MaybePromise<void>;
   /** Persist a snapshot to disk for instant-boot display (§18); optional. */
   snapshot?(id: string): MaybePromise<string>;
@@ -229,7 +229,7 @@ export interface UiDriver {
   /** The phone's (2026-10-05): the PLAYBACK DEVICE's mute, which the phone's stream ignores
    *  (it taps the browser's audio before the device) - never the pages' own mutes, which silence the stream too. */
   /**
-   * The person's mute of Prism in the room (B-472, 2026-11-01): Prism's own audio sessions go to a floor the shell's captures multiply back
+   * The person's mute of PRISM in the room (B-472, 2026-11-01): PRISM's own audio sessions go to a floor the shell's captures multiply back
    * up, so a listening phone, the listen page and the visualizations hear the music while the room hears nothing, and other apps on the PC
    * keep their sound. Never a page mute (those are audio focus) and never the playback device.
    */

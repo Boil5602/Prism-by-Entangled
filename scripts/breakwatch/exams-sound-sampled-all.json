@@ -1,0 +1,56 @@
+[
+ {
+  "name": "Sampled XL, 2026-11-08 afternoon",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL",
+  "from": "16:00:00",
+  "to": "19:00:00",
+  "library": "155603",
+  "lead": 18
+ },
+ {
+  "name": "Sampled XL, 2026-11-08 evening",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL",
+  "from": "19:00:00",
+  "to": "23:00:00",
+  "library": "185356",
+  "lead": 18
+ },
+ {
+  "name": "Sampled XL, 2026-11-08 late",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL",
+  "from": "23:00:00",
+  "to": "23:59:59",
+  "library": "225459",
+  "lead": 18
+ },
+ {
+  "name": "Sampled XL-w2, 2026-11-08 afternoon",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL-w2",
+  "from": "16:00:00",
+  "to": "19:00:00",
+  "library": "155603",
+  "lead": 18
+ },
+ {
+  "name": "Sampled XL-w2, 2026-11-08 evening",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL-w2",
+  "from": "19:00:00",
+  "to": "23:00:00",
+  "library": "185356",
+  "lead": 18
+ },
+ {
+  "name": "Sampled XL-w2, 2026-11-08 late",
+  "day": "2026-11-08",
+  "window": "youtube-tv-home-16x9-XL-w2",
+  "from": "23:00:00",
+  "to": "23:59:59",
+  "library": "225459",
+  "lead": 18
+ }
+]

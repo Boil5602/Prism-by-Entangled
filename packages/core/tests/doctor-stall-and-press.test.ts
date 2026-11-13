@@ -49,7 +49,7 @@ describe("the doctor and a stopped player", () => {
     expect(r.navigated).toEqual([URL]);
     expect(r.injected.some((js) => js.includes("__prismVideoPlay(\"title\""))).toBe(true);
 
-    // a person presses right after the reopen: the page is theirs, no press of Prism's follows
+    // a person presses right after the reopen: the page is theirs, no press of PRISM's follows
     let navs: string[] = [];
     const p = rig({ videoPlay: true, person: () => navs.length > 0 });
     navs = p.navigated;

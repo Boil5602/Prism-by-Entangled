@@ -1,7 +1,7 @@
-"""The tour, one source for Prism and the website (2026-10-11, asked for the tour on the website, kept in sync).
+"""The tour, one source for PRISM and the website (2026-10-11, asked for the tour on the website, kept in sync).
 
 The source is targets/win-host/PrismHost/Assets/tutorial: tutorial.json (the subjects and their words) and one picture a page.
-Prism reads it where it lies. The website reads a copy: src/data/tutorial.json and public/prism/tour/*.png in its own repository.
+PRISM reads it where it lies. The website reads a copy: src/data/tutorial.json and public/prism/tour/*.png in its own repository.
 
     python scripts/release/sync-tutorial.py --validate                 the source is whole (every picture there, every action known)
     python scripts/release/sync-tutorial.py --site <website folder>    copy it to the website (publish-windows.py does this)
@@ -24,7 +24,7 @@ a = ap.parse_args()
 
 
 def known_actions():
-    """The actions Prism can run, read from where they are written: the lines of the form ["name"] = ..."""
+    """The actions PRISM can run, read from where they are written: the lines of the form ["name"] = ..."""
     names = set()
     for line in open(ACTIONS_IN, encoding="utf-8"):
         s = line.strip()
@@ -61,7 +61,7 @@ def validate():
             o = p.get("open")
             if o is not None:
                 if o.get("action") not in actions:
-                    problems.append("'%s' opens an action Prism does not have: %s" % (p.get("title"), o.get("action")))
+                    problems.append("'%s' opens an action PRISM does not have: %s" % (p.get("title"), o.get("action")))
                 if not o.get("label") or not o.get("where"):
                     problems.append("'%s' opens something with no label, or no words for the website" % p.get("title"))
             # the website's prose check refuses a semicolon, and on-screen text never joins clauses with a spaced hyphen
@@ -108,10 +108,10 @@ if a.site:
             if f not in names:
                 differs.append(f + " (only on the website)")
         if differs:
-            print("the website's tour differs from Prism's: " + ", ".join(differs))
+            print("the website's tour differs from PRISM's: " + ", ".join(differs))
             print("run: python scripts/release/sync-tutorial.py --site " + a.site)
             sys.exit(1)
-        print("the website's tour matches Prism's")
+        print("the website's tour matches PRISM's")
     else:
         os.makedirs(os.path.dirname(data), exist_ok=True)
         os.makedirs(pics, exist_ok=True)

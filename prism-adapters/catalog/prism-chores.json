@@ -105,5 +105,5 @@
       }
     ]
   },
-  "notes": "Prism's own household list, served locally at https://tiles.prism/chores/ from the host's Assets/tiles. No account, no sign-in, no network: the list and the notes live in this device's store (§10, never wiped) and are editable from a paired phone over the §6 remote API (GET /chores, POST /chores, POST /chores/{id}/check, PUT /chores/notes). Nothing ever checks an item off by itself."
+  "notes": "PRISM's own household list, served locally at https://tiles.prism/chores/ from the host's Assets/tiles. No account, no sign-in, no network: the list and the notes live in this device's store (§10, never wiped) and are editable from a paired phone over the §6 remote API (GET /chores, POST /chores, POST /chores/{id}/check, PUT /chores/notes). Nothing ever checks an item off by itself."
 }

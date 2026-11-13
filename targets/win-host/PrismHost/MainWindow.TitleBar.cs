@@ -52,7 +52,7 @@ public sealed partial class MainWindow
     /// <summary>The taskbar's icon (2026-10-23):
     /// with the title bar coloured the taskbar button fell back to Windows' generic window icon, though the title bar itself showed the mark.
     /// The window is handed the icon again at the system's large and small sizes for its DPI (WM_SETICON), drawn from the same prism.ico;
-    /// sending exactly that to the running window turned the taskbar button into the Prism mark at once.</summary>
+    /// sending exactly that to the running window turned the taskbar button into the PRISM mark at once.</summary>
     private void ApplyWindowIcons()
     {
         try

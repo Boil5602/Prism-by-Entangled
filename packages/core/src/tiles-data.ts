@@ -1,7 +1,7 @@
 /**
  * First-party micro-facet documents (docs/concept-scenes.md §6).
  *
- * Two tiny Prism-owned pages — Chores & notes (`prism-chores`) and Timer
+ * Two tiny PRISM-owned pages — Chores & notes (`prism-chores`) and Timer
  * (`prism-timer`) — are served locally by the shell and keep their state in
  * the Store driver (§10: written, never wiped). Core owns the documents so
  * there is exactly one brain: the page edits through the shell's bridge

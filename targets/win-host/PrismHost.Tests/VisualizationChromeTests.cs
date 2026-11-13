@@ -4,7 +4,7 @@ using Xunit;
 namespace PrismHost.Tests;
 
 /// <summary>
-/// CS-8: the Prism Beams composition's pure rules (docs/concept-scenes.md
+/// CS-8: the PRISM Beams composition's pure rules (docs/concept-scenes.md
 /// 2.5.2). The drawing itself is verified by eye on the wall; everything a
 /// test can hold - what the metadata line says in each state, that idle is
 /// never a black screen, that the style label is edit-mode only - is held
@@ -114,16 +114,16 @@ public sealed class VisualizationChromeTests
     {
         // P5b: "PRISM BEAMS (middot) backdrop: album art"
         Assert.Equal("PRISM BEAMS \u00B7 backdrop: album art",
-            VisualizationChrome.StyleLabelText("Prism Beams", "backdrop", hasArt: true));
+            VisualizationChrome.StyleLabelText("PRISM Beams", "backdrop", hasArt: true));
         // the source declared no art
         Assert.Equal("PRISM BEAMS \u00B7 backdrop: none",
-            VisualizationChrome.StyleLabelText("Prism Beams", "backdrop", hasArt: false));
+            VisualizationChrome.StyleLabelText("PRISM Beams", "backdrop", hasArt: false));
         // focal / off as configured
-        Assert.Equal("PRISM BEAMS \u00B7 focal", VisualizationChrome.StyleLabelText("Prism Beams", "focal", hasArt: true));
-        Assert.Equal("PRISM BEAMS \u00B7 off", VisualizationChrome.StyleLabelText("Prism Beams", "off", hasArt: false));
+        Assert.Equal("PRISM BEAMS \u00B7 focal", VisualizationChrome.StyleLabelText("PRISM Beams", "focal", hasArt: true));
+        Assert.Equal("PRISM BEAMS \u00B7 off", VisualizationChrome.StyleLabelText("PRISM Beams", "off", hasArt: false));
         // a pack that failed to load leaves no dangling separator
         Assert.Equal("backdrop: album art", VisualizationChrome.StyleLabelText(null, "backdrop", hasArt: true));
-        Assert.Equal("PRISM BEAMS", VisualizationChrome.StyleLabelText("Prism Beams", null, hasArt: true));
+        Assert.Equal("PRISM BEAMS", VisualizationChrome.StyleLabelText("PRISM Beams", null, hasArt: true));
     }
 
     [Fact]
@@ -135,16 +135,16 @@ public sealed class VisualizationChromeTests
         // a viewer learns what they are looking at, and the shot is takeable)
         Assert.True(VisualizationChrome.LabelVisible(editMode: false, secondsSinceChange: 0));
         Assert.True(VisualizationChrome.LabelVisible(editMode: false, secondsSinceChange: 3.9));
-        Assert.NotEqual("", VisualizationChrome.StyleLabel("Prism Beams", "backdrop", true, editMode: false, secondsSinceChange: 1));
+        Assert.NotEqual("", VisualizationChrome.StyleLabel("PRISM Beams", "backdrop", true, editMode: false, secondsSinceChange: 1));
 
         // past it: gone, so the label does not live on the wall for good
         Assert.False(VisualizationChrome.LabelVisible(editMode: false, secondsSinceChange: 4.0));
-        Assert.Equal("", VisualizationChrome.StyleLabel("Prism Beams", "backdrop", true, editMode: false, secondsSinceChange: 9));
+        Assert.Equal("", VisualizationChrome.StyleLabel("PRISM Beams", "backdrop", true, editMode: false, secondsSinceChange: 9));
 
         // edit mode pins it regardless of age
         Assert.True(VisualizationChrome.LabelVisible(editMode: true, secondsSinceChange: 600));
         Assert.Equal("PRISM BEAMS \u00B7 backdrop: album art",
-            VisualizationChrome.StyleLabel("Prism Beams", "backdrop", true, editMode: true, secondsSinceChange: 600));
+            VisualizationChrome.StyleLabel("PRISM Beams", "backdrop", true, editMode: true, secondsSinceChange: 600));
 
         // a clock that goes backwards counts as "just changed", never "long ago"
         Assert.True(VisualizationChrome.LabelVisible(editMode: false, secondsSinceChange: -1));

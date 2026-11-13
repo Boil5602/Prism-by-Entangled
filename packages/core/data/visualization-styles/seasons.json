@@ -1,0 +1,28 @@
+{
+  "id": "seasons",
+  "name": "Seasons",
+  "blurb": "A town in the season of the year, where neighbours of many beliefs live side by side; each home is dressed for the holidays that are on today, every window is a band, and the walkers step with the low notes.",
+  "program": "seasons",
+  "family": "community",
+  "bands": 24,
+  "palette": [
+    "#F0A83C",
+    "#5CC8C0",
+    "#C86CF0",
+    "#F05C7A"
+  ],
+  "background": "transparent",
+  "motion": {
+    "speed": 1,
+    "attack": 0.6,
+    "release": 0.12,
+    "beat": 1.0
+  },
+  "reducedMotion": {
+    "speed": 0.4,
+    "beat": 0.2
+  },
+  "params": {
+    "artTint": 0.2
+  }
+}

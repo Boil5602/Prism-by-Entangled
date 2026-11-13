@@ -14,7 +14,14 @@ def _hms(v):
 
 
 def on():
-    return os.environ.get("PROMOS") == "show"
+    """PROMOS=show cuts the promos out of the marked breaks (they score as show); PROMOS=neutral cuts them out too and exam.py then leaves
+    their seconds out of the score altogether (2026-11-08: a cover over a promo is harmless unless it runs into the programme, which is
+    still counted). Training reads on() alone, so it treats promos as show either way."""
+    return os.environ.get("PROMOS") in ("show", "neutral")
+
+
+def neutral():
+    return os.environ.get("PROMOS") == "neutral"
 
 
 def _less_recheck(day_dir, out):

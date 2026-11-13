@@ -291,7 +291,7 @@ export function contextSheetActions(item: SceneItemRef): SheetAction[] {
     // A stage is about music, not facets (decision 2026-09-06): its hidden page is never looked at as a
     // facet, so "Edit facet" and "Swap facet" only invited someone to crop a page they do not see.
     return [
-      // B-146 (2026-09-08): the source's own group first - sign in, and its page as an inline window with Prism's menu bar
+      // B-146 (2026-09-08): the source's own group first - sign in, and its page as an inline window with PRISM's menu bar
       ...(item.app && item.facet ? [
         { action: "sign-in" as const, label: "Sign in…", route: buildRoute("app.setup", { id: item.app }, { return: "scene", signin: "1" }) },
         { action: "open-app" as const, label: "Open the full app", route: routes.facetReveal(item.facet) + "?mode=window" },

@@ -5,7 +5,7 @@ namespace PrismHost.Tiles;
 /// <summary>
 /// The page side of the first-party micro-facets (docs/concept-scenes.md §6).
 ///
-/// Two Prism-owned pages — Chores &amp; notes and Timer — are served from
+/// Two PRISM-owned pages — Chores &amp; notes and Timer — are served from
 /// Assets/tiles at <c>https://tiles.prism/…</c>. They hold no document logic:
 /// they post ONE human edit at a time and render whatever comes back, and core
 /// (packages/core/src/tiles-data.ts) owns the shape and persists it through the
@@ -126,7 +126,7 @@ public static class TilesBridge
     /// </summary>
     public static (string? DocJson, string? Error) ReadApplyResult(string? resultJson)
     {
-        if (string.IsNullOrWhiteSpace(resultJson) || resultJson == "null") return (null, "the page's edit did not reach Prism");
+        if (string.IsNullOrWhiteSpace(resultJson) || resultJson == "null") return (null, "the page's edit did not reach PRISM");
         try
         {
             using var doc = JsonDocument.Parse(resultJson);

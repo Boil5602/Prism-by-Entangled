@@ -610,7 +610,7 @@ public sealed partial class MainWindow
             {
                 mfly.Items.Clear();
                 foreach (var (a, n) in mineSvcs) { var nn = n; await AddListAddItemAsync(mfly, a, n, cand["id"]!.GetValue<string>(), ttitle, null, tkind == "tv" ? "series" : "movie", "1", on => MarkMine(nn, on)); }
-                if (mfly.Items.Count == 0) mfly.Items.Add(new MenuFlyoutItem { Text = "None of these services has a list Prism can add to", IsEnabled = false });
+                if (mfly.Items.Count == 0) mfly.Items.Add(new MenuFlyoutItem { Text = "None of these services has a list PRISM can add to", IsEnabled = false });
             };
             HoverReact(mine);
             if (mineSvcs.Count == 1)
@@ -628,7 +628,7 @@ public sealed partial class MainWindow
                     onList = await ServiceListCardAsync(a1, ttitle);
                     mine.IsEnabled = can;
                     isOn = onList is not null || isOn;
-                    mineText.Text = !can ? n1 + " has no list Prism can change" : onList is not null ? "On " + n1 + "'s " + listName : "Add to " + n1 + "'s " + listName;
+                    mineText.Text = !can ? n1 + " has no list PRISM can change" : onList is not null ? "On " + n1 + "'s " + listName : "Add to " + n1 + "'s " + listName;
                     mineIcon.Glyph = onList is not null ? "\uE73E" : "\uE710";
                     ToolTipService.SetToolTip(mine, onList is not null ? ttitle + " is on " + n1 + "'s " + listName + ": press to remove it." : "Puts " + ttitle + " on " + listName + " on " + n1 + " itself.");
                 }
@@ -639,7 +639,7 @@ public sealed partial class MainWindow
                     var item = onList?["item"] as JsonObject;
                     if (isOn)
                     {
-                        SetPill("Prism \u00B7 removing " + Shorten(ttitle, 40) + " from " + n1 + "'s " + listName + "\u2026", hold: true);
+                        SetPill("PRISM \u00B7 removing " + Shorten(ttitle, 40) + " from " + n1 + "'s " + listName + "\u2026", hold: true);
                         // the service's own item when read; else (an add just made) the catalog id the add used, resolved to the service's copy again
                         if (item is not null) _ = FollowListAsync(a1, n1, listName, false, item["id"]?.GetValue<string>() ?? "", ttitle, item["url"]?.GetValue<string>(), item["kind"]?.GetValue<string>() ?? "title", null, null);
                         else _ = FollowListAsync(a1, n1, listName, false, cand["id"]!.GetValue<string>(), ttitle, null, tkind == "tv" ? "series" : "movie", "1", null);
@@ -650,7 +650,7 @@ public sealed partial class MainWindow
                     {
                         isOn = true;
                         ToolTipService.SetToolTip(mine, ttitle + " is on " + n1 + "'s " + listName + ": press to remove it.");
-                        SetPill("Prism \u00B7 adding " + Shorten(ttitle, 40) + " to " + n1 + "'s " + listName + "\u2026", hold: true);
+                        SetPill("PRISM \u00B7 adding " + Shorten(ttitle, 40) + " to " + n1 + "'s " + listName + "\u2026", hold: true);
                         _ = FollowListAsync(a1, n1, listName, true, cand["id"]!.GetValue<string>(), ttitle, null, tkind == "tv" ? "series" : "movie", "1", null);
                         mineText.Text = "On " + n1 + "'s " + listName; mineIcon.Glyph = "\uE73E";
                         _ = Task.Delay(TimeSpan.FromSeconds(45)).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => _ = ReadAsync()));   // the service's own item, for a remove later
@@ -765,7 +765,7 @@ public sealed partial class MainWindow
                         HoverReact(pb, ring);
                         chip = pb;
                     }
-                    // a service Prism knows that is not one of the household's: its logo shows the code too, with nothing to open here
+                    // a service PRISM knows that is not one of the household's: its logo shows the code too, with nothing to open here
                     else if ((key == "rent" || key == "buy") && o["buy"] is JsonObject buyThere)
                     {
                         var ob = new Button { Content = chip, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)), BorderThickness = new Thickness(0), Padding = new Thickness(0) };

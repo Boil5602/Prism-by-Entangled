@@ -4,7 +4,7 @@ Asked 2026-10-31:
 
 ## What a person does
 
-1. On the PC, the Prism menu's **Listen page** opens a card with one switch; on the phone, the companion app's menu (the three dots)
+1. On the PC, the PRISM menu's **Listen page** opens a card with one switch; on the phone, the companion app's menu (the three dots)
    has the same entry with the switch, the address to open or copy, and New address (`GET`/`POST /listen-page`, a paired phone;
    2026-10-31). The PC's card opens a card with one switch. Off is the default. On, the card shows an address
    (`http://<the PC>:8471/listen?key=...`) and a QR code for it. The switch and the address stay as they are across restarts; off
@@ -20,7 +20,7 @@ Asked 2026-10-31:
    speaker is something the browser does not always report (an Echo Show sounded a shade after an iPhone with both holding 3.0 s on the
    PC's clock, 2026-11-03), and a person in the room can hear it where no page can. The PC keeps playing for the room the whole time. If the sound stops, the page starts it again on
    its own, so a tablet on a shelf needs nobody. The page's own Stop button stops the page's sound and nothing on the PC.
-4. Nothing on the page acts on Prism: no transport, no mute, no picks, no order. It shows and it plays.
+4. Nothing on the page acts on PRISM: no transport, no mute, no picks, no order. It shows and it plays.
 
 ## How it works
 
@@ -84,7 +84,7 @@ Asked 2026-10-31:
   until 2026-11-03); an error past three tenths of a second is taken in one short cut, a skip or a gap under a twelve-millisecond fade,
   never by pitch. The companion app's low delay path
   holds the same rule. Buffering was not the fault: the page already held three seconds and lost nothing.
-- The house listener counts as a listener like a phone: it hears Prism at full while the room hears Prism's own mute and volume (the
+- The house listener counts as a listener like a phone: it hears PRISM at full while the room hears PRISM's own mute and volume (the
   captures undo the sessions' level, B-472; the playback device is never touched), and the pill says a phone is listening. With the
   room in step the delayed playback is held to the same mute and volume, since the capture it plays is at full scale.
   The key reaches no mute, volume or window route; those stay the paired phones'.

@@ -676,7 +676,7 @@ export interface RemoteStateSnapshot {
   heroSize: number | null;
   /** §33 saved master layouts (app-less slots), full objects - the editor loads and lists them. */
   masterLayouts?: MasterLayout[];
-  /** §34 the app registry (every app Prism has seen), its views per app, the saved scenes, the slot shapes the layouts define. */
+  /** §34 the app registry (every app PRISM has seen), its views per app, the saved scenes, the slot shapes the layouts define. */
   apps?: Array<{ id: string; name: string; floating?: boolean }>;
   appViews?: Record<string, Shortcut[]>;
   scenes?: Scene[];
@@ -716,11 +716,11 @@ export interface RemoteStateSnapshot {
     musicPending?: { kind: string; id: string; name: string; at: number; failed?: string };
     /** B-155: the source takes a thumbs up / down (its adapter declares the control or the player's rating API). */
     rate?: boolean;
-    /** B-204 (2026-09-15): nothing is loaded on the page, but Prism remembers what this tile played - what a Play press would resume. The wall names it instead of an empty block over a dead Play. */
+    /** B-204 (2026-09-15): nothing is loaded on the page, but PRISM remembers what this tile played - what a Play press would resume. The wall names it instead of an empty block over a dead Play. */
     resume?: { title: string; artist?: string; label?: string; kind?: string };
-    /** Play orders (2026-09-17, spec 32 layer 5): the collection this tile plays in the order a person asked for - "shuffle" is the service's own switch, "true-shuffle" and "reverse" are Prism's queue. The block names it. */
-    musicOrder?: { kind: string; id: string; name: string; order: "normal" | "shuffle" | "true-shuffle" | "reverse"; label: string; count?: number; /** the saved spot, 1-based, in a Prism-ordered play */ spot?: number; /** repeat: which pass this is, from the second on */ pass?: number };
-    /** 2026-09-18: the standing repeat switch beside the order - the service's repeat-all for its orders, Prism's next pass for its own */
+    /** Play orders (2026-09-17, spec 32 layer 5): the collection this tile plays in the order a person asked for - "shuffle" is the service's own switch, "true-shuffle" and "reverse" are PRISM's queue. The block names it. */
+    musicOrder?: { kind: string; id: string; name: string; order: "normal" | "shuffle" | "true-shuffle" | "reverse"; label: string; count?: number; /** the saved spot, 1-based, in a PRISM-ordered play */ spot?: number; /** repeat: which pass this is, from the second on */ pass?: number };
+    /** 2026-09-18: the standing repeat switch beside the order - the service's repeat-all for its orders, PRISM's next pass for its own */
     musicRepeat?: true;
     /** 2026-09-18: the work in hand on this tile - a long read of a track list, with how far it has got - for the wall's status feed; with `error`, a read that failed and why (kept 12 s) */
     musicWork?: { what: string; name: string; count?: number; total?: number; at: number; error?: string };
@@ -1627,7 +1627,7 @@ export class Orchestrator {
   }
 
   /**
-   * The app registry: every app Prism has seen, as the base tile a scene builds
+   * The app registry: every app PRISM has seen, as the base tile a scene builds
    * from - so a scene can put an app in a slot whether or not it is on the wall
    * now. The catalog name arrives with a pick; the home page is the first URL
    * seen (a pick's URL is authoritative); the §10 profile is the first tile's,
@@ -1670,7 +1670,7 @@ export class Orchestrator {
     await this.drivers.store.set(APPS_KEY, JSON.stringify([...this.apps.values()]));
   }
 
-  /** §34 every app Prism has seen (the registry), by name. (listApps() is the §12 native-app list.) */
+  /** §34 every app PRISM has seen (the registry), by name. (listApps() is the §12 native-app list.) */
   knownApps(): AppRecord[] {
     return [...(this.apps?.values() ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -2044,11 +2044,11 @@ export class Orchestrator {
     }
     // B-216: a station the page plays is kept by the wall, whether the service lists it or not (Apple never lists a song station)
     if (info?.playing && ctx?.kind === "station") void this.rememberStationMade(tileId, ctx);
-    if (info?.playing && ctx?.trackId) this.noteOrderSpot(tileId, ctx.trackId, ctx);   // 2026-09-17: the saved spot in a Prism-ordered play follows a PLAYING face of the wall's own queue
+    if (info?.playing && ctx?.trackId) this.noteOrderSpot(tileId, ctx.trackId, ctx);   // 2026-09-17: the saved spot in a PRISM-ordered play follows a PLAYING face of the wall's own queue
     if (info?.playing) void this.applyPendingSwitches(tileId);   // 2026-09-18: a page-route play's shuffle / repeat, once its page plays
     void this.watchStall(tileId, info, ctx);   // 2026-09-18: a player that says playing while its clock stands still
     // §32 resume point: the page something was PLAYING from (the album / playlist / station page), with what it
-    // was, so Play on a fresh wall can go back there and press the page's own Play. Only ever what Prism saw play.
+    // was, so Play on a fresh wall can go back there and press the page's own Play. Only ever what PRISM saw play.
     // B-225 (2026-09-17): never an ad - Pandora's break names its face and the row read it as the station's last track; a face under a break (the adapter's ad signal, or the
     // keeper's cover) is the break, not the collection. The station played before it stays the resume point.
     const underBreak = this.adActive.has(tileId) || this.intermission.isCovered(tileId);
@@ -2289,7 +2289,7 @@ export class Orchestrator {
     }
     if (!item) return "unknown";
     const gen = this.nextPickGen(tileId);   // 2026-10-29: a Cancel while the track list is read stands this pick down (cancelMusicPick)
-    // "auto" is the plain press (a Quick play row, 2026-09-17): a Prism-ordered play of THIS collection with a saved spot carries
+    // "auto" is the plain press (a Quick play row, 2026-09-17): a PRISM-ordered play of THIS collection with a saved spot carries
     // on from it; anything else plays in order. An order named outright (the transport's order button) always starts afresh.
     let order: PlayOrder = "normal";
     if (asked === "auto") {
@@ -2312,7 +2312,7 @@ export class Orchestrator {
       if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId);
       // B-243 (2026-09-19): the page already holds this collection - nothing is sent to its page (a full load that stopped
       // Spotify's player). A plain press carries on with the switch flipped in place; an order named outright STARTS OVER in
-      // that order through the page's own start-over, which also stands down a Prism order's driver on the page.
+      // that order through the page's own start-over, which also stands down a PRISM order's driver on the page.
       if (this.holdsCollection(tileId, kind, id)) {
         if (asked !== "auto" && spec?.musicStartOver) {
           await this.claimAudio(tileId);
@@ -2335,7 +2335,7 @@ export class Orchestrator {
     if ((order === "true-shuffle" || order === "reverse") && support.own !== true) return "unsupported";
     this.arm(tileId);   // B-126: a pick on the wall is a human's ask to HEAR it - the playback that follows is not autoplay
     if (order === "true-shuffle" || order === "reverse") {
-      // Prism's order (spec 32 layer 5, 2026-09-17): the page's track list, put in order here, handed to the player's queue
+      // PRISM's order (spec 32 layer 5, 2026-09-17): the page's track list, put in order here, handed to the player's queue
       this.musicPending.delete(tileId);   // a plain pick still pending is superseded: its second send (MUSIC_PLAY_RETRY_MS) must not undo this queue (2026-10-04)
       // the track list is read BEFORE the audio changes hands (2026-10-05): the read is the slow part, and whatever played on keeps playing through it; the other source goes quiet
       // only when the ordered list is ready to hand to the player
@@ -2353,7 +2353,7 @@ export class Orchestrator {
       const r = await this.askMusic(tileId, token, `window.__prismMusicQueue && window.__prismMusicQueue(${JSON.stringify(token)}, ${JSON.stringify(ordered.slice(0, this.orderWindow))}, ${JSON.stringify({ kind, id })})`, Orchestrator.TRACKS_TIMEOUT_MS);
       this.musicWork.delete(tileId); this.readingFor.delete(tileId);
       if (!r?.ok) return "unsupported";
-      // no pending here: the queue answered after the player's own play() resolved, and a Prism-made queue names no
+      // no pending here: the queue answered after the player's own play() resolved, and a PRISM-made queue names no
       // collection the pending could clear on (the page's container is the song, not the playlist)
       this.musicPending.delete(tileId);
       await this.setMusicOrder(tileId, { kind, id, name: item.name, order, count: ordered.length, ids: ordered, index: 0 });
@@ -2511,7 +2511,7 @@ export class Orchestrator {
       const tile = this.tile(s.tile);
       const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
       const app = tile?.adapter ?? null;
-      if (!tile || !spec?.musicLookup) return { tile: s.tile, app, status: "unavailable" as const, reason: spec?.musicLookupNote || "this service cannot be searched from Prism yet", candidates: [] };
+      if (!tile || !spec?.musicLookup) return { tile: s.tile, app, status: "unavailable" as const, reason: spec?.musicLookupNote || "this service cannot be searched from PRISM yet", candidates: [] };
       if (this.sessionOf(s.tile) === "signed-out") return { tile: s.tile, app, status: "unavailable" as const, reason: "sign in first", candidates: [] };
       return { tile: s.tile, app, status: "searching" as const, candidates: [] };
     });
@@ -2540,7 +2540,7 @@ export class Orchestrator {
     if (!tile) return "unknown-tile";
     const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
     this.arm(tileId);   // a pick on the wall is a human's ask to hear it
-    // a search pick is a new thing: Prism's standing order ends first (2026-11-04: Vibes was playing in true shuffle, the player took the song,
+    // a search pick is a new thing: PRISM's standing order ends first (2026-11-04: Vibes was playing in true shuffle, the player took the song,
     // the order's driver saw its queue change and re-queued its own window, and the wall landed on track 9 while the pill said the play
     // failed, the pending naming a kind the page never reports), the pick in flight is superseded, and the pending is one any playing clears
     this.nextPickGen(tileId);
@@ -2562,8 +2562,8 @@ export class Orchestrator {
   /**
    * "An expandable view of songs that are set to play next, either in playlist order or album order if an album is played from the search":
    * the service's own queue as its player holds it, read by the adapter's musicQueueView route (Apple Music: MusicKit's queue items from its
-   * position), kept per service for the Quick play's expander to poll. A service without the route says so; a Prism-ordered play (true
-   * shuffle, reverse) is the order Prism holds, named as such, since the player's queue is Prism's window into it.
+   * position), kept per service for the Quick play's expander to poll. A service without the route says so; a PRISM-ordered play (true
+   * shuffle, reverse) is the order PRISM holds, named as such, since the player's queue is PRISM's window into it.
    */
   private upNext = new Map<string, { status: "working" | "ready" | "unavailable" | "error"; reason?: string; items: Array<{ title: string; artist: string; current?: boolean }>; order?: string; at: number }>();
   musicUpNextState(tileId: string): { status: string; reason?: string; items: Array<{ title: string; artist: string; current?: boolean }>; order?: string; at: number } {
@@ -2572,7 +2572,7 @@ export class Orchestrator {
   async musicUpNext(tileId: string): Promise<void> {
     const tile = this.tile(tileId);
     const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
-    if (!tile || !spec?.musicQueueView) { this.upNext.set(tileId, { status: "unavailable", reason: "this service does not show its queue to Prism yet", items: [], at: Date.now() }); return; }
+    if (!tile || !spec?.musicQueueView) { this.upNext.set(tileId, { status: "unavailable", reason: "this service does not show its queue to PRISM yet", items: [], at: Date.now() }); return; }
     const at = Date.now();
     this.upNext.set(tileId, { status: "working", items: this.upNext.get(tileId)?.items ?? [], at });
     const token = this.musicToken("qv");
@@ -2600,17 +2600,17 @@ export class Orchestrator {
     return {
       shuffle: spec?.musicShuffle ? true : `${name} has no shuffle switch the wall can reach yet`,
       own: spec?.musicTracks && spec?.musicQueue ? true : `true shuffle and reverse need ${name}'s track lists, and the wall can't read them yet`,
-      repeat: spec?.musicRepeat ? true : `${name} has no repeat switch the wall can reach yet, but repeat works with Prism's true shuffle and reverse`,
+      repeat: spec?.musicRepeat ? true : `${name} has no repeat switch the wall can reach yet, but repeat works with PRISM's true shuffle and reverse`,
     };
   }
-  // ---------------------------------------------------------------- repeat (2026-09-18): a standing switch beside the order Per tile, kept; the service's own repeat-all for its orders, Prism's next pass for Prism's. */
+  // ---------------------------------------------------------------- repeat (2026-09-18): a standing switch beside the order Per tile, kept; the service's own repeat-all for its orders, PRISM's next pass for PRISM's. */
   private readonly musicRepeat = new Map<string, boolean>();
   private musicRepeatKey(dashId: string, tileId: string): string { return `music:repeat:${dashId}:${tileId}`; }
   musicRepeatOf(tileId: string): boolean { return this.musicRepeat.get(tileId) === true; }
   async setMusicRepeat(tileId: string, on: boolean): Promise<void> {
     this.musicRepeat.set(tileId, on);
     if (this.doc && this.drivers.store) { try { await this.drivers.store.set(this.musicRepeatKey(this.doc.id, tileId), on ? "1" : ""); } catch { /* best effort */ } }
-    // a play in the service's order under way: its switch follows now; a Prism order repeats by Prism's hand (its player's repeat stays off)
+    // a play in the service's order under way: its switch follows now; a PRISM order repeats by PRISM's hand (its player's repeat stays off)
     const o = this.musicOrder.get(tileId);
     const prism = !!o?.ids?.length;
     if (!prism) await this.applyServiceRepeat(tileId, on);
@@ -2701,7 +2701,7 @@ export class Orchestrator {
     const lib = this.musicLibraryNow(tileId);
     return [...lib.playlists, ...lib.stations].find((x) => x.id === id && x.kind === kind)?.name ?? (kind === "album" ? "the album" : "the playlist");
   }
-  /** "True shuffle: reading the track list" while a Prism order is being made, "reading the track list" for a prefetch. */
+  /** "True shuffle: reading the track list" while a PRISM order is being made, "reading the track list" for a prefetch. */
   private readingWhat(tileId: string): string { const f = this.readingFor.get(tileId); return f ? f + " the track list" : "reading the track list"; }
   private async readTracks(tileId: string, kind: string, id: string): Promise<string[]> {
     const name = this.collectionName(tileId, kind, id);
@@ -2743,7 +2743,7 @@ export class Orchestrator {
   orderWindowAhead = 60;
   private readonly orderQueuedUpTo = new Map<string, number>();
   private readonly orderAppending = new Set<string>();
-  /** The next window of a Prism-ordered play, appended after what the player holds (musicQueueAppend), once the spot nears the end of the handed part. */
+  /** The next window of a PRISM-ordered play, appended after what the player holds (musicQueueAppend), once the spot nears the end of the handed part. */
   private async extendOrderWindow(tileId: string): Promise<void> {
     const o = this.musicOrder.get(tileId);
     const tile = this.tile(tileId);
@@ -2817,7 +2817,7 @@ export class Orchestrator {
   }
   /**
    * The saved spot (2026-09-17): the player names the track it is on
-   * (the adapter's context trackId), and when that track is in a Prism-ordered play the spot moves to it and is kept.
+   * (the adapter's context trackId), and when that track is in a PRISM-ordered play the spot moves to it and is kept.
    * A plain Play or a switch to the service carries on from there (resumeMusic); any order verb starts a fresh play.
    */
   private noteOrderSpot(tileId: string, trackId: string, ctx: NowPlaying["context"] | null = null): void {
@@ -2846,7 +2846,7 @@ export class Orchestrator {
    * source had the current frame and nothing after it, the stream fetched the night before having expired across an
    * eleven-hour pause - and the wall, which had asked for that play, watched it loop. A face that says playing, from the
    * tile that owns the audio, outside a break, whose clock has not moved for STALL_MS while faces keep arriving, is a
-   * stall. For a Prism-ordered play the remedy is the wall's own: the queue again from the saved spot; a second stall on
+   * stall. For a PRISM-ordered play the remedy is the wall's own: the queue again from the saved spot; a second stall on
    * the same track skips it (the track itself is the fault); a third stands - the state says so and nothing more is tried
    * until the track changes. Other plays are only noted: their remedy is the service's, not the wall's.
    */
@@ -2878,7 +2878,7 @@ export class Orchestrator {
   private noteStall(tileId: string, strikes: number, spot: number | null): void {
     this.stallNotes.set(tileId, { at: Date.now(), strikes, spot });
   }
-  /** Continue a Prism-ordered play from its saved spot: the rest of the order, in order, to the player's queue. False when there is no spot to continue. */
+  /** Continue a PRISM-ordered play from its saved spot: the rest of the order, in order, to the player's queue. False when there is no spot to continue. */
   private async continueOrder(tileId: string): Promise<boolean> {
     if (!this.musicOrder.has(tileId)) await this.loadMusicOrder(tileId);   // B-233: a boot's first Play can come before the priming finished
     const o = this.musicOrder.get(tileId);
@@ -2972,7 +2972,7 @@ export class Orchestrator {
     const prev = this.musicLookups.get(tileId);
     if (!song) {
       if (prev && prev.song && (prev.status === "found" || prev.status === "ambiguous" || prev.status === "not-found")) return prev.status;   // a settled answer outlives a blank beat
-      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", null, "", "nothing is playing on Prism"), why: "no-song" });
+      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", null, "", "nothing is playing on PRISM"), why: "no-song" });
       return "unavailable";
     }
     const key = normalizeTrackText(song.title) + "|" + normalizeTrackText(song.artist);
@@ -2984,7 +2984,7 @@ export class Orchestrator {
     if (prev && prev.key === key && (prev.status === "found" || prev.status === "ambiguous" || prev.status === "not-found" || prev.status === "searching")) return prev.status;
     const q = { title: song.title, artist: song.artist, album: song.album, artwork: song.artwork, durationMs: song.durationMs };
     if (!spec?.musicLookup) {
-      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", q, key, spec?.musicLookupNote || "this service cannot be searched from Prism yet"), why: "no-lookup" });   // the adapter's own why, when it has one
+      this.musicLookups.set(tileId, { ...this.lookupBlank("unavailable", q, key, spec?.musicLookupNote || "this service cannot be searched from PRISM yet"), why: "no-lookup" });   // the adapter's own why, when it has one
       return "unavailable";
     }
     const carried = prev && prev.key === key ? prev.action : null;
@@ -3073,8 +3073,8 @@ export class Orchestrator {
   }
 
   /**
-   * The track playing on a music tile and the collections Prism has read that hold it (2026-10-06): the Prism order's list and the track list read for an order (both the
-   * service's own ids for the collection's tracks). A collection Prism has not read is not claimed either way.
+   * The track playing on a music tile and the collections PRISM has read that hold it (2026-10-06): the PRISM order's list and the track list read for an order (both the
+   * service's own ids for the collection's tracks). A collection PRISM has not read is not claimed either way.
    */
   musicPlayingIn(tileId: string): { songId: string; title: string; artist: string; lists: string[]; canRemove: boolean } | null {
     const np = this.nowPlaying.get(tileId);
@@ -3096,7 +3096,7 @@ export class Orchestrator {
    * Remove the track playing now from one of the person's own playlists, by the playlist page's own control on the service's hidden work
    * page (the adapter's musicRemove script, opened at musicPlaylistUrl): page actions only, never an endpoint the service does not publish
    * (docs/third-party-services-policy.md). Only a playlist the library marks editable, and only while the track is known to be in it.
-   * A dry run finds the row and its Remove control and stops before the press. The Prism order and the read track list drop the track.
+   * A dry run finds the row and its Remove control and stops before the press. The PRISM order and the read track list drop the track.
    */
   async musicRemovePlaying(s: { app: string; adapter: string; profile: string }, tileId: string, playlistId: string, dry = false): Promise<"ok" | "error" | "unknown" | "unknown-tile"> {
     const tile = this.tile(tileId);
@@ -3210,7 +3210,7 @@ export class Orchestrator {
     const tile = this.tile(tileId);
     if (!tile) return "unknown-tile";
     const entry = (await this.recentMusic(tileId)).find((e) => e.url === url);
-    if (!entry) return "unknown";                                          // only pages Prism saw play: never an arbitrary navigation from a remote
+    if (!entry) return "unknown";                                          // only pages PRISM saw play: never an arbitrary navigation from a remote
     // B-124: with the service's own id and a musicPlay script, queue by id through the player - the page never
     // navigates, so no address (right or wrong) can strand the hidden player on an error page
     const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
@@ -3219,7 +3219,7 @@ export class Orchestrator {
     if (byId && spec?.musicPlay) {
       // B-449 (2026-10-29):
       // a Recent row played the collection by id in the page's own order while the block named the standing true shuffle at its spot. The
-      // plain press of a listed collection (playCollection, "auto") carries a standing Prism order on from its spot, so a recent goes that
+      // plain press of a listed collection (playCollection, "auto") carries a standing PRISM order on from its spot, so a recent goes that
       // way first; one the library does not list any more falls to the play by id below
       const asListed = await this.playCollection(tileId, byId.kind, byId.id, "auto");
       if (asListed === "ok") return "ok";
@@ -3259,10 +3259,10 @@ export class Orchestrator {
   async setWallMuted(on: boolean): Promise<void> {
     this.wallMuted = on;
     void Promise.resolve(this.drivers.store?.set(Orchestrator.PERSON_MUTED_KEY, on ? "1" : "")).catch(() => {});
-    // B-175 (2026-09-09): - on, everything of Prism's goes silent in the room, whoever holds the focus.
+    // B-175 (2026-09-09): - on, everything of PRISM's goes silent in the room, whoever holds the focus.
     // B-472 (2026-11-01): not by muting the pages any more. A muted page
     // has no sound to capture, so a listening phone, the listen page and the visualizations went silent with the room, and the phone had to
-    // mute the playback device instead, every app on the PC with it. Now the shell takes Prism's own audio sessions to a floor its captures
+    // mute the playback device instead, every app on the PC with it. Now the shell takes PRISM's own audio sessions to a floor its captures
     // multiply back up (the room-in-step trick, measured lossless): the room hears nothing, the listeners and the meters hear the music, the
     // other apps on the PC keep their sound, and the device is never touched. The page mutes stay what they are: audio focus, the breaks, the
     // holds - a page muted for those is silent for the listeners too, as it should be. Who owns the audio does not change here.
@@ -3275,7 +3275,7 @@ export class Orchestrator {
 
   /** A human's music ask on the wall (play, a pick, Start over): arms the tile for audio focus and releases the boot hold for good (B-142). */
   private arm(tileId: string): void { this.lastInteract.set(tileId, Date.now()); this.pickedAt.set(tileId, Date.now()); this.humanPlayed.add(tileId); this.bootPaused.delete(tileId); this.bootHeld.delete(tileId); this.bootHoldPresses.delete(tileId); this.liftPlayGate(tileId); }
-  /** B-471: a person asked for this page's music; the shell lets its play() through again (before Prism's own click lands). */
+  /** B-471: a person asked for this page's music; the shell lets its play() through again (before PRISM's own click lands). */
   private liftPlayGate(tileId: string): void { if (this.playGated.delete(tileId)) void this.drivers.surface.setPlayGate?.(tileId, false); }
   /** When a person or the wall's own pick last started something on the tile - kept, unlike lastInteract, which the playback it explains uses up
    * (2026-09-28 review: a pick made after a title ended was paused as because its mark was gone by the time the check ran). */
@@ -3344,13 +3344,13 @@ export class Orchestrator {
   /**
    * B-141 (2026-09-08): Start over - the collection the page holds, queued again on purpose: a station tunes afresh, a
    * playlist or album starts from its first track. By id through the player where there is one, else the page's own
-   * address loaded again and its Play pressed. "unavailable" when the page holds nothing Prism can name.
+   * address loaded again and its Play pressed. "unavailable" when the page holds nothing PRISM can name.
    */
   async restartMusic(tileId: string): Promise<"ok" | "unavailable" | "unknown-tile"> {
     const tile = this.tile(tileId);
     if (!tile) return "unknown-tile";
-    // B-233 (2026-09-18): a Prism-ordered play starts over as ITSELF - the same order from its first track - not as whatever
-    // the page happens to name (a Prism queue's container is the song, so the held collection was the remembered station)
+    // B-233 (2026-09-18): a PRISM-ordered play starts over as ITSELF - the same order from its first track - not as whatever
+    // the page happens to name (a PRISM queue's container is the song, so the held collection was the remembered station)
     const o = this.musicOrder.get(tileId);
     if (o?.ids?.length) {
       o.index = 0;
@@ -3359,7 +3359,7 @@ export class Orchestrator {
     }
     const held = this.heldCollection(tileId) ?? (() => { const r = this.recentCache.get(tileId)?.[0]; return r?.id ? { kind: r.kind, id: r.id, label: r.label, url: r.url } : r ? { kind: r.kind, id: r.url, label: r.label, url: r.url } : null; })();
     // B-207 (2026-09-15): the stage's service always carries the replay mark, so with nothing held (a wall fresh from a
-    // restart) Start over falls back to what Prism remembers - the same collection, queued afresh
+    // restart) Start over falls back to what PRISM remembers - the same collection, queued afresh
     if (!held) return (await this.resumeMusic(tileId)) === "ok" ? "ok" : "unavailable";
     const spec = tile.adapter ? this.adapters.get(tile.adapter) : undefined;
     this.arm(tileId);
@@ -3374,7 +3374,7 @@ export class Orchestrator {
     return "ok";
   }
 
-  /** Go to a collection page Prism was told about and press the page's own Play (the loading signal from the tap). `again` (B-141) loads it even when already there. */
+  /** Go to a collection page PRISM was told about and press the page's own Play (the loading signal from the tap). `again` (B-141) loads it even when already there. */
   private async playByAddress(tileId: string, url: string, name: string, kind: string, again = false): Promise<void> {
     this.pendingResumePlay.set(tileId, Date.now() + 20_000);
     this.setMusicPending(tileId, { kind, id: url, name, url });
@@ -3382,7 +3382,7 @@ export class Orchestrator {
     await this.drivers.surface.navigate(tileId, url);
   }
 
-  /** What Play would resume for a music tile: the remembered page and track, or null when Prism never saw it play. */
+  /** What Play would resume for a music tile: the remembered page and track, or null when PRISM never saw it play. */
   async resumePoint(tileId: string): Promise<{ url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number } | null> {
     if (!this.doc || !this.drivers.store) return null;
     try {
@@ -3401,11 +3401,11 @@ export class Orchestrator {
    * played from and press the page's OWN Play control - the adapter's `controls.play` (else its
    * the bare media element; never `presentation`, which is the §26 keeper's). A Media Session handler does not exist until
    * something has played, which is why the earlier onActivate never started anything. "none" when
-   * Prism never saw this tile play; the first play still needs a person on the page.
+   * PRISM never saw this tile play; the first play still needs a person on the page.
    */
   /**
    * B-205 (2026-09-15):. The audio moves to the tile: a page already playing just takes the focus, a page holding a
-   * paused track is played (the player's own play, else the page's control), a page holding nothing resumes what Prism
+   * paused track is played (the player's own play, else the page's control), a page holding nothing resumes what PRISM
    * remembers. "none" when there is nothing to start; the runtime points the stage at the tile in every case.
    */
   async switchToService(tileId: string): Promise<"ok" | "none" | "unknown-tile"> {
@@ -3434,7 +3434,7 @@ export class Orchestrator {
     const point = await this.resumePoint(tileId);
     const standing = this.musicOrder.get(tileId);
     const movedOn = !!standing && !!point?.kind && !!point.id && point.id !== standing.id && (point.kind === standing.kind || point.kind === "station") && point.at > standing.at;
-    if (!movedOn && await this.continueOrder(tileId)) return "ok";   // 2026-09-17: a Prism-ordered play carries on from its saved spot
+    if (!movedOn && await this.continueOrder(tileId)) return "ok";   // 2026-09-17: a PRISM-ordered play carries on from its saved spot
     if (!point) return "none";
     // B-205 (2026-09-15): by id through the service's own player where there is one - the same path as a Quick play pick.
     // Pressing the page's Play control on the station page found no header Play and hit the sidebar's "Play Vibes" card
@@ -4706,7 +4706,7 @@ export class Orchestrator {
           this.setMusicPending(tileId, { kind: "play", id: "play", name: np.title ?? "the music" });
         }
         if (cmd === "play" && !this.nowPlaying.get(tileId)?.title) {
-          // nothing queued on the page: resume the last thing this tile played, if Prism ever saw one
+          // nothing queued on the page: resume the last thing this tile played, if PRISM ever saw one
           const r = await this.resumeMusic(tileId);
           if (r === "ok") return "ok";
         }
@@ -4860,7 +4860,7 @@ export class Orchestrator {
    * episode list by its id: the list's season, number and title fill in what the face left out. A face that names its season is left alone.
    */
   /**
-   * The episode a screen is on its way to (2026-09-25, - on the control bar): Prism knows where it sent the screen before the service
+   * The episode a screen is on its way to (2026-09-25, - on the control bar): PRISM knows where it sent the screen before the service
    * says so, so the screen shows that episode at once - until the page names it (or another), or EXPECT_MS passes.
    */
   private readonly expecting = new Map<string, { series: string; season: number; episode: number; title: string; id: string | null; at: number; from: string }>();
@@ -5313,7 +5313,7 @@ export class Orchestrator {
   private readonly stageKeptAt = new Map<string, number>();
   static readonly STAGE_KEEP_MS = 15_000;
   /**
-   * Prism's loading mark (2026-10-16): over a video window while a pick
+   * PRISM's loading mark (2026-10-16): over a video window while a pick
    * there has not started (a small window; the big screen has its curtain) or while its page's player waits for data when it should be playing,
    * outside an ad and its cover. It shows after LOADING_HOLD_MS of waiting, so a short stall never flickers it, and goes the moment the window
    * plays. The page's word is the host's page script on every page (the buffering event); a service's own spinner is hidden by its adapter.
@@ -5323,7 +5323,7 @@ export class Orchestrator {
   static readonly LOADING_HOLD_MS = 600;
   /**
    * The video viewer shows video or nothing (2026-11-05, the owner's rule, held since the empty stage of 2026-09-25): a window of the Video
-   * player - the big screen, every multiview window - shows a player or Prism's dark mark, never the service's own pages (its home, its
+   * player - the big screen, every multiview window - shows a player or PRISM's dark mark, never the service's own pages (its home, its
    * search, a title's page, an end card). The page loads behind the mark, unseen. A service's page the person opens outside the viewer is
    * not one of these windows, and the page's own questions stay reachable: a sign-in (the runtime names no screen then), a profile gate, the
    * service's gate over its player. The runtime names the big screen while the Video player is the wall and its service is signed in.
@@ -5363,7 +5363,7 @@ export class Orchestrator {
       }
     }
   }
-  /** Is Prism's loading mark up over this window (tests, the doctor)? */
+  /** Is PRISM's loading mark up over this window (tests, the doctor)? */
   videoLoadingShown(id: string): boolean { return this.loadingMark.get(id)?.shown === true; }
   videoStageKeep(): void {
     if (!this.mv.on) return;
@@ -5787,6 +5787,12 @@ export class Orchestrator {
       const tune = !canTune ? undefined : ctx.kind === "live" && ctx.channel ? ctx.channel : was?.url === url ? was.tune : undefined;   // a report that names no channel keeps the one kept, while the address stands
       const stillNow = ctx.playing !== true && this.video.state([tileId])[0]?.playing !== true && !!pos && pos > 5;
       next = tune ? { url, name: ctx.series || ctx.title || "", tune } : { url, name: ctx.series || ctx.title || "", ...(pos ? { pos } : {}), ...(stillNow ? { paused: true } : {}) };
+    }
+    // in a break the record stands, all but its paused mark, which follows the player (2026-11-10, a title paused in a break and then closed
+    // came back playing: nothing was written in an ad, so the pause was never kept). A channel kept by its tune has no such mark.
+    else if (ctx?.ad && was && !was.tune && url && bare(url) === bare(was.url)) {
+      const still = ctx.playing !== true && this.video.state([tileId])[0]?.playing !== true;
+      if (!!was.paused !== still) next = { url: was.url, name: was.name, ...(was.pos ? { pos: was.pos } : {}), ...(still ? { paused: true } : {}) };
     }
     // the title closed: its browse page, another address - but not in a page's first seconds (2026-09-24: each restart lost titles - a restored
     // page's first report named nothing while its player loaded, often at a moved address, and the kept title was dropped; three restarts
@@ -6997,7 +7003,7 @@ export class Orchestrator {
     // never a title's own player in the background (adapter videoPlaysAt): it would play, and the service would count it as watched
     const plays = this.adapters.get(s.adapter)?.videoPlaysAt ?? [];
     let path = ""; try { path = new URL(url).pathname; } catch { path = url; }
-    if (!opts?.mayPlay && plays.some((p) => path.includes(p))) return { r: null, error: "Prism won't open that page in the background because it would start the title playing" };
+    if (!opts?.mayPlay && plays.some((p) => path.includes(p))) return { r: null, error: "PRISM won't open that page in the background because it would start the title playing" };
     this.hiddenWork++;
     this.touchLookups();
     // one job at a time on a service's page: The Bear's job had taken the page Breeders' was still working on (2026-09-22)
@@ -7185,7 +7191,7 @@ export class Orchestrator {
       if (j && Array.isArray(j.games) && typeof j.readAt === "number" && !this.scoresKept) this.scoresKept = { games: mergeKept([], j.games as ScoreGame[], Date.now()), readAt: j.readAt, errors: {} };
     } catch { /* read afresh */ }
   }
-  // the per-league day pages, in a hidden page of Prism's own browser (they refuse the host's fetch): today's and yesterday's, hourly
+  // the per-league day pages, in a hidden page of PRISM's own browser (they refuse the host's fetch): today's and yesterday's, hourly
   private scoresDayReadAt = 0;
   private scoresDayReading = false;
   static readonly SCORES_DAY_MS = 60 * 60_000;
@@ -7818,7 +7824,7 @@ export class Orchestrator {
     if (this.inBgPause(now)) why = "paused (quiet hours " + this.bgPause.from + "-" + this.bgPause.to + ")";
     else if (this.lookupNow && !this.lookupNow.done) why = "a search is running";
     else if (this.hiddenWork > 0) why = "a job is running on a service's page";
-    else if (now - Math.max(0, ...this.lastInteract.values()) < Orchestrator.BG_QUIET_MS) why = "a person is using Prism";
+    else if (now - Math.max(0, ...this.lastInteract.values()) < Orchestrator.BG_QUIET_MS) why = "a person is using PRISM";
     else if (this.politeIdle(now)) why = "resting (nobody about for hours)";
     else if (now - this.listsRefreshedAt < Orchestrator.BG_LISTS_MS) why = "fresh";
     if (why) { this.bgLast = why; return why; }
@@ -7828,7 +7834,7 @@ export class Orchestrator {
   }
   backgroundState(): { last: string; listsAt: number; ownedAt: number } { return { last: this.bgLast, listsAt: this.listsRefreshedAt, ownedAt: this.ownedRefreshedAt }; }
   /**
-   * The services' hidden pages wait out the boot, and open one at a time (2026-09-28, the owner agreed that startup would be smoother if Prism opened the
+   * The services' hidden pages wait out the boot, and open one at a time (2026-09-28, the owner agreed that startup would be smoother if PRISM opened the
    * hidden service pages a few seconds after Watch is drawn): the boot's list read made nine hidden pages at once, beside the wall's own - the
    * window's thread was busy for 3.6 s and a click then waited. Every background chain (the timed read, the boot's, Watch opening) starts no
    * sooner than HIDDEN_BOOT_MS after the first load, and each HIDDEN_STAGGER_MS after the one before; a read a person asked for goes at once.
@@ -8548,7 +8554,7 @@ export class Orchestrator {
         await this.drivers.surface.setMuted(cmd.tile, true);
         // 2026-09-17 (section 3, amended): a MUSIC source that loses the audio is paused through its own player, not left
         // streaming in silence - "We shouldn't mute and continue streaming services that aren't actively playing. They should
-        // be paused." A silent music player spends skips and ad breaks for no one and walks a Prism-ordered play forward
+        // be paused." A silent music player spends skips and ad breaks for no one and walks a PRISM-ordered play forward
         // behind the person's back. Everything else keeps the mute-only rule (a muted live stream keeps moving).
         if (this.music.source(cmd.tile) && this.audio.isPlaying(cmd.tile)) await this.pauseSource(cmd.tile);
       }
@@ -9083,7 +9089,7 @@ export class Orchestrator {
     if (event.type === "playback" && event.playing && this.restorePaused.has(event.id)) {
       const until = this.restorePaused.get(event.id)!;
       // only a PERSON's press, pick or seek since the restore lets it play (2026-10-23,: Silo, paused
-      // when Prism closed, came back playing - Apple TV's episode page waits for Play, the restore pressed it eight seconds on, and that press's
+      // when PRISM closed, came back playing - Apple TV's episode page waits for Play, the restore pressed it eight seconds on, and that press's
       // arm() set lastInteract after the mark, so the wall's own Play read as a person's). The pause is the wall's, so the pause hold
       // (pauseHeld) pauses the player once more should the restore's seek to the kept spot start it again.
       this.restorePaused.delete(event.id);
@@ -9129,7 +9135,7 @@ export class Orchestrator {
       // The hold must announce itself: a frozen first frame (often an ad's
       // opening seconds) read as breakage (reported twice, 2026-08-31). The
       // chip removes itself on the first play or after 20s.
-      await this.drivers.surface.inject(event.id, null, "document.querySelectorAll('video,audio').forEach(function(m){m.pause()});(function(){if(document.getElementById('__prism-hold'))return;var b=document.createElement('div');b.id='__prism-hold';b.textContent='⏸ Held paused by Prism '+String.fromCharCode(183)+' press play when ready';b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;background:rgba(18,19,26,.92);color:#F2F4F7;font:600 13px/1.4 system-ui,sans-serif;padding:8px 14px;border-radius:10px;border:1px solid rgba(240,168,60,.5);pointer-events:none';document.documentElement.appendChild(b);var done=function(){try{b.remove()}catch(e){}};window.addEventListener('playing',done,true);setTimeout(done,20000);})();");
+      await this.drivers.surface.inject(event.id, null, "document.querySelectorAll('video,audio').forEach(function(m){m.pause()});(function(){if(document.getElementById('__prism-hold'))return;var b=document.createElement('div');b.id='__prism-hold';b.textContent='⏸ Held paused by PRISM '+String.fromCharCode(183)+' press play when ready';b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;background:rgba(18,19,26,.92);color:#F2F4F7;font:600 13px/1.4 system-ui,sans-serif;padding:8px 14px;border-radius:10px;border:1px solid rgba(240,168,60,.5);pointer-events:none';document.documentElement.appendChild(b);var done=function(){try{b.remove()}catch(e){}};window.addEventListener('playing',done,true);setTimeout(done,20000);})();");
       return;
     }
     if (event.type === "interaction") {
@@ -9832,7 +9838,7 @@ export class Orchestrator {
   /**
    * B-124 boot self-heal (2026-09-07): the very first engine a fresh browser process creates at boot came
    * up signed out on Apple Music every time, on any page, while the same surface recreated a minute
-   * later signed in within seconds (same profile, cookies, storage). The cause is below Prism; the cure
+   * later signed in within seconds (same profile, cookies, storage). The cause is below PRISM; the cure
    * is a fresh engine. So a tile whose session watch says signed-out inside the boot window is recycled
    * ONCE, and that first word is not trusted for the App's status - the recreated page speaks next.
    * A truly signed-out account costs one extra load and is then reported as it is.
@@ -9961,13 +9967,13 @@ export class Orchestrator {
     // person's account after a restart. The wall's own Watch page is the way back to a title (Continue watching).
     if (tile.adapter && isVideoAdapter(this.adapters.get(tile.adapter))) return home;
     try {
-      // a music page comes back on its last address only if it was the one with the sound when Prism closed (B-471, 2026-10-31: -
+      // a music page comes back on its last address only if it was the one with the sound when PRISM closed (B-471, 2026-10-31: -
       // Pandora's station address autoplayed an ad after every restart, muted under the hold, for no one); every other music page comes
       // back on its home page, which plays nothing. The person's Play, or the phone's Restore, carries on from its music:resume as before.
       if (this.isMusicTile(tile.id) && (await this.drivers.store.get(this.musicOwnerKey(dashId))) !== tile.id) {
         // a service that resumes its last station on any signed-in page (adapter resumesOnLoad: Pandora's home page did, 22:23 the same
         // night) is play-gated: the shell refuses the page's own play() as a browser's autoplay rule would, until a person asks for its
-        // music (arm, or a touch in the page), which lifts the gate before Prism's own click
+        // music (arm, or a touch in the page), which lifts the gate before PRISM's own click
         if (tile.adapter && this.adapters.get(tile.adapter)?.resumesOnLoad && this.drivers.surface.setPlayGate) { this.playGated.add(tile.id); void this.drivers.surface.setPlayGate(tile.id, true); }
         return home;
       }

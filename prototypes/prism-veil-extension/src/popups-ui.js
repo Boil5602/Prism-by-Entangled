@@ -1,5 +1,5 @@
 /*
-  Prism - the Prism button + Popup Control Center (spec section 30). Isolated
+  PRISM - the PRISM button + Popup Control Center (spec section 30). Isolated
   world. This is a SUBSCRIBER: it renders what prism-core's PopupPolicy says
   and forwards the human's taps back to it. It never computes policy.
 
@@ -60,14 +60,40 @@
 
   // ---- the human's last click (for the tab backstop's click-consistency) ----
   var gesture = { url: "", at: 0 };
+  // The link under an event. Inside an open shadow root the window is told only the outermost host, so the event's own path is read first.
+  function linkOf(e) {
+    try {
+      var p = e.composedPath ? e.composedPath() : [];
+      for (var i = 0; i < p.length; i++) { if (p[i] && p[i].matches && p[i].matches("a[href]")) return p[i]; }
+      return e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    } catch (x) { return null; }
+  }
   ["pointerdown", "mousedown", "auxclick", "keydown"].forEach(function (ev) {
     addEventListener(ev, function (e) {
-      var href = "";
-      try { var a = e.target && e.target.closest ? e.target.closest("a[href]") : null; if (a) href = a.href; } catch (x) {}
+      var a = linkOf(e), href = "";
+      try { if (a) href = a.href; } catch (x) {}
       gesture = { url: href, at: Date.now() };
+      if (ev !== "auxclick" && e.button !== 2) menuPick = null;   // a new press on the page: the menu is gone and its link with it
     }, true);
   });
   function recentGesture() { return (Date.now() - gesture.at < 1500) ? { url: gesture.url, windowsThisGesture: 1 } : null; }
+  // A link opened from the browser's own menu (right-click, "Open link in new tab" or "in new window") is the person's ask however long
+  // they read the menu (2026-11-10: such a window to another site closed as it opened, the press being older than a plain click's
+  // 1.5 s). The page hears nothing while the menu is up, so the link under the menu stays the person's pick until their next press
+  // on the page, for two minutes at most, for one open, and only for that link's own address: a tab to anywhere else is judged as before.
+  var MENU_MS = 120000, menuPick = null;
+  addEventListener("contextmenu", function (e) {
+    var a = linkOf(e), href = "";
+    try { if (a) href = a.href; } catch (x) {}
+    menuPick = href ? { a: a, url: href, at: Date.now() } : null;
+  }, true);
+  function sameAddress(x, y) { return !!x && !!y && String(x).split("#")[0] === String(y).split("#")[0]; }
+  function menuAsk(url) {
+    var m = menuPick; if (!m || Date.now() - m.at > MENU_MS) { menuPick = null; return false; }
+    var now = ""; try { now = m.a.href; } catch (x) {}   // a page may rewrite the link after the menu opened (a click tracker)
+    if (!sameAddress(url, m.url) && !sameAddress(url, now)) return false;
+    menuPick = null; return true;
+  }
 
   // ---- events from the hook -------------------------------------------------
   document.addEventListener("prism-popup", function (e) {
@@ -173,8 +199,8 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     root = host.attachShadow({ mode: "closed" });
     var style = document.createElement("style"); style.textContent = CSS; root.appendChild(style);
     pill = document.createElement("div"); pill.className = "pill"; pill.setAttribute("role", "button"); pill.setAttribute("tabindex", "0");
-    pill.setAttribute("aria-label", "Prism popup control center"); pill.setAttribute("aria-live", "polite");
-    label = document.createElement("span"); label.className = "lbl"; label.textContent = "Prism";
+    pill.setAttribute("aria-label", "PRISM popup control center"); pill.setAttribute("aria-live", "polite");
+    label = document.createElement("span"); label.className = "lbl"; label.textContent = "PRISM";
     mk = document.createElement("span"); mk.className = "mk"; pill.appendChild(mk);
     var x = document.createElement("span"); x.className = "x"; x.textContent = "›"; x.title = "Collapse";
     pill.appendChild(label); pill.appendChild(x);
@@ -229,11 +255,13 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     pill.classList.toggle("collapsed", !!prefs.collapsed);
     pill.classList.toggle("hidden", !!prefs.hidden || fullscreenNow());
     if (prefs.collapsed || prefs.hidden) closePanel();
+    scheduleMorph();   // a notice that waited for the button (made, shown again, out of fullscreen) is due now
   }
   function fullscreenNow() {
     try { return !!(document.fullscreenElement || document.pictureInPictureElement); } catch (e) { return false; }
   }
   document.addEventListener("fullscreenchange", function () { applyPrefs(prefs); });
+  document.addEventListener("visibilitychange", function () { scheduleMorph(); });
   document.addEventListener("enterpictureinpicture", function () { applyPrefs(prefs); }, true);
   document.addEventListener("leavepictureinpicture", function () { applyPrefs(prefs); }, true);
 
@@ -273,10 +301,18 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     if (!isFinite(wait)) return;
     morphTimer = setTimeout(function () { morphTimer = 0; paintMorph(); }, wait);
   }
+  // A notice nobody can see is not used up (2026-11-10): the count was taken and painted on a button not yet made (a popup at the page's
+  // load), hidden for fullscreen, or in a tab behind another, and the toolbar's count was then the only sign. It waits here, and
+  // the moment the button can show it asks again (the button made, fullscreen left, the tab shown, a report pick ended).
+  function canNotice() {
+    if (!pill || prefs.hidden || picking || fullscreenNow()) return false;
+    try { if (document.hidden) return false; } catch (e) {}
+    return true;
+  }
   function paintMorph() {
+    if (!canNotice()) return;
     var m = morph.next(Date.now());
     if (!m) { scheduleMorph(); return; }
-    if (!pill || prefs.hidden || picking) { return; }
     setLabel(m.label, true);
     glow(true);
     if (revertTimer) clearTimeout(revertTimer);
@@ -307,13 +343,13 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     if (reduced) { pill.classList.add("dissolve"); setTimeout(apply, 180); }   // dissolve, no movement
     else apply();
   }
-  // The resting label: "Prism", "Prism off" while the main switch is off,
+  // The resting label: "PRISM", "PRISM off" while the main switch is off,
   // "Cancel report" while a report pick is on (the click then cancels it).
   var picking = false;
   function veilIsOff() { return !!(PV.veilOff && PV.veilOff()); }
-  function baseLabel() { return picking ? "✕ Cancel report" : veilIsOff() ? "Prism off" : "Prism"; }
+  function baseLabel() { return picking ? "✕ Cancel report" : veilIsOff() ? "PRISM off" : "PRISM"; }
   function restLabel() { if (!pill) return; pill.classList.toggle("off", veilIsOff() && !picking); setLabel(baseLabel(), picking); }
-  PV.onReportPick = function (on) { picking = !!on; if (on) closePanel(); restLabel(); };
+  PV.onReportPick = function (on) { picking = !!on; if (on) closePanel(); restLabel(); if (!on) scheduleMorph(); };
   PV.onVeilToggle = function () { restLabel(); if (panelOpen) renderPanel(); };
 
   // ---- the panel ------------------------------------------------------------
@@ -346,7 +382,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
   function renderPanel() {
     if (!panel) return;
     panel.textContent = "";
-    panel.appendChild(el("h2", null, "Prism on " + site));
+    panel.appendChild(el("h2", null, "PRISM on " + site));
     // The veil: the main switch, a report, a look underneath.
     var tv = el("label", "toggle"); tv.title = "The main switch. On: ads, video breaks and, if you chose it, AI-labelled content are covered with art. Off: every cover comes down on every page at once. Popups are still intercepted.";
     var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff();
@@ -417,7 +453,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     t1.appendChild(c1); t1.appendChild(document.createTextNode("Block all popups here")); panel.appendChild(t1);
     var t2 = el("label", "toggle"); t2.title = "Hide this button on this site. Popups are still intercepted; the toolbar badge shows the count. Bring it back from the toolbar popup."; var c2 = document.createElement("input"); c2.type = "checkbox"; c2.checked = !!prefs.hidden;
     c2.addEventListener("change", function () { policy.setHidden(site, c2.checked); });
-    t2.appendChild(c2); t2.appendChild(document.createTextNode("Hide the Prism button here")); panel.appendChild(t2);
+    t2.appendChild(c2); t2.appendChild(document.createTextNode("Hide the PRISM button here")); panel.appendChild(t2);
 
     // This site's reliability rating (only while marks are on; the switch and
     // the source credits live in the toolbar popup).
@@ -439,7 +475,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
       });
     }
 
-    // Everything Prism-wide (veil, content, photos, start page, time
+    // Everything PRISM-wide (veil, content, photos, start page, time
     // reclaimed) lives in the toolbar popup - one place, not two.
     var srow = el("div", "toggle"); srow.style.cssText = "justify-content:flex-end;gap:10px;margin-top:10px;cursor:default";
     var hint = el("span", null, "Covering ads, content, photos, time reclaimed:"); hint.style.color = "#A3ABB7"; hint.style.fontSize = "12px";
@@ -447,11 +483,11 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     var sb = btn("Settings", true, function () {
       try {
         chrome.runtime.sendMessage({ type: "prism-open-settings" }, function (r) {
-          if (!(r && r.ok) && PV.toast) PV.toast("Click the Prism icon in the browser toolbar for settings.", "#F0A83C");
+          if (!(r && r.ok) && PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C");
         });
-      } catch (e) { if (PV.toast) PV.toast("Click the Prism icon in the browser toolbar for settings.", "#F0A83C"); }
+      } catch (e) { if (PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C"); }
     });
-    sb.title = "Open Prism\u2019s settings (the toolbar popup): veil behaviour, AI and reliability marks, photos, start page, time reclaimed";
+    sb.title = "Open PRISM\u2019s settings (the toolbar popup): veil behaviour, AI and reliability marks, photos, start page, time reclaimed";
     srow.appendChild(sb);
     panel.appendChild(srow);
   }
@@ -490,6 +526,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
         // a form auto-submit - get the strict rule; that is the ad pattern.
         // (Laundering via window.open is still caught by the in-page hook.)
         if (g && g.url) { sendResponse({ action: "allow", reason: "you clicked a link" }); return true; }
+        if (menuAsk(String(msg.url || ""))) { sendResponse({ action: "allow", reason: "you opened the link from its menu" }); return true; }
         var attempt = { site: site, url: String(msg.url || "") };
         if (g) attempt.gesture = g;
         var decision; try { decision = policy.evaluate(attempt); } catch (e) { decision = { action: "intercept", reason: "policy error" }; }

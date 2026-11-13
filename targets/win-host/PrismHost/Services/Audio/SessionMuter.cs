@@ -53,7 +53,7 @@ public sealed class SessionMuter : IDisposable
         get => _volume;
         set { _volume = Math.Clamp(value, 0f, 1f); if (!_disposed) { EnsureSweep(); QueueSweep(); } }
     }
-    /// <summary>The person's mute of Prism in the room (B-472, 2026-11-01): the sessions at Step, the floor the captures multiply back up, so a
+    /// <summary>The person's mute of PRISM in the room (B-472, 2026-11-01): the sessions at Step, the floor the captures multiply back up, so a
     /// listening phone, the listen page and the visualizations hear the music while the room hears nothing; other apps on the PC and the playback
     /// device are never touched. The same floor the room in step uses. (Private listening used to hold the sessions at full and carry the
     /// person's mute and volume on the device instead, 2026-10-04; the captures' gain makes that unnecessary.)</summary>
@@ -172,8 +172,12 @@ public sealed class SessionMuter : IDisposable
         if (++_sweeps % 5 == 0) LogPeaks();
     }
 
+    private long _peaksSaidAt;
     private void LogPeaks()
     {
+        // once a minute (2026-11-07, the doctor: 5,700 lines a day of a tree at volume 0.000 - the room's step level while muted or listened to)
+        if (Environment.TickCount64 - _peaksSaidAt < 60_000) return;
+        _peaksSaidAt = Environment.TickCount64;
         try
         {
             var mgr = Manager(); if (mgr is null) return; mgr.RefreshSessions(); var sessions = mgr.Sessions; var parents = ParentMap();
@@ -181,7 +185,7 @@ public sealed class SessionMuter : IDisposable
             {
                 var s = sessions[i]; uint pid; try { pid = s.GetProcessID; } catch { continue; }
                 foreach (var (root, muted) in _wanted.ToArray())
-                    if (!muted && InTree(pid, root, parents)) { float pk = 0; try { pk = s.AudioMeterInformation.MasterPeakValue; } catch { } if (pk > 0.0005f) _log($"session tree {root}: peak {pk:0.000} at volume {s.SimpleAudioVolume.Volume:0.000}"); }
+                    if (!muted && InTree(pid, root, parents)) { float pk = 0; try { pk = s.AudioMeterInformation.MasterPeakValue; } catch { } if (pk > 0.0005f) _log($"session tree {root}: peak {pk:0.000} at volume {s.SimpleAudioVolume.Volume:0.000}{(_roomStep || _roomMuted ? " (the room step: muted or listened to)" : "")}"); }
             }
         }
         catch { }

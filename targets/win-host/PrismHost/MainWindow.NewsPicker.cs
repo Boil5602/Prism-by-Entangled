@@ -121,7 +121,7 @@ public sealed partial class MainWindow
         body.Children.Add(new TextBlock { Text = e.Rating, FontSize = 14, Foreground = Amber });
         body.Children.Add(new TextBlock { Text = e.Summary.Length > 0 ? e.Summary : "(no summary in the snapshot)", FontSize = 13, Foreground = LeInk, TextWrapping = TextWrapping.Wrap });
         body.Children.Add(new TextBlock { Text = e.RatingUrl, FontSize = 11, Foreground = LeDim, TextWrapping = TextWrapping.Wrap });
-        body.Children.Add(Meta("Wikipedia: Reliable sources/Perennial sources, CC BY-SA 4.0. Opening the page shows it in Prism's browsing surface (the §30 sheet), not a hidden window."));
+        body.Children.Add(Meta("Wikipedia: Reliable sources/Perennial sources, CC BY-SA 4.0. Opening the page shows it in PRISM's browsing surface (the §30 sheet), not a hidden window."));
         var dlg = new ContentDialog { Title = "About " + e.Name + "'s rating", Content = body, PrimaryButtonText = "Open the rating page", CloseButtonText = "Close", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
         try
         {
@@ -142,7 +142,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// A reference page (the rating rationale, the dataset) opens in Prism's own
+    /// A reference page (the rating rationale, the dataset) opens in PRISM's own
     /// browsing surface - App setup mode of a "Wikipedia" App (its own profile,
     /// created on first use) at that url - never a hidden window, never the
     /// system browser. The setup route carries the page as ?url=.

@@ -43,7 +43,7 @@ show the ratings they allow:
 | Under 17 | + TV-14 |
 | Kids mode off | all, incl. TV-MA |
 Caveat (shown): ratings are the network's own label; TV-PG has no
-official age, so this mapping is Prism's editable default. Unrated
+official age, so this mapping is PRISM's editable default. Unrated
 titles are hidden while Kids mode is on. Kids mode state is shared by
 carousel and full view and persisted per device.
 
@@ -79,6 +79,6 @@ animation, day seed).
 rating was 38 of 50 animated - short, long-running series are mostly
 cartoons and anime, and TMDB's voters rate anime high; a higher vote
 floor barely changed the mix (33 of 50 at 1,000 votes). The household
-chose a labeled choice over a Prism-decided balance.
+chose a labeled choice over a PRISM-decided balance.
 
 *Decision (2026-09-24):* no limit. The carousel and each genre row show every eligible series, shuffled daily; the top-50 cut is gone. Parks and Recreation (8.05) and Modern Family (7.9) had qualified but ranked 58th and 75th under a cut at 8.15.

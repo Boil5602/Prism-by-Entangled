@@ -1,5 +1,5 @@
 <#
-  Prism kiosk - Windows + Edge policy set. Idempotent; re-run any time.
+  PRISM kiosk - Windows + Edge policy set. Idempotent; re-run any time.
 
   Goal: Windows and Edge become invisible plumbing. No consumer promotions,
   no lock-screen ads, no notifications, no Copilot/widgets/rewards, no sync
@@ -123,4 +123,4 @@ P $e RendererCodeIntegrityEnabled 1
 # Hardware DRM (PlayReady) is what makes this build "the Studio" - leave enabled.
 P $e DefaultMediaKeySystemsSetting 1   # allow protected content
 
-Write-Host "Prism policies applied."
+Write-Host "PRISM policies applied."

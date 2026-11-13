@@ -206,7 +206,7 @@ describe("quick play: the last five collections a music tile played from", () =>
     calls.length = 0;
     expect(await o.tileCommand("am", "mute")).toBe("ok");
     expect(o.getState()?.muted).toBe(true);   // the wall's one switch
-    // B-472 (2026-11-01): the person's mute is the room's floor on Prism's own sessions (ui.roomMute), never a page mute - a muted page has no
+    // B-472 (2026-11-01): the person's mute is the room's floor on PRISM's own sessions (ui.roomMute), never a page mute - a muted page has no
     // sound for a listening phone or the meters to hear. The owner's page stays unmuted at the page.
     expect(calls.some((c) => c.op === "roomMute" && c.on === true)).toBe(true);
     expect(calls.some((c) => c.op === "setMuted" && c.id === "am" && c.muted === true)).toBe(false);
@@ -318,7 +318,7 @@ describe("multi-service lounge (2026-09-07)", () => {
     await o.onSurfaceEvent({ type: "playback", id: "am", playing: true });
     expect(calls.some((c) => c.op === "inject" && c.id === "am" && /m\.pause\(\)/.test(String(c.js)))).toBe(false);
     // B-150: the wall's mute holds through a service switch - the pick moves the audio to sp, the wall keeps it silent, unmute lifts it.
-    // B-472: the silence is the room's floor on Prism's sessions, so sp's page is unmuted as the owner's (a listening phone hears the pick)
+    // B-472: the silence is the room's floor on PRISM's sessions, so sp's page is unmuted as the owner's (a listening phone hears the pick)
     expect(await o.tileCommand("am", "mute")).toBe("ok");
     expect(o.getState()?.muted).toBe(true);
     calls.length = 0;
@@ -541,7 +541,7 @@ describe("§26 ambient audio (opt-in, 2026-09-07)", () => {
     expect(calls.some((c) => c.op === "setMuted" && c.id === "ambient:pd" && c.muted === true)).toBe(false);
     expect(calls.some((c) => c.op === "setMuted" && c.id === "pd")).toBe(false);   // and the source's own mute is untouched
     calls.length = 0;
-    expect(await o.tileCommand("pd", "mute")).toBe("ok");   // the wall's mute covers the soundscape: the room's floor on every session of Prism's (B-472), not a page mute
+    expect(await o.tileCommand("pd", "mute")).toBe("ok");   // the wall's mute covers the soundscape: the room's floor on every session of PRISM's (B-472), not a page mute
     expect(calls.some((c) => c.op === "roomMute" && c.on === true)).toBe(true);
     expect(calls.some((c) => c.op === "setMuted" && c.id === "ambient:pd" && c.muted === true)).toBe(false);
     calls.length = 0;

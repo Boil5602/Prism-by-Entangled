@@ -6,7 +6,7 @@ using Microsoft.UI.Xaml.Media;
 namespace PrismHost;
 
 /// <summary>
-/// This Prism on Watch settings' Updates tab (2026-10-15): Prism's own version, what the update server offers, Check now, Install now, Restart into the new version and What's changed, as
+/// This PRISM on Watch settings' Updates tab (2026-10-15): PRISM's own version, what the update server offers, Check now, Install now, Restart into the new version and What's changed, as
 /// the phone's Updates panel has them, and below it the track, the schedule and the update server (UpdateChoiceParts, shared with the
 /// Updates window in MainWindow.Updates.cs).
 /// </summary>
@@ -15,7 +15,7 @@ public sealed partial class MainWindow
     private void BuildSoftwareSection(StackPanel body, int run)
     {
         var ell = ((char)0x2026).ToString();
-        body.Children.Add(new TextBlock { Text = "This Prism", FontSize = 17, Foreground = HubInk });
+        body.Children.Add(new TextBlock { Text = "This PRISM", FontSize = 17, Foreground = HubInk });
         var running = new TextBlock { FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         var line = new TextBlock { FontSize = 15, Foreground = HubInk, TextWrapping = TextWrapping.Wrap };
         var verbs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
@@ -48,7 +48,7 @@ public sealed partial class MainWindow
             foreach (var (v, d, n) in list)
             {
                 var cmp = CompareVersions(v, current);
-                var head = "Prism " + v + (DateTime.TryParse(d, out var dd) ? Mid + dd.ToString("MMM d") : "") + (cmp > 0 ? Mid + "New" : cmp == 0 ? Mid + "Running now" : "");
+                var head = "PRISM " + v + (DateTime.TryParse(d, out var dd) ? Mid + dd.ToString("MMM d") : "") + (cmp > 0 ? Mid + "New" : cmp == 0 ? Mid + "Running now" : "");
                 var item = new StackPanel { Spacing = 4, Padding = new Thickness(0, 0, 0, 14), BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)) };
                 item.Children.Add(new TextBlock { Text = head, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = cmp > 0 ? HubAmber : HubInk });
                 item.Children.Add(new TextBlock { Text = n, FontSize = 14, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });
@@ -63,13 +63,13 @@ public sealed partial class MainWindow
             var last = st?["lastCheck"]?.GetValue<string>();
             var res = st?["lastResult"]?.GetValue<string>();
             var when = last is { Length: > 0 } && DateTime.TryParse(last, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToLocalTime().ToString("ddd HH:mm") : "never";
-            running.Text = "Prism " + AppVersion.Text + " on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track";
-            line.Text = staged is { } s2 ? "Prism " + s2.version + " is installed and runs at the next start."
-                : av is not null ? "Prism " + (av["version"]?.GetValue<string>() ?? "?") + " is ready to install. Last check " + when + "."
+            running.Text = "PRISM " + AppVersion.Text + " on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track";
+            line.Text = staged is { } s2 ? "PRISM " + s2.version + " is installed and runs at the next start."
+                : av is not null ? "PRISM " + (av["version"]?.GetValue<string>() ?? "?") + " is ready to install. Last check " + when + "."
                 : res is "unreachable" ? "The update server could not be reached. Last tried " + when + "."
                 : res is "invalid" ? "The update server's answer did not verify, so nothing was taken from it. Last tried " + when + "."
                 : last is { Length: > 0 } ? "This is the newest version on the " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track. Last check " + when + "."
-                : "Not checked yet. Prism checks on its schedule, and Check now asks right away.";
+                : "Not checked yet. PRISM checks on its schedule, and Check now asks right away.";
             install.Visibility = av is not null && staged is null ? Visibility.Visible : Visibility.Collapsed;
             restart.Visibility = staged is not null ? Visibility.Visible : Visibility.Collapsed;
             DrawLog();

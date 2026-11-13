@@ -19,7 +19,7 @@ export interface SignIn {
   /** the browser profile its session lives in */
   profile: string;
   /**
-   * Who named it: "person" (typed, or renamed - never changed by Prism again), "page" (read from the service's own account page),
+   * Who named it: "person" (typed, or renamed - never changed by PRISM again), "page" (read from the service's own account page),
    * absent for the name it began with (Household, New sign-in).
    */
   by?: "person" | "page";
@@ -105,12 +105,12 @@ export function sharedPlan(state: SignInState): { state: SignInState; moves: Arr
   for (const [key, list] of Object.entries(state.accounts)) {
     const next: SignIn[] = [];
     const taken = new Set(list.filter((s) => isSharedProfile(s.profile)).map((s) => s.profile));
-    // the household's own legacy sign-ins of one account - Prism-named, one a service's folder ("Household", "Household (Apple TV)") - are
+    // the household's own legacy sign-ins of one account - PRISM-named, one a service's folder ("Household", "Household (Apple TV)") - are
     // one login on two folders: all into the first slot, the extra records hidden (kept, the sets that name them still land there)
     let householdSlot: string | null = null;
     for (const s of list) {
       if (isSharedProfile(s.profile)) { next.push(s); continue; }
-      const household = s.by !== "person" && /^household(-|$)/.test(s.id);   // Prism's own ids for the wall's first login, labelled from a page or not
+      const household = s.by !== "person" && /^household(-|$)/.test(s.id);   // PRISM's own ids for the wall's first login, labelled from a page or not
       let to: string;
       if (household && householdSlot) { to = householdSlot; }
       else {

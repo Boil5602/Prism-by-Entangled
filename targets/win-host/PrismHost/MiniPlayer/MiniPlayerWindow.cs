@@ -72,7 +72,7 @@ public sealed class MiniPlayerWindow : Window
 
     public MiniPlayerWindow()
     {
-        Title = "Prism mini player";
+        Title = "PRISM mini player";
         _root.Background = new SolidColorBrush(Matte);
         _root.RequestedTheme = ElementTheme.Dark;
 
@@ -178,10 +178,10 @@ public sealed class MiniPlayerWindow : Window
         _prev = Ctl("prev", _prevIcon, "Previous", () => Command?.Invoke("prev"));
         _play = Ctl("play", _playIcon, "Play / pause", () => Command?.Invoke(_playing ? "pause" : "play"));
         _next = Ctl("next", _nextIcon, "Next", () => Command?.Invoke("next"));
-        _mute = Ctl("mute", _muteIcon, "Mute / unmute Prism", () => Command?.Invoke(_muted ? "unmute" : "mute"));
+        _mute = Ctl("mute", _muteIcon, "Mute / unmute PRISM", () => Command?.Invoke(_muted ? "unmute" : "mute"));
         _back = Ctl("back", _backIcon, "Back to the full player (Esc, or double-click)", () => ReturnRequested?.Invoke());
         var c = 0;
-        foreach (var b in new[] { _down, _up, _prev, _play, _next, _mute, _back }) { Grid.SetColumn(b, c++); row.Children.Add(b); }
+        foreach (var b in new[] { _up, _down, _prev, _play, _next, _mute, _back }) { Grid.SetColumn(b, c++); row.Children.Add(b); }
         _controls.Children.Add(row);
         _playIcon.Glyph = GlyphPlay; _muteIcon.Glyph = GlyphAudioOn;
         return _controls;
@@ -249,7 +249,7 @@ public sealed class MiniPlayerWindow : Window
         _title.FontSize = 14 * s; _artist.FontSize = 12 * s; _from.FontSize = 11 * s; _notice.FontSize = 12 * s;
         _playIcon.FontSize = 16 * s; _muteIcon.FontSize = 14 * s; _prevIcon.FontSize = 13 * s; _nextIcon.FontSize = 13 * s; _backIcon.FontSize = 13 * s; _upIcon.FontSize = 13 * s; _downIcon.FontSize = 13 * s;
         var pad = 8 * s;
-        foreach (var b in new[] { _down, _up, _prev, _play, _next, _mute, _back }) if (b is not null) b.Padding = new Thickness(pad, pad * 0.6, pad, pad * 0.6);
+        foreach (var b in new[] { _up, _down, _prev, _play, _next, _mute, _back }) if (b is not null) b.Padding = new Thickness(pad, pad * 0.6, pad, pad * 0.6);
         _meta.Padding = new Thickness(12 * s, 30 * s, 12 * s, 9 * s);
         foreach (var c in _meta.Children) if (c is StackPanel sp) sp.MaxWidth = _widthDip * 0.62;
     }

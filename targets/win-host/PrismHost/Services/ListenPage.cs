@@ -2,10 +2,10 @@ namespace PrismHost.Services;
 
 /// <summary>
 /// The listen page (2026-10-31): one page the host serves at /listen?key=, behind the
-/// Prism menu's switch and the household key core mints for it (remote.ts houseListen). Sunrise Meadow drawn from the PC's bands
+/// PRISM menu's switch and the household key core mints for it (remote.ts houseListen). Sunrise Meadow drawn from the PC's bands
 /// (/viz/bands, the key), the song at the bottom left from GET /listen/now every two seconds, and the PC's sound as PCM over a
 /// WebSocket (/audio/stream, a ticket from POST /listen/ticket), each frame stamped with its time on the PC's clock and played by the one
-/// player (ListenPlayer.cs) three seconds after it, the hold every listener in the house keeps, so all of them play the same moment together. Nothing on it acts on Prism: no transport, no mute, no picks. The one button starts the page's own sound, because a
+/// player (ListenPlayer.cs) three seconds after it, the hold every listener in the house keeps, so all of them play the same moment together. Nothing on it acts on PRISM: no transport, no mute, no picks. The one button starts the page's own sound, because a
 /// browser plays nothing until someone taps; a sound that stops is started again by the page itself, so a tablet on a shelf needs
 /// nobody. Written for plain browsers, an Echo Show's Silk among them: no modules, no frameworks, sizes in viewport units so it reads
 /// from across a kitchen. Pure ASCII; the scene is spliced in where __VIZ_SCENE__ stands (VizScene.cs).
@@ -14,12 +14,14 @@ public static class ListenPage
 {
     public const string Html = """
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B0D12"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Prism">
-<link rel="icon" href="/remote/icon.png"><link rel="apple-touch-icon" sizes="180x180" href="/remote/icon-180.png"><title>Prism</title>
+<meta name="theme-color" content="#0B0D12"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="PRISM">
+<link rel="icon" href="/remote/icon.png"><link rel="apple-touch-icon" sizes="180x180" href="/remote/icon-180.png"><title>PRISM</title>
 <style>
 :root{color-scheme:dark;--ink:#E8ECF2;--dim:#8A93A2;--amber:#F2B14C;--amber-ink:#14171C;--ground:#0B0D12;--panel:#1C2129}
 html,body{margin:0;height:100%;background:var(--ground);color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;cursor:default}
 #c{position:fixed;inset:0;width:100%;height:100%}
+#card{position:fixed;top:calc(11vh + env(safe-area-inset-top));right:calc(4vw + env(safe-area-inset-right));width:min(30vw,30vh);height:min(30vw,30vh);object-fit:cover;border-radius:1.6vh;box-shadow:0 .6vh 3vh rgba(0,0,0,.55);display:none}
+#card.on{display:block}
 .info{position:fixed;left:calc(4vw + env(safe-area-inset-left));bottom:calc(5vh + env(safe-area-inset-bottom));max-width:62vw;display:flex;flex-direction:column;gap:.4vh;text-shadow:0 1px 8px rgba(0,0,0,.75)}
 .info .svc{font-size:2.2vh;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .info b{font-size:5.4vh;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -47,7 +49,8 @@ body.rest .state{opacity:0}
 #code button{background:var(--amber);color:var(--amber-ink);border:0;border-radius:3vh;padding:2.4vh 7vh;font:600 3.6vh system-ui;cursor:pointer}
 </style></head><body>
 <canvas id="c"></canvas>
-<div class="info"><span class="svc" id="svc">Prism</span><b id="title">Nothing playing</b><span id="line2"></span><span id="album"></span><span class="clk" id="clock"></span></div>
+<img id="card" alt="">
+<div class="info"><span class="svc" id="svc">PRISM</span><b id="title">Nothing playing</b><span id="line2"></span><span id="album"></span><span class="clk" id="clock"></span></div>
 <div class="state"><span id="note"></span><span class="trim"><button id="earlier" type="button" aria-label="Sound earlier">Earlier</button><span id="trimSay"></span><button id="later" type="button" aria-label="Sound later">Later</button></span><button id="toggle" type="button">Listen</button></div>
 <div id="gate"><h1>PRISM</h1><p id="gateWhat">The music playing on this PC, here, with its lounge scene. Nothing to press but this.</p><button id="go" type="button">Listen</button><form id="code"><input id="codeIn" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" maxlength="9" placeholder="abcd-efgh" aria-label="House code"><button type="submit">Open</button></form><p class="err" id="gateErr"></p></div>
 <script>
@@ -62,13 +65,20 @@ const q = (s) => document.querySelector(s);
 const viz = { bands: new Float32Array(48), smooth: new Float32Array(48), pal: null, reduced: false, t: 0, sun: null, art: null, artBlur: null, artUrl: '', lastAt: 0, raf: 0, ws: null, feed: null };
 try { viz.reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
 __VIZ_SCENE__
+// upright (a phone held in the hand, 2026-11-11): the picture in the middle of the page, and never on the song's words at the bottom left;
+// the scene's own place for it (lower, over the sun's travel) is the phone app's, whose words sit elsewhere
+viz.focalCy = (W, H) => {
+  if (H <= W) return H / 2 - 20;
+  const side = Math.max(200, Math.round(Math.min(W, H) * 0.6)), info = q('.info'), top = info ? info.getBoundingClientRect().top : H;
+  return Math.max(side / 2 + H * 0.04, Math.min(H / 2, top - H * 0.03 - side / 2));
+};
 // ---- the PC: the key goes with every ask; a 404 on the page's own routes means the switch went off
 let isOff = false;
 async function api(path, body) {
   const r = await fetch(path, { method: body === undefined ? 'GET' : 'POST', headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
   if (r.status === 404 && path.indexOf('/listen/') === 0) { off(); throw new Error('the listen page is off'); }
   if (isOff) { isOff = false; q('#gateWhat').textContent = 'The music playing on this PC, here, with its lounge scene. Nothing to press but this.'; q('#go').style.display = ''; }   // back on
-  if (r.status === 401) { askCode('That is not this PC\'s house code. The PC shows it under Listen page in the Prism menu, and the companion app does too.'); throw new Error('not the house code'); }
+  if (r.status === 401) { askCode('That is not this PC\'s house code. The PC shows it under Listen page in the PRISM menu, and the companion app does too.'); throw new Error('not the house code'); }
   if (r.status === 429) { note('Too many wrong codes from this device. Waiting a minute.'); throw new Error('a minute\'s wait'); }   // the code kept: the wait passes
   if (!r.ok) throw new Error('the PC answered ' + r.status);
   return r.json();
@@ -93,7 +103,7 @@ function off() {
   if (isOff) return; isOff = true;
   stopAudio('');
   q('#gate').classList.remove('off'); q('#go').style.display = 'none'; q('#gateErr').textContent = '';
-  q('#gateWhat').textContent = 'The listen page is off on this PC. Turn it on from the Prism menu, under Listen page, to use it here.';
+  q('#gateWhat').textContent = 'The listen page is off on this PC. Turn it on from the PRISM menu, under Listen page, to use it here.';
 }
 // ---- what plays, every two seconds: the card, the stage's art mode and palette for the scene
 let now = null, pos = null, dur = null, playing = false, at = 0;
@@ -107,6 +117,10 @@ async function poll() {
     // the stage's own art mode; with no stage feed, the song's picture over the scene, as a stereo would show the sleeve
     const mode = artMode(), url = mode !== 'off' ? ((f && f.artwork) || artUrl()) : '';
     if (url !== viz.artUrl) { viz.artUrl = url; viz.art = null; viz.artBlur = null; if (url) vizArtLoad(url); }
+    // the cover in the top right corner, as the PC's stage has it, whenever it is not the picture in the middle (2026-11-11): the scene stays in view
+    const cardUrl = mode !== 'focal' ? ((f && f.artwork) || artUrl()) : '', card = q('#card');
+    if (card.dataset.url !== cardUrl) { card.dataset.url = cardUrl; if (cardUrl) card.src = cardUrl; }
+    card.classList.toggle('on', !!cardUrl);
     pos = now && typeof now.position === 'number' ? now.position : null;
     dur = now && typeof now.duration === 'number' && now.duration > 0 ? now.duration : null;
     playing = !!(now && now.playbackState === 'playing'); at = Date.now();
@@ -121,7 +135,7 @@ function mmss(s) { s = Math.max(0, Math.floor(s)); const m = Math.floor(s / 60);
 function drawInfo() {
   const md = now && now.metadata ? now.metadata : {};
   const col = now && now.collection, kindWord = col && col.kind ? ({ station: 'station', playlist: 'playlist', album: 'album', artist: 'artist' })[col.kind] || col.kind : '';
-  q('#svc').textContent = now ? [now.service, col && col.label ? col.label + (kindWord ? ' ' + kindWord : '') : ''].filter(Boolean).join(' \u00b7 ') : 'Prism';
+  q('#svc').textContent = now ? [now.service, col && col.label ? col.label + (kindWord ? ' ' + kindWord : '') : ''].filter(Boolean).join(' \u00b7 ') : 'PRISM';
   q('#title').textContent = now ? (md.title || (now.ad ? 'Ad break' : 'Playing')) : 'Nothing playing';
   const state = now ? (now.ad ? 'an ad is playing' : now.playbackState === 'paused' ? 'paused' : '') : '';
   q('#line2').textContent = [md.artist, state].filter(Boolean).join(' \u00b7 ');
@@ -245,10 +259,10 @@ if (KEY) tryAuto(); else askCode('');
 
     /// <summary>What the address answers while the switch is off or the key is not this PC's: a page that says so, nothing else.</summary>
     public const string OffHtml = """
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prism</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PRISM</title>
 <style>:root{color-scheme:dark}html,body{margin:0;height:100%;background:#0B0D12;color:#E8ECF2;font:16px system-ui,-apple-system,Segoe UI,sans-serif}
 main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;text-align:center;padding:4vw;box-sizing:border-box}
 h1{margin:0;font-size:6vh;font-weight:600;letter-spacing:.3em;padding-left:.3em}p{margin:0;font-size:3vh;opacity:.9;max-width:72vw;line-height:1.35}</style></head>
-<body><main><h1>PRISM</h1><p>The listen page is off on this PC, or this is not its address any more. Turn it on from the Prism menu, under Listen page, and open the address it shows.</p></main></body></html>
+<body><main><h1>PRISM</h1><p>The listen page is off on this PC, or this is not its address any more. Turn it on from the PRISM menu, under Listen page, and open the address it shows.</p></main></body></html>
 """;
 }

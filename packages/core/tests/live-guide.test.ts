@@ -8,7 +8,7 @@ const HALF = Math.floor(NOW / LIVE_SLOT_MS) * LIVE_SLOT_MS;
 const ch = (id: string, name: string, extra: Partial<VideoChannel> = {}): VideoChannel => ({ id, name, url: `https://www.paramountplus.com/live-tv/stream/${id}/`, ...extra });
 
 describe("the Live tab's guide (docs/features/live.md)", () => {
-  it("a channel's type is the service's own category when it gives one, else Prism's rule on the name - each labelled with its source", () => {
+  it("a channel's type is the service's own category when it gives one, else PRISM's rule on the name - each labelled with its source", () => {
     expect(liveTypeOf(ch("cbsn", "CBS News 24/7", { category: "News" }))).toEqual({ type: "News", source: "service" });
     expect(liveTypeOf(ch("kf", "Nick Rewind", { category: "Kids & Family" }))).toEqual({ type: "Kids", source: "service" });
     expect(liveTypeOf(ch("x", "Some Channel", { category: "Westerns" }))).toEqual({ type: "Westerns", source: "service" });   // the service's word as written

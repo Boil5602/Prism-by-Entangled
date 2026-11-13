@@ -32,7 +32,7 @@ function vizArtBackdrop(g, W, H) {
 }
 // the focal art's centre: a little above the middle, as the PC's poster; in portrait, over the sun's travel in Sunrise Meadow, which
 // the scene matches (2026-10-28)
-function vizFocalCy(W, H) { return H > W ? H * 0.566 : H / 2 - 20; }
+function vizFocalCy(W, H) { return viz.focalCy ? viz.focalCy(W, H) : H > W ? H * 0.566 : H / 2 - 20; }   // a page with its own words on the scene says where the picture's middle goes
 function vizArtFocal(g, W, H) {
   if (!viz.art) return;
   const side = Math.max(200, Math.round(Math.min(W, H) * 0.6)), sw = viz.art.naturalWidth, sh = viz.art.naturalHeight, r = Math.min(side / sw, side / sh), w = sw * r, h = sh * r;

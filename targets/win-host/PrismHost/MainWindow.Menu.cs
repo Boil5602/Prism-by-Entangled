@@ -14,7 +14,7 @@ namespace PrismHost;
 /// bright on hover, always above tiles and overlays) that drops a full
 /// MenuFlyout - every host action in one discoverable place, hotkeys shown
 /// beside the items that have them. F10 opens it from the keyboard. Like the
-/// pill (spec 30), the grip must never become the distraction Prism removes:
+/// pill (spec 30), the grip must never become the distraction PRISM removes:
 /// no motion, no color alarms, no unprompted expansion.
 ///
 /// Every item routes through core calls (spec 23): layout, slot count, a
@@ -37,7 +37,7 @@ public sealed partial class MainWindow
     private void WireMenuGrip()
     {
         MenuGrip.Opacity = GripRestOpacity;
-        TourNoticeWatch();   // the notice about How Prism works, until it is answered (MainWindow.TutorialIntro.cs)
+        TourNoticeWatch();   // the notice about How PRISM works, until it is answered (MainWindow.TutorialIntro.cs)
         MenuGrip.PointerEntered += (_, __) => MenuGrip.Opacity = 1;
         MenuGrip.PointerExited += (_, __) => { if (!_menuOpen) MenuGrip.Opacity = GripRestOpacity; };
         MenuGrip.PointerPressed += async (_, e) => { e.Handled = true; await OpenAppMenuAsync(); };
@@ -62,7 +62,7 @@ public sealed partial class MainWindow
     }
 
     // ------------------------------------------------------------ the menu
-    /// <summary>The whole Prism menu is shown, not its short form (host pref menu.full; switched from About Prism).</summary>
+    /// <summary>The whole PRISM menu is shown, not its short form (host pref menu.full; switched from About PRISM).</summary>
     private static bool FullMenu => HostPrefs.GetBool("menu.full", false);
 
     private async Task OpenAppMenuAsync()
@@ -212,8 +212,8 @@ public sealed partial class MainWindow
             else ToggleWallFullscreen();
         });
         menu.Items.Add(fsItem); keep.Add(fsItem);   // in the short menu too: with a mouse or a remote and no keyboard there is no other way to it
-        menu.Items.Add(Item("Prism shot", "", "Ctrl+Shift+S", () => _ = CaptureWallShotAsync()));
-        menu.Items.Add(Item("Open Prism shots folder", "", null, () =>
+        menu.Items.Add(Item("PRISM shot", "", "Ctrl+Shift+S", () => _ = CaptureWallShotAsync()));
+        menu.Items.Add(Item("Open PRISM shots folder", "", null, () =>
             OpenPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Prism"), ensureDir: true)));
         menu.Items.Add(new MenuFlyoutSeparator());
 
@@ -225,7 +225,7 @@ public sealed partial class MainWindow
         diag.Items.Add(Item("Open host.log", "", null, () => OpenPath(Path.Combine(diagDir, "host.log"))));
         diag.Items.Add(Item("Open eme.log", "", null, () => OpenPath(Path.Combine(diagDir, "eme.log"))));
         diag.Items.Add(Item("Open diagnostics folder", "", null, () => OpenPath(diagDir, ensureDir: true)));
-        diag.Items.Add(Item("Open Prism data folder", "", null, () => OpenPath(_store.Root, ensureDir: true)));
+        diag.Items.Add(Item("Open PRISM data folder", "", null, () => OpenPath(_store.Root, ensureDir: true)));
         menu.Items.Add(diag);
         menu.Items.Add(new MenuFlyoutSeparator());
 
@@ -239,14 +239,14 @@ public sealed partial class MainWindow
         { var it = Item("Updates" + (UpdateMenuNote() is { Length: > 0 } un ? Mid + un : ""), "\uE895", null, () => _ = ShowUpdatesAsync()); menu.Items.Add(it); keep.Add(it); }   // section 28 (2026-10-05)
         { var it = Item("Name this PC" + (char)0x2026, "", null, () => _ = PromptMachineNameAsync()); ToolTipService.SetToolTip(it, MachineNameTip()); menu.Items.Add(it); keep.Add(it); }   // for both players (2026-10-21, MainWindow.MachineName.cs)
         if (FullMenu) { var it = Item("Music player sleep: " + (MusicSleepOn ? "On" : "Off"), "", null, ToggleMusicSleep); ToolTipService.SetToolTip(it, MusicSleepTip()); menu.Items.Add(it); }   // 2026-10-22, MainWindow.VizSleep.cs
-        { var it = Item("How Prism works", "", null, () => ShowTutorial()); _tourMenuItem = it; menu.Items.Add(it); keep.Add(it); }   // the tutorial (MainWindow.Tutorial.cs, 2026-10-10)
-        { var it = Item("About Prism", "", null, () => _ = ShowAboutAsync()); menu.Items.Add(it); keep.Add(it); }
-        { var it = Item("Quit Prism", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass
+        { var it = Item("How PRISM works", "", null, () => ShowTutorial()); _tourMenuItem = it; menu.Items.Add(it); keep.Add(it); }   // the tutorial (MainWindow.Tutorial.cs, 2026-10-10)
+        { var it = Item("About PRISM", "", null, () => _ = ShowAboutAsync()); menu.Items.Add(it); keep.Add(it); }
+        { var it = Item("Quit PRISM", "", "Alt+F4", Close); menu.Items.Add(it); keep.Add(it); }   // Closed handler runs the snapshot pass
 
         // The short menu (2026-10-09): the two players, Set up services, Pair a phone, the support switch, Updates, About and Quit,
         // and Profiles (the same evening: "are these profiles across players? Yeah probably should leave those visible") and Full screen.
         // Everything else - the builder's five nouns, Now playing, Watch, page tools, adding and arranging, the wall's own
-        // verbs, veils, shots and diagnostics - is in the full menu only (FullMenu: five presses on the first line of About Prism,
+        // verbs, veils, shots and diagnostics - is in the full menu only (FullMenu: five presses on the first line of About PRISM,
         // kept across restarts). The keys those items name still work.
         if (!FullMenu)
         {
@@ -575,7 +575,7 @@ public sealed partial class MainWindow
             host.Children.Add(target);
             first ??= target;
         }
-        if (!any) { SetPill("Prism · no slots to pick"); return; }
+        if (!any) { SetPill("PRISM · no slots to pick"); return; }
         host.Children.Add(new Border
         {
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -661,7 +661,7 @@ public sealed partial class MainWindow
     private void BeginViewfinder(string id, string mode = "views")
     {
         if (_viewfinder is not null) CancelViewfinder();
-        if (_surfaces.RectOf(id) is not { } r || r.W < 40 || r.H < 40) { SetPill("Prism · " + id + " has no slot yet"); return; }
+        if (_surfaces.RectOf(id) is not { } r || r.W < 40 || r.H < 40) { SetPill("PRISM · " + id + " has no slot yet"); return; }
         _vfMode = mode == "app" ? "app" : "views";
         _vfAspect = r.W / r.H;                                        // the box is shaped like the slot it will fill
         _vfSlotAspect = _vfAspect;
@@ -697,7 +697,7 @@ public sealed partial class MainWindow
         addressBox.TextChanged += (_, __) => { if (!_vfAddressSyncing) _vfAddressEdited = true; };
         var go = new Button { Content = "Go", Padding = new Thickness(10, 4, 10, 4) };
         Grid.SetColumn(go, 1);
-        void GoAddress() { if (IsHttpUrl(addressBox.Text)) ConfigureAddress(id, new Uri(addressBox.Text.Trim()).ToString()); else SetPill("Prism · http(s) addresses only"); }
+        void GoAddress() { if (IsHttpUrl(addressBox.Text)) ConfigureAddress(id, new Uri(addressBox.Text.Trim()).ToString()); else SetPill("PRISM · http(s) addresses only"); }
         go.Click += (_, __) => GoAddress();
         addressBox.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; GoAddress(); } };
         addressRow.Children.Add(addressBox);
@@ -761,7 +761,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(addressBox, "The page this slot shows. Enter or Go loads it right here. The page is live, so you can scroll, click and sign in.");
         ToolTipService.SetToolTip(catalogBtn, "This slot becomes a catalog app in the same place, with its own account.");
         ToolTipService.SetToolTip(customBtn, "This slot becomes a custom website in the same place, with its own profile and no adapter.");
-        ToolTipService.SetToolTip(shapes, "The box's shape: the slot's own, or a shape the layout will ask Prism's solver for when it is assigned.");
+        ToolTipService.SetToolTip(shapes, "The box's shape: the slot's own, or a shape the layout will ask PRISM's solver for when it is assigned.");
         _vfHintPanel = hint;
         dock.Children.Add(hint);
         if (_vfMode == "app")
@@ -1076,7 +1076,7 @@ public sealed partial class MainWindow
         EndViewfinder();
         _brain.Call(HostCalls.FinishFraming, id, JsonSerializer.Serialize(new { region = f.Region, viewport = f.Viewport }));   // core persists + frames it, back in its slot
         if (shape is not null) _brain.Call(HostCalls.UpdateTile, id, JsonSerializer.Serialize(new { aspectHint = shape }));   // and the slot takes the shape
-        SetPill($"Prism · {id}: region applied at page zoom {z:0.0#}×, fills the slot at {magnification:0.0}×");
+        SetPill($"PRISM · {id}: region applied at page zoom {z:0.0#}×, fills the slot at {magnification:0.0}×");
     }
 
     /// <summary>Box shape: null = the slot's own aspect; otherwise a "W:H" the layout will carry as the slot's aspect hint.</summary>
@@ -1114,7 +1114,7 @@ public sealed partial class MainWindow
             var go = new Button { Content = label + "  ·  " + (hasRegion ? "region" : "whole page") + (aspect is null ? "" : "  ·  " + aspect), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 4, 10, 4), FontSize = 12 };
             ToolTipService.SetToolTip(go, "Use this facet in the slot now: " + lurl);
             var sid = lid;
-            go.Click += (_, __) => { _brain.Call(HostCalls.ApplyShortcut, id, sid); SetPill("Prism · " + id + " → " + label); };
+            go.Click += (_, __) => { _brain.Call(HostCalls.ApplyShortcut, id, sid); SetPill("PRISM · " + id + " → " + label); };
             var del = new Button { Content = "✕", Padding = new Thickness(8, 4, 8, 4), FontSize = 12, Foreground = Danger };
             Grid.SetColumn(del, 1);
             del.Click += (_, __) => { _brain.Call(HostCalls.RemoveShortcut, id, sid); var t = RootGrid.DispatcherQueue.CreateTimer(); t.Interval = TimeSpan.FromMilliseconds(400); t.IsRepeating = false; t.Tick += (s2, e2) => { _ = RefreshLayoutsAsync(id); }; t.Start(); };
@@ -1136,7 +1136,7 @@ public sealed partial class MainWindow
     private async Task SaveLayoutAsync(string id)
     {
         var focus = await PlacedFocusAsync(id);
-        if (focus is not { } f) { SetPill("Prism · place a region first (Pick region, click), then save it as a facet"); return; }
+        if (focus is not { } f) { SetPill("PRISM · place a region first (Pick region, click), then save it as a facet"); return; }
         var shapeName = _vfShape ?? (_vfSlotAspect > 0 ? $"{_vfSlotAspect:0.00}:1 (this slot)" : "this slot");
         var label = await PromptTextAsync("Name this facet  ·  for " + shapeName + " slots", "", "e.g. Home, Sign in, Live guide", "Save facet");
         if (label is null) return;
@@ -1144,7 +1144,7 @@ public sealed partial class MainWindow
         var aspectHint = _vfShape ?? (_vfSlotAspect > 0 ? $"{Math.Round(_vfSlotAspect * 100)}:100" : null);
         object input = new { label, focus = new { region = f.Region, viewport = f.Viewport }, aspectHint };
         _brain.Call(HostCalls.SaveShortcut, id, JsonSerializer.Serialize(input, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never }));
-        SetPill("Prism · saved facet \"" + label + "\" for " + shapeName + " slots. Adjust and save another, or Apply");
+        SetPill("PRISM · saved facet \"" + label + "\" for " + shapeName + " slots. Adjust and save another, or Apply");
         var t = RootGrid.DispatcherQueue.CreateTimer();
         t.Interval = TimeSpan.FromMilliseconds(400);
         t.IsRepeating = false;
@@ -1207,7 +1207,7 @@ public sealed partial class MainWindow
         if (_viewfinder is null || _vfTile is not { } id) return;
         EndViewfinder();
         _brain.Call(HostCalls.FinishFraming, id, "{\"clear\":true}");  // core clears + persists, back in its slot
-        SetPill("Prism · " + id + ": whole page");
+        SetPill("PRISM · " + id + ": whole page");
     }
 
     private void CancelViewfinder()
@@ -1241,7 +1241,7 @@ public sealed partial class MainWindow
     }
 
     // ------------------------------------------------ keys from anywhere
-    /// <summary>Esc closes the topmost Prism overlay. Reached from the XAML
+    /// <summary>Esc closes the topmost PRISM overlay. Reached from the XAML
     /// accelerator AND from a focused page (the tile bootstrap forwards Esc), so
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
@@ -1249,7 +1249,7 @@ public sealed partial class MainWindow
         if (_channelCard is not null) { CloseChannelCard(); return true; }   // a channel's card
         if (_purchaseCard is not null) { ClosePurchaseCard(); return true; }   // the Rent or Buy card
         if (_tmdbGuide is not null) { CloseTmdbGuide(); return true; }   // the TMDB guide, over whatever opened it
-        if (_tutorial is not null) { LeaveTutorial(); return true; }   // How Prism works
+        if (_tutorial is not null) { LeaveTutorial(); return true; }   // How PRISM works
         if (_welcome is { Visibility: Visibility.Visible }) { CloseWelcome(); if (TourOwed) TourReturn(); return true; }   // the welcome page (Set up services)
         if (_episodesPanel is not null) { CloseEpisodes(); return true; }   // the Episodes menu over the stage (2026-09-22)
         if (StageCurtain.Visibility == Visibility.Visible) { HideStageCurtain(); return true; }   // the curtain lifts first (the page is there beneath)
@@ -1274,7 +1274,7 @@ public sealed partial class MainWindow
     private async Task OpenWatchByKeyAsync()
     {
         if (VideoHubOpen) return;
-        if (WatchGrip.Visibility != Visibility.Visible) { SetPill("Prism" + Mid + "Watch is the Video player's page. Switch to the Video player first"); return; }
+        if (WatchGrip.Visibility != Visibility.Visible) { SetPill("PRISM" + Mid + "Watch is the Video player's page. Switch to the Video player first"); return; }
         HideStageBar();
         await ShowVideoHubAsync();
     }
@@ -1346,7 +1346,7 @@ public sealed partial class MainWindow
             foreach (var (lid, label, _, _, _) in tile.Layouts)
             {
                 var sid = lid;
-                layouts.Items.Add(Item(label, null, null, () => { _brain.Call(HostCalls.ApplyShortcut, id, sid); SetPill("Prism · " + id + " → " + label); }));
+                layouts.Items.Add(Item(label, null, null, () => { _brain.Call(HostCalls.ApplyShortcut, id, sid); SetPill("PRISM · " + id + " → " + label); }));
             }
             if (tile.Layouts.Count > 0 && tile.Places.Count > 0) layouts.Items.Add(new MenuFlyoutSeparator());
             foreach (var (label, url) in tile.Places)
@@ -1377,7 +1377,7 @@ public sealed partial class MainWindow
         else
         {
             var floatIt = Item("Float this slot", null, null, () => _brain.Call(HostCalls.UpdateTile, id, "{\"kind\":\"floating\"}"));
-            ToolTipService.SetToolTip(floatIt, "Lift this slot out of the layout: it hovers at a small footprint with Prism's own player control up and the page beneath. The layout reflows without it.");
+            ToolTipService.SetToolTip(floatIt, "Lift this slot out of the layout: it hovers at a small footprint with PRISM's own player control up and the page beneath. The layout reflows without it.");
             menu.Items.Add(floatIt);
             menu.Items.Add(Item("Make hero", null, null, () => _brain.Call(HostCalls.PromoteHero, id)));
         }
@@ -1395,7 +1395,7 @@ public sealed partial class MainWindow
     private void ConfigureAddress(string id, string url)
     {
         _brain.Call(HostCalls.UpdateTile, id, JsonSerializer.Serialize(new { url }));
-        SetPill("Prism · " + id + " → " + Shorten(url, 60));
+        SetPill("PRISM · " + id + " → " + Shorten(url, 60));
     }
 
     /// <summary>This slot becomes a catalog pick (core runs pickerTile; the slot stays). The configure screen ends - the new tile loads in the slot.</summary>
@@ -1406,7 +1406,7 @@ public sealed partial class MainWindow
             ClosePicker();
             if (_viewfinder is not null) { EndViewfinder(); _brain.Call(HostCalls.FinishFraming, id, null); }
             _brain.Call(HostCalls.ReplaceWithCatalogTile, id, entry.Json, "{}", SelectorTableJson(entry.Adapter));
-            SetPill("Prism · " + id + " becomes " + entry.Name);
+            SetPill("PRISM · " + id + " becomes " + entry.Name);
         }, zIndex: 997);
     }
 
@@ -1417,7 +1417,7 @@ public sealed partial class MainWindow
         if (url is null) return;
         if (_viewfinder is not null) { EndViewfinder(); _brain.Call(HostCalls.FinishFraming, id, null); }
         _brain.Call(HostCalls.ReplaceWithCustomTile, id, url);
-        SetPill("Prism · " + id + " becomes " + Shorten(url, 50));
+        SetPill("PRISM · " + id + " becomes " + Shorten(url, 50));
     }
 
     // ------------------------------------------------------------- dialogs
@@ -1428,16 +1428,16 @@ public sealed partial class MainWindow
         var url = await PromptUrlAsync("Address of " + id, current, "Apply");
         if (url is null) return;
         _brain.Call(HostCalls.UpdateTile, id, JsonSerializer.Serialize(new { url }));
-        SetPill("Prism · " + id + " → " + Shorten(url, 60));
+        SetPill("PRISM · " + id + " → " + Shorten(url, 60));
     }
 
     /// <summary>Add a website…: any http(s) URL becomes a plain custom tile (§31 step 2).</summary>
     private async Task AddWebsiteAsync()
     {
-        var url = await PromptUrlAsync("Add a website to Prism", "https://", "Add");
+        var url = await PromptUrlAsync("Add a website to PRISM", "https://", "Add");
         if (url is null) return;
         _brain.Call(HostCalls.AddCustomTile, url, "{}");
-        SetPill("Prism · adding " + Shorten(url, 60));
+        SetPill("PRISM · adding " + Shorten(url, 60));
     }
 
     private async Task<string?> PromptUrlAsync(string title, string initial, string primary, string? placeholder = null, string? noteText = null)
@@ -1492,7 +1492,7 @@ public sealed partial class MainWindow
         try
         {
             if (ensureDir) Directory.CreateDirectory(path);
-            if (!File.Exists(path) && !Directory.Exists(path)) { SetPill("Prism · nothing there yet: " + Path.GetFileName(path)); return; }
+            if (!File.Exists(path) && !Directory.Exists(path)) { SetPill("PRISM · nothing there yet: " + Path.GetFileName(path)); return; }
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Exception ex) { SetStatus("open failed: " + ex.Message); }
@@ -1507,7 +1507,7 @@ public sealed partial class MainWindow
         catch { wv2 = "unavailable"; }
         var body = new StackPanel { Spacing = 8, MinWidth = 380 };
         var lead = new TextBlock { Text = "Open-source dashboard frames. No ads, no subscriptions, no telemetry, no data sales.", TextWrapping = TextWrapping.Wrap };
-        // five presses on this line switch the Prism menu between its short form and the full one (OpenAppMenuAsync)
+        // five presses on this line switch the PRISM menu between its short form and the full one (OpenAppMenuAsync)
         var presses = 0;
         lead.Tapped += (_, __) =>
         {
@@ -1523,7 +1523,7 @@ public sealed partial class MainWindow
         {
             Text = k + "  " + val, FontSize = 12, FontFamily = new FontFamily("Consolas"), Foreground = Muted, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
         });
-        Fact("host      ", "Prism for Windows " + ver + ", " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track (M1 host shell)");
+        Fact("host      ", "PRISM for Windows " + ver + ", " + Services.Updates.TrackLabel(Services.Updates.Channel) + " track (M1 host shell)");
         Fact("webview2  ", wv2);
         Fact("brain     ", _brain.Ready ? "ready" : "starting");
         Fact("adapters  ", _armedAdapters.Count > 0 ? string.Join(", ", _armedAdapters) : "none armed");

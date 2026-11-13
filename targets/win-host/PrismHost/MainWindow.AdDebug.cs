@@ -46,7 +46,7 @@ public sealed partial class MainWindow
         s_adDebug = on;
         HostPrefs.Set("debug.ads", on);
         LogLine("ad debug: " + (on ? "on" : "off"));
-        SetPill("Prism" + Dot + (on ? "ad debug on: covers aren't drawn, each window shows its intermission state and two reports" : "ad debug off"));
+        SetPill("PRISM" + Dot + (on ? "ad debug on: covers aren't drawn, each window shows its intermission state and two reports" : "ad debug off"));
     }
 
     private void WireAdDebug()
@@ -85,7 +85,7 @@ public sealed partial class MainWindow
         s_record = on;
         HostPrefs.Set("debug.record", on);
         LogLine("keep recording: " + (on ? "on" : "off"));
-        SetPill("Prism" + Dot + (on ? "recording for training, with Ad debug on or off" : "recording only while Ad debug is on"));
+        SetPill("PRISM" + Dot + (on ? "recording for training, with Ad debug on or off" : "recording only while Ad debug is on"));
     }
 
     private void InitAdDebug()
@@ -108,7 +108,7 @@ public sealed partial class MainWindow
         var pressedAt = DateTime.Now;   // how late a cover came is counted from the press, not from the send
         if (_adDebugPending.TryGetValue(tileId, out var pend))
         {
-            if (pend.IsAd == isAd) { SetPill("Prism" + Dot + label + " is already on its way for this window"); return; }
+            if (pend.IsAd == isAd) { SetPill("PRISM" + Dot + label + " is already on its way for this window"); return; }
             pend.Cts.Cancel();   // the other answer replaces it
             LogLine("ad debug " + tileId + ": " + label + " replaced the report before it was sent");
         }
@@ -130,7 +130,7 @@ public sealed partial class MainWindow
         Bench(tileId, _watchClock.Elapsed.TotalSeconds, null, isAd ? "isad" : "notad");
         var undone = false;
         // the seconds counted down on the line, to 0 (2026-10-07); the Undo stays beside it
-        string Line(int n) => "Prism" + Dot + label + (channel.Length > 0 ? " on " + channel : "") + ". The report sends in " + n + (n == 1 ? " second" : " seconds");
+        string Line(int n) => "PRISM" + Dot + label + (channel.Length > 0 ? " on " + channel : "") + ". The report sends in " + n + (n == 1 ? " second" : " seconds");
         ShowPillOffer(Line(5), "Undo", () => { undone = true; cts.Cancel(); }, 8);
         try
         {
@@ -149,7 +149,7 @@ public sealed partial class MainWindow
                 shown = Line(n);
             }
             await Task.Delay(400, cts.Token);   // 0 shown a moment
-            if (Mine()) ReleasePill("Prism" + Dot + label + (channel.Length > 0 ? " on " + channel : "") + ". Sending");
+            if (Mine()) ReleasePill("PRISM" + Dot + label + (channel.Length > 0 ? " on " + channel : "") + ". Sending");
         }
         catch (TaskCanceledException)
         {
@@ -158,7 +158,7 @@ public sealed partial class MainWindow
             if (dismissed && st is not null) st.Model.Undismiss(_watchClock.Elapsed.TotalSeconds);   // its hold taken back with it
             Bench(tileId, _watchClock.Elapsed.TotalSeconds, null, "undo " + (isAd ? "isad" : "notad"));
             LogLine("ad debug " + tileId + ": " + label + " undone, nothing sent");
-            ReleasePill("Prism" + Dot + label + " undone. Nothing was sent");
+            ReleasePill("PRISM" + Dot + label + " undone. Nothing was sent");
             return;
         }
         if (_adDebugPending.TryGetValue(tileId, out var mine) && ReferenceEquals(mine.Cts, cts)) _adDebugPending.Remove(tileId);

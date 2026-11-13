@@ -343,7 +343,7 @@ public sealed partial class MainWindow
         {
             mfly.Items.Clear();
             foreach (var sv in svcs) { var c = sv["candidate"] as JsonObject; await AddListAddItemAsync(mfly, S(sv, "app"), S(sv, "name"), c is null ? "" : S(c, "id"), title, c?["url"]?.GetValue<string>(), kind.Length > 0 ? kind : "title", "auto"); }
-            if (mfly.Items.Count == 0) mfly.Items.Add(new MenuFlyoutItem { Text = "None of these services has a list Prism can add to", IsEnabled = false });
+            if (mfly.Items.Count == 0) mfly.Items.Add(new MenuFlyoutItem { Text = "None of these services has a list PRISM can add to", IsEnabled = false });
         };
         mine.Click += (_, __) => mfly.ShowAt(mine);
         ToolTipService.SetToolTip(mine, "Add " + title + " to a service's own list.");

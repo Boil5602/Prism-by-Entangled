@@ -9,7 +9,7 @@ namespace PrismHost;
 /// Watch settings, Categories (2026-10-11, asked for categories made from hashtags with a choice of transparent rules, clear rules only): the person's own rows on Watch. A
 /// category is a name, some hashtags and one rule from a short list, each rule said in full (what is counted, who is counted, who
 /// decides, the source), as every row's is. The hashtags offered are the words that recur across what the household's services already
-/// list in Prism, counted here, nobody's trend feed (asked for popular recent hashtags, from a named source). Core keeps the
+/// list in PRISM, counted here, nobody's trend feed (asked for popular recent hashtags, from a named source). Core keeps the
 /// categories and fills the rows (core categories.ts).
 ///
 /// Two cards (2026-10-13, /): a picker of

@@ -1,9 +1,9 @@
 /**
- * The person's own TMDB account, linked once, so a rating they give on the wall goes to TMDB under their name (2026-10-03). TMDB's v3 flow: Prism asks for a request token, the person approves it on
- * TMDB's own site (signed in to the account that issued their key - the same account, no second token), and Prism trades the token for a
+ * The person's own TMDB account, linked once, so a rating they give on the wall goes to TMDB under their name (2026-10-03). TMDB's v3 flow: PRISM asks for a request token, the person approves it on
+ * TMDB's own site (signed in to the account that issued their key - the same account, no second token), and PRISM trades the token for a
  * session it keeps on the device beside the key. A rating is a press on a star, never inferred from watching; it is sent only with that
  * session, only to TMDB (dashboard-schema section 4a: the person's own keyed call), and TMDB answers the account's rating of a title so
- * the wall can show it back. Nothing is ever signed up for on anyone's behalf: TMDB has no API for that, and Prism signs in, never up.
+ * the wall can show it back. Nothing is ever signed up for on anyone's behalf: TMDB has no API for that, and PRISM signs in, never up.
  *
  * Pure: the addresses, the bodies and the readings of TMDB's answers. The orchestrator makes the calls, the runtime exposes them, the
  * host draws the stars and the approval page.

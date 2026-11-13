@@ -180,7 +180,7 @@ def write_credits(files=None):
         if tail:
             lines.append(tail)
         credits[fn] = nl.join(lines)
-    # Prism's two packs, served beside the pool for the extension's picture sets (publish-packs.py, 2026-10-15): each picture's credit from its
+    # PRISM's two packs, served beside the pool for the extension's picture sets (publish-packs.py, 2026-10-15): each picture's credit from its
     # pack's own record - the title, the artist and date, the credit and the licence
     for pid in ("cosmos", "gallery"):
         pj = os.path.join(HERE, "..", "..", "packs", pid, "pack.json")

@@ -4,7 +4,7 @@
  * A lens is a named, open source of numbers a person may lay over the menu's rows - never on by default; the default
  * view is the person's own history and lists (§4). Each lens says, on itself, what is counted, who is counted, who
  * decides, where the numbers come from, the one-sentence formula, and the date of the data. The order a lens gives is
- * a pure function of the rows and that source's data (orderByLens); Prism adds no weight of its own.
+ * a pure function of the rows and that source's data (orderByLens); PRISM adds no weight of its own.
  *
  * Everything is fetched on the device under the person's own key where a key is needed, cached in the wall's own store,
  * and routed through nobody (§22). Sources, in the order they were built: Wikimedia pageviews and Wikidata (open, no

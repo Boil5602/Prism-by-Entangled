@@ -174,7 +174,7 @@ for e0, l0 in zip(early.tolist(), late.tolist()):
         np.maximum(seg, other, out=seg)
 print("flags made (%.0f s)" % (time.time() - t_start), flush=True)
 
-# ---- the design this is a study for, played forward exactly: Prism keeps the sound it hears; when a stretch turns out to be a repeat of
+# ---- the design this is a study for, played forward exactly: PRISM keeps the sound it hears; when a stretch turns out to be a repeat of
 # something heard on another programme or channel, and the repeat ends within an ad's length (ADMAX), both hearings are learned as an
 # ad's sound (AdSounds). From then on a block that matches a learned stretch is a known ad - at the block's end, three seconds in.
 ADMAX = float(opt("--admax", "125"))
@@ -279,7 +279,7 @@ for e in exams:
 
 # ---- --libs <folder>: for each exam, the known-ad library of before its stretch (golden/<day>/library/<name>) with one thing added - the
 # exam window's own sound wherever it was heard before (forward only, LEVEL) - so the replay harness's AdSounds hears those stretches as
-# a Prism that learned from repeats would have (three seconds in, as it must). Writes <folder>/exams.json naming the new folders.
+# a PRISM that learned from repeats would have (three seconds in, as it must). Writes <folder>/exams.json naming the new folders.
 libs = opt("--libs")
 if libs:
     import shutil

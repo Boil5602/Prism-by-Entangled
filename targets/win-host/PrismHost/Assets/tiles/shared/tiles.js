@@ -52,7 +52,7 @@
   }
 
   window.PrismTiles = {
-    /** True when this page is running inside Prism; false in a plain browser (the page then says so and edits nothing). */
+    /** True when this page is running inside PRISM; false in a plain browser (the page then says so and edits nothing). */
     connected: bridged,
     /** Ask the host for the current document. The answer arrives on onDoc. */
     get: function (key) { return post({ "prism-tiles": "get", key: key }); },

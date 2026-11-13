@@ -1,4 +1,4 @@
-# Prism for Windows — M1 report (host skeleton)
+# PRISM for Windows — M1 report (host skeleton)
 
 *win-host-spec §13 M1 exit. App: `targets/win-host/PrismHost` (WinUI 3, .NET 8,
 x64, self-contained, unpackaged; Windows App SDK 2.4). Build:

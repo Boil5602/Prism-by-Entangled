@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The Windows release manifest's signature (docs/features/updates.md, 2026-10-05): ECDSA P-256 / SHA-256, WebCrypto-compatible
 // (raw r||s), the private key kept OUTSIDE the repo - the same scheme as the Veil art index (prototypes/prism-veil-art/sign-list.mjs).
-// A fork makes its own key once and pastes the public JWK into its Prism's update settings (Device screen) or its build.
+// A fork makes its own key once and pastes the public JWK into its PRISM's update settings (Device screen) or its build.
 //
 //   node scripts/release/sign-manifest.mjs --keygen          make the key (once) and print the public JWK
 //   node scripts/release/sign-manifest.mjs <manifest.json>   write <manifest>.sig beside it and print the public JWK
@@ -21,7 +21,7 @@ if (args.includes("--keygen")) {
   mkdirSync(dirname(KEY), { recursive: true });
   writeFileSync(KEY, privateKey.export({ type: "pkcs8", format: "pem" }), { mode: 0o600 });
   console.log("private key written:", KEY);
-  console.log("public JWK (the update key a Prism verifies the manifest with):");
+  console.log("public JWK (the update key a PRISM verifies the manifest with):");
   console.log(JSON.stringify(publicKey.export({ format: "jwk" })));
   process.exit(0);
 }

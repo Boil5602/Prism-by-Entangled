@@ -24,7 +24,7 @@ export interface EntryState {
   excluded: Range[];
   /** the spot: the episode playing or last played, and how far in (seconds) when known */
   now: { season?: number; episode?: number; at?: number } | null;
-  /** when this state was written (epoch seconds); 0 for an entry with no Prism comment (a list made on TMDB's site) */
+  /** when this state was written (epoch seconds); 0 for an entry with no PRISM comment (a list made on TMDB's site) */
   updated: number;
 }
 
@@ -90,7 +90,7 @@ function lastThrough(w: ReadonlyArray<Range>): { season: number; episode: number
   return last ? { season: last.season, episode: last.to } : null;
 }
 
-/** The state in a comment; an entry without Prism's mark is the whole show (or the film), nothing watched, stamp 0. */
+/** The state in a comment; an entry without PRISM's mark is the whole show (or the film), nothing watched, stamp 0. */
 export function parseComment(kind: "movie" | "tv", id: number, text: string | null | undefined): EntryState {
   const blank: EntryState = { kind, id, episodes: "all", watched: [], excluded: [], now: null, updated: 0 };
   if (!text || !text.startsWith(PRISM_MARK)) return blank;
@@ -235,8 +235,8 @@ export const DELETE_GRACE_MS = 40_000;
 const VERIFY_WAIT_MS = 3_000;
 const WRITE_TRIES = 3;
 
-/** The description Prism writes on a list it makes (TMDB shows it; the comments are the record). */
-export const LIST_DESCRIPTION = "Made with Prism by Entangled. Each title's comment is the playlist's place in it.";
+/** The description PRISM writes on a list it makes (TMDB shows it; the comments are the record). */
+export const LIST_DESCRIPTION = "Made with PRISM by Entangled. Each title's comment is the playlist's place in it.";
 
 function listEntries(answer: Record<string, unknown> | null): TmdbListEntry[] {
   const res = Array.isArray(answer?.results) ? (answer!.results as Array<Record<string, unknown>>) : [];

@@ -1,7 +1,7 @@
 {
   "id": "night-train",
   "name": "Night Train",
-  "blurb": "A night train crossing; its windows light with the bands, its speed follows the loudness, the poles slide past.",
+  "blurb": "A night train on a viaduct across a lake; every window is a band and lays its light on the water, the speed follows the loudness, the engine puffs on the beat, and the arches and poles slide past.",
   "program": "night-train",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

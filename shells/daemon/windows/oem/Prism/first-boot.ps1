@@ -1,5 +1,5 @@
 <#
-  Prism kiosk - first boot (runs once, elevated, as the auto-logged-on "prism"
+  PRISM kiosk - first boot (runs once, elevated, as the auto-logged-on "prism"
   user, from autounattend.xml FirstLogonCommands). Idempotent: safe to re-run
   from a maintenance session (Ctrl+Alt+Del -> Task Manager -> Run new task ->
   powershell -File C:\Prism\first-boot.ps1).
@@ -7,7 +7,7 @@
   1. Unpack the bundled Node runtime
   2. Apply Windows + Edge policies (policies.ps1) - no ads, no prompts, no
      mid-evening reboots, no telemetry beyond what Pro allows
-  3. Auto-logon forever + the Prism launcher as this user's shell (no
+  3. Auto-logon forever + the PRISM launcher as this user's shell (no
      explorer, no desktop, no taskbar)
   4. Power: never sleep, never blank; firewall rule for the remote API
   5. Reboot into the dashboard
@@ -50,7 +50,7 @@ Remove-ItemProperty $wl -Name AutoLogonCount -ErrorAction SilentlyContinue
 # network logon while LimitBlankPasswordUse=1, the default) - exactly the
 # property we want: auto-logon at the wall, no remote logon with no password.
 Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name LimitBlankPasswordUse -Value 1 -Type DWord
-# The Prism launcher replaces explorer.exe for THIS user only (per-user
+# The PRISM launcher replaces explorer.exe for THIS user only (per-user
 # Winlogon\Shell). Other accounts - a maintenance admin, if you add one - keep
 # the normal desktop. The machine-wide Shell stays stock.
 $userWl = "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
@@ -72,8 +72,8 @@ powercfg /setactive SCHEME_CURRENT
 Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -Value 0 -Type DWord
 
 Step "Firewall: remote API (:8471) on private networks"
-netsh advfirewall firewall delete rule name="Prism remote API" | Out-Null
-netsh advfirewall firewall add rule name="Prism remote API" dir=in action=allow protocol=TCP localport=8471 profile=private,domain | Out-Null
+netsh advfirewall firewall delete rule name="PRISM remote API" | Out-Null
+netsh advfirewall firewall add rule name="PRISM remote API" dir=in action=allow protocol=TCP localport=8471 profile=private,domain | Out-Null
 # Treat the current network as private so the phone remote can reach the frame.
 Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -eq "Public" } | ForEach-Object {
   try { Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private } catch {}
@@ -83,4 +83,4 @@ Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -eq "Public" } | Fo
 Step "Marking first boot complete"
 Set-Content -Path (Join-Path $Root "first-boot.done") -Value (Get-Date -Format o)
 Stop-Transcript | Out-Null
-shutdown.exe /r /t 5 /c "Prism: rebooting into the dashboard"
+shutdown.exe /r /t 5 /c "PRISM: rebooting into the dashboard"

@@ -185,13 +185,13 @@ const GUIDE = {
   1: [
     { phase: "Set up", steps: [
       "Unbox the tablet, run Android setup on your WiFi, install all pending updates",
-      "Install the Prism shell APK from the site (one QR scan)",
-      "Prism asks to become the device owner — approve it; the tablet is now an appliance and Android disappears",
+      "Install the PRISM shell APK from the site (one QR scan)",
+      "PRISM asks to become the device owner — approve it; the tablet is now an appliance and Android disappears",
     ]},
     { phase: "Make it yours", steps: [
       "Scan the pairing QR with your phone — the remote installs to your home screen",
       "Pick a starter dashboard (Kitchen, Family Center) or open the editor and drag your own",
-      "Pair a Bluetooth speaker in Prism's settings if you want bigger sound",
+      "Pair a Bluetooth speaker in PRISM's settings if you want bigger sound",
       "Set the sleep schedule and motion wake — done",
     ]},
   ],
@@ -206,7 +206,7 @@ const GUIDE = {
       "Hang it, level it, step back and admire",
     ]},
     { phase: "Finish", steps: [
-      "Pair the 8BitDo Micro: hold its pairing combo, then Prism → Add remote → tap it in the list",
+      "Pair the 8BitDo Micro: hold its pairing combo, then PRISM → Add remote → tap it in the list",
       "Wire the soundbar to the 3.5mm/USB-C out and set it as the audio output",
       "Nudge tile zoom levels for wall-viewing distance in the editor",
     ]},
@@ -230,8 +230,8 @@ const GUIDE = {
   4: [
     { phase: "Set up the box", steps: [
       "Plug the Android TV box into HDMI, complete Google TV setup on WiFi",
-      "Sideload the Prism shell (the site walks you through the one-time developer toggle)",
-      "Optionally set Prism as the home launcher — or just know that Back always returns to it",
+      "Sideload the PRISM shell (the site walks you through the one-time developer toggle)",
+      "Optionally set PRISM as the home launcher — or just know that Back always returns to it",
     ]},
     { phase: "Make it yours", steps: [
       "Scan the pairing QR with your phone; do all editing from the phone or web editor",
@@ -246,7 +246,7 @@ const GUIDE = {
       "Follow the repo's kiosk recipe: auto-login, Edge kiosk launch, update suppression, sleep settings",
       "Verify hardware DRM: the repo's check page confirms PlayReady + 4K decode on your GPU/display chain",
     ]},
-    { phase: "Prism", steps: [
+    { phase: "PRISM", steps: [
       "Install the Windows shell recipe (community-maintained) — same dashboards, same editor",
       "Scan the pairing QR; sign streaming tiles into their accounts and confirm full-resolution playback in a tile",
       "Set schedules, pair remotes, mount it — you're running the only 4K-in-a-tile build in the lineup",
@@ -476,7 +476,7 @@ export default function PrismWizard() {
                 One dashboard.<br />Four dimensions of build.
               </h1>
               <p style={{ color: T.inkDim, fontSize: 15, lineHeight: 1.55, margin: "0 0 22px", maxWidth: 460 }}>
-                Every Prism build is a point in a four-dimensional space: place, budget, effort, control.
+                Every PRISM build is a point in a four-dimensional space: place, budget, effort, control.
                 Answer four questions and watch the projection settle on yours.
               </p>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -516,7 +516,7 @@ export default function PrismWizard() {
               {buildComplete ? (
                 <div>
                   <h2 style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: "clamp(22px,4.5vw,30px)", fontWeight: 600, margin: "0 0 8px" }}>
-                    It's alive. Welcome to Prism.
+                    It's alive. Welcome to PRISM.
                   </h2>
                   <p style={{ color: T.inkDim, fontSize: 14, lineHeight: 1.55, margin: "0 0 16px", maxWidth: 460 }}>
                     Your frame is on and paired. From here: design more dashboards in the editor,

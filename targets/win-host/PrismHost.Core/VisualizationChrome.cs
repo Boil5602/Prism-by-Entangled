@@ -1,7 +1,7 @@
 namespace PrismHost.Visualizations;
 
 /// <summary>
-/// The pure half of the Prism Beams composition (docs/concept-scenes.md
+/// The pure half of the PRISM Beams composition (docs/concept-scenes.md
 /// section 2.5.2): the text of the metadata line, the edit-mode style label,
 /// and the ambient idle signal. No WinUI here, so the composition rules are
 /// asserted headless in CI while the drawing itself
@@ -91,9 +91,9 @@ public static class VisualizationChrome
     /// <summary>Line 2's state word when a track is loaded but not playing.</summary>
     public const string StatePaused = "paused";
 
-    /// <summary>B-204 (2026-09-15): line 2's state when nothing is loaded but Prism remembers what the tile played - the way back is the Play button.</summary>
+    /// <summary>B-204 (2026-09-15): line 2's state when nothing is loaded but PRISM remembers what the tile played - the way back is the Play button.</summary>
     public const string StateResume = "tap play to resume";
-    /// <summary>B-205 (2026-09-15): the Quick play menu's first entry under each service - the wall switches to it and plays on. Names what that is when Prism knows.</summary>
+    /// <summary>B-205 (2026-09-15): the Quick play menu's first entry under each service - the wall switches to it and plays on. Names what that is when PRISM knows.</summary>
     public static string SwitchToLabel(string service, string? what)
         => string.IsNullOrWhiteSpace(what) ? "Switch to " + service.Trim() : "Switch to " + service.Trim() + " \u00B7 " + what.Trim();
     /// <summary>The block for a source with nothing loaded and a remembered track: the track and artist as they were, the state saying what a Play press does, the collection it came from.</summary>

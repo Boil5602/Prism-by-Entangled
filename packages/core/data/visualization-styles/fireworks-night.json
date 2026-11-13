@@ -1,7 +1,7 @@
 {
   "id": "fireworks-night",
   "name": "Fireworks Night",
-  "blurb": "Fireworks over rooftops; a burst on every beat, its color a band, its size the beat's strength.",
+  "blurb": "Fireworks over a river town; a burst on every beat, its color the band that jumped, its size the beat's strength, and a row of spark fountains on the bridge, one for every band.",
   "program": "fireworks-night",
   "family": "community",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

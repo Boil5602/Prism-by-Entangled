@@ -1,5 +1,5 @@
 /*
-  Prism - background service worker (spec section 30). Local-only.
+  PRISM - background service worker (spec section 30). Local-only.
 
   1. Toolbar badge: per-tab count of popups intercepted on that page (the
      fallback surface when the on-page button is hidden); toolbar click opens
@@ -51,7 +51,7 @@ chrome.tabs.onUpdated.addListener(function (id, info, tab) { if (info.url) route
 // Start page (opt-in, startEnabled). No browser exposes a runtime API for the
 // homepage / startup page, so: when a window is created (including the first
 // one at browser start), if its tab is the browser's blank/new-tab/home page,
-// route it to Prism. A window opened on a real URL (a link, a restored
+// route it to PRISM. A window opened on a real URL (a link, a restored
 // session) is left alone.
 var START_URL = /^(?:chrome|edge|brave|opera|vivaldi):\/\/(?:newtab|new-tab-page|startpage|start)\/?$|^about:(?:newtab|home|blank)$|^$/i;
 function routeStart(win) {
@@ -67,7 +67,7 @@ function routeStart(win) {
 }
 try { chrome.windows.onCreated.addListener(function (win) { if (win.type === "normal") setTimeout(function () { routeStart(win); }, 150); }); } catch (e) {}
 // After an install, an update, or being switched off and on again, the pages
-// already open run no Prism (the copy an update orphans tears itself down,
+// already open run no PRISM (the copy an update orphans tears itself down,
 // main.js orphaned(), B-410), so the new version injects its content scripts
 // into every open top frame the manifest matches, group by group in manifest
 // order. Player embed frames (the all_frames groups) wait for their next
@@ -152,7 +152,7 @@ try {
 
 try { chrome.runtime.onStartup.addListener(function () { chrome.windows.getAll({ windowTypes: ["normal"] }, function (ws) { (ws || []).forEach(routeStart); }); }); } catch (e) {}
 
-// "Report ad" -> the Prism report inbox. Only ever on a user's explicit click
+// "Report ad" -> the PRISM report inbox. Only ever on a user's explicit click
 // (src/report.js offerSend). Sent from here, not the page, so the request
 // carries no page Origin/Referer and is not subject to the page's CSP.
 // Entangled's own address for the inbox (2026-09-26; the same Fly app as prism-reports.fly.dev). No host permission is needed: the inbox
@@ -204,7 +204,7 @@ function fetchSignedCred(file) {
 // when the person switched it on (pv:ui.artWeekly).
 var ART_HOST = "https://prism.entangled.world/veil/art/", ART_N = 24, ART_ALARM = "prism-art-weekly";
 var artInflight = null;
-// The picture sets (2026-10-15): nature is the pool itself; Cosmos and Museum art are Prism's
+// The picture sets (2026-10-15): nature is the pool itself; Cosmos and Museum art are PRISM's
 // packs in folders beside it, each with its own signed list. pv:ui.artSets names the ones switched on (nature alone by default, never none).
 var ART_SETS = { nature: "", cosmos: "cosmos/", gallery: "gallery/" };
 function artSetsOn(ui) { var on = ((ui && ui.artSets) || ["nature"]).filter(function (k) { return ART_SETS.hasOwnProperty(k); }); return on.length ? on : ["nature"]; }
@@ -286,7 +286,7 @@ function credGet(file, cb) {
   });
 }
 
-// A tab Prism muted for a veil is put back when the page goes away under it
+// A tab PRISM muted for a veil is put back when the page goes away under it
 // (a navigation while the veil is up, the tab closing): the content script
 // that asked is gone, so the record is the only way back.
 function tabMuteRestore(tid, andUpdate) {
@@ -317,8 +317,8 @@ function tabMuteChain(tid, job) {
 // The toolbar button's title for a tab (2026-11-06): the browser's own sharing mark cannot say who reads a tab, so while Veil reads a tab's
 // live TV picture its button says so, above the source reliability line and the popups summary.
 var titleParts = {};
-var TITLE_BASE = "Prism - popups intercepted on this site (click for the summary)";
-var TITLE_LIVE = "Prism is reading this tab's live TV picture to spot commercial breaks. Nothing leaves the browser.";
+var TITLE_BASE = "PRISM - popups intercepted on this site (click for the summary)";
+var TITLE_LIVE = "PRISM is reading this tab's live TV picture to spot commercial breaks. Nothing leaves the browser.";
 function paintTitle(id) {
   var p = titleParts[id] || {}, lines = [];
   if (p.live) lines.push(TITLE_LIVE);
@@ -444,7 +444,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // a channel's learned logo for the live TV picture, kept in the extension's storage (the offscreen page has no storage of its own)
   if (msg && msg.type === "pv:live-save") { var sk = "pv:bw:" + String(msg.key || "?").slice(0, 80), so = {}; so[sk] = msg.state; try { chrome.storage.local.set(so); } catch (e) {} return; }   // a channel's logo, or __prints: the known ads learned here
   if (msg && msg.type === "pv:live-load") { var lk = "pv:bw:" + String(msg.key || "?").slice(0, 80); try { chrome.storage.local.get(lk, function (r) { sendResponse((r && r[lk]) || null); }); } catch (e) { sendResponse(null); } return true; }
-  // the veil log (2026-11-07): every video veil over an ad break, up and down, from every tab, as the Prism app keeps its calls.log;
+  // the veil log (2026-11-07): every video veil over an ad break, up and down, from every tab, as the PRISM app keeps its calls.log;
   // the newest 1000 records stay, the panel copies or clears them. Appends are queued so two tabs' records never overwrite each other.
   if (msg && msg.type === "pv:veil-log") { if (msg.rec && typeof msg.rec === "object") veilLogAppend(msg.rec); return; }
   if (msg && msg.type === "pv:pack-check") { packCheck(function (r) { try { sendResponse(r); } catch (e) {} }); return true; }   // the panel's Check now
@@ -559,7 +559,7 @@ function evaluateNewTab(opener, tabId, url) {
   if (wasDeliberate(opener, url)) return;
   try {
     chrome.tabs.sendMessage(opener, { type: "prism-popup-evaluate", url: url, tabId: tabId }, function (decision) {
-      if (chrome.runtime.lastError || !decision) return;   // no Prism on the opener (edge:// etc.): leave it alone
+      if (chrome.runtime.lastError || !decision) return;   // no PRISM on the opener (edge:// etc.): leave it alone
       if (decision.action === "intercept") { try { chrome.tabs.remove(tabId); } catch (e) {} }
     });
   } catch (e) {}

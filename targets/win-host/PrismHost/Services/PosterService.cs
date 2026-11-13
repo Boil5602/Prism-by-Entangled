@@ -15,7 +15,7 @@ public sealed record PosterInfo(string? ImagePath, string Name, string? Backgrou
 /// </summary>
 public sealed class PosterService
 {
-    // a plain browser name, the same one every copy of Prism sends (no identifier, §19/§22): HBO Max answers a request with none "403" and its
+    // a plain browser name, the same one every copy of PRISM sends (no identifier, §19/§22): HBO Max answers a request with none "403" and its
     // icon never came (2026-09-25, - its tile drew the initials HM)
     private static readonly HttpClient Http = MakeHttp();
     private static HttpClient MakeHttp()

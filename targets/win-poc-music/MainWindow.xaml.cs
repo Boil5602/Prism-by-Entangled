@@ -276,7 +276,7 @@ public partial class MainWindow : Window
             if (a.StartsWith("--watch=", StringComparison.Ordinal)) watchMs = int.Parse(a[8..]);
         }
         var summary = new StringBuilder();
-        summary.AppendLine($"Prism music POC - unattended probe {DateTime.Now:O}");
+        summary.AppendLine($"PRISM music POC - unattended probe {DateTime.Now:O}");
         summary.AppendLine($"WebView2 runtime: {SafeVersion()}");
         foreach (var t in _tiles)
         {

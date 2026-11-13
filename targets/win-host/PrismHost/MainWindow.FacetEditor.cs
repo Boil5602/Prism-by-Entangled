@@ -44,7 +44,7 @@ public sealed partial class MainWindow
         if (_viewfinder is not null) CancelViewfinder();
         var st = await ModelStateAsync();
         var app = st?.Apps.FirstOrDefault(a => a.Id == appId);
-        if (app is null) { SetPill("Prism · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("facet", null, saved: false); return; }
+        if (app is null) { SetPill("PRISM · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("facet", null, saved: false); return; }
         var facet = facetId is null ? null : st!.Facets.FirstOrDefault(f => f.Id == facetId && f.App == appId);
         var cls = slotClass ?? facet?.SlotClass;
         if (cls is not null) { await BeginFacetSessionAsync(app, cls, facet); return; }
@@ -88,7 +88,7 @@ public sealed partial class MainWindow
     private async Task BeginFacetSessionAsync(ModelApp app, string slotClass, ModelFacet? facet)
     {
         var tile = await EnsureAppSurfaceAsync(app, facet?.Url);
-        if (tile is null) { SetPill("Prism · " + app.Name + " has no live surface to cut from. Try again once it's up"); EditorClosed("facet", null, saved: false); return; }
+        if (tile is null) { SetPill("PRISM · " + app.Name + " has no live surface to cut from. Try again once it's up"); EditorClosed("facet", null, saved: false); return; }
         if (_viewfinder is not null) CancelViewfinder();
         _feApp = app; _feFacet = facet; _feClass = slotClass; _feTile = tile; _feSelector = null; _feWhole = false; _feAspectHint = null; _feSession = true;
         _vfMode = "facet";
@@ -122,7 +122,7 @@ public sealed partial class MainWindow
         _feAddress.TextChanged += (_, __) => { if (!_feAddressSyncing) _feAddressEdited = true; };
         var go = new Button { Content = "Go", Padding = new Thickness(10, 4, 10, 4) };
         Grid.SetColumn(go, 1);
-        void GoAddress() { if (_feTile is { } t && IsHttpUrl(_feAddress!.Text)) { _surfaces.Navigate(t, new Uri(_feAddress.Text.Trim()).ToString()); _feAddressEdited = false; } else SetPill("Prism · http(s) addresses only"); }
+        void GoAddress() { if (_feTile is { } t && IsHttpUrl(_feAddress!.Text)) { _surfaces.Navigate(t, new Uri(_feAddress.Text.Trim()).ToString()); _feAddressEdited = false; } else SetPill("PRISM · http(s) addresses only"); }
         go.Click += (_, __) => GoAddress();
         _feAddress.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) { e.Handled = true; GoAddress(); } };
         ToolTipService.SetToolTip(_feAddress, "The page this Facet shows. Navigate freely (the page is live, so scroll and click) or type an address and press Go. The page at save time is the Facet's page.");
@@ -222,7 +222,7 @@ public sealed partial class MainWindow
     {
         if (_feApp is null || _feTile is null) return;
         var raw = await ModelEvalAsync("modelPresetFacet", "presetFacet", Q(entry.Json) + "," + Q(presetId) + "," + Q(_feApp.Id) + "," + Q(_feClass) + "," + Q(SelectorTableJson(entry.Adapter)) + "," + Q(_feFacet?.Id));
-        if (raw is null || raw == "null") { SetPill("Prism · that preset could not be resolved"); return; }
+        if (raw is null || raw == "null") { SetPill("PRISM · that preset could not be resolved"); return; }
         try
         {
             using var d = JsonDocument.Parse(raw);
@@ -244,7 +244,7 @@ public sealed partial class MainWindow
                     if (_feTile is null) return;
                 }
             }
-            SetPill("Prism · preset " + presetId + " applied. Adjust, then Save Facet");
+            SetPill("PRISM · preset " + presetId + " applied. Adjust, then Save Facet");
         }
         catch (Exception ex) { SetStatus("preset: " + ex.Message); }
     }
@@ -256,9 +256,9 @@ public sealed partial class MainWindow
         StopElementPick();
         SetViewfinderPicking(false);
         var js = await FacetPickerJsAsync();
-        if (js is null) { SetPill("Prism · the element picker is unavailable (core's model-eval bundle is missing). Draw a box instead"); return; }
+        if (js is null) { SetPill("PRISM · the element picker is unavailable (core's model-eval bundle is missing). Draw a box instead"); return; }
         var res = await _surfaces.EvalOnTileAsync(_feTile, js);
-        if (res is not null && res.StartsWith("__prism_eval_error")) { SetPill("Prism · " + res); return; }
+        if (res is not null && res.StartsWith("__prism_eval_error")) { SetPill("PRISM · " + res); return; }
         if (_feStatus is not null) _feStatus.Text = "Hover the page and the element under the pointer is outlined with its selector. Tap to record it, or press Esc on the page to cancel.";
         var poll = await ModelEvalAsync("modelFacetPickPollJs", "facetPickPollJs", "") ?? "JSON.stringify(window.__prismFacetPick||null)";
         var t = RootGrid.DispatcherQueue.CreateTimer();
@@ -279,7 +279,7 @@ public sealed partial class MainWindow
                 if (sel is not null && unique) { await AdoptSelectorAsync(sel); return; }
                 // no stable unique selector: fall back to the element's rectangle as a drawn box (spec 31: drag-rect fallback)
                 if (r.TryGetProperty("client", out var c) && c.ValueKind == JsonValueKind.Object) { PlaceBoxAtClient(Num(c, "x"), Num(c, "y"), Num(c, "w"), Num(c, "h")); _feSelector = null; _feWhole = false; }
-                SetPill("Prism · that element has no stable selector, so its rectangle is used as a box instead");
+                SetPill("PRISM · that element has no stable selector, so its rectangle is used as a box instead");
                 UpdateFacetRegionReadout();
             }
             catch (Exception ex) { SetStatus("pick: " + ex.Message); }
@@ -315,7 +315,7 @@ public sealed partial class MainWindow
             var count = d.RootElement.TryGetProperty("count", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
             if (count != 1)
             {
-                if (!quiet) SetPill("Prism · selector matches " + count + " elements right now, so it wasn't used");
+                if (!quiet) SetPill("PRISM · selector matches " + count + " elements right now, so it wasn't used");
                 return false;
             }
             _feSelector = selector; _feWhole = false;
@@ -378,13 +378,13 @@ public sealed partial class MainWindow
             if (_feLabel is not null) _feLabel.Text = label;
         }
         var url = _feAddressEdited && IsHttpUrl(_feAddress?.Text ?? "") ? new Uri(_feAddress!.Text.Trim()).ToString() : (_surfaces.SourceOf(_feTile) ?? _feApp.BaseUrl);
-        if (!IsHttpUrl(url)) { SetPill("Prism · the page has no http(s) address yet"); return; }
+        if (!IsHttpUrl(url)) { SetPill("PRISM · the page has no http(s) address yet"); return; }
         // a facet never needs a login page (spec §2/§4): warn, and flip the App to needs attention
         var redirect = await LoginRedirectAsync(url, AdapterLoginUrl(_feApp.Adapter), _feApp.BaseUrl);
         if (redirect?.Redirect == "login")
         {
             await SaveAppStatusAsync(_feApp, "needs-attention");
-            SetPill("Prism · that is " + _feApp.Name + "'s sign-in page. Sign in under App setup instead. The App is marked needs attention");
+            SetPill("PRISM · that is " + _feApp.Name + "'s sign-in page. Sign in under App setup instead. The App is marked needs attention");
             return;
         }
         object? focus = null;
@@ -410,12 +410,12 @@ public sealed partial class MainWindow
             catch { }
         }
         var res = await RuntimeEvalAsync("PrismRuntime.modelSaveFacet(" + Q(JsonSerializer.Serialize(input)) + ")");
-        if (res is null || !res.Contains("\"ok\":true")) { SetPill("Prism · could not save the Facet" + (res is null ? "" : ": " + Shorten(res, 90))); return; }
+        if (res is null || !res.Contains("\"ok\":true")) { SetPill("PRISM · could not save the Facet" + (res is null ? "" : ": " + Shorten(res, 90))); return; }
         var warnings = "";
         try { using var d = JsonDocument.Parse(res); if (d.RootElement.TryGetProperty("warnings", out var w) && w.ValueKind == JsonValueKind.Array && w.GetArrayLength() > 0) warnings = "  ·  " + string.Join("; ", w.EnumerateArray().Select(x => x.GetString())); } catch { }
         var appRef = _feApp; var cls = _feClass;
         CloseFacetEditor();
-        SetPill("Prism · saved Facet \"" + label + "\" of " + appRef.Name + " for " + cls + warnings);
+        SetPill("PRISM · saved Facet \"" + label + "\" of " + appRef.Name + " for " + cls + warnings);
         EditorClosed("facet", id, saved: true);   // SM-3 integration: the slot picker / wizard / rail resumes with the saved facet
     }
 
@@ -475,7 +475,7 @@ public sealed partial class MainWindow
         var r = await LoginRedirectAsync(url, AdapterLoginUrl(app.Adapter), app.BaseUrl);
         if (r?.Redirect != "login") return;
         if (app.Status != "needs-attention" && await SaveAppStatusAsync(app, "needs-attention"))
-            SetPill("Prism · " + app.Name + " asked to sign in, so it's marked needs attention. Sign in under App setup");
+            SetPill("PRISM · " + app.Name + " asked to sign in, so it's marked needs attention. Sign in under App setup");
         if (fromFacet && _feStatus is not null) _feStatus.Text = "This is a sign-in page. Sign in here if you like (sign-ins are kept), then go to the page the Facet should show. A Facet is never a login page.";
     }
 }

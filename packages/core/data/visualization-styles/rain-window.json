@@ -1,7 +1,7 @@
 {
   "id": "rain-window",
   "name": "Rain on the Window",
-  "blurb": "Rain running down a night window; the blurred lights beyond pulse with the bands, the rain falls harder as it gets louder.",
+  "blurb": "A window on a rainy night; the blurred city lights beyond the glass are the bands, the runs of water slide faster as it gets louder, a beat lands new drops, and a candle on the sill burns with the lows.",
   "program": "rain-window",
   "family": "environment",
   "bands": 24,
@@ -19,7 +19,7 @@
     "beat": 1.0
   },
   "reducedMotion": {
-    "speed": 0.15,
+    "speed": 0.4,
     "beat": 0.2
   },
   "params": {

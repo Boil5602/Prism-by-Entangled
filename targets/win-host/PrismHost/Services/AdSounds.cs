@@ -6,7 +6,7 @@ using System.Numerics;
 namespace PrismHost.Services;
 
 /// <summary>
-/// The ads Prism has heard (2026-10-07, the owner agreed - audio fingerprints): an ad's soundtrack is the same every time it airs, and far more its
+/// The ads PRISM has heard (2026-10-07, the owner agreed - audio fingerprints): an ad's soundtrack is the same every time it airs, and far more its
 /// own than a small grey picture, so the sound of a break the watch is sure of is kept, and a window playing a stretch of it again is playing
 /// that ad. The page's meter gives one 32-bit word per 50 ms (Haitsma-Kalker: which way the energy steps between 33 bands from 300 to 2000 Hz
 /// changed since the last frame); a match is 64 words (about 3 s) found again with no more than a quarter of their bits differing. Words are

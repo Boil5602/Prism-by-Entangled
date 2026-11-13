@@ -1,6 +1,6 @@
 """The public repository's snapshot of the source (2026-10-07, the owner asked for the snapshot and the release script's fix).
 
-Prism's public repo (Boil5602/Prism-by-Entangled) carries one commit per release: the archive's file tree at that moment, on top of the public
+PRISM's public repo (Boil5602/Prism-by-Entangled) carries one commit per release: the archive's file tree at that moment, on top of the public
 history and never the archive's own (the archive keeps the full history, privately). Every release publishes a binary, and the matching source
 belongs beside it (GPLv3); until today the release script made the GitHub Release but never the snapshot, so the public code stood still at
 the first release for eleven days.
@@ -25,8 +25,11 @@ REMOTE = "public"
 # and the bug ledger, the internal record of what was asked and fixed
 PRIVATE_PATHS = ("CLAUDE.md", "docs/bugs/",
                  # and, by the owner's decision of the same night, what tells when and how the house used its screens and how the project is run
-                 "scripts/breakwatch/exams.json", "scripts/breakwatch/exams.md", "scripts/breakwatch/marking-todo.json", "scripts/breakwatch/passes/",
-                 "docs/break-watch-scorecard.md", "docs/doctor.md", "docs/test-scripts.md")
+                 "scripts/breakwatch/exams.json", "scripts/breakwatch/exams-night.json", "scripts/breakwatch/exams-1104.json", "scripts/breakwatch/exams-sound.json", "scripts/breakwatch/exams.md", "scripts/breakwatch/marking-todo.json", "scripts/breakwatch/passes/",
+                 "docs/break-watch-scorecard.md", "docs/break-watch-detection-brief.md", "docs/break-watch-results-2026-11-08.md", "docs/break-watch-results-2026-11-08.json", "docs/break-watch-results-2026-11-08/", "docs/doctor.md", "docs/test-scripts.md",
+                 # the doctor's own tooling (2026-11-07, the owner's decision): development scripts with their model prompts, never part of
+                 # what a person installs
+                 "scripts/doctor/")
 
 
 # A release or a public snapshot runs only after 6 PM Eastern or before 6 AM (2026-10-12), unless told otherwise (--daytime /

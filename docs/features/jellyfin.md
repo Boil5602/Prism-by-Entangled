@@ -1,12 +1,12 @@
 # Jellyfin: the household's own media server
 
-*2026-11-03. Asked for after a Plex user's complaint: Jellyfin has no remote-playback paywall and no catalogue of anyone else's, so a Prism owner who hosts their
+*2026-11-03. Asked for after a Plex user's complaint: Jellyfin has no remote-playback paywall and no catalogue of anyone else's, so a PRISM owner who hosts their
 own library can watch it on the screen like any other service.*
 
 ## What it is
 
 Jellyfin is a free, open-source media server a household runs itself (a NAS, a mini PC, a Pi). Its web client is a page the
-server serves, so Prism shows it the way it shows every service: a page of its own, signed in by the person, with Prism's
+server serves, so PRISM shows it the way it shows every service: a page of its own, signed in by the person, with PRISM's
 Watch page reading its rows and its player answering the remote. There are no ads, no DRM and no third-party account.
 
 ## The address is the household's own
@@ -37,7 +37,7 @@ on the home network, or an https name they reach it at from outside. So the cata
 
 ## Sign-in
 
-On the page itself: the server shows its user cards and its manual form, with Remember me. Prism has no sign-in address for it
+On the page itself: the server shows its user cards and its manual form, with Remember me. PRISM has no sign-in address for it
 (the login is a route inside the page, `#/login`); the session markers decide. Signed out, the login page stands; signed in,
 a library page does (home, a details page, search, the player).
 
@@ -46,7 +46,7 @@ a library page does (home, a details page, search, the player).
 | | How |
 |---|---|
 | Continue watching | the home's **Continue Watching** row, then **Next Up** (the next episode of a started show) |
-| Favorites (Prism's My list, named *Favorites*) | the home's second tab, `#/home?tab=1`, a section per kind |
+| Favorites (PRISM's My list, named *Favorites*) | the home's second tab, `#/home?tab=1`, a section per kind |
 | Suggestions | the home's **Recently Added in Movies / Shows** rows (Music and My Media left out) |
 | Search | `#/search?query=…`, a section per kind; people skipped |
 | Play | the title's details page, then its own **Play** (Resume when the title has a position) |

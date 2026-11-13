@@ -6,7 +6,7 @@ namespace PrismHost.Surfaces;
 
 /// <summary>
 /// Ad debug (2026-10-07): while it is on, no cover is drawn - every window shows what it plays - and each visible window carries a strip at its foot:
-/// "Intermission: ON" (green) or "OFF" (red), the cover Prism would draw right now, and two reports, Not an ad and This is an ad, for any
+/// "Intermission: ON" (green) or "OFF" (red), the cover PRISM would draw right now, and two reports, Not an ad and This is an ad, for any
 /// service. A cover that comes up is kept as state (Covered) but not shown; switched off, the covers that are up are drawn again.
 /// </summary>
 public sealed partial class SurfaceManager
@@ -16,7 +16,7 @@ public sealed partial class SurfaceManager
     private double _lastBigFoot = -1;
     /// <summary>A debug report from a window's strip: the window, and whether the person says an ad is playing.</summary>
     public event Action<string, bool>? AdDebugReport;
-    /// <summary>The top of the Prism controls in window coordinates, last seen while they showed (NaN until then): the big window's strip
+    /// <summary>The top of the PRISM controls in window coordinates, last seen while they showed (NaN until then): the big window's strip
     /// sits just above them (set by the window as the bar moves).</summary>
     public double ControlsTop { get; set; } = double.NaN;
 
@@ -52,8 +52,8 @@ public sealed partial class SurfaceManager
         }
         if (!_adDebug) return;
         // at each window's foot (2026-10-07): the big
-        // window's strip sits above the Prism controls that come up over its foot
-        // measured from the big window's own foot (2026-10-07): the bar's distance from the bottom of Prism's window put the strip past the top of a big window laid out above the others
+        // window's strip sits above the PRISM controls that come up over its foot
+        // measured from the big window's own foot (2026-10-07): the bar's distance from the bottom of PRISM's window put the strip past the top of a big window laid out above the others
         var big = _tiles.Values.Where(DebugWindow).OrderByDescending(x => x.Container.ActualWidth * x.Container.ActualHeight).FirstOrDefault();
         double bigFoot = 120;
         if (big is not null && big.Container.ActualHeight > 0)

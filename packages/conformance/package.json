@@ -1,7 +1,7 @@
 {
   "name": "prism-conformance",
   "version": "0.1.0",
-  "description": "The kit that defines 'is a Prism': drives any shell via the remote API and golden-tests the observable contracts (spec §23).",
+  "description": "The kit that defines 'is a PRISM': drives any shell via the remote API and golden-tests the observable contracts (spec §23).",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./dist/checks.js",

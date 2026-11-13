@@ -1,8 +1,8 @@
 """The answer key's marking page (2026-10-07, (the owner agreed to make training data and asked for a page to pick the frames on)).
 
-A kept recording (diagnostics/golden/<day>: each window's 320x180 frames and events.log, and calls.log, Prism's own covers) shown as
+A kept recording (diagnostics/golden/<day>: each window's 320x180 frames and events.log, and calls.log, PRISM's own covers) shown as
 frames on a page; a person clicks the first and the last frame of each break, and the marks are saved as the scorecard's labels
-(labels.json beside the recording, the format rates.py reads). Prism's own covers are drawn over the frames, so most breaks are a
+(labels.json beside the recording, the format rates.py reads). PRISM's own covers are drawn over the frames, so most breaks are a
 check of two edges rather than a search.
 
     python scripts/breakwatch/label-ui.py [golden folder]              this machine only: http://127.0.0.1:8472/
@@ -14,7 +14,7 @@ The first picker on the page is what to mark, the most useful first: the stretch
 this script; keep it current), then each channel's stretch, the channel the detector has been trained on least first (trained.json).
 Choosing one opens its window at the first frames not yet looked through. The list is built when the page's server starts.
 
-A dev tool, never part of Prism. On the home network every request needs the key printed in the link (it shows the household's
+A dev tool, never part of PRISM. On the home network every request needs the key printed in the link (it shows the household's
 TV pictures and saves marks); the key is kept beside the recording, so the link stays the same across restarts.
 """
 import gzip
@@ -40,7 +40,7 @@ if LAN:
 PORT = int(ARGS[ARGS.index("--port") + 1]) if "--port" in ARGS else 8472
 if "--port" in ARGS:
     i = ARGS.index("--port"); del ARGS[i:i + 2]
-# --blind (2026-10-08): an exam hour. Prism's own covers and the model's suggestions are not shown, so the marks owe nothing to the
+# --blind (2026-10-08): an exam hour. PRISM's own covers and the model's suggestions are not shown, so the marks owe nothing to the
 # detector they will be used to examine (scripts/breakwatch/exams.md). Marks made this way are the person's own reading of the frames.
 BLIND = "--blind" in ARGS
 if BLIND:
@@ -152,7 +152,7 @@ WINDOWS.sort(key=lambda w: _rank.get(w["id"], len(TODO)))     # the window picke
 
 
 def covers(win):
-    """Prism's own covers on a window, from calls.log: [[start, end], ...] in seconds of the day."""
+    """PRISM's own covers on a window, from calls.log: [[start, end], ...] in seconds of the day."""
     path = os.path.join(ROOT, "calls.log")
     spans, up = [], None
     if not os.path.exists(path):
@@ -187,7 +187,7 @@ def asked():
 
 
 def blind_spans(win):
-    """Where a window is marked blind, [[from s, to s]]: an exam hour ("blind": true in marking-todo.json). Prism's covers and the
+    """Where a window is marked blind, [[from s, to s]]: an exam hour ("blind": true in marking-todo.json). PRISM's covers and the
     suggestions are left out there and shown everywhere else, so one page serves an exam hour and a training stretch alike
     (2026-10-09; --blind still hides them for the whole day)."""
     return [[sec(e["from"].replace(":", "")), sec(e["to"].replace(":", ""))] for e in asked() if e.get("window") == win and e.get("blind")]
@@ -201,7 +201,7 @@ def shown_covers(win):
 
 
 def suggestions():
-    """The model's suggested breaks (suggest.json, prefill.py), and on a stretch asked for with "suggest": true Prism's own covers as
+    """The model's suggested breaks (suggest.json, prefill.py), and on a stretch asked for with "suggest": true PRISM's own covers as
     suggestions too (runs of cover 45 s or longer, pieces under 20 s apart joined) - a training stretch is then a check of each break's
     two edges, not a search. Nothing inside a blind stretch."""
     if BLIND:
@@ -305,10 +305,10 @@ aside h3{margin:4px 0 8px;font-size:15px}
 <button id="unsure">Mark as not sure</button>
 <button id="prev">&larr; earlier</button><button id="next">later &rarr;</button>
 <button id="helpbtn">How to mark</button><span id="pos"></span><span id="status"></span>
-<div id="bar" title="The whole recording: amber = Prism covered, green = your breaks, white = the frames on screen. Tap to jump"></div>
+<div id="bar" title="The whole recording: amber = PRISM covered, green = your breaks, white = the frames on screen. Tap to jump"></div>
 <input id="slide" type="range" min="0" max="1000" value="0" aria-label="Where in the recording">
 <button id="pcov">&#9666; cover</button><button id="ncov">cover &#9656;</button><button id="psug">&#9666; suggestion</button><button id="nsug">suggestion &#9656;</button><span id="slidetime"></span>
-<div id="help">Click the <b>first frame of the break</b> (the first that is not the show), then the <b>last frame before the show is back</b>. The whole break is one mark: no need to mark each ad. The network's own promos inside a break are part of it. A banner over the show, and a "The following program is rated" card, are the show. Amber top edge = Prism covered it. Blue dashes = the model's suggested break: Accept it, or tap Not an ad; if its edges are off, mark it yourself. Use 1 s near an edge.</div>
+<div id="help">Click the <b>first frame of the break</b> (the first that is not the show), then the <b>last frame before the show is back</b>. The whole break is one mark: no need to mark each ad. The network's own promos inside a break are part of it. A banner over the show, and a "The following program is rated" card, are the show. Amber top edge = PRISM covered it. Blue dashes = the model's suggested break: Accept it, or tap Not an ad; if its edges are off, mark it yourself. Use 1 s near an edge.</div>
 </header>
 <div id="stick"><div id="task"><span id="tasktext"></span><button id="taskdone">Done with this one &#9656;</button><button id="taskskip">Skip it</button></div><div id="sugbar"><div id="sugtext"></div><div id="sugbtns"><button id="sugok">Yes, ads</button><button id="sugno">No, the show</button><button id="sugnext">Skip &#9656;</button></div></div>
 <div id="note"><span id="notetext"></span><button id="notecancel">Cancel</button></div></div>

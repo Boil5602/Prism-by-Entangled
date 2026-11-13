@@ -41,6 +41,10 @@ public sealed class LearnedBreak
     /// <summary>... but below this the cover lifts at once: a programme coming back sends the chance to almost nothing, where an ad that
     /// looks like a programme leaves it in between.</summary>
     private readonly double _offDeep;
+    // policy.softRefractory / softOn (2026-11-08, the boundary-first redesign's Phase 1b): within softRefractory seconds of a cover going
+    // down, a new cover needs the chance above softOn (0.9) for the hold instead of on. Off (0) unless the policy says; the bench's
+    // sweeps halved the ordinary evening's pop-ups with it at 90 s for 0.4 points of ad time.
+    private readonly double _softRefractory, _softOn;
     /// <summary>The picture network's weight in logit (policy "picture", 2026-11-07): its chance for the frame joins the trees' before the
     /// policy decides, as the bench (PICW) and the extension blend it. 0, the model's default, leaves the network out.</summary>
     public double PictureWeight { get; }
@@ -75,12 +79,32 @@ public sealed class LearnedBreak
         _on = pol.GetProperty("on").GetDouble(); _off = pol.GetProperty("off").GetDouble(); _hold = pol.GetProperty("hold").GetInt32();
         _offHold = pol.TryGetProperty("offHold", out var oh) && oh.ValueKind == JsonValueKind.Number ? oh.GetDouble() : 0;
         _offDeep = pol.TryGetProperty("offDeep", out var od) && od.ValueKind == JsonValueKind.Number ? od.GetDouble() : 0;
+        _softRefractory = pol.TryGetProperty("softRefractory", out var sr) && sr.ValueKind == JsonValueKind.Number ? sr.GetDouble() : 0;
+        _softOn = pol.TryGetProperty("softOn", out var so) && so.ValueKind == JsonValueKind.Number ? so.GetDouble() : 0.9;
         PictureWeight = pol.TryGetProperty("picture", out var pw) && pw.ValueKind == JsonValueKind.Number ? pw.GetDouble() : 0;
         Agree = pol.TryGetProperty("agree", out var ag) && ag.ValueKind == JsonValueKind.True;
         TreeMin = pol.TryGetProperty("treeMin", out var tmn) && tmn.ValueKind == JsonValueKind.Number ? tmn.GetDouble() : 0.5;
         NetMin = pol.TryGetProperty("netMin", out var nmn) && nmn.ValueKind == JsonValueKind.Number ? nmn.GetDouble() : 0.5;
         Trained = r.TryGetProperty("trained", out var tr) ? tr.GetInt32() : 0;
+        Gate = pol.TryGetProperty("gate", out var gt) && gt.ValueKind == JsonValueKind.Number ? gt.GetDouble() : 0;
+        if (r.TryGetProperty("channels", out var chs) && chs.ValueKind == JsonValueKind.Object)
+        {
+            _channels = new Dictionary<string, (double Ads, double Wrong)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in chs.EnumerateObject())
+                if (c.Value.ValueKind == JsonValueKind.Object && c.Value.TryGetProperty("ads", out var ca) && c.Value.TryGetProperty("wrong", out var cw))
+                    _channels[c.Name] = (ca.GetDouble(), cw.GetDouble());
+        }
     }
+
+    // The channel gate (2026-11-11, agreed 2026-11-09): the model lists the channels it was measured on while held out of its own
+    // training ("channels": name -> ads covered %, show wrongly covered %), and policy.gate is the most show time, in percent, a channel
+    // may have lost in that measure for the detector to cover on its own judgement there. A channel that is not listed, or is over the
+    // gate, is covered in sure breaks only. A model with no list, or a gate of 0, gates nothing.
+    private readonly Dictionary<string, (double Ads, double Wrong)>? _channels;
+    public double Gate { get; }
+    public int ChannelsMeasured => _channels?.Count ?? 0;
+    public bool Measured(string channel) =>
+        _channels is null || Gate <= 0 || channel.Length == 0 || (_channels.TryGetValue(channel, out var m) && m.Wrong <= Gate);
 
     public static LearnedBreak? Load(string path)
     {
@@ -97,6 +121,8 @@ public sealed class LearnedBreak
         internal int Run;
         internal double BelowSince = -1;
         public bool Up { get; set; }
+        /// <summary>When the cover last went down (the look's time), for the soft refractory; -1e9 before any cover.</summary>
+        public double DownAt { get; set; } = -1e9;
         public double LastP { get; internal set; }
     }
 
@@ -143,13 +169,16 @@ public sealed class LearnedBreak
     }
 
     /// <summary>The trees' chance of an ad at t, from the break model's readings (<see cref="BreakModel.FeatureNames"/> order, then print_seen).
-    /// Readings are taken at three decimals, as training read them. coverUp (2026-11-06): 1 when this look was taken through Prism's own
-    /// cover, as a browser extension's are (its cover is in the picture it reads); Prism's own captures never hold the cover, so 0.</summary>
+    /// Readings are taken at three decimals, as training read them. coverUp (2026-11-06): 1 when this look was taken through PRISM's own
+    /// cover, as a browser extension's are (its cover is in the picture it reads); PRISM's own captures never hold the cover, so 0.</summary>
     /// clockSec (2026-11-06): the local time of day in seconds, for a model trained with the minute of the hour (bench CLOCK=1); NaN leaves
     /// it out.
-    public double Score(State s, double[] readings, double printSeen, double t, double coverUp = 0, double clockSec = double.NaN)
+    /// extra (2026-11-08, the redesign's E1): readings by name beyond the break model's (the repetition columns the bench reads from a sidecar
+    /// until the hash lands in BreakModel); an input the model names and nobody supplies reads 0, as it always has.
+    public double Score(State s, double[] readings, double printSeen, double t, double coverUp = 0, double clockSec = double.NaN, IReadOnlyDictionary<string, double>? extra = null)
     {
         var byName = new Dictionary<string, double>(StringComparer.Ordinal);
+        if (extra is not null) foreach (var kv in extra) byName[kv.Key] = kv.Value;
         for (var i = 0; i < BreakModel.FeatureNames.Length && i < readings.Length; i++) byName[BreakModel.FeatureNames[i]] = Math.Round(readings[i], 3, MidpointRounding.AwayFromZero);
         byName["print_seen"] = printSeen;
         byName["cover_up"] = coverUp;
@@ -214,14 +243,15 @@ public sealed class LearnedBreak
     public bool Decide(State s, double p, double t = double.NaN, bool strict = false)
     {
         var on = strict && BreakModel.BandStrict ? Math.Min(0.95, _on + 0.1) : _on; var hold = strict && BreakModel.BandStrict ? _hold * 2 : _hold;
+        if (_softRefractory > 0 && !s.Up && !double.IsNaN(t) && t - s.DownAt < _softRefractory) on = Math.Max(on, _softOn);
         s.Run = p > on ? s.Run + 1 : 0;
         if (!s.Up) { s.BelowSince = -1; if (s.Run >= hold) s.Up = true; }
         else if (p >= _off) s.BelowSince = -1;
-        else if (_offHold <= 0 || double.IsNaN(t) || p < _offDeep) { s.Up = false; s.BelowSince = -1; }
+        else if (_offHold <= 0 || double.IsNaN(t) || p < _offDeep) { s.Up = false; s.BelowSince = -1; s.DownAt = double.IsNaN(t) ? s.DownAt : t; }
         else
         {
             if (s.BelowSince < 0) s.BelowSince = t;
-            if (t - s.BelowSince >= _offHold) { s.Up = false; s.BelowSince = -1; }
+            if (t - s.BelowSince >= _offHold) { s.Up = false; s.BelowSince = -1; s.DownAt = t; }
         }
         return s.Up;
     }

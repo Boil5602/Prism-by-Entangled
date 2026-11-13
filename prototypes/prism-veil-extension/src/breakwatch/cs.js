@@ -1,4 +1,4 @@
-/* Prism break watch, browser port: the C# semantics the port leans on (2026-11-06).
+/* PRISM break watch, browser port: the C# semantics the port leans on (2026-11-06).
  * The break detector is ported from the Windows host (targets/win-host/PrismHost/Services/BreakModel.cs, LearnedBreak.cs,
  * AdPrints.cs, AdSounds.cs) number for number. These helpers reproduce what .NET does where JavaScript differs by default:
  * - Math.Round(x, d, MidpointRounding.AwayFromZero) as .NET 8 computes it (scale, ModF, step away on a half);

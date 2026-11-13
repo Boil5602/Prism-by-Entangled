@@ -374,7 +374,7 @@ export class RemoteApi {
       service: names.get(src.facet) ?? null,
       session: sessions.get(src.facet) ?? null,
       onStage: onStage.has(src.facet),
-      // the collection: the page's own word, else Prism's standing order (a Prism-made queue is a list of songs to the page, which then
+      // the collection: the page's own word, else PRISM's standing order (a PRISM-made queue is a list of songs to the page, which then
       // names no playlist; 2026-10-04)
       collection: ((c, o) => (c ? { kind: c.kind, id: c.id, label: c.label ?? null } : o ? { kind: o.kind, id: o.id, label: o.name } : null))(this.orchestrator.musicCollectionOf(src.facet), this.orchestrator.musicOrderOf(src.facet)),
       // the track after this one, where the service's player says (Apple Music's queue); null elsewhere
@@ -406,7 +406,7 @@ export class RemoteApi {
     }
     if (req.path === "/listen/now" || req.path === "/listen/ticket" || req.path === "/listen/lag") return this.handleHouse(req);   // the listen page's key, never a pairing (2026-10-31)
     if (!req.token || !this.devices.some((d) => d.token === req.token)) {
-      return json(401, { error: "invalid or missing token, so pair again with Prism's QR code" });
+      return json(401, { error: "invalid or missing token, so pair again with PRISM's QR code" });
     }
     // First authenticated use of a token = the phone is paired: the shell
     // can take the QR down without anyone touching the TV remote.
@@ -543,7 +543,7 @@ export class RemoteApi {
       const text = body?.["text"];
       if (typeof text !== "string" || !text) return json(400, { error: 'body must be {"text": "...", "submit"?: true}' });
       const target = this.orchestrator.keyboardTarget();
-      if (!target) return json(409, { error: "nothing on Prism takes typing right now" });
+      if (!target) return json(409, { error: "nothing on PRISM takes typing right now" });
       if (!await this.orchestrator.typeIntoSurface(target, text)) return json(501, { error: "this shell cannot type into pages" });
       if (body?.["submit"] === true) await this.orchestrator.sendKeyToSurface(target, "ENTER");
       return json(200, { ok: true, into: target });
@@ -552,7 +552,7 @@ export class RemoteApi {
       const key = this.parseBody(req.body)?.["key"];
       if (typeof key !== "string" || !key) return json(400, { error: 'body must be {"key": "ENTER"|"BACKSPACE"|"TAB"|"ESCAPE"|"DPAD_UP"|...}' });
       const target = this.orchestrator.keyboardTarget();
-      if (!target) return json(409, { error: "nothing on Prism takes keys right now" });
+      if (!target) return json(409, { error: "nothing on PRISM takes keys right now" });
       return (await this.orchestrator.sendKeyToSurface(target, key)) ? json(200, { ok: true, into: target }) : json(501, { error: "this shell cannot forward keys" });
     }
     if (req.method === "POST" && req.path === "/apps/type") {
@@ -664,7 +664,7 @@ export class RemoteApi {
       if (tile !== null && tile !== undefined && typeof tile !== "string") return json(400, { error: 'body must be {"tile": "<id>" | null}' });
       return json(200, await this.video.listenWindow(typeof tile === "string" ? tile : null, req.token));   // this phone's, not the room's
     }
-    // POST /audio/wall-mute {on} - the person's mute of Prism in the room (B-175; B-472: Prism's own sessions to a floor, never the pages and
+    // POST /audio/wall-mute {on} - the person's mute of PRISM in the room (B-175; B-472: PRISM's own sessions to a floor, never the pages and
     // never the playback device, so a listening phone and the listen page hear on). There is no device mute from a phone any more (2026-11-01).
     // POST /video/break-watch {on} - the phone's switch for covering YouTube TV's channel breaks (2026-10-07)
     // POST /video/rate {kind: movie|tv, id, value: 1-10 | null} -> {status}; POST /video/rated {kind, id} -> {value, working}: the person's TMDB
@@ -979,7 +979,7 @@ export class RemoteApi {
       const tile = b?.["tile"], kind = b?.["kind"], id = b?.["id"];
       if (typeof tile !== "string" || typeof kind !== "string" || typeof id !== "string") return json(400, { error: 'body must be {"tile","kind","id"}' });
       const r = await this.video.track(tile, kind, id);
-      return r === "ok" ? json(200, { ok: true }) : json(409, { ok: false, error: r === "unavailable" ? "This service lists no tracks Prism can pick" : r });
+      return r === "ok" ? json(200, { ok: true }) : json(409, { ok: false, error: r === "unavailable" ? "This service lists no tracks PRISM can pick" : r });
     }
     if (req.method === "POST" && req.path === "/video/tracks-done") {
       if (!this.video) return json(501, { error: "this shell has no Video player" });

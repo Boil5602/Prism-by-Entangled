@@ -1,5 +1,5 @@
 ﻿<#
-  Prism overlay probe - Windows prototype of spec sections 26/27 for NATIVE apps.
+  PRISM overlay probe - Windows prototype of spec sections 26/27 for NATIVE apps.
 
   Transparent, click-through, always-on-top layers - ONE PER MONITOR. Invisible
   until any visible window exposes an ad marker in its accessibility (UI
@@ -464,7 +464,7 @@ $timer.Add_Tick({
   }
 })
 
-Write-Host ("Prism overlay probe: {0} monitor layer(s) up (click-through, no focus). Watching all windows. Ctrl+C stops." -f $overlays.Count) -ForegroundColor Cyan
+Write-Host ("PRISM overlay probe: {0} monitor layer(s) up (click-through, no focus). Watching all windows. Ctrl+C stops." -f $overlays.Count) -ForegroundColor Cyan
 $timer.Start()
 foreach ($ov in ($overlays | Select-Object -Skip 1)) { $ov.Win.Show() }
 [void]$overlays[0].Win.ShowDialog()

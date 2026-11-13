@@ -48,14 +48,14 @@ public sealed partial class MainWindow
             // a catalog service not set up yet (the phone's Services section, 2026-10-11): it joins its player first, then its sign-in opens
             var cat = _catalog.FirstOrDefault(e => e.Id == appId);
             if (cat is not null && signIn) { _ = WelcomeAddAndSignInAsync(new WelcomeService(cat.Id, cat.Name, "", false, "unknown")); return; }
-            SetPill("Prism · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("app-setup", appId, saved: false); return;
+            SetPill("PRISM · App \"" + appId + "\" isn't saved yet. Add it under Apps first"); EditorClosed("app-setup", appId, saved: false); return;
         }
         // the sign-in window opens AT the sign-in page (2026-09-29: opened at the service's home and sent to the sign-in page a moment later, the
         // two loads crossed and the home page won - Tubi's Sign in "did nothing")
         var adapter = AdapterNameFor(app);
         var signInPage = signIn && !AppNeedsNoAccount(app) ? await SignInPageAsync(adapter) : null;
         var tile = await EnsureAppSurfaceAsync(app, url ?? signInPage);
-        if (tile is null) { SetPill("Prism · " + app.Name + " has no live surface yet. Try again once it's up"); EditorClosed("app-setup", appId, saved: false); return; }
+        if (tile is null) { SetPill("PRISM · " + app.Name + " has no live surface yet. Try again once it's up"); EditorClosed("app-setup", appId, saved: false); return; }
         if (url is not null && IsHttpUrl(url) && _surfaces.SourceOf(tile) != url) _surfaces.Navigate(tile, url);   // the reference page, in the App's profile (not persisted as the App's home)
         if (_viewfinder is not null) CancelViewfinder();
         // The rail is a FULL-SCREEN 96%-opaque overlay at z 900 on RootGrid, above the
@@ -73,7 +73,7 @@ public sealed partial class MainWindow
         // B-41: the App's preview surface is already full window (z 900) in its profile - a browser; natural layout, page zoom 1
         _ = _surfaces.SetViewportAsync(tile, 0, 0);
         // 2026-09-07: the setup panel sits top-right - exactly where every service keeps its Log In control (Pandora's
-        // was under it). The page gets the width left of the panel's column instead, so nothing of Prism's is ever
+        // was under it). The page gets the width left of the panel's column instead, so nothing of PRISM's is ever
         // over a control the person has to reach; the panel stands beside the page, not on it.
         const double panelColumn = 320 + 18 + 24;
         // VS-1 (2026-09-19, the video services build-out): the service header strip along the top of the page - the same
@@ -105,8 +105,8 @@ public sealed partial class MainWindow
         _asHint = new TextBlock
         {
             Text = _asNoAccount
-                ? "Nothing to set up: this page is part of Prism, runs on this device and reaches no network. What it remembers - your list, your notes, your timer - lives in this device's storage and is never wiped. Done returns to the scene."
-                : _asSignIn ? "Sign in here. Prism watches for " + app.Name + " to take you back, then looks for your account on the page before it says signed in."
+                ? "Nothing to set up: this page is part of PRISM, runs on this device and reaches no network. What it remembers - your list, your notes, your timer - lives in this device's storage and is never wiped. Done returns to the scene."
+                : _asSignIn ? "Sign in here. PRISM watches for " + app.Name + " to take you back, then looks for your account on the page before it says signed in."
                 : "Browse as you would in a browser: sign in, pick a profile, set preferences. Sign-in popups open in a sheet. The status above follows the page: a sign-in page means needs attention; your own pages mean signed in. Done saves the status and returns to the scene.",
             FontSize = 14, Foreground = LeInk, TextWrapping = TextWrapping.Wrap,
         };
@@ -140,7 +140,7 @@ public sealed partial class MainWindow
         {
             // the wizard has no Done: the probe finishes it, or a person's word does - and the two are stored differently
             _asMark = CardButton("✓  I'm signed in - mark it");
-            ToolTipService.SetToolTip(_asMark, "Prism could not see your account on the page. Your word is recorded as \"marked signed in\", not as verified.");
+            ToolTipService.SetToolTip(_asMark, "PRISM could not see your account on the page. Your word is recorded as \"marked signed in\", not as verified.");
             _asMark.Visibility = Visibility.Collapsed;
             _asMark.Click += (_, __) => _ = FinishSignInAsync("signed-in", "asserted");
             card.Children.Add(_asMark);
@@ -218,15 +218,15 @@ public sealed partial class MainWindow
             _asHint.Text = r?.Redirect switch
             {
                 "login" => "This is the sign-in page. Sign in here - the session lives in this App's profile and persists. When the site returns you to your own pages the status flips to signed in.",
-                "app" when SignInOnPage(adapter) => "Sign in with " + app.Name + "'s own Sign In button on this page. Prism looks for your account on the page before it says signed in.",
+                "app" when SignInOnPage(adapter) => "Sign in with " + app.Name + "'s own Sign In button on this page. PRISM looks for your account on the page before it says signed in.",
                 "app" => "You are on " + app.Name + "'s own pages - that reads as signed in. Browse, set preferences, then Done.",
                 _ => "The page left " + app.Name + " (a third-party sign-in, or another site). The status keeps its last reading until the App's own pages return.",
             };
-        if (r?.Redirect == "login") _asSawSignedOut = true;   // B-130: a sign-in page seen = a session Prism is watching begin
+        if (r?.Redirect == "login") _asSawSignedOut = true;   // B-130: a sign-in page seen = a session PRISM is watching begin
         if (_asSignIn)
         {
             if (r?.Redirect == "app") _ = RunSessionProbeAsync(app, ++_asProbeRun);
-            else { _asProbeRun++; if (_asMark is not null) _asMark.Visibility = Visibility.Collapsed; if (_asHint is not null && r?.Redirect == "login") _asHint.Text = "Sign in here. Prism watches for " + app.Name + " to take you back, then looks for your account on the page before it says signed in."; }
+            else { _asProbeRun++; if (_asMark is not null) _asMark.Visibility = Visibility.Collapsed; if (_asHint is not null && r?.Redirect == "login") _asHint.Text = "Sign in here. PRISM watches for " + app.Name + " to take you back, then looks for your account on the page before it says signed in."; }
         }
     }
 
@@ -241,7 +241,7 @@ public sealed partial class MainWindow
         var probe = AdapterSession(AdapterNameFor(app));
         if (probe is null)
         {
-            if (_asHint is not null) _asHint.Text = "You are on " + app.Name + "'s own pages. Prism cannot check " + app.Name + "'s session yet, so it won't claim you're signed in. Say so below if you are.";
+            if (_asHint is not null) _asHint.Text = "You are on " + app.Name + "'s own pages. PRISM cannot check " + app.Name + "'s session yet, so it won't claim you're signed in. Say so below if you are.";
             if (_asMark is not null) _asMark.Visibility = Visibility.Visible;
             return;
         }
@@ -257,14 +257,14 @@ public sealed partial class MainWindow
             if (!_asSession || run != _asProbeRun) return;
             if (verdict == "signed-in")
             {
-                // B-130 (2026-09-07): closing the moment the account is seen was right for a sign-in Prism WATCHED begin, and
+                // B-130 (2026-09-07): closing the moment the account is seen was right for a sign-in PRISM WATCHED begin, and
                 // a bounce for a page that was signed in on arrival. Already signed in: record it, stay, and let the person browse and pick - Done when they like; what
                 // they start carries on (B-129).
                 if (_asSawSignedOut) { await FinishSignInAsync("signed-in", "probe"); return; }
                 _asSignIn = false;
                 await SaveAppStatusAsync(app, "signed-in", "probe");
                 RenderSetupStatus("signed-in", DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), _asTile is { } t2 ? _surfaces.SourceOf(t2) ?? app.BaseUrl : app.BaseUrl);
-                if (_asHint is not null) _asHint.Text = "You're signed in to " + app.Name + ". Pick something to play, then Done. It keeps playing on Prism.";
+                if (_asHint is not null) _asHint.Text = "You're signed in to " + app.Name + ". Pick something to play, then Done. It keeps playing on PRISM.";
                 if (_asMark is not null) _asMark.Visibility = Visibility.Collapsed;
                 if (_asDone is not null) _asDone.Visibility = Visibility.Visible;
                 return;
@@ -281,7 +281,7 @@ public sealed partial class MainWindow
             await Task.Delay(1500);
         }
         if (!_asSession || run != _asProbeRun) return;
-        if (_asHint is not null) _asHint.Text = "Not there yet: you are on " + app.Name + "'s pages but Prism could not see your account. Sign in if you have not, or mark it below.";
+        if (_asHint is not null) _asHint.Text = "Not there yet: you are on " + app.Name + "'s pages but PRISM could not see your account. Sign in if you have not, or mark it below.";
         if (_asMark is not null) _asMark.Visibility = Visibility.Visible;
     }
 
@@ -307,7 +307,7 @@ public sealed partial class MainWindow
         var app = _asApp; var appId = app.Id;
         _asProbeRun++;
         var ok = await SaveAppStatusAsync(app, status, evidence);
-        SetPill(ok ? "Prism · " + app.Name + ": " + (evidence == "probe" ? "signed in (your account was seen on the page)" : "marked signed in") : "Prism · " + app.Name + ": could not save the status");
+        SetPill(ok ? "PRISM · " + app.Name + ": " + (evidence == "probe" ? "signed in (your account was seen on the page)" : "marked signed in") : "PRISM · " + app.Name + ": could not save the status");
         CloseAppSetup();
         EditorClosed("app-setup", appId, ok);
         _brain.Call(HostCalls.RecycleApp, app.Id);   // B-124: the App's wall surface starts over on a fresh engine
@@ -327,8 +327,8 @@ public sealed partial class MainWindow
             // was not, 2026-09-23). Ask the page: its account marker, or its Sign In control, or nothing changes.
             var onPage = SignInOnPage(AdapterNameFor(app)) && r?.Redirect == "app";
             if (onPage) status = await ProbeSessionOnceAsync(app);
-            if (status is not null && await SaveAppStatusAsync(app, status, onPage ? "probe" : "url")) SetPill("Prism · " + app.Name + " setup: " + (status == "signed-in" ? "signed in" : "needs attention") + ", verified just now");
-            else SetPill("Prism · " + app.Name + " setup: status unchanged (" + app.Status + ")");
+            if (status is not null && await SaveAppStatusAsync(app, status, onPage ? "probe" : "url")) SetPill("PRISM · " + app.Name + " setup: " + (status == "signed-in" ? "signed in" : "needs attention") + ", verified just now");
+            else SetPill("PRISM · " + app.Name + " setup: status unchanged (" + app.Status + ")");
         }
         CloseAppSetup();
         EditorClosed("app-setup", appId, save);   // SM-3 integration: the opener (wizard, rail, badge round-trip) resumes

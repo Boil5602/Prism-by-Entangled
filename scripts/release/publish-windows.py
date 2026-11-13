@@ -1,4 +1,4 @@
-"""Publish a Windows release of Prism (docs/features/updates.md, 2026-10-05).
+"""Publish a Windows release of PRISM (docs/features/updates.md, 2026-10-05).
 
     python scripts/release/publish-windows.py --notes "What changed, in a sentence or two." [--channel alpha|beta|stable] [--also <track>] [--zip <existing.zip>] [--dry-run] [--site <website repo>]
 
@@ -55,9 +55,9 @@ def daytime_guard(allowed, what):
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--notes", required=True, help="release notes, a sentence or two (shown on the PC and the website)")
-# the tracks (2026-10-05): alpha while Prism is built,
+# the tracks (2026-10-05): alpha while PRISM is built,
 # beta for the candidate, stable for the full release. HEADLINE is the track the website's Download button offers; it moves to beta,
-# then to stable, by editing this line. --also points other tracks at the same release (a Prism built on an earlier track follows its
+# then to stable, by editing this line. --also points other tracks at the same release (a PRISM built on an earlier track follows its
 # own track's entry, so the first alpha publish after the rename carries --also stable for the 0.22.0 installs that look there).
 TRACKS = ["alpha", "beta", "stable"]
 TRACK_LABEL = {"alpha": "Alpha", "beta": "Beta", "stable": "Full"}
@@ -79,7 +79,7 @@ if not a.dry_run:
 # the notes go public (GitHub, the website, every PC): never the owner's words, never the household's details (2026-11-05)
 _voice = re.compile(r"(?<![A-Za-z'])(I|I'm|I've|I'd|I'll|we're|we've|let's|lets|Let's|Lets|my|me|Can we|Could we|Should we|We need|we need|my wife|can you)(?![A-Za-z'])")
 if any(_voice.search(q) for q in re.findall(r'["\u201c]([^"\u201d]{8,})["\u201d]', a.notes)):
-    sys.exit("the notes quote someone in a person's voice: describe what changed in Prism's own words")
+    sys.exit("the notes quote someone in a person's voice: describe what changed in PRISM's own words")
 _scrub = os.path.expanduser('~/.prism/public-scrub.txt')
 if os.path.exists(_scrub):
     for _l in open(_scrub, encoding='utf-8'):
@@ -119,7 +119,7 @@ def find_signtool():
 
 
 def sign_files(out):
-    """Signs PrismHost.exe and Prism's own DLLs in the publish folder; True when they were signed, False when no signing setup is present."""
+    """Signs PrismHost.exe and PRISM's own DLLs in the publish folder; True when they were signed, False when no signing setup is present."""
     thumb = os.environ.get("PRISM_SIGN_THUMBPRINT", "").strip()
     trusted = os.path.exists(SIGN_META)
     if not trusted and not thumb:
@@ -127,7 +127,7 @@ def sign_files(out):
         return False
     signtool = find_signtool()
     targets = [os.path.join(out, "PrismHost.exe")] + sorted(os.path.join(out, x) for x in os.listdir(out) if x.lower().endswith(".dll") and x.lower().startswith("prismhost"))
-    common = ["/fd", "SHA256", "/td", "SHA256", "/d", "Prism by Entangled", "/du", "https://entangled.world/prism"]
+    common = ["/fd", "SHA256", "/td", "SHA256", "/d", "PRISM by Entangled", "/du", "https://entangled.world/prism"]
     if trusted:
         if not os.path.exists(SIGN_DLIB):
             sys.exit("Trusted Signing: " + SIGN_META + " is present but the dlib is not at " + SIGN_DLIB + NL
@@ -185,7 +185,7 @@ else:
     for must in ("PrismHost.exe", "PrismHost.pri", os.path.join("Assets", "brain", "prism-runtime.js")):
         if not os.path.exists(os.path.join(out, must)): sys.exit("the publish lacks " + must)
     # code signing (2026-10-05, SmartScreen's on first run; Azure Trusted Signing chosen 2026-10-17): PrismHost.exe
-    # and Prism's own DLLs are signed with signtool before zipping, SHA-256 with a timestamp, so the signature outlives the subscription.
+    # and PRISM's own DLLs are signed with signtool before zipping, SHA-256 with a timestamp, so the signature outlives the subscription.
     # Trusted Signing when ~/.prism/trusted-signing.json (or PRISM_SIGN_METADATA) exists: signtool loads Microsoft's dlib, which signs
     # through the account named in that file under the Azure sign-in of this PC (az login). A certificate in the user's store when
     # PRISM_SIGN_THUMBPRINT names one. Neither: the build goes out unsigned and the README says what the screen means. A signing setup that
@@ -195,10 +195,10 @@ else:
                                 + "Press " + Q + "More info" + Q + ", then " + Q + "Run anyway" + Q + ". To check the file first, compare its SHA-256 with the one on" + NL
                                 + "entangled.world/prism/download (in PowerShell: Get-FileHash Prism-" + version + "-" + commit + ".zip)." + NL)
     with open(os.path.join(out, "README.txt"), "w", encoding="utf-8") as f:
-        f.write(f"Prism {version} ({commit}, {date.today().isoformat()})" + NL + NL + "1. Unzip anywhere." + NL + "2. Run PrismHost.exe." + NL + smart + NL
-                + "Prism installs itself into %LOCALAPPDATA%" + BS + "Programs" + BS + "Prism (no administrator rights), adds itself to the Start menu and" + NL
-                + "runs from there from then on; the unzipped folder can be deleted. Your data is kept in %LOCALAPPDATA%" + BS + "Prism." + NL
-                + "Updates: Prism menu, Updates (only the files that changed are downloaded)." + NL + NL + a.notes + NL)
+        f.write(f"PRISM {version} ({commit}, {date.today().isoformat()})" + NL + NL + "1. Unzip anywhere." + NL + "2. Run PrismHost.exe." + NL + smart + NL
+                + "PRISM installs itself into %LOCALAPPDATA%" + BS + "Programs" + BS + "PRISM (no administrator rights), adds itself to the Start menu and" + NL
+                + "runs from there from then on; the unzipped folder can be deleted. Your data is kept in %LOCALAPPDATA%" + BS + "PRISM." + NL
+                + "Updates: PRISM menu, Updates (only the files that changed are downloaded)." + NL + NL + a.notes + NL)
     zip_path = os.path.join(scratch, name)
     subprocess.run(["pwsh", "-NoProfile", "-Command", f"Compress-Archive -Path '{out}\\*' -DestinationPath '{zip_path}' -Force"], check=True)
 
@@ -208,7 +208,7 @@ size = len(data)
 print(f"zip {size/1048576:.1f} MB sha256 {sha}")
 
 # the file list (2026-10-06, incremental updates; docs/features/updates.md): every file of the release with its SHA-256 and size, so a
-# Prism fetches only the files it lacks. Each file is stored once, gzipped and named by its hash (windows/files/<sha256>.gz) - a file
+# PRISM fetches only the files it lacks. Each file is stored once, gzipped and named by its hash (windows/files/<sha256>.gz) - a file
 # unchanged since an earlier release is never uploaded again. The list's own hash goes into the signed manifest.
 import gzip, zipfile
 files_dir = tempfile.mkdtemp(prefix="prism-files-")
@@ -314,12 +314,12 @@ if not a.dry_run and not a.no_github:
     # the snapshot script has the same after-hours gate; --daytime here reaches it as PRISM_DAYTIME (0.37.0 at 17:49 published its zip
     # and GitHub release but the snapshot refused, 2026-10-21)
     snap_env = dict(os.environ, PRISM_DAYTIME="1") if a.daytime else None
-    snap = subprocess.run([sys.executable, SNAP, "push", f"Prism {version}" + NL + NL + a.notes], capture_output=True, text=True, env=snap_env)
+    snap = subprocess.run([sys.executable, SNAP, "push", f"PRISM {version}" + NL + NL + a.notes], capture_output=True, text=True, env=snap_env)
     target = snap.stdout.strip().splitlines()[-1] if snap.returncode == 0 and snap.stdout.strip() else None
     print("public snapshot:", target[:8] if target else "FAILED " + (snap.stdout + snap.stderr).strip())
 if not a.dry_run:
     cl = os.path.join(ROOT, "CHANGELOG.md")
-    intro = "# Prism changelog" + NL + NL + "Every Windows release, newest first. The same notes travel in the update manifest and on the website." + NL
+    intro = "# PRISM changelog" + NL + NL + "Every Windows release, newest first. The same notes travel in the update manifest and on the website." + NL
     old = open(cl, encoding="utf-8").read() if os.path.exists(cl) else intro
     # the entries follow the intro; a version already there is replaced
     marker = NL + "## "
@@ -334,8 +334,8 @@ if not a.dry_run:
     print("changelog:", cl, "- commit it")
     if not a.no_github:
         body = (a.notes + NL + NL + f"- download: {BASE_URL + name}" + NL + f"- sha256: `{sha}`" + NL + f"- size: {size/1048576:.1f} MB" + NL
-                + f"- channel: {a.channel}" + NL + NL + f"Updates: Prism menu, Updates. The same release is named in {BASE_URL}manifest.json.")
-        r = subprocess.run(["gh", "release", "create", f"v{version}", zip_path, "--repo", a.public_repo, "--title", f"Prism {version}", "--notes", body]
+                + f"- channel: {a.channel}" + NL + NL + f"Updates: PRISM menu, Updates. The same release is named in {BASE_URL}manifest.json.")
+        r = subprocess.run(["gh", "release", "create", f"v{version}", zip_path, "--repo", a.public_repo, "--title", f"PRISM {version}", "--notes", body]
                            + (["--target", target] if target else []) + (["--prerelease"] if a.channel != "stable" else []), capture_output=True, text=True)
         print("github release:", r.stdout.strip() if r.returncode == 0 else "FAILED " + r.stderr.strip())
 

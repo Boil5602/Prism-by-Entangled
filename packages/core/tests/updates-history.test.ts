@@ -30,7 +30,7 @@ describe("the manifest's changelog history", () => {
     expect(parseManifest(JSON.stringify({ alpha: { version: "1.0.0", notes: "x" } }))?.alpha?.history).toBeUndefined();
   });
 
-  it("keeps the track's latest entry when this Prism is already on it, so the feed has something to show", async () => {
+  it("keeps the track's latest entry when this PRISM is already on it, so the feed has something to show", async () => {
     const u = new UpdateChecker({ fetchManifest: () => JSON.stringify({ alpha: entry }), apply: () => "staged", now: () => 0 });
     await u.start({ currentVersion: "0.27.0", manifestUrl: "https://example.test/manifest.json", channel: "alpha" });
     const st = await u.check();

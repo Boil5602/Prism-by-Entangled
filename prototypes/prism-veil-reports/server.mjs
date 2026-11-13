@@ -1,4 +1,4 @@
-// Prism Veil ad-report receiver. One job: accept a user-initiated "Report ad"
+// PRISM Veil ad-report receiver. One job: accept a user-initiated "Report ad"
 // JSON from the extension and drop it into a PRIVATE Tigris bucket for us to
 // pick up (prism-veil-art/pull-reports.py). Nothing else.
 //
@@ -55,7 +55,7 @@ function cleanReport(r) {
     ua: STR(r.ua, 24),            // "chromium" | "firefox" + major version, nothing finer
     veil: STR(r.veil, 16),        // extension version
     note: STR(r.note, 280),       // optional free text the user typed
-    kind: ["video", "display", "sponsored", "popup", "other", "not-an-ad", "is-an-ad"].includes(r.kind) ? r.kind : undefined,   // the kind of ad the person chose (2026-09-26); not-an-ad: the break watch covered a show (2026-10-06)
+    kind: ["video", "display", "sponsored", "popup", "sound", "other", "not-an-ad", "is-an-ad", "cover-stayed", "small-view", "sound-wrong", "player"].includes(r.kind) ? r.kind : undefined,   // what the person chose (2026-09-26); not-an-ad: the break watch covered a show (2026-10-06); a fault of a cover (2026-11-12)
     fb: (r.fb && typeof r.fb === "object" && JSON.stringify(r.fb).length <= 8000) ? r.fb : undefined,   // site diagnostics block (see report.js), capped
     fbErr: STR(r.fbErr, 120),
     diag: (r.diag && typeof r.diag === "object" && JSON.stringify(r.diag).length <= 8000) ? r.diag : undefined,
@@ -177,7 +177,7 @@ async function curate(req, res, url) {
   }
   return json(res, 404, { error: "not found" });
 }
-const CURATE_HTML = String.raw`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prism art curation</title>
+const CURATE_HTML = String.raw`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PRISM art curation</title>
 <style>
 body{margin:0;background:#14171C;color:#F2F4F7;font:13px/1.4 system-ui,sans-serif}
 header{position:sticky;top:0;z-index:2;background:#0F1216;border-bottom:1px solid #3A4250;padding:8px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -193,7 +193,7 @@ figure.a .tag{color:#3fb950} figure.r .tag{color:#f85149}
 #big{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;z-index:3} #big img{max-width:96vw;max-height:92vh}
 #login{padding:40px 14px;max-width:420px}
 </style>
-<div id="login"><b>Prism art curation</b><p class="hint">Paste the curation key. It stays in this browser only.</p><input id="key" type="password" style="width:100%"><p><button id="go">Open</button></p><p id="err" style="color:#f85149"></p></div>
+<div id="login"><b>PRISM art curation</b><p class="hint">Paste the curation key. It stays in this browser only.</p><input id="key" type="password" style="width:100%"><p><button id="go">Open</button></p><p id="err" style="color:#f85149"></p></div>
 <header hidden id="bar"><b id="count"></b>
 <select id="src"><option value="">all sources</option><option value="__space">all space</option><option value="__land">all landscape</option></select>
 <select id="state"><option value="u">unreviewed</option><option value="">everything</option><option value="a">approved</option><option value="r">rejected</option></select>
@@ -229,7 +229,7 @@ if(KEY) load();
 
 // The download counter (2026-10-05): the website's Download button comes here; one is added to the count and the browser is sent on to the current zip,
 // read from the signed manifest in the public bucket. Nothing about the person is kept - no address, no browser string, no time - only the
-// number, in this private bucket (counters/downloads.json), flushed shortly after it changes and read back at boot. Prism itself never
+// number, in this private bucket (counters/downloads.json), flushed shortly after it changes and read back at boot. PRISM itself never
 // reports an install: that would be telemetry, which it promises not to do; this counts download clicks, and the site should say so.
 const MANIFEST_URL = "https://prism.entangled.world/windows/manifest.json";
 const COUNTS_KEY = "counters/downloads.json";
@@ -270,9 +270,9 @@ async function downloads(req, res, url) {
   res.writeHead(302, { Location: e.url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); return res.end();
 }
 
-// The update-check counter (2026-10-21): Prism's daily manifest fetch comes here and is sent on to the signed manifest in the public bucket; one is added to
+// The update-check counter (2026-10-21): PRISM's daily manifest fetch comes here and is sent on to the signed manifest in the public bucket; one is added to
 // the day's count and nothing else is kept - no address, no version, no time of day. It counts checks, not machines: a PC checks once a
-// day, so a day's count stands in for the PCs running Prism that day. The signature beside the manifest is sent on uncounted.
+// day, so a day's count stands in for the PCs running PRISM that day. The signature beside the manifest is sent on uncounted.
 // counters/checks.json holds the last 90 days by UTC date; /v1/checks is public and feeds the website's download page.
 const CHECKS_KEY = "counters/checks.json";
 let checks = null, checksDirty = false;

@@ -33,5 +33,5 @@ services, where gates and prompts live, are seen only this way.
 
 - Scenario walks per service (pausing, the end of an episode, the profile gate, a session expiring, a service's own popup) wait
   on what the watch shows. They would run on hidden pages, read-only, with trailers, never a show the household watches.
-- The watch reads the window's page only: a cover Prism draws itself, a stage curtain or the Watch page are not pages and are not
+- The watch reads the window's page only: a cover PRISM draws itself, a stage curtain or the Watch page are not pages and are not
   counted.

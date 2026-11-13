@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 
 /* ================================================================
-   Prism — Window Orchestrator mock
+   PRISM — Window Orchestrator mock
    Six "browser windows" on a screen. Drag one into another's region and
    the layout brain re-solves; everyone else animates around it. Drag the
    amber hero edge to resize. Fire an ad break to see the veil inside a

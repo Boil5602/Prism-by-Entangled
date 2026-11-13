@@ -65,8 +65,8 @@ export function startServer(
       if (req.method === "GET" && url.pathname === "/manifest.json") {
         const t = url.searchParams.get("token");
         const manifest = {
-          name: "Prism Remote",
-          short_name: "Prism",
+          name: "PRISM Remote",
+          short_name: "PRISM",
           start_url: t ? `/remote?token=${encodeURIComponent(t)}` : "/remote",
           scope: "/",
           display: "standalone",

@@ -15,10 +15,10 @@ let worst = 0, n = 0, flips = 0;
 const t0 = Date.now();
 for (const r of rows) {
   const g = fs.readFileSync(r.frame), p = r.prev ? fs.readFileSync(r.prev) : null;
-  const q = net.Chance(g, p);
+  const q = net.inChannels() === 4 ? net.ChanceTemporal(g, p, r.back.map((b) => (b ? fs.readFileSync(b) : null))) : net.Chance(g, p);
   worst = Math.max(worst, Math.abs(q - r.p)); n++;
   if ((q > 0.5) !== (r.p > 0.5)) flips++;
 }
 const ms = (Date.now() - t0) / n;
 console.log(`${n} frames: largest difference ${worst.toExponential(2)}, ${flips} on the other side of 0.5, ${ms.toFixed(1)} ms a frame`);
-process.exit(worst < 1e-4 ? 0 : 1);
+process.exit(worst < (net.inChannels() === 4 ? 1e-3 : 1e-4) ? 0 : 1);   // the temporal channels' means round a little further in half precision

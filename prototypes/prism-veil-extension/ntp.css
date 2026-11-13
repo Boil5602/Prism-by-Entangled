@@ -1,4 +1,4 @@
-/* Prism start page. Tokens from prototypes/frame-editor.jsx (T.*). */
+/* PRISM start page. Tokens from prototypes/frame-editor.jsx (T.*). */
 :root {
   --bezel: #0A0C0F;
   --wall: #14171C;
@@ -143,22 +143,27 @@ body {
 .actions button.ghost { background: transparent; color: var(--ink-dim); border: 1px solid var(--panel-edge); }
 
 /* weather (Open-Meteo) */
-#weather { margin-top: 16px; text-shadow: 0 2px 14px rgba(0,0,0,.6); }
+/* on a dark glass panel, as the search box and the links are (2026-11-12, reported: bare text over the photo was hard to read) */
+#weather {
+  display: inline-block; margin-top: 16px; padding: 12px 20px 14px; border-radius: 14px;
+  background: rgba(20,23,28,.62); border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 8px 40px rgba(0,0,0,.35);
+}
 #weather[hidden] { display: none; }
 #wx-now { display: flex; align-items: baseline; justify-content: center; gap: 12px; }
 #wx-temp { font-size: 34px; font-weight: 500; font-variant-numeric: tabular-nums; }
-#wx-desc { font-size: 16px; color: var(--ink); opacity: .9; }
-#wx-meta { margin-top: 4px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); opacity: .7; }
+#wx-desc { font-size: 16px; color: var(--ink); }
+#wx-meta { margin-top: 4px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); opacity: .9; }
 #wx-days { display: flex; justify-content: center; gap: 18px; margin-top: 10px; }
-#wx-days .day { text-align: center; font-size: 12px; color: var(--ink); opacity: .85; }
-#wx-days .day b { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .7; margin-bottom: 2px; }
-#wx-days .day .lo { opacity: .6; }
+#wx-days .day { text-align: center; font-size: 13px; color: var(--ink); }
+#wx-days .day b { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; opacity: .85; margin-bottom: 2px; }
+#wx-days .day .lo { opacity: .75; }
 #settings-card .inline { display: flex; gap: 6px; margin-top: 6px; }
 #settings-card .inline input { flex: 1; padding: 8px 10px; background: var(--wall); color: var(--ink); border: 1px solid var(--panel-edge); border-radius: 8px; font: 13px var(--sans); }
 #settings-card .inline button { width: 38px; border-radius: 8px; border: 1px solid var(--panel-edge); background: transparent; color: var(--ink-dim); cursor: pointer; font-size: 16px; }
 #settings-card .inline button:hover { color: var(--accent); border-color: var(--accent); }
 
-/* Prism frames strip */
+/* PRISM frames strip */
 #frames { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; width: 100%; }
 #frames[hidden] { display: none; }
 .frame {

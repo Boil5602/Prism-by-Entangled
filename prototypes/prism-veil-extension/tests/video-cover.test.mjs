@@ -347,7 +347,7 @@ describe("YouTube TV: behind the live edge is not covered", () => {
   });
 });
 
-// YouTube TV's own ad slot shows a "Sponsored" tray outside the player (2026-11-06; Prism's adapter reads it too): shown, it is an ad slot.
+// YouTube TV's own ad slot shows a "Sponsored" tray outside the player (2026-11-06; PRISM's adapter reads it too): shown, it is an ad slot.
 describe("YouTube TV: the Sponsored tray is an ad mark", () => {
   afterEach(() => { vi.useRealTimers(); });
   it("a shown tray saying Sponsored puts the video veil up; hidden, it does not", () => {
@@ -412,7 +412,7 @@ describe("spotted video veil", () => {
   });
 });
 
-// How an ad break looks (2026-11-06, the Prism app's three looks): veil, mute only (the ad in view, its sound off, Unmute), show (nothing done).
+// How an ad break looks (2026-11-06, the PRISM app's three looks): veil, mute only (the ad in view, its sound off, Unmute), show (nothing done).
 describe("ad break looks", () => {
   afterEach(() => { vi.useRealTimers(); });
   function setup(look) {

@@ -36,7 +36,7 @@ Then run the app:
 Notes:
 
 - **Always pass `-p:Platform=x64`.** The app is self-contained, and an AnyCPU build fails.
-- **Close Prism before rebuilding.** A running copy holds its files open and the build stops with
+- **Close PRISM before rebuilding.** A running copy holds its files open and the build stops with
   an error about a locked `PrismHost.Core.dll`.
 - **The core bundle.** A fresh clone has no `prism-runtime.js`; the build makes it once
   automatically (the `EnsureRuntimeBundle` target). After changing anything in `packages/core/src`,

@@ -13,7 +13,7 @@ public sealed record StylePack(
 }
 
 /// <summary>
-/// The four shipped packs - Prism Beams · Spectrum · Ribbon · Bloom - as data
+/// The four shipped packs - PRISM Beams · Spectrum · Ribbon · Bloom - as data
 /// (core validates the same files in tests; this loader mirrors
 /// <c>normalizeStylePack</c>'s clamps so a malformed community pack is
 /// refused or repaired the same way, never guessed at).
@@ -24,7 +24,15 @@ public static class StylePacks
     public static readonly Color[] PrismBands = { Hex("#F0A83C"), Hex("#5CC8C0"), Hex("#C86CF0"), Hex("#F05C7A") };
 
     private static List<StylePack>? _all;
-    private static readonly string[] Order = { "prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave" };
+    private static readonly string[] Order = { "prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave", "seasons" };
+
+    /// <summary>
+    /// Visuals under construction, held back from a release (2026-11-12: Seasons, until it is ready). A held visual is in no list and cannot be
+    /// picked; a scene that names one draws the first visual, and its stored choice is left as it is (spec 10). A development
+    /// start (PRISM_DEV_SHOT=1) shows them.
+    /// </summary>
+    private static readonly string[] Held = { "seasons" };
+    private static readonly bool ShowHeld = Environment.GetEnvironmentVariable("PRISM_DEV_SHOT") == "1";
 
     public static IReadOnlyList<StylePack> All()
     {
@@ -35,13 +43,16 @@ public static class StylePacks
             var dir = Path.Combine(AppContext.BaseDirectory, "Assets", "visualization-styles");
             if (Directory.Exists(dir))
                 foreach (var f in Directory.GetFiles(dir, "*.json"))
-                    if (Parse(File.ReadAllText(f)) is { } p) list.Add(p);
+                    if (Parse(File.ReadAllText(f)) is { } p && (ShowHeld || !Held.Contains(p.Id))) list.Add(p);
         }
         catch { }
         if (list.Count == 0) list.Add(Fallback());
         _all = list.OrderBy(p => { var i = Array.IndexOf(Order, p.Id); return i < 0 ? 99 : i; }).ThenBy(p => p.Name).ToList();
         return _all;
     }
+
+    /// <summary>The packs in the order of their names, A to Z: the order the wall's back and forward buttons step through (2026-11-12).</summary>
+    public static IReadOnlyList<StylePack> ByName() => All().OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
     public static StylePack Get(string? id) => All().FirstOrDefault(p => p.Id == id) ?? All()[0];
 
@@ -72,7 +83,7 @@ public static class StylePacks
         catch { return null; }
     }
 
-    private static StylePack Fallback() => new("prism-beams", "Prism Beams", "The signature.", "beams", 32, (Color[])PrismBands.Clone(), "transparent", 1, 0.5, 0.1, 0.7, 0.2, 0, new Dictionary<string, double>());
+    private static StylePack Fallback() => new("prism-beams", "PRISM Beams", "The signature.", "beams", 32, (Color[])PrismBands.Clone(), "transparent", 1, 0.5, 0.1, 0.7, 0.2, 0, new Dictionary<string, double>());
 
     private static string? Str(JsonElement e, string k) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.String && v.GetString()!.Trim().Length > 0 ? v.GetString()!.Trim() : null;
     private static double Num(JsonElement e, string k, double lo, double hi, double d) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number ? Math.Min(hi, Math.Max(lo, v.GetDouble())) : d;

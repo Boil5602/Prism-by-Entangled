@@ -38,7 +38,7 @@ public sealed partial class MainWindow
     {
         await ReadModelAsync();
         var existing = sceneId is null ? null : _model.Scene(sceneId);
-        if (sceneId is not null && existing is null) { SetPill("Prism · no scene " + sceneId); return; }
+        if (sceneId is not null && existing is null) { SetPill("PRISM · no scene " + sceneId); return; }
         _sceneDraft = existing?.Clone() ?? new MScene { Name = "" };
         if (layoutId is not null) _sceneDraft.Layout = layoutId;
         if (_sceneDraft.Layout.Length == 0)
@@ -217,7 +217,7 @@ public sealed partial class MainWindow
         }
         var addViz = Small("＋  Add a visualization…", () => AddVisualization());
         addViz.IsEnabled = _sceneDraft.Hidden.Any(h => _model.Facet(h["facet"]?.GetValue<string>() ?? "")?.Music == true);
-        ToolTipService.SetToolTip(addViz, addViz.IsEnabled ? "Prism Beams · Spectrum · Ribbon · Bloom, fed by one of this scene's hidden music facets. Then assign it to a slot or float it." : "Add a hidden music facet first. A visualization needs a source.");
+        ToolTipService.SetToolTip(addViz, addViz.IsEnabled ? "PRISM Beams · Spectrum · Ribbon · Bloom, fed by one of this scene's hidden music facets. Then assign it to a slot or float it." : "Add a hidden music facet first. A visualization needs a source.");
         left.Children.Add(addViz);
 
         left.Children.Add(Section("6 · SCHEDULE  (§4 scene actions)"));
@@ -481,7 +481,7 @@ public sealed partial class MainWindow
         floatIt.Click += (_, __) => { fly.Hide(); if (!_sceneDraft.Floating.Any(p => p["visualization"]?.GetValue<string>() == vizId)) _sceneDraft.Floating.Add(new JsonObject { ["visualization"] = vizId, ["anchor"] = "bottom-left", ["size"] = 0.28 }); RenderBuilder(); };
         place.Children.Add(floatIt);
         col.Children.Add(place);
-        col.Children.Add(Meta("Tap the visualization on the screen to reveal the player (transient - Back tucks it away). Transport lives on its chrome and in the Prism menu → Now playing."));
+        col.Children.Add(Meta("Tap the visualization on the screen to reveal the player (transient - Back tucks it away). Transport lives on its chrome and in the PRISM menu → Now playing."));
         fly.Content = new ScrollViewer { Content = col, MaxHeight = 600 };
         fly.ShowAt(_sbLeft ?? (FrameworkElement)_builder);
     }
@@ -491,7 +491,7 @@ public sealed partial class MainWindow
         if (_sceneDraft is null) return;
         var at = await PromptTextAsync("Show this scene at…", "17:00", "HH:MM (24h, local)", "Add");
         if (at is null) return;
-        if (!System.Text.RegularExpressions.Regex.IsMatch(at, @"^([01]\d|2[0-3]):[0-5]\d$")) { SetPill("Prism · time as HH:MM"); return; }
+        if (!System.Text.RegularExpressions.Regex.IsMatch(at, @"^([01]\d|2[0-3]):[0-5]\d$")) { SetPill("PRISM · time as HH:MM"); return; }
         _sceneDraft.Schedule.Add(new JsonObject { ["at"] = at, ["action"] = "scene", ["value"] = _sceneDraft.Id.Length > 0 ? _sceneDraft.Id : null });
         RenderBuilder();
     }
@@ -553,7 +553,7 @@ public sealed partial class MainWindow
     private async Task SaveSceneDraftAsync(bool apply)
     {
         if (_sceneDraft is null) return;
-        if (_sceneDraft.Layout.Length == 0) { SetPill("Prism · choose a layout first"); return; }
+        if (_sceneDraft.Layout.Length == 0) { SetPill("PRISM · choose a layout first"); return; }
         if (string.IsNullOrWhiteSpace(_sceneDraft.Name))
         {
             var name = await PromptTextAsync("Name this scene", "", "Kitchen evening, Game day…", "Save");
@@ -569,19 +569,19 @@ public sealed partial class MainWindow
             if (raw is not null && JsonNode.Parse(raw) is JsonObject r)
             {
                 if (r["ok"]?.GetValue<bool>() == true) id = (r["value"] as JsonObject)?["id"]?.GetValue<string>();
-                else { SetPill("Prism · not saved: " + (r["error"]?.GetValue<string>() ?? "?")); return; }
+                else { SetPill("PRISM · not saved: " + (r["error"]?.GetValue<string>() ?? "?")); return; }
                 if (r["warnings"] is JsonArray w) foreach (var x in w) if (x?.GetValue<string>() is { } s) warnings.Add(s);
             }
         }
         catch { }
-        if (id is null) { SetPill("Prism · not saved"); return; }
+        if (id is null) { SetPill("PRISM · not saved"); return; }
         if (_sceneDraft.Id.Length == 0)
         {
             _sceneDraft.Id = id;
             if (_sceneDraft.Schedule.Any(e => e["value"] is null)) { foreach (var e in _sceneDraft.Schedule) e["value"] ??= id; await ModelCallAsync("modelSaveScene", _sceneDraft.ToJson()); }
         }
         foreach (var w in warnings) LogLine("scene save warning: " + w);
-        SetPill("Prism · saved \"" + _sceneDraft.Name + "\"" + (warnings.Count > 0 ? "  ·  " + warnings.Count + " note" + (warnings.Count == 1 ? "" : "s") + " in host.log" : ""));
+        SetPill("PRISM · saved \"" + _sceneDraft.Name + "\"" + (warnings.Count > 0 ? "  ·  " + warnings.Count + " note" + (warnings.Count == 1 ? "" : "s") + " in host.log" : ""));
         await ReadModelAsync();
         if (apply)
         {

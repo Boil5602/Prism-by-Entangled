@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slow Harbour Jazz - Ostrel Radio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A made-up music service for pictures of the PRISM extension at work. The service, the stations, the players, the songs and the
+     advertised products are invented; the sound is a quiet tone made by this page, and the sponsor's moving picture is drawn by it.
+     After a song the station goes into a sponsor break the way music services do it on the web: a video opens where the record
+     sleeve was, and the sponsor's SOUND comes out of the station's own <audio> element, not out of the video. A display unit
+     stands beside the player the whole time. The extension meets two of its rules here: the video rule for Video.js players
+     ("vjs-ad-playing" on the player, the count and time left in ".vjs-ad-countdown"), under which it covers the picture and turns
+     the tab's sound off, and the slot rule for the unit at the side (the class "adBanner").
+     ?break=<seconds> sets how long the song plays before the break (4 by default); ?ads=<seconds> the length of each of the two ads. -->
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; background:#12100e; color:#efe9df; font:15px/1.5 "Segoe UI", Arial, sans-serif; }
+  header { height:62px; display:flex; align-items:center; gap:30px; padding:0 30px; border-bottom:1px solid #2a2622; }
+  .logo { font:800 22px/1 Georgia, serif; color:#e9a15b; letter-spacing:.02em; }
+  .logo span { color:#efe9df; font-weight:400; }
+  header nav { display:flex; gap:24px; color:#a99f92; font-weight:600; font-size:14px; }
+  header nav .on { color:#fff; }
+  header .find { margin-left:auto; width:260px; height:36px; border-radius:18px; background:#1e1b18; display:flex; align-items:center; padding:0 16px; color:#857b6f; font-size:14px; }
+  .page { display:grid; grid-template-columns:290px 1fr 340px; height:800px; }
+  .stations { padding:24px 18px 0 30px; border-right:1px solid #2a2622; }
+  .stations h2, .side h2 { margin:0 0 14px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#857b6f; }
+  .st { display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:10px; margin-bottom:4px; }
+  .st.on { background:#221e1a; }
+  .st i { width:44px; height:44px; border-radius:8px; display:block; flex:none; }
+  .st b { display:block; font-size:14.5px; } .st span { font-size:12.5px; color:#a99f92; }
+  .now { display:flex; flex-direction:column; align-items:center; padding:30px 0 0; }
+  .sleeve svg { display:block; width:428px; height:428px; border-radius:14px; }
+  .video-js { position:relative; width:760px; height:428px; background:#000; border-radius:14px; overflow:hidden; }
+  .video-js[hidden], .sleeve[hidden] { display:none; }
+  .video-js video { position:absolute; inset:0; width:100%; height:100%; display:block; object-fit:cover; }
+  .vjs-ad-countdown { position:absolute; left:16px; bottom:16px; padding:6px 12px; border-radius:6px; background:rgba(0,0,0,.72); color:#fff; font-weight:600; font-size:14px; }
+  .song { margin-top:24px; text-align:center; }
+  .song h1 { margin:0; font:700 28px/1.2 Georgia, serif; }
+  .song div { color:#a99f92; font-size:15.5px; margin-top:4px; }
+  .bar { width:620px; margin-top:22px; display:flex; align-items:center; gap:14px; font-size:12.5px; color:#a99f92; font-variant-numeric:tabular-nums; }
+  .bar .track { flex:1; height:4px; border-radius:2px; background:#2f2a25; position:relative; }
+  .bar .track i { position:absolute; left:0; top:0; bottom:0; width:41%; border-radius:2px; background:#e9a15b; display:block; }
+  .keys { margin-top:20px; display:flex; align-items:center; gap:34px; }
+  .keys span { width:16px; height:16px; border-radius:3px; background:#857b6f; display:block; }
+  .keys .play { width:58px; height:58px; border-radius:50%; background:#efe9df; position:relative; }
+  .keys .play:before, .keys .play:after { content:""; position:absolute; top:19px; width:6px; height:20px; background:#12100e; border-radius:1px; }
+  .keys .play:before { left:20px; } .keys .play:after { left:32px; }
+  .side { padding:24px 30px 0 10px; }
+  .adBanner { width:300px; height:600px; border-radius:6px; overflow:hidden; }
+  .adBanner img { display:block; width:300px; height:600px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Ostrel <span>Radio</span></div>
+  <nav><span class="on">Now playing</span><span>My stations</span><span>Browse</span><span>Podcasts</span></nav>
+  <div class="find">Find a player, song or station</div>
+</header>
+<div class="page">
+  <div class="stations">
+    <h2>My stations</h2>
+    <div class="st on"><i style="background:linear-gradient(135deg,#27496d,#0c1a2b)"></i><div><b>Slow Harbour Jazz</b><span>Playing now</span></div></div>
+    <div class="st"><i style="background:linear-gradient(135deg,#8a5a2b,#3a2410)"></i><div><b>Copperline Folk</b><span>Fingerpicked and unhurried</span></div></div>
+    <div class="st"><i style="background:linear-gradient(135deg,#5b2a6b,#1a0d22)"></i><div><b>Night Drive Synth</b><span>For the long road home</span></div></div>
+    <div class="st"><i style="background:linear-gradient(135deg,#b4532a,#4a1d0c)"></i><div><b>Sunday Kitchen Soul</b><span>Warm, slow, loud enough</span></div></div>
+    <div class="st"><i style="background:linear-gradient(135deg,#3f6b4a,#12241a)"></i><div><b>Rain on the Greenhouse</b><span>Piano and weather</span></div></div>
+    <div class="st"><i style="background:linear-gradient(135deg,#6b6b2a,#24240c)"></i><div><b>Brass at the Boathouse</b><span>Big bands, small rooms</span></div></div>
+  </div>
+  <div class="now">
+    <div id="sleeve" class="sleeve">
+      <svg viewBox="0 0 428 428" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A drawn record sleeve: a harbour at dusk">
+        <rect width="428" height="428" fill="#132238"/><circle cx="310" cy="120" r="54" fill="#e9a15b"/><rect y="250" width="428" height="178" fill="#0a1422"/>
+        <g stroke="#e9a15b" stroke-width="3" opacity=".55"><path d="M250 268h120M270 290h80M286 312h48"/></g>
+        <g fill="#05090f"><path d="M60 250l40-110 40 110z"/><rect x="96" y="120" width="6" height="130"/><path d="M40 250h130l-18 26H58z"/></g>
+        <text x="30" y="386" fill="#efe9df" font-family="Georgia, serif" font-size="26" font-weight="700">The Quince Hollow Trio</text>
+        <text x="30" y="410" fill="#a99f92" font-family="Segoe UI, Arial" font-size="15">Low Water</text></svg>
+    </div>
+    <div id="player" class="video-js" hidden>
+      <video id="v" playsinline muted></video>
+      <div id="count" class="vjs-ad-countdown"></div>
+    </div>
+    <div class="song"><h1 id="title">Paper Lanterns, Late Ferry</h1><div id="by">The Quince Hollow Trio &middot; Low Water</div></div>
+    <div class="bar"><span id="at">1:38</span><span class="track"><i id="fill"></i></span><span id="len">4:02</span></div>
+    <div class="keys"><span></span><span></span><div class="play"></div><span></span><span></span></div>
+  </div>
+  <div class="side">
+    <h2>&nbsp;</h2>
+    <div class="adBanner" data-ad-slot="station-side"><img src="ads/ferncast-300x600.svg" alt="Ferncast earbuds"></div>
+  </div>
+</div>
+<audio id="station"></audio>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var SONG = Number(q.get("break") || 4), ADLEN = Number(q.get("ads") || 30);
+  var cv = document.createElement("canvas"); cv.width = 1280; cv.height = 720;
+  var g = cv.getContext("2d"), t0 = performance.now();
+  var player = document.getElementById("player"), sleeve = document.getElementById("sleeve"), v = document.getElementById("v"), count = document.getElementById("count");
+  var title = document.getElementById("title"), by = document.getElementById("by"), at = document.getElementById("at"), len = document.getElementById("len"), fill = document.getElementById("fill");
+  var mode = "song", ad = 0, adEnds = 0;
+
+  function advert(t, n) {
+    var a = n === 0 ? ["#f7c948", "#f08c2e", "#3b1d05", "GLIMMERBOX", "The lamp that wakes you gently."] : ["#7bd389", "#2f9e6e", "#062414", "TALLO", "Oat bars for the long afternoon."];
+    var bg = g.createLinearGradient(0, 0, 1280, 720); bg.addColorStop(0, a[0]); bg.addColorStop(1, a[1]);
+    g.fillStyle = bg; g.fillRect(0, 0, 1280, 720);
+    var s = 1 + .04 * Math.sin(t / 400);
+    g.save(); g.translate(960, 360); g.scale(s, s); g.fillStyle = "#fff"; g.beginPath(); g.arc(0, 0, 170, 0, 7); g.fill();
+    g.fillStyle = a[1]; g.beginPath(); g.roundRect(-70, -90, 140, 180, 30); g.fill(); g.restore();
+    g.fillStyle = a[2]; g.font = "900 104px Segoe UI, Arial"; g.fillText(a[3], 80, 320);
+    g.font = "600 40px Segoe UI, Arial"; g.fillText(a[4], 84, 394);
+    g.beginPath(); g.roundRect(84, 444, 320, 88, 44); g.fill(); g.fillStyle = "#fff"; g.font = "800 34px Segoe UI, Arial"; g.fillText("SHOP NOW", 150, 500);
+  }
+  function mmss(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+  function tick() {
+    var now = performance.now(), t = now - t0;
+    if (mode === "song" && t > SONG * 1000 && ad === 0) {
+      mode = "ad"; ad = 1; adEnds = now + ADLEN * 1000;
+      sleeve.hidden = true; player.hidden = false; player.classList.add("vjs-ad-playing");
+      title.textContent = "Your station returns shortly"; by.textContent = "A message from Glimmerbox";
+      fill.style.width = "12%"; fill.style.background = "#ffd84d"; len.textContent = mmss(ADLEN);
+    }
+    if (mode === "ad" && now >= adEnds) {
+      if (ad === 1) { ad = 2; adEnds = now + ADLEN * 1000; by.textContent = "A message from Tallo"; }
+      else {
+        mode = "song"; ad = 3; player.classList.remove("vjs-ad-playing"); player.hidden = true; sleeve.hidden = false;
+        title.textContent = "Tin Roof, Slow Rain"; by.innerHTML = "Odalys Fenwright &middot; Small Hours"; at.textContent = "0:01"; len.textContent = "3:27";
+        fill.style.width = "1%"; fill.style.background = "";
+      }
+    }
+    if (mode === "ad") { advert(t, ad - 1); count.textContent = "Ad " + ad + " of 2 · " + mmss((adEnds - now) / 1000); at.textContent = mmss(ADLEN - (adEnds - now) / 1000); }
+  }
+  advert(0, 0); tick(); setInterval(tick, 40);
+  v.srcObject = cv.captureStream(25);
+  var pv = v.play(); if (pv && pv.catch) pv.catch(function () {});
+  try {   // the station's sound, and the sponsor's: one quiet tone through the station's own element
+    var ac = new AudioContext(), osc = ac.createOscillator(), gain = ac.createGain(), out = ac.createMediaStreamDestination();
+    osc.frequency.value = 220; gain.gain.value = 0.03; osc.connect(gain); gain.connect(out); osc.start();
+    var st = document.getElementById("station"); st.srcObject = out.stream;
+    var ps = st.play(); if (ps && ps.catch) ps.catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

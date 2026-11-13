@@ -1,5 +1,5 @@
 # The PC's own mute (the default playback device), for the break-watch sampler's nights (2026-11-04). Windows PowerShell 5.1 (powershell.exe):
-# PowerShell 7 cannot call the COM interface's methods directly. The capture Prism's meters read is before the endpoint, so a muted PC still
+# PowerShell 7 cannot call the COM interface's methods directly. The capture PRISM's meters read is before the endpoint, so a muted PC still
 # records every window's level.
 #   powershell -NoProfile -File scripts\breakwatch\pc-mute.ps1 get|on|off     prints the state after: muted / unmuted
 param([Parameter(Mandatory = $true)][ValidateSet("get", "on", "off")] [string]$Do)

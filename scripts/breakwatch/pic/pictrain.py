@@ -1,5 +1,5 @@
 """The picture study's model (2026-10-08): a small network that looks at one 160x90 grey frame and says how much it looks like an ad.
-Offline only; nothing here runs in Prism.
+Offline only; nothing here runs in PRISM.
 
     <venv>/python scripts/breakwatch/pic/pictrain.py <frames.npz> <scores.npz> [--mask-corners] [--epochs 6]
 

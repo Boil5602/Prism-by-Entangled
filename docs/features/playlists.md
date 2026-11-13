@@ -180,8 +180,8 @@ video-menu-spec §2 predates them; that doc is not edited here.
   watch-log path), the next not-completed item starts automatically,
   on its own resolved service.
 - If the service's own autoplay rolls into the same episode that's
-  next on the playlist, Prism keeps it. If it rolls into anything else,
-  Prism navigates to the next playlist item. This is navigation only;
+  next on the playlist, PRISM keeps it. If it rolls into anything else,
+  PRISM navigates to the next playlist item. This is navigation only;
   no synthetic clicks (§26).
 - The item that played to its end is marked Completed, with an undo
   shown briefly. Items the user leaves early are not marked.

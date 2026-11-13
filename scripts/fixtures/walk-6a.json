@@ -93,7 +93,7 @@
             "long-press",
             "sheet:Open the full app"
           ],
-          "note": "2026-09-08: the tap reveal went (it took people into the page with no way to tell Back from App settings); the player opens from the sheet, as an inline window with Prism's menu bar"
+          "note": "2026-09-08: the tap reveal went (it took people into the page with no way to tell Back from App settings); the player opens from the sheet, as an inline window with PRISM's menu bar"
         },
         "nextVisual": {
           "route": "prism://item/:item/visual/next",

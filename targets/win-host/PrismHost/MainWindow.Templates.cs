@@ -110,13 +110,13 @@ public sealed partial class MainWindow
         await ReadModelAsync();
         _templates = await ReadTemplatesAsync();
         _tpl = templateId is null ? null : _templates.FirstOrDefault(t => t.Id == templateId);
-        if (templateId is not null && _tpl is null) { SetPill("Prism · no template " + templateId); return; }
+        if (templateId is not null && _tpl is null) { SetPill("PRISM · no template " + templateId); return; }
         _tplLayout = null; _tplPickLayout = false;
         if (templateId is null && customLayoutId is { Length: > 0 })
         {
             // a custom scene: the layout's slots become the roles, walked exactly like a template's
             var lay = _model.Layout(customLayoutId);
-            if (lay is null) { SetPill("Prism · no layout " + customLayoutId); return; }
+            if (lay is null) { SetPill("PRISM · no layout " + customLayoutId); return; }
             _tplLayout = lay; _tpl = CustomTemplateFor(lay);
         }
         if (_tpl is not null)
@@ -184,7 +184,7 @@ public sealed partial class MainWindow
         _wzMain.MaxWidth = _tpl is null ? 1480 : 840;   // the template grid wants the room; a role panel wants a reading width
         if (_tpl is null && _tplPickLayout) { RenderLayoutPicker(); return; }
         var firstRun = _tpl is null && _model.Scenes.Count == 0;
-        _wzLeft.Children.Add(new TextBlock { Text = _tplScene is { } tsid && _model.Scene(tsid) is { } tsc ? "Change apps · " + tsc.Name : firstRun ? "Welcome to Prism" : _tplLayout is not null ? "Custom scene" : "New scene", FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
+        _wzLeft.Children.Add(new TextBlock { Text = _tplScene is { } tsid && _model.Scene(tsid) is { } tsc ? "Change apps · " + tsc.Name : firstRun ? "Welcome to PRISM" : _tplLayout is not null ? "Custom scene" : "New scene", FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI"), FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeInk });
         if (_tpl is null)
         {
             if (firstRun) _wzLeft.Children.Add(new TextBlock { Text = "Nothing is on the screen yet. Pick a scene below; the wizard asks only which services you use, signs you in once, and cuts everything else to fit.", FontSize = 13, Foreground = LeInk, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
@@ -301,11 +301,11 @@ public sealed partial class MainWindow
             main.Children.Add(Section("RESOLVED"));
             var f = _model.Facet(facetId);
             main.Children.Add(new TextBlock { Text = "✓  " + ResolvedText(role.Id) + (f is null ? "" : "   ·   " + f.SlotClass), FontSize = 14, Foreground = LeTeal });
-            // §1: say so when Prism filled this in rather than the household choosing it.
+            // §1: say so when PRISM filled this in rather than the household choosing it.
             if (role.Suggestions.Count == 1 && _catalog.FirstOrDefault(c => c.Id == role.Suggestions[0]) is { } fp
                 && !PrismHost.Core.TemplateRoles.NeverPreresolved(role.Kind)
                 && PrismHost.Core.FirstPartyRole.IsPreresolvable(role.Suggestions, fp.Json))
-                main.Children.Add(Meta("Filled in for you: " + fp.Name + " is part of Prism - there is nothing to sign in to. Change it below if you would rather use something else."));
+                main.Children.Add(Meta("Filled in for you: " + fp.Name + " is part of PRISM - there is nothing to sign in to. Change it below if you would rather use something else."));
             if (VisualizationRoleFor(role) is { } fed && fed.Visualization is { } fv)
                 main.Children.Add(Meta("Hidden in this scene - loaded, zero-size, in audio focus - with " + fed.Label + " showing it as a " + StyleName(fv.Style) + " visualization sourced to it."));
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -457,7 +457,7 @@ public sealed partial class MainWindow
     private async Task ChooseAppForRoleAsync(TRole role, HostCatalogEntry? entry, string? existingAppId)
     {
         var appId = existingAppId ?? (entry is null ? null : await SaveAppFromCatalogAsync(entry));
-        if (appId is null) { SetPill("Prism · could not add that App"); return; }
+        if (appId is null) { SetPill("PRISM · could not add that App"); return; }
         _tplApp[role.Id] = appId;
         await ReadModelAsync();
         _editorContinuations["app-setup"] = (id, saved) => _ = ReadModelAsync().ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(RenderWizard));
@@ -553,7 +553,7 @@ public sealed partial class MainWindow
         if (Math.Abs(zoom - 1) > 0.001) facet["zoom"] = zoom;
         if (role.Kind == "music") facet["music"] = true;
         var raw = await ModelCallAsync("modelSaveFacet", facet);
-        if (raw is null || !raw.Contains("\"ok\":true")) { SetPill("Prism · facet not saved" + (raw is null ? "" : ": " + Shorten(raw, 80))); return null; }
+        if (raw is null || !raw.Contains("\"ok\":true")) { SetPill("PRISM · facet not saved" + (raw is null ? "" : ": " + Shorten(raw, 80))); return null; }
         await ReadModelAsync();
         return id;
     }
@@ -591,7 +591,7 @@ public sealed partial class MainWindow
         {
             var app = new JsonObject { ["id"] = entry.Id, ["name"] = entry.Name, ["baseUrl"] = entry.Url, ["profileId"] = entry.Id, ["setup"] = new JsonObject { ["status"] = "unknown" }, ["render"] = new JsonObject { ["audio"] = "mute" } };
             var raw = await ModelCallAsync("modelSaveApp", app);
-            if (raw is null || !raw.Contains("\"ok\":true")) { SetPill("Prism · could not add " + entry.Name); return; }
+            if (raw is null || !raw.Contains("\"ok\":true")) { SetPill("PRISM · could not add " + entry.Name); return; }
             appId = entry.Id;
             await ReadModelAsync();
         }
@@ -683,7 +683,7 @@ public sealed partial class MainWindow
         var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
         string? id = null;
         try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() == true) id = (r["value"] as JsonObject)?["id"]?.GetValue<string>(); } catch { }
-        if (id is null) { SetPill("Prism · could not create the scene"); return; }
+        if (id is null) { SetPill("PRISM · could not create the scene"); return; }
         LogLine("call {\"fn\":\"template.custom\",\"scene\":\"" + id + "\",\"layout\":\"" + lay.Id + "\"}");
         await ReadModelAsync();
         if (await ApplySceneAsync(id)) RouteBack();
@@ -733,12 +733,12 @@ public sealed partial class MainWindow
     private async Task ChangeMusicServiceAsync(string tileId)   // the "add" variant is gone (2026-10-29): Add a music service opens Set up services
     {
         await ReadModelAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("PRISM · no active scene"); return; }
         var tplId = TemplateOfScene(scene);
         _templates = await ReadTemplatesAsync();
         var tpl = tplId is null ? null : _templates.FirstOrDefault(t => t.Id == tplId);
         var role = tpl?.Hidden.FirstOrDefault(r => r.Kind == PrismHost.Core.TemplateRoles.Music) ?? tpl?.Hidden.FirstOrDefault();
-        if (tpl is null || role is null) { SetPill("Prism · this scene has no music role. Edit the scene's hidden facet instead"); return; }
+        if (tpl is null || role is null) { SetPill("PRISM · this scene has no music role. Edit the scene's hidden facet instead"); return; }
         var hidx = Math.Max(0, tpl.Hidden.IndexOf(role));
         var current = hidx < scene.Hidden.Count ? scene.Hidden[hidx]["facet"]?.GetValue<string>() : null;
         var currentApp = current is null ? null : _model.Facet(current)?.App;
@@ -758,13 +758,13 @@ public sealed partial class MainWindow
         }
         // 2026-09-09: every music service the catalog knows is on this list, not only the
         // role's suggestions - a service whose adapter speaks the Media Session is a music service. The suggestions are the ones
-        // the Widevine-audio POC cleared for the tile; the rest say so, and Prism reads them live once they are signed in.
+        // the Widevine-audio POC cleared for the tile; the rest say so, and PRISM reads them live once they are signed in.
         foreach (var entry in _catalog)
         {
             if (role.Suggestions.Contains(entry.Id)) continue;
             if (!EntryIsMusicService(entry)) continue;
             var known = _model.App(entry.Id);
-            var note = (known is not null ? StatusWord(known) : "not added yet") + "  ·  not yet verified on Prism" + (currentApp == entry.Id ? "  ·  playing now" : "");
+            var note = (known is not null ? StatusWord(known) : "not added yet") + "  ·  not yet verified on PRISM" + (currentApp == entry.Id ? "  ·  playing now" : "");
             var e = entry; var k = known?.Id;
             list.Children.Add(AppRow(entry.Name, note, () => { tcs.TrySetResult((e, k)); dlg.Hide(); }));
         }
@@ -787,7 +787,7 @@ public sealed partial class MainWindow
             var (presetId, presetLabel, selector, url, zoom) = TunedPreset(a2, role);
             var reuse = _model.Facets.Where(f => f.App == a2.Id && f.Music && FacetFits(f.SlotClass, role.Class).Ok).OrderBy(f => FacetFits(f.SlotClass, role.Class).Match == "exact" ? 0 : 1).FirstOrDefault();
             var facetId = reuse?.Id ?? await SaveTunedFacetAsync(role, a2, presetId, presetLabel, selector, url, zoom);
-            if (facetId is null) { SetPill("Prism · could not cut a facet for " + a2.Name); return null; }
+            if (facetId is null) { SetPill("PRISM · could not cut a facet for " + a2.Name); return null; }
             await ReadModelAsync();
             if (_model.Scene(sid) is not { } sc) return null;
             var s = sc.Clone();
@@ -797,9 +797,9 @@ public sealed partial class MainWindow
             if (!s.Hidden.Any(h => h["facet"]?.GetValue<string>() == facetId)) s.Hidden.Add(new JsonObject { ["facet"] = facetId, ["audio"] = role.Audio });
             foreach (var v in s.Visualizations) v["source"] = facetId;   // every stage in this scene draws this service
             var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
-            try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not save the scene"); return null; } } catch { }
+            try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · could not save the scene"); return null; } } catch { }
             LogLine("call {\"fn\":\"music.service\",\"scene\":\"" + sid + "\",\"app\":\"" + a2.Id + "\",\"facet\":\"" + facetId + "\"}");
-            SetPill("Prism · " + a2.Name + " is this PC's music. Tap the stage to pick something, then Play");
+            SetPill("PRISM · " + a2.Name + " is this PC's music. Tap the stage to pick something, then Play");
             await ReadModelAsync();
             await ApplySceneAsync(sid);
             return facetId;
@@ -816,7 +816,7 @@ public sealed partial class MainWindow
         }
         // B-194: a Cancel (Done or Esc with the account still out) undoes the add -
         _pendingAdd = (facet, sid, app.Id, app.Name);
-        SetPill("Prism · sign in to " + app.Name + " here, then Done. Done without signing in cancels");
+        SetPill("PRISM · sign in to " + app.Name + " here, then Done. Done without signing in cancels");
         OpenRoute("prism://facet/" + Uri.EscapeDataString(facet) + "/reveal?mode=window&signin=1");
     }
 
@@ -830,9 +830,9 @@ public sealed partial class MainWindow
     {
         await ReadModelAsync();
         await RefreshMusicSourcesAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("PRISM · no active scene"); return; }
         var sources = _musicSources.ToList();
-        if (sources.Count == 0) { SetPill("Prism · this PC has no music service to remove"); return; }
+        if (sources.Count == 0) { SetPill("PRISM · this PC has no music service to remove"); return; }
         var list = new StackPanel { Spacing = 3, Width = 440 };
         var tcs = new TaskCompletionSource<(string tile, string app, string name)?>();
         var dlg = new ContentDialog { Title = "Remove a music service", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
@@ -855,13 +855,13 @@ public sealed partial class MainWindow
         var next = sc.Clone();
         var before = next.Hidden.Count;
         next.Hidden.RemoveAll(h => h["facet"]?.GetValue<string>() == c.tile);
-        if (next.Hidden.Count == before) { SetPill("Prism · " + c.name + " is not one of this PC's services"); return; }
+        if (next.Hidden.Count == before) { SetPill("PRISM · " + c.name + " is not one of this PC's services"); return; }
         var fallback = next.Hidden.FirstOrDefault()?["facet"]?.GetValue<string>();
         foreach (var v in next.Visualizations) if (v["source"]?.GetValue<string>() == c.tile) v["source"] = fallback;
         var raw = await ModelCallAsync("modelSaveScene", next.ToJson());
-        try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not save the scene"); return; } } catch { }
+        try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · could not save the scene"); return; } } catch { }
         LogLine("call {\"fn\":\"music.service.remove\",\"scene\":\"" + sid + "\",\"app\":\"" + c.app + "\",\"facet\":\"" + c.tile + "\"}");
-        SetPill("Prism · " + c.name + "'s facet left this scene. The App stays under Apps" + (fallback is null ? ". This PC has no music service now" : ""));
+        SetPill("PRISM · " + c.name + "'s facet left this scene. The App stays under Apps" + (fallback is null ? ". This PC has no music service now" : ""));
         await ReadModelAsync();
         await ApplySceneAsync(sid);
     }
@@ -871,9 +871,9 @@ public sealed partial class MainWindow
     {
         if (_tpl is null || _tplScene is null) return;
         var tpl = _tpl;
-        if (OpenRoles(tpl).Count > 0) { SetPill("Prism · every role must be resolved first"); return; }
+        if (OpenRoles(tpl).Count > 0) { SetPill("PRISM · every role must be resolved first"); return; }
         await ReadModelAsync();
-        if (_model.Scene(_tplScene) is not { } scene) { SetPill("Prism · that scene is gone"); return; }
+        if (_model.Scene(_tplScene) is not { } scene) { SetPill("PRISM · that scene is gone"); return; }
         var s = scene.Clone();
         foreach (var role in tpl.Roles)
         {
@@ -896,7 +896,7 @@ public sealed partial class MainWindow
             s.Hidden[i]["facet"] = hf;
         }
         var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
-        try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · " + (r["error"]?.GetValue<string>() ?? "could not save the scene")); return; } } catch { }
+        try { if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · " + (r["error"]?.GetValue<string>() ?? "could not save the scene")); return; } } catch { }
         LogLine("call {\"fn\":\"template.save\",\"scene\":\"" + s.Id + "\",\"template\":\"" + tpl.Id + "\"}");
         await ReadModelAsync();
         if (await ApplySceneAsync(s.Id)) RouteBack();
@@ -907,7 +907,7 @@ public sealed partial class MainWindow
     {
         if (_tpl is null) return;
         var tpl = _tpl;
-        if (OpenRoles(tpl).Count > 0) { SetPill("Prism · every role must be resolved first"); return; }
+        if (OpenRoles(tpl).Count > 0) { SetPill("PRISM · every role must be resolved first"); return; }
         // Running the wizard twice must not silently make two scenes with the same
         // name (found in the 2026-09-05 audit): suggest the first unused one.
         var suggested = tpl.Name;
@@ -925,13 +925,13 @@ public sealed partial class MainWindow
         {
             if (raw is not null && JsonNode.Parse(raw) is JsonObject r)
             {
-                if (r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · " + (r["error"]?.GetValue<string>() ?? "could not create the scene")); return; }
+                if (r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · " + (r["error"]?.GetValue<string>() ?? "could not create the scene")); return; }
                 sceneId = (r["value"] as JsonObject)?["scene"] is JsonObject sc ? sc["id"]?.GetValue<string>() : null;
                 if (r["warnings"] is JsonArray w) foreach (var x in w) LogLine("template note: " + x);
             }
         }
         catch { }
-        if (sceneId is null) { SetPill("Prism · the template produced no scene"); return; }
+        if (sceneId is null) { SetPill("PRISM · the template produced no scene"); return; }
         await ReadModelAsync();
         if (await ApplySceneAsync(sceneId)) RouteBack();
     }

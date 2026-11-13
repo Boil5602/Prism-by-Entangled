@@ -1,10 +1,10 @@
-"""The learned break detector over several marked days (2026-10-08): scored by channel held out, then exported for Prism.
+"""The learned break detector over several marked days (2026-10-08): scored by channel held out, then exported for PRISM.
 
     python scripts/breakwatch/train2.py --day <feat.csv> <golden day folder> [--day ...] [--base <day>[,<day>]] [--export model.json [parity.csv]]
 
 Each channel is scored by trees that never saw it, on caption scores from a classifier that never saw it either, and the trees' own caption
 inputs on the training channels come from classifiers that left each of them out in turn - nothing of the held-out channel reaches its own
-score. The hand rules ("active", what Prism ran when the day was recorded) are scored on the same seconds. The export trains on everything,
+score. The hand rules ("active", what PRISM ran when the day was recorded) are scored on the same seconds. The export trains on everything,
 in export_model.py's format, and checks itself against scikit-learn. --base names day folders: each channel is also scored by the same
 recipe trained on those days alone (still without the channel), on the same seconds - what a day of marking added.
 """
@@ -171,7 +171,7 @@ for feat, day in DAYS:
         t = a[:, 0]
         X, fn = features(a, names, ix, skip=SKIP2, taus=TAUS, by_seconds=True)
         # a marked ad stretch longer than 8 minutes is an infomercial (paid programming, hours of it overnight): a programme, not a break -
-        # Prism covers it by the guide and the phone-number rule; it is left out of the break model's training and score
+        # PRISM covers it by the guide and the phone-number rule; it is left out of the break model's training and score
         info = [(a_, b_) for a_, b_ in lab["ads"] if sec(b_) - sec(a_) > 480]
         keep = spans(t, lab.get("reviewed", [])) & ~spans(t, lab.get("neutral", [])) & ~spans(t, info)
         for r0 in restarts: keep &= ~((t >= r0 - 20) & (t <= r0 + 180))
@@ -290,6 +290,9 @@ def rows_of(sc, sel, days=None):
 
 
 PAIRS = {}      # the caption classifiers that leave two channels out, kept across the held-out channels ({c, d} is {d, c})
+DONE = set()    # the channels already scored: a pair whose other channel is done is used once more and dropped (2026-11-08: the cache
+                # held every pair to the end, about 1,300 classifiers over 51 channels, and the run grew past 24 GB; PAIRCACHE=0 keeps none)
+PAIRCACHE = os.environ.get("PAIRCACHE", "1") != "0"
 
 
 def held_out(c, days=None):
@@ -297,6 +300,7 @@ def held_out(c, days=None):
     the cover the policy would draw on c's kept seconds, on every day."""
     def inner(d):
         key = (frozenset((c, d)), days)
+        if not PAIRCACHE: return cap_fit({c, d}, days)
         if key not in PAIRS: PAIRS[key] = cap_fit({c, d}, days)
         return PAIRS[key]
     test_cap = cap_fit({c}, days)
@@ -313,6 +317,43 @@ def held_out(c, days=None):
         cov.append(policy(pr, **POLICY)[k])               # the policy runs over the whole window's time, as live
         probs.append((pr, k))
     return np.concatenate(cov), len(y), probs
+
+
+# GROUPS=N (2026-11-11, agreed 2026-11-09): the channels are held out a group at a time instead of one at a time - N tree fits in place
+# of one a channel. Every channel with marked seconds goes to a group, largest first to the group with the fewest seconds so far. A
+# training channel's caption scores come from a classifier that left out the held-out group and that channel's own group, so nothing
+# of a channel reaches its own caption inputs; the held-out group's come from a classifier that left the group out.
+GROUPS = int(os.environ.get("GROUPS", "0"))
+GROUP_OF = {}
+if GROUPS:
+    _all = sorted({c for v in P.values() for c, k in zip(v["ch"], v["keep"]) if k})
+    _n = {c: sum(int((v["keep"] & (v["ch"] == c)).sum()) for v in P.values()) for c in _all}
+    _load = [0] * GROUPS
+    for c in sorted(_all, key=lambda c: (-_n[c], c)):
+        g = min(range(GROUPS), key=lambda i: (_load[i], i)); GROUP_OF[c] = g; _load[g] += _n[c]
+    print("groups: " + "; ".join(f"{g + 1}: {', '.join(c for c in _all if GROUP_OF[c] == g)} ({_load[g]} s)" for g in range(GROUPS)), flush=True)
+GRES = {}       # channel -> held_out's answer, filled a group at a time
+
+
+def held_out_group(c):
+    if c in GRES: return GRES.pop(c)
+    g = GROUP_OF[c]; S = {d for d, k in GROUP_OF.items() if k == g}
+    test_cap = cap_fit(S)
+    inner = {j: cap_fit(S | {d for d, k in GROUP_OF.items() if k == j}) for j in range(GROUPS) if j != g}
+    sc_tr = cap_scores(lambda d: inner[GROUP_OF[d]] if d in GROUP_OF and GROUP_OF[d] != g else test_cap)
+    X, y = rows_of(sc_tr, lambda v: ~np.isin(v["ch"], list(S)))
+    m = gbm(); m.fit(X, y, sample_weight=balanced(y))
+    sc_te = cap_scores(lambda d: test_cap)
+    for c2 in S:
+        cov, probs = [], []
+        for key, v in P.items():
+            k = v["keep"] & (v["ch"] == c2)
+            if not k.any(): continue
+            XF = np.hstack([v["X"], cap_feat(v["t"], v["ct"], sc_te[key])])
+            pr = m.predict_proba(XF)[:, 1]
+            cov.append(policy(pr, **POLICY)[k]); probs.append((pr, k))
+        if cov: GRES[c2] = (np.concatenate(cov), len(y), probs)
+    return GRES.pop(c)
 
 
 if "--manifest" in args: trained_manifest(args[args.index("--manifest") + 1])
@@ -364,7 +405,7 @@ if EXAMS:
     if PIC:
         variants += [("with the picture", list(range(len(FN)))), ("with the picture's 3 s mean alone", [i for i, n in enumerate(FN) if n not in ("pic", "pic_mean8")])]
     ON = 0.80
-    print(f"EXAMS: trees trained on {len(ya)} marked seconds ({int(ya.sum())} ads); cover above {ON} twice running, ends below 0.55; the trees alone, none of Prism's sure rules", flush=True)
+    print(f"EXAMS: trees trained on {len(ya)} marked seconds ({int(ya.sum())} ads); cover above {ON} twice running, ends below 0.55; the trees alone, none of PRISM's sure rules", flush=True)
     for vn, cols in variants:
         m = gbm(); m.fit(Xa[:, cols], ya, sample_weight=balanced(ya))
         if PIC and len(cols) == len(FN):
@@ -399,7 +440,7 @@ if EXAMS:
                 print(f"   {e_['name']:<18} ads covered {100 * cc[yy].mean():5.1f}%  show wrongly covered {100 * cc[~yy].mean():5.2f}% ({int((cc & ~yy).sum())} s)  AUC {roc_auc_score(yy, pr[em]):.4f}  cover begins {np.median(lat):4.1f} s into a break (median of {len(lat)}, mean {np.mean(lat):.1f})", flush=True)
         if vn == "as live":
             # the look-ahead: the same trees and threshold, their covers placed with D seconds of hindsight
-            for D_, lo_, hi_, fi_ in ((0, 0, 0, True), (10, 0.3, 0.7, True), (20, 0.3, 0.7, True), (30, 0.3, 0.7, True), (20, 0.3, 0.7, False), (20, 0.3, 0.85, False), (20, 0.3, 0.9, False), (20, 0.5, 0.9, False), (20, 0.15, 0.9, False)):
+            for D_, lo_, hi_, fi_ in ((0, 0, 0, True),) + tuple((int(x_), 0.3, 0.7, True) for x_ in os.environ.get("AHEAD", "").split(",") if x_) + ((10, 0.3, 0.7, True), (20, 0.3, 0.7, True), (30, 0.3, 0.7, True), (20, 0.3, 0.7, False), (20, 0.3, 0.85, False), (20, 0.3, 0.9, False), (20, 0.5, 0.9, False), (20, 0.15, 0.9, False)):
                 tot2 = [0, 0, 0, 0]; lat2 = []; lin2 = []; per = []
                 for k_, e_ in enumerate(EXAMS):
                     for key, v in P.items():
@@ -444,6 +485,20 @@ if "--no-eval" not in args:
     tot = {k_: [0, 0, 0, 0] for k_ in cols}
     PROBS = {}      # per scorer: (a window's probabilities over its whole time, the held-out channel's kept rows, their marks)
     if BASE: print("base = the same recipe trained on", ", ".join(sorted(BASE)), "alone (what the live model saw), the channel still held out", flush=True)
+    # --skip-done <earlier run's text> (2026-11-09): the channels that run already scored are left out, so a run stopped by a reboot
+    # or a memory guard resumes where it stopped; the per-channel lines are deterministic for the same days, and the ALL figures are
+    # then assembled from both files' lines (scripts/breakwatch/redesign/heldout-join.py)
+    if "--skip-done" in args:
+        import re as _re
+        done_ = set()
+        for prev in args[args.index("--skip-done") + 1:]:
+            if prev.startswith("--") or not os.path.exists(prev): break
+            for line in open(prev, encoding="utf-8", errors="replace"):
+                m_ = _re.match(r"^\s*(.+?):\s+rules ads", line)
+                if m_: done_.add(m_.group(1))
+        chans = [c for c in chans if c not in done_]
+        print(f"skipping {len(done_)} channels already scored; {len(chans)} to go", flush=True)
+    if GROUPS: chans = sorted(chans, key=lambda c: (GROUP_OF[c], c))
     for n_, c in enumerate(chans):
         mine = [v for v in P.values() if (v["keep"] & (v["ch"] == c)).any()]
         yv = np.concatenate([v["y"][v["keep"] & (v["ch"] == c)] for v in mine])
@@ -451,7 +506,7 @@ if "--no-eval" not in args:
         on_days = sorted({v["day"] for v in mine})
         ads = yv > 0
         got = {"rules": act}
-        got["model"], n_all, pr = held_out(c)
+        got["model"], n_all, pr = held_out_group(c) if GROUPS else held_out(c)
         PROBS.setdefault("model", []).extend((p_, k_, y_) for (p_, k_), y_ in zip(pr, [v["y"][v["keep"] & (v["ch"] == c)] for v in mine]))
         if BASE:
             got["base"], n_base, pr = held_out(c, BASE)
@@ -468,6 +523,8 @@ if "--no-eval" not in args:
             line += f"  {k_} ads {100*a_:5.1f}% wrong {100*s_:5.2f}%"
             tot[k_][0] += a_ * ads.sum(); tot[k_][1] += ads.sum(); tot[k_][2] += s_ * (~ads).sum(); tot[k_][3] += (~ads).sum()
         print(line + f"   ({ads.sum()} ad s, {(~ads).sum()} show s; marked on {'+'.join(d[-5:] for d in on_days)}; trained on {n_all} s{', base ' + str(n_base) if BASE else ''}; {n_ + 1}/{len(chans)}, {time.time() - T0:.0f} s)", flush=True)
+        DONE.add(c)
+        for k_ in [k for k in PAIRS if k[0] <= DONE]: del PAIRS[k_]    # a pair of two scored channels has no further use
     for k_, v in tot.items():
         print(f"ALL {k_}: ads covered {100*v[0]/v[1]:.1f}%  show wrongly covered {100*v[2]/v[3]:.2f}%", flush=True)
     # one threshold is one point on each scorer's curve: the ranking itself (AUC: the chance a marked ad second scores above a show second;

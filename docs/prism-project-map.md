@@ -2,11 +2,13 @@
 
 *Open-source dashboard frames: own the hardware, read the software, keep your attention.*
 
-Everything ships under one name, **Prism**, in three layers: the frames you build, the software that runs them, and the site that guides you. Merge and Prism Photos sit alongside as companion products.
+Everything ships under one name, **PRISM**, in three layers: the frames you build, the software that runs them, and the site that guides you. Merge and PRISM Photos sit alongside as companion products.
+
+*Decision (2026-11-10):* the name is written **PRISM**, in capitals, wherever a person reads it: the app, the extension, the phone pages, the docs and the notes of a release. Paths, file names and the other identifiers keep the spelling they have (CLAUDE.md lists them; `node scripts/audit-brand.mjs` checks it).
 
 ---
 
-## 1 · The devices — **Prism Frames** (five builds, one ecosystem)
+## 1 · The devices — **PRISM Frames** (five builds, one ecosystem)
 
 | Build | Name | Cost | Character |
 |---|---|---|---|
@@ -20,15 +22,15 @@ Shared capabilities across all builds: 2–7 live web tiles · hero layouts with
 
 ## 2 · The software
 
-**prism-core** — the shared TypeScript brain. Every behavior lives here once: the layout solver, audio-focus rules, tile lifecycle, refresh/no-white-frame engine, region focus, adapters runtime, remote API, pairing, alarms, sharing/validation. Shells implement only a thin driver seam; a conformance kit defines what counts as a Prism.
+**prism-core** — the shared TypeScript brain. Every behavior lives here once: the layout solver, audio-focus rules, tile lifecycle, refresh/no-white-frame engine, region focus, adapters runtime, remote API, pairing, alarms, sharing/validation. Shells implement only a thin driver seam; a conformance kit defines what counts as a PRISM.
 
-**Prism Shell** — the Android app. Runs Builds 1, 2, and 4 (tablets and TV boxes). Device-owner kiosk mode (Android disappears), WebView tiles with isolated per-tile profiles, intent-launch tiles for native TV apps, d-pad and touch complete.
+**PRISM Shell** — the Android app. Runs Builds 1, 2, and 4 (tablets and TV boxes). Device-owner kiosk mode (Android disappears), WebView tiles with isolated per-tile profiles, intent-launch tiles for native TV apps, d-pad and touch complete.
 
 **PrismOS** — the flashable Linux image (Pi 5 / x86 mini PC). Boots to dashboard in ~30s, Chromium tiles under a Wayland compositor, PIR motion wake on GPIO, HDMI-CEC power, native uBlock-class blocking, fully auditable, no Google anywhere. The Windows kiosk recipe (Build 5) is this daemon with Edge drivers, community-maintained.
 
-**Prism Remote** — the phone PWA. Installed from a QR on the frame: full remote control, layout switching, private listening (frame audio to your headphones), tile sign-ins, one per family member, revocable per phone. iOS and Android, no app store.
+**PRISM Remote** — the phone PWA. Installed from a QR on the frame: full remote control, layout switching, private listening (frame audio to your headphones), tile sign-ins, one per family member, revocable per phone. iOS and Android, no app store.
 
-**Prism Editor** — the web dashboard designer. The reference solver with live drag-the-hero reflow, device previews (tablet/TV/portrait), per-tile aspect hints and audio policy, region-focus picker, schema JSON export. What you design is pixel-identical on every device.
+**PRISM Editor** — the web dashboard designer. The reference solver with live drag-the-hero reflow, device previews (tablet/TV/portrait), per-tile aspect hints and audio policy, region-focus picker, schema JSON export. What you design is pixel-identical on every device.
 
 ## 3 · The site — **entangled.world/prism**
 
@@ -46,7 +48,7 @@ Shared capabilities across all builds: 2–7 live web tiles · hero layouts with
 
 **Merge** — the family calendar (the original app, grown up). $59 per household, one-time, for the life of the major version. Multi-tenant sync with phones and Apple/Google calendars, web-first client, calendar tiles on every frame. Promises with teeth: 90-day shutdown notice, export always, server open-sourced if hosting ever ends. Sold only on the site — zero app-store exposure.
 
-**Prism Photos** *(phase two/three concept)* — photos at wholesale: client-encrypted storage in your own bucket or the cooperative pool (rate-formula billing, open books, member votes, unilateral exit), deliberate sharing to family frames, legible client-side algorithms. Starts free today via iCloud Shared Album tiles.
+**PRISM Photos** *(phase two/three concept)* — photos at wholesale: client-encrypted storage in your own bucket or the cooperative pool (rate-formula billing, open books, member votes, unilateral exit), deliberate sharing to family frames, legible client-side algorithms. Starts free today via iCloud Shared Album tiles.
 
 ## 5 · The principles underneath (what makes it one product)
 
@@ -56,6 +58,6 @@ Shared capabilities across all builds: 2–7 live web tiles · hero layouts with
 - Data minimization as architecture: the published inventory of everything a court order could yield
 - Sessions and storage are never wiped by the software; only you delete
 - Calm connection: content arrives because a person sent it, foregrounds once, never metricized
-- Open source throughout; self-hosting is always the escape hatch; the conformance kit means anyone can build a Prism
+- Open source throughout; self-hosting is always the escape hatch; the conformance kit means anyone can build a PRISM
 
 *Status: spec complete (25 sections) · editor and wizard prototypes working · hardware guide with sourcing done · next: extract prism-core, build the Android driver seam, first dashboard on a real tablet.*

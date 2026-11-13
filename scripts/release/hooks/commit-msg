@@ -1,6 +1,6 @@
 #!/bin/sh
 # The owner's words never enter a commit message either (2026-11-05: the archive is pushed, and its messages had quoted them). A message
-# that quotes someone in a person's voice is refused: describe the ask in Prism's own words, with its date. The exact wording, when worth
+# that quotes someone in a person's voice is refused: describe the ask in PRISM's own words, with its date. The exact wording, when worth
 # keeping, goes in .private/owner-words.md, which git ignores.
 # Switch it on once:  cp scripts/release/hooks/commit-msg .git/hooks/commit-msg
 python - "$1" <<'PY'

@@ -2,7 +2,7 @@
  * Visualizations (dashboard-schema §32, layer 1): placeable audio-reactive
  * content whose source is a hidden music facet. ONE renderer in every shell,
  * driven by style packs (data under packages/core/data/visualization-styles):
- * Prism Beams · Spectrum · Ribbon · Bloom. This module holds what is shared —
+ * PRISM Beams · Spectrum · Ribbon · Bloom. This module holds what is shared —
  * the pack schema and its validation, the artwork-mode rules, the §16
  * crossfade timing, the reduced-motion posture, the palette tint from album
  * art, and the deterministic development signal every renderer can be
@@ -24,10 +24,10 @@ import type { Rect } from "./solver.js";
 /** The brand's four bands (prism-build-wizard.jsx tokens): the default palette when no art tints it. */
 export const PRISM_BANDS: readonly string[] = ["#F0A83C", "#5CC8C0", "#C86CF0", "#F05C7A"];
 
-export const VISUALIZATION_STYLE_IDS: readonly VisualizationStyle[] = ["prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave"];
+export const VISUALIZATION_STYLE_IDS: readonly VisualizationStyle[] = ["prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave", "seasons"];
 
-/** The sixteen tableau programs (a pack's `program` names the tableau it draws); the four originals are beams / bars / ribbon / particles. */
-export const TABLEAU_PROGRAMS: readonly string[] = ["aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave"];
+/** The tableau programs (a pack's `program` names the tableau it draws); the four originals are beams / bars / ribbon / particles. */
+export const TABLEAU_PROGRAMS: readonly string[] = ["aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave", "seasons"];
 
 export const ARTWORK_MODES: readonly ArtworkMode[] = ["off", "backdrop", "focal"];
 

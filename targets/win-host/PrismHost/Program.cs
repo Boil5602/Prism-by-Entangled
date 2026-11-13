@@ -2,7 +2,7 @@ namespace PrismHost;
 
 /// <summary>
 /// The entry point, written out (2026-10-23) so one exe is two programs: with --launcher it is the phone launcher (Services/PhoneLauncher),
-/// which opens no window and starts no XAML, and otherwise it is Prism, started exactly as the XAML compiler's own Main did.
+/// which opens no window and starts no XAML, and otherwise it is PRISM, started exactly as the XAML compiler's own Main did.
 /// </summary>
 public static class Program
 {

@@ -46,9 +46,9 @@ public sealed partial class MainWindow
     private void OpenMiniPlayer(string tileId, string source)
     {
         if (_mini is not null) { try { _mini.Activate(); } catch { } return; }
-        if (!StageFillsWall(tileId)) { SetPill("Prism " + (char)0xB7 + " the mini player is for a stage that fills the screen. This one shares the scene with other tiles"); LogLine("mini player: refused - the stage does not fill the wall"); return; }
+        if (!StageFillsWall(tileId)) { SetPill("PRISM " + (char)0xB7 + " the mini player is for a stage that fills the screen. This one shares the scene with other tiles"); LogLine("mini player: refused - the stage does not fill the wall"); return; }
         var spec = _surfaces.VisualizationSpec(tileId);
-        if (spec is null) { SetPill("Prism " + (char)0xB7 + " no visual on this stage yet"); return; }
+        if (spec is null) { SetPill("PRISM " + (char)0xB7 + " no visual on this stage yet"); return; }
         var mini = new MiniPlayer.MiniPlayerWindow { Log = LogLine };
         mini.Command += cmd =>
         {
@@ -61,7 +61,7 @@ public sealed partial class MainWindow
                 if (_surfaces.DeadFor(source) is { } dead)
                 {
                     LogLine("mini player: " + cmd + " on a dead page (" + source + ", dead " + (int)dead.TotalSeconds + " s)");
-                    mini.Notice(dead < TimeSpan.FromSeconds(15) ? "The player's page crashed. Prism is loading it again" : "The player's page crashed and could not be loaded again. Restart Prism");
+                    mini.Notice(dead < TimeSpan.FromSeconds(15) ? "The player's page crashed. PRISM is loading it again" : "The player's page crashed and could not be loaded again. Restart PRISM");
                 }
                 _brain.Call(HostCalls.TileCommand, source, cmd);
             }

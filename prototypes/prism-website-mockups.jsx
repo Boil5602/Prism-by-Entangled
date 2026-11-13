@@ -135,7 +135,7 @@ function Kitchen({ veiled }) {
       <div style={{ position: "absolute", left: 0, top: "82%", width: "100%", height: "18%", padding: 3 }}>
         <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: 5, overflow: "hidden" }}><Ticker /></div>
       </div>
-      <div style={{ position: "absolute", right: 12, bottom: "20%", background: "rgba(20,23,28,.6)", border: `1px solid ${T.edge}`, borderRadius: 20, padding: "3px 10px", color: T.dim, fontSize: 8.5, ...mono }}>Prism</div>
+      <div style={{ position: "absolute", right: 12, bottom: "20%", background: "rgba(20,23,28,.6)", border: `1px solid ${T.edge}`, borderRadius: 20, padding: "3px 10px", color: T.dim, fontSize: 8.5, ...mono }}>PRISM</div>
     </>
   );
 }
@@ -248,7 +248,7 @@ function ControlCenter() {
         ))}
         <div style={{ color: T.faint, fontSize: 8, marginTop: 8, ...mono }}>4h 12m reclaimed this month · everything stays on this device</div>
       </div>
-      <div style={{ position: "absolute", right: 22, bottom: 14, background: "rgba(20,23,28,.75)", border: `1px solid ${T.edge}`, borderRadius: 20, padding: "4px 12px", color: T.ink, fontSize: 9.5, ...mono }}>Prism · 3 popups blocked</div>
+      <div style={{ position: "absolute", right: 22, bottom: 14, background: "rgba(20,23,28,.75)", border: `1px solid ${T.edge}`, borderRadius: 20, padding: "4px 12px", color: T.ink, fontSize: 9.5, ...mono }}>PRISM · 3 popups blocked</div>
     </div>
   );
 }
@@ -291,10 +291,10 @@ export default function Mockups() {
         <p style={{ color: T.dim, fontSize: 13, maxWidth: 560, margin: "0 auto", lineHeight: 1.5 }}>Demo household ("the Parkers"), open-licensed media labels, no real service frames, no tokens. Each is a composition reference for the real screenshots.</p>
       </header>
 
-      <Wall caption="1 · Kitchen Command — the archetype: video hero, Merge family + work calendars, weather, derived-shelf news ticker. The quiet Prism pill sits bottom-right."><Kitchen veiled={false} /></Wall>
+      <Wall caption="1 · Kitchen Command — the archetype: video hero, Merge family + work calendars, weather, derived-shelf news ticker. The quiet PRISM pill sits bottom-right."><Kitchen veiled={false} /></Wall>
       <Wall caption="2 · The moment that sells everything: the ad break becomes a Bierstadt. Intermission card with pause-after-break, and the full §3.2 attribution in the corner — title · creator · credit · licence, never the credit alone unless the card is minimised."><Kitchen veiled={true} /></Wall>
       <Wall caption="3 · Sports Multiview — a main game with two beside it, both advancing as living previews. The scoreboard strip below; §14 listener chips bottom-left, both phones on the game that owns the sound (one capture of the wall's audio, not a per-slot feed)."><Sports /></Wall>
-      <Wall caption="4 · Prism Beams — the signature visualizer over an album-art backdrop, fed by a hidden music facet. The logo is the feature."><Visualizer /></Wall>
+      <Wall caption="4 · PRISM Beams — the signature visualizer over an album-art backdrop, fed by a hidden music facet. The logo is the feature."><Visualizer /></Wall>
       <Wall caption="5 · Popup Control Center — the transparency receipt: every intercepted popup named, attributed to the rule that caught it, one tap to open or always-allow. Time-reclaimed ledger underneath."><ControlCenter /></Wall>
       <Wall tall caption="6 · Family Hub, portrait — the solver's range: Merge week, shared album, weather-to-wear, chores. Proof the frame isn't TV-shaped."><Portrait /></Wall>
 

@@ -136,6 +136,40 @@ describe("Facebook", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
     expect(detect(PV, post("org", hdr("13h") + `<div data-ad-rendering-role="story_message" ${R(0, 60, 680, 600)}></div><div data-ad-preview="message"></div>`))).toEqual([]);
   });
+  // a suggested post: Facebook's own Follow button on the line of the page's name (opt-in, 2026-11-11)
+  const sug = (follow, at = 2) => `<div ${R(0, 0, 680, 60)}><h3 ${R(0, 0, 200, 20)}><strong>Some League</strong></h3><span ${R(210, at, 50, 18)}>${follow}</span><div ${R(0, 30, 200, 20)}><span>13h</span></div></div><div data-ad-rendering-role="story_message" ${R(0, 60, 680, 600)}></div>`;
+  it("covers a post with a Follow button beside the name, only when the switch is on", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    expect(detect(PV, post("s", sug("Follow")))).toEqual([]);
+    PV.uiPrefs = { suggestedVeil: true };
+    const out = detect(PV, post("s", sug("Follow")));
+    expect(out.map((o) => o.id)).toEqual(["s"]);
+    expect(out[0].why).toMatch(/^facebook-suggested: /);
+    expect(detect(PV, post("g", sug("Join"))).map((o) => o.why)).toEqual(["facebook-suggested: Join button in the header"]);
+  });
+  it("leaves a followed page's post and a share with Follow lower down", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, post("org", sug("Following")))).toEqual([]);
+    expect(detect(PV, post("share", sug("Follow", 140)))).toEqual([]);
+  });
+  it("covers a suggested group by its Interested and Not interested buttons, never by one word alone", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    const grp = (a, b, by = 700) => `<div ${R(0, 0, 680, 60)}><h3 ${R(0, 0, 200, 20)}><strong>Some Group</strong></h3></div><div data-ad-rendering-role="story_message" ${R(0, 60, 680, 600)}></div><div ${R(0, 690, 680, 40)}><span ${R(20, 700, 90, 18)}>${a}</span><span ${R(350, by, 110, 18)}>${b}</span></div>`;
+    expect(detect(PV, post("g", grp("Interested", "Not interested")))).toEqual([]);
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, post("g", grp("Interested", "Not interested"))).map((o) => o.why)).toEqual(["facebook-suggested: Interested and Not interested buttons"]);
+    expect(detect(PV, post("one", grp("Interested", "Share")))).toEqual([]);
+    expect(detect(PV, post("apart", grp("Interested", "Not interested", 300)))).toEqual([]);
+  });
+  it("covers the rail's Sponsored block up to the next heading, not the Birthdays block under it", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    const out = detect(PV, `<div role="complementary" ${R(1500, 56, 360, 1200)}><div id="both" ${R(1500, 56, 360, 566)}>
+      <div id="spons" ${R(1500, 56, 360, 450)}><div ${R(1516, 56, 328, 21)}><h3 ${R(1516, 56, 320, 21)}><span ${R(1516, 56, 320, 21)}>Sponsored</span></h3></div><a href="#" ${R(1500, 90, 360, 400)}><img ${R(1516, 90, 130, 130)}></a></div>
+      <div id="bday" ${R(1500, 506, 360, 108)}><div ${R(1516, 506, 328, 21)}><h3 ${R(1516, 506, 320, 21)}><span ${R(1516, 506, 320, 21)}>Birthdays</span></h3></div><a href="#" ${R(1500, 540, 344, 55)}><span>Someone and 3 others</span></a></div>
+    </div></div>`);
+    expect(out.map((o) => o.id)).toEqual(["spons"]);
+  });
   it("never covers an organic post", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
     expect(detect(PV, post("org", `<div>Hello from a friend</div><video></video>`))).toEqual([]);
@@ -209,6 +243,18 @@ describe("MSN", () => {
       <a class="me-stripe-tile-button" id="t2" ${R(130, 0, 120, 100)}><div class="me-stripe-title-subtitle" ${R(130, 80, 60, 14)}>Adventure</div></a>
       <a class="me-stripe-tile-button" id="t3" ${R(260, 0, 120, 100)}></a>`);
     expect(out.map((o) => o.id)).toEqual(["t1"]);
+  });
+});
+
+describe("no-ads hosts", () => {
+  // report 2026-11-09: the Azure portal's own service tiles (fxs-home-ad-container)
+  const AZ = `<div class="fxs-home-ad-container" id="row" role="row" ${R(0, 0, 1052, 127)}><div class="fxs-home-ad-tile" ${R(0, 0, 253, 110)}><a class="fxs-home-ad-link fxs-home-blade-tile" id="tile" aria-label="Microsoft Defender for Cloud" ${R(1, 1, 251, 108)}></a></div></div>`;
+  it("the Azure portal's tool tiles are never covered", () => {
+    expect(detect(loadVeil({ host: "portal.azure.com" }), AZ)).toEqual([]);
+    expect(detect(loadVeil({ host: "ms.portal.azure.com" }), AZ)).toEqual([]);
+  });
+  it("the same markup elsewhere still matches the slot", () => {
+    expect(detect(loadVeil({ host: "example.com" }), AZ).length).toBeGreaterThan(0);
   });
 });
 
@@ -299,7 +345,7 @@ describe("GAM out-of-page slots / Jetpack masthead", () => {
 
 // The ad's own X stays reachable through a display cover (0.7.150): a hole is
 // cut only over a control that plainly says close, is small, and that a
-// hit-test actually reaches once Prism's own layers are skipped.
+// hit-test actually reaches once PRISM's own layers are skipped.
 describe("close control through the cover", () => {
   function loadCovers(PV) {
     const { readFileSync } = require("node:fs");
@@ -658,20 +704,100 @@ describe("Pogo close button through the cover", () => {
 
 // The photo credit on the cover's symbol (2026-10-15): read on hover from
 // the photo on screen, bundled or hosted alike (same file name).
-describe("the cover symbol credits its photo on hover", () => {
-  it("names the photo, its author and license; a hosted URL is credited by its file name", () => {
+describe("the look under a display cover", () => {
+  const load = () => {
     const PV = loadVeil();
     (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
-    PV.ART_CREDITS = { "commons_coral_reef_84.jpg": "Coral reef | Photo: NOAA | Public domain" };
-    const c = document.createElement("div");
+    return PV;
+  };
+  it("says what was covered and by which signal", () => {
+    const PV = load();
+    expect(PV.coverWhy("badge-label: Sponsored", false)).toEqual({ kind: "An ad", source: "The page's own label: Sponsored" });
+    expect(PV.coverWhy("facebook-suggested: Join button in the header", false).kind).toBe("A suggested post");
+    expect(PV.coverWhy("facebook-suggested: Join button in the header", false).source).toContain("Join");
+    expect(PV.coverWhy("facebook-suggested: Interested and Not interested buttons", false).source).toContain("Interested");
+    expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labelled AI content");
+    expect(PV.coverWhy("slot-selector: .ad-slot", false).source).toBe("An ad slot in the page");
+  });
+  it("keeps the panel on the screen and the view inside the element, in a frame of one size, or says there is no such place", () => {
+    const PV = load();
+    // a 340 px panel, its 320 px frame 10 px in, a 160 px view, an element from 1640 to 2000 on a screen 2550 wide: the panel where
+    // it was wanted, the view in the middle of the frame
+    expect(PV.lookPlace(1650, 10, 340, 320, 160, 1640, 2000, 2550)).toEqual({ p: 1650, a: 80 });
+    // the same element at the right edge of a 2000 px screen: the panel moves left to stay on the screen
+    expect(PV.lookPlace(1830, 10, 340, 320, 160, 1640, 2000, 2000)).toEqual({ p: 1654, a: 80 });
+    // an element 110 px wide at the right edge: the view goes to the frame's right side, the panel stays on the screen
+    expect(PV.lookPlace(1910, 10, 340, 320, 86, 1890, 2000, 2000)).toEqual({ p: 1654, a: 226 });
+    // a screen narrower than the panel: no place
+    expect(PV.lookPlace(10, 10, 340, 320, 160, 0, 300, 300)).toBeNull();
+    // an element at the bottom edge with the frame at the panel's top: no place (the panel then turns its frame to its foot)
+    expect(PV.lookPlace(570, 10, 360, 200, 100, 543, 674, 674)).toBeNull();
+    expect(PV.lookPlace(175, 150, 360, 200, 100, 543, 674, 674)).toEqual({ p: 308, a: 85 });
+  });
+  it("sets a picture's credit out in rows", () => {
+    const PV = load();
+    expect(PV.creditParts("A doe in the forest\nPhoto: NPS · Public domain · Wikimedia Commons")).toEqual([["Picture", "A doe in the forest"], ["Photo", "NPS"], ["License", "Public domain"], ["Source", "Wikimedia Commons"]]);
+    expect(PV.creditParts("Houses at Murnau (Vasily Kandinsky, 1909)\nArt Institute of Chicago, Public Domain · Public domain (CC0 1.0)")).toEqual([["Picture", "Houses at Murnau (Vasily Kandinsky, 1909)"], ["Source", "Art Institute of Chicago, Public Domain"], ["License", "Public domain (CC0 1.0)"]]);
+  });
+  it("places the small view inside the part of the element that is on the screen", () => {
+    const PV = load();
+    const h = PV.lookHole({ left: 100, top: -200, width: 680, height: 920 }, { left: 100, top: 0, right: 780, bottom: 720 }, 318, 230, 10, 62);
+    expect(h.k).toBeCloseTo(0.25, 2);
+    expect([Math.round(h.x), Math.round(h.y), Math.round(h.w), Math.round(h.h)]).toEqual([110, 62, 170, 230]);
+    const b = PV.lookHole({ left: 0, top: 300, width: 728, height: 90 }, { left: 0, top: 300, right: 728, bottom: 390 }, 318, 230, 10, 62);
+    expect(b.y + b.h).toBeLessThanOrEqual(390);   // a banner: the view stays inside its 90 px
+    expect(b.y).toBeGreaterThanOrEqual(300);
+  });
+  it("scales the page's own element into a hole in the cover, and puts everything back", () => {
+    const PV = load();
+    document.body.innerHTML = `<div id="unit" ${R(0, 0, 680, 400)}><a id="ad" href="#" style="transform: rotate(1deg)" ${R(0, 0, 680, 400)}><span>Sponsored</span></a><div id="wrap" style="display: contents"><p id="in" ${R(0, 0, 680, 400)}>x</p></div></div>`;
+    const unit = document.getElementById("unit"), ad = document.getElementById("ad");
+    const c = document.createElement("div"); unit.appendChild(c);
     PV.__styleCover(c, "https://prism.entangled.world/veil/art/commons_coral_reef_84.jpg", null);
-    const sym = c.lastElementChild;
-    sym.dispatchEvent(new Event("mouseenter"));
-    expect(sym.title).toContain("Covered by Prism: an ad.");
-    expect(sym.title).toContain("Coral reef | Photo: NOAA | Public domain");
-    c.__artUrl = "chrome-extension://abc/art/unknown.jpg";
-    sym.dispatchEvent(new Event("mouseenter"));
-    expect(sym.title).toBe("Covered by Prism: an ad.");
+    c.__target = unit; c.__mode = "inside"; c.setAttribute("data-prism-why", "badge-label: Sponsored");
+    PV.lookOpen(c, c.lastElementChild, false); PV.lookOpen(c, c.lastElementChild, false);
+    const cards = document.querySelectorAll("[data-prism-look]");
+    expect(cards.length).toBe(1);
+    expect(cards[0].getAttribute("data-prism-ui")).toBe("1");
+    expect(cards[0].children.length).toBe(0);                    // nothing of the page is copied into the card
+    expect(ad.style.getPropertyValue("transform")).toMatch(/scale\(0\.2700\)/);
+    expect(c.__lookOn).toBe(true);
+    expect(document.getElementById("wrap").style.getPropertyValue("transform")).toBe("");            // no box of its own: left alone
+    expect(document.getElementById("in").style.getPropertyValue("transform")).toMatch(/scale\(0\.2700\)/);   // its child is scaled in its place
+    expect(c.style.clipPath).toMatch(/^polygon\(/);             // the hole
+    expect(c.style.getPropertyValue("transform")).toBe("none");  // the cover itself is never scaled
+    PV.lookClose();
+    expect(document.querySelectorAll("[data-prism-look]").length).toBe(0);
+    expect(ad.style.getPropertyValue("transform")).toBe("rotate(1deg)");
+    expect(c.__lookOn).toBe(false);
+    expect(c.style.clipPath).toBe("");
+    PV.lookReveal(c, 15000);                                     // Reveal 15 s: the cover hidden, to come back by itself
+    expect(c.style.getPropertyValue("visibility")).toBe("hidden");
+    clearTimeout(c.__revealT);
+  });
+  it("moves nothing on the page when the small view is switched off; the panel still opens", () => {
+    const PV = load();
+    PV.uiPrefs = { smallView: false };
+    document.body.innerHTML = `<div id="unit" ${R(0, 0, 680, 400)}><a id="ad" href="#" ${R(0, 0, 680, 400)}>x</a></div>`;
+    const unit = document.getElementById("unit");
+    const c = document.createElement("div"); unit.appendChild(c);
+    PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+    PV.lookOpen(c, c.lastElementChild, false);
+    expect(document.querySelectorAll("[data-prism-look]").length).toBe(1);
+    expect(document.getElementById("ad").style.getPropertyValue("transform")).toBe("");
+    expect(c.__lookOn).toBeFalsy();
+    PV.lookClose();
+  });
+  it("gives a line of text and scales nothing for an element with a shadow tree of its own", () => {
+    const PV = load();
+    document.body.innerHTML = `<div id="unit" ${R(0, 0, 680, 400)}><b id="k">x</b></div>`;
+    const unit = document.getElementById("unit"); unit.attachShadow({ mode: "open" });
+    const c = document.createElement("div"); unit.appendChild(c);
+    PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+    PV.lookOpen(c, c.lastElementChild, false);
+    expect(document.getElementById("k").style.getPropertyValue("transform")).toBe("");
+    expect(c.__lookOn).toBeFalsy();
+    PV.lookClose();
   });
 });
 

@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Media;
 namespace PrismHost;
 
 /// <summary>
-/// Stand-ins for pictures of Prism (2026-10-10, the tutorial's pictures): a dev switch, off at every start,
+/// Stand-ins for pictures of PRISM (2026-10-10, the tutorial's pictures): a dev switch, off at every start,
 /// under which the pages draw made-up titles on plain coloured cards. A studio's artwork is not ours to put in a public repository
 /// and the download, and what a household watches and what its people are called is nobody's business. Three parts:
 ///   - every picture drawn from an address (posters, stills, faces, album art, avatars) comes from a folder of plain cards instead
@@ -57,6 +57,21 @@ public sealed partial class MainWindow
     private static readonly string[] AccountKeys = { "username", "signedInAs", "account", "email", "user", "profileName", "as" };
     private static readonly Regex EpisodeMark = new(@"^S\d+\s*E\d+", RegexOptions.CultureInvariant);
 
+    private static JsonNode? s_standInData;   // standin.json of the picture folder (scripts/standin/make-standins.py): the made-up words that go with its pictures
+
+    /// <summary>What a music stage shows for a track under stand-ins (2026-11-11): a made-up song, artist and album and that album's generated
+    /// cover, picked by the real title so one track keeps one stand-in. Null when the folder has no words; the caller then shows nothing of the track.</summary>
+    private static (string Title, string Artist, string Album, string Art)? StandInSong(string real)
+    {
+        try
+        {
+            if (s_standInData?["songs"] is not JsonArray songs || s_standInData["albums"] is not JsonArray albums || songs.Count == 0 || albums.Count == 0) return null;
+            var h = StandInHash(real); var a = (int)(h % (uint)albums.Count);
+            return (songs[(int)((h >> 8) % (uint)songs.Count)]!.GetValue<string>(), albums[a]!["artist"]!.GetValue<string>(), albums[a]!["album"]!.GetValue<string>(), "standin:album-" + a.ToString("00"));
+        }
+        catch { return null; }
+    }
+
     /// <summary>The answer of a call that feeds a page, with its titles, people and account names replaced. Anything unparseable passes through.</summary>
     private static string? StandInScrub(string? json)
     {
@@ -78,7 +93,7 @@ public sealed partial class MainWindow
             foreach (var k in SeriesKeys) if (Str(o, k, out var sv)) o[k] = StandInTitle(sv);
             if (Str(o, "role", out _)) o["role"] = "";   // the part a person played in it
         }
-        foreach (var k in ProseKeys) if (Str(o, k, out _)) o[k] = "A stand-in description, written for the pictures in Prism's tutorial. The real page shows the title's own.";
+        foreach (var k in ProseKeys) if (Str(o, k, out _)) o[k] = "A stand-in description, written for the pictures in PRISM's tutorial. The real page shows the title's own.";
         // a person: a cast member, or a search result that is a person
         if (Str(o, "name", out var name) && (o.ContainsKey("character") || o.ContainsKey("profile") || o.ContainsKey("face") || o.ContainsKey("knownFor") || o.ContainsKey("department") || o.ContainsKey("born") || o.ContainsKey("bio") || o.ContainsKey("known")))
         {
@@ -129,6 +144,8 @@ public sealed partial class MainWindow
         s_standIn = arg == "on";
         var dir = System.IO.Path.Combine(HostPaths.Diagnostics, "standin");
         Services.ArtCache.StandInDir = s_standIn && System.IO.Directory.Exists(dir) ? dir : null;
+        s_standInData = null;
+        if (s_standIn) { try { s_standInData = JsonNode.Parse(System.IO.File.ReadAllText(System.IO.Path.Combine(dir, "standin.json"))); } catch { } }
         LogLine("stand-in: " + (s_standIn ? "on" + (Services.ArtCache.StandInDir is null ? " (no picture folder)" : "") : "off"));
     }
 }

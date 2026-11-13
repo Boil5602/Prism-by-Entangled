@@ -69,8 +69,21 @@ public sealed partial class MainWindow
         var path = System.IO.Path.Combine(dir, "stall-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".dmp");
         var pid = Environment.ProcessId;
         LogLine($"ui frozen {gapMs} ms - writing {path}");
-        using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tool, $"--withheap -f \"{path}\" {pid}") { UseShellExecute = false, CreateNoWindow = true });
-        p?.WaitForExit(120_000);
-        LogLine($"ui frozen: dump {(System.IO.File.Exists(path) ? "written" : "NOT written")} ({(System.IO.File.Exists(path) ? new System.IO.FileInfo(path).Length / 1_000_000 : 0)} MB)");
+        // createdump's own word when the file is not there (2026-11-09: four unwritten dumps in a night with nothing to read): its exit code
+        // and the first line it printed, so the next night says why
+        using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tool, $"--withheap -f \"{path}\" {pid}") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true });
+        var said = "";
+        if (p is not null)
+        {
+            var outTask = p.StandardOutput.ReadToEndAsync(); var errTask = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(120_000)) { try { p.Kill(); } catch { } said = "timed out"; }
+            else
+            {
+                var text = ((errTask.Result ?? "") + " " + (outTask.Result ?? "")).Replace("\r", " ").Replace("\n", " ").Trim();
+                said = $"exit {p.ExitCode}" + (text.Length > 0 ? " " + text.Substring(0, Math.Min(160, text.Length)) : "");
+            }
+        }
+        var ok = System.IO.File.Exists(path);
+        LogLine($"ui frozen: dump {(ok ? "written" : "NOT written")} ({(ok ? new System.IO.FileInfo(path).Length / 1_000_000 : 0)} MB){(ok ? "" : " - " + said)}");
     }
 }

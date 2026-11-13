@@ -1,4 +1,4 @@
-"""The app reports queue (docs/features/report-flag.md, 2026-10-06): what people sent with the report flag in Prism for Windows,
+"""The app reports queue (docs/features/report-flag.md, 2026-10-06): what people sent with the report flag in PRISM for Windows,
 waiting in the private reports bucket under app-reports/open/. Closing one moves it to app-reports/done/; nothing is deleted.
 
 Usage:

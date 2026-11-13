@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (f) => readFileSync(join(here, "..", f), "utf8");
 
-// The isolated-world guard: input aimed at the Prism button never reaches
+// The isolated-world guard: input aimed at the PRISM button never reaches
 // page listeners, yet the element inside the closed shadow root still gets it.
 describe("popup guard (isolated world, document_start)", () => {
   it("stops page capture listeners and routes the event to the inner element", () => {

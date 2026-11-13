@@ -19,14 +19,14 @@ const outPath = join(here, "..", "dist", "prism-wordmark.html");
 const splashPath = join(here, "..", "dist", "prism-splash.html");
 
 const { wordmarkSnippet } = await import(pathToFileURL(dist).href);
-const html = wordmarkSnippet({ size: "22px", label: "Prism", autoplay: true, className: "pw-header" });
+const html = wordmarkSnippet({ size: "22px", label: "PRISM", autoplay: true, className: "pw-header" });
 writeFileSync(outPath, html + "\n");
 console.log(`wrote the wordmark snippet (${html.length} chars) to ${outPath}`);
 
 // the splash: the boot cover's colour (#0B0D11, MainWindow.BootCover.cs), the word a tenth of the window's width (clamped so a small
 // window still reads it and a wall does not shout), nothing else on the page
-const splash = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Prism</title>
+const splash = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PRISM</title>
 <style>html,body{margin:0;height:100%;background:#0B0D11;overflow:hidden}body{display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}</style>
-</head><body>${wordmarkSnippet({ size: "clamp(48px, 10vw, 180px)", label: "Prism", autoplay: true, className: "pw-splash" })}</body></html>`;
+</head><body>${wordmarkSnippet({ size: "clamp(48px, 10vw, 180px)", label: "PRISM", autoplay: true, className: "pw-splash" })}</body></html>`;
 writeFileSync(splashPath, splash + "\n");
 console.log(`wrote the splash page (${splash.length} chars) to ${splashPath}`);

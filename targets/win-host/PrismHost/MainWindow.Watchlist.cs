@@ -123,7 +123,7 @@ public sealed partial class MainWindow
                 ask.Items.Add(new MenuFlyoutItem { Text = "Each is matched to its TMDB title; one TMDB can't match is listed after, never guessed. Your services' own lists stay as they are.", Foreground = HubInk, IsHitTestVisible = false });
                 ask.Items.Add(new MenuFlyoutSeparator());
                 var yes = new MenuFlyoutItem { Text = "Add them", Icon = new FontIcon { Glyph = "\uE710" } };
-                yes.Click += async (_, ___) => { add.IsEnabled = false; await ModelCallAsync("watchlistImport"); SetPill("Prism" + Dot + "adding your services' My List titles to your TMDB watchlist"); };
+                yes.Click += async (_, ___) => { add.IsEnabled = false; await ModelCallAsync("watchlistImport"); SetPill("PRISM" + Dot + "adding your services' My List titles to your TMDB watchlist"); };
                 ask.Items.Add(yes);
                 ask.Items.Add(new MenuFlyoutItem { Text = "Not now" });
                 ask.ShowAt(add);
@@ -170,7 +170,7 @@ public sealed partial class MainWindow
                 await ModelCallAsync("watchlistSetTitle", title, kind, !on);
                 JsonObject? r = null;
                 for (var i = 0; i < 30; i++) { await Task.Delay(400); try { r = JsonNode.Parse(await ModelCallAsync("watchlistHasTitle", title, kind) ?? "null") as JsonObject; } catch { r = null; } if (r?["working"]?.GetValue<bool>() != true) break; }
-                SetPill("Prism" + Dot + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e ? e : on ? title + " is off your watchlist." : title + " is on your watchlist."));
+                SetPill("PRISM" + Dot + (S(r ?? new JsonObject(), "error") is { Length: > 0 } e ? e : on ? title + " is off your watchlist." : title + " is on your watchlist."));
             }
             if (VideoHubOpen && _hubTab == "watch" && _watchRowRefresh is { } rf) _ = rf();   // the My Watchlist row alone, in place; the rest of the page stays put
         };
@@ -210,11 +210,11 @@ public sealed partial class MainWindow
             if (r?["working"]?.GetValue<bool>() != true) break;
         }
         var on = r?["on"]?.GetValue<bool>() == true;
-        if (S(r ?? new JsonObject(), "error") is { Length: > 0 } err) { SetPill("Prism" + Dot + err); return r; }
-        if (on != wantOn) { SetPill("Prism" + Dot + "TMDB has not taken it yet. Try again in a moment."); return r; }
+        if (S(r ?? new JsonObject(), "error") is { Length: > 0 } err) { SetPill("PRISM" + Dot + err); return r; }
+        if (on != wantOn) { SetPill("PRISM" + Dot + "TMDB has not taken it yet. Try again in a moment."); return r; }
         var svc = (r?["follow"]?["services"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
         var also = svc.Count == 0 ? "" : " Also " + (wantOn ? "adding it to " : "taking it off ") + string.Join(" and ", svc.Select(x => S(x, "name") + "'s " + S(x, "list"))) + (char)0x2026;
-        SetPill("Prism" + Dot + title + (wantOn ? " is on your watchlist." : " is off your watchlist.") + also);
+        SetPill("PRISM" + Dot + title + (wantOn ? " is on your watchlist." : " is off your watchlist.") + also);
         if (svc.Count > 0) _ = FollowServiceListsAsync(kind, id, title, wantOn);
         return r;
     }
@@ -231,6 +231,6 @@ public sealed partial class MainWindow
         var done = svc.Where(x => S(x, "status") == "done").Select(x => S(x, "name") + "'s " + S(x, "list")).ToList();
         var failed = svc.Where(x => S(x, "status") == "failed").Select(x => S(x, "name") + (S(x, "error") is { Length: > 0 } e ? " (" + e + ")" : "")).ToList();
         var line = (done.Count > 0 ? title + (wantOn ? " added to " : " taken off ") + string.Join(" and ", done) + "." : "") + (failed.Count > 0 ? (done.Count > 0 ? " " : "") + "Not changed on " + string.Join(", ", failed) + "." : "");
-        if (line.Length > 0) { LogLine("watchlist follow: " + line); SetPill("Prism" + Dot + line); }
+        if (line.Length > 0) { LogLine("watchlist follow: " + line); SetPill("PRISM" + Dot + line); }
     }
 }

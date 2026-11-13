@@ -1,5 +1,5 @@
 /*
-  Prism - AI-labelled video TILES on YouTube (opt-in, pv:ui.aiVeil; spec
+  PRISM - AI-labelled video TILES on YouTube (opt-in, pv:ui.aiVeil; spec
   section 5: the platform's own disclosure is the only source).
 
   A tile (home, search, sidebar, Shorts shelf) shows no AI label even when the

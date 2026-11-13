@@ -133,9 +133,9 @@ public sealed class MusicLoungeDemoTests
         var hasArt = !string.IsNullOrWhiteSpace(f.Artwork);
         Assert.False(hasArt);
         Assert.Equal("PRISM BEAMS \u00B7 backdrop: none",
-            VisualizationChrome.StyleLabel("Prism Beams", f.ArtworkMode, hasArt, editMode: false, secondsSinceChange: 0.5));
-        Assert.Equal("", VisualizationChrome.StyleLabel("Prism Beams", f.ArtworkMode, hasArt, editMode: false, secondsSinceChange: 5));
+            VisualizationChrome.StyleLabel("PRISM Beams", f.ArtworkMode, hasArt, editMode: false, secondsSinceChange: 0.5));
+        Assert.Equal("", VisualizationChrome.StyleLabel("PRISM Beams", f.ArtworkMode, hasArt, editMode: false, secondsSinceChange: 5));
         Assert.Equal("PRISM BEAMS \u00B7 backdrop: none",
-            VisualizationChrome.StyleLabel("Prism Beams", f.ArtworkMode, hasArt, editMode: true, secondsSinceChange: 5));
+            VisualizationChrome.StyleLabel("PRISM Beams", f.ArtworkMode, hasArt, editMode: true, secondsSinceChange: 5));
     }
 }

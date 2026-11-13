@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="ntp.css">
 </head>
 <body>
-  <!-- Prism start page: replaces the ad-carrying MSN New Tab page (Edge blocks
+  <!-- PRISM start page: replaces the ad-carrying MSN New Tab page (Edge blocks
        extensions on ntp.msn.com, so the only ad-free answer is our own page).
        No network requests of its own. The search form is a plain GET to the
        engine the user picks - nothing is sent anywhere until they submit. -->
@@ -16,7 +16,7 @@
 
   <main id="stage">
     <header id="top">
-      <span id="brand">Prism by Entangled</span>
+      <span id="brand">PRISM by Entangled</span>
       <button id="settings-btn" type="button" title="Settings" aria-label="Settings">&#x2699;</button>
     </header>
 
@@ -51,10 +51,10 @@
       <ul id="today-list"></ul>
     </section>
 
-    <!-- Prism frames strip (spec section 6 remote API): each paired frame's
+    <!-- PRISM frames strip (spec section 6 remote API): each paired frame's
          current dashboard and audible tile, with sleep/wake, play/pause and
          "send a page to a tile". Talks only to the frames the user listed. -->
-    <section id="frames" aria-label="Prism frames" hidden></section>
+    <section id="frames" aria-label="PRISM frames" hidden></section>
 
     <!-- Apple Music: the official embed player (embed.music.apple.com).
          Full playback for a signed-in Apple Music subscriber, previews
@@ -94,7 +94,7 @@
         <input id="music-url" type="url" placeholder="https://music.apple.com/…/station/…" spellcheck="false">
         <span id="music-status" class="hint"></span>
       </label>
-      <label>Prism frames <span class="hint">one per line: <code>Name | http://ip:8471 | token</code> (token from the frame's pairing QR)</span>
+      <label>PRISM frames <span class="hint">one per line: <code>Name | http://ip:8471 | token</code> (token from the frame's pairing QR)</span>
         <textarea id="frames-edit" rows="3" spellcheck="false"></textarea>
         <span id="frames-status" class="hint"></span>
       </label>

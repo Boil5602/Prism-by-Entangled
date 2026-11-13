@@ -79,9 +79,9 @@ public sealed partial class MainWindow
         var panel = new StackPanel { Spacing = 10 };
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         var title = new TextBlock { Text = "Performance", FontSize = compact ? 17 : 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center };
-        ToolTipService.SetToolTip(title, "Prism's cost, one reading a minute from diagnostics/perf.log: every process Prism runs (the host and each service's browser), CPU over all cores, GPU from Windows' per-process counters, working set, file and network IO together. Local only; nothing is sent anywhere.");
+        ToolTipService.SetToolTip(title, "PRISM's cost, one reading a minute from diagnostics/perf.log: every process PRISM runs (the host and each service's browser), CPU over all cores, GPU from Windows' per-process counters, working set, file and network IO together. Local only; nothing is sent anywhere.");
         head.Children.Add(title);
-        if (rows.Count == 0) { head.Children.Add(new TextBlock { Text = "No readings yet. The first lands a minute after Prism starts.", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center }); panel.Children.Add(head); return panel; }
+        if (rows.Count == 0) { head.Children.Add(new TextBlock { Text = "No readings yet. The first lands a minute after PRISM starts.", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center }); panel.Children.Add(head); return panel; }
         var last = rows[^1];
         head.Children.Add(new TextBlock { Text = rows.Count + " min" + Mid + last.Procs + " processes" + Mid + last.Surfaces + " surfaces (" + last.Hidden + " hidden)" + (last.Stalls > 0 ? Mid + last.Stalls + " UI stall" + (last.Stalls == 1 ? "" : "s") + " last minute" : "") + Mid + "at " + last.Time, FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
         panel.Children.Add(head);
@@ -132,7 +132,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(statsBox, "The charts below, kept at the foot of the Watch page and refilled each minute.");
         body.Children.Add(statsBox);
         var darkBox = new CheckBox { Content = new TextBlock { Text = "Readers dark: freeze idle hidden lookup pages", FontSize = 14, Foreground = HubInk }, IsChecked = HostPrefs.GetBool("perf.readersDark", false) };
-        ToolTipService.SetToolTip(darkBox, "A hidden page Prism reads (a service's guide or catalog) that nothing has touched for ninety seconds is frozen - its scripts, timers and media stop - and woken before it is read again. Saves CPU and GPU for nobody; the music players are never frozen.");
+        ToolTipService.SetToolTip(darkBox, "A hidden page PRISM reads (a service's guide or catalog) that nothing has touched for ninety seconds is frozen - its scripts, timers and media stop - and woken before it is read again. Saves CPU and GPU for nobody; the music players are never frozen.");
         body.Children.Add(darkBox);
         body.Children.Add(new TextBlock { Text = "Every number here stays on this device. perf.log in the diagnostics folder holds the last hours as text.", FontSize = 12, Foreground = HubInk, Opacity = 0.8, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) });
         body.Children.Add(BuildPerfPanel(false));

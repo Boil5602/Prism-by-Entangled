@@ -4,7 +4,7 @@
  * - the household's own titles first, matched as they type: Continue Watching, My List, what they own - no network at all;
  * - one card per work, every service that carries it on the card (TMDB's work id with a key, else the title and year the services named);
  * - the people TMDB matched, whose work on the household's services is one press away.
- * Every match is by words the person typed against the title the service or TMDB gave - nothing ranked by Prism beyond how well the words match.
+ * Every match is by words the person typed against the title the service or TMDB gave - nothing ranked by PRISM beyond how well the words match.
  */
 import { isCatalogId, TMDB_POSTER } from "./catalog-search.js";
 

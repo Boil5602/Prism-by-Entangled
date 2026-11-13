@@ -79,7 +79,7 @@ public sealed partial class MainWindow
                 ui.Yours = new TextBlock { Text = ui.Mine is { } mv ? "Your rating: " + mv.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " of 10." : "", FontSize = 13, Foreground = HubAmber, Visibility = ui.Mine is not null ? Visibility.Visible : Visibility.Collapsed };
                 content.Children.Add(ui.Explain); content.Children.Add(ui.Yours);
                 if (tmdbKind is { Length: > 0 } && tmdbId > 0) await AddOwnRatingAsync(content, tmdbKind, tmdbId, ui);
-                else content.Children.Add(new TextBlock { Text = "Prism has not matched this title on TMDB, so there is nothing to rate yet.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
+                else content.Children.Add(new TextBlock { Text = "PRISM has not matched this title on TMDB, so there is nothing to rate yet.", FontSize = 12, Foreground = HubDim, TextWrapping = TextWrapping.Wrap });
             }
             try { fly.ShowAt(g); } catch { }
         }

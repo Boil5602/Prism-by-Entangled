@@ -1,10 +1,10 @@
-"""The learned break detector, trained on every mark and exported for Prism (2026-10-07, the owner agreed).
+"""The learned break detector, trained on every mark and exported for PRISM (2026-10-07, the owner agreed).
 
 Trains the gradient-boosted trees on the marked seconds (the readings, their recency kernels and rolling means, and the caption classifier's
 view - its scores out of fold by channel, so the trees learn from the scores they will really get), then the caption classifier on every
-marked caption line, and writes one JSON file Prism reads (Services/LearnedBreak.cs): the input recipe, every tree's nodes, the caption
+marked caption line, and writes one JSON file PRISM reads (Services/LearnedBreak.cs): the input recipe, every tree's nodes, the caption
 words' weights and the cover policy. It checks its own export (the trees re-evaluated from the exported numbers match scikit-learn's), and
-writes every row's chance for Prism's parity test.
+writes every row's chance for PRISM's parity test.
 
     python scripts/breakwatch/export_model.py <feat.csv> <golden day folder> <out model.json> [parity.csv]
 """
@@ -137,7 +137,7 @@ with open(OUT, "w", encoding="utf-8") as f:
 print("written", OUT, os.path.getsize(OUT) // 1024, "KB")
 
 if PARITY:
-    # every row's chance, the caption scores from the exported (final) caption classifier as Prism will compute them
+    # every row's chance, the caption scores from the exported (final) caption classifier as PRISM will compute them
     with open(PARITY, "w") as f:
         f.write("win,t,p\n")
         for w, v in W.items():

@@ -2,7 +2,7 @@
 /*
   A scripted listener on the house's stream (dev tooling, 2026-11-03, B-475): takes a stream ticket with this PC's own house code
   (read from the store, never printed), holds the PCM socket for a while, sends the listen page's lag report so the room step
-  engages as it does for a phone, and prints the frames and the peak it hears. Run on the PC that runs Prism, with the listen
+  engages as it does for a phone, and prints the frames and the peak it hears. Run on the PC that runs PRISM, with the listen
   page switched on:   node scripts/listen-probe.mjs [seconds]
   The proof it gave: with every listen since 16:54 reading raw 0.000000, the shared capture (afab4551) read raw 0.207668 in the
   first ten seconds at gain x1, and with the room step on 0.000021 by 0.210 sent at x10000 (host.log, 19:05 and 19:07).

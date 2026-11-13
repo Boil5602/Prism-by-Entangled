@@ -34,9 +34,9 @@ YouTube TV would matter most once subscribed.
 - A channel's type comes from the service's own category when the service
   gives one (Paramount+'s News, Sports, Drama, Kids & Family, Reality,
   Comedy). Labelled with its source (§5).
-- Otherwise Prism's rule reads the channel's name and what is on it
+- Otherwise PRISM's rule reads the channel's name and what is on it
   (News, Sports, Kids, Movies, Music, Local, Entertainment), labelled
-  "Prism's guess from the name".
+  "PRISM's guess from the name".
 - The chips list only types that have channels.
 
 ## Search
@@ -71,7 +71,7 @@ YouTube TV would matter most once subscribed.
   (name, logo, browse id) and an airing per program (start as text, 10 px a minute, `is-live_` on the one on now, the program
   title and its rating / episode line), about three and a half hours a read; 126 channels on this account, the broadcast
   stations among them. A tune presses the channel's thumbnail and then "Join live" in the page's own question. No category
-  from the service; Prism's name rule and TMDB's genre type the channels. Its Library page gives the Watch rows (New in your
+  from the service; PRISM's name rule and TMDB's genre type the channels. Its Library page gives the Watch rows (New in your
   library, Most watched; Scheduled recordings is read no more since 2026-10-12, a recording yet to be made cannot be played) and the owned library (Recordings & purchases, 1,373 here, read by scrolling
   the grid on the owned page until the header's count is reached).
 - Twitch (2026-10-05): Following > Live, the followed channels live now, typed by Twitch's own category.
@@ -151,7 +151,7 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
 - 2026-09-29: Peacock's guide gives each channel's program on now and the next one, with times, in its buttons' labels ("From 8:39 to 9:31am"); its times ran an hour off this PC's clock, so the whole guide is shifted by the whole-hour offset under which the most channels' program on now contains the present.
 - Resolved (2026-09-29): a live channel on a service that tunes by its own walk comes back after a restart as the channel: the adapter's live context names its `channel` (the guide's id), the kept record carries it, and the boot loads the service's home and asks the tune once it is up. Read live: Peacock's Dateline 24/7 back and playing 10 s after a restart; two Peacock channels (big window and window 3) restored together.
 - Resolved (2026-09-29): Paramount+'s stall was a double load. A channel's address may redirect (/live-tv/stream/cbsn/ arrives at /cbs-news/); the play script saw an address other than the one asked and loaded the page again 3 s into the player's start. A page that has just arrived at a channel by a redirect is now taken as the channel asked for. Read live: CBS News 24/7 playing 7 s after the tune, beside two Peacock channels. The reCAPTCHA on the page was not involved.
-- By design: Prism's hidden reading pages (app:<id>:lookup /:work) are refused DRM and have any video paused, so a guide that draws only beside a playing player (Peacock's) is read from a window that plays it, never in the background.
+- By design: PRISM's hidden reading pages (app:<id>:lookup /:work) are refused DRM and have any video paused, so a guide that draws only beside a playing player (Peacock's) is read from a window that plays it, never in the background.
 - Resolved (2026-09-29): the playback doctor keeps watching a title whose address arrived at a neighbouring one (a redirect): the first address a tile reaches within 15 s of the ask, on the same host and in the same folder, is that title's page. A channel that never starts is reopened in place, then in a fresh window.
 - Corrected (2026-09-29): Peacock's guide times are the PC's own; the whole-hour shift added earlier had been fitted to a stale guide and is removed. An entry may list up to a day of programs; its labels give running times without ads, so each program runs to the next one's start when that is within 45 minutes; "on now" is only the program the clock is inside.
 - 2026-09-29: Peacock's channels page (peacocktv.com/channels, no player) is its guide page for the background read: 36 channels, what is on now for each (times for the first only; hovering shows no more). It is merged by channel into the fuller guide a playing Peacock window reports (77 channels, now and next with times). A guide read may name only some of a service's channels; the others stay as they were.
@@ -199,8 +199,8 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
   first; in-play cards in amber. Every picture and colour is the source's, fetched as itself.
   - The last 24 hours, not the day (2026-10-01): ESPN's
     header lists only the current slate, so every read is merged into what is kept (a game a day after its start, on the device for
-    the boot), and the per-league day pages - today's and yesterday's, every league - are read hourly in a hidden page of Prism's own
-    browser (they refuse the host's fetch; a browser is what Prism is). The header is read every quarter hour in the background and
+    the boot), and the per-league day pages - today's and yesterday's, every league - are read hourly in a hidden page of PRISM's own
+    browser (they refuse the host's fetch; a browser is what PRISM is). The header is read every quarter hour in the background and
     every two minutes while the tab is open in Sports mode. In play first, then finals newest first, then to come; "yesterday" on a
     card that is not today's.
   - The cards lie in one grid across the page, the same size each, their widths sharing the page; two rows at most, with "Show all N"
@@ -236,12 +236,12 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
       aired, which NBC News Now carries; the guide's "CBS News 24/7 Mornings" pairs with the CBS News Mornings clips.
     - 2026-10-02, Entertainment and the other modes (/):
     - A channel named after one show, given no category by its service, is filed under the Live type TMDB's first genre names
-      ("Are We There Yet?" to Comedy, "Below Deck" to Reality), labelled in the row's tooltip "by TMDB's genre for <show>"; Prism's own
+      ("Are We There Yet?" to Comedy, "Below Deck" to Reality), labelled in the row's tooltip "by TMDB's genre for <show>"; PRISM's own
       rule on the name stands where TMDB names nothing (live-titles.ts: the channel words that mark a name as a channel's, the exact-
       name acceptance of TMDB's answer, the genre-to-type map). Entertainment fell from 45 channels to 28 on the wall.
     - The Now-on strip, in every mode but Sports and News, behind a "Now on" checkbox on by default (host-prefs `live.nowOn`): a poster
       a show on across the mode's channels - the program on now, or the show a loop channel is named after - where TMDB matched the
-      name exactly; TMDB's year and rating and the channel under each, in the guide's own order (Prism ranks nothing); one row, the
+      name exactly; TMDB's year and rating and the channel under each, in the guide's own order (PRISM ranks nothing); one row, the
       rest behind "N more"; a press tunes the channel. TMDB is asked one name at a time, 120 ms apart, each answer kept a week
       (store `live:titles`); the strip redraws every four seconds while answers are pending, then every two minutes.
     - The show's progress on its poster (2026-10-02): the elapsed share of
@@ -260,7 +260,7 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
       (TV-Y, TV-Y7, TV-G, G) is amber so a parent sees it; nothing is hidden, the tooltip says.
     - Local mode: a station's channel - a network's city news ("NBC Boston News", "News 12 New York") - files under Local by a named rule
       on the name (live-guide LOCAL_NAME), with a map-pin symbol; Paramount+'s /local/ addresses already did. Seven Peacock stations on
-      the wall. No Now-on strip in Local (nor News and Sports). Later: the household's own station first by a pick in settings (Prism
+      the wall. No Now-on strip in Local (nor News and Sports). Later: the household's own station first by a pick in settings (PRISM
       guesses no location), and the stations' own feeds paired as News mode's are.
   - Decision (2026-10-02): the Local mode is gone as a mode of other cities' stations. The name
     rule and the six NBC stations' feeds (which do answer, nbcboston.com/news/local/feed/ and the like) were built and taken out the
@@ -284,13 +284,13 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
       gone and the feeds are not read.
     - Decision: no captions. Reading a stream's caption track means fetching the manifest the player fetches under the household's
       session (a private endpoint, docs/third-party-services-policy.md), and captions are speech that only a language model could turn
-      into a headline, which Prism neither ships nor calls. The free public streams' caption tracks remain a possible later "on this
+      into a headline, which PRISM neither ships nor calls. The free public streams' caption tracks remain a possible later "on this
       story now" mark against a headline that already exists.
     - Decision: Wikipedia's "In the news" (cross-source, editor-chosen under published criteria) is the other transparent headline
       source, a possible second strip; not built.
     - Fixtures: tests/fixtures/news (the real feeds, 2026-10-01); tests/news-feeds.test.ts.
-  - 2026-10-01, a walk of every mode: Prism's name rules gained Comedy, Reality and Drama (Peacock's "Black-Led Comedy" and "Classic TV
-    Comedy" had fallen to Entertainment; a Movies word still wins, so "Comedy Movies" is a movie channel); "(Prism's guess)" moved from
+  - 2026-10-01, a walk of every mode: PRISM's name rules gained Comedy, Reality and Drama (Peacock's "Black-Led Comedy" and "Classic TV
+    Comedy" had fallen to Entertainment; a Movies word still wins, so "Comedy Movies" is a movie channel); "(PRISM's guess)" moved from
     the row's second line to its tooltip; a channel the player had reported by its slug and the guide lists by its uuid under the same
     path is kept once (video.keepLive drops a kept channel at an address a fresh one names).
   - 2026-10-01: the events strip is gone (- yes: it dated from a plain grid where 126 channels had pushed the events out of sight, and the grid has since
@@ -310,8 +310,8 @@ and channels by the teams' names. An adapter never ranks or filters; it names wh
   its own strip of the day's key games across the leagues in season, one bare address, no key, nothing of the device in the call
   (section 19/22); every number is ESPN's (section 5). Read when the bar is drawn and every two minutes while the tab is open in
   Sports mode, never otherwise.
-  - Decision: ESPN's per-league scoreboard addresses answer 403 to Prism's own agent (they take a handful of known clients and refuse
-    the rest, a browser string from a non-browser included); Prism does not disguise itself (third-party policy), so the header feed,
-    which answers Prism as itself, is the source.
+  - Decision: ESPN's per-league scoreboard addresses answer 403 to PRISM's own agent (they take a handful of known clients and refuse
+    the rest, a browser string from a non-browser included); PRISM does not disguise itself (third-party policy), so the header feed,
+    which answers PRISM as itself, is the source.
 - Known: a pop-up channel with no schedule listed (Paramount+'s Dana White's Contender Series) has a blank row that says so; it still tunes.
 - Not done: Paramount+'s channel logos are inline drawings, not images with an address; its rows keep the service's mark.

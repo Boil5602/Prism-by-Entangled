@@ -1,4 +1,4 @@
-/* Prism start page (New Tab override). No network of its own; settings in
+/* PRISM start page (New Tab override). No network of its own; settings in
    chrome.storage.local (spec section 10: persisted, never wiped by us). */
 (function () {
   "use strict";
@@ -12,7 +12,7 @@
     srcMarks: false,   // colour quick links by Wikipedia RSP reliability status (spec section 5: off by default)
     wx: null,          // { name, lat, lon } - set by the user; null = weather off
     wxUnits: "f",
-    frames: [],        // [{ name, url, token }] - the user's paired Prism frames
+    frames: [],        // [{ name, url, token }] - the user's paired PRISM frames
     calUrl: "",        // the user's private .ics feed URL (stored locally only)
     musicUrl: "",      // an Apple Music share URL; embedded via embed.music.apple.com
     links: [
@@ -358,7 +358,7 @@
     }, { enableHighAccuracy: false, maximumAge: 600000, timeout: 10000 });
   }
 
-  // ---- Prism frames (spec section 6 remote API). Each frame is a device on
+  // ---- PRISM frames (spec section 6 remote API). Each frame is a device on
   // the LAN serving http://<ip>:8471 with a bearer token minted at pairing.
   // Talks ONLY to frames the user listed; the per-origin host permission is
   // requested when a frame is saved, never for the web at large.

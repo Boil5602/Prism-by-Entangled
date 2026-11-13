@@ -1,7 +1,7 @@
-# Prism extension — release checklist (Edge / Chrome / Firefox)
+# PRISM extension — release checklist (Edge / Chrome / Firefox)
 
 The browser extension only. The Windows host is in development and is out of
-scope here. Written 2026-09-12 against the Prism extension **0.7.170** (`prototypes/prism-veil-extension`).
+scope here. Written 2026-09-12 against the PRISM extension **0.7.170** (`prototypes/prism-veil-extension`).
 
 Each step is **Do → Expect**. If what you see differs from *Expect*, stop and
 report the step id (e.g. `SM-4`): that is a bug or a wrong script, and both are
@@ -48,7 +48,7 @@ is a hotfix on the release branch, then the row is walked again.
 | PF-3 | `python -c "print(sum(1 for x in open('src/covers.js','rb').read() if x>127))"` | `0` — the file stays ASCII (the editor once decoded `\u` escapes into raw glyphs) | AUTO |
 | PF-4 | `unzip -l dist/prism-veil-chromium-0.8.0.zip` | no `tests/`, `dist/`, `node_modules/`, `README.md`, `sign.log`, `.env`; `art/` present | AUTO |
 | PF-5 | `git diff main -- prototypes/prism-veil-extension/manifest.json` | the version, `scripting` and the all-sites host permissions (`http://*/*`, `https://*/*`, B-414/B-416) are the only changes; `tabs` only optional; no new line on the extension's Warnings entry at edge://extensions | AUTO |
-| PF-7 | with two or three pages open and covered, reload the extension at edge://extensions, then switch it off and on again (both stand in for a store update) | within a couple of seconds each open page has its covers and its Prism button back, no page reload; an embedded player's veil waits for that page's next load | CODE |
+| PF-7 | with two or three pages open and covered, reload the extension at edge://extensions, then switch it off and on again (both stand in for a store update) | within a couple of seconds each open page has its covers and its PRISM button back, no page reload; an embedded player's veil waits for that page's next load | CODE |
 | PF-8 | the temporary capture probe is gone (2026-11-06) | no `src/capture-probe.js`; `manifest.json` has no `capture-probe` content script and no `<all_urls>`; bg.js has no `captureProbe` / `streamProbe` | CODE |
 | PF-9 | `grep '"permissions"' -A8 dist/*/manifest.json` | chromium: `tabCapture` and `offscreen` (the live TV picture; neither adds an install warning); firefox: neither, and no `offscreen.*` or `src/breakwatch/model.json` in its package | AUTO |
 | PF-6 | load the built `dist/chromium` unpacked in a **fresh** Edge profile | popup opens, shows 0.8.0, no console errors on `about:blank` and on a plain news page | CODE |
@@ -61,7 +61,7 @@ Walk with DevTools → Network open, filter to the extension's requests.
 |---|---|---|---|
 | PV-1 | fresh profile, open five ordinary pages | the extension makes **no** request at all | CODE |
 | PV-2 | popup → art refresh (or first veil) | requests only to `https://prism.entangled.world/veil/art/…` — the signed index and images; no query string, no cookie, no identifier | CODE |
-| PV-3 | Prism button → Report an ad, click any ad, read the panel | it lists exactly what is sent (the site's domain, the element details, the kind of ad, the note, the version); ticking **Include the full page address** adds the page address and the embedded players' addresses to the list; nothing leaves until **Send to Prism** | USER (0.7.181) |
+| PV-3 | PRISM button → Report an ad, click any ad, read the panel | it lists exactly what is sent (the site's domain, the element details, what was chosen, the note, the version); ticking **Include the full page address** adds the page address and the embedded players' addresses to the list; nothing leaves until **Send to PRISM** | USER (0.7.181) |
 | PV-4 | press Send | one `POST https://reports.entangled.world/v1/report`; body = only what the panel listed (no `url`, `frames`, `framesDirect` or `diag.iframes` unless the box was ticked; no `ua`, `fb` or settings); no cookies; no IP or id fields (server stores none) | CODE |
 | PV-5 | grep the packages for telemetry hosts | `grep -rl "google-analytics\|sentry\|segment\|mixpanel" dist/` → nothing | AUTO |
 | PV-7 | YouTube TV with Read the live TV picture on, through a break | no request of the extension's at all while it reads: the stream, the text reader, the known ads and the model stay in the browser (the offscreen page loads only extension files: the model, the text reader, the sounds) | CODE |
@@ -166,9 +166,9 @@ Both options are off by default; for now they act on tv.youtube.com alone (the p
 | LT-1 | fresh profile, open the panel | Veil marked ad slots in live TV and Read the live TV picture are both off; in Firefox the picture option is shown disabled, its tooltip saying why | CODE |
 | LT-2 | marked ad slots on; a channel that runs YouTube TV's own slots (one show around the clock) | the slot is covered by a marked veil; the Sponsored tray at the top left gets no cover of its own | USER (0.7.226) |
 | LT-3 | the same, rewound a minute or playing a recording | no cover (live edge only) | CODE |
-| LT-4 | picture on; on a YouTube TV channel press the page's Prism button, choose Allow | the player's box gets isolation: isolate; the tab shows its sharing mark; the toolbar button's title on that tab opens with a line saying the extension reads its picture; the panel has a line saying so too | USER (0.7.239) |
+| LT-4 | picture on; on a YouTube TV channel press the page's PRISM button, choose Allow | the player's box gets isolation: isolate; the tab shows its sharing mark; the toolbar button's title on that tab opens with a line saying the extension reads its picture; the panel has a line saying so too | USER (0.7.239) |
 | LT-5 | let it play through a network commercial break, about ten minutes in | a spotted veil: opaque, its picture still, the card saying it looks like a commercial break with Not a break and Show ad; it lifts within seconds of the show's return, not in the middle of the break | CODE |
-| LT-6 | press Not a break | the veil lifts at once; that channel gets no spotted veil for five minutes (as the Prism app's Not an ad) | CODE |
+| LT-6 | press Not a break | the veil lifts at once; that channel gets no spotted veil for five minutes (as the PRISM app's Not an ad) | CODE |
 | LT-7 | a marked slot starts while a spotted veil is up | the veil turns marked (opaque, the normal card) | CODE |
 | LT-8 | switch the picture off with the stream running | the sharing mark and the toolbar line go at once; reload the page: no stream | CODE |
 | LT-9 | add another live TV site in the panel, open it | its picture is read there too (no marked slots, no live-edge rule: those are YouTube TV's) | CODE |
@@ -198,10 +198,10 @@ Both options are off by default; for now they act on tv.youtube.com alone (the p
 | CC-2 | hold the pill (3s) | reveal for 15s, then covers return | CODE |
 | CC-3 | popup → Intermission → Corner chip | video card hidden; chip with clock top-left opens the popover; back to Full card restores the centred card | USER (0.7.164) |
 | CC-4 | a page with a sticky header and covers below it | covers clip under the header as you scroll, no smear | CODE |
-| CC-7 | popup → Veil on → off, on a page with covers up | every cover and any video veil drops at once, no reload; the Prism button reads "Prism off"; on again covers again at once | CODE |
-| CC-8 | Prism button → Report an ad | the panel closes, the button reads, the crosshair prompt shows; clicking the button cancels, clicking an ad opens the report | CODE |
+| CC-7 | popup → Veil on → off, on a page with covers up | every cover and any video veil drops at once, no reload; the PRISM button reads "PRISM off"; on again covers again at once | CODE |
+| CC-8 | PRISM button → Report an ad | the panel closes, the button reads, the crosshair prompt shows; clicking the button cancels, clicking an ad opens the report | CODE |
 | CC-9 | switch the extension off at edge://extensions (or about:addons) with covers up | the covers come down within about a second, no reload | CODE |
-| CC-10 | a page that opens a cross-site popup from a button or script, with the Prism button docked | the button comes out of its tab, reads "1 popup blocked" with an amber breathing edge for 5 s, then docks again; tapped during the hold it opens the panel and stays out | CODE |
+| CC-10 | a page that opens a cross-site popup from a button or script, with the PRISM button docked | the button comes out of its tab, reads "1 popup blocked" with an amber breathing edge for 5 s, then docks again; tapped during the hold it opens the panel and stays out | CODE |
 | CC-5 | Firefox only: a pre-roll on YouTube | tab mute icon lights (tabs.update muted); if it does not, the element fallback mutes — note it | CODE |
 | CC-6 | Firefox only: Fox masthead | MAIN-world hook and holes behave as in Edge | CODE |
 
@@ -209,12 +209,12 @@ Both options are off by default; for now they act on tv.youtube.com alone (the p
 
 Draft once, reuse in all three listings.
 
-- **Name**: Prism. **Summary (≤132 chars)**: *Ads become art. Ad breaks become intermissions. Nothing is blocked, nothing is tracked.*
+- **Name**: PRISM. **Summary (≤132 chars)**: *Ads become art. Ad breaks become intermissions. Nothing is blocked, nothing is tracked.*
 - **Description**: what it covers (display ads, promoted posts, video ad breaks), what it never does (no blocking, no tracking, no data sales, everything open source), the Report ad tool and that sending is a per-report choice, the AI-content veil as opt-in keyed on the platform's own label.
-- **Screenshots (1280×800, five)**: YouTube feed with art tiles; a video intermission card; Fox masthead with the hole over its X; the popup; the Prism button's panel with the Report an ad prompt.
+- **Screenshots (1280×800, five)**: YouTube feed with art tiles; a video intermission card; Fox masthead with the hole over its X; the popup; the PRISM button's panel with the Report an ad prompt.
 - **Icons**: from `assets/brand` (already derived, 0.7.146 / B-190).
-- **Privacy policy page** on `entangled.world` (all three stores require a URL; `prism.entangled.world` is the extension's storage, not a site): no data collected; art fetched from Prism's own host without identifiers; reports contain the site's domain, the ad element's details, the kind of ad, the person's note and the version - the full page address and embedded players' addresses only if the person ticks the box - and are sent only when the person presses Send; the receiver keeps no IP and no log. Link the reports receiver's README statement.
-- **Permission justification** (the reviewers' question is running on every site in the page's own context): *Prism detects ad markup on any page the person visits, so it must run on all sites; it needs the page context to read players' own ad signals; it blocks no requests and reads no user data.* `storage` = settings and the art index; `alarms` = the art refresh timer; `scripting` and the all-sites host permissions = re-entering the pages already open after an update (the content scripts already run on every site, so the warning is unchanged); the Prism host permission = Prism's art host; `tabs` is optional and only ever requested by the person.
+- **Privacy policy page** on `entangled.world` (all three stores require a URL; `prism.entangled.world` is the extension's storage, not a site): no data collected; art fetched from PRISM's own host without identifiers; reports contain the site's domain, the ad element's details, the kind of ad, the person's note and the version - the full page address and embedded players' addresses only if the person ticks the box - and are sent only when the person presses Send; the receiver keeps no IP and no log. Link the reports receiver's README statement.
+- **Permission justification** (the reviewers' question is running on every site in the page's own context): *PRISM detects ad markup on any page the person visits, so it must run on all sites; it needs the page context to read players' own ad signals; it blocks no requests and reads no user data.* `storage` = settings and the art index; `alarms` = the art refresh timer; `scripting` and the all-sites host permissions = re-entering the pages already open after an update (the content scripts already run on every site, so the warning is unchanged); the PRISM host permission = PRISM's art host; `tabs` is optional and only ever requested by the person.
 - **Category**: Productivity / Privacy & Security (each store's nearest).
 - **Content credits**: Wikimedia Commons, CC0 / public domain, per-file provenance in the pool manifest.
 

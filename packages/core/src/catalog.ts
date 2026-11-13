@@ -35,7 +35,7 @@ export interface CatalogEntry {
   zoom?: number;
   focusPresets?: CatalogPreset[];
   notes?: string;
-  /** §32: picking this adds a floating player (Prism's own control up, the page beneath), not a wall slot. */
+  /** §32: picking this adds a floating player (PRISM's own control up, the page beneath), not a wall slot. */
   kind?: "slot" | "floating";
   /** Default place for a floating entry (wall fractions); core's default when absent. */
   float?: FloatSpec;
@@ -120,7 +120,7 @@ export function pickerTile(
   };
   if (entry.adapter) tile.adapter = entry.adapter;
   if (entry.kind === "floating") {
-    // §32: a floating player - Prism's control up, the page beneath, no wall slot
+    // §32: a floating player - PRISM's control up, the page beneath, no wall slot
     tile.kind = "floating";
     if (entry.float) tile.float = { ...entry.float };
   }

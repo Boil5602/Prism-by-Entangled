@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Prism</title>
+<title>PRISM</title>
 <style>
   :root { --bezel:#0A0C0F; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; }
   * { box-sizing: border-box; }
@@ -64,14 +64,14 @@
 
   <section id="allowed-all" hidden>
     <h3>Popups you've allowed</h3>
-    <div class="row" data-tip="Every popup you have allowed, on every site: the site, then the destination it may open. Remove one and that site's popups to it are held again. The Prism button's panel shows only the current site's."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
+    <div class="row" data-tip="Every popup you have allowed, on every site: the site, then the destination it may open. Remove one and that site's popups to it are held again. The PRISM button's panel shows only the current site's."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
     <div id="allowed-list" hidden></div>
   </section>
 
   <section>
     <h3>Covering ads</h3>
     <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labelled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
-    <label class="row" data-tip="The bottom-right Prism button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the Prism button</span></label>
+    <label class="row" data-tip="The bottom-right PRISM button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the PRISM button</span></label>
     <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
     <div class="row" data-tip="How the intermission over a video ad looks. Full card: art with the countdown and controls in the middle. Corner chip: art only, a small chip top-left that opens the controls."><span class="dest">Intermission</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
   </section>
@@ -83,23 +83,25 @@
     <div class="row" id="sound-row" data-tip="A quiet soundscape while a veil covers a video's ad break (the tab itself stays muted). Field recordings, free to use (CC0). Off by default."><span class="dest">Sound during breaks</span>
       <span class="seg" id="sound-seg"><label data-snd="">Off</label><label data-snd="river">River</label><label data-snd="chimes">Chimes</label><label data-snd="stars">Stars</label></span></div>
     <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labelled content</span></label>
-    <div class="livesites" id="live-note" hidden>These two switches are the live TV ad detection. Off, Prism puts up no veil of its own on live TV; the services' own marked breaks are still covered elsewhere.</div>
-    <label class="row" id="ytv-veil-row" data-tip="Some live TV services mark the ad slots they add to a channel. With this on, Prism covers the channel while one of those slots plays. A channel's own commercials carry no mark, so they still show. For now this works on YouTube TV. On by default."><input type="checkbox" id="ytv-veil"><span class="dest">Veil marked ad slots in live TV</span></label>
+    <label class="row" data-tip="Covers the posts a feed puts in from accounts you do not follow. For now this works on Facebook: a post whose header shows Facebook&#39;s own Follow or Join button beside the page&#39;s or group&#39;s name, or its Interested and Not interested buttons. A friend&#39;s share is left alone. These are the service&#39;s suggestions, not marked ads. Off by default."><input type="checkbox" id="suggested-veil"><span class="dest">Veil suggested posts</span></label>
+    <label class="row" data-tip="Rest the pointer on a cover&#39;s symbol to see what is under it, small: the ad, the post or the video as it is at that moment. Nothing is loaded a second time. Off, the panel keeps its words and its Reveal button and shows no small view. On by default."><input type="checkbox" id="small-view"><span class="dest">Small view under a cover</span></label>
+    <div class="livesites" id="live-note" hidden>These two switches are the live TV ad detection. Off, PRISM puts up no veil of its own on live TV; the services' own marked breaks are still covered elsewhere.</div>
+    <label class="row" id="ytv-veil-row" data-tip="Some live TV services mark the ad slots they add to a channel. With this on, PRISM covers the channel while one of those slots plays. A channel's own commercials carry no mark, so they still show. For now this works on YouTube TV. On by default."><input type="checkbox" id="ytv-veil"><span class="dest">Veil marked ad slots in live TV</span></label>
     <label class="row" id="live-picture-row" data-tip="Reads the live TV picture once a second, for spotting the channel&#39;s commercials. Nothing leaves the browser. The tab shows a sharing mark while it runs. For now this works on YouTube TV. Off by default."><input type="checkbox" id="live-picture"><span class="dest">Read the live TV picture</span></label>
-    <label class="row" id="pack-row" data-tip="Once a day Prism fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data (nothing that runs). Nothing about you is sent: no cookie, no identifier, one plain request. Off, the detections that came with this version are used."><input type="checkbox" id="pack-updates"><span class="dest">Get ad cover updates from Entangled</span></label>
+    <label class="row" id="pack-row" data-tip="Once a day PRISM fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data (nothing that runs). Nothing about you is sent: no cookie, no identifier, one plain request. Off, the detections that came with this version are used."><input type="checkbox" id="pack-updates"><span class="dest">Get ad cover updates from Entangled</span></label>
     <div class="livesites" id="pack-note" hidden></div>
     <div class="livesites" id="live-now" hidden>Reading this tab's picture now.</div>
-    <div class="livesites" id="live-chan" hidden data-tip="What Prism covers on this channel. Sure breaks only covers YouTube TV's own marked slots and paid programming, never a break it only judged."><span id="live-chan-name"></span>
+    <div class="livesites" id="live-chan" hidden data-tip="What PRISM covers on this channel. Sure breaks only covers YouTube TV's own marked slots and paid programming, never a break it only judged."><span id="live-chan-name"></span>
       <span class="seg" id="live-chan-seg"><label data-mode="all">All breaks</label><label data-mode="sure">Sure only</label><label data-mode="off">None</label></span></div>
     <div class="livesites" id="live-sites" hidden>
       <div class="sub" data-tip="The sites whose live TV picture is read. YouTube TV is the one tried so far. Add another live TV site to try the ad detection there.">Live TV sites</div>
       <div id="live-site-list"></div>
       <div class="addrow"><input class="filter" id="live-site-add" placeholder="Add a site, like example.com" spellcheck="false"><button class="btn" id="live-site-here" hidden>Add this site</button></div>
     </div>
-    <div class="livesites" id="veil-log-row" data-tip="A record of every veil Prism put over a video's ad break on this browser: when it went up and came down, the site and channel, whether the service marked the break or Prism's break watch spotted it, and the rule that called it. It stays in this browser. Copy puts it on the clipboard as text.">
+    <div class="livesites" id="veil-log-row" data-tip="A record of every veil PRISM put over a video's ad break on this browser: when it went up and came down, the site and channel, whether the service marked the break or PRISM's break watch spotted it, and the rule that called it. It stays in this browser. Copy puts it on the clipboard as text.">
       <div class="addrow"><span class="sub">Veil log</span><button class="btn" id="veil-log-copy">Copy</button><button class="btn" id="veil-log-clear">Clear</button><span class="sub" id="veil-log-note"></span></div>
     </div>
-    <label class="row" data-tip="<p><b>Three-disk cylinder</b> next to links to rated outlets, and on the Prism button for the site you're on. One disk per source, on that source's own scale:</p><p><span class='d' style='background:#3fb950'></span>green &middot; <span class='d' style='background:#d29922'></span>yellow &middot; <span class='d' style='background:#f85149'></span>red</p><p>grey = no information &middot; hollow = source switched off</p><p>Click a disk to open the discussion behind the rating</p><p>Nothing is hidden or blocked. Unlisted is not &ldquo;bad&rdquo;.</p>"><input type="checkbox" id="src-marks"><span class="dest">Mark source reliability</span></label>
+    <label class="row" data-tip="<p><b>Three-disk cylinder</b> next to links to rated outlets, and on the PRISM button for the site you're on. One disk per source, on that source's own scale:</p><p><span class='d' style='background:#3fb950'></span>green &middot; <span class='d' style='background:#d29922'></span>yellow &middot; <span class='d' style='background:#f85149'></span>red</p><p>grey = no information &middot; hollow = source switched off</p><p>Click a disk to open the discussion behind the rating</p><p>Nothing is hidden or blocked. Unlisted is not &ldquo;bad&rdquo;.</p>"><input type="checkbox" id="src-marks"><span class="dest">Mark source reliability</span></label>
     <div class="sources" id="sources" hidden>
       <label data-tip="<p><b>Wikipedia &ndash; Perennial Sources</b> (CC BY-SA)</p><p>Community-adjudicated: reliable / no consensus / unreliable / deprecated</p><p>Every rating links to the discussion that set it</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>
       <label data-tip="<p><b>Iffy Index</b> (CC BY 4.0)</p><p>Sites that Media Bias/Fact Check rates low credibility</p><p>Colour = MBFC&rsquo;s factual-reporting grade</p><p>The disk links to the MBFC review</p>"><input type="checkbox" data-src="iffy"><span class="disk" style="background:#d29922"></span>Iffy Index</label>
@@ -109,17 +111,17 @@
 
   <section>
     <h3>Photos</h3>
-    <div class="row" id="photos-row" data-tip="The photos behind every veil. Built-in: the 24 that ship inside Prism. Server: 24 random photos from the signed pool at prism.entangled.world (CC0 / public domain, each photo checked against the signed index; no identifiers sent)."><span class="dest" id="photos-text">…</span><button class="btn primary" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Restore defaults</button></div>
+    <div class="row" id="photos-row" data-tip="The photos behind every veil. Built-in: the 24 that ship inside PRISM. Server: 24 random photos from the signed pool at prism.entangled.world (CC0 / public domain, each photo checked against the signed index; no identifiers sent)."><span class="dest" id="photos-text">…</span><button class="btn primary" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Restore defaults</button></div>
     <div class="err" id="photos-err" hidden></div>
-    <div class="row" id="art-sets" data-tip="Which pictures the veils and the start page draw from, all public domain from Prism's server: Nature photos, NASA's Cosmos, and Museum art from the Art Institute of Chicago. At least one stays on."><span class="dest">Pictures</span><label><input type="checkbox" value="nature"> Nature</label> <label><input type="checkbox" value="cosmos"> Cosmos</label> <label><input type="checkbox" value="gallery"> Museum art</label></div>
+    <div class="row" id="art-sets" data-tip="Which pictures the veils and the start page draw from, all public domain from PRISM's server: Nature photos, NASA's Cosmos, and Museum art from the Art Institute of Chicago. At least one stays on."><span class="dest">Pictures</span><label><input type="checkbox" value="nature"> Nature</label> <label><input type="checkbox" value="cosmos"> Cosmos</label> <label><input type="checkbox" value="gallery"> Museum art</label></div>
     <div class="err" id="art-sets-note" hidden></div>
     <label class="row" data-tip="Fetch a fresh random 24 from the server once a week, automatically (catches up at next start if the browser was closed)."><input type="checkbox" id="art-weekly"><span class="dest">Refresh photos weekly</span></label>
   </section>
 
   <section>
-    <h3>Prism page</h3>
-    <label class="row" data-tip="Every new tab opens Prism's start page (art, clock, search, your links, weather, calendar). Asks once for the 'tabs' permission it needs."><input type="checkbox" id="startpage-on"><span class="dest">Use Prism as my new-tab page</span></label>
-    <label class="row" data-tip="When the browser starts or a new window opens, its first tab is Prism's start page."><input type="checkbox" id="homepage-on"><span class="dest">Use Prism as my start page</span></label>
+    <h3>PRISM page</h3>
+    <label class="row" data-tip="Every new tab opens PRISM's start page (art, clock, search, your links, weather, calendar). Asks once for the 'tabs' permission it needs."><input type="checkbox" id="startpage-on"><span class="dest">Use PRISM as my new-tab page</span></label>
+    <label class="row" data-tip="When the browser starts or a new window opens, its first tab is PRISM's start page."><input type="checkbox" id="homepage-on"><span class="dest">Use PRISM as my start page</span></label>
   </section>
 
   <section>

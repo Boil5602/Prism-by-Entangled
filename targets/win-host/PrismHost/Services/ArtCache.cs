@@ -36,13 +36,15 @@ internal static class ArtCache
     }
 
     /// <summary>The picture's address to draw from: the kept file when there is one, else the address itself (and it is kept for next time).</summary>
-    /// <summary>Stand-ins for pictures of Prism (MainWindow.StandIn.cs, dev): a folder of plain cards drawn in place of every picture that has an address.</summary>
+    /// <summary>Stand-ins for pictures of PRISM (MainWindow.StandIn.cs, dev): a folder of plain cards drawn in place of every picture that has an address.</summary>
     public static string? StandInDir;
     public static Uri UriFor(string url)
     {
         if (StandInDir is { } standIn)
         {
-            try { var cards = Directory.GetFiles(standIn, "*.png"); if (cards.Length > 0) { uint h = 2166136261; foreach (var c in url) { h ^= c; h *= 16777619; } return new Uri(cards[h % (uint)cards.Length]); } } catch { }
+            // a picture the stand-ins chose by name ("standin:album-03"): that file of the folder, so a card's words and its picture agree
+            if (url.StartsWith("standin:", StringComparison.Ordinal)) { var named = Path.Combine(standIn, url.Substring(8) + ".png"); if (File.Exists(named)) return new Uri(named); }
+            try { var cards = Directory.GetFiles(standIn, "card*.png"); if (cards.Length == 0) cards = Directory.GetFiles(standIn, "still-*.png"); Array.Sort(cards, StringComparer.Ordinal); if (cards.Length > 0) { uint h = 2166136261; foreach (var c in url) { h ^= c; h *= 16777619; } return new Uri(cards[h % (uint)cards.Length]); } } catch { }
         }
         if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) && !url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) return new Uri(url);
         try

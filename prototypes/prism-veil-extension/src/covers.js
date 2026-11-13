@@ -1,5 +1,5 @@
 /*
-  Prism Veil - DISPLAY covers. Paints art over each detected ad element at
+  PRISM Veil - DISPLAY covers. Paints art over each detected ad element at
   exactly its own rectangle, riding the page's own scroll/clipping. Owns the
   veil registry, the sweep, row-shared art, and the sticky-bar clip.
   Observe-only (spec section 26): the ad still loads; clicks on the art are
@@ -54,17 +54,259 @@
     // read when the pointer arrives, so a photo swapped for a bundled one
     // (a strict page CSP) is credited as the one on screen.
     lbl.style.cursor = "help";
-    lbl.addEventListener("mouseenter", function () {
-      try {
-        var f = String(cover.__artUrl || "").split(/[\/?#]/).filter(Boolean);
-        var name = f.length ? decodeURIComponent(f[f.length - 1]) : "";
-        var c = (PV.ART_CREDITS && PV.ART_CREDITS[name]) || "";
-        lbl.title = (glyph && glyph !== String.fromCharCode(0x25D0) ? "Covered by Prism: labelled AI content." : "Covered by Prism: an ad.") + (c ? "\n\n" + c : "");
-      } catch (e) {}
-    });
+    // 2026-11-11: the card with the small preview in place of the browser's title bubble (lookOpen below)
+    // 2026-11-11: the panel with the small view in place of the browser's title bubble (lookOpen below), opened and closed as the
+    // video veil's peep is
+    var isAi = !!(glyph && glyph !== String.fromCharCode(0x25D0));
+    lbl.addEventListener("mouseenter", function () { lookKeep(); if (!(look && look.cover === cover)) { try { lookOpen(cover, lbl, isAi); } catch (e) {} } });
+    lbl.addEventListener("mouseleave", lookLeave);
+    cover.addEventListener("mousemove", function (ev) { if (look && look.cover === cover && ev.target !== lbl) lookLeave(); });
     cover.appendChild(lbl);
     requestAnimationFrame(function () { cover.style.opacity = "1"; });
   }
+
+
+  // ---- the look under a display cover (2026-11-11, asked for a small preview of the covered ad or post on the symbol, with the
+  // picture's credit, in a card that reads well; then asked for the element's present state, as the video veil's peep shows it).
+  // Resting the pointer on the symbol opens a card: what was covered and by which of the page's own signals, the covered element
+  // itself, small, and the credit of the picture on the cover. The small view is a KEYHOLE, the video peep's second way
+  // (video.js): a hole in the cover (paintClip's holes) and the page's own element scaled down into it for as long as the card is
+  // open. It is the live element as it is now, an ad in a frame too; nothing is copied and nothing is loaded again. The hole lies
+  // inside the element's own box, since the page's clipping keeps the element there, and the card is laid around the hole. A
+  // window in the card over the hole takes the pointer, so nothing under it can be pressed. An inside cover is a child of its
+  // element, so there the element's other children are scaled, each to its place; an element with a shadow tree of its own gets
+  // a line of text and no view. Closes when the pointer leaves the symbol, on a scroll, when the cover goes, or after 20 s; the
+  // sweep leaves a cover alone while its look is open (__lookOn).
+  var look = null;
+  // The card is the video peep's panel (video.js, 2026-11-07) for a display cover, and behaves as it does (2026-11-11, asked to
+  // mirror it): the same dark panel under the symbol, the small view at its top, a Reveal 15 s button at its foot; it stays open
+  // while the pointer is on the symbol or on the panel, and closes a quarter second after the pointer leaves both, when the pointer
+  // moves elsewhere on the cover, or after twenty seconds.
+  var LOOK_BG = "rgba(20,23,28,.92)";
+  // One size (2026-11-11, asked for: every panel the same, never one large and one small). The panel is 260 px wide and its view is
+  // a frame of LOOK_W x LOOK_H; what is under the cover is shrunk to fit the frame, with blank space at the sides of a tall element
+  // and above and below a wide one.
+  var LOOK_W = 192, LOOK_H = 108;   // the video peep's size (video.js), asked for the same day
+  var LOOK_CSS = ":host{all:initial}" +
+    ".card{display:flex;flex-direction:column;width:260px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.12);color:#D7DCE3;font:500 13px/1.35 -apple-system,'Segoe UI',Roboto,sans-serif;cursor:default}" +
+    ".pre{display:flex;justify-content:center;overflow:hidden;padding:10px 10px 8px;border-radius:12px 12px 0 0}" +
+    ".frame{position:relative;flex:none;width:" + LOOK_W + "px;height:" + LOOK_H + "px}" +
+    ".win{position:absolute;border-radius:4px;box-shadow:0 0 0 2000px " + LOOK_BG + "}" +
+    ".shade,.edge{position:absolute;left:0;top:0;right:0;bottom:0;border-radius:6px;pointer-events:none}" +
+    ".shade{background:rgba(0,0,0,.3)}.edge{box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}" +
+    ".card.up{flex-direction:column-reverse}" +
+    ".card.up .pre{border-radius:0 0 12px 12px;padding:8px 10px 10px}.card.up .bot{border-radius:12px 12px 0 0;padding:10px 10px 0}" +
+    ".pre.plain{background:" + LOOK_BG + "}.note{color:#9AA4B2;font-size:12px}" +
+    ".bot{background:" + LOOK_BG + ";border-radius:0 0 12px 12px;padding:0 10px 10px;display:flex;flex-direction:column;gap:8px}" +
+    ".bot.only{border-radius:12px;padding-top:10px}" +
+    ".t{display:flex;align-items:baseline;gap:8px}.t b{font-size:13.5px;font-weight:600;color:#E8ECF2}.t span{color:#F0A83C;font-size:12.5px}" +
+    ".row{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:baseline}.k{color:#9AA4B2;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase}.v{color:#E8ECF2;overflow-wrap:anywhere;min-width:0}" +
+    ".rule{height:1px;background:rgba(255,255,255,.1)}" +
+    "button{cursor:pointer;font:600 13px -apple-system,'Segoe UI',Roboto,sans-serif;color:#0A0C0F;background:#F0A83C;border:0;border-radius:9px;padding:7px 14px;align-self:flex-start;margin-top:2px}";
+  // what was covered and why, in words, from the rule's own reason (data-prism-why)
+  PV.coverWhy = function (reason, ai) {
+    reason = String(reason || "");
+    var d = reason.replace(/^[a-z0-9-]+:\s*/i, "");
+    if (ai) return { kind: "Labelled AI content", source: "The platform's own label" + (d ? ": " + d : "") };
+    if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
+    if (/^facebook-sponsored/.test(reason)) return { kind: "An ad", source: "Facebook's own Sponsored or Ad label in the post's header" };
+    if (/^(badge-label|section-label)/.test(reason)) return { kind: "An ad", source: "The page's own label" + (d ? ": " + d : "") };
+    if (/^(slot-selector|ad-stack)/.test(reason)) return { kind: "An ad", source: "An ad slot in the page" };
+    return { kind: "An ad", source: d || reason || "The page's own markers" };
+  };
+  // Where the small view goes: the element's box tr scaled to fit maxW x maxH (never enlarged), placed in the part of the box that is
+  // on the screen (vis), `dx`,`dy` in from that part's corner where there is room. Returns { k, x, y, w, h } in viewport px.
+  PV.lookHole = function (tr, vis, maxW, maxH, dx, dy) {
+    var k = Math.min(maxW / tr.width, maxH / tr.height, 1), w = tr.width * k, h = tr.height * k;
+    var x = Math.max(vis.left, Math.min(vis.left + dx, vis.right - w)), y = Math.max(vis.top, Math.min(vis.top + dy, vis.bottom - h));
+    return { k: k, x: x, y: y, w: w, h: h };
+  };
+  // A picture's credit set out in rows (2026-11-11, asked for: it ran together in one line). The credit is a title on its first
+  // line, then parts joined by a middle dot: "Photo: <who>", the license, the source (art-credits.js). Each part gets its own row.
+  PV.creditParts = function (credit) {
+    var lines = String(credit || "").split("\n"), out = [];
+    if (lines[0]) out.push(["Picture", lines[0].trim()]);
+    lines.slice(1).join(" \u00B7 ").split(" \u00B7 ").forEach(function (part) {
+      part = part.trim(); if (!part) return;
+      var m = /^Photo:\s*(.+)$/i.exec(part);
+      if (m) out.push(["Photo", m[1]]);
+      else if (/^(public domain|cc[ -]|creative commons)/i.test(part)) out.push(["License", part]);
+      else out.push(["Source", part]);
+    });
+    return out;
+  };
+  // Where the panel and its view go along one axis. The panel is `size` long and holds a frame `F` long that starts `f` in from the
+  // panel's edge; the view, `len` long, lies in the frame `a` in from the frame's edge. Two things must hold: the panel is on a
+  // screen `screen` long with 6 px to spare, and the view is inside [lo, hi] (the element's part on the screen). The view is in the
+  // middle of the frame where that can be, the panel at `pref` where that can be. Returns { p, a }, or null when no place does both.
+  PV.lookPlace = function (pref, f, size, F, len, lo, hi, screen) {
+    var pMax = screen - size - 6, aLo = Math.max(0, lo - f - pMax), aHi = Math.min(F - len, hi - len - f - 6);
+    if (pMax < 6 || aLo > aHi) return null;
+    var a = Math.max(aLo, Math.min((F - len) / 2, aHi));
+    var pLo = Math.max(6, lo - f - a), pHi = Math.min(pMax, hi - len - f - a);
+    if (pLo > pHi) return null;
+    return { p: Math.max(pLo, Math.min(pref, pHi)), a: a };
+  };
+  function lookCredit(cover) {
+    try {
+      var f = String(cover.__artUrl || "").split(/[\/?#]/).filter(Boolean);
+      var name = f.length ? decodeURIComponent(f[f.length - 1]) : "";
+      return (PV.ART_CREDITS && PV.ART_CREDITS[name]) || "";
+    } catch (e) { return ""; }
+  }
+  var LOOK_PROPS = ["transform", "transform-origin", "transition", "display"];
+  var lookLeaveT = 0;
+  function lookKeep() { if (lookLeaveT) { clearTimeout(lookLeaveT); lookLeaveT = 0; } }
+  function lookLeave() { lookKeep(); lookLeaveT = setTimeout(function () { lookLeaveT = 0; lookClose(); }, 250); }
+  // Reveal 15 s, the video peep's button: the cover is hidden for that long and comes back by itself
+  function lookReveal(cover, ms) {
+    lookClose();
+    try {
+      cover.style.setProperty("visibility", "hidden", "important");
+      clearTimeout(cover.__revealT); cover.__revealT = setTimeout(function () { try { cover.style.removeProperty("visibility"); } catch (e) {} }, ms);
+    } catch (e2) {}
+  }
+  PV.lookReveal = lookReveal;
+  function lookClose() {
+    lookKeep();
+    var l = look; look = null; if (!l) return;
+    clearTimeout(l.timer); clearInterval(l.watch);
+    try { removeEventListener("scroll", lookClose, true); } catch (e) {}
+    try { l.host.remove(); } catch (e2) {}
+    (l.moved || []).forEach(function (m) {
+      LOOK_PROPS.forEach(function (p, i) { try { if (m.saved[i][0]) m.el.style.setProperty(p, m.saved[i][0], m.saved[i][1]); else m.el.style.removeProperty(p); } catch (e3) {} });
+    });
+    l.cover.__lookOn = false; l.cover.__lookBox = null;
+    try { paintClip(l.cover); } catch (e4) {}
+  }
+  // The children of an inside cover's element that are scaled into the small view. A child laid out as display:contents has no box
+  // of its own, so a transform on it does nothing (Facebook wraps a feed post in one, seen live 2026-11-11: the view showed the
+  // post's corner at full size): its children are taken in its place, a few levels down at most.
+  function lookMovers(el, depth) {
+    var out = [];
+    Array.prototype.forEach.call(el.children, function (c) {
+      if (c.hasAttribute("data-prism-veil") || c.hasAttribute("data-prism-ui")) return;
+      var contents = false; try { contents = getComputedStyle(c).display === "contents"; } catch (e) {}
+      if (contents && depth < 6) out = out.concat(lookMovers(c, depth + 1)); else out.push(c);
+    });
+    return out;
+  }
+  function lookOpen(cover, lbl, ai) {
+    lookClose();
+    if (!cover.isConnected) return;
+    var mk = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+    var target = cover.__target, tr = null, movers = null, note = "";
+    try {
+      tr = target.getBoundingClientRect();
+      if (cover.__mode === "inside") movers = target.shadowRoot ? null : lookMovers(target, 0);
+      else movers = [target];
+    } catch (e0) { movers = null; }
+    var vis = tr ? { left: Math.max(tr.left, 0), top: Math.max(tr.top, 0), right: Math.min(tr.right, innerWidth), bottom: Math.min(tr.bottom, innerHeight) } : null;
+    if (!movers || !movers.length || !tr || tr.width < 20 || tr.height < 20 || vis.right - vis.left < 20 || vis.bottom - vis.top < 20) { movers = null; note = "No small view for this one."; }
+    // the small view can be switched off in the popup (pv:ui.smallView, on unless set false; 2026-11-11, asked for it on by default
+    // with a way to turn it off): the panel then has its words and its Reveal button, and nothing on the page is moved
+    var viewOff = !!(PV.uiPrefs && PV.uiPrefs.smallView === false); if (viewOff) movers = null;
+    // under the symbol, as the video peep's panel is: the panel 8 px below it, its view 10 px in
+    var lr0 = lbl.getBoundingClientRect();
+    // no larger than the part of the element that is on the screen: an element half off the screen gets a smaller view, not none
+    var hole = movers ? PV.lookHole(tr, vis, Math.min(LOOK_W, vis.right - vis.left - 24), Math.min(LOOK_H, vis.bottom - vis.top - 24), lr0.left - vis.left + 10, lr0.bottom - vis.top + 18) : null;
+
+    var host = document.createElement("div");
+    host.setAttribute("data-prism-ui", "1"); host.setAttribute("data-prism-look", "1"); host.setAttribute("aria-hidden", "true");
+    hardBox(host);
+    var hs = { position: "fixed", left: "0", top: "0", "z-index": "2147483647", "pointer-events": "auto", display: "block", opacity: "1", visibility: "visible", background: "none" };
+    for (var k in hs) host.style.setProperty(k, hs[k], "important");
+    var root = host.attachShadow({ mode: "closed" });
+    var st = document.createElement("style"); st.textContent = LOOK_CSS; root.appendChild(st);
+    var w = PV.coverWhy(cover.getAttribute("data-prism-why"), ai);
+    var card = mk("div", "card"), t = mk("div", "t");
+    var pre = mk("div", "pre"), win = null, frame = null, shade = null;
+    if (hole) {
+      win = mk("div", "win"); win.style.width = hole.w.toFixed(1) + "px"; win.style.height = hole.h.toFixed(1) + "px";
+      ["click", "auxclick", "mousedown", "mouseup", "pointerdown", "pointerup", "contextmenu"].forEach(function (ty) { win.addEventListener(ty, function (e) { e.preventDefault(); e.stopPropagation(); }, true); });
+      // the frame is always LOOK_W x LOOK_H; the view inside it has the element's shape, the rest of the frame is blank
+      frame = mk("div", "frame"); shade = mk("div", "shade");
+      frame.appendChild(win); frame.appendChild(shade); frame.appendChild(mk("div", "edge")); pre.appendChild(frame);
+    } else { pre.className = "pre plain"; pre.appendChild(mk("div", "note", note)); }
+    if (!viewOff) card.appendChild(pre);
+    var bot = mk("div", viewOff ? "bot only" : "bot");
+    t.appendChild(mk("b", "", "Covered by PRISM")); t.appendChild(mk("span", "", w.kind)); bot.appendChild(t);
+    var row = function (key, val) { var r = mk("div", "row"); r.appendChild(mk("span", "k", key)); r.appendChild(mk("span", "v", val)); bot.appendChild(r); };
+    row("Why", w.source);
+    var credit = lookCredit(cover);
+    if (credit) { bot.appendChild(mk("div", "rule")); PV.creditParts(credit).forEach(function (kv) { row(kv[0], kv[1]); }); }
+    var reveal = mk("button", "", "Reveal 15 s"); reveal.type = "button"; reveal.title = "Shows what is under the cover for fifteen seconds, then the cover comes back";
+    reveal.addEventListener("click", function (ev) { ev.stopPropagation(); lookReveal(cover, 15000); });
+    bot.appendChild(reveal);
+    card.appendChild(bot); root.appendChild(card);
+    host.addEventListener("mouseenter", lookKeep); host.addEventListener("mouseleave", lookLeave);
+    document.documentElement.appendChild(host);
+
+    var moved = [];
+    try {
+      var hr = host.getBoundingClientRect(), x, y;
+      var ox = 0, oy = 0;
+      if (hole) {
+        // The panel never leaves the screen (2026-11-11, asked for). Two things must hold at once: the view lies inside the part of
+        // the element that is on the screen, and the whole panel is on the screen (PV.lookPlace). The panel opens under the symbol
+        // with its frame at the top; where that leaves no place (an element at the bottom edge), the frame goes to the panel's foot
+        // with the words above it. Where no way fits both, the panel opens on the screen without its view.
+        var off = function () { var a = host.getBoundingClientRect(), b = frame.getBoundingClientRect(); return { x: b.left - a.left, y: b.top - a.top, w: a.width, h: a.height }; };
+        var m = off(), px = PV.lookPlace(lr0.left, m.x, m.w, LOOK_W, hole.w, vis.left, vis.right, innerWidth);
+        var py = PV.lookPlace(lr0.bottom + 8, m.y, m.h, LOOK_H, hole.h, vis.top, vis.bottom, innerHeight);
+        if (py === null) { card.classList.add("up"); m = off(); py = PV.lookPlace(lr0.top - m.h - 8, m.y, m.h, LOOK_H, hole.h, vis.top, vis.bottom, innerHeight); }
+        if (px === null || py === null) { card.classList.remove("up"); pre.style.display = "none"; bot.className = "bot only"; hole = null; }
+        else {
+          x = px.p; y = py.p; ox = m.x + px.a; oy = m.y + py.a;
+          win.style.left = px.a.toFixed(1) + "px"; win.style.top = py.a.toFixed(1) + "px";
+          // the blank part of the frame is a shade darker than the panel, so the frame reads as one box
+          var q = function (n) { return n.toFixed(1) + "px"; }, x0 = q(px.a), y0 = q(py.a), x1 = q(px.a + hole.w), y1 = q(py.a + hole.h);
+          shade.style.clipPath = "polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, " + x0 + " " + y0 + ", " + x0 + " " + y1 + ", " + x1 + " " + y1 + ", " + x1 + " " + y0 + ", " + x0 + " " + y0 + ")";
+        }
+      }
+      if (!hole) {
+        var lr = lbl.getBoundingClientRect(); hr = host.getBoundingClientRect();
+        x = lr.left; y = lr.bottom + 8;
+        if (y + hr.height > innerHeight - 6) y = lr.top - hr.height - 8;
+        x = Math.max(6, Math.min(x, innerWidth - hr.width - 6)); y = Math.max(6, Math.min(y, innerHeight - hr.height - 6));
+      }
+      host.style.setProperty("left", Math.round(x) + "px", "important"); host.style.setProperty("top", Math.round(y) + "px", "important");
+      if (hole) {
+        hole.x = Math.round(x) + ox; hole.y = Math.round(y) + oy;
+        var cr = cover.getBoundingClientRect();
+        cover.__lookOn = true;
+        cover.__lookBox = { x0: hole.x - cr.left, y0: hole.y - cr.top, x1: hole.x - cr.left + hole.w, y1: hole.y - cr.top + hole.h };
+        paintClip(cover);
+        movers.forEach(function (el) {
+          var er = el.getBoundingClientRect();
+          var tx = hole.x + (er.left - tr.left) * hole.k - er.left, ty = hole.y + (er.top - tr.top) * hole.k - er.top;
+          moved.push({ el: el, saved: LOOK_PROPS.map(function (p) { return [el.style.getPropertyValue(p), el.style.getPropertyPriority(p)]; }) });
+          el.style.setProperty("transition", "none", "important");
+          // a transform does nothing on an inline box: it is made an inline block for as long as the view is open
+          try { if (getComputedStyle(el).display === "inline") el.style.setProperty("display", "inline-block", "important"); } catch (eD) {}
+          el.style.setProperty("transform-origin", "0 0", "important");
+          el.style.setProperty("transform", "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + hole.k.toFixed(4) + ")", "important");
+        });
+      }
+    } catch (e) {}
+    // what the small view did, kept on the cover for a report (2026-11-12: three reports of a cover with no small view said
+    // nothing about why): shapes and numbers only, never the page's text
+    try {
+      var R4 = function (r) { return r ? [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)] : null; };
+      cover.__lookDiag = {
+        note: note || null, off: viewOff, hole: hole ? { k: +hole.k.toFixed(3), x: Math.round(hole.x), y: Math.round(hole.y), w: Math.round(hole.w), h: Math.round(hole.h) } : null,
+        target: R4(tr), screen: [innerWidth, innerHeight], symbol: R4(lr0), moved: moved.length,
+        movers: (movers || []).slice(0, 6).map(function (el) {
+          var cs = getComputedStyle(el), up = el.parentElement, clip = 0, tf = 0;
+          for (var n = 0; up && n < 30; n++, up = up.parentElement) { var us = getComputedStyle(up); if (us.overflow !== "visible" || us.contain !== "none") clip++; if (us.transform !== "none") tf++; }
+          return { tag: el.tagName, display: cs.display, position: cs.position, box: R4(el.getBoundingClientRect()), kids: el.children.length, clipsAbove: clip, transformsAbove: tf, applied: (el.style.transform || "").slice(0, 60) };
+        }),
+      };
+    } catch (eDiag) { cover.__lookDiag = { error: String(eDiag).slice(0, 80) }; }
+    look = { host: host, cover: cover, moved: moved, timer: setTimeout(lookClose, 20000), watch: setInterval(function () { if (!cover.isConnected) lookClose(); }, 500) };
+    addEventListener("scroll", lookClose, true);
+  }
+  PV.lookOpen = lookOpen; PV.lookClose = lookClose;
 
   // Correct a parent-mode cover by measurement: offsets lie when a transform
   // sits between the target and its offsetParent (YouTube Shorts).
@@ -180,6 +422,7 @@
   function makeCover(target, glyph) {
     var art = PV.pickArt();
     var cover = document.createElement("div");
+    cover.__target = target;   // for the look under the cover (lookOpen)
     // __prismForceOverlay: a deeply-layered ad unit (Fox's masthead stacks a
     // video + click-layer above a normal inside cover). Skip inside/parent modes
     // and go straight to a top-level overlay, which paints above all of it.
@@ -335,7 +578,7 @@
       });
     } catch (eD) {}
   }
-  // The topmost page element at a point, through open shadow roots, Prism's
+  // The topmost page element at a point, through open shadow roots, PRISM's
   // own layers skipped at every level.
   function deepHit(x, y) {
     var pick = function (list) { for (var i = 0; i < list.length; i++) { if (list[i].hasAttribute && (list[i].hasAttribute("data-prism-veil") || list[i].hasAttribute("data-prism-ui"))) continue; return list[i]; } return null; };
@@ -399,7 +642,7 @@
   function findTopBar() { scanBarCandidates(); pickTopBar(); }
   // ---- the ad's own close control stays reachable THROUGH the cover.
   // Many units carry an X (Jetpack's masthead strip, sticky footers, AdChoices
-  // closes). Prism clicks nothing (spec section 26) - but the person's own
+  // closes). PRISM clicks nothing (spec section 26) - but the person's own
   // click on the page's own X is theirs to make, and once the ad is gone the
   // cover goes with it (the sweep drops a cover whose element is hidden). So
   // the cover is cut away over the X: a clip-path hole hit-tests, so the real
@@ -407,7 +650,7 @@
   // Only a control that plainly says close / dismiss (aria-label, title, id
   // or a class token) or reads as a lone x / multiplication-sign glyph, at
   // most 64px a side, and that a hit-test at its centre actually reaches once
-  // Prism's own layers are skipped (a click-layer over it means a click there
+  // PRISM's own layers are skipped (a click-layer over it means a click there
   // would open the advertiser: no hole).
   // Two kinds of candidate, each small (at most 64px a side) and each still
   // subject to the hit-test:
@@ -541,7 +784,7 @@
       // Skip an element nested in one already taken (an icon inside the button).
       var nested = false; for (var k = 0; k < out.length; k++) { if (out[k].contains(e)) { nested = true; break; } } if (nested) continue;
       // The hit-test runs where the control lives: in a frame, the page must
-      // reach the frame at that point (Prism's layers skipped) and the frame's
+      // reach the frame at that point (PRISM's layers skipped) and the frame's
       // own document must reach the control.
       var hit = null, fe = frameOf(e), pr = pageRect(e);
       try {
@@ -562,7 +805,7 @@
   // rule leaves the holes out - and a clip-path hole hit-tests.
   function paintClip(cover) {
     var u = cover.__under || 0, o = cover.__over || 0, lo = o > 0 ? (cover.offsetHeight || cover.getBoundingClientRect().height) - o : Infinity;
-    var holes = (cover.__holeBoxes || []).filter(function (h) { return h.y1 > u + 2 && h.y0 < lo - 2; })
+    var holes = (cover.__holeBoxes || []).concat(cover.__lookBox ? [cover.__lookBox] : []).filter(function (h) { return h.y1 > u + 2 && h.y0 < lo - 2; })
       .map(function (h) { return { x0: h.x0, y0: Math.max(h.y0, u), x1: h.x1, y1: Math.min(h.y1, lo) }; })
       .sort(function (a, b) { return a.x0 - b.x0; });
     if (!holes.length) { cover.style.clipPath = (u > 0 || o > 0) ? "inset(" + u.toFixed(1) + "px 0 " + (o > 0 ? o.toFixed(1) + "px" : "0") + " 0)" : ""; return; }
@@ -777,8 +1020,19 @@
       lowerPager(cover); veils.delete(t);
       if (PV.recordError && !t.__prismReattachLogged) { t.__prismReattachLogged = true; PV.recordError("cover re-made (page removed it) " + t.tagName + "." + PV.classStr(t).slice(0, 40)); }
     });
+    // A cover that is on the page and is no target's cover is taken away: a page that takes a cover out and puts the same node
+    // back later (CNN's Dianomi strip, seen 2026-11-12) left two covers on one ad, and the look's hole in one showed the other.
+    try {
+      var live = new Set(); veils.forEach(function (c) { live.add(c); });
+      document.querySelectorAll("[data-prism-why]").forEach(function (c) { if (!live.has(c)) c.remove(); });
+    } catch (eO) {}
+    // While a look is open its element is shrunk into the cover's hole, so the element's own wrapper can read as an ad with nothing
+    // covered in it and get a cover of its own behind the hole (2026-11-12, reported on CNN: a second cover came up behind the one
+    // looked under). Nothing that holds the looked-under element, or is held by it, gets a new cover until the look closes.
+    var lookT = (look && look.cover && look.cover.__lookOn) ? look.cover.__target : null;
     targets.forEach(function (t) {
       if (veils.has(t)) return;
+      if (lookT && t !== lookT && (PV.deepContains(t, lookT) || PV.deepContains(lookT, t))) return;
       var cv = makeCover(t, /^ai-(lookup|label)/.test(why.get(t) || "") ? "\u2726" : "\u25D0"); veils.set(t, cv); cv.setAttribute("data-prism-why", String(why.get(t) || "").slice(0, 60)); raisePager(t, cv); muteUnder(t); if (PV.reclaimDisplaySlot) PV.reclaimDisplaySlot(t);
       watchGrowth(t, cv);
       // Trace any cover that takes more than half the viewport (MSN: a full-
@@ -792,6 +1046,7 @@
       } catch (eB) {}
     });
     veils.forEach(function (cover, t) {
+      if (cover.__lookOn && t.isConnected) return;   // its look is open: the element is scaled into the cover's hole for now (lookOpen), nothing here is to be judged by its box
       if (!targets.has(t) || !t.isConnected || !PV.isVisible(t)) {
         lowerPager(cover); cover.remove(); veils.delete(t); unmuteUnder(t); return;
       }

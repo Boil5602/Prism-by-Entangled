@@ -1,15 +1,15 @@
 // The break watch's overnight sampler (2026-11-04: test every YouTube TV channel, five at a time; the owner's yes to the screen 1-6 AM and
-// to five streams). Prism's Movie Night scene on the screen, the PC muted, the big screen and four multiview windows each on a channel for
+// to five streams). PRISM's Movie Night scene on the screen, the PC muted, the big screen and four multiview windows each on a channel for
 // half an hour, then the next five, through the whole lineup and round again (state.json remembers where it got to). The bench records every
 // window a second at a time (PRISM_FRAME_SAMPLER=1, Keep recording on), and the keeper files the recordings by day for the recurrence miner
 // and the doctor's labelling. Nothing is labelled here and nothing leaves the PC.
 //
-// It stops at once, leaving the screen as it is and the sound as it was, when a person acts: a press on Prism's window, or a phone that does
+// It stops at once, leaving the screen as it is and the sound as it was, when a person acts: a press on PRISM's window, or a phone that does
 // anything but read (a POST). At the end it closes the windows, puts back the scene that was up, and the PC's mute as it was.
 //
 // The idle runs (2026-11-05, the owner's yes to sampling beyond the night): with --idle=MIN it waits, and samples whenever nobody has used
-// the PC or Prism for MIN minutes, nothing of Prism's is playing sound and the screen holds no title; a press stops the run as at night,
-// and the wait starts again. These runs never touch the PC's mute (a call on the PC keeps its sound): Prism alone goes silent in the room,
+// the PC or PRISM for MIN minutes, nothing of PRISM's is playing sound and the screen holds no title; a press stops the run as at night,
+// and the wait starts again. These runs never touch the PC's mute (a call on the PC keeps its sound): PRISM alone goes silent in the room,
 // the person's own mute (B-472), whose floor the page meters read through, so the sound inputs are recorded the same.
 //
 //   node scripts/breakwatch/sampler.mjs [--until=06:00] [--slot-min=30] [--windows=5] [--idle=60] [--mute=pc|prism] [--dry]
@@ -21,14 +21,14 @@ const opt = (n, d) => { const a = process.argv.find((x) => x.startsWith(n + "=")
 const DRY = process.argv.includes("--dry");
 const UNTIL = opt("--until", "06:00");
 const SLOT_MIN = Number(opt("--slot-min", "30"));
-// five by default; three when Prism's window is narrow (2026-11-04: on a 1,290 px wide window the fourth and fifth multiview windows sat
+// five by default; three when PRISM's window is narrow (2026-11-04: on a 1,290 px wide window the fourth and fifth multiview windows sat
 // low on the screen and YouTube TV ignored the press that tunes them; the big screen and two windows tuned every time)
 const WINDOWS = Number(opt("--windows", "5"));
 // the scene put back at the end; the scene that was up at the start otherwise (a run started over an earlier one finds the video scene up)
 const RESTORE = opt("--restore", null);
-// minutes nobody has used the PC or Prism before an idle run; 0 = the night's run, at once
+// minutes nobody has used the PC or PRISM before an idle run; 0 = the night's run, at once
 const IDLE = Number(opt("--idle", "0"));
-// what goes silent: the PC's playback device (the nights) or Prism alone in the room (the idle runs, always)
+// what goes silent: the PC's playback device (the nights) or PRISM alone in the room (the idle runs, always)
 const MUTE = IDLE ? "prism" : opt("--mute", "pc");
 const DIAG = join(process.env.LOCALAPPDATA, "Prism", "diagnostics");
 const HOSTLOG = join(DIAG, "host.log");
@@ -52,7 +52,7 @@ async function evalBrain(js, timeoutMs = 25000) {
   writeFileSync(req, "brain\n" + js);
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) { await sleep(250); if (existsSync(done)) { await sleep(60); return readFileSync(done, "utf8"); } }
-  throw new Error("Prism did not answer: " + js.slice(0, 60));
+  throw new Error("PRISM did not answer: " + js.slice(0, 60));
 }
 // the video verbs answer JSON strings, and eval.done holds the JSON of what the expression gave: unwrap both
 async function call(js) {
@@ -73,7 +73,7 @@ async function muteSet(on) { return MUTE === "pc" ? pcMute(on ? "on" : "off") : 
 
 // a person acting: host.log read from where it stood at the start
 let logPos = 0;
-// the player as a slot needs it (2026-11-04: two failed tunes closed their windows, multiview switched itself off and Prism's Watch page
+// the player as a slot needs it (2026-11-04: two failed tunes closed their windows, multiview switched itself off and PRISM's Watch page
 // came up over the screen; every tune after that answered ok and played nothing): the Watch page closed, multiview on
 async function ensureUp(hard) {
   try { writeFileSync(join(DIAG, "hub.request"), "close"); } catch {}
@@ -108,7 +108,7 @@ function phoneActed(line) {
   const m = /\\u0022path\\u0022:\\u0022([^\\]+)\\u0022/.exec(line);
   return !(m && PHONE_READS.includes(m[1]));
 }
-// host.log read on from where it stood, for the idle runs: the last press (on Prism's window, or a phone that does more than read), and
+// host.log read on from where it stood, for the idle runs: the last press (on PRISM's window, or a phone that does more than read), and
 // each page's own audible state as WebView2 reports it on a change (the now-playing line can be a phantom; this cannot), until the page goes
 class LogTail {
   constructor() { this.pos = 0; this.sounding = new Map(); this.muted = new Map(); this.lastPress = 0; }
@@ -116,7 +116,7 @@ class LogTail {
   loud() { return [...this.sounding].filter(([id, on]) => on && !this.muted.get(id)).map(([id]) => id); }
   read() {
     let size; try { size = statSync(HOSTLOG).size; } catch { return; }
-    if (size < this.pos) { this.pos = 0; this.sounding.clear(); this.muted.clear(); }   // a new log: Prism started again
+    if (size < this.pos) { this.pos = 0; this.sounding.clear(); this.muted.clear(); }   // a new log: PRISM started again
     if (size === this.pos) return;
     const fd = openSync(HOSTLOG, "r");
     try {
@@ -138,7 +138,7 @@ class LogTail {
       }
       let m = /audible (\S+): (True|False) muted=(True|False)/.exec(line);
       if (m) { this.sounding.set(m[1], m[2] === "True"); this.muted.set(m[1], m[3] === "True"); continue; }
-      // Prism's own mute of a page changes no audible line: it is read from the command
+      // PRISM's own mute of a page changes no audible line: it is read from the command
       m = /<- surface\.setMuted (\S+) muted=(True|False)/.exec(line); if (m) { this.muted.set(m[1], m[2] === "True"); continue; }
       m = /<- surface\.destroy (\S+)/.exec(line); if (m) { this.sounding.delete(m[1]); this.muted.delete(m[1]); }
     }
@@ -146,27 +146,27 @@ class LogTail {
 }
 // why an idle run should not start now ([kind, words]), or null
 async function busyReason(tail) {
-  // Prism silent in the room (its own mute, B-472): the PC's own use does not hold the run - the person may browse, work or take a call on
-  // the PC while Prism records unheard (2026-11-05, the owner using the browser and asking that the capture not stop); only Prism's own use does
-  if (lockLive(join("scripts", "doctor", "out", "doctor.lock"))) return ["doctor", "the doctor's run is reading Prism"];   // before any read of Prism: one eval channel
+  // PRISM silent in the room (its own mute, B-472): the PC's own use does not hold the run - the person may browse, work or take a call on
+  // the PC while PRISM records unheard (2026-11-05, the owner using the browser and asking that the capture not stop); only PRISM's own use does
+  if (lockLive(join("scripts", "doctor", "out", "doctor.lock"))) return ["doctor", "the doctor's run is reading PRISM"];   // before any read of PRISM: one eval channel
   let roomMuted = false;
-  try { roomMuted = (await call("PrismRuntime.wallMute()"))?.muted === true; } catch { return ["prism", "Prism did not answer"]; }
+  try { roomMuted = (await call("PrismRuntime.wallMute()"))?.muted === true; } catch { return ["prism", "PRISM did not answer"]; }
   let idle = -1;
   try { idle = Number(execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join("scripts", "breakwatch", "pc-idle.ps1")], { encoding: "utf8" }).trim()); } catch {}
   if (!roomMuted && !(idle >= 0)) return ["pc?", "the PC's idle time could not be read"];
   if (!roomMuted && idle < IDLE) return ["pc", "the PC was used " + idle + " min ago"];
   tail.read();
   const since = Math.round((Date.now() - tail.lastPress) / 60000);
-  if (since < IDLE) return ["press", "Prism was used " + since + " min ago"];
-  if (lockLive(join("scripts", "doctor", "out", "doctor.lock"))) return ["doctor", "the doctor's run is reading Prism"];
-  // Prism silent in the room (its own mute, B-472) and nobody at the PC or Prism for IDLE minutes: nobody is watching or listening, so what the
+  if (since < IDLE) return ["press", "PRISM was used " + since + " min ago"];
+  if (lockLive(join("scripts", "doctor", "out", "doctor.lock"))) return ["doctor", "the doctor's run is reading PRISM"];
+  // PRISM silent in the room (its own mute, B-472) and nobody at the PC or PRISM for IDLE minutes: nobody is watching or listening, so what the
   // pages play and what the screen holds do not hold the run (2026-11-05, the owner away and asking for more recording; the afternoon had
   // waited on three muted channels left on the screen). With the room's sound on, a page playing sound or a title on the screen still does.
   const loud = tail.loud();
-  if (loud.length && !roomMuted) return ["sound", "Prism is playing sound (" + loud.join(", ") + ")"];
+  if (loud.length && !roomMuted) return ["sound", "PRISM is playing sound (" + loud.join(", ") + ")"];
   let p, mv;
   try { p = await call("PrismRuntime.players()"); mv = p?.active === "video" ? await call("PrismRuntime.videoMultiview('state')") : null; }
-  catch { return ["prism", "Prism did not answer"]; }
+  catch { return ["prism", "PRISM did not answer"]; }
   if (mv?.big?.has && !roomMuted) return ["screen", "the screen has " + (mv.big.title || mv.big.name || "a title") + " on it"];
   if (lockLive(LOCK)) return ["lock", "another sampler is running"];
   return null;
@@ -192,12 +192,12 @@ async function session(stopAt) {
   const players = await call("PrismRuntime.players()");
   const before = { scene: RESTORE ?? (players?.active === "video" ? players.video?.id : players?.music?.id), player: RESTORE ? (RESTORE === players?.video?.id ? "video" : "music") : players?.active, mute: await muteGet() };
   log("before: " + JSON.stringify(before));
-  if (before.mute === "?") { log((MUTE === "pc" ? "the PC's" : "Prism's own") + " mute could not be read; not sampling"); return; }
+  if (before.mute === "?") { log((MUTE === "pc" ? "the PC's" : "PRISM's own") + " mute could not be read; not sampling"); return; }
   const menu = await call("PrismRuntime.videoMenu()");
   const ytv = (menu.live || []).find((l) => l.app === "youtube-tv");
   if (!ytv) { log("no YouTube TV in the live guide; stopping"); return; }
   const st = existsSync(STATE) ? JSON.parse(readFileSync(STATE, "utf8")) : { next: 0, rounds: 0, seen: {} };
-  // the guide's list as Prism holds it can be partial (2026-11-04: six channels where an hour before there were 126): the fullest list
+  // the guide's list as PRISM holds it can be partial (2026-11-04: six channels where an hour before there were 126): the fullest list
   // seen is kept and used whenever the guide gives a shorter one
   let lineup = (ytv.channels || []).map((c) => ({ id: c.id, name: c.name, now: c.now?.title ?? c.now ?? "" }));
   if (lineup.length >= 50 && lineup.length >= (st.lineup?.length ?? 0)) st.lineup = lineup;
@@ -206,10 +206,10 @@ async function session(stopAt) {
   log(`${lineup.length} channels, ${chans.length} after the skips`);
   if (DRY) { log("first five: " + chans.slice(st.next % chans.length, st.next % chans.length + 5).map((c) => c.name).join(", ")); return; }
 
-  // the doctor's night run reads Prism through the same channel: it skips its health step while this lock stands (nightly.mjs)
+  // the doctor's night run reads PRISM through the same channel: it skips its health step while this lock stands (nightly.mjs)
   writeFileSync(LOCK, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), until: UNTIL }));
   startWatch();
-  log("silent: " + (MUTE === "pc" ? "the PC " : "Prism ") + await muteSet(true));
+  log("silent: " + (MUTE === "pc" ? "the PC " : "PRISM ") + await muteSet(true));
   if (before.player !== "video") { log("Movie Night up: " + JSON.stringify(await call("PrismRuntime.modelApplyScene('movie-night-1')")).slice(0, 120)); await sleep(6000); }
   await call(`PrismRuntime.videoSwitch(${q(FACET)})`); await sleep(4000);
   await call("PrismRuntime.videoMultiview('on')"); await sleep(3000);
@@ -285,13 +285,13 @@ async function session(stopAt) {
   // the end: the windows closed, the scene that was up put back, the mute as it was
   try { await call("PrismRuntime.videoMultiview('close')"); } catch {}
   if (before.player !== "video" && before.scene) { try { log("scene back: " + JSON.stringify(await call(`PrismRuntime.modelApplyScene(${q(before.scene)})`)).slice(0, 120)); } catch (e) { log("scene back failed: " + e.message); } }
-  log((MUTE === "pc" ? "pc " : "Prism ") + await muteSet(before.mute === "muted") + "; done, next channel index " + st.next);
+  log((MUTE === "pc" ? "pc " : "PRISM ") + await muteSet(before.mute === "muted") + "; done, next channel index " + st.next);
   dropLock(LOCK);
 }
 
 async function main() {
   process.on("exit", () => { dropLock(LOCK); dropLock(IDLELOCK); });
-  // one sampler at a time (2026-11-04: one started by hand ran past the scheduled 1 AM start): a live lock means another is driving Prism
+  // one sampler at a time (2026-11-04: one started by hand ran past the scheduled 1 AM start): a live lock means another is driving PRISM
   const other = lockLive(LOCK);
   if (other) { log("another sampler is running (pid " + other + "); this one stops"); return; }
   const stopAt = untilMs();
@@ -299,7 +299,7 @@ async function main() {
   const waiting = lockLive(IDLELOCK);
   if (waiting) { log("another idle sampler is waiting (pid " + waiting + "); this one stops"); return; }
   writeFileSync(IDLELOCK, JSON.stringify({ pid: process.pid, at: new Date().toISOString(), until: UNTIL }));
-  log(`idle sampler: until ${UNTIL}, a run whenever nobody has used the PC or Prism for ${IDLE} min, nothing of Prism's plays sound and the screen holds no title`);
+  log(`idle sampler: until ${UNTIL}, a run whenever nobody has used the PC or PRISM for ${IDLE} min, nothing of PRISM's plays sound and the screen holds no title`);
   const tail = new LogTail(); let said = "";
   while (Date.now() < stopAt) {
     const why = await busyReason(tail);

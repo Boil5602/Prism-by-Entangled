@@ -1,7 +1,7 @@
 /**
  * Play orders (2026-09-17, spec §32 layer 5 -, and it was): the order a collection's
  * tracks play in when the WALL decides it rather than the service. "normal" and "shuffle" are the service's
- * own (its queue, its shuffle switch); "true-shuffle" and "reverse" are Prism's - core reads the track list
+ * own (its queue, its shuffle switch); "true-shuffle" and "reverse" are PRISM's - core reads the track list
  * and hands the player the order. The rule for true shuffle is a uniformly random permutation: every track
  * once before any repeats, no weighting by anything, a fresh draw each pass.
  */

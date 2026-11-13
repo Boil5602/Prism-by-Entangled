@@ -1,6 +1,6 @@
-# Prism kiosk for Windows ("The Studio")
+# PRISM kiosk for Windows ("The Studio")
 
-A used mini PC + this USB stick = a Prism frame that boots straight into the
+A used mini PC + this USB stick = a PRISM frame that boots straight into the
 dashboard. No OOBE, no login screen, no desktop, no Microsoft account. Windows
 is the plumbing that gives Edge hardware PlayReady - 1080p-4K streaming
 *inside* tiles - and the intermission veil on top of it. It stays invisible.
@@ -37,14 +37,14 @@ What happened, in order:
 | Stage | File | What it does |
 |---|---|---|
 | Setup | `autounattend.xml` | bypasses TPM/RAM/CPU checks for old hardware, GPT layout, installs Pro, skips every OOBE screen, creates local user `prism` (blank password, console-only), auto-logon forever, schedules first boot |
-| First boot | `oem/Prism/first-boot.ps1` | unpacks Node, applies policies, sets the Prism launcher as this user's shell (per-user `Winlogon\Shell` - explorer never runs), power plan never sleeps, firewall for `:8471`, reboots |
+| First boot | `oem/Prism/first-boot.ps1` | unpacks Node, applies policies, sets the PRISM launcher as this user's shell (per-user `Winlogon\Shell` - explorer never runs), power plan never sleeps, firewall for `:8471`, reboots |
 | Policies | `oem/Prism/policies.ps1` | Windows: no consumer promos, lock-screen ads, notifications, Copilot, widgets, web search, OneDrive, Game Bar; telemetry at the Pro minimum; Windows Update installs but **never reboots on its own** (active hours 06:00-02:00, quality updates only, feature updates deferred a year). Edge: no first-run, sign-in, sync, sidebar, shopping, rewards, recommendations, password manager, sleeping tabs; hardware DRM left on |
 | Every boot | `oem/Prism/prism-shell.cmd` → `prism-shell.ps1` | the shell process: waits for a network, starts the daemon on the primary display, restarts it on exit with backoff, logs to `C:\Prism\logs` |
 
 The dashboard file is `C:\Prism\dashboard.json` (seeded once from the shared
 default; yours after that). The remote API is `http://<frame-ip>:8471`; the
 pairing URL is in the newest `C:\Prism\logs\daemon-*.log` and on the wall via
-the daemon's QR flow, as on every Prism.
+the daemon's QR flow, as on every PRISM.
 
 ## Maintenance
 

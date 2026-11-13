@@ -3,7 +3,7 @@
  * The zero-network check for the first-party micro-facets
  * (docs/concept-scenes.md §6, dashboard-schema §19/§22).
  *
- * The chores and timer pages are Prism's own, served from
+ * The chores and timer pages are PRISM's own, served from
  * targets/win-host/PrismHost/Assets/tiles at https://tiles.prism/. Their whole
  * point is that they need nothing: no CDN script, no web font, no analytics, no
  * external image. That is easy to promise and easy to lose - one `@import

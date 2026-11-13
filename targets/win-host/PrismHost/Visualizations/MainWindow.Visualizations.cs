@@ -19,7 +19,7 @@ namespace PrismHost;
 /// carry - the hit-testable chrome (the surface is not hit-testable by design:
 /// a tap belongs to the placement).
 ///
-/// The chrome IS the Prism Beams composition's furniture
+/// The chrome IS the PRISM Beams composition's furniture
 /// (docs/concept-scenes.md §2.5.2), a thin overlay on each visualization
 /// tile's rect, refreshed on scene apply, on resize and on the 2 s poll:
 ///
@@ -82,7 +82,7 @@ public sealed partial class MainWindow
     {
         _vizTestSignal = on;
         if (_vizAudio is not null) _vizAudio.TestSignal = on;
-        SetPill(on ? "Prism · visualizations on the test signal (new placements)" : "Prism · visualizations on the loopback feed");
+        SetPill(on ? "PRISM · visualizations on the test signal (new placements)" : "PRISM · visualizations on the loopback feed");
     }
 
     private sealed record VizTile(string Id, string Source, string Style, string Artwork);
@@ -187,6 +187,7 @@ public sealed partial class MainWindow
                 // builds fresh chrome above) restarts the label's 4s window.
                 if (p.StyleId != t.Style || p.Artwork != t.Artwork) p.LabelSince = DateTimeOffset.UtcNow;
                 p.StyleId = t.Style; p.Artwork = t.Artwork;
+                if (p.Seasons is not null) p.Seasons.Visibility = t.Style == "seasons" ? Visibility.Visible : Visibility.Collapsed;
             }
             g.Margin = new Thickness(r.X, r.Y, 0, 0);
             g.Width = r.W; g.Height = r.H;
@@ -268,6 +269,7 @@ public sealed partial class MainWindow
         /// <summary>When a page report was last accepted as the clock's anchor (resync every 10 s, or at once on a large gap).</summary>
         public DateTimeOffset PosAnchoredAt = DateTimeOffset.MinValue;
         public string Source = "", StyleId = "", Artwork = "";
+        public Button? Seasons;   // the Seasons visual's settings, shown only while that visual is on
         /// <summary>2026-09-14: the poster the block shows for the length of an ad break - one random image from the imagery cache, chosen when the break starts, dropped when it ends - instead of the service's own "Advertisement" placeholder.</summary>
         public string? BreakArt;
         /// <summary>2026-09-15: the page's own count of the break's ads ("2 of 3") while the source is covered - the clock names the ad, since a 30 s clock starting over three times read as one stuck ad.</summary>
@@ -297,7 +299,8 @@ public sealed partial class MainWindow
     // file stays ASCII on disk like the transport glyphs above.
     private const string GlyphSeekBack = "\uED3C", GlyphSeekFwd = "\uED3D";
     private const string GlyphAudioOn = "\uE767", GlyphAudioOff = "\uE74F";
-    private const string GlyphNextVisual = "\uE8AB";   // Switch
+    // Picture, with a small Forward arrow beside it (2026-11-10: the two arrows of Switch said nothing about a change of visual)
+    private const string GlyphVisual = "\uE8B9", GlyphVisualNext = "\uE72A";
     private const string GlyphRecent = "\uEC4F";
     private const string GlyphMiniPlayer = "\uE73F";     // BackToWindow (arrows inward: shrink) - B-221: the mini player; the "open in new window" arrow read as expand (2026-09-17)       // MusicNote - B-149: Quick play is the music (stations, playlists, per service)
     private const string GlyphOrder = "\uE8B1";        // Shuffle - the play order (2026-09-17, spec 32 layer 5): in order, the service's shuffle, true shuffle, in reverse
@@ -320,29 +323,40 @@ public sealed partial class MainWindow
     private static readonly SolidColorBrush VizAmberEdge = Tokens.AmberAt(0xB0);
     private static readonly SolidColorBrush VizNoEdge = Tokens.Clear;
 
+    /// <summary>The visual button's tooltip: the visual on screen by name, its place in the list, and the next one.</summary>
+    private string VisualTipText(string tileId, int dir = 1)
+    {
+        var packs = StylePacks.ByName(); var plain = dir < 0 ? "Previous visual" : "Next visual";
+        if (!_vizParts.TryGetValue(tileId, out var p) || string.IsNullOrEmpty(p.StyleId)) return plain;
+        var idx = packs.ToList().FindIndex(x => x.Id == p.StyleId);
+        if (idx < 0) return plain;
+        var next = packs[(idx + dir + packs.Count) % packs.Count];
+        return "Now: " + packs[idx].Name + " (" + (idx + 1) + " of " + packs.Count + ", A to Z)" + "\n" + (dir < 0 ? "Press for the one before: " : "Press for the next: ") + next.Name + "\n" + "Right press: show this name";
+    }
+
     /// <summary>
     /// The household's request (2026-09-06): another look, right now, from the wall. The next pack in
     /// StylePacks order is written into the scene's visualization (so it sticks across restarts) and the
     /// scene re-applied; a visualization change counts as a reshape, so the surface is rebuilt in place.
     /// </summary>
-    private async Task CycleVisualizationStyleAsync(string tileId)
+    private async Task CycleVisualizationStyleAsync(string tileId, int dir = 1)
     {
         await ReadModelAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("PRISM · no active scene"); return; }
         var s = scene.Clone();
         System.Text.Json.Nodes.JsonObject? viz = null;
         if (s.Assign.TryGetValue(tileId, out var refId)) viz = s.Visualizations.FirstOrDefault(v => v["id"]?.GetValue<string>() == refId);
         viz ??= s.Visualizations.FirstOrDefault(v => v["id"]?.GetValue<string>() == tileId) ?? s.Visualizations.FirstOrDefault();
-        if (viz is null) { SetPill("Prism · this scene has no visualization"); return; }
-        var packs = StylePacks.All();
+        if (viz is null) { SetPill("PRISM · this scene has no visualization"); return; }
+        var packs = StylePacks.ByName();   // by name, A to Z, either way (2026-11-12)
         var cur = viz["style"]?.GetValue<string>() ?? packs[0].Id;
         var idx = packs.ToList().FindIndex(p => p.Id == cur);
-        var next = packs[(idx + 1 + packs.Count) % packs.Count];
+        var next = packs[((idx < 0 ? 0 : idx + dir) + packs.Count) % packs.Count];
         viz["style"] = next.Id;
         var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
-        try { if (raw is not null && System.Text.Json.Nodes.JsonNode.Parse(raw) is System.Text.Json.Nodes.JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("Prism · could not change the visual"); return; } } catch { }
+        try { if (raw is not null && System.Text.Json.Nodes.JsonNode.Parse(raw) is System.Text.Json.Nodes.JsonObject r && r["ok"]?.GetValue<bool>() != true) { SetPill("PRISM · could not change the visual"); return; } } catch { }
         LogLine("visual: " + tileId + " " + cur + " -> " + next.Id);
-        SetPill("Prism · " + next.Name + " - " + next.Blurb);
+        ShowVisualTitle(next.Name);
         await ReadModelAsync();
         // In place: only the visualization surface is rebuilt. A full scene apply re-runs the
         // boot-silent rule and mutes the room (found by the maintainer on 2026-09-06).
@@ -397,9 +411,9 @@ public sealed partial class MainWindow
     private async Task SetAdsSoundAsync(string id)
     {
         await ReadModelAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } sc) { SetPill("Prism \u00B7 no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } sc) { SetPill("PRISM \u00B7 no active scene"); return; }
         var facets = sc.Hidden.Select(h => h["facet"]?.GetValue<string>()).Where(f => f is not null).Select(f => f!).ToList();
-        if (facets.Count == 0) { SetPill("Prism \u00B7 this scene has no music source"); return; }
+        if (facets.Count == 0) { SetPill("PRISM \u00B7 this scene has no music source"); return; }
         var s = sc.Clone();
         foreach (var f in facets)
         {
@@ -410,7 +424,7 @@ public sealed partial class MainWindow
         await ModelCallAsync("modelSaveScene", s.ToJson());
         LogLine("ads sound: " + sid + " -> " + id);
         _brain.Call(HostCalls.SetIntermissionAmbient, id == "off" ? null : id);
-        SetPill(id == "off" ? "Prism \u00B7 ads are silent" : "Prism \u00B7 " + id + " during ads");
+        SetPill(id == "off" ? "PRISM \u00B7 ads are silent" : "PRISM \u00B7 " + id + " during ads");
         await ReadModelAsync();
         _ = RefreshVisualizationTransportAsync();
     }
@@ -440,6 +454,7 @@ public sealed partial class MainWindow
         var side = Math.Max(200, Math.Round(Math.Min(w > 0 ? w : 1000, h > 0 ? h : 600) * 0.6));
         // B-185: the clock sits just under that square whether or not the poster is in it (the card is centred 20 px above centre)
         parts.Time.Margin = new Thickness(0, side + 8, 0, 0);
+        StyleRenderer.CoverCentred = _posterCentred;
         if (_posterCentred)
         {
             card.Width = side; card.Height = side;
@@ -674,14 +689,14 @@ public sealed partial class MainWindow
     private async Task AdsSoundModalAsync(string tileId)
     {
         await ReadModelAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("PRISM · no active scene"); return; }
         var facets = scene.Hidden.Select(h => h["facet"]?.GetValue<string>()).Where(f => f is not null).Select(f => f!).ToList();
-        if (facets.Count == 0) { SetPill("Prism · this scene has no music source"); return; }
+        if (facets.Count == 0) { SetPill("PRISM · this scene has no music source"); return; }
         var current = "off";
         foreach (var f in facets) if (scene.Settings.TryGetValue(f, out var so) && so["intermission"] is System.Text.Json.Nodes.JsonObject io && io["ambient"]?.GetValue<string>() is { Length: > 0 } a) { current = a; break; }
         var options = AdsSounds;
         var col = new StackPanel { Spacing = 10, Width = 440 };
-        col.Children.Add(Meta("When a service plays an ad, Prism mutes it. Instead of silence, a field recording - twelve, all CC0, bundled with Prism, nothing fetched. It follows the mute button like any other sound. Applied as you pick."));
+        col.Children.Add(Meta("When a service plays an ad, PRISM mutes it. Instead of silence, a field recording - twelve, all CC0, bundled with PRISM, nothing fetched. It follows the mute button like any other sound. Applied as you pick."));
         var list = new StackPanel { Spacing = 3 };
         async Task CommitAsync(string id)
         {
@@ -697,7 +712,7 @@ public sealed partial class MainWindow
             await ModelCallAsync("modelSaveScene", s.ToJson());
             LogLine("ads sound: " + sid + " -> " + id);
             _brain.Call(HostCalls.SetIntermissionAmbient, id == "off" ? null : id);
-            SetPill(id == "off" ? "Prism · ads are silent" : "Prism · " + id + " during ads");
+            SetPill(id == "off" ? "PRISM · ads are silent" : "PRISM · " + id + " during ads");
         }
         foreach (var (id, name, tip) in options)
         {
@@ -714,11 +729,11 @@ public sealed partial class MainWindow
     private async Task VisualStyleModalAsync(string tileId)
     {
         await ReadModelAsync();
-        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("Prism · no active scene"); return; }
+        if (_model.ActiveScene is not { } sid || _model.Scene(sid) is not { } scene) { SetPill("PRISM · no active scene"); return; }
         System.Text.Json.Nodes.JsonObject? viz = null;
         if (scene.Assign.TryGetValue(tileId, out var refId)) viz = scene.Visualizations.FirstOrDefault(v => v["id"]?.GetValue<string>() == refId);
         viz ??= scene.Visualizations.FirstOrDefault(v => v["id"]?.GetValue<string>() == tileId) ?? scene.Visualizations.FirstOrDefault();
-        if (viz is null) { SetPill("Prism · this scene has no visualization"); return; }
+        if (viz is null) { SetPill("PRISM · this scene has no visualization"); return; }
         var vizId = viz["id"]?.GetValue<string>() ?? tileId;
         var style = viz["style"]?.GetValue<string>() ?? "prism-beams"; var artwork = viz["artwork"]?.GetValue<string>() ?? "off";
 
@@ -858,8 +873,8 @@ public sealed partial class MainWindow
             play.Click += (_, __) =>
             {
                 flyout.Hide();
-                if (replay) { LogLine("start over: " + tile3); _brain.Call(HostCalls.TileCommand, tile3, "restart"); SetPill("Prism \u00B7 starting " + (what3 ?? name3) + " over\u2026"); return; }
-                LogLine("switch to service: " + tile3); _brain.Call(HostCalls.ResumeService, tile3); SetPill("Prism \u00B7 " + name3 + (what3 is null ? "" : " \u00B7 " + what3 + "\u2026"));
+                if (replay) { LogLine("start over: " + tile3); _brain.Call(HostCalls.TileCommand, tile3, "restart"); SetPill("PRISM \u00B7 starting " + (what3 ?? name3) + " over\u2026"); return; }
+                LogLine("switch to service: " + tile3); _brain.Call(HostCalls.ResumeService, tile3); SetPill("PRISM \u00B7 " + name3 + (what3 is null ? "" : " \u00B7 " + what3 + "\u2026"));
             };
             var label = new Grid();
             label.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -891,7 +906,7 @@ public sealed partial class MainWindow
             // disabled grey - (2026-09-16; win-host-spec 5, contrast)
             var lookupHead = new MenuFlyoutItem { Text = "Looking for the song playing now\u2026", IsEnabled = false, Foreground = VizNowInk };
             if (LookupHeadTemplate(withArt: false) is { } headTemplate) lookupHead.Template = headTemplate;
-            lookupHead.Click += (_, __) => { if (ToolTipService.GetToolTip(lookupHead) is string why) SetPill("Prism \u00B7 " + why); };   // a press reads the note aloud in the pill (the menu closes, as any press does)
+            lookupHead.Click += (_, __) => { if (ToolTipService.GetToolTip(lookupHead) is string why) SetPill("PRISM \u00B7 " + why); };   // a press reads the note aloud in the pill (the menu closes, as any press does)
             var lookupPick = new MenuFlyoutSubItem { Text = "Which one is it?", IsEnabled = false, Visibility = Visibility.Collapsed };
             var lookupAdd = new MenuFlyoutSubItem { Text = "Add to a playlist", IsEnabled = false };
             var lookupStation = new MenuFlyoutItem { Text = "Create station from this song", IsEnabled = false };
@@ -921,10 +936,10 @@ public sealed partial class MainWindow
             // the station row's target (the found song) is painted into its Tag; the handler is wired once, here
             lookupStation.Click += (_, __) =>
             {
-                if (lookupStation.Tag is not ValueTuple<string, string> hit) { if (ToolTipService.GetToolTip(lookupStation) is string why) SetPill("Prism \u00B7 " + why); return; }   // inert: the reason, in the pill
+                if (lookupStation.Tag is not ValueTuple<string, string> hit) { if (ToolTipService.GetToolTip(lookupStation) is string why) SetPill("PRISM \u00B7 " + why); return; }   // inert: the reason, in the pill
                 LogLine("lookup station: " + tileL + " " + hit.Item1);
                 _ = RuntimeEvalAsync("PrismRuntime.musicStationFromSong(" + Q(tileL) + ", " + Q(hit.Item1) + ")");
-                SetPill("Prism \u00B7 starting a " + nameL + " station from " + hit.Item2 + "\u2026");
+                SetPill("PRISM \u00B7 starting a " + nameL + " station from " + hit.Item2 + "\u2026");
                 _ = ReportLookupActionAsync(tileL, nameL);
             };
             if (!await AddServiceMenuItemsAsync(sub.Items, s.tile, s.name)) sub.Items.Add(new MenuFlyoutItem { Text = signedOut ? "Signed out. Open the player to sign in" : "Nothing yet. Play something from the revealed page once", IsEnabled = false });
@@ -977,7 +992,7 @@ public sealed partial class MainWindow
                         if (status != "ready") { upList.Children.Add(new TextBlock { Text = st["reason"]?.GetValue<string>() ?? status, FontSize = 10.5, Foreground = VizDimInk, Margin = new Thickness(8, 2, 8, 2), TextWrapping = TextWrapping.Wrap }); break; }
                         var items = st["items"] as JsonArray ?? new JsonArray();
                         var order = st["order"]?.GetValue<string>();
-                        if (order is { Length: > 0 }) upList.Children.Add(new TextBlock { Text = "Prism’s order: " + order.Replace("-", " "), FontSize = 10, Foreground = VizDimInk, Margin = new Thickness(8, 2, 8, 2) });
+                        if (order is { Length: > 0 }) upList.Children.Add(new TextBlock { Text = "PRISM’s order: " + order.Replace("-", " "), FontSize = 10, Foreground = VizDimInk, Margin = new Thickness(8, 2, 8, 2) });
                         if (items.Count == 0) upList.Children.Add(new TextBlock { Text = "Nothing queued after this one", FontSize = 10.5, Foreground = VizDimInk, Margin = new Thickness(8, 2, 8, 2) });
                         var n = 0;
                         foreach (var it in items)
@@ -1021,7 +1036,7 @@ public sealed partial class MainWindow
             flyout.Hide();
             LogLine("quick play search: play " + tile + " " + title);
             _brain.Call(HostCalls.MusicSearchPlay, tile, cand.ToJsonString());
-            SetPill("Prism" + Mid + (IsPandora(tile) ? "a " + NameOf(tile) + " station from " + title : title + " on " + NameOf(tile)) + "…");
+            SetPill("PRISM" + Mid + (IsPandora(tile) ? "a " + NameOf(tile) + " station from " + title : title + " on " + NameOf(tile)) + "…");
         }
         // one row: artwork, two lines, a note under them (searching your services / nothing found) and the chips, updated in place
         (Button row, StackPanel chips, TextBlock note) MakeRow(string title, string artist, string? album, string? artwork, string kind)
@@ -1230,7 +1245,7 @@ public sealed partial class MainWindow
         {
             panel.Children.Add(new Border { Height = 1, Background = Tokens.AmberAt(0x3A), Margin = new Thickness(6, 12, 6, 6) });
             // collapsed until the person opens it (2026-11-04, asked for the cleaner look): the heading is the switch, and the choice
-            // holds for as long as Prism runs; a restart starts collapsed again
+            // holds for as long as PRISM runs; a restart starts collapsed again
             var recentRows = new StackPanel { Spacing = 0, Visibility = _quickPlayRecentOpen ? Visibility.Visible : Visibility.Collapsed };
             var recentChevron = new FontIcon { Glyph = ((char)(_quickPlayRecentOpen ? 0xE70D : 0xE76C)).ToString(), FontSize = 10, Foreground = VizDimInk, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             var recentHead = new StackPanel { Orientation = Orientation.Horizontal };
@@ -1254,7 +1269,7 @@ public sealed partial class MainWindow
                 var rowBtn = new Button { Content = rowText, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(10, 6, 10, 6), Background = clear, BorderThickness = new Thickness(0) };
                 ToolTipService.SetToolTip(rowBtn, r.kind + "  " + (char)0x00B7 + "  " + r.service);
                 var (rTile, rUrl, rLabel) = (r.tile, r.url, r.label);
-                rowBtn.Click += (_, __) => { flyout.Hide(); LogLine("quick play recent: " + rTile + " -> " + rUrl); _brain.Call(HostCalls.PlayRecent, rTile, rUrl); SetPill("Prism" + Mid + "loading " + rLabel + (char)0x2026); };
+                rowBtn.Click += (_, __) => { flyout.Hide(); LogLine("quick play recent: " + rTile + " -> " + rUrl); _brain.Call(HostCalls.PlayRecent, rTile, rUrl); SetPill("PRISM" + Mid + "loading " + rLabel + (char)0x2026); };
                 recentRows.Children.Add(rowBtn);
             }
         }
@@ -1337,7 +1352,7 @@ public sealed partial class MainWindow
             "ambiguous" => service + " has something like " + songText + " - pick the right one below",
             "not-found" => songText + " is not on " + service,
             // B-228 (2026-09-17): the wall having no song is not the service lacking a search
-            "unavailable" when st["why"]?.GetValue<string>() == "no-song" => "Nothing is playing on Prism to look up",
+            "unavailable" when st["why"]?.GetValue<string>() == "no-song" => "Nothing is playing on PRISM to look up",
             "unavailable" => "No cross-service search on " + service,   // 2026-09-16:; the why is on the ? badge, the verb rows and the pill
             _ => "Could not search " + service + (reason is { Length: > 0 } ? ": " + reason : ""),
         };
@@ -1383,7 +1398,7 @@ public sealed partial class MainWindow
                     LogLine("lookup pick: " + tile + " " + cid2 + (cid2 == matchId ? " (already the pick)" : ""));
                     if (cid2 == matchId) { try { await reopen(); } catch (Exception ex) { LogLine("lookup reopen failed: " + ex.Message); } return; }   // the menu closed on the press all the same: bring it back
                     await RuntimeEvalAsync("PrismRuntime.musicLookupPick(" + Q(tile) + ", " + Q(cid2) + ")");
-                    SetPill("Prism \u00B7 " + ct2 + " it is");
+                    SetPill("PRISM \u00B7 " + ct2 + " it is");
                     try { await reopen(); } catch (Exception ex) { LogLine("lookup reopen failed: " + ex.Message); }
                 };
                 pick.Items.Add(mi);
@@ -1408,7 +1423,7 @@ public sealed partial class MainWindow
                 {
                     LogLine("lookup add: " + tile + " " + mid2 + " -> " + pid2);
                     _ = RuntimeEvalAsync("PrismRuntime.musicAddToPlaylist(" + Q(tile) + ", " + Q(pid2) + ", " + Q(mid2) + ")");
-                    SetPill("Prism \u00B7 adding " + mt2 + " to " + pname2 + "\u2026");
+                    SetPill("PRISM \u00B7 adding " + mt2 + " to " + pname2 + "\u2026");
                     _ = ReportLookupActionAsync(tile, service);
                 };
                 add.Items.Add(mi); count++;
@@ -1426,7 +1441,7 @@ public sealed partial class MainWindow
             var whyRow = new MenuFlyoutItem { Text = addWhy, Foreground = VizNowInk };
             if (LookupHeadTemplate(withArt: false) is { } wt) whyRow.Template = wt;
             var addWhy2 = addWhy;
-            whyRow.Click += (_, __) => SetPill("Prism \u00B7 " + addWhy2);
+            whyRow.Click += (_, __) => SetPill("PRISM \u00B7 " + addWhy2);
             add.Items.Add(whyRow);
         }
         add.IsEnabled = true;
@@ -1455,8 +1470,8 @@ public sealed partial class MainWindow
             if (st["action"] is not System.Text.Json.Nodes.JsonObject a) continue;
             var status = a["status"]?.GetValue<string>(); if (status == "pending") continue;
             var op = a["op"]?.GetValue<string>(); var song = a["song"]?.GetValue<string>() ?? "the song"; var pl = a["playlist"]?.GetValue<string>(); var err = a["error"]?.GetValue<string>();
-            if (status == "ok") SetPill(op == "add" ? "Prism \u00B7 added " + song + " to " + pl : "Prism \u00B7 " + service + " station from " + song + " is starting");
-            else SetPill("Prism \u00B7 " + service + " would not " + (op == "add" ? "add " + song + " to " + pl : "start a station from " + song) + (err is { Length: > 0 } ? " - " + err : ""));
+            if (status == "ok") SetPill(op == "add" ? "PRISM \u00B7 added " + song + " to " + pl : "PRISM \u00B7 " + service + " station from " + song + " is starting");
+            else SetPill("PRISM \u00B7 " + service + " would not " + (op == "add" ? "add " + song + " to " + pl : "start a station from " + song) + (err is { Length: > 0 } ? " - " + err : ""));
             LogLine("lookup " + op + " " + status + " (" + tile + ")" + (err is { Length: > 0 } ? ": " + err : ""));
             return;
         }
@@ -1545,18 +1560,18 @@ public sealed partial class MainWindow
         {
             var cont = new MenuFlyoutItem { Text = "Continue " + (standingLabel ?? "") + "  (" + s1 + " of " + c1 + ")", Foreground = LookupAmber, Icon = new FontIcon { Glyph = "\uE768", Foreground = VizDimInk } };
             ToolTipService.SetToolTip(cont, "Carry on where it left off, in the same order");
-            cont.Click += (_, __) => { LogLine("order: continue " + source + " " + id + " at " + s1); _brain.Call(HostCalls.ResumeService, source); SetPill("Prism · " + name + ", continuing " + (standingLabel ?? "") + "…"); };
+            cont.Click += (_, __) => { LogLine("order: continue " + source + " " + id + " at " + s1); _brain.Call(HostCalls.ResumeService, source); SetPill("PRISM · " + name + ", continuing " + (standingLabel ?? "") + "…"); };
             menu.Items.Add(cont);
             menu.Items.Add(new MenuFlyoutSeparator());
         }
         var current = standingId == id ? standingLabel : null;
         // 2026-09-18: - the service's shuffle is
-        // named for what it is, and Prism's is described by its rule
+        // named for what it is, and PRISM's is described by its rule
         var svcApp = SceneItemOf(source, null) is { } si0 && si0.App is { } ap0 ? _model.App(ap0) : null;
         var svc = svcApp?.Name ?? "The service";
         // 2026-09-18:. The service's shuffle wears the service's OWN icon as the service serves it (the
         // App's poster, section 31 - the same image the wall already shows for the App; nothing of the service's is drawn by
-        // us); True shuffle wears Prism's mark; the rest wear grey glyphs.
+        // us); True shuffle wears PRISM's mark; the rest wear grey glyphs.
         IconElement? svcIcon = null;
         try
         {
@@ -1570,13 +1585,13 @@ public sealed partial class MainWindow
             var mark = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png");
             if (System.IO.File.Exists(mark)) prismIcon = new ImageIcon { Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(mark)) };
         }
-        catch (Exception ex) { LogLine("order menu: Prism mark failed: " + ex.Message); }
+        catch (Exception ex) { LogLine("order menu: PRISM mark failed: " + ex.Message); }
         IconElement Grey(string glyph) => new FontIcon { Glyph = glyph, Foreground = VizDimInk };
         foreach (var (order, verb, cannot, tip, icon) in new (string, string, string?, string, IconElement?)[] {
             ("normal", "In order", null, "The playlist as the service lists it, from the top", Grey("\uE8FD")),
             // the service's own shuffle is gone from the menu (2026-10-04): its order is the
-            // service's and unexplained; Prism's true shuffle is the one offered
-            ("true-shuffle", "True shuffle", cannotOwn, "Prism's true shuffle: every track once, in a uniformly random order, before any repeat - a fresh draw each time; the rule is published, nothing is weighted", prismIcon ?? Grey("\uE8B1")),
+            // service's and unexplained; PRISM's true shuffle is the one offered
+            ("true-shuffle", "True shuffle", cannotOwn, "PRISM's true shuffle: every track once, in a uniformly random order, before any repeat - a fresh draw each time; the rule is published, nothing is weighted", prismIcon ?? Grey("\uE8B1")),
             ("reverse", "In reverse", cannotOwn, "From the last track to the first", Grey("\uE74A")) })
         {
             var label = order == "normal" ? "in order" : order == "shuffle" ? "shuffle" : order == "true-shuffle" ? "true shuffle" : "in reverse";
@@ -1584,16 +1599,16 @@ public sealed partial class MainWindow
             var v = new MenuFlyoutItem { Text = chosen ? verb + "  \u00B7  now" : verb, IsEnabled = cannot is null, Icon = icon, Foreground = chosen ? LookupAmber : VizNowInk };
             ToolTipService.SetToolTip(v, cannot is null ? tip : Cap(cannot));
             var (o2, verb2) = (order, verb);
-            v.Click += (_, __) => { LogLine("order: " + source + " " + kind + " " + id + " " + o2); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("Prism · " + name + ", " + verb2.ToLowerInvariant() + "…"); };
+            v.Click += (_, __) => { LogLine("order: " + source + " " + kind + " " + id + " " + o2); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("PRISM · " + name + ", " + verb2.ToLowerInvariant() + "…"); };
             menu.Items.Add(v);
         }
-        // Repeat (2026-09-18): a switch beside the order, not an order -. The service's own repeat-all for its orders; Prism's next pass (a fresh draw for true shuffle) for its own.
+        // Repeat (2026-09-18): a switch beside the order, not an order -. The service's own repeat-all for its orders; PRISM's next pass (a fresh draw for true shuffle) for its own.
         menu.Items.Add(new MenuFlyoutSeparator());
         var prismStanding = standingLabel is "true shuffle" or "in reverse" && standingId == id;
-        var repeatCannot = prismStanding ? null : cannotRepeat;   // a Prism order repeats whatever the service offers
+        var repeatCannot = prismStanding ? null : cannotRepeat;   // a PRISM order repeats whatever the service offers
         var rep = new ToggleMenuFlyoutItem { Text = "Repeat", IsChecked = repeat, IsEnabled = repeatCannot is null, Icon = new FontIcon { Glyph = "\uE8EE", Foreground = VizDimInk }, Foreground = repeat ? LookupAmber : VizNowInk };
         ToolTipService.SetToolTip(rep, repeatCannot is not null ? Cap(repeatCannot) : "Play the list again when it ends, in the order chosen above. True shuffle draws afresh each pass");
-        rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("order: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("Prism · " + name + (on ? " repeats" : " plays once")); };
+        rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("order: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("PRISM · " + name + (on ? " repeats" : " plays once")); };
         menu.Items.Add(rep);
         _vizFlyout = menu; menu.ShowAt(parts.Order);
     }
@@ -1652,7 +1667,7 @@ public sealed partial class MainWindow
                     if (url is null) continue;
                     var text = label + (artist is { Length: > 0 } && kind == "album" ? "  " + (char)0x00B7 + "  " + artist : "");
                     var u = url;
-                    Action playNow = () => { LogLine("quick play: " + source + " -> " + u); _brain.Call(HostCalls.PlayRecent, source, u); SetPill("Prism" + Mid + "loading " + prefix + text + (char)0x2026); };
+                    Action playNow = () => { LogLine("quick play: " + source + " -> " + u); _brain.Call(HostCalls.PlayRecent, source, u); SetPill("PRISM" + Mid + "loading " + prefix + text + (char)0x2026); };
                     var rid = e["id"]?.GetValue<string>();
                     if (rid is { Length: > 0 } && (kind == "playlist" || kind == "station" || kind == "album"))
                     {
@@ -1684,8 +1699,8 @@ public sealed partial class MainWindow
                         if (id is null || name is null) continue;
                         var (i2, k2, n2) = (id, kind, name);
                         var continues = standingId == id && standingSpot is int && standingCount is int sc && sc > 0 && standingLabel is { Length: > 0 };
-                        // Play now plays from the top in the service's own order (2026-09-24); a saved spot in a Prism order is carried on only when asked (the Carry on row)
-                        Action playNow = () => { LogLine("quick play: " + source + " " + k2 + " " + i2 + " (in order)"); if (continues) _brain.Call(HostCalls.PlayCollection, source, k2, i2, "normal"); else _brain.Call(HostCalls.PlayCollection, source, k2, i2); SetPill("Prism" + Mid + "loading " + prefix + n2 + (char)0x2026); };
+                        // Play now plays from the top in the service's own order (2026-09-24); a saved spot in a PRISM order is carried on only when asked (the Carry on row)
+                        Action playNow = () => { LogLine("quick play: " + source + " " + k2 + " " + i2 + " (in order)"); if (continues) _brain.Call(HostCalls.PlayCollection, source, k2, i2, "normal"); else _brain.Call(HostCalls.PlayCollection, source, k2, i2); SetPill("PRISM" + Mid + "loading " + prefix + n2 + (char)0x2026); };
                         sub.Items.Add(CollectionRow(ctx, name, k2, i2, n2, playNow));
                     }
                     if (any) into.Add(new MenuFlyoutSeparator());
@@ -1699,7 +1714,7 @@ public sealed partial class MainWindow
     /// <summary>What every Quick play row of one service is built from: the service's library read once.</summary>
     private sealed record QuickRowContext(string Source, string Prefix, string? CannotOwn, string? CannotRepeat, bool Repeat, string? StandingId, int? StandingSpot, int? StandingCount, string? StandingLabel)
     {
-        /// <summary>The track playing on this service and the playlists Prism has read that hold it; the playlists the person may edit (2026-10-06).</summary>
+        /// <summary>The track playing on this service and the playlists PRISM has read that hold it; the playlists the person may edit (2026-10-06).</summary>
         public string? PlayingTitle { get; init; }
         public string? PlayingArtist { get; init; }
         public HashSet<string> PlayingIn { get; init; } = new();
@@ -1709,8 +1724,8 @@ public sealed partial class MainWindow
     /// <summary>
     /// A collection's row in Quick play: one submenu (2026-10-05, /:
     /// a flyout opened at the pressed row never appeared, because the menu closes on the press and takes its row away). It holds Play now,
-    /// Carry on where a Prism order of this playlist has a saved spot, Play after this track (the phone's choice; nothing playing, it starts),
-    /// and for a playlist or an album ("Remember those are only for playlists") Prism's orders, True shuffle and In reverse, with Repeat as
+    /// Carry on where a PRISM order of this playlist has a saved spot, Play after this track (the phone's choice; nothing playing, it starts),
+    /// and for a playlist or an album ("Remember those are only for playlists") PRISM's orders, True shuffle and In reverse, with Repeat as
     /// the switch beside them ("add the shuffle options to those menus like true shuffle, reverse, and repeat as well"). A station has no
     /// list to order. The standing order of this collection is marked "now"; a verb the service cannot do is grey with the reason.
     /// </summary>
@@ -1727,7 +1742,7 @@ public sealed partial class MainWindow
         if (continues)
         {
             var carry = new MenuFlyoutItem { Text = "Carry on: " + c.StandingLabel + ", " + c.StandingSpot + " of " + c.StandingCount, Icon = new FontIcon { Glyph = "\uE8A7" } };
-            carry.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, kind, id); SetPill("Prism" + Mid + "carrying on " + c.Prefix + name + (char)0x2026); };
+            carry.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (carry on)"); _brain.Call(HostCalls.PlayCollection, source, kind, id); SetPill("PRISM" + Mid + "carrying on " + c.Prefix + name + (char)0x2026); };
             row.Items.Add(carry);
         }
         var after = new MenuFlyoutItem { Text = "Play after this track", Icon = new FontIcon { Glyph = "\uE893" } };
@@ -1738,25 +1753,25 @@ public sealed partial class MainWindow
             LogLine("quick play: " + source + " " + kind + " " + id + " (after this track)");
             var r = await ModelCallAsync("musicPlayNext", source, kind, id);
             System.Text.Json.Nodes.JsonObject? jr = null; try { jr = r is null ? null : System.Text.Json.Nodes.JsonNode.Parse(r) as System.Text.Json.Nodes.JsonObject; } catch { }
-            if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "Prism" + Mid + "nothing was playing, so " + c.Prefix + name + " starts now" : "Prism" + Mid + "after this track: " + c.Prefix + name);
-            else SetPill("Prism" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
+            if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "PRISM" + Mid + "nothing was playing, so " + c.Prefix + name + " starts now" : "PRISM" + Mid + "after this track: " + c.Prefix + name);
+            else SetPill("PRISM" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
         };
         row.Items.Add(after);
         if (kind == "station") return row;
 
-        // Prism's orders, as the transport's order menu names them (ShowOrderFlyoutAsync); the service's own shuffle is not offered
+        // PRISM's orders, as the transport's order menu names them (ShowOrderFlyoutAsync); the service's own shuffle is not offered
         // (2026-10-04)
         row.Items.Add(new MenuFlyoutSeparator());
         var current = c.StandingId == id ? c.StandingLabel : null;
         foreach (var (order, verb, label, tip, glyph) in new[] {
-            ("true-shuffle", "True shuffle", "true shuffle", "Prism's true shuffle: every track once, in a uniformly random order, before any repeat. A fresh draw each time; the rule is published, nothing is weighted", "\uE8B1"),
+            ("true-shuffle", "True shuffle", "true shuffle", "PRISM's true shuffle: every track once, in a uniformly random order, before any repeat. A fresh draw each time; the rule is published, nothing is weighted", "\uE8B1"),
             ("reverse", "In reverse", "in reverse", "From the last track to the first", "\uE74A") })
         {
             var chosen = current == label;
             var v = new MenuFlyoutItem { Text = chosen ? verb + "  " + (char)0x00B7 + "  now" : verb, IsEnabled = c.CannotOwn is null, Icon = new FontIcon { Glyph = glyph, Foreground = VizDimInk }, Foreground = chosen ? LookupAmber : VizNowInk };
             ToolTipService.SetToolTip(v, c.CannotOwn is null ? tip : Cap(c.CannotOwn));
             var (o2, verb2) = (order, verb);
-            v.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (" + o2 + ")"); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("Prism" + Mid + c.Prefix + name + ", " + verb2.ToLowerInvariant() + (char)0x2026); };
+            v.Click += (_, __) => { Picked(); LogLine("quick play: " + source + " " + kind + " " + id + " (" + o2 + ")"); _brain.Call(HostCalls.PlayCollection, source, kind, id, o2); SetPill("PRISM" + Mid + c.Prefix + name + ", " + verb2.ToLowerInvariant() + (char)0x2026); };
             row.Items.Add(v);
         }
         // Repeat: the service's switch, beside the orders, not one of them (2026-09-18)
@@ -1764,7 +1779,7 @@ public sealed partial class MainWindow
         var repeatCannot = prismStanding ? null : c.CannotRepeat;
         var rep = new ToggleMenuFlyoutItem { Text = "Repeat", IsChecked = c.Repeat, IsEnabled = repeatCannot is null, Icon = new FontIcon { Glyph = "\uE8EE", Foreground = VizDimInk }, Foreground = c.Repeat ? LookupAmber : VizNowInk };
         ToolTipService.SetToolTip(rep, repeatCannot is not null ? Cap(repeatCannot) : "Play the list again when it ends, in the order chosen. True shuffle draws afresh each pass. One switch for everything " + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "this service") + " plays.");
-        rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("quick play: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("Prism" + Mid + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "the service") + (on ? " repeats" : " plays through once")); };
+        rep.Click += (_, __) => { var on = rep.IsChecked; LogLine("quick play: repeat " + source + " " + on); _ = RuntimeEvalAsync("PrismRuntime.musicRepeat(" + Q(source) + ", " + (on ? "true" : "false") + ")"); SetPill("PRISM" + Mid + (c.Prefix.Length > 0 ? c.Prefix.TrimEnd(':', ' ') : "the service") + (on ? " repeats" : " plays through once")); };
         row.Items.Add(rep);
         if (kind == "playlist" && c.PlayingTitle is { Length: > 0 } pt && c.PlayingIn.Contains(id) && c.Editable.Contains(id)) { row.Items.Add(new MenuFlyoutSeparator()); row.Items.Add(RemovePlayingItem(c, id, name, pt)); }
         else if (kind == "playlist") { row.Items.Add(new MenuFlyoutSeparator()); row.Items.Add(AddPlayingItem(c, id, name)); }
@@ -1788,10 +1803,10 @@ public sealed partial class MainWindow
         var source = c.Source;
         item.Click += (_, __) =>
         {
-            if (item.Tag is not ValueTuple<string, string> hit) { if (ToolTipService.GetToolTip(item) is string why) SetPill("Prism" + Mid + why); return; }
+            if (item.Tag is not ValueTuple<string, string> hit) { if (ToolTipService.GetToolTip(item) is string why) SetPill("PRISM" + Mid + why); return; }
             LogLine("row add: " + source + " " + hit.Item1 + " -> " + playlistId);
             _ = RuntimeEvalAsync("PrismRuntime.musicAddToPlaylist(" + Q(source) + ", " + Q(playlistId) + ", " + Q(hit.Item1) + ")");
-            SetPill("Prism" + Mid + "adding " + hit.Item2 + " to " + playlistName + (char)0x2026);
+            SetPill("PRISM" + Mid + "adding " + hit.Item2 + " to " + playlistName + (char)0x2026);
             _ = ReportLookupActionAsync(source, service);
         };
         if (!_rowAdds.TryGetValue(source, out var list)) _rowAdds[source] = list = new();
@@ -1827,7 +1842,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Remove the song playing now from this playlist (2026-10-06): offered only when Prism has read that the playlist holds it and the library marks the playlist the
+    /// Remove the song playing now from this playlist (2026-10-06): offered only when PRISM has read that the playlist holds it and the library marks the playlist the
     /// person's own. A short confirmation names the song and the playlist; the removal runs on the service's hidden page (its own Remove
     /// from Playlist control) and the status line says what it is doing and how it ended. The song keeps playing.
     /// </summary>
@@ -1852,8 +1867,8 @@ public sealed partial class MainWindow
             try { if (await dlg.ShowAsync() != ContentDialogResult.Primary) return; } catch { return; }
             LogLine("quick play: remove playing from " + source + " playlist " + playlistId);
             var asked = await RuntimeEvalAsync("PrismRuntime.musicRemovePlaying(" + Q(source) + ", " + Q(playlistId) + ", false)");
-            if (asked is null || !asked.Contains("\"asked\":true")) { SetPill("Prism" + Mid + "could not remove " + title + " from " + playlistName); return; }
-            SetPill("Prism" + Mid + "removing " + title + " from " + playlistName + (char)0x2026, hold: true);
+            if (asked is null || !asked.Contains("\"asked\":true")) { SetPill("PRISM" + Mid + "could not remove " + title + " from " + playlistName); return; }
+            SetPill("PRISM" + Mid + "removing " + title + " from " + playlistName + (char)0x2026, hold: true);
             for (var i = 0; i < 180; i++)
             {
                 await Task.Delay(3000);
@@ -1861,11 +1876,11 @@ public sealed partial class MainWindow
                 try { var raw = await RuntimeEvalAsync("PrismRuntime.musicRemoveState(" + Q(source) + ")"); st = raw is null ? null : System.Text.Json.Nodes.JsonNode.Parse(raw) as System.Text.Json.Nodes.JsonObject; } catch { }
                 var status = st?["status"]?.GetValue<string>();
                 if (status is null || status == "pending") continue;
-                if (status == "ok") ReleasePill("Prism" + Mid + title + " is off " + playlistName);
-                else ReleasePill("Prism" + Mid + "could not remove " + title + " from " + playlistName + (st?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
+                if (status == "ok") ReleasePill("PRISM" + Mid + title + " is off " + playlistName);
+                else ReleasePill("PRISM" + Mid + "could not remove " + title + " from " + playlistName + (st?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
                 return;
             }
-            ReleasePill("Prism" + Mid + "the removal of " + title + " is taking long; check " + playlistName + " later");
+            ReleasePill("PRISM" + Mid + "the removal of " + title + " is taking long; check " + playlistName + " later");
         };
         return item;
     }
@@ -1876,24 +1891,32 @@ public sealed partial class MainWindow
         var parts = new VizChromeParts { Source = source };
 
         // ---- point 3 (P4): the metadata BLOCK, bottom-left, two lines
-        var meta = new StackPanel { Orientation = Orientation.Vertical, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(28, 0, 0, 26), IsHitTestVisible = false };
+        var meta = new StackPanel { Orientation = Orientation.Vertical, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Padding = new Thickness(28, 16, 90, 26), IsHitTestVisible = false };
+        // The label stands on whatever the visual draws, and a bright one (a day sky, a lawn) left its grey lines unreadable
+        // (2026-11-12, reported on Seasons). Every line is now the light ink, and a shade of the ground lies behind the block:
+        // dark at the screen's edge, clear at the block's right.
+        {
+            var shade = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 0) };
+            shade.GradientStops.Add(new GradientStop { Color = Tokens.GroundColorAt(0xB8), Offset = 0 }); shade.GradientStops.Add(new GradientStop { Color = Tokens.GroundColorAt(0x90), Offset = 0.6 }); shade.GradientStops.Add(new GradientStop { Color = Tokens.GroundColorAt(0), Offset = 1 });
+            meta.Background = shade; meta.CornerRadius = new CornerRadius(0, 14, 0, 0);
+        }
         // Wall type, not desktop type. 13px was unreadable from across a room - - and the whole point of this block is
         // that someone walking past knows what is playing without touching
         // anything. The two lines keep P4's shape and treatments.
         parts.Title = new TextBlock { Text = "", FontFamily = VizDisplay, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontSize = 34, Foreground = VizNowInk, MaxWidth = 900, TextTrimming = TextTrimming.CharacterEllipsis };
         parts.Line2 = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, HorizontalAlignment = HorizontalAlignment.Left };
-        parts.Artist = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 19, Foreground = VizDimInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Bottom };
-        parts.State = new TextBlock { Text = "", FontFamily = VizMono, FontSize = 13, Foreground = VizDimInk, VerticalAlignment = VerticalAlignment.Bottom };
+        parts.Artist = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 19, Foreground = VizNowInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Bottom };
+        parts.State = new TextBlock { Text = "", FontFamily = VizMono, FontSize = 13, Foreground = VizNowInk, VerticalAlignment = VerticalAlignment.Bottom };
         parts.Spinner = new ProgressRing { Width = 14, Height = 14, IsActive = false, Visibility = Visibility.Collapsed, Margin = new Thickness(8, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom, Foreground = VizNowInk };
         parts.Line2.Children.Add(parts.Artist); parts.Line2.Children.Add(parts.State); parts.Line2.Children.Add(parts.Spinner);
         // Cancel (2026-10-29): shown while a pick loads over a song that plays on; the press drops the pick (core's cancelMusicPick)
-        parts.Cancel = Small("Cancel", () => { LogLine("quick play: cancel " + parts.Source); _ = RuntimeEvalAsync("PrismRuntime.musicCancel(" + Q(parts.Source) + ")"); SetPill("Prism" + Mid + "kept " + (parts.Title.Text.Length > 0 ? parts.Title.Text : "the music") + " playing"); });
+        parts.Cancel = Small("Cancel", () => { LogLine("quick play: cancel " + parts.Source); _ = RuntimeEvalAsync("PrismRuntime.musicCancel(" + Q(parts.Source) + ")"); SetPill("PRISM" + Mid + "kept " + (parts.Title.Text.Length > 0 ? parts.Title.Text : "the music") + " playing"); });
         parts.Cancel.Margin = new Thickness(12, 0, 0, 1); parts.Cancel.VerticalAlignment = VerticalAlignment.Bottom; parts.Cancel.Visibility = Visibility.Collapsed;
         ToolTipService.SetToolTip(parts.Cancel, "Drop this pick and keep what is playing");
         parts.Line2.Children.Add(parts.Cancel);
-        parts.Album = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizDimInk, Opacity = 0.85, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
-        parts.Service = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, CharacterSpacing = 140, Foreground = VizDimInk, Opacity = 0.9 };
-        parts.Collection = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizDimInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
+        parts.Album = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizNowInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
+        parts.Service = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, CharacterSpacing = 140, Foreground = VizNowInk };
+        parts.Collection = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 16, Foreground = VizNowInk, MaxWidth = 620, TextTrimming = TextTrimming.CharacterEllipsis };
         meta.Children.Add(parts.Service); meta.Children.Add(parts.Title); meta.Children.Add(parts.Line2); meta.Children.Add(parts.Album); meta.Children.Add(parts.Collection);
         parts.Meta = meta;
 
@@ -1981,8 +2004,27 @@ public sealed partial class MainWindow
             ToolTipService.SetToolTip(b, tip);
             return b;
         }
-        var visual = Corner(new FontIcon { Glyph = GlyphNextVisual, FontSize = 40 }, "Next visual - cycles Prism Beams, Spectrum, Ribbon and Bloom, and keeps your pick in the scene");
-        visual.Click += (_, __) => _ = CycleVisualizationStyleAsync(tileId);
+        // the visual before and the visual after, by name A to Z (2026-11-12, asked for a way back in place of one button that
+        // only went on): two buttons in the place of the one, each half its width
+        var visual = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var dir in new[] { -1, 1 })
+        {
+            var step = dir;
+            var face = new StackPanel { Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
+            face.Children.Add(new FontIcon { Glyph = GlyphVisual, FontSize = 24 });
+            face.Children.Add(new FontIcon { Glyph = ((char)(step < 0 ? 0xE76B : 0xE76C)).ToString(), FontSize = 20 });
+            var vb = Corner(face, step < 0 ? "Previous visual" : "Next visual"); vb.Width = 46;
+            // the tooltip names the visual on screen and the one a press brings (2026-11-10: nothing in PRISM said which visual was on);
+            // read as it opens, since a press changes the visual under a button that stays
+            var visualTip = new ToolTip { Content = VisualTipText(tileId, step) };
+            visualTip.Opened += (_, __) => visualTip.Content = VisualTipText(tileId, step);
+            ToolTipService.SetToolTip(vb, visualTip);
+            vb.Click += (_, __) => _ = CycleVisualizationStyleAsync(tileId, step);
+            // a right press shows the name of the visual on screen at the top centre, as a pick of it does, and changes nothing
+            // (2026-11-12, asked for; it had opened the quick play menu of the whole screen)
+            vb.RightTapped += (_, e) => { e.Handled = true; WakeViz(); if (_vizParts.TryGetValue(tileId, out var vp) && !string.IsNullOrEmpty(vp.StyleId)) ShowVisualTitle(StylePacks.Get(vp.StyleId).Name); };
+            visual.Children.Add(vb);
+        }
         // Quick play (2026-09-06): the last five albums / playlists / stations this source played from, one tap each -
         // so nobody goes all the way into the service's page for the thing they played yesterday.
         parts.Recent = Corner(new FontIcon { Glyph = GlyphRecent, FontSize = 40 }, "Quick play - the last five things this source played from");
@@ -2001,6 +2043,12 @@ public sealed partial class MainWindow
         miniBtn.Click += (_, __) => OpenMiniPlayer(tileId, source);
         parts.Mini = miniBtn;
         stack.Children.Add(miniBtn);
+        // the Seasons visual's settings (2026-11-12): a button that is there only while that visual is on
+        SeasonsTown.PlanSource ??= SeasonsPlanNow;
+        parts.Seasons = Corner(new FontIcon { Glyph = GlyphSeasons, FontSize = 34 }, "Seasons settings: which holidays and seasons show, and their dates");
+        parts.Seasons.Visibility = Visibility.Collapsed;
+        parts.Seasons.Click += (_, __) => _ = ShowSeasonsSettingsAsync();
+        stack.Children.Add(parts.Seasons);
         // B-169 (2026-09-08):
         parts.SoundBubbleText = new TextBlock { Text = "", FontFamily = VizSans, FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x12, 0x13, 0x1A)) };
         var bubbleBody = new Border { Child = parts.SoundBubbleText, Background = Tokens.AmberAt(0xF2), CornerRadius = new CornerRadius(12), Padding = new Thickness(12, 5, 12, 5) };
@@ -2017,7 +2065,6 @@ public sealed partial class MainWindow
         // pass-through). Reveal is for signing in; the wall player should cover
         // the rest.
         parts.SeekBack = Ctl(GlyphSeekBack, "Skip back", () => _brain.Call(HostCalls.TileCommand, parts.Source, "seekbackward"));
-        row.Children.Add(parts.SeekBack);
         // B-141 (2026-09-08): Start over - the collection the page holds, queued again: a station refreshes, a playlist starts from the top
         parts.Restart = Ctl(GlyphStartOver, "Start over", () => _brain.Call(HostCalls.TileCommand, parts.Source, "restart"));
         row.Children.Add(parts.Restart);
@@ -2027,14 +2074,14 @@ public sealed partial class MainWindow
         parts.Play.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, parts.Source, parts.Playing ? "pause" : "play"); _ = Task.Delay(400).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync())); };   // B-151: the MUTED pill follows the press
         parts.Next = Ctl(GlyphNext, "Next", () => _brain.Call(HostCalls.TileCommand, parts.Source, "next"));
         parts.SeekFwd = Ctl(GlyphSeekFwd, "Skip forward", () => _brain.Call(HostCalls.TileCommand, parts.Source, "seekforward"));
-        // Play orders (2026-09-17): the order the playlist plays in - in order, the service's shuffle, Prism's true shuffle, in
+        // Play orders (2026-09-17): the order the playlist plays in - in order, the service's shuffle, PRISM's true shuffle, in
         // reverse - chosen here for whatever is playing ("let them open the playlist the normal way, and then let them press a
         // button in the controls that gives them the order configurations"); a saved spot is continued from here too
         parts.Order = Ctl(GlyphOrder, "Play order", () => _ = ShowOrderFlyoutAsync(parts));
         // 2026-09-14: the service's own offer, in its own words (Pandora: once the skips are spent - watch an ad
         // for more). Hidden until the page shows one; a press goes to the page's own button, and the ad that follows is a break.
         parts.Offer = new Button { Content = "", Padding = new Thickness(14, 7, 14, 7), Visibility = Visibility.Collapsed, Foreground = Tokens.Amber };
-        ToolTipService.SetToolTip(parts.Offer, "The service's own offer. It may play an ad, which Prism covers like any break");
+        ToolTipService.SetToolTip(parts.Offer, "The service's own offer. It may play an ad, which PRISM covers like any break");
         parts.Offer.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, parts.Source, "offer"); _ = Task.Delay(900).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync())); };
         // B-155 (2026-09-08): thumbs up / down - the verdict goes to the service (Apple's ratings API, Pandora's thumbs), lit amber when it stands
         parts.UpIcon = new FontIcon { Glyph = GlyphLike, FontSize = 20 }; parts.DownIcon = new FontIcon { Glyph = GlyphDislike, FontSize = 20 };
@@ -2049,8 +2096,8 @@ public sealed partial class MainWindow
         parts.Down = new Button { Content = downBox, Padding = new Thickness(12, 7, 12, 7), IsEnabled = false }; ToolTipService.SetToolTip(parts.Down, "Thumbs down tells the service to play less of this");
         parts.Up.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, parts.Source, "thumbup"); _ = Task.Delay(900).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync())); };
         parts.Down.Click += (_, __) => { _brain.Call(HostCalls.TileCommand, parts.Source, "thumbdown"); _ = Task.Delay(900).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync())); };
-        row.Children.Add(parts.Down); row.Children.Add(parts.Up);
-        row.Children.Add(parts.Prev); row.Children.Add(parts.Play); row.Children.Add(parts.Next); row.Children.Add(parts.SeekFwd); row.Children.Add(parts.Order); row.Children.Add(parts.Offer);
+        row.Children.Add(parts.Up); row.Children.Add(parts.Down);   // up first, as the phone has them (2026-11-11)
+        row.Children.Add(parts.Prev); row.Children.Add(parts.Play); row.Children.Add(parts.Next); row.Children.Add(parts.SeekBack); row.Children.Add(parts.SeekFwd);   // skip back beside skip forward (2026-11-11) row.Children.Add(parts.Order); row.Children.Add(parts.Offer);
         parts.Row = row;
         // B-151 (2026-09-08): - top centre, a tap unmutes
         var mb = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
@@ -2061,7 +2108,7 @@ public sealed partial class MainWindow
         parts.MutedBanner.Tapped += (_, e) => { e.Handled = true; SetWallMutedFromWall(parts.Source, false); };
         // this PC's name over the banner, top and centre (2026-10-21): the two stack, so a muted banner sits under the name instead of on it
         parts.Name = MachineNameBlock();
-        // under the Prism grip at the top centre, which the banner's old 14 px margin had sat on (2026-10-22)
+        // under the PRISM grip at the top centre, which the banner's old 14 px margin had sat on (2026-10-22)
         var top = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 36, 0, 0) };
         top.Children.Add(parts.Name); top.Children.Add(parts.MutedBanner);
 
@@ -2171,7 +2218,7 @@ public sealed partial class MainWindow
         // canvas (default z 0) that carries every surface. In Music Lounge the
         // stage is the whole canvas, so that chrome is the size of the wall - and
         // while it is hit-testable it swallows every click meant for whatever a
-        // Prism screen has put on the canvas underneath. That is how App setup
+        // PRISM screen has put on the canvas underneath. That is how App setup
         // came up unclickable: the page was there, at surface z 900, under a
         // full-screen transparent chrome. So the chrome steps aside for a screen
         // exactly as it does for a reveal (§2.5.3's rule, applied to editors).
@@ -2290,13 +2337,13 @@ public sealed partial class MainWindow
         {
             // 2026-09-19: a read that failed - said once, fading, and the held line released
             var svcName = working.Facet is { } wf3 && _model.Facet(wf3) is { } wmf3 && _model.App(wmf3.App) is { } wma3 ? wma3.Name : null;
-            var line = "Prism " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + wfail.Substring(1);
+            var line = "PRISM " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + wfail.Substring(1);
             if (line != _workLine) { _workLine = null; _workName = null; _workFailLine = line; ReleasePill(line); }
         }
         else if (working?.Work is { } wtext)
         {
             var svcName = working.Facet is { } wf && _model.Facet(wf) is { } wmf && _model.App(wmf.App) is { } wma ? wma.Name : null;
-            var line = "Prism " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + wtext;
+            var line = "PRISM " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + wtext;
             // held while the work runs: re-asserted on every beat the pill is not showing it (a passing line, or a hide)
             if (line != _workLine || PillLine.Text != line || PillBorder.Visibility != Visibility.Visible) { _workLine = line; _workName = working.Facet; SetPill(line, hold: true); }
         }
@@ -2304,7 +2351,7 @@ public sealed partial class MainWindow
         {
             var svcName = _workName is { } wf2 && _model.Facet(wf2) is { } wmf2 && _model.App(wmf2.App) is { } wma2 ? wma2.Name : null;
             _workLine = null; _workName = null;
-            ReleasePill("Prism " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + "the list is ready");
+            ReleasePill("PRISM " + (char)0xB7 + " " + (svcName is { Length: > 0 } ? svcName + ": " : "") + "the list is ready");
         }
         var (_, audioOwner) = await VisualizationTilesAsync();
         var editMode = VisualizationEditMode;
@@ -2347,9 +2394,9 @@ public sealed partial class MainWindow
             var loaded = parts.Playing || !string.IsNullOrWhiteSpace(t?.Title) || pending is not null;
             var serviceName = t?.Facet is { } tf && _model.Facet(tf) is { } mf && _model.App(mf.App) is { } ma ? ma.Name : null;
             // Play orders (2026-09-17): the collection line says the order when this tile plays in one - the page names no
-            // collection for a Prism-made queue, so the order's own collection stands in
+            // collection for a PRISM-made queue, so the order's own collection stands in
             var collectionLine = t?.Collection;
-            var prismOrder = t?.Order is "true shuffle" or "in reverse";   // a Prism-made queue: the page names the song as its container, never the playlist
+            var prismOrder = t?.Order is "true shuffle" or "in reverse";   // a PRISM-made queue: the page names the song as its container, never the playlist
             // B-233: over the wall's own queue (the page names no collection) or the order's own collection - never over a station
             // or another playlist the page has moved on to while the order still stands
             var pageHoldsOther = t?.CollectionKind is { Length: > 0 } && t.CollectionId is { Length: > 0 } && t.CollectionId != t.OrderId;
@@ -2375,6 +2422,7 @@ public sealed partial class MainWindow
             else if (parts.BreakArt is null) { try { var pick = _surfaces.Art.RandomArt(); parts.BreakArt = pick is null ? null : new Uri(pick).AbsoluteUri; } catch { parts.BreakArt = null; } }
             parts.AdCount = inBreak ? t?.AdCount : null;   // 2026-09-15: "Ad 2 of 3" beside the clock while the break runs
             var artUrl = loaded && (parts.Artwork != "focal" || StyleRenderer.PaintsScene(parts.StyleId)) ? (inBreak && parts.BreakArt is not null ? parts.BreakArt : (t?.Artwork ?? "")) : "";
+            StyleRenderer.CoverShown = artUrl.Length > 0;
             parts.BreakGlyph.Visibility = inBreak && parts.BreakArt is not null && artUrl.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             if (artUrl != parts.ArtUrl)
             {
@@ -2482,7 +2530,7 @@ public sealed partial class MainWindow
         LogLine("quick play: " + source + " " + kind + " " + id + " (after this track)");
         var r = await ModelCallAsync("musicPlayNext", source, kind, id);
         System.Text.Json.Nodes.JsonObject? jr = null; try { jr = r is null ? null : System.Text.Json.Nodes.JsonNode.Parse(r) as System.Text.Json.Nodes.JsonObject; } catch { }
-        if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "Prism" + Mid + "nothing was playing, so " + name + " starts now" : "Prism" + Mid + "after this track: " + name);
-        else SetPill("Prism" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
+        if (jr?["ok"]?.GetValue<bool>() == true) SetPill(jr["started"]?.GetValue<bool>() == true ? "PRISM" + Mid + "nothing was playing, so " + name + " starts now" : "PRISM" + Mid + "after this track: " + name);
+        else SetPill("PRISM" + Mid + "could not queue " + name + (jr?["error"]?.GetValue<string>() is { Length: > 0 } er ? ": " + er : ""));
     }
 }

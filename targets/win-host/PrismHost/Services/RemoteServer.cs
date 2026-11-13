@@ -81,8 +81,8 @@ public sealed class RemoteServer : IDisposable
     }
 
     // B-385 (2026-10-18): the accept loop ended on one failed accept (Windows fails an
-    // accept with "connection reset" when the phone drops the connection before Prism takes it) and the listener socket stayed bound, so
-    // every phone connection completed in the kernel's backlog and was never answered - the page spun until Prism was restarted. The
+    // accept with "connection reset" when the phone drops the connection before PRISM takes it) and the listener socket stayed bound, so
+    // every phone connection completed in the kernel's backlog and was never answered - the page spun until PRISM was restarted. The
     // loop now survives a failed accept: it logs, pauses briefly, and after twenty failures in a row rebinds the port (bounded: twenty
     // tries, then it stops and says so). A watcher restarts the loop should it ever end while the server is not stopped.
     private int _acceptLoopRuns;
@@ -105,7 +105,7 @@ public sealed class RemoteServer : IDisposable
                     _log("remote accept failed (" + failures + "): " + ex.Message);
                     if (failures >= 20)
                     {
-                        if (!Rebind()) { _log("remote accept: could not rebind port " + Port + ", the phone page is down until Prism restarts"); return; }
+                        if (!Rebind()) { _log("remote accept: could not rebind port " + Port + ", the phone page is down until PRISM restarts"); return; }
                         failures = 0;
                     }
                     await Task.Delay(Math.Min(100 * failures, 2000));
@@ -187,7 +187,7 @@ public sealed class RemoteServer : IDisposable
                     }
                     await WriteAsync(stream, 200, html, "text/html; charset=utf-8"); return;
                 }   // the token into the manifest link: a home-screen app opens paired
-                // the page's icon and manifest (2026-10-04): Prism's own mark; the
+                // the page's icon and manifest (2026-10-04): PRISM's own mark; the
                 // manifest's start address keeps the phone's token so the home-screen icon opens the wall already paired
                 // the page's version (2026-10-04): a hash of the page as this host serves it; the page asks each minute
                 if (method == "GET" && path == "/remote/version") { await WriteAsync(stream, 200, "{\"v\":\"" + PageVersion + "\"}", "application/json"); return; }
@@ -330,18 +330,18 @@ public sealed class RemoteServer : IDisposable
         finally { closed = true; BandsDemand?.Invoke(false); _log("viz bands: a phone's visual closed"); }
     }
 
-    /// <summary>The home-screen manifest: its start address keeps the phone's token, so the icon opens Prism already paired. Shared with
-    /// the phone launcher (PhoneLauncher), which answers at the same address while Prism is closed.</summary>
+    /// <summary>The home-screen manifest: its start address keeps the phone's token, so the icon opens PRISM already paired. Shared with
+    /// the phone launcher (PhoneLauncher), which answers at the same address while PRISM is closed.</summary>
     /// <summary>The manifest carries an explicit id (B-446, 2026-10-28): with two home-screen web apps on a phone, iOS opened the other one
-    /// from the Now Playing control while Prism played (WebKit bug 267810); a reader there found an explicit "id" in the playing app's manifest
+    /// from the Now Playing control while PRISM played (WebKit bug 267810); a reader there found an explicit "id" in the playing app's manifest
     /// sets it right, read at install, so the app must be removed from the home screen and added again to take it.</summary>
     internal const string ManifestId = "prism-companion";
     internal static string ManifestJson(string? token, bool classic)
     {
         var start = "/remote" + (token is { Length: > 0 } ? "?token=" + WebUtility.UrlEncode(token) : "");
         return classic
-            ? JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
-            : JsonSerializer.Serialize(new { name = "Prism", short_name = "Prism", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
+            ? JsonSerializer.Serialize(new { name = "PRISM", short_name = "PRISM", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new[] { new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" } } })
+            : JsonSerializer.Serialize(new { name = "PRISM", short_name = "PRISM", id = ManifestId, start_url = start, scope = "/remote", display = "standalone", background_color = "#14171C", theme_color = "#14171C", icons = new object[] {
             new { src = "/remote/icon.png", sizes = "128x128", type = "image/png" },
             new { src = "/remote/icon-192.png", sizes = "192x192", type = "image/png" },
             new { src = "/remote/icon-512.png", sizes = "512x512", type = "image/png" },
@@ -408,7 +408,7 @@ public sealed class RemoteServer : IDisposable
     private static string ReadWordmark()
     {
         try { var p = Path.Combine(AppContext.BaseDirectory, "Assets", "brain", "prism-wordmark.html"); if (File.Exists(p)) { var s = File.ReadAllText(p).Trim(); if (s.Length > 0) return s; } } catch { }
-        return "<b>Prism</b>";
+        return "<b>PRISM</b>";
     }
     /// <summary>The catalog's services as the page lists them (2026-10-11): [{id, name, kind}], set by the host once the catalog is read.</summary>
     public static volatile string ServicesJson = "[]";

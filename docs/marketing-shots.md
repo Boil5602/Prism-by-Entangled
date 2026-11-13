@@ -1,4 +1,4 @@
-# Prism — Marketing shots (composition references)
+# PRISM — Marketing shots (composition references)
 
 *Six shots for the site, extracted from `prototypes/prism-website-mockups.jsx`
 (committed 2026-09-03) and tied to the Scene Templates and the Parkers demo
@@ -14,7 +14,7 @@ never from a household's real config.
 
 This document **describes compositions; it does not order work.** Where a
 shot needs something the wall cannot do yet, the gap is named with its
-charter or ledger reference, and the shot waits. Mock 4 (Prism Beams) is
+charter or ledger reference, and the shot waits. Mock 4 (PRISM Beams) is
 handled in charter §2.5.2 / §2.5.4 and is not repeated here.
 
 ---
@@ -42,7 +42,7 @@ the original four — it is the record of what CS-5 did, and is left standing.
 ## 1. Kitchen Command
 
 **Caption:** *the archetype — video hero, Merge family + work calendars,
-weather, derived-shelf news ticker. The quiet Prism pill sits bottom-right.*
+weather, derived-shelf news ticker. The quiet PRISM pill sits bottom-right.*
 
 **Composition (16:9, fractions of the canvas):**
 
@@ -52,7 +52,7 @@ weather, derived-shelf news ticker. The quiet Prism pill sits bottom-right.*
 | calendar | `{0.665, 0, 0.335, 0.476}` | **"Today · The Parkers"** / `MERGE · family + 2 work calendars` / five rows: `8:00 Bus — Maya & Leo` · `9:30 Sam · design review` · `12:00 Alex · client lunch` · `3:45 Maya — soccer practice` · `6:30 Family dinner 🍝`, each with a colour lane |
 | weather | `{0.665, 0.476, 0.335, 0.344}` | `⛅ 72°` / `Partly sunny · H 78° L 61°` / mono `rain 6pm · grab a jacket, Maya` |
 | ticker | `{0, 0.82, 1, 0.18}` | `NEWS` in amber mono, three headlines separated by middots |
-| pill | bottom-right, above the ticker | `Prism`, mono, translucent |
+| pill | bottom-right, above the ticker | `PRISM`, mono, translucent |
 
 **Template:** `kitchen-command` (charter §2.1). **Differences from the
 shipped blueprint:** the mock has **no chores slot** and its right column is
@@ -78,8 +78,8 @@ weather.
   weather-to-wear, which no facet produces. For the shot: the real facet.
 - **Hero content:** an open-licensed video (Big Buck Bunny, CC-BY) in a
   YouTube facet, not a placeholder. Manual, one-off.
-- **The pill** exists (`Prism · …`); the mock's is silent — confirm the
-  idle pill text is just `Prism`.
+- **The pill** exists (`PRISM · …`); the mock's is silent — confirm the
+  idle pill text is just `PRISM`.
 
 ## 2. Intermission — "the ad break becomes a Bierstadt"
 
@@ -190,7 +190,7 @@ Time-reclaimed ledger underneath.*
 | title row | `Popup Control Center` · right-aligned mono `this site · 24 intercepted` |
 | rows (4) | `trk-adserve-example.net` ×14 `EasyList · $popup` · `win-a-prize-example.com` ×6 `click-consistency` · `video-plyr-popcdn-example.io` ×3 `EasyList · $popup` · `checkout.stripe.com` ×1 `allowed · payment` — each with **Open** and **Always allow** (amber outline) buttons |
 | footer | mono `4h 12m reclaimed this month · everything stays on this device` |
-| pill | bottom-right `Prism · 3 popups blocked` |
+| pill | bottom-right `PRISM · 3 popups blocked` |
 
 **Feature:** §30 popup doctrine and the Popup Control Center (core
 `popups.ts`; host `MainWindow.Menu.cs` / `MainWindow.QuickActions.cs`); the
@@ -243,7 +243,7 @@ placeholders for photos, agenda, weather, ticker.
 
 **Gaps before the shot reproduces:**
 - The calendar facet (shot 1's gap).
-- **A photos facet** with a shared-album label — Prism Photos is phase two
+- **A photos facet** with a shared-album label — PRISM Photos is phase two
   (charter §2.4); for the shot, an open-licensed still in a plain facet
   labelled `(demo)`.
 - The chores list's *content* — three items in the mock vs. six in the

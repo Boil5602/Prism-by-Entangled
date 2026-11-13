@@ -9,10 +9,10 @@ namespace PrismHost;
 
 /// <summary>
 /// The TMDB guide (2026-10-10): from no account to a working key without typing a long key
-/// with a remote. Each step is a code for the phone - TMDB's sign-up page, its API page, then Prism's own page on the phone, where the
+/// with a remote. Each step is a code for the phone - TMDB's sign-up page, its API page, then PRISM's own page on the phone, where the
 /// key copied a moment ago is pasted and sent (core POST /tmdb/key). The key is tried against TMDB before the guide says it works, and
-/// the account's approval (MainWindow.TmdbAccount.cs) follows for whoever wants ratings and playlists. Prism never signs anyone up:
-/// the sign-up page opens on the person's own phone (docs/third-party-services-policy.md). Prism works in full without a key; the
+/// the account's approval (MainWindow.TmdbAccount.cs) follows for whoever wants ratings and playlists. PRISM never signs anyone up:
+/// the sign-up page opens on the person's own phone (docs/third-party-services-policy.md). PRISM works in full without a key; the
 /// guide says so first.
 /// </summary>
 public sealed partial class MainWindow
@@ -110,7 +110,7 @@ public sealed partial class MainWindow
             if (step == 0)
             {
                 card.Children.Add(Title("Get a free TMDB key"));
-                card.Children.Add(Body("TMDB is the free film and TV database behind Prism's extras. Prism works without it. With your own free key you also get:"));
+                card.Children.Add(Body("TMDB is the free film and TV database behind PRISM's extras. PRISM works without it. With your own free key you also get:"));
                 card.Children.Add(Points(
                     "Details pages with the cast, and where each title can be watched",
                     "Every cast member's other films and shows, one press away",
@@ -139,13 +139,13 @@ public sealed partial class MainWindow
             else if (step == 3)
             {
                 card.Children.Add(Step("Step 3 of 3"));
-                card.Children.Add(Title("Send the key to Prism"));
+                card.Children.Add(Title("Send the key to PRISM"));
                 var phone = await GuidePhoneUrlAsync();
                 if (run != _guideRun) return;
                 if (phone.Length > 0)
                 {
-                    card.Children.Add(Body("Scan this code. On the page that opens, paste the key and press Send to Prism. Your phone has to be on the same network as this PC."));
-                    await CodeAsync(phone, "Prism on your phone");
+                    card.Children.Add(Body("Scan this code. On the page that opens, paste the key and press Send to PRISM. Your phone has to be on the same network as this PC."));
+                    await CodeAsync(phone, "PRISM on your phone");
                 }
                 var typed = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
                 typed.Children.Add(new TextBlock { Text = phone.Length > 0 ? "Or type it here:" : "Type or paste the key here:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
@@ -180,7 +180,7 @@ public sealed partial class MainWindow
                             said.Text = "TMDB didn't accept that key. Copy the whole API Read Access Token again and send it once more.";
                         }
                         else if (answer == "none") said.Text = "Waiting for the key" + (char)0x2026;
-                        else { retryAt = Environment.TickCount64 + 10000; said.Text = "Prism has the key but couldn't reach TMDB to check it. It will try again in a moment."; }
+                        else { retryAt = Environment.TickCount64 + 10000; said.Text = "PRISM has the key but couldn't reach TMDB to check it. It will try again in a moment."; }
                     }
                     finally { trying = false; }
                 }
@@ -216,10 +216,10 @@ public sealed partial class MainWindow
                     "Details pages with the cast and where to watch. Press any title",
                     "Cast members' other titles. Press a name on a Details page",
                     "Search across all your services, from the Watch page"));
-                card.Children.Add(Body("One more step turns on your own ratings and playlists: approving Prism on your TMDB account. It's another code to scan. They're kept on TMDB, so every PC you link shows the same ones."));
+                card.Children.Add(Body("One more step turns on your own ratings and playlists: approving PRISM on your TMDB account. It's another code to scan. They're kept on TMDB, so every PC you link shows the same ones."));
                 card.Children.Add(Row(
                     Verb("Link my account", true, async () => { CloseTmdbGuide(); GuideRedrawPages(); await ModelCallAsync("tmdbLinkStart"); await ShowTmdbApprovalAsync(); }),
-                    Verb("Finish", false, () => { CloseTmdbGuide(); SetPill("Prism" + Dot + "your TMDB key is in"); GuideRedrawPages(); })));
+                    Verb("Finish", false, () => { CloseTmdbGuide(); SetPill("PRISM" + Dot + "your TMDB key is in"); GuideRedrawPages(); })));
             }
         }
         await ShowAsync(startAt);

@@ -4,7 +4,7 @@ The docs, the ledger and the code's comments had been written with the owner's r
 repository carries the file tree, so those quotations were public. This takes a quotation out wherever it sits beside a date or a
 word that marks it as someone's (asked, said, report, the person, the user), before or after it, in Markdown, in comment lines of
 code (never a string literal: only lines that are a comment), and in the adapters' JSON notes. The date and the surrounding sentence
-stay; the ask is described in Prism's own words from now on (CLAUDE.md), never quoted.
+stay; the ask is described in PRISM's own words from now on (CLAUDE.md), never quoted.
 
 Text is worked in runs: a Markdown paragraph (between blank lines, outside a code fence) or a block of consecutive comment lines, so a
 quotation that wraps onto the next line is found; a run that lost nothing is written back unchanged, and only a line that changed is

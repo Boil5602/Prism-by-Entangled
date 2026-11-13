@@ -65,7 +65,7 @@ for w, (t, Xw) in data.items():
     if up: found.append((st, len(p) - 1))
     sug = []
     for a_, b_ in found:
-        # a break runs 20 s to about 7 minutes; anything longer is a stretch with no live picture (Prism closed, a page stuck loading)
+        # a break runs 20 s to about 7 minutes; anything longer is a stretch with no live picture (PRISM closed, a page stuck loading)
         if t[b_] - t[a_] < 20 or t[b_] - t[a_] > 480 or done[a_:b_ + 1].mean() > 0.5:
             continue
         sug.append([hms(t[a_]), hms(t[b_]), round(float(p[a_:b_ + 1].mean()), 2)])

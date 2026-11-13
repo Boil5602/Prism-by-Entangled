@@ -5,7 +5,7 @@ namespace PrismHost.Surfaces;
 /// <summary>
 /// The phone's keyboard on a page (2026-10-03): what a
 /// person types on the phone lands in the field focused on the wall, through the DevTools protocol's own input - trusted input, as a
-/// keyboard's, into whatever the page has focused. Prism keeps nothing of it. Keys: Enter, Backspace, Tab, Escape and the D-pad.
+/// keyboard's, into whatever the page has focused. PRISM keeps nothing of it. Keys: Enter, Backspace, Tab, Escape and the D-pad.
 /// </summary>
 public sealed partial class SurfaceManager
 {

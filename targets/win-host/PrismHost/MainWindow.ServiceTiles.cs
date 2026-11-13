@@ -11,7 +11,7 @@ namespace PrismHost;
 /// </summary>
 public sealed partial class MainWindow
 {
-    /// <summary>Each service's colour, from its own branding. A service not listed takes the colour its site declares (the poster cache's), else Prism's amber.</summary>
+    /// <summary>Each service's colour, from its own branding. A service not listed takes the colour its site declares (the poster cache's), else PRISM's amber.</summary>
     private static readonly Dictionary<string, string> BrandColors = new(StringComparer.OrdinalIgnoreCase)
     {
         ["netflix"] = "#E50914", ["hulu"] = "#1CE783", ["disneyplus"] = "#113CCF", ["paramountplus"] = "#0064FF",

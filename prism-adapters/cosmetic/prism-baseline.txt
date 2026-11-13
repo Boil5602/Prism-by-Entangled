@@ -1,4 +1,4 @@
-! Title: Prism baseline element-hiding list
+! Title: PRISM baseline element-hiding list
 ! Maintainer: PRISM by Entangled (prism-adapters)
 ! License: MIT
 ! Source: distilled from the prism-veil extension's slot engine

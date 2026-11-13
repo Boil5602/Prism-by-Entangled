@@ -8,19 +8,19 @@ using PrismHost.Launching;
 namespace PrismHost.Services;
 
 /// <summary>
-/// The phone launcher (2026-10-23). The phone's page is served by Prism on port 8471, so with
-/// Prism closed the phone had nothing to reach, and a phone browser keeps no page of its own for a plain home-network address (a service
+/// The phone launcher (2026-10-23). The phone's page is served by PRISM on port 8471, so with
+/// PRISM closed the phone had nothing to reach, and a phone browser keeps no page of its own for a plain home-network address (a service
 /// worker needs https).
 ///
-/// The launcher is Prism's own exe started with --launcher, by Prism itself at each start, and it stays when Prism closes. It has no
-/// window and opens no WebView. (Starting it at Windows sign-in as well, so a PC that has not opened Prism since it started is covered,
-/// waits on the person's go-ahead: it is an entry in Windows' startup list.) It is the same exe, so the firewall rule that lets phones reach Prism lets them reach it too.
-///   - While Prism runs (its named mutex is held) the launcher only waits.
-///   - While Prism is closed it answers on 8471: the phone's address shows "Prism is closed" with an Open Prism button for a paired
-///     phone (the pairings core stored, read from disk and never written), and every other route says Prism is closed.
-///   - Open Prism gives the port back and starts this exe; the page waits for Prism's own page and loads it.
-///   - Prism stopping without closing (the mutex abandoned: a crash) is started again after a short wait, at most three times an
-///     hour (RestartBudget). A Prism the person closed stays closed.
+/// The launcher is PRISM's own exe started with --launcher, by PRISM itself at each start, and it stays when PRISM closes. It has no
+/// window and opens no WebView. (Starting it at Windows sign-in as well, so a PC that has not opened PRISM since it started is covered,
+/// waits on the person's go-ahead: it is an entry in Windows' startup list.) It is the same exe, so the firewall rule that lets phones reach PRISM lets them reach it too.
+///   - While PRISM runs (its named mutex is held) the launcher only waits.
+///   - While PRISM is closed it answers on 8471: the phone's address shows "PRISM is closed" with an Open PRISM button for a paired
+///     phone (the pairings core stored, read from disk and never written), and every other route says PRISM is closed.
+///   - Open PRISM gives the port back and starts this exe; the page waits for PRISM's own page and loads it.
+///   - PRISM stopping without closing (the mutex abandoned: a crash) is started again after a short wait, at most three times an
+///     hour (RestartBudget). A PRISM the person closed stays closed.
 /// The PC asleep or off is beyond it: nothing on the PC can answer, and a phone browser cannot wake it.
 /// </summary>
 public static class PhoneLauncher
@@ -29,14 +29,14 @@ public static class PhoneLauncher
     private const string HostMutexName = @"Local\PrismHostRunning";
     private const string LauncherMutexName = @"Local\PrismPhoneLauncher";
     private const string QuitEventName = @"Local\PrismPhoneLauncherQuit";
-    // PRISM_LAUNCHER_PORT moves only the launcher (a test beside a running Prism); the phone's address is always 8471
+    // PRISM_LAUNCHER_PORT moves only the launcher (a test beside a running PRISM); the phone's address is always 8471
     private static readonly int Port = int.TryParse(Environment.GetEnvironmentVariable("PRISM_LAUNCHER_PORT"), out var p) && p > 0 ? p : DeviceSetup.RemotePort;
 
     // ---------------------------------------------------------------- the host's side
 
     private static Mutex? _hostRunning;
 
-    /// <summary>At Prism's start, on the UI thread: Prism says it is running, and the launcher is made ready for when it closes - one
+    /// <summary>At PRISM's start, on the UI thread: PRISM says it is running, and the launcher is made ready for when it closes - one
     /// started from this exe (one from another copy is stopped first). A run pointed at another data folder (run-fresh) leaves the
     /// launcher alone; turned off (enabled false), a running one is stopped.</summary>
     public static void HostStarted(bool enabled, bool dataDirOverridden, Action<string> log)
@@ -69,7 +69,7 @@ public static class PhoneLauncher
         });
     }
 
-    /// <summary>At Prism's close, on the UI thread, after the phone listener has let go of the port: the running mark goes, so the
+    /// <summary>At PRISM's close, on the UI thread, after the phone listener has let go of the port: the running mark goes, so the
     /// launcher knows this was a close and not a crash.</summary>
     public static void HostClosing()
     {
@@ -114,7 +114,7 @@ public static class PhoneLauncher
     // ---------------------------------------------------------------- the launcher's side
 
     /// <summary>The data folder as HostPaths names it, without HostPaths: its first use applies a pending reset or restore, which belongs
-    /// to Prism's own start, never to the launcher.</summary>
+    /// to PRISM's own start, never to the launcher.</summary>
     private static string DataDir
     {
         get
@@ -129,7 +129,7 @@ public static class PhoneLauncher
 
     private static readonly object Gate = new();
     private static TcpListener? _listener;
-    private static Process? _opened;          // the Prism this launcher started, until it takes the running mark
+    private static Process? _opened;          // the PRISM this launcher started, until it takes the running mark
     private static DateTime _openedAt;
     private static readonly RestartBudget Restarts = new();
     private static EventWaitHandle? _quit;
@@ -157,7 +157,7 @@ public static class PhoneLauncher
         }
     }
 
-    /// <summary>Prism up: wait on its mark. Prism down: hold the port for the phone. A mark abandoned is a crash.</summary>
+    /// <summary>PRISM up: wait on its mark. PRISM down: hold the port for the phone. A mark abandoned is a crash.</summary>
     private static void Watch()
     {
         while (!_quit!.WaitOne(0))
@@ -183,14 +183,14 @@ public static class PhoneLauncher
                             else return;
                         }
                         catch (AbandonedMutexException) { crashed = true; try { host.ReleaseMutex(); } catch { } }
-                        Log(crashed ? "Prism stopped without closing" : "Prism closed");
+                        Log(crashed ? "PRISM stopped without closing" : "PRISM closed");
                     }
                 }
-                // after the handle is let go: while the launcher holds one, the mark it checks for a Prism that came back still exists
+                // after the handle is let go: while the launcher holds one, the mark it checks for a PRISM that came back still exists
                 if (crashed) RestartAfterCrash();
                 if (waited) continue;
             }
-            // Prism is not running: the port is the launcher's, unless a Prism it started is still on its way up (three minutes at most)
+            // PRISM is not running: the port is the launcher's, unless a PRISM it started is still on its way up (three minutes at most)
             bool starting;
             lock (Gate) starting = _opened is { } p && !HasExited(p) && DateTime.Now - _openedAt < TimeSpan.FromMinutes(3);
             if (starting) Unbind(); else Bind();
@@ -200,19 +200,19 @@ public static class PhoneLauncher
 
     private static bool HasExited(Process p) { try { return p.HasExited; } catch { return true; } }
 
-    /// <summary>A crash: fifteen seconds for whatever restarts Prism itself (an update, a restart, a person), then Prism is started
+    /// <summary>A crash: fifteen seconds for whatever restarts PRISM itself (an update, a restart, a person), then PRISM is started
     /// again if nothing else did, within the budget.</summary>
     private static void RestartAfterCrash()
     {
         if (_quit!.WaitOne(15_000)) return;
         if (Mutex.TryOpenExisting(HostMutexName, out var back)) { back.Dispose(); return; }
         var me = Environment.ProcessId;
-        if (Process.GetProcessesByName("PrismHost").Any(p => { using (p) return p.Id != me; })) { Log("another Prism process is running; not started again"); return; }
-        if (!Restarts.TryTake(DateTime.Now)) { Log("Prism stopped " + Restarts.Max + " times this hour; left closed"); return; }
+        if (Process.GetProcessesByName("PrismHost").Any(p => { using (p) return p.Id != me; })) { Log("another PRISM process is running; not started again"); return; }
+        if (!Restarts.TryTake(DateTime.Now)) { Log("PRISM stopped " + Restarts.Max + " times this hour; left closed"); return; }
         OpenPrism("after it stopped");
     }
 
-    /// <summary>Starts Prism from this exe; the port is given back first so Prism's own listener can take it.</summary>
+    /// <summary>Starts PRISM from this exe; the port is given back first so PRISM's own listener can take it.</summary>
     private static bool OpenPrism(string why)
     {
         lock (Gate)
@@ -225,10 +225,10 @@ public static class PhoneLauncher
                 var psi = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) };
                 _opened = Process.Start(psi);
                 _openedAt = DateTime.Now;
-                Log("Prism opened " + why);
+                Log("PRISM opened " + why);
                 return _opened is not null;
             }
-            catch (Exception ex) { Log("Prism could not be opened: " + ex.Message); return false; }
+            catch (Exception ex) { Log("PRISM could not be opened: " + ex.Message); return false; }
         }
     }
 
@@ -245,7 +245,7 @@ public static class PhoneLauncher
                 Log("answering the phone on port " + Port);
                 _ = Task.Run(() => AcceptLoop(l));
             }
-            catch (SocketException) { /* still held (Prism letting go, or another program): tried again each second */ }
+            catch (SocketException) { /* still held (PRISM letting go, or another program): tried again each second */ }
         }
     }
 
@@ -330,7 +330,7 @@ public static class PhoneLauncher
                     OpenPrism("from a paired phone");
                     return;
                 }
-                await RemoteServer.WriteAsync(stream, 503, "{\"error\":\"Prism is closed on this PC\",\"closed\":true}", "application/json");
+                await RemoteServer.WriteAsync(stream, 503, "{\"error\":\"PRISM is closed on this PC\",\"closed\":true}", "application/json");
             }
             catch (Exception ex) { Log("request failed: " + ex.Message); }
         }
@@ -351,11 +351,11 @@ public static class PhoneLauncher
         catch { }
     }
 
-    /// <summary>The phone's page while Prism is closed: the colours of the phone page's :root, one line, one button. It waits for Prism's
+    /// <summary>The phone's page while PRISM is closed: the colours of the phone page's :root, one line, one button. It waits for PRISM's
     /// own page (its version answer stops saying "closed") and loads it in place.</summary>
     private const string ClosedPage = """
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14171C"><title>Prism</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#14171C"><title>PRISM</title>
 <link rel="manifest" href="/remote/manifest.json?token=__TOKEN__"><link rel="apple-touch-icon" sizes="180x180" href="/remote/icon-180.png">
 <style>
 :root{color-scheme:dark;--ink:#E8ECF2;--dim:#8A93A2;--amber:#F2B14C;--amber-ink:#14171C;--ground:#14171C;--panel:#1C2129}
@@ -365,10 +365,10 @@ button{width:100%;max-width:340px;background:var(--amber);color:var(--amber-ink)
 .work{display:none;align-items:center;gap:10px;color:var(--amber);font-size:16px}.work.on{display:flex}.work i{width:10px;height:10px;border-radius:50%;background:var(--amber);animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
 </style></head><body>
 <img src="/remote/icon-180.png" alt="">
-<h1 id="h">Prism is closed</h1>
+<h1 id="h">PRISM is closed</h1>
 <p id="say">Checking this phone&hellip;</p>
-<button id="go" style="display:none">Open Prism</button>
-<div class="work" id="work"><i></i><span>Opening Prism&hellip;</span></div>
+<button id="go" style="display:none">Open PRISM</button>
+<div class="work" id="work"><i></i><span>Opening PRISM&hellip;</span></div>
 <script>
 const T = '__TOKEN__';
 const auth = T ? { Authorization: 'Bearer ' + decodeURIComponent(T.replace(/\+/g, ' ')) } : {};
@@ -381,17 +381,17 @@ async function look() {
     if (!r.ok) { location.reload(); return; }
     const s = await r.json();
     if (s.paired) { say('Open it on this PC from here.'); q('#go').style.display = 'block'; }
-    else say('This phone is not paired with Prism on this PC. Open Prism on the PC and scan its phone code.');
+    else say('This phone is not paired with PRISM on this PC. Open PRISM on the PC and scan its phone code.');
   } catch { say('This PC did not answer. Try again in a moment.'); setTimeout(look, 4000); }
 }
 q('#go').onclick = async () => {
   q('#go').disabled = true;
   try {
     const r = await fetch('/launcher/open', { method: 'POST', headers: auth });
-    if (r.status === 401) { say('This phone is not paired with Prism on this PC.'); return; }
+    if (r.status === 401) { say('This phone is not paired with PRISM on this PC.'); return; }
     if (!r.ok) throw 0;
   } catch { say('This PC did not answer. Try again.'); q('#go').disabled = false; return; }
-  openedAt = Date.now(); q('#go').style.display = 'none'; q('#work').classList.add('on'); say('Prism takes a minute or two to start.');
+  openedAt = Date.now(); q('#go').style.display = 'none'; q('#work').classList.add('on'); say('PRISM takes a minute or two to start.');
   wait();
 };
 async function wait() {
@@ -404,7 +404,7 @@ async function wait() {
   if (Date.now() - openedAt > 4 * 60 * 1000) { fail(); return; }
   setTimeout(wait, 1500);
 }
-function fail() { q('#work').classList.remove('on'); say('Prism did not open. Try again.'); q('#go').disabled = false; q('#go').style.display = 'block'; }
+function fail() { q('#work').classList.remove('on'); say('PRISM did not open. Try again.'); q('#go').disabled = false; q('#go').style.display = 'block'; }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !openedAt) fetch('/remote/version', { cache: 'no-store' }).then(r => r.json()).then(v => { if (v.v !== 'closed') location.replace('/remote' + (T ? '?token=' + T : '')); }).catch(() => {}); });
 look();
 </script></body></html>

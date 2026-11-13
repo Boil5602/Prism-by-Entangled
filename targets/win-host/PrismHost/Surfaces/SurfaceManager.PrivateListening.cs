@@ -2,10 +2,10 @@ namespace PrismHost.Surfaces;
 
 /// <summary>
 /// Private listening's sound rules. Since B-472 (2026-11-01) there is
-/// one rule: Prism's controls act on Prism's sound in the room and never on the playback device. The person's mute takes Prism's own
+/// one rule: PRISM's controls act on PRISM's sound in the room and never on the playback device. The person's mute takes PRISM's own
 /// audio sessions to a floor (SessionMuter.RoomMuted, the room step's Step) and the wall's volume is their level; the captures a phone,
 /// the listen page and the visualizations hear multiply that back up (ListenStream.SourceLevel, WasapiLoopbackFft.SourceLevel), so a
-/// listener hears Prism at full while the room hears what the person set, and other apps on the PC keep their sound. Nothing here
+/// listener hears PRISM at full while the room hears what the person set, and other apps on the PC keep their sound. Nothing here
 /// touches the device any more (2026-10-04 to 2026-10-31 it carried the person's mute and volume on the device while a phone listened,
 /// which muted every app on the PC and left the switch meaning two things).
 /// What stays: the window the sound is given to, the one page a phone hears (2026-10-06).
@@ -42,7 +42,7 @@ public sealed partial class SurfaceManager
         {
             if (_private == value) return;
             _private = value;
-            _onStatus(value ? "private listening: a phone listens; the room keeps Prism's own mute and volume, the phone hears Prism at full" : "private listening: over");
+            _onStatus(value ? "private listening: a phone listens; the room keeps PRISM's own mute and volume, the phone hears PRISM at full" : "private listening: over");
         }
     }
 }

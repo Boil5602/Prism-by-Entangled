@@ -1,10 +1,10 @@
-# How Prism works: the tutorial
+# How PRISM works: the tutorial
 
 (2026-10-10)
 
 ## What a person does
 
-- **How Prism works** in the Prism menu opens a list of subjects: Getting started, Watching, TMDB extras (optional), Live TV and
+- **How PRISM works** in the PRISM menu opens a list of subjects: Getting started, Watching, TMDB extras (optional), Live TV and
   several windows, Ad breaks, Music, Your phone, Profiles, Updates and help. It also opens once by itself, the first time the Set up
   services page is closed.
 - A subject is one to three pages: a picture, a few plain lines, and on some pages a button that opens the real thing (Set up
@@ -12,12 +12,12 @@
   the person back to the page they left.
 - A subject's last page offers the next subject, All subjects, or Done. A subject gone through to its end is ticked in the list.
 
-## One source, for Prism and the website (2026-10-11)
+## One source, for PRISM and the website (2026-10-11)
 
 
 
 - **The source** is `targets/win-host/PrismHost/Assets/tutorial/`: `tutorial.json` (the subjects, their words, and what a page can
-  open) and one picture a page. Prism reads it where it lies (`MainWindow.TutorialText.cs`); the C# holds only the actions a page
+  open) and one picture a page. PRISM reads it where it lies (`MainWindow.TutorialText.cs`); the C# holds only the actions a page
   can name. A page's `open` carries the button's label, the action, and `where`: the words the website shows in a button's place.
 - **The website** (`entangled.world/prism/tour`, its own repository) reads a copy: `src/data/tutorial.json` and
   `public/prism/tour/*.png`. Nothing of the tour is written on the website's side. Its page's own heading says PRISM as the site
@@ -25,7 +25,7 @@
 - **Kept in step by `scripts/release/sync-tutorial.py`**: `publish-windows.py --site` runs it at every release, so the website
   shows the tour of the version people can download. `--check` (a step of `scripts/verify.mjs`, on a machine that holds both
   repositories) fails when the website's copy differs. `--validate` fails on a page with no picture, a picture no page uses, an
-  action Prism does not have, or a semicolon (the website's prose check refuses one).
+  action PRISM does not have, or a semicolon (the website's prose check refuses one).
 - To change a word or a picture: change it in the source, run the script with `--site`, deploy the website.
 - The Add your services page's last point, "Built in today: ...", is written by `scripts/release/sync-adapters.py` from the adapter
   catalog (2026-10-11), and the same script writes the website's Adapters page
@@ -34,7 +34,7 @@
 ## The notice and the introduction (2026-10-11)
 
 (2026-10-11) Asked for a notice in the status area at the top centre that the tour was added, with a pill on the same line to enter it, left up
-until pressed; an introduction animating the Prism menu opening with that part of the screen lit and the rest dimmed, then a second cursor
+until pressed; an introduction animating the PRISM menu opening with that part of the screen lit and the rest dimmed, then a second cursor
 pressing the tutorial button, then the tour. Later asked to treat it as a first-run event, with an option to turn the notice back on.
 
 - **The notice** (`MainWindow.TutorialIntro.cs`): one line in the status area, the words in a pill and Show me in a pill beside
@@ -42,26 +42,26 @@ pressing the tutorial button, then the tour. Later asked to treat it as a first-
   waits for the Set up services page to be closed. Once for a data folder (`tutorial.noticeDone` in host-prefs.json), so a new
   Windows account or a new data folder sees it again. The tour no longer opens by itself after Set up services: the notice does
   that job.
-- **The introduction**: the screen dims but for the Prism tab, a drawn pointer travels to the tab and presses it, the real menu
-  opens and stays bright, the pointer travels to How Prism works and presses it, and the tour opens on its list. About six seconds.
+- **The introduction**: the screen dims but for the PRISM tab, a drawn pointer travels to the tab and presses it, the real menu
+  opens and stays bright, the pointer travels to How PRISM works and presses it, and the tour opens on its list. About six seconds.
   The pointer is a drawing: the person's own pointer is never moved. A press anywhere, or Escape, goes straight to the tour. With
-  motion turned down in Windows and Full motion not chosen in Prism, the pointer does not travel and each step is shown still.
+  motion turned down in Windows and Full motion not chosen in PRISM, the pointer does not travel and each step is shown still.
 - **Again**: Show the notice again, on the tour's list of subjects, puts the notice back.
-- Dev: `tour notice`, `tour intro`. Seen in dev shots on 2026-10-11 (the notice, the ring and words round the Prism tab, the drawn
+- Dev: `tour notice`, `tour intro`. Seen in dev shots on 2026-10-11 (the notice, the ring and words round the PRISM tab, the drawn
   pointer, the tour at the end). The pointer's travel over the open menu has not been watched by a person yet.
 
 ## Leaving goes back where you came from (2026-10-11)
 
 "When the tutorial closes, it goes to the video screens but i entered from watch so should immediately return to watch." A page of
 the tour that opens Set up services puts the Watch page away. The tour remembers that it was entered from the Watch page and
-opens it again when the person leaves by Close, Done or Escape. The Set up services page carries Back to How Prism works beside
+opens it again when the person leaves by Close, Done or Escape. The Set up services page carries Back to How PRISM works beside
 its Done when the tour opened it, and its Done and Escape go back to the tour too.
 
 ## No dead ends (2026-10-10)
 
 
 
-- While something a page opened is up, **Back to How Prism works** sits at the top of the screen, over it
+- While something a page opened is up, **Back to How PRISM works** sits at the top of the screen, over it
   (`MainWindow.TutorialReturn.cs`). Pressing it puts away what the tour opened and shows the tour at the page it was left on. The
   small X beside it is for staying where the tour led.
 - The pairing card carries the same button beside its Close when the tour opened it, and closing the card or the Updates dialog
@@ -78,9 +78,9 @@ its Done when the tour opened it, and its Done and Escape go back to the tour to
 ## Decisions
 
 - **Stand-in posters, never a studio's artwork** (the user, 2026-10-10). TMDB hosts poster art and cannot
-  license it to us, and pictures inside Prism go into a public GPL repository and the download. Made-up titles on plain cards. A
+  license it to us, and pictures inside PRISM go into a public GPL repository and the download. Made-up titles on plain cards. A
   service's own name and logo may show, to say which service it is (docs/third-party-services-policy.md).
-- **Prism works in full without TMDB**, and the TMDB subject says so first.
+- **PRISM works in full without TMDB**, and the TMDB subject says so first.
 
 ## The pictures
 

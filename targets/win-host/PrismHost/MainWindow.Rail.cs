@@ -285,7 +285,7 @@ public sealed partial class MainWindow
             overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(216) });
             overlay.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var rail = new StackPanel { Spacing = 3, Padding = new Thickness(14, 20, 12, 18), Background = LePanel };
-            rail.Children.Add(new TextBlock { Text = "Prism", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Amber, Margin = new Thickness(12, 0, 0, 0), FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
+            rail.Children.Add(new TextBlock { Text = "PRISM", FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Amber, Margin = new Thickness(12, 0, 0, 0), FontFamily = new FontFamily("Segoe UI Variable Display, Segoe UI") });
             rail.Children.Add(new TextBlock { Text = "SET UP PRISM", FontSize = 9.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = LeDim, CharacterSpacing = 160, Margin = new Thickness(12, 0, 0, 14) });
             _railButtons.Clear();
             foreach (var (id, label, glyph) in RailItems)
@@ -434,7 +434,7 @@ public sealed partial class MainWindow
     private static Border BuiltInBadge()
     {
         var b = new Border { Background = Tokens.AmberAt(0x30), CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Child = new TextBlock { Text = "built in", FontSize = 10, Foreground = LeInk } };
-        ToolTipService.SetToolTip(b, "Part of Prism: runs on this device, nothing to sign in to.");
+        ToolTipService.SetToolTip(b, "Part of PRISM: runs on this device, nothing to sign in to.");
         return b;
     }
 
@@ -497,7 +497,7 @@ public sealed partial class MainWindow
         var dlg = new ContentDialog
         {
             Title = "Reset to defaults?",
-            Content = "Everything on this PC (scenes, layouts, facets, Apps and their sign-ins) is moved to a dated backup folder beside the store, and Prism restarts empty with the New scene wizard. Nothing is deleted: Restore a backup… brings it back.",
+            Content = "Everything on this PC (scenes, layouts, facets, Apps and their sign-ins) is moved to a dated backup folder beside the store, and PRISM restarts empty with the New scene wizard. Nothing is deleted: Restore a backup… brings it back.",
             PrimaryButtonText = "Reset and restart", CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark,
         };
         try { if (await dlg.ShowAsync() != ContentDialogResult.Primary) return; } catch { return; }
@@ -509,7 +509,7 @@ public sealed partial class MainWindow
     private async Task RestoreBackupAsync()
     {
         var backups = HostPaths.Backups();
-        if (backups.Count == 0) { SetPill("Prism · no backups beside " + HostPaths.DataDir); return; }
+        if (backups.Count == 0) { SetPill("PRISM · no backups beside " + HostPaths.DataDir); return; }
         var list = new StackPanel { Spacing = 4 };
         var tcs = new TaskCompletionSource<string?>();
         var dlg = new ContentDialog { Title = "Restore a backup", Content = new ScrollViewer { Content = list, MaxHeight = 480 }, CloseButtonText = "Cancel", XamlRoot = RootGrid.XamlRoot, RequestedTheme = ElementTheme.Dark };
@@ -655,7 +655,7 @@ public sealed partial class MainWindow
         var o = (JsonObject)l.Json.DeepClone(); o["id"] = ""; o["name"] = l.Name + " copy"; o.Remove("archived");
         var raw = await ModelCallAsync("modelSaveLayout", o);
         if (raw is not null && JsonNode.Parse(raw) is JsonObject r && r["value"] is JsonObject v && v["duplicateFlag"] is JsonValue f && f.TryGetValue<string>(out var flag) && flag.Length > 0)
-            SetPill("Prism · saved: " + flag);
+            SetPill("PRISM · saved: " + flag);
         await ReadModelAsync(); await RenderRailAsync();
     }
 
@@ -719,7 +719,7 @@ public sealed partial class MainWindow
         var rm = Item("Remove facet", null, null, async () =>
         {
             var r = await ModelCallAsync("modelRemoveFacet", f.Id);
-            if (r == "referenced") SetPill("Prism · " + f.Label + " is used by a scene. Swap it out there first (scenes keep working)");
+            if (r == "referenced") SetPill("PRISM · " + f.Label + " is used by a scene. Swap it out there first (scenes keep working)");
             await ReadModelAsync(); await RenderRailAsync();
         });
         rm.Foreground = Danger;
@@ -876,7 +876,7 @@ public sealed partial class MainWindow
         var go = new Button { Content = "Add this website", Padding = new Thickness(10, 6, 10, 6) };
         go.Click += async (_, __) =>
         {
-            if (!IsHttpUrl(url.Text)) { SetPill("Prism · http(s) addresses only"); return; }
+            if (!IsHttpUrl(url.Text)) { SetPill("PRISM · http(s) addresses only"); return; }
             dlg.Hide();
             tcs.TrySetResult(await SaveAppFromUrlAsync(new Uri(url.Text.Trim()).ToString()));
         };
@@ -947,8 +947,8 @@ public sealed partial class MainWindow
     // ------------------------------------------------ Device
     /// <summary>The media hub switch's state in words, for the Device page (2026-10-06).</summary>
     private static string MediaHubStateLine(bool on) => on
-        ? "Remote Desktop Support: On. When a remote desktop leaves, Prism keeps its sound and its screen."
-        : "Remote Desktop Support: Off. A remote desktop that leaves takes Prism's sound and screen until someone signs in at the PC.";
+        ? "Remote Desktop Support: On. When a remote desktop leaves, PRISM keeps its sound and its screen."
+        : "Remote Desktop Support: Off. A remote desktop that leaves takes PRISM's sound and screen until someone signs in at the PC.";
 
     private UIElement RailDevice()
     {
@@ -958,7 +958,7 @@ public sealed partial class MainWindow
         col.Children.Add(Section("THIS PC"));
         col.Children.Add(new TextBlock { Text = MachineName is { Length: > 0 } pc ? pc : "No name yet.", Foreground = LeInk, FontSize = 14 });
         col.Children.Add(Small("Name this PC" + (char)0x2026, async () => { await PromptMachineNameAsync(); if (_railSection == "device") await RenderRailAsync(); }));
-        col.Children.Add(Meta("Shown at the top of the music player and of Watch, so a household with more than one Prism can tell them apart. It stays on this PC."));
+        col.Children.Add(Meta("Shown at the top of the music player and of Watch, so a household with more than one PRISM can tell them apart. It stays on this PC."));
         col.Children.Add(Section("CANVAS"));
         col.Children.Add(new TextBlock { Text = CanvasClassLabel(cw, ch) + $"   ·   {cw:0} × {ch:0} logical px", Foreground = LeInk, FontSize = 14 });
         col.Children.Add(Meta("Layouts authored for this class run here exactly; the Layouts picker filters to it by default."));
@@ -982,7 +982,7 @@ public sealed partial class MainWindow
         // default here, not the law. With it on, the renderer runs at 10fps with
         // no beat and clamped attack/release, and a lively band feed draws flat.
         var fullMotion = new ToggleButton { Content = "Full motion (ignore system reduced-motion)", IsChecked = PrismHost.Surfaces.Visualization.VisualizationHost.ForceFullMotion, Padding = new Thickness(10, 5, 10, 5) };
-        ToolTipService.SetToolTip(fullMotion, "On by default, since Prism isn't an accessibility surface. Off honours Windows' reduced-motion setting (10 fps, no beat, clamped attack). Remembered on this machine. PRISM_FULL_MOTION=0/1 overrides it.");
+        ToolTipService.SetToolTip(fullMotion, "On by default, since PRISM isn't an accessibility surface. Off honours Windows' reduced-motion setting (10 fps, no beat, clamped attack). Remembered on this machine. PRISM_FULL_MOTION=0/1 overrides it.");
         fullMotion.Click += (_, __) => { var on = fullMotion.IsChecked == true; PrismHost.Surfaces.Visualization.VisualizationHost.ForceFullMotion = on; HostPrefs.Set("fullMotion", on); };
 
         var diagLine = new ToggleButton { Content = "Diagnostics on the screen", IsChecked = StatusLine.Visibility == Visibility.Visible, Padding = new Thickness(10, 5, 10, 5) };
@@ -996,23 +996,23 @@ public sealed partial class MainWindow
         col.Children.Add(Section("KIOSK"));
         col.Children.Add(Small(_wallFs ? "Exit full screen  (F11)" : "Full screen  (F11)", ToggleWallFullscreen));
         // the media hub switch in the options (2026-10-06): its state as
-        // Windows has it (the task's existence), and the same dialog as the Prism menu's item to turn it off or on (docs/features/media-hub.md)
+        // Windows has it (the task's existence), and the same dialog as the PRISM menu's item to turn it off or on (docs/features/media-hub.md)
         // the phone's firewall rule beside it (2026-10-06, Services/DeviceSetup): set at first run on Set up services, checked and set again here
         col.Children.Add(Section("PHONE REMOTE"));
         var fwIn = Services.DeviceSetup.FirewallRuleInPlace();
-        col.Children.Add(new TextBlock { Text = fwIn ? "Windows Firewall lets phones on your home network reach Prism (port " + Services.DeviceSetup.RemotePort + ", the installed Prism only)." : "Windows Firewall has no rule for Prism's phone remote yet, so Windows may ask the first time a phone connects.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
-        if (!fwIn) col.Children.Add(Small("Allow phones through Windows Firewall" + (char)0x2026, async () => { var ok = await Services.DeviceSetup.SetUpAsync(true, false, LogLine); SetPill("Prism" + Mid + (ok ? "phones can reach Prism" : "Windows did not allow it. Nothing changed.")); if (_railSection == "device") await RenderRailAsync(); }));
+        col.Children.Add(new TextBlock { Text = fwIn ? "Windows Firewall lets phones on your home network reach PRISM (port " + Services.DeviceSetup.RemotePort + ", the installed PRISM only)." : "Windows Firewall has no rule for PRISM's phone remote yet, so Windows may ask the first time a phone connects.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+        if (!fwIn) col.Children.Add(Small("Allow phones through Windows Firewall" + (char)0x2026, async () => { var ok = await Services.DeviceSetup.SetUpAsync(true, false, LogLine); SetPill("PRISM" + Mid + (ok ? "phones can reach PRISM" : "Windows did not allow it. Nothing changed.")); if (_railSection == "device") await RenderRailAsync(); }));
         // starting with Windows (2026-10-26): this account's Run
-        // value, read from Windows each draw; the honest note that a restart brings Prism back only once the account is signed in
+        // value, read from Windows each draw; the honest note that a restart brings PRISM back only once the account is signed in
         col.Children.Add(Section("START WITH WINDOWS"));
         var startIn = Services.DeviceSetup.StartsAtSignIn();
-        col.Children.Add(new TextBlock { Text = startIn ? "Prism starts when this account signs in to Windows." : "Prism does not start by itself. After a restart it is off until someone opens it, and phones cannot reach it.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
-        col.Children.Add(Meta("Windows starts Prism with this sign-in, so after a restart Prism is back once this account is signed in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off)."));
-        col.Children.Add(Small(startIn ? "Stop starting with Windows" : "Start with Windows", async () => { if (!Services.DeviceSetup.SetStartAtSignIn(!startIn, LogLine)) SetPill("Prism" + Mid + "Windows did not allow it. Nothing changed."); if (_railSection == "device") await RenderRailAsync(); }));
+        col.Children.Add(new TextBlock { Text = startIn ? "PRISM starts when this account signs in to Windows." : "PRISM does not start by itself. After a restart it is off until someone opens it, and phones cannot reach it.", Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+        col.Children.Add(Meta("Windows starts PRISM with this sign-in, so after a restart PRISM is back once this account is signed in. For a PC nobody touches, also set Windows to sign in by itself: run netplwiz and untick 'Users must enter a user name and password' (in Settings, Accounts, Sign-in options, 'Only allow Windows Hello sign-in' must be off)."));
+        col.Children.Add(Small(startIn ? "Stop starting with Windows" : "Start with Windows", async () => { if (!Services.DeviceSetup.SetStartAtSignIn(!startIn, LogLine)) SetPill("PRISM" + Mid + "Windows did not allow it. Nothing changed."); if (_railSection == "device") await RenderRailAsync(); }));
         col.Children.Add(Section("REMOTE DESKTOP SUPPORT"));
         var hubState = new TextBlock { Text = MediaHubStateLine(Services.MediaHub.On), Foreground = LeInk, FontSize = 14, TextWrapping = TextWrapping.Wrap };
         col.Children.Add(hubState);
-        col.Children.Add(Meta("When a Remote Desktop connection to this PC is closed, Windows takes the sound and the screen away from this sign-in. With this on, a scheduled task puts the session back on the PC's own screen, so Prism carries on. The PC's screen then shows the desktop signed in."));
+        col.Children.Add(Meta("When a Remote Desktop connection to this PC is closed, Windows takes the sound and the screen away from this sign-in. With this on, a scheduled task puts the session back on the PC's own screen, so PRISM carries on. The PC's screen then shows the desktop signed in."));
         col.Children.Add(Small(Services.MediaHub.On ? "Turn off" + (char)0x2026 : "Turn on" + (char)0x2026, async () => { await ToggleMediaHubAsync(); if (_railSection == "device") await RenderRailAsync(); }));
         _ = Services.MediaHub.RefreshAsync(force: true).ContinueWith(t => DispatcherQueue.TryEnqueue(() => hubState.Text = MediaHubStateLine(t.Result)));
         col.Children.Add(Section("SHORTCUTS"));
@@ -1026,7 +1026,7 @@ public sealed partial class MainWindow
         col.Children.Add(Meta("Reset moves everything this PC knows - scenes, layouts, facets, Apps and their sign-ins - into a dated backup folder beside the store and restarts empty, at the New scene wizard. Nothing is deleted (§10); Restore brings a backup back the same way."));
         col.Children.Add(Section("UPDATES & ABOUT"));
         var about = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        about.Children.Add(Small("About Prism…", () => _ = ShowAboutAsync()));
+        about.Children.Add(Small("About PRISM…", () => _ = ShowAboutAsync()));
         about.Children.Add(Small("Open diagnostics folder", () => OpenPath(Path.Combine(_store.Root, "diagnostics"), ensureDir: true)));
         col.Children.Add(about);
         col.Children.Add(Meta("Update checks are unparameterized (§22): the same URL for every device, nothing appended."));

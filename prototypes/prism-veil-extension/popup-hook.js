@@ -1,5 +1,5 @@
 /*
-  Prism - popup interception (spec section 30), MAIN world, document_start.
+  PRISM - popup interception (spec section 30), MAIN world, document_start.
 
   A popup is code, so it is intercepted UNEXECUTED: window.open returns a stub
   WindowProxy (focus(), closed, ...) so the launching page's scripts carry on
@@ -43,7 +43,7 @@
     return { url: gesture.url, windowsThisGesture: gesture.windows };
   }
 
-  // (Input isolation for the Prism button lives in src/popups-guard.js - the
+  // (Input isolation for the PRISM button lives in src/popups-guard.js - the
   // isolated world owns the closed shadow root, so only it can route an event
   // to the element inside; from here composedPath() ends at the host.)
 

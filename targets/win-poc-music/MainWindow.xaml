@@ -1,7 +1,7 @@
 <Window x:Class="PrismMusicPoc.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Prism music POC - Widevine audio in WebView2" Width="1700" Height="980"
+        Title="PRISM music POC - Widevine audio in WebView2" Width="1700" Height="980"
         Background="#14171C" WindowStartupLocation="Manual">
     <Grid>
         <Grid.RowDefinitions>

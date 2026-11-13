@@ -1,7 +1,7 @@
 {
   "name": "prism-core",
   "version": "0.1.0",
-  "description": "The shared brain of every Prism frame: schema types and the deterministic hero-layout solver (spec §8). Shells decide nothing.",
+  "description": "The shared brain of every PRISM frame: schema types and the deterministic hero-layout solver (spec §8). Shells decide nothing.",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "main": "./dist/index.js",

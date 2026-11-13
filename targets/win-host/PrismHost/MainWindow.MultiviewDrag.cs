@@ -216,14 +216,14 @@ public sealed partial class MainWindow
         if (card is not null) { if (at >= 0) await DropCardAsync(card, at); return; }
         if (live is not null) { if (at >= 0) { await TuneIntoAsync(at, live.Facet, live.Id, live.Url, live.Name, live.Service, live.Logo); DrawMvStrip(); } return; }
         if (tile is null) return;
-        if (at >= 0 && at != from) { await MvCallAsync("place", tile + ":" + at); SetPill("Prism · " + Shorten(MvWindowName(tile), 40) + " → " + (at == 0 ? "the big window" : "window " + (at + 1))); }
+        if (at >= 0 && at != from) { await MvCallAsync("place", tile + ":" + at); SetPill("PRISM · " + Shorten(MvWindowName(tile), 40) + " → " + (at == 0 ? "the big window" : "window " + (at + 1))); }
         else if (at < 0)
         {
             var name = MvWindowName(tile);
             var r = await MvCallAsync("remove", tile);
-            if (r?["ok"]?.GetValue<bool>() == false) { SetPill("Prism · " + (r["error"]?.GetValue<string>() ?? "could not take it out")); return; }
+            if (r?["ok"]?.GetValue<bool>() == false) { SetPill("PRISM · " + (r["error"]?.GetValue<string>() ?? "could not take it out")); return; }
             if (r?["sceneId"]?.GetValue<string>() is { } sid) await SceneAppliedAsync(sid, r.ToJsonString());
-            SetPill("Prism · " + Shorten(name, 40) + " is out of multiview" + (_mvWindows.Count == 0 ? ". Nothing is playing now" : ""));
+            SetPill("PRISM · " + Shorten(name, 40) + " is out of multiview" + (_mvWindows.Count == 0 ? ". Nothing is playing now" : ""));
         }
         DrawMvStrip();
     }
@@ -252,7 +252,7 @@ public sealed partial class MainWindow
         // no Multiview button (2026-09-24): the big screen with multiview off is a plain pick; a small window starts it
         if (!_mvOn && index == 0)
         {
-            SetPill("Prism \u00B7 " + Shorten(c.Title, 40) + " on the big screen");
+            SetPill("PRISM \u00B7 " + Shorten(c.Title, 40) + " on the big screen");
             _mvBigHas = true;   // at once: a drop on window 2 right after is window 2's, not a second pick for the big screen
             await PlayPickAsync(c);
             _ = FollowStartingAsync();
@@ -267,13 +267,13 @@ public sealed partial class MainWindow
             return;
         }
         if (!_mvOn) await MvCallAsync("on");
-        if (!_mvOn) { SetPill("Prism · multiview could not come on"); return; }
+        if (!_mvOn) { SetPill("PRISM · multiview could not come on"); return; }
         var was = _mvTarget;
         // a drop on a window replaces what it shows, the big window too; a drop on an empty place opens the next window, the place core finds free
         // when the pick arrives - not the one counted here, which a drop made a moment before may already be opening (2026-10-15)
         var onEmpty = _mvOn && index >= _mvWindows.Count;
         await MvCallAsync("drop", onEmpty ? "new" : index.ToString());
-        SetPill("Prism · " + Shorten(c.Title, 40) + " → " + (index == 0 ? "the big window" : "window " + (index + 1)));
+        SetPill("PRISM · " + Shorten(c.Title, 40) + " → " + (index == 0 ? "the big window" : "window " + (index + 1)));
         await PlayPickAsync(c);
         _ = FollowStartingAsync();
         await MvCallAsync("target", was.ToString());
@@ -285,7 +285,7 @@ public sealed partial class MainWindow
 
     // ---------------------------------------------------------------- the empty stage
     private Grid? _emptyStage;
-    /// <summary>Multiview on and no window left: nothing is playing, and Prism says so on a flat ground with its mark (the curtains
+    /// <summary>Multiview on and no window left: nothing is playing, and PRISM says so on a flat ground with its mark (the curtains
     /// were taken down 2026-10-17). Gone the moment a window is filled.</summary>
     private void SyncEmptyStage()
     {
@@ -299,7 +299,7 @@ public sealed partial class MainWindow
         _emptyStage.Visibility = Visibility.Visible;
     }
     /// <summary>The empty stage, flat (2026-10-17): the page
-    /// ground, Prism's mark, and the two lines. The purple drapes, the gold ropes, the valance and the spot that stood here since 2026-09-25 are gone.</summary>
+    /// ground, PRISM's mark, and the two lines. The purple drapes, the gold ropes, the valance and the spot that stood here since 2026-09-25 are gone.</summary>
     private Grid BuildEmptyStage()
     {
         var g = new Grid { Background = Tokens.Page, IsHitTestVisible = false };

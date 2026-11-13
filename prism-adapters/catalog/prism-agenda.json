@@ -90,5 +90,5 @@
       }
     ]
   },
-  "notes": "Prism's own week, served locally at https://tiles.prism/agenda/ from the host's Assets/tiles. No account, no sign-in, no network: the week is a document core owns (tiles:agenda), editable from the panel and from a phone through the §6 remote API. Personal calendars still connect through Merge (charter §2.1) - this is the first-party page for a week the box already holds."
+  "notes": "PRISM's own week, served locally at https://tiles.prism/agenda/ from the host's Assets/tiles. No account, no sign-in, no network: the week is a document core owns (tiles:agenda), editable from the panel and from a phone through the §6 remote API. Personal calendars still connect through Merge (charter §2.1) - this is the first-party page for a week the box already holds."
 }

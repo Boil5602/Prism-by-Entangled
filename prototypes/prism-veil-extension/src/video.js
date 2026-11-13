@@ -1,5 +1,5 @@
 /*
-  Prism Veil - VIDEO AD BREAKS (spec sections 26/27). One fixed cover over the
+  PRISM Veil - VIDEO AD BREAKS (spec sections 26/27). One fixed cover over the
   main player while a break runs: art with a slow drift, an Intermission card
   with the player's own countdown, a hole over a reachable Skip, muted
   underneath, and the show back the instant the break ends.
@@ -199,7 +199,7 @@
       // populated for the next ad before the class flips: a second, earlier
       // signal that also bridges the content beat between two ads.
       adSelector: ".video-ads.ytp-ad-module > *",
-      // YouTube TV's own inserted ad slot also shows a "Sponsored" tray at the page's top left, outside the player (2026-11-06; Prism's
+      // YouTube TV's own inserted ad slot also shows a "Sponsored" tray at the page's top left, outside the player (2026-11-06; PRISM's
       // YouTube TV adapter reads the same tray): visible with that text, it is an ad slot as the player's class is.
       adPage: { host: /(^|\.)tv\.youtube\.com$/i, sel: "ytu-ads-title-tray", text: /sponsored|\bad\b/i },
       // Trace 2026-08-29: ad 1 -> content for ~3s (marker off, content clip
@@ -1005,7 +1005,7 @@
   }
 
   // ---------------------------------------------------------------- art
-  // A spotted veil (2026-11-06): the same opaque veil, its card naming who decided (Prism's break watch) and offering Not a break. Its
+  // A spotted veil (2026-11-06): the same opaque veil, its card naming who decided (PRISM's break watch) and offering Not a break. Its
   // art stays still (no pan, no crossfade): the tab's stream records the veil, and under it the break watch reads only that still
   // picture and the captions, as the bench replays it (COVERSIGHT=art). A see-through veil was tried and dropped the same day: a still
   // picture with the show moving behind it is hard to look at.
@@ -1034,20 +1034,20 @@
       card.appendChild(sa); cover.__showAd = sa;
     }
     if (card) {
-      card.title = on ? "Spotted by Prism's break watch, which reads the picture. The service did not mark this break." : "";
+      card.title = on ? "Spotted by PRISM's break watch, which reads the picture. The service did not mark this break." : "";
       var nb = cover.__notBreak;
       if (!nb && on) {
         nb = document.createElement("button");
         nb.setAttribute("data-prism-veil", "1"); nb.type = "button"; nb.textContent = "Not a break";
-        nb.title = "Lifts the cover now. Prism's break watch takes it as the show.";
+        nb.title = "Lifts the cover now. PRISM's break watch takes it as the show.";
         nb.style.cssText = "pointer-events:auto;cursor:pointer;margin-top:12px;font:600 14px -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;background:transparent;border:1.5px solid #F0A83C;border-radius:9px;padding:7px 14px";
         nb.addEventListener("click", function (ev) { ev.stopPropagation(); try { if (PV.spottedDismiss) PV.spottedDismiss(); } catch (e) {} uncover("not a break"); });
         card.appendChild(nb); cover.__notBreak = nb;
-        // the way out (2026-11-07): a spotted veil is Prism's own judgement, so its card links straight to the two switches that turn the
+        // the way out (2026-11-07): a spotted veil is PRISM's own judgement, so its card links straight to the two switches that turn the
         // live TV detection off, opened in the panel's page with those rows lit
         var off = document.createElement("button");
         off.setAttribute("data-prism-veil", "1"); off.type = "button"; off.textContent = "Turn this detection off";
-        off.title = "Opens Prism's options at the live TV switches";
+        off.title = "Opens PRISM's options at the live TV switches";
         off.style.cssText = "pointer-events:auto;cursor:pointer;margin:12px 0 0 10px;font:500 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#9AA4B2;background:transparent;border:1.5px solid #5A6270;border-radius:9px;padding:7px 12px";
         off.addEventListener("click", function (ev) { ev.stopPropagation(); try { chrome.runtime.sendMessage({ type: "pv:open-options", highlight: "live" }, function () { void chrome.runtime.lastError; }); } catch (e) {} });
         card.appendChild(off); cover.__detectOff = off;
@@ -1275,7 +1275,7 @@
   // "cover fast"; the fade-in from a late rAF showed the ad's first frame
   // through the cover, YouTube 2026-08-29). false = the pause veil's soft fade. control: a two-way Play / Pause button (was a checkbox),
   // sized for a glance across the room, with the explanation in its tooltip.
-  var AFTER_TIP = "What happens when the break ends. Play: your show carries on by itself. Pause: Prism holds it on a Paused card until you press Resume - handy if you stepped away.";
+  var AFTER_TIP = "What happens when the break ends. Play: your show carries on by itself. Pause: PRISM holds it on a Paused card until you press Resume - handy if you stepped away.";
   function buildAfterControl(scale) {
     var k = scale || 1, wrap = document.createElement("div");
     wrap.setAttribute("data-prism-veil", "1"); wrap.title = AFTER_TIP;
@@ -1436,7 +1436,7 @@
     paintAfter(c.__afterCtl, on);
     paintAfter(c.__popPause, on);
   }
-  // HUD mode (Prism-wide pref "hud": "interactive" | "minimal"), live-switched.
+  // HUD mode (PRISM-wide pref "hud": "interactive" | "minimal"), live-switched.
   function hudMode() { return (PV.uiPrefs && PV.uiPrefs.hud === "minimal") ? "minimal" : "interactive"; }
   function toggleHud() {
     var next = (hudMode() === "minimal") ? "interactive" : "minimal";
@@ -1487,6 +1487,8 @@
     if (c.__peepTimer) clearTimeout(c.__peepTimer);
     c.__peepTimer = setTimeout(function () { peepStop(c); }, 20000);
     var pv = c.__peepVideo, hole = c.__peepHole, note = c.__peepNote;
+    // the small view switched off in the popup (pv:ui.smallView, 2026-11-11): the panel keeps its Reveal button, the video is not shown small
+    if (PV.uiPrefs && PV.uiPrefs.smallView === false) { pv.style.display = "none"; hole.style.display = "none"; note.textContent = ""; return; }
     try {
       if (typeof v.captureStream !== "function") throw new Error("no captureStream");
       var s = v.captureStream();
@@ -1855,6 +1857,8 @@
   function tabMuteEnd() {
     if (!tabMuteSeq) return;   // never asked
     tabMuted = false;
+    // a sound ad still on (src/sound-ads.js) holds the same mute and gives it back at its own end
+    try { if (PV.soundAdOn && PV.soundAdOn()) { tabMuteSeq++; return; } } catch (e) {}
     tabMute(false, null);      // bumps the sequence: a mute still in flight cannot land after this
   }
   function muteOthers(v) {
@@ -2039,12 +2043,12 @@
   PV.__aiLabeled = aiLabeled;   // tests
   // YouTube TV's own ad slots (opt-in pv:ui.ytvVeil): the page-world reader (src/ytv-cues.js) acts only while this says "on", so
   // turning the switch off stops it in a page that is already open. It sets the same SDK ad flag the veil follows.
-  // YouTube TV is covered only while it is watched live (2026-11-06, Prism and Veil alike): rewound, paused behind or a recording, the
+  // YouTube TV is covered only while it is watched live (2026-11-06, PRISM and Veil alike): rewound, paused behind or a recording, the
   // viewer can skip an ad themselves, and a wrong cover is undone by scanning back. The page shows no state for it (its LIVE button is
   // the same either way, read 2026-11-06), but the video's own clock does: at the live edge it runs in step with the real clock, and
   // scanning back or a pause leaves it behind by exactly that much (two readings matched the scrub bar to the second: 79 s, 159 s).
   // So the smallest gap seen in this playback is the live edge, and more than YTV_BEHIND_S past it is behind. A stream shorter than
-  // six hours is a recording, not a channel (Prism's adapter rule for live).
+  // six hours is a recording, not a channel (PRISM's adapter rule for live).
   var YTV_BEHIND_S = 45;
   var ytvClock = { v: null, base: Infinity };
   function ytvBehindLive(v) {
@@ -2097,7 +2101,7 @@
     restoreChip = document.createElement("div");
     restoreChip.setAttribute("data-prism-veil", "1");
     restoreChip.textContent = String.fromCharCode(0x25D0) + " Intermission";
-    restoreChip.title = "Bring the Prism intermission back";
+    restoreChip.title = "Bring the PRISM intermission back";
     restoreChip.style.cssText = "position:fixed;left:14px;top:14px;z-index:2147483000;pointer-events:auto;cursor:pointer;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;background:rgba(10,12,15,.7);padding:7px 12px;border-radius:10px;border:1px solid rgba(240,168,60,.5);box-shadow:0 4px 18px rgba(0,0,0,.5);backdrop-filter:blur(3px)";
     restoreChip.addEventListener("click", function (e) { e.stopPropagation(); vidDismissed = false; hideRestoreChip(); videoAdBreak(); }, true);
     veilHost().appendChild(restoreChip);
@@ -2173,7 +2177,7 @@
   // veil's age, into the report diagnostics (dom.js data-prism-errors ring).
   function trace(msg) { try { if (PV.recordError) PV.recordError("veil " + msg + (vidVeilStart ? " @" + (Date.now() - vidVeilStart) + "ms" : "")); } catch (e) {} }
   // The veil log (2026-11-07): every video veil over an ad break, as it goes up and as it comes down, kept in the extension's storage
-  // (bg.js, pv:veil-log) the way the Prism app keeps its calls.log: when, on which site and channel, marked or spotted, the break
+  // (bg.js, pv:veil-log) the way the PRISM app keeps its calls.log: when, on which site and channel, marked or spotted, the break
   // watch's chance and the rule that called it, and at the drop the reason and how long it stood. Copied from the panel.
   function veilLog(ev, ssai, why) {
     try {
@@ -2191,7 +2195,7 @@
       chrome.runtime.sendMessage({ type: "pv:veil-log", rec: rec }, function () { void chrome.runtime.lastError; });
     } catch (e) {}
   }
-  // The soundscape (2026-11-06, the Prism app's opt-in ambient audio): while a veil covers an ad break, the chosen loop plays from the
+  // The soundscape (2026-11-06, the PRISM app's opt-in ambient audio): while a veil covers an ad break, the chosen loop plays from the
   // extension's own page (the tab itself is muted), faded in and out; off by default
   var ambientOn = false;
   function ambient(on) {
@@ -2243,11 +2247,11 @@
     } catch (eS) {}
     var ssai = ssaiActiveSource();
     var adRaw = adSignalOn(ssai);
-    // A spotted break (2026-11-06): Prism's break watch, reading the live TV picture (src/live-picture.js, offscreen.js), says a
+    // A spotted break (2026-11-06): PRISM's break watch, reading the live TV picture (src/live-picture.js, offscreen.js), says a
     // commercial break is on. It counts only while nothing of the service's own says so: a marked break wins and takes the veil over.
     spottedSrc = false;
     if (!adRaw && PV.spottedNow && PV.spottedNow()) { adRaw = true; spottedSrc = true; }
-    // How an ad break looks (2026-11-06, the Prism app's three looks): veil (the cover and the mute), mute (the ad's picture with its sound
+    // How an ad break looks (2026-11-06, the PRISM app's three looks): veil (the cover and the mute), mute (the ad's picture with its sound
     // off and an Unmute), show (the ad as it plays, nothing done). Pauses and AI-labelled content keep their own veils.
     if (adRaw && breakLook() === "show") adRaw = false;
     if (adRaw && ytvBehindLive(v)) { if (!vidVeil || vidVeil.mode === "ad") trace("ytv behind live: no ad cover"); adRaw = false; }
@@ -2402,7 +2406,7 @@
       // that never fired play/pause, so pausedDeliberately() said no and the
       // veil lifted onto the paused show (fullscreen report, 2026-08-29).
       var byPrism = false; try { byPrism = !!(vidVeil.byPrism && v && v.paused && !v.ended); } catch (eP) {}
-      // Prism paused the element it had (the ad's) but the show plays on in
+      // PRISM paused the element it had (the ad's) but the show plays on in
       // ANOTHER <video> - a player that hands content to a second element
       // after the break: the veil read "Paused" with Resume while the show ran
       // 43 seconds under it (Paramount+, 2026-09-12). Within 8s of our pause,
@@ -2421,7 +2425,7 @@
           uncover("pause-ended: show playing elsewhere"); return false;
         }
       }
-      // Switched off while the veil is up: a pause Prism made itself holds;
+      // Switched off while the veil is up: a pause PRISM made itself holds;
       // the person's own pause drops back to a normal pause at once.
       if (!byPrism && !vidVeil.byPrism && !pauseVeilPref()) { uncover("pause-ended: pref off"); return false; }
       if (pausedDeliberately(v) || settling || byPrism) { positionCover(false); updateCard(); return true; }

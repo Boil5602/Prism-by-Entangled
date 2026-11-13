@@ -28,14 +28,14 @@ public sealed partial class MainWindow
         var (can, name) = await ListInfoAsync(app);
         if (!can) return;
         var it = new MenuFlyoutItem { Text = "Remove from " + service + "'s " + name + "\u2026", Icon = new FontIcon { Glyph = "\uE738" } };
-        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " off " + name + " on " + service + " itself, not only on Prism.");
+        ToolTipService.SetToolTip(it, "Asks first. Takes " + title + " off " + name + " on " + service + " itself, not only on PRISM.");
         it.Click += (_, __) => ShowAskPanel("Remove from " + service + "'s " + name + "?",
-            "\u201C" + title + "\u201D leaves " + name + " on " + service + " itself: everywhere you use this " + service + " profile, not only on Prism.", null, "Remove",
+            "\u201C" + title + "\u201D leaves " + name + " on " + service + " itself: everywhere you use this " + service + " profile, not only on PRISM.", null, "Remove",
             () =>
             {
                 if (card is not null) HideCardForRemoval(card);
                 done?.Invoke(false);   // off the list, as far as the page shows it
-                SetPill("Prism \u00B7 removing " + Shorten(title, 40) + " from " + service + "'s " + name + "\u2026", hold: true);
+                SetPill("PRISM \u00B7 removing " + Shorten(title, 40) + " from " + service + "'s " + name + "\u2026", hold: true);
                 _ = FollowListAsync(app, service, name, false, id, title, url, kind, null, card);
             });
         fly.Items.Add(it);
@@ -58,7 +58,7 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(it, "Puts " + title + " on " + name + " on " + service + " itself, so it shows in My list here and in " + service + "'s own apps.");
         it.Click += (_, __) =>
         {
-            SetPill("Prism \u00B7 adding " + Shorten(title, 40) + " to " + service + "'s " + name + "\u2026", hold: true);
+            SetPill("PRISM \u00B7 adding " + Shorten(title, 40) + " to " + service + "'s " + name + "\u2026", hold: true);
             _ = FollowListAsync(app, service, name, true, id, title, url, kind, catalog, null);
             done?.Invoke(true);   // on the list at once, as far as the page shows it
         };
@@ -83,12 +83,12 @@ public sealed partial class MainWindow
         {
             LogLine("my list: done " + want + " " + title);
             if (!add && card?.Parent is Panel p) p.Children.Remove(card);
-            ReleasePill("Prism \u00B7 " + (add ? "added " + Shorten(title, 40) + " to " : "removed " + Shorten(title, 40) + " from ") + service + "'s " + name);
+            ReleasePill("PRISM \u00B7 " + (add ? "added " + Shorten(title, 40) + " to " : "removed " + Shorten(title, 40) + " from ") + service + "'s " + name);
             return;
         }
         var err = r?["error"]?.GetValue<string>() ?? "the service did not answer in time";
         LogLine("my list: failed " + want + " " + title + ": " + err);
         if (card is not null) card.Visibility = Visibility.Visible;   // back in the row where it was
-        ReleasePill("Prism \u00B7 could not " + (add ? "add " + Shorten(title, 40) + " to " : "remove " + Shorten(title, 40) + " from ") + service + "'s " + name + ": " + err);
+        ReleasePill("PRISM \u00B7 could not " + (add ? "add " + Shorten(title, 40) + " to " : "remove " + Shorten(title, 40) + " from ") + service + "'s " + name + ": " + err);
     }
 }

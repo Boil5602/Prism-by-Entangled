@@ -1,11 +1,11 @@
 /*
-  Build the shippable packages of the Prism Veil extension from the ONE source
+  Build the shippable packages of the PRISM Veil extension from the ONE source
   in this folder. Run: `node build-firefox.mjs` -> ./dist/<browser>/ and
   ./dist/prism-veil-<browser>-<version>.zip for `firefox` and `chromium`
   (chromium == this folder loaded unpacked).
 
   One package per browser. The start page ships inside it but is OFF until the
-  person flips "Use Prism as my new-tab page" in the extension popup. There is
+  person flips "Use PRISM as my new-tab page" in the extension popup. There is
   deliberately no chrome_url_overrides in the manifest (it cannot be toggled at
   runtime in any browser); bg.js routes new tabs to ntp.html only while the
   switch is on. Weather hosts are optional permissions requested when a

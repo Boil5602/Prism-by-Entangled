@@ -8,9 +8,9 @@ namespace PrismHost;
 /// <summary>
 /// The boot cover (2026-09-24): the Video player's screen tile loads a service's page at once, while Watch opens only when
 /// core has read the kept rows - so for a few seconds the wall showed that service's home. The host remembers the player last on
-/// (last-player.txt beside host.log's folder); when it was the Video player, a dark cover with the Prism mark stands over the wall from the
+/// (last-player.txt beside host.log's folder); when it was the Video player, a dark cover with the PRISM mark stands over the wall from the
 /// first frame until Watch is drawn (or a title is already up, or the wall turns out to be the Music player; 30 s at most). Shown at every start as
-/// the Prism splash while the wall loads.
+/// the PRISM splash while the wall loads.
 /// </summary>
 public sealed partial class MainWindow
 {
@@ -28,7 +28,7 @@ public sealed partial class MainWindow
         // a splash at every start (2026-09-24): Watch named when it is what comes up
         var mark = new Image { Width = 96, Height = 96 };
         try { var p = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "prism-icon.png"); if (System.IO.File.Exists(p)) mark.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(p)); } catch { }
-        // one product: the splash names Prism, not a player (2026-09-24)
+        // one product: the splash names PRISM, not a player (2026-09-24)
         var cover = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x0B, 0x0D, 0x11)) };
         // the splash reads PRISM with the wordmark's own run (2026-10-05): core's splash page (Assets/brain/prism-splash.html,
         // docs/features/animated-wordmark.md) in a WebView2 over the cover, shown once it has painted; the mark stands alone until then,

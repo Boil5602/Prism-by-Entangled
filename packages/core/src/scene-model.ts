@@ -522,7 +522,8 @@ export type VisualizationStyle =
   | "harbor-lights"
   | "night-train"
   | "street-fair"
-  | "stadium-wave";
+  | "stadium-wave"
+  | "seasons";
 export type ArtworkMode = "off" | "backdrop" | "focal";
 
 /** §32 placeable content whose `source` is a hidden music facet; idles dark with no playing source. */
@@ -1254,7 +1255,7 @@ export function normalizeScene(input: unknown): Scene | null {
   return scene;
 }
 
-const VIZ_STYLES = new Set<string>(["prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave"]);
+const VIZ_STYLES = new Set<string>(["prism-beams", "spectrum", "ribbon", "bloom", "aurora-ridge", "ocean-moon", "forest-fireflies", "rain-window", "snow-village", "desert-stars", "storm-front", "sunrise-meadow", "campfire-circle", "city-skyline", "lantern-festival", "fireworks-night", "harbor-lights", "night-train", "street-fair", "stadium-wave", "seasons"]);
 const ARTWORK_MODES = new Set<string>(["off", "backdrop", "focal"]);
 const ROLE_KINDS = new Set<string>(["video-hero", "utility", "news", "music", "any", "visualization"]);
 

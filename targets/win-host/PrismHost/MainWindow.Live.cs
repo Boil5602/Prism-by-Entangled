@@ -119,7 +119,7 @@ public sealed partial class MainWindow
         Task Draw() => DrawLiveGridAsync(grid, chips, status, events, overlay);
         viewNow.Click += async (_, __) => { if (_liveView == "now") return; _liveView = "now"; HostPrefs.Set("live.view", "now"); await ShowVideoHubAsync(); };
         viewGrid.Click += async (_, __) => { if (_liveView == "timetable") return; _liveView = "timetable"; HostPrefs.Set("live.view", "timetable"); await ShowVideoHubAsync(); };
-        refresh.Click += async (_, __) => { await ModelCallAsync("videoLiveRead", true); SetPill("Prism" + Mid + "reading the guides"); _liveReading = true; await Draw(); };
+        refresh.Click += async (_, __) => { await ModelCallAsync("videoLiveRead", true); SetPill("PRISM" + Mid + "reading the guides"); _liveReading = true; await Draw(); };
         search.TextChanged += async (_, __) =>
         {
             var my = ++_liveSearchRun;
@@ -212,7 +212,7 @@ public sealed partial class MainWindow
         if (sig == _liveSig && grid.Children.Count > 0) return reading;
         chips.Children.Clear(); events.Children.Clear();
 
-        // the type chips: All, then each type with its count - the service's own category first, Prism's guess from the name otherwise
+        // the type chips: All, then each type with its count - the service's own category first, PRISM's guess from the name otherwise
         var types = (g["types"] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
         var total = types.Sum(t => t["count"]?.GetValue<int>() ?? 0);
         // a kept mode that is no longer a type (Local, taken out 2026-10-02) falls back to All, once the guide has anything to say
@@ -222,7 +222,7 @@ public sealed partial class MainWindow
             var sym = ModeSymbol(type);
             var b = Chip(new TextBlock { Text = (sym.Length > 0 ? sym + "  " : "") + label + "  " + count, FontSize = 13, Foreground = HubInk }, _liveType == type);
             b.Padding = new Thickness(12, 4, 12, 4);
-            ToolTipService.SetToolTip(b, type is null ? "Every channel, no mode." : type + " mode: only what is filed under " + type + " (the service's own category where it gives one, Prism's guess from the name otherwise), each program on now marked" + (type == "Sports" ? ", and the day's scores" : "") + ". Prism remembers the mode you leave on.");
+            ToolTipService.SetToolTip(b, type is null ? "Every channel, no mode." : type + " mode: only what is filed under " + type + " (the service's own category where it gives one, PRISM's guess from the name otherwise), each program on now marked" + (type == "Sports" ? ", and the day's scores" : "") + ". PRISM remembers the mode you leave on.");
             b.Click += async (_, __) => { _liveType = type; _liveJump = null; HostPrefs.Set("live.mode", type ?? ""); await DrawLiveGridAsync(grid, chips, status, events, overlay); };
             chips.Children.Add(b);
         }
@@ -592,7 +592,7 @@ public sealed partial class MainWindow
             var b = new Button { Content = content, Background = HubClear, BorderThickness = new Thickness(0), Padding = new Thickness(0), Height = LiveRowH, HorizontalContentAlignment = HorizontalAlignment.Left };
             OwnHover(b);
             // the type's source in the tooltip, not on the row (2026-10-01: had been cutting the row's second line short)
-            var typeNote = S(r, "typeSource") == "prism" ? " Filed under " + S(r, "type") + " by Prism's reading of the name; the service gives no category."
+            var typeNote = S(r, "typeSource") == "prism" ? " Filed under " + S(r, "type") + " by PRISM's reading of the name; the service gives no category."
                 : S(r, "typeSource") == "tmdb" ? " Filed under " + S(r, "type") + " by TMDB's genre for " + (S(r, "typeTitle") is { Length: > 0 } tt ? tt : name) + "; the service gives no category." : "";
             // listed under a mode for what is on now (2026-10-02, Movies mode): the title and TMDB's word for it
             if (r["alsoBy"] is JsonObject ab) typeNote += " Listed under " + S(ab, "type") + " while " + S(ab, "title") + " is on, " + (S(ab, "type") == "Movies" ? "a film" : "a documentary") + " by TMDB's word; the channel itself is filed under " + S(r, "type") + ".";
@@ -610,7 +610,7 @@ public sealed partial class MainWindow
                     if (d is FrameworkElement { Tag: string tg } && tg.StartsWith("later:", StringComparison.Ordinal)) return tg.Substring(6);
                 return null;
             }
-            void SayLater() => SetPill("Prism" + Mid + later + ". Press " + name + " or what's on now to watch it");
+            void SayLater() => SetPill("PRISM" + Mid + later + ". Press " + name + " or what's on now to watch it");
             b.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
             {
                 var pt = e.GetCurrentPoint(RootGrid);
@@ -628,7 +628,7 @@ public sealed partial class MainWindow
                 down = false;
                 // a lift wants the press held a moment or a pull up or down off the row; a quick sideways pull is the schedule's scroll
                 if (Environment.TickCount64 - downT < 350 && dx > dy) return;
-                if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
+                if (isEvent && !eventOn) { SetPill("PRISM" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
                 if (later is not null) { SayLater(); return; }
                 b.ReleasePointerCapture(e.Pointer);
                 if (_videoHub is { } hub && BeginLiveDrag(hub, e, new LivePick(facet, id, url, name, service, logo))) { lifted = true; e.Handled = true; }
@@ -639,7 +639,7 @@ public sealed partial class MainWindow
                 pressAt = null;
                 if (lifted) { lifted = false; return; }   // the end of a drag, not a click
                 if (later is not null) { SayLater(); return; }
-                if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
+                if (isEvent && !eventOn) { SetPill("PRISM" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
                 await TuneIntoAsync(0, facet, id, url, name, service, logo);
             };
             b.RightTapped += (_, e) =>
@@ -648,7 +648,7 @@ public sealed partial class MainWindow
                 var at = e.GetPosition(RootGrid);
                 later = LaterUnder(e.OriginalSource);
                 if (later is not null) { SayLater(); return; }
-                if (isEvent && !eventOn) { SetPill("Prism" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
+                if (isEvent && !eventOn) { SetPill("PRISM" + Mid + name + " has not started" + (eventWhen.Length > 0 ? ". It starts " + eventWhen : "")); return; }
                 LiveMenu(at, facet, id, url, name, service, logo);
             };
             return b;
@@ -683,16 +683,18 @@ public sealed partial class MainWindow
         {
             fly.Items.Add(new MenuFlyoutSeparator());
             var mode = ChannelMode(name);
+            var gated = mode == ChannelCovers.On && ChannelGated(name);   // the channel gate: not measured yet, so sure breaks only until the person says On
+            if (gated) mode = ChannelCovers.Sure;
             var covers = new MenuFlyoutSubItem { Text = "Ad covers on " + name + Mid + (mode == ChannelCovers.Off ? "Off" : mode == ChannelCovers.Sure ? "Sure breaks only" : "On") };
             void Choice(string text, ChannelCovers m, string tip, string said)
             {
-                var c = Radio(text, "channel-covers", mode == m, () => { SetChannelMode(name, m); SetPill("Prism" + Mid + name + ": " + said); });
+                var c = Radio(text, "channel-covers", mode == m, () => { SetChannelMode(name, m); SetPill("PRISM" + Mid + name + ": " + said); });
                 ToolTipService.SetToolTip(c, tip);
                 covers.Items.Add(c);
             }
-            Choice("On", ChannelCovers.On, "Prism covers every ad break it finds on " + name + ".", "ad breaks are covered");
-            Choice("Sure breaks only", ChannelCovers.Sure, "Prism covers only the breaks YouTube TV marks itself, and paid programmes. It won't cover the show by mistake, and it will miss the breaks YouTube TV doesn't mark.", "only the breaks YouTube TV marks are covered");
-            Choice("Off", ChannelCovers.Off, "Prism never covers " + name + ".", "ad breaks are not covered");
+            Choice("On", ChannelCovers.On, "PRISM covers every ad break it finds on " + name + "." + (gated ? " PRISM has not tested itself on this channel yet, so it may cover the show by mistake more often here." : ""), "ad breaks are covered");
+            Choice("Sure breaks only", ChannelCovers.Sure, "PRISM covers only the breaks YouTube TV marks itself, and paid programmes. It won't cover the show by mistake, and it will miss the breaks YouTube TV doesn't mark.", "only the breaks YouTube TV marks are covered");
+            Choice("Off", ChannelCovers.Off, "PRISM never covers " + name + ".", "ad breaks are not covered");
             fly.Items.Add(covers);
         }
         fly.ShowAt(RootGrid, new FlyoutShowOptions { Position = at, Placement = FlyoutPlacementMode.BottomEdgeAlignedLeft });
@@ -710,10 +712,10 @@ public sealed partial class MainWindow
             return;
         }
         if (!_mvOn) await MvCallAsync("on");
-        if (!_mvOn) { SetPill("Prism" + Mid + "multiview could not come on"); return; }
+        if (!_mvOn) { SetPill("PRISM" + Mid + "multiview could not come on"); return; }
         var was = _mvTarget;
         await MvCallAsync("target", index.ToString());
-        SetPill("Prism" + Mid + Shorten(name, 40) + " " + (char)0x2192 + " " + (index == 0 ? "the big window" : "window " + (index + 1)));
+        SetPill("PRISM" + Mid + Shorten(name, 40) + " " + (char)0x2192 + " " + (index == 0 ? "the big window" : "window " + (index + 1)));
         await TuneAsync(facet, id, url, name);
         await MvCallAsync("target", was.ToString());
         DrawMvStrip();
@@ -729,7 +731,7 @@ public sealed partial class MainWindow
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Margin = new Thickness(0, 2, 0, 2) };
         var title = new TextBlock { Text = ModeSymbol(mode) + "  " + mode.ToUpperInvariant() + " MODE", FontSize = 20, Foreground = HubAmber, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
         // the explanation lives in the tooltip, not on the screen (2026-10-01)
-        ToolTipService.SetToolTip(title, "Only what is filed under " + mode + (mode == "Sports" ? ", with the day's scores" : "") + ". Press All for everything. Prism remembers the mode you leave on.");
+        ToolTipService.SetToolTip(title, "Only what is filed under " + mode + (mode == "Sports" ? ", with the day's scores" : "") + ". Press All for everything. PRISM remembers the mode you leave on.");
         head.Children.Add(title);
         _modeTitle = title;
         into.Children.Add(head);
@@ -741,7 +743,7 @@ public sealed partial class MainWindow
             _scoresTimer?.Stop();
             var on = HostPrefs.GetBool("live.newsHeadlines", true);
             var box = new CheckBox { Content = new TextBlock { Text = "News Headlines", FontSize = 14, Foreground = HubInk }, IsChecked = on, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), MinWidth = 0 };
-            ToolTipService.SetToolTip(box, "What the live news shows reported, under the title: a front page a network. Prism remembers this.");
+            ToolTipService.SetToolTip(box, "What the live news shows reported, under the title: a front page a network. PRISM remembers this.");
             head.Children.Add(box);
             var news = new StackPanel { Spacing = 8, Visibility = on ? Visibility.Visible : Visibility.Collapsed };
             into.Children.Add(news);
@@ -763,7 +765,7 @@ public sealed partial class MainWindow
             _scoresTimer?.Stop();
             var on2 = HostPrefs.GetBool("live.nowOn", true);
             var box2 = new CheckBox { Content = new TextBlock { Text = "Now on", FontSize = 14, Foreground = HubInk }, IsChecked = on2, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), MinWidth = 0 };
-            ToolTipService.SetToolTip(box2, "What is on across these channels, as TMDB knows it: a poster a show with TMDB's year and rating. Prism remembers this.");
+            ToolTipService.SetToolTip(box2, "What is on across these channels, as TMDB knows it: a poster a show with TMDB's year and rating. PRISM remembers this.");
             head.Children.Add(box2);
             var strip = new StackPanel { Spacing = 6, Visibility = on2 ? Visibility.Visible : Visibility.Collapsed };
             into.Children.Add(strip);
@@ -1003,7 +1005,7 @@ public sealed partial class MainWindow
             link.Click += async (_, __) => await TuneIntoAsync(0, facet, id, url, chName, service, null);
             Grid.SetColumn(link, 3); mast.Children.Add(link);
             ToolTipService.SetToolTip(mastName, (_liveType == "Local" ? name + "'s local news, from its own feed (" + S(g, "feed") + ")" : "The segments " + name + " aired, as " + network + " lists them in its own feed (" + S(g, "feed") + ")")
-                + (readAt is { } ra ? ", read " + LiveClock(ra) : "") + ". Newest first, in the network's order; Prism ranks nothing."
+                + (readAt is { } ra ? ", read " + LiveClock(ra) : "") + ". Newest first, in the network's order; PRISM ranks nothing."
                 + (left.Count > 0 ? " Left out by rule: " + string.Join(", ", left) + "." : "") + (rules.Count > 0 ? " The rules: " + string.Join("; ", rules) + "." : "")
                 + (S(g, "error") is { Length: > 0 } err ? " Last read: " + err + "." : "") + " Press a headline to watch " + chName + " in the big window.");
             bar.Children.Add(mast);
@@ -1085,7 +1087,7 @@ public sealed partial class MainWindow
         // no pill to open (2026-10-01): the scores stand,
         // a caption line naming the day and the source
         // no caption (2026-10-01): the count, the source and the read time go to the mode title's tooltip
-        if (_modeTitle is { } mt) ToolTipService.SetToolTip(mt, "Only what is filed under Sports, with the last 24 hours' games across the leagues in season as " + source + " lists them: " + games.Count + (games.Count == 1 ? " game" : " games") + (readAt is { } ra ? ", read " + LiveClock(ra) : "") + ". Press All for everything. Prism remembers the mode you leave on.");
+        if (_modeTitle is { } mt) ToolTipService.SetToolTip(mt, "Only what is filed under Sports, with the last 24 hours' games across the leagues in season as " + source + " lists them: " + games.Count + (games.Count == 1 ? " game" : " games") + (readAt is { } ra ? ", read " + LiveClock(ra) : "") + ". Press All for everything. PRISM remembers the mode you leave on.");
         if (games.Count == 0) { bar.Children.Add(new TextBlock { Text = reading && readAt is null ? "Reading the scores" + (char)0x2026 : "No games in the last 24 hours", FontSize = 12, Foreground = HubInk }); return; }
         // the cards in one grid across the page, the same size each, wrapping as the width allows (2026-10-01); grouped by league, a league with a game on first, in play first within it
         var ordered = games.GroupBy(g => S(g, "leagueName")).OrderBy(grp => grp.Any(g => S(g, "state") == "in") ? 0 : 1).SelectMany(grp => grp).ToList();
@@ -1181,7 +1183,7 @@ public sealed partial class MainWindow
                     JsonObject? r = null;
                     try { r = JsonNode.Parse(await ModelCallAsync("liveScoreWatch", lg, gid) ?? "null") as JsonObject; } catch (Exception e) { LogLine("score watch: " + e.Message); }
                     if (r?["ok"]?.GetValue<bool>() == true) { if (PickLeavesWatch(gline)) { CloseVideoHub(); ShowStageCurtain(S(w, "title"), wsvc, null); } }
-                    else SetPill("Prism" + Mid + Sentence(r?["error"]?.GetValue<string>() ?? "could not open " + gline));
+                    else SetPill("PRISM" + Mid + Sentence(r?["error"]?.GetValue<string>() ?? "could not open " + gline));
                 };
                 col.Children.Add(watch);
             }

@@ -5,7 +5,7 @@
     ... --trained scripts/breakwatch/trained.json                                leave out seconds the live model was trained on
 
 A calls log holds a detector's covers as host.log lines ("HH:MM:SS.mmm break watch <window>: break|show (...)"): the replay harness's
-LCALLS for a learned model, its bench log for the hand rules, or the day's own calls.log for what Prism showed.
+LCALLS for a learned model, its bench log for the hand rules, or the day's own calls.log for what PRISM showed.
 
 Per detector, of the marked ad time: the share covered, and where the rest went - the cover began late, dropped in the middle of a break,
 lifted early, or the break was missed whole. Of ALL show time in the stretch: the share wrongly covered, and whether that was a cover
@@ -30,7 +30,7 @@ def sec(h):
 
 
 if len(sys.argv) >= 4 and sys.argv[1] == "--library":
-    # what Prism knew before the stretch: the newest library copy keep.py made at or before <from>
+    # what PRISM knew before the stretch: the newest library copy keep.py made at or before <from>
     root = os.path.join(GOLDEN, sys.argv[2], "library")
     want = sys.argv[3].replace(":", "")
     have = sorted(d for d in (os.listdir(root) if os.path.isdir(root) else []) if d <= want)
@@ -47,6 +47,8 @@ lab = json.load(open(os.path.join(G, "labels.json"), encoding="utf-8"))["windows
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import promos as _promos   # PROMOS=show: a network promo scores as show (2026-11-04)
 if _promos.on(): lab = dict(lab, ads=_promos.ads_for(G, win, lab.get("ads", [])))
+if _promos.neutral():   # PROMOS=neutral (2026-11-08): the promo seconds leave the score, neither ad nor show
+    lab = dict(lab, neutral=list(lab.get("neutral", [])) + list(_promos.load(G).get(win, [])))
 T = np.arange(A, B + 1)
 rev = np.zeros(len(T), bool); ads = np.zeros(len(T), bool)
 for x, y in lab.get("reviewed", []): rev[max(0, sec(x) - A):max(0, sec(y) - A + 1)] = True
@@ -91,7 +93,7 @@ for spec in sys.argv[5:]:
     for l in open(path, encoding="utf-8", errors="replace"):
         m = re.match(r"(\d\d):(\d\d):(\d\d)\.\d+ break watch " + re.escape(win) + r": (break|show) ", l)
         if not m:
-            # a restart, or the person's Not an ad, takes a cover down too (Prism's own calls for the day)
+            # a restart, or the person's Not an ad, takes a cover down too (PRISM's own calls for the day)
             m2 = re.match(r"(\d\d):(\d\d):(\d\d)", l)
             if m2 and up is not None and ("brain ready" in l or ("break watch " + win + ":" in l and "said Not an ad" in l)):
                 t = int(m2.group(1)) * 3600 + int(m2.group(2)) * 60 + int(m2.group(3))
@@ -142,3 +144,27 @@ for spec in sys.argv[5:]:
     print(f"      show wrongly covered {100 * wrong.sum() / max(1, show_s):5.2f}%{interval([x[2] for x in blk], [x[3] for x in blk])} ({int(wrong.sum())} s):"
           f" stayed on after a break {linger}, came up ahead of one {ahead}, on their own {own} s in {owns} covers ({100 * own / max(1, show_s):.3f}% of show time)")
     print(f"      covers {n}, on the show and gone within 20 s {short}; a cover begins {med(begins)} s into a break and stays {med(stays)} s after it (medians)")
+    # JSON line (2026-11-07, the boundary-first redesign's Phase 0): every total, each break's boundary lags (start lag = first covered second
+    # minus the marked start, negative = ahead; end lag = last covered second minus the marked end, positive = lingered; a break no cover
+    # touched is missed whole), and the pop-ups with their times, for run_exams' results.json
+    # the lags are CAPPED at the neighbouring breaks (2026-11-08): a cover that runs on from one pod across a 15 s promo gap into the next
+    # pod lingers over the gap, not over the next pod's ads, and a cover carried in from the pod before is not an early start; the raw
+    # values stay beside them (start_lag_raw, end_lag_raw)
+    lags = []
+    for i, (x, y) in enumerate(breaks):
+        ov = [(u, d) for u, d in spans if u <= y and d - 1 >= x]
+        if not ov: lags.append({"start": x, "end": y, "miss": True}); continue
+        cs, ce = min(u for u, d in ov), max(d for u, d in ov) - 1
+        prev_end = breaks[i - 1][1] if i > 0 else -1e9; next_start = breaks[i + 1][0] if i + 1 < len(breaks) else 1e9
+        lags.append({"start": x, "end": y, "miss": False, "start_lag": max(cs, prev_end + 1) - x if cs <= x else cs - x, "end_lag": min(ce, next_start - 1) - y if ce >= y else ce - y,
+                     "start_lag_raw": cs - x, "end_lag_raw": ce - y, "cover_start": cs, "cover_end": ce, "spans": len(ov)})
+    pops = []
+    for u, d in spans:
+        i0, i1 = max(0, u - A), max(0, d - A + 1)
+        if d - u <= 20 and rev[i0:i1].any() and not ads[max(0, i0 - 4):i1 + 4].any(): pops.append({"up": u, "down": d, "dur": d - u})
+    print("JSON " + json.dumps({"name": name, "ad_s": ad_s, "show_s": show_s, "covered": int((cov & ads & rev).sum()), "wrong": int(wrong.sum()),
+                                "late": late, "mid": mid, "early": early, "whole": whole, "linger": linger, "ahead": ahead, "own": own, "owns": owns,
+                                "covers": n, "popups": short, "breaks": lags, "popup_list": pops,
+                                # each block (a break with the show around it) as ad s, covered ad s, show s, wrong show s: what errbars.py
+                                # resamples to put one interval on several exams together (2026-11-10)
+                                "blocks": [[int((ads & rev)[i:j].sum()), int((cov & ads & rev)[i:j].sum()), int((~ads & rev)[i:j].sum()), int(wrong[i:j].sum())] for i, j in blocks]}, default=int))   # numpy ints among the totals

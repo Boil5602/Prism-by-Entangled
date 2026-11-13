@@ -1,5 +1,5 @@
 /*
-  Prism Veil - ad DETECTION. Every rule here traces to a named source (spec
+  PRISM Veil - ad DETECTION. Every rule here traces to a named source (spec
   section 5) and answers one question: which elements on this page are ads?
 
   Two kinds of rule:
@@ -327,6 +327,45 @@
     return null;
   }
 
+  // The Follow button in a Facebook post's header: an element with no children whose visible text is exactly "Follow" or "Join",
+  // on the line of the post's first name (the page that posted). Returns the element or null.
+  function fbFollowButton(post) {
+    var name = post.querySelector('[data-ad-rendering-role="profile_name"], h2, h3, h4');
+    if (!name) return null;
+    var nr = name.getBoundingClientRect(); if (nr.height <= 0) return null;
+    var cands = post.querySelectorAll("span,div[role=button],a[role=button]");
+    for (var i = 0; i < cands.length && i < 400; i++) {
+      var el = cands[i];
+      if (el.children.length) continue;
+      var t = (el.textContent || "").replace(FB_INVIS, "").trim();
+      if (t !== "Follow" && t !== "Join") continue;   // Join: a group Facebook suggests (2026-11-11, asked for it with the suggested posts)
+      var r = el.getBoundingClientRect();
+      if (r.height <= 0 || r.width <= 0 || r.width > 160) continue;
+      if (r.bottom < nr.top - 12 || r.top > nr.bottom + 12) continue;   // not on the name's line
+      if (!fbVisible(el)) continue;
+      return el;
+    }
+    return null;
+  }
+
+  // The pair of buttons Facebook puts on a group it suggests: one element that reads exactly "Interested" and one that reads
+  // exactly "Not interested", on one line (report 2026-11-12: such a post has no Join button, so it came through). Both must
+  // be there: one word alone could be a post's own text. Returns the first of the pair or null.
+  function fbInterestPair(post) {
+    var cands = post.querySelectorAll("span,div[role=button],a[role=button]"), yes = [], no = [];
+    for (var i = 0; i < cands.length && i < 600; i++) {
+      var el = cands[i];
+      if (el.children.length) continue;
+      var t = (el.textContent || "").replace(FB_INVIS, "").trim();
+      if (t !== "Interested" && t !== "Not interested") continue;
+      var r = el.getBoundingClientRect();
+      if (r.height <= 0 || r.width <= 0 || r.width > 260 || !fbVisible(el)) continue;
+      (t === "Interested" ? yes : no).push({ el: el, mid: (r.top + r.bottom) / 2 });
+    }
+    for (var a = 0; a < yes.length; a++) for (var b = 0; b < no.length; b++) if (Math.abs(yes[a].mid - no[b].mid) <= 24) return yes[a].el;
+    return null;
+  }
+
   // "Promoted" joined 2026-09-12 (LinkedIn feed: a promoted post's header
   // reads "Promoted" beside the follower count; X's older layout and Reddit
   // say the same) - trusted on its own like "Sponsored": a lone leaf reading
@@ -346,6 +385,14 @@
   // The true ad-network slot selectors (amazon-adsystem iframes, etc.) still run,
   // so real ad banners are still veiled - just not sponsored product tiles.
   var LABEL_WALKER_OFF = /(^|\.)amazon\.[a-z]{2,3}(\.[a-z]{2})?$/i;
+
+  // Hosts with no ad inventory, where no display cover is ever drawn. The
+  // Azure portal (report 2026-11-09, portal.azure.com/#home, 0.7.275) names
+  // its own row of Azure service tiles div.fxs-home-ad-container >
+  // a.fxs-home-ad-link ("Microsoft Defender for Cloud"), which the generic
+  // [class*='ad-container'] slot matched; the portal is a signed-in admin
+  // console that serves no ads, so the whole page is left alone.
+  var NO_ADS_HOSTS = /(^|\.)portal\.azure\.(com|us|cn)$/i;
 
   function hostIs(re) { return re.test(location.hostname); }
 
@@ -453,7 +500,17 @@
     var areaCap = (section ? 1.8 : (strong ? 0.6 : 0.35)) * vpA;
     var cardCap = 0.85 * vpA;
     var best = null, card = null;
+    // A label that is a section's HEADING (Facebook's right rail: <h3>Sponsored</h3>, then <h3>Birthdays</h3>) names the block up to
+    // the next heading of the same level and no further: the climb stops at an ancestor that holds another such heading (2026-11-11,
+    // reported: the cover over the rail's Sponsored block took the Birthdays block with it on a large screen, where both fit the caps).
+    var head = null, hn = badge, hd = 0;
+    while (hn && hd < 4) { if (/^H[1-6]$/.test(hn.tagName || "")) { head = hn; break; } hn = hn.parentElement; hd++; }
     while (el && el !== document.body && el !== document.documentElement && depth < 18) {
+      if (head && el !== head && el.contains(head)) {
+        var hs = el.querySelectorAll(head.tagName), other = false;
+        for (var hi = 0; hi < hs.length && hi < 40; hi++) if (hs[hi] !== head) { var hb = hs[hi].getBoundingClientRect(); if (hb.width > 0 && hb.height > 0) { other = true; break; } }
+        if (other) break;
+      }
       var r = el.getBoundingClientRect();
       if (r.width >= 100 && r.height >= 50 && r.width <= maxW && r.height <= maxH &&
           (r.width * r.height) <= areaCap) best = el;
@@ -633,6 +690,33 @@
           var pr = target.getBoundingClientRect();
           if (pr.width > innerWidth * 0.7 || pr.height > innerHeight * 1.6 || pr.height < 120) return;
           ctx.add(target, "facebook-sponsored: " + why.why, true);
+        });
+      },
+    },
+    {
+      // Facebook's suggested posts (OPT-IN, pv:ui.suggestedVeil, off by default; 2026-11-11, asked for the posts the feed
+      // puts in from pages the person does not follow). Traceable source: Facebook's own Follow button in the post's
+      // header, on the line of the page's name. Facebook shows it only for an account the person does not follow, so the
+      // post was put in the feed by Facebook, not by a friend or a followed page. It is not an ad label and the cover
+      // does not call the post an ad. A friend's share of a page's post keeps its Follow button lower down, beside the
+      // shared page's name; only the first name's line counts, so a share is left alone. A group Facebook suggests can carry
+      // the pair Interested / Not interested in place of Join (2026-11-12); the pair is the source then.
+      id: "facebook-suggested",
+      host: /(^|\.)facebook\.com$/i,
+      run: function (root, ctx) {
+        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil)) return;
+        var seen = new Set();
+        root.querySelectorAll("[aria-posinset]").forEach(function (post) {
+          if (seen.has(post) || post.querySelector("[aria-posinset]")) return;   // innermost posts only
+          seen.add(post);
+          var el = fbFollowButton(post), pair = el ? null : fbInterestPair(post);
+          el = el || pair;
+          if (!el) return;
+          var target = fbSinglePost(post, el);
+          if (!target) return;
+          var pr = target.getBoundingClientRect();
+          if (pr.width > innerWidth * 0.7 || pr.height > innerHeight * 1.6 || pr.height < 120) return;
+          ctx.add(target, "facebook-suggested: " + (pair ? "Interested and Not interested buttons" : ((el.textContent || "").indexOf("Join") >= 0 ? "Join" : "Follow") + " button in the header"), true);
         });
       },
     },
@@ -1096,9 +1180,11 @@
   function collectTargets() {
     var targets = new Set(), why = new Map(), wholeCovers = new Set();
     if (!document.body) return { targets: targets, why: why };
+    if (hostIs(NO_ADS_HOSTS)) return { targets: targets, why: why };
     var ctx = {
       add: function (el, reason, whole) {
         if (!el || !PV.isVisible(el)) return;
+        if (el.closest && el.closest("[data-prism-ui]")) return;   // PRISM's own cards: the look under a cover holds a copy of the covered element (covers.js)
         if (el.__prismTooBigAt && Date.now() - el.__prismTooBigAt < 15000) return;   // a cover the sweep just dropped for growing to page/column size (any rule)
         targets.add(el); why.set(el, reason);
         if (whole) {

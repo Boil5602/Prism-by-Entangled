@@ -5,7 +5,7 @@
  * person's own session, its own words - never a private endpoint), each answer read page-side by the adapter's
  * videoLookup script, and the answers laid out as ONE labeled row on the wall's menu. What is pure lives here: the shape
  * a service's answer is cleaned to, and the order the merged row takes - a function of the query, the services in the
- * household's order and their own answers, and nothing else (the transparency rule of §4 holds for search too: Prism
+ * household's order and their own answers, and nothing else (the transparency rule of §4 holds for search too: PRISM
  * ranks nothing beyond).
  */
 
@@ -104,7 +104,7 @@ export interface LookupRow { app: string; name: string; facet: string; candidate
 /**
  * The merged row, pure over (q, services in the household's order, each service's own answers): the titles that ARE the
  * words typed first (one per service, in the household's order), then the rest one card per service in turn, each
- * service's own order kept. Nothing else weighs in - no popularity, no history, no Prism preference.
+ * service's own order kept. Nothing else weighs in - no popularity, no history, no PRISM preference.
  */
 export function orderLookup(q: string, services: readonly LookupServiceState[]): LookupRow[] {
   const want = normalizeTrackText(q);

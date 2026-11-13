@@ -17,7 +17,7 @@ export const LIVE_SLIVER_MS = 5 * 60_000;
 export const LIVE_STALE_MS = 3 * 3_600_000;
 export const LIVE_NOW_BELIEVED_MS = 2 * 3_600_000;
 
-/** A channel's type and where it came from: the service's own category, or Prism's rule on the name (labelled, §5). */
+/** A channel's type and where it came from: the service's own category, or PRISM's rule on the name (labelled, §5). */
 export interface LiveType { type: string; source: "service" | "prism" | "tmdb"; title?: string }
 
 /** The service's own words, folded onto the tab's types; a word not here is shown as the service wrote it. */
@@ -26,7 +26,7 @@ const CATEGORY: Record<string, string> = {
   drama: "Drama", comedy: "Comedy", reality: "Reality", movies: "Movies", movie: "Movies", film: "Movies", showtime: "Movies",
   music: "Music", local: "Local", entertainment: "Entertainment", documentary: "Documentary", documentaries: "Documentary",
 };
-/** Prism's rule, in order: the first that matches the channel's name (or what is on it) names its type. */
+/** PRISM's rule, in order: the first that matches the channel's name (or what is on it) names its type. */
 const RULES: Array<[string, RegExp]> = [
   ["Local", /[/]local[/]/i],
   ["News", /\bnews\b|\bcnn\b|msnbc|\bcnbc\b|bloomberg|\bweather\b|newsmax|\bc-span\b/i],
@@ -44,7 +44,7 @@ const RULES: Array<[string, RegExp]> = [
 export function liveTypeOf(ch: Pick<VideoChannel, "name" | "now" | "url" | "category" | "tmdbType" | "tmdbTitle">): LiveType {
   const cat = (ch.category ?? "").trim();
   if (cat) return { type: CATEGORY[cat.toLowerCase()] ?? cat, source: "service" };
-  // a channel named after one show, the show's genre on TMDB (2026-10-02): a named source's word before Prism's own rule on the name
+  // a channel named after one show, the show's genre on TMDB (2026-10-02): a named source's word before PRISM's own rule on the name
   if (ch.tmdbType) return { type: ch.tmdbType, source: "tmdb", ...(ch.tmdbTitle ? { title: ch.tmdbTitle } : {}) };
   for (const [type, re] of RULES) if (re.test(ch.url ?? "") && type === "Local") return { type, source: "prism" };
   // Local is only a station that is the household's own: the one a service assigns by its address (Paramount+'s /local/ pages). Other
@@ -54,7 +54,7 @@ export function liveTypeOf(ch: Pick<VideoChannel, "name" | "now" | "url" | "cate
   return { type: "Entertainment", source: "prism" };
 }
 
-export interface LiveProgram { title: string; start: number; end: number; now: boolean; desc?: string | null; match?: boolean; /** when it really starts, where it is drawn from the left edge in place of a sliver */ startsAt?: number; /** when it really began, for a program cut at the window's edge (the poster's elapsed share, 2026-10-02) */ began?: number; /** the sport, from the program's and channel's names (scores.ts sportOf) - the Live tab's Sports mode draws its symbol; Prism's reading of the words */ sport?: string }
+export interface LiveProgram { title: string; start: number; end: number; now: boolean; desc?: string | null; match?: boolean; /** when it really starts, where it is drawn from the left edge in place of a sliver */ startsAt?: number; /** when it really began, for a program cut at the window's edge (the poster's elapsed share, 2026-10-02) */ began?: number; /** the sport, from the program's and channel's names (scores.ts sportOf) - the Live tab's Sports mode draws its symbol; PRISM's reading of the words */ sport?: string }
 export interface LiveRow {
   app: string; service: string; facet: string; id: string; name: string; url: string; logo: string | null;
   type: string; typeSource: "service" | "prism" | "tmdb"; programs: LiveProgram[]; match?: "channel" | "program" | null;

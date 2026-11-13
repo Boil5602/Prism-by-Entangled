@@ -98,7 +98,7 @@ public sealed partial class MainWindow
     private void OpenRoute(string url, string source = "ui")
     {
         var hit = MatchRoute(url);
-        if (hit is null) { SetPill("Prism · not a route: " + Shorten(url, 60)); LogLine("route refused " + url); return; }
+        if (hit is null) { SetPill("PRISM · not a route: " + Shorten(url, 60)); LogLine("route refused " + url); return; }
         LogLine("route " + url + " (" + source + ")");
         if (source == "ui") ReportUiRoute(url, "ui");
         if (hit.Def.Transient && _routeStack.Count > 0 && _routeStack[^1].Def.Transient) { CollapseTransient(_routeStack[^1]); _routeStack.RemoveAt(_routeStack.Count - 1); }
@@ -106,7 +106,7 @@ public sealed partial class MainWindow
         _ = DispatchRouteAsync(hit);
     }
 
-    /// <summary>Back / Esc: every Prism screen closes; the scene is what remains (§6a).</summary>
+    /// <summary>Back / Esc: every PRISM screen closes; the scene is what remains (§6a).</summary>
     private void RouteBack()
     {
         foreach (var h in Enumerable.Reverse(_routeStack)) if (h.Def.Transient) CollapseTransient(h);
@@ -118,7 +118,7 @@ public sealed partial class MainWindow
         _editorContinuations.Clear();
         CloseAllSceneModelScreens();
         if (_screenFsTile is { } fs) ToggleScreenFullscreen(fs);
-        SetPill("Prism");
+        SetPill("PRISM");
     }
 
     /// <summary>Done on the top screen: it closes; the opener resumes (a wizard continues at its next role) or the scene shows.</summary>
@@ -183,7 +183,7 @@ public sealed partial class MainWindow
             case "scene.view": await ApplySceneAsync(hit.P("id")); RouteBack(); break;
             case "player.view": _routeStack.Remove(hit); await SwitchPlayerAsync(hit.P("kind")); break;   // a phone's choice of player (2026-10-04), the menu's own path
             case "scene.edit": OpenSceneBuilder(hit.P("id"), null, hit.Q("slot")); break;
-            case "item.swap": if (_model.ActiveScene is { } swapScene) OpenSceneBuilder(swapScene, null, hit.P("item"), pickNow: true); else { SetPill("Prism · no active scene"); _routeStack.Remove(hit); } break;
+            case "item.swap": if (_model.ActiveScene is { } swapScene) OpenSceneBuilder(swapScene, null, hit.P("item"), pickNow: true); else { SetPill("PRISM · no active scene"); _routeStack.Remove(hit); } break;
             case "item.mute": await ToggleItemMuteAsync(hit.P("item")); _routeStack.Remove(hit); break;
             case "item.visualNext": await CycleVisualizationStyleAsync(hit.P("item")); _routeStack.Remove(hit); break;
             case "item.musicService": _routeStack.Remove(hit); _ = ChangeMusicServiceAsync(hit.P("item")); break;
@@ -197,7 +197,7 @@ public sealed partial class MainWindow
                 var wall = await ReadWallStateAsync();
                 var tile = wall.Tiles.FirstOrDefault(t => t.Id == hit.P("item"));
                 var item = SceneItemOf(hit.P("item"), tile);
-                if (item is null) { SetPill("Prism · " + hit.P("item") + " is not on the scene"); break; }
+                if (item is null) { SetPill("PRISM · " + hit.P("item") + " is not on the scene"); break; }
                 var r = _surfaces.RectOf(item.Item);
                 ShowContextSheet(item, r is { } rr ? new Windows.Foundation.Point(rr.X + rr.W / 2 - 150, rr.Y + rr.H / 2 - 120) : new Windows.Foundation.Point(_w / 2 - 150, _h / 2 - 120));
                 break;
@@ -212,7 +212,7 @@ public sealed partial class MainWindow
             {
                 await ReadModelAsync();
                 var f = _model.Facet(hit.P("id"));
-                if (f is null) { SetPill("Prism · no facet " + hit.P("id")); _routeStack.Remove(hit); break; }
+                if (f is null) { SetPill("PRISM · no facet " + hit.P("id")); _routeStack.Remove(hit); break; }
                 OpenFacetEditor(f.App, f.SlotClass, f.Id);
                 break;
             }
@@ -222,7 +222,7 @@ public sealed partial class MainWindow
             case "app.setup": OpenAppSetup(hit.P("id"), hit.Q("url"), signIn: hit.Q("signin") == "1"); break;   // B-56: setup mode at a page when the link names one; signin=1: the sign-in wizard
             case "app.settings": await OpenAppSettingsCardAsync(hit.P("id")); break;
             case "news.pick": OpenNewsPicker(hit.Q("class"), null); break;
-            default: SetPill("Prism · route not wired: " + hit.Def.Id); _routeStack.Remove(hit); break;
+            default: SetPill("PRISM · route not wired: " + hit.Def.Id); _routeStack.Remove(hit); break;
         }
     }
 
@@ -231,13 +231,13 @@ public sealed partial class MainWindow
     {
         var raw = await ModelCallAsync("modelApplyScene", sceneId);
         var ok = raw is not null && raw.Contains("\"ok\":true");
-        if (!ok) { SetPill("Prism · could not apply scene " + sceneId + (raw is null ? "" : ": " + Shorten(raw, 80))); return false; }
+        if (!ok) { SetPill("PRISM · could not apply scene " + sceneId + (raw is null ? "" : ": " + Shorten(raw, 80))); return false; }
         await SceneAppliedAsync(sceneId, raw!);
         return true;
     }
 
     /// <summary>
-    /// The two players (core players.ts, 2026-09-19): / in the Prism menu. Core names the
+    /// The two players (core players.ts, 2026-09-19): / in the PRISM menu. Core names the
     /// household's scene for each (its Music Lounge, its Movie Night) and which one the wall is; the item switches, the
     /// tooltip says what the switch keeps (the music sources ride along hidden; the way back resumes what a video paused).
     /// </summary>
@@ -262,15 +262,15 @@ public sealed partial class MainWindow
             var k = kind;
             var item = Item(label + (name is null ? "" : "  ·  " + Shorten(name, 28)), on ? "" : glyph, null, () => _ = SwitchPlayerAsync(k));
             ToolTipService.SetToolTip(item, kind == "music"
-                ? (name is null ? "No Music player yet. This opens Set up services to make one." : on ? "Prism is your Music player now." : "Prism becomes \"" + name + "\". Music that a video paused plays on from where it was.")
-                : (name is null ? "No Video player yet. This opens Set up services to make one." : on ? "Prism is your Video player now." : "Prism becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
+                ? (name is null ? "No Music player yet. This opens Set up services to make one." : on ? "PRISM is your Music player now." : "PRISM becomes \"" + name + "\". Music that a video paused plays on from where it was.")
+                : (name is null ? "No Video player yet. This opens Set up services to make one." : on ? "PRISM is your Video player now." : "PRISM becomes \"" + name + "\". Your music sources ride along hidden and keep playing until a video takes the sound."));
             items.Add(item);
         }
         var setup = Item("Set up services" + (char)0x2026, "", null, () => _ = ShowWelcomeAsync());
-        ToolTipService.SetToolTip(setup, "Choose your music and video services and sign in to each. Prism sets up both players with them.");
+        ToolTipService.SetToolTip(setup, "Choose your music and video services and sign in to each. PRISM sets up both players with them.");
         items.Add(setup);
         var pair = Item("Pair a phone" + (char)0x2026, "", null, PairPhone);
-        ToolTipService.SetToolTip(pair, "A QR code for your phone: the page it opens is a keyboard for Prism and plays Prism's sound on the phone, privately.");
+        ToolTipService.SetToolTip(pair, "A QR code for your phone: the page it opens is a keyboard for PRISM and plays PRISM's sound on the phone, privately.");
         items.Add(pair);
         var listen = Item("Listen page" + (char)0x2026, "", null, ListenPageCard);   // the house's view-and-listen page (2026-10-31)
         ToolTipService.SetToolTip(listen, "A page for the house: what plays on this PC, its lounge scene and its sound, in any browser on your network, with nothing to press. Off until you turn it on.");
@@ -405,7 +405,7 @@ public sealed partial class MainWindow
                     var pick = new MenuFlyoutSubItem { Text = "Watch as " + pname, Icon = Glyph("") };
                     pick.Items.Add(Item("This time", null, null, () => _ = ModelCallAsync("videoProfile", screenSlot!, pid, false)));
                     var always = Item("Always, on " + name, null, null, () => _ = ModelCallAsync("videoProfile", screenSlot!, pid, true));
-                    ToolTipService.SetToolTip(always, "A standing choice: whenever " + name + " asks who is watching, Prism answers " + pname + ". Forget it from this menu.");
+                    ToolTipService.SetToolTip(always, "A standing choice: whenever " + name + " asks who is watching, PRISM answers " + pname + ". Forget it from this menu.");
                     pick.Items.Add(always);
                     svc.Items.Add(pick);
                 }
@@ -436,8 +436,8 @@ public sealed partial class MainWindow
         JsonObject? r = null;
         try { r = raw is null ? null : JsonNode.Parse(raw) as JsonObject; } catch { }
         if (r?["ok"]?.GetValue<bool>() == true) { await SceneAppliedAsync(r["sceneId"]?.GetValue<string>() ?? "", raw!); return; }
-        if (r?["reason"]?.GetValue<string>() == "no-scene") { SetPill("Prism · no Video player yet. Make one from the Movie Night template"); OpenTemplateWizard("movie-night"); return; }
-        SetPill("Prism · could not switch the screen" + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        if (r?["reason"]?.GetValue<string>() == "no-scene") { SetPill("PRISM · no Video player yet. Make one from the Movie Night template"); OpenTemplateWizard("movie-night"); return; }
+        SetPill("PRISM · could not switch the screen" + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
 
     private async Task PlayOnAsync(string facetId, string kind, string id, string? url, string name)
@@ -448,10 +448,10 @@ public sealed partial class MainWindow
         if (r?["ok"]?.GetValue<bool>() == true)
         {
             if (r["switched"]?.GetValue<bool>() == true && r["sceneId"]?.GetValue<string>() is { } sceneId) await SceneAppliedAsync(sceneId, raw!);
-            SetPill("Prism · playing " + name);
+            SetPill("PRISM · playing " + name);
             return;
         }
-        SetPill("Prism · could not play " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not play " + name + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
 
     private async Task SwitchPlayerAsync(string kind)
@@ -469,11 +469,11 @@ public sealed partial class MainWindow
             // no player yet: the welcome page makes both from the services chosen (2026-09-29; it was the template wizard, role by role)
             if (_catalog.Count > 0) { await ShowWelcomeAsync(1); return; }
             var video = kind == "video";
-            SetPill("Prism · no " + (video ? "Video" : "Music") + " player yet. Make one from the " + (video ? "Movie Night" : "Music Lounge") + " template");
+            SetPill("PRISM · no " + (video ? "Video" : "Music") + " player yet. Make one from the " + (video ? "Movie Night" : "Music Lounge") + " template");
             OpenTemplateWizard(r["template"]?.GetValue<string>() ?? (video ? "movie-night" : "music-lounge"));
             return;
         }
-        SetPill("Prism · could not switch to the " + kind + " player" + (raw is null ? "" : ": " + Shorten(raw, 80)));
+        SetPill("PRISM · could not switch to the " + kind + " player" + (raw is null ? "" : ": " + Shorten(raw, 80)));
     }
 
     /// <summary>After core has taken the wall to a scene: the model re-read, the pill, chrome and badges placed now and again once rects exist.</summary>
@@ -483,7 +483,7 @@ public sealed partial class MainWindow
         _ = UpdateWatchGripAsync();
         SyncEmptyWallNote();   // a wall that has a scene now: the "Nothing is set up yet" note goes (2026-09-29 review)
         var name = _model.Scene(sceneId)?.Name ?? sceneId;
-        SetPill("Prism · the screen is now \"" + name + "\"");
+        SetPill("PRISM · the screen is now \"" + name + "\"");
         try
         {
             if (JsonNode.Parse(raw!) is JsonObject r && r["notes"] is JsonArray notes) foreach (var n in notes) LogLine("apply note: " + n);
@@ -499,7 +499,7 @@ public sealed partial class MainWindow
     }
 
     /// <summary>
-    /// concept-scenes §5: Prism claims the single tap exactly where the
+    /// concept-scenes §5: PRISM claims the single tap exactly where the
     /// placement asked for it (<c>tapAction</c> "audio" or "both") and nowhere
     /// else - a <c>promote</c> slot (§6a's default) keeps handing the pointer
     /// to the page, unchanged. Right-click / press-and-hold still raise the
@@ -526,7 +526,7 @@ public sealed partial class MainWindow
         {
             await Task.Delay(delay);
             // B-249 (2026-09-19): the first beats land before the brain is ready, and a model read then answers empty - the
-            // wizard opened on every boot of a wall that has scenes ("Welcome to Prism ... nothing is on the wall yet" under
+            // wizard opened on every boot of a wall that has scenes ("Welcome to PRISM ... nothing is on the wall yet" under
             // the video menu). Only a model the brain itself answered counts.
             if (!_brain.Ready) continue;
             try
@@ -548,7 +548,7 @@ public sealed partial class MainWindow
                 // left open last time, so it comes back - until Done or Not now closes it for good
                 if (!none) { if (HostPrefs.GetBool("welcome.open", false)) { _firstRunShown = true; LogLine("first run: the welcome page was left open last time - back to it"); await ShowWelcomeAsync(); } return; }
                 _firstRunShown = true;
-                if (HostPrefs.GetBool("welcome.dismissed", false)) { LogLine("first run: no player, the welcome page was dismissed - it is in the Prism menu"); return; }
+                if (HostPrefs.GetBool("welcome.dismissed", false)) { LogLine("first run: no player, the welcome page was dismissed - it is in the PRISM menu"); return; }
                 LogLine("first run: no player - opening the welcome page");
                 HostPrefs.Set("welcome.open", true);
                 await ShowWelcomeAsync(1);
@@ -585,7 +585,7 @@ public sealed partial class MainWindow
             if (claim) claimed++;
             _surfaces.SetTapCatcher(t.Id, claim);
         }
-        if (claimed > 0) LogLine($"tap: Prism owns the single tap on {claimed} item(s) (concept-scenes §5)");
+        if (claimed > 0) LogLine($"tap: PRISM owns the single tap on {claimed} item(s) (concept-scenes §5)");
     }
 
     // ------------------------------------------------ what is on the scene: tile id → item
@@ -706,7 +706,7 @@ public sealed partial class MainWindow
         {
             if (item.Kind == "music-visualization")
             {
-                // B-146 (2026-09-08): the source's own group first - sign in, and its page as an inline window with Prism's menu bar
+                // B-146 (2026-09-08): the source's own group first - sign in, and its page as an inline window with PRISM's menu bar
                 if (item.App is { } ga && item.Facet is { } gf)
                 {
                     var gname = _model.App(ga)?.Name ?? ga;
@@ -782,9 +782,9 @@ public sealed partial class MainWindow
             }
         }
         catch { }
-        if (!wall.Tiles.Any(t => t.Id == tileId)) { SetPill("Prism · " + tileId + " is not on the screen"); return; }
+        if (!wall.Tiles.Any(t => t.Id == tileId)) { SetPill("PRISM · " + tileId + " is not on the screen"); return; }
         _brain.Call(HostCalls.TileCommand, tileId, muted ? "unmute" : "mute");
-        SetPill("Prism · " + tileId + (muted ? " unmuted" : " muted"));
+        SetPill("PRISM · " + tileId + (muted ? " unmuted" : " muted"));
     }
 
     // ------------------------------------------------ single tap: promote a video facet / reveal a music facet (transient, §16)
@@ -795,7 +795,7 @@ public sealed partial class MainWindow
     {
         await ReadModelAsync();
         var (tileId, item) = await TileOfFacetAsync(facetId);
-        if (tileId is null || item is null) { SetPill("Prism · " + facetId + " is not on the scene"); _routeStack.RemoveAll(h => h.Def.Id == "facet.full"); return; }
+        if (tileId is null || item is null) { SetPill("PRISM · " + facetId + " is not on the scene"); _routeStack.RemoveAll(h => h.Def.Id == "facet.full"); return; }
         _promotedTile = tileId;
         _brain.Call(HostCalls.ToggleFullscreen, tileId);            // core maximizes the tile; the pixels move, they don't cut (§16)
         ShowCornerAffordance(item, "Full page · Back returns to the scene");
@@ -818,7 +818,7 @@ public sealed partial class MainWindow
             item = tile is null ? null : SceneItemOf(tile.Id, tile);
             tileId = tile?.Id;
         }
-        if (tileId is null || item is null) { SetPill("Prism · " + facetOrTileId + " is not a hidden facet of this scene"); _routeStack.RemoveAll(h => h.Def.Id == "facet.reveal"); return; }
+        if (tileId is null || item is null) { SetPill("PRISM · " + facetOrTileId + " is not a hidden facet of this scene"); _routeStack.RemoveAll(h => h.Def.Id == "facet.reveal"); return; }
         _revealedTile = tileId;
         _brain.Call(HostCalls.RevealMusic, tileId, window ? "window" : "hero");
         // concept-scenes §2.5.3: the visualization keeps running underneath, but its chrome steps aside
@@ -850,7 +850,7 @@ public sealed partial class MainWindow
         _pendingAdd = null;
         await RefreshMusicSourcesAsync();
         var src = _musicSources.FirstOrDefault(s => s.tile == pa.facet || s.app == pa.app);
-        if (src.session == "signed-in") { SetPill("Prism · " + pa.name + " is signed in and on this PC. Open Quick play (⟲) to pick something"); return; }
+        if (src.session == "signed-in") { SetPill("PRISM · " + pa.name + " is signed in and on this PC. Open Quick play (⟲) to pick something"); return; }
         await ReadModelAsync();
         if (_model.Scene(pa.scene) is not { } scene) return;
         var s = scene.Clone();
@@ -860,7 +860,7 @@ public sealed partial class MainWindow
         foreach (var v in s.Visualizations) if (v["source"]?.GetValue<string>() == pa.facet) v["source"] = s.Hidden.FirstOrDefault()?["facet"]?.GetValue<string>();
         var raw = await ModelCallAsync("modelSaveScene", s.ToJson());
         LogLine("call {\"fn\":\"music.service.cancel\",\"scene\":\"" + pa.scene + "\",\"app\":\"" + pa.app + "\",\"facet\":\"" + pa.facet + "\"}");
-        SetPill("Prism · " + pa.name + " wasn't added because the sign-in was cancelled. The App stays under Apps in the rail");
+        SetPill("PRISM · " + pa.name + " wasn't added because the sign-in was cancelled. The App stays under Apps in the rail");
         await ReadModelAsync();
         await ApplySceneAsync(pa.scene);
     }
@@ -945,7 +945,7 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// (2026-09-08): the hidden source's page as a window in the middle of the wall - core places the
-    /// surface (presence "window", three quarters of the wall) - with a bar of Prism's own along its top: the service's
+    /// surface (presence "window", three quarters of the wall) - with a bar of PRISM's own along its top: the service's
     /// name, Sign in, Quick play, Start over, Mute, Done. Not a separate OS window: nothing on the taskbar. Done (or Back,
     /// or Esc) tucks the page away again; the audio never stops.
     /// </summary>
@@ -1153,7 +1153,7 @@ public sealed partial class MainWindow
             chip.Child = label;
             ToolTipService.SetToolTip(chip, paused
                 ? "This phone's stream stopped unexpectedly. The speakers stay muted for the grace period rather than blaring mid-movie (§14)."
-                : "Listening on " + c.Label + " over " + c.Transport + ". §14 streams Prism's own audio, so every phone hears whatever owns the sound.");
+                : "Listening on " + c.Label + " over " + c.Transport + ". §14 streams PRISM's own audio, so every phone hears whatever owns the sound.");
             row.Children.Add(chip);
         }
         Canvas.SetZIndex(row, 925);
@@ -1205,7 +1205,7 @@ public sealed partial class MainWindow
         CloseAppSettingsCard();
         await ReadModelAsync();
         var app = _model.App(appId);
-        if (app is null) { SetPill("Prism · no App " + appId); return; }
+        if (app is null) { SetPill("PRISM · no App " + appId); return; }
         var overlay = new Grid { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xEE, 0x0F, 0x12, 0x16)) };
         Canvas.SetZIndex(overlay, 905);
         overlay.PointerPressed += (_, e) => { if (ReferenceEquals(e.OriginalSource, overlay)) { e.Handled = true; RouteDone(); CloseAppSettingsCard(); } };
@@ -1316,7 +1316,7 @@ public sealed partial class MainWindow
                     orderKind = mo.TryGetProperty("kind", out var mok) && mok.ValueKind == JsonValueKind.String ? mok.GetString() : null;
                     orderId = mo.TryGetProperty("id", out var moi) && moi.ValueKind == JsonValueKind.String ? moi.GetString() : null;
                     if (order == "in order") order = null;
-                    // the saved spot: "412 of 1612" - a Prism-ordered play's place in its list
+                    // the saved spot: "412 of 1612" - a PRISM-ordered play's place in its list
                     if (mo.TryGetProperty("spot", out var mos) && mos.ValueKind == JsonValueKind.Number && mo.TryGetProperty("count", out var moc) && moc.ValueKind == JsonValueKind.Number) orderSpot = mos.GetInt32() + " of " + moc.GetInt32();
                     if (mo.TryGetProperty("pass", out var mop) && mop.ValueKind == JsonValueKind.Number) orderPass = mop.GetInt32();
                 }
@@ -1352,6 +1352,16 @@ public sealed partial class MainWindow
                     if (np.TryGetProperty("actions", out var ac) && ac.ValueKind == JsonValueKind.Array) foreach (var a in ac.EnumerateArray()) if (a.GetString() is { } s) actions.Add(s);
                     if (np.TryGetProperty("position", out var po) && po.ValueKind == JsonValueKind.Number) pos = po.GetDouble();
                     if (np.TryGetProperty("duration", out var du) && du.ValueKind == JsonValueKind.Number) dur = du.GetDouble();
+                }
+                // stand-ins (dev, MainWindow.StandIn.cs): a made-up song, artist, album and cover on every stage; a track never shows as itself
+                if (s_standIn)
+                {
+                    var song = StandInSong(title ?? resumeTitle ?? "");
+                    if (title is not null) { title = song?.Title ?? "Stand-in song"; artist = song?.Artist ?? ""; album = song?.Album; art = song?.Art; }
+                    if (collection is not null) collection = "Evening Mix";   // a playlist or station is the household's own name for it
+                    if (orderName is not null) orderName = "Evening Mix";
+                    if (resumeTitle is not null) { resumeTitle = song?.Title ?? "Stand-in song"; resumeArtist = song?.Artist; resumeLabel = null; }
+                    if (pending is not null) pending = song?.Album ?? "Stand-in";
                 }
                 // core's transportAvailability: registered actions enable, play/pause also follow the state; the rest render disabled
                 out_.Add(new TransportState(id, item.Facet, playing, actions.Contains("play") || !playing && title is not null || resumeTitle is not null, actions.Contains("pause") || playing, actions.Contains("previoustrack"), actions.Contains("nexttrack"), actions.Contains("seekbackward"), actions.Contains("seekforward"), title, artist, art, pos, dur, album, collection, pending, pendingFailed, session, collectionKind, inBreak, canRate, rating, offer, adCount, resumeTitle, resumeArtist, resumeLabel, order, orderName, orderSpot, orderKind, orderId, collectionId, repeat, orderPass, work));
@@ -1487,7 +1497,7 @@ public sealed partial class MainWindow
             if (!_brain.Ready) { LogLine("tmdb key file: brain not ready, key dropped"); return; }
             var raw = await ModelCallAsync("lensSetTmdbKey", key.Length > 0 ? key : null);
             LogLine("tmdb key file: " + (key.Length > 0 ? "key taken from the file (" + key.Length + " chars), file deleted" : "empty file: key cleared") + " -> " + Shorten(raw ?? "?", 40));
-            SetPill(key.Length > 0 ? "Prism · TMDB key kept on this device (the file is gone)" : "Prism · TMDB key cleared");
+            SetPill(key.Length > 0 ? "PRISM · TMDB key kept on this device (the file is gone)" : "PRISM · TMDB key cleared");
             if (VideoHubOpen) _ = ShowVideoHubAsync();
         }
         catch (Exception ex) { LogLine("tmdb key file: " + ex.Message); }

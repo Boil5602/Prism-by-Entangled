@@ -1,7 +1,7 @@
 {
   "id": "prism-beams",
-  "name": "Prism Beams",
-  "blurb": "The signature: a beam enters a prism and leaves as the brand's four bands, refracting with the audio.",
+  "name": "PRISM Beams",
+  "blurb": "The signature: a white beam enters a glass prism and leaves as the brand's four bands, each swinging and glowing with its part of the music, over a spectrum floor.",
   "program": "beams",
   "bands": 32,
   "palette": [
