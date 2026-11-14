@@ -62,6 +62,13 @@
   <header><span class="brand">prism</span><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open this site's controls on the page: popups intercepted here, per-site switches, this site's reliability rating">This site</button></header>
   <section id="view"></section>
 
+  <section id="report-grant" hidden>
+    <h3>Sending a report</h3>
+    <div class="livesites" style="padding-left:0">You pressed Send on a report. Firefox asks once before PRISM may send the reports you choose to send. A report holds only what its panel showed you, and nothing is sent until you press Send.</div>
+    <div class="row"><button class="btn" id="report-grant-ok">Ask Firefox now</button></div>
+    <div class="livesites" id="report-grant-say" style="padding-left:0"></div>
+  </section>
+
   <section id="allowed-all" hidden>
     <h3>Popups you've allowed</h3>
     <div class="row" data-tip="Every popup you have allowed, on every site: the site, then the destination it may open. Remove one and that site's popups to it are held again. The PRISM button's panel shows only the current site's."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
@@ -70,7 +77,7 @@
 
   <section>
     <h3>Covering ads</h3>
-    <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labelled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
+    <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labeled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
     <label class="row" data-tip="The bottom-right PRISM button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the PRISM button</span></label>
     <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
     <div class="row" data-tip="How the intermission over a video ad looks. Full card: art with the countdown and controls in the middle. Corner chip: art only, a small chip top-left that opens the controls."><span class="dest">Intermission</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
@@ -82,7 +89,7 @@
       <span class="seg" id="look-seg"><label data-look="veil">Veil</label><label data-look="mute">Mute only</label><label data-look="show">Show</label></span></div>
     <div class="row" id="sound-row" data-tip="A quiet soundscape while a veil covers a video's ad break (the tab itself stays muted). Field recordings, free to use (CC0). Off by default."><span class="dest">Sound during breaks</span>
       <span class="seg" id="sound-seg"><label data-snd="">Off</label><label data-snd="river">River</label><label data-snd="chimes">Chimes</label><label data-snd="stars">Stars</label></span></div>
-    <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labelled content</span></label>
+    <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labeled content</span></label>
     <label class="row" data-tip="Covers the posts a feed puts in from accounts you do not follow. For now this works on Facebook: a post whose header shows Facebook&#39;s own Follow or Join button beside the page&#39;s or group&#39;s name, or its Interested and Not interested buttons. A friend&#39;s share is left alone. These are the service&#39;s suggestions, not marked ads. Off by default."><input type="checkbox" id="suggested-veil"><span class="dest">Veil suggested posts</span></label>
     <label class="row" data-tip="Rest the pointer on a cover&#39;s symbol to see what is under it, small: the ad, the post or the video as it is at that moment. Nothing is loaded a second time. Off, the panel keeps its words and its Reveal button and shows no small view. On by default."><input type="checkbox" id="small-view"><span class="dest">Small view under a cover</span></label>
     <div class="livesites" id="live-note" hidden>These two switches are the live TV ad detection. Off, PRISM puts up no veil of its own on live TV; the services' own marked breaks are still covered elsewhere.</div>
@@ -118,11 +125,13 @@
     <label class="row" data-tip="Fetch a fresh random 24 from the server once a week, automatically (catches up at next start if the browser was closed)."><input type="checkbox" id="art-weekly"><span class="dest">Refresh photos weekly</span></label>
   </section>
 
+  <!-- @store-strip-begin (the start page is not in the Chromium store build, 2026-11-14) -->
   <section>
     <h3>PRISM page</h3>
     <label class="row" data-tip="Every new tab opens PRISM's start page (art, clock, search, your links, weather, calendar). Asks once for the 'tabs' permission it needs."><input type="checkbox" id="startpage-on"><span class="dest">Use PRISM as my new-tab page</span></label>
     <label class="row" data-tip="When the browser starts or a new window opens, its first tab is PRISM's start page."><input type="checkbox" id="homepage-on"><span class="dest">Use PRISM as my start page</span></label>
   </section>
+  <!-- @store-strip-end -->
 
   <section>
     <h3>Time reclaimed</h3>

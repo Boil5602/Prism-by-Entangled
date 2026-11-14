@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Quillhaven Courier</title>
+<!-- A stand-in news front page for the PRISM extension's store screenshots. Every name, headline and brand here is made up. -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f7f4ee; color: #1b1a17; font: 15px/1.45 Georgia, "Times New Roman", serif; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { width: 1180px; margin: 0 auto; }
+  .top { font: 12px/30px "Segoe UI", Arial, sans-serif; color: #5c574d; display: flex; justify-content: space-between; border-bottom: 1px solid #d9d3c6; }
+  .mast { text-align: center; padding: 14px 0 10px; }
+  .mast h1 { margin: 0; font: 700 46px/1 "Palatino Linotype", Palatino, Georgia, serif; letter-spacing: -.01em; }
+  .mast p { margin: 4px 0 0; font: italic 13px Georgia, serif; color: #6a655a; }
+  nav { display: flex; gap: 26px; justify-content: center; font: 600 13px/38px "Segoe UI", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; border-top: 2px solid #1b1a17; border-bottom: 1px solid #d9d3c6; }
+  nav .on { color: #9a2f1f; }
+  .lead-slot { display: flex; justify-content: center; padding: 14px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 300px; gap: 36px; }
+  .pic { display: block; overflow: hidden; background: #ccc; }
+  .lead .pic { height: 300px; }
+  .kicker { font: 700 11px/1 "Segoe UI", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #9a2f1f; margin: 12px 0 6px; }
+  .lead h2 { margin: 0 0 6px; font: 700 34px/1.12 "Palatino Linotype", Palatino, Georgia, serif; }
+  .lead p { margin: 0; color: #3d3a33; font-size: 16px; }
+  .by { font: 12px "Segoe UI", Arial, sans-serif; color: #7a7467; margin-top: 6px; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d9d3c6; }
+  .three .pic { height: 120px; }
+  .three h3 { margin: 8px 0 4px; font: 700 18px/1.2 "Palatino Linotype", Palatino, Georgia, serif; }
+  .rail h4 { margin: 18px 0 8px; font: 700 12px/1 "Segoe UI", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; border-bottom: 2px solid #1b1a17; padding-bottom: 6px; }
+  .rail ol { margin: 0; padding: 0 0 0 22px; }
+  .rail li { margin: 0 0 9px; font: 600 15px/1.25 "Palatino Linotype", Palatino, Georgia, serif; }
+  .rail li::marker { color: #9a2f1f; font-weight: 700; }
+  /* the page's own made-up ads */
+  .ad-slot { display: block; overflow: hidden; }
+  .ad-slot a { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; flex-direction: column; text-align: center; font-family: Impact, "Arial Black", sans-serif; color: #fff; }
+  .ad-leaderboard { width: 970px; height: 90px; }
+  .ad-leaderboard a { flex-direction: row; gap: 26px; background: repeating-linear-gradient(45deg, #ff2e63, #ff2e63 22px, #ff5d8a 22px, #ff5d8a 44px); font-size: 34px; }
+  .ad-leaderboard small { font: 700 15px Arial, sans-serif; background: #ffe600; color: #111; padding: 6px 12px; border-radius: 20px; }
+  .ad-rect { width: 300px; height: 250px; }
+  .ad-rect a { background: radial-gradient(circle at 30% 30%, #19d3ff, #0057ff 70%); font-size: 40px; line-height: 1.05; }
+  .ad-rect small { font: 700 14px Arial, sans-serif; margin-top: 12px; background: #ffe600; color: #111; padding: 6px 12px; }
+  .ad-rect.two a { background: linear-gradient(160deg, #00c853, #ffd600); color: #111; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span>Thursday edition · Quillhaven, partly cloudy, 14°</span><span>Subscribe · Sign in</span></div>
+  <div class="mast"><h1>The Quillhaven Courier</h1><p>Independent news from the bay and the hills since 1911</p></div>
+  <nav><a class="on">Front page</a><a>Harbour</a><a>Council</a><a>Business</a><a>Weather</a><a>Sport</a><a>Culture</a><a>Opinion</a></nav>
+
+  <div class="lead-slot">
+    <div class="ad-slot ad-leaderboard" id="ad-slot-top" data-ad-slot="top-leaderboard">
+      <a href="#"><span>ZORBLEFOAM MATTRESSES</span><small>60% OFF THIS WEEKEND ONLY!!</small></a>
+    </div>
+  </div>
+
+  <div class="grid">
+    <main>
+      <a class="lead" href="#">
+        <span class="pic" data-pic="harbor" data-seed="3"></span>
+        <div class="kicker">Harbour</div>
+        <h2>Regatta returns to Quillhaven Bay after a nine-year pause</h2>
+        <p>Forty boats crossed the old breakwater line at dawn as the town's sailing club revived a race last held before the pier was rebuilt.</p>
+        <div class="by">By Imre Castellane · 6 min read</div>
+      </a>
+      <div class="three">
+        <a href="#"><span class="pic" data-pic="city" data-seed="8"></span><h3>Council approves night tram to Fennick Row</h3><div class="by">By Odalys Brandt</div></a>
+        <a href="#"><span class="pic" data-pic="field" data-seed="5"></span><h3>Saffron growers report the best harvest in a decade</h3><div class="by">By Teodor Vance</div></a>
+        <a href="#"><span class="pic" data-pic="hills" data-seed="11"></span><h3>Ridge trail reopens with a new footbridge</h3><div class="by">By Marit Olunde</div></a>
+      </div>
+    </main>
+    <aside class="rail">
+      <div class="ad-slot ad-rect" id="ad-slot-rail-1" data-ad-slot="rail-1">
+        <a href="#"><span>GLIMMERFIZZ<br>ENERGY TONIC</span><small>BUY 2 GET 6 FREE</small></a>
+      </div>
+      <h4>Most read</h4>
+      <ol>
+        <li>Lighthouse keeper's logbooks go on display</li>
+        <li>Ferry timetable changes from Monday</li>
+        <li>Why the market clock runs four minutes fast</li>
+        <li>Quillhaven Rovers sign a new goalkeeper</li>
+      </ol>
+      <div class="ad-slot ad-rect two" id="ad-slot-rail-2" data-ad-slot="rail-2" style="margin-top:16px">
+        <a href="#"><span>PLONKETT &amp; SONS<br>GUTTERS</span><small>FREE QUOTE TODAY</small></a>
+      </div>
+    </aside>
+  </div>
+</div>
+<script src="pics.js"></script>
+</body>
+</html>

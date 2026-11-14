@@ -25,6 +25,7 @@ var HUMAN_BOUNCE_MS = 500;  // a tab the human is in: a real bounce is tens of m
 // slips the backstop; the in-page window.open hook is the primary defence.)
 var deliberate = {};        // openerTabId -> [url] the human just asked to open
 
+// @store-strip-begin (the start page is not in the Chromium store build, 2026-11-14; build-firefox.mjs cuts these lines)
 // Start page (opt-in from the popup). There is deliberately NO
 // chrome_url_overrides in the manifest - that cannot be toggled at runtime in
 // any browser. Instead, while ntpEnabled is on, a freshly created new-tab page
@@ -66,6 +67,7 @@ function routeStart(win) {
   });
 }
 try { chrome.windows.onCreated.addListener(function (win) { if (win.type === "normal") setTimeout(function () { routeStart(win); }, 150); }); } catch (e) {}
+// @store-strip-end
 // After an install, an update, or being switched off and on again, the pages
 // already open run no PRISM (the copy an update orphans tears itself down,
 // main.js orphaned(), B-410), so the new version injects its content scripts
@@ -150,7 +152,9 @@ try {
   });
 } catch (e) {}
 
+// @store-strip-begin
 try { chrome.runtime.onStartup.addListener(function () { chrome.windows.getAll({ windowTypes: ["normal"] }, function (ws) { (ws || []).forEach(routeStart); }); }); } catch (e) {}
+// @store-strip-end
 
 // "Report ad" -> the PRISM report inbox. Only ever on a user's explicit click
 // (src/report.js offerSend). Sent from here, not the page, so the request
@@ -158,7 +162,24 @@ try { chrome.runtime.onStartup.addListener(function () { chrome.windows.getAll({
 // Entangled's own address for the inbox (2026-09-26; the same Fly app as prism-reports.fly.dev). No host permission is needed: the inbox
 // answers the extension's own origin with CORS, and adding one would put a warning in front of every user on update.
 var REPORT_URL = "https://reports.entangled.world/v1/report";
+// Firefox's own data consent (2026-11-14): its manifest declares website content as optional data, so the browser's permission is
+// asked for once before the first report goes (the settings page asks, from a press there: popup.html?highlight=report). Other
+// browsers have no such permission and need nothing.
+function reportConsentNeeded(cb) {
+  try {
+    var g = (chrome.runtime.getManifest().browser_specific_settings || {}).gecko || {};
+    var opt = (g.data_collection_permissions || {}).optional || [];
+    if (opt.indexOf("websiteContent") < 0 || !chrome.permissions) return cb(false);
+    chrome.permissions.contains({ data_collection: ["websiteContent"] }, function (has) { if (chrome.runtime.lastError) return cb(false); cb(!has); });
+  } catch (e) { cb(false); }
+}
 function sendReport(report, done) {
+  reportConsentNeeded(function (need) {
+    if (need) { done({ ok: false, error: "Firefox has not been allowed to send reports yet" }); return; }
+    sendReportNow(report, done);
+  });
+}
+function sendReportNow(report, done) {
   // sent as the person chose it in the panel (src/report.js sendable) - nothing is added here, not even the browser (2026-09-26)
   fetch(REPORT_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report),
     referrerPolicy: "no-referrer", credentials: "omit", cache: "no-store" })
@@ -408,6 +429,7 @@ function packCheck(cb) {
   return packInflight.then(cb, cb);
 }
 function packApply(on) {
+  if (!chrome.offscreen) return;   // nothing reads the pack where there is no offscreen page (Firefox): no check is made there (2026-11-14)
   try {
     if (on) { chrome.alarms.create(PACK_ALARM, { periodInMinutes: 24 * 60 }); packCheck(function () {}); }
     else chrome.alarms.clear(PACK_ALARM);
@@ -462,6 +484,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
   if (msg && msg.type === "pv:live-reading") { if (sender && sender.tab) liveTitle(sender.tab.id, !!msg.on); return; }
   if (msg && msg.type === "pv:live-ended") { liveTitle(msg.tabId, false); return; }
+  if (msg && msg.type === "prism-report-consent") { reportConsentNeeded(function (need) { sendResponse({ need: need }); }); return true; }
   if (msg && msg.type === "prism-report-send") { sendReport(msg.report || {}, sendResponse); return true; }
   if (msg && msg.type === "prism-open-settings") {
     // chrome.action.openPopup exists in Chrome 127+ / Firefox; it may refuse

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loopline · Home</title>
+<!-- A stand-in social feed for the PRISM extension's store screenshots. Every name, post and brand here is made up. -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef1f5; color: #18202b; font: 14px/1.45 "Segoe UI", Roboto, Arial, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; height: 54px; background: #fff; border-bottom: 1px solid #d8dee7; display: flex; align-items: center; gap: 18px; padding: 0 28px; }
+  header .logo { font: 800 22px/1 "Segoe UI", Arial, sans-serif; color: #5b3df5; letter-spacing: -.02em; }
+  header .find { flex: 0 0 420px; margin-left: 150px; height: 34px; border-radius: 17px; background: #eef1f5; color: #7b8696; padding: 7px 16px; }
+  header .me { margin-left: auto; display: flex; gap: 14px; align-items: center; color: #4c5868; }
+  .av { width: 40px; height: 40px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 15px; }
+  .cols { width: 1224px; margin: 16px auto 0; display: grid; grid-template-columns: 220px 620px 320px; gap: 32px; align-items: start; }
+  .side a { display: flex; gap: 12px; align-items: center; padding: 9px 12px; border-radius: 10px; font-weight: 600; color: #2b3644; }
+  .side a.on { background: #e2dcff; color: #3d22d6; }
+  .side i { width: 20px; height: 20px; border-radius: 6px; background: currentColor; opacity: .55; }
+  .post, .box { background: #fff; border: 1px solid #d8dee7; border-radius: 14px; margin: 0 0 16px; }
+  .post { padding: 14px 16px; display: block; }
+  .head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .head b { display: block; font-size: 15px; }
+  .head .meta { color: #7b8696; font-size: 12px; }
+  .post p { margin: 0 0 10px; font-size: 15px; }
+  .pic { display: block; overflow: hidden; border-radius: 10px; height: 230px; background: #ccd; }
+  .bar { display: flex; gap: 26px; color: #6a7686; font-weight: 600; font-size: 13px; margin-top: 10px; }
+  .box { padding: 14px 16px; }
+  .box h3 { margin: 0 0 10px; font-size: 15px; }
+  .box .t { padding: 6px 0; border-top: 1px solid #eef1f5; }
+  .box .t b { display: block; }
+  .box .t span { color: #7b8696; font-size: 12px; }
+  /* the page's own made-up ads */
+  .promo-img { height: 230px; border-radius: 10px; display: flex; align-items: center; justify-content: center; text-align: center; font: 900 40px/1.05 Impact, "Arial Black", sans-serif; color: #fff; background: repeating-linear-gradient(-45deg, #ff6a00, #ff6a00 26px, #ff9a3c 26px, #ff9a3c 52px); }
+  .cta { display: flex; justify-content: space-between; align-items: center; background: #f3f5f8; border-radius: 10px; padding: 10px 14px; margin-top: 10px; font-weight: 600; }
+  .cta span { background: #18202b; color: #fff; border-radius: 8px; padding: 6px 14px; }
+  .rail-promo .promo-img { height: 130px; font-size: 26px; background: radial-gradient(circle at 70% 30%, #ff3d9a, #7a00ff 75%); }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">loopline</span>
+  <span class="find">Find people, loops and places</span>
+  <span class="me">Alerts · Notes <span class="av" style="background:#0f9d8a;width:32px;height:32px;font-size:12px">RN</span></span>
+</header>
+<div class="cols">
+  <div class="side">
+    <a class="on"><i></i>Home</a><a><i></i>Loops</a><a><i></i>Places</a><a><i></i>Saved</a><a><i></i>Circles</a><a><i></i>Settings</a>
+  </div>
+
+  <div class="feed">
+    <article class="post">
+      <div class="head"><span class="av" style="background:#d1495b">TW</span><div><b>Tamsin Wexley</b><span class="meta">2 h · Fennick Row</span></div></div>
+      <p>Finally finished the bookshelf. It leans a little to the left, like its maker. Photos when the glue is dry.</p>
+      <div class="bar"><span>♡ 48</span><span>Reply 9</span><span>Loop 3</span></div>
+    </article>
+
+    <article class="post">
+      <div class="head"><span class="av" style="background:#ff6a00">SN</span><div><b>Snackaroo Crunch Bites</b><span class="meta">Sponsored</span></div></div>
+      <p>Seventeen flavours. One bag. Zero regrets. Crunch louder today!</p>
+      <a class="promo-img" href="#">SNACKAROO<br>MEGA CRUNCH BITES</a>
+      <div class="cta">snackaroo.example <span>Shop now</span></div>
+    </article>
+
+    <article class="post">
+      <div class="head"><span class="av" style="background:#3a7ca5">JO</span><div><b>Joaquim Oduya</b><span class="meta">4 h · Ridge trail</span></div></div>
+      <p>The new footbridge is open and the view from the middle is worth the climb.</p>
+      <span class="pic" data-pic="hills" data-seed="14"></span>
+      <div class="bar"><span>♡ 212</span><span>Reply 31</span><span>Loop 18</span></div>
+    </article>
+  </div>
+
+  <div class="right">
+    <div class="box">
+      <h3>Around you</h3>
+      <div class="t"><b>#QuillhavenRegatta</b><span>3,210 loops today</span></div>
+      <div class="t"><b>Night tram</b><span>Council · 1,104 loops</span></div>
+      <div class="t"><b>Saffron harvest</b><span>Food · 870 loops</span></div>
+    </div>
+    <article class="box rail-promo">
+      <div class="head"><span class="av" style="background:#7a00ff;width:32px;height:32px;font-size:12px">VZ</span><div><b>Vorzello Phones</b><span class="meta">Promoted</span></div></div>
+      <a class="promo-img" href="#">VORZELLO X9<br>TRADE IN NOW</a>
+    </article>
+    <div class="box">
+      <h3>People to follow</h3>
+      <div class="t"><b>Odalys Brandt</b><span>Writes about trams</span></div>
+      <div class="t"><b>Marit Olunde</b><span>Trail notes and maps</span></div>
+      <div class="t"><b>Imre Castellane</b><span>Harbour reporter</span></div>
+    </div>
+  </div>
+</div>
+<script src="pics.js"></script>
+</body>
+</html>

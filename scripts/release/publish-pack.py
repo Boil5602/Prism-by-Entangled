@@ -13,7 +13,7 @@ catalog; rules, settings, channel logos and sounds come later. Nothing in a pack
   pack.sig last (max-age 60). --dry-run builds and signs into scripts/release/out/pack/ and uploads nothing.
 - --bundle also copies pack.json, pack.sig and the files into targets/win-host/PrismHost/Assets/breakwatch/pack/ (what a release
   carries; the app uses the newer of the bundled and the downloaded pack) and stamps the extension's bundled model.json with the serial.
-- A public upload after hours only (the public-after-hours rule), --daytime to override."""
+- On a weekday a public upload after hours only (the public-after-hours rule; weekends at any hour), --daytime to override."""
 import argparse, hashlib, json, os, shutil, subprocess, sys
 from datetime import date, datetime, timedelta, timezone
 
@@ -48,8 +48,8 @@ def eastern_now():
 
 
 if not a.dry_run and not a.daytime:
-    h = eastern_now().hour
-    if 6 <= h < 18: sys.exit("a public upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to build alone")
+    t = eastern_now(); h = t.hour
+    if t.weekday() < 5 and 6 <= h < 18: sys.exit("on a weekday a public upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to build alone")
 
 
 def sha(path):

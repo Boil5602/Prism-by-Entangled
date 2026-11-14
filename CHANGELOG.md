@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.44.0 - 2026-11-12 (alpha, 656769f6)
+
+Every visual of the music player is drawn again as a stage scene, with people that read as people and scenes that move with the music. Stadium Wave plays a match with goals. Rain on the Window has drops that bend the light and leave tracks. Sunrise Meadow, Campfire Circle and the others have new art. A visual's name shows as a title when it changes, there is a button for the visual before and one for the visual after, and the live frame rate follows the screen's refresh. With no music the visuals almost stand still. The song's label on a visual can be read on a bright picture. The pointer on a cover's corner shows a small look at what is under it, and a press on a cover no longer pauses the player. A title paused in an ad break comes back paused. On YouTube TV an ad cue is read only from the player on show, so a preview tile no longer covers the show. The music bar has thumbs up before thumbs down and skip back beside skip forward. The name is written PRISM everywhere. The Seasons visual is under construction and is not in this release.
+
+- download: https://prism.entangled.world/windows/Prism-0.44.0-656769f6.zip
+- sha256: deb713a0f252fd43ed6bace35864ad1592089ddb936cc88693f71f8fa563e78a
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.44.0
+
 ## 0.43.0 - 2026-11-07 (alpha, 2ca89a30)
 
 The break watch's model is retrained on the sampler's low channels (the local stations, Spanish-language, sports and cable) with the minute of the hour, a small picture network and agreement to start, so fewer veils pop up on the show. A new install covers sure breaks only until All breaks is chosen. Ad detections are kept current by PRISM's signed pack, one opt-in in Watch settings. A release carries the newest pack.

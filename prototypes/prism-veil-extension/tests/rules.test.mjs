@@ -716,7 +716,7 @@ describe("the look under a display cover", () => {
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).kind).toBe("A suggested post");
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).source).toContain("Join");
     expect(PV.coverWhy("facebook-suggested: Interested and Not interested buttons", false).source).toContain("Interested");
-    expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labelled AI content");
+    expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labeled AI content");
     expect(PV.coverWhy("slot-selector: .ad-slot", false).source).toBe("An ad slot in the page");
   });
   it("keeps the panel on the screen and the view inside the element, in a frame of one size, or says there is no such place", () => {

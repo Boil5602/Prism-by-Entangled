@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lanternreel · Tidepool Detectives</title>
+<!--
+  A stand-in streaming page for the PRISM extension's store screenshots. Every name, show and brand here is made up.
+  The two clips are drawn on canvases and recorded in the page (no file, no sound track, no network).
+  The player uses the Video.js class names: its root is .video-js, and for an ad break it gains vjs-ad-playing and shows
+  .vjs-ad-countdown, which is what a Video.js player with the contrib-ads plugin does. Nothing here draws a cover.
+-->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0e1116; color: #e9edf3; font: 14px/1.45 "Segoe UI", Roboto, Arial, sans-serif; }
+  header { height: 60px; display: flex; align-items: center; gap: 28px; padding: 0 40px; border-bottom: 1px solid #1f2630; }
+  header .logo { font: 800 22px/1 "Segoe UI", Arial, sans-serif; letter-spacing: .02em; color: #ffcf5c; }
+  header a { color: #aab4c2; font-weight: 600; }
+  header .me { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: #3a7ca5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
+  .cols { display: grid; grid-template-columns: 896px 272px; gap: 32px; padding: 20px 40px; }
+  .video-js { position: relative; width: 896px; height: 504px; background: #000; border-radius: 10px; overflow: hidden; }
+  .video-js video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .vjs-control-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: linear-gradient(transparent, #000c); font-weight: 600; font-size: 13px; }
+  .vjs-progress { flex: 1; height: 4px; border-radius: 2px; background: #fff3; position: relative; }
+  .vjs-progress i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: #ffcf5c; border-radius: 2px; }
+  .vjs-ad-countdown { position: absolute; left: 14px; top: 12px; display: none; background: #000a; color: #ffe600; font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 4px; }
+  .vjs-ad-playing .vjs-ad-countdown { display: block; }
+  .vjs-ad-playing .vjs-progress i { background: #ffe600; width: 12%; }
+  h1 { margin: 16px 0 4px; font-size: 24px; }
+  .sub { color: #8f9aaa; }
+  .desc { color: #c4ccd8; max-width: 760px; margin-top: 8px; }
+  .next h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #8f9aaa; }
+  .next a { display: flex; gap: 10px; margin-bottom: 12px; color: inherit; text-decoration: none; }
+  .pic { flex: none; width: 116px; height: 66px; border-radius: 6px; overflow: hidden; background: #222; }
+  .next b { display: block; font-size: 13px; line-height: 1.25; }
+  .next span { color: #8f9aaa; font-size: 12px; }
+</style>
+</head>
+<body>
+<header><span class="logo">LANTERNREEL</span><a>Home</a><a>Series</a><a>Films</a><a>Live</a><a>My list</a><span class="me">RN</span></header>
+<div class="cols">
+  <div>
+    <div id="player" class="video-js vjs-default-skin">
+      <video id="tech" class="vjs-tech" muted playsinline></video>
+      <div class="vjs-ad-countdown" id="adclock">Ad (1 of 2): 0:30</div>
+      <div class="vjs-control-bar"><span>❚❚</span><span id="pos">16:42</span><div class="vjs-progress"><i></i></div><span>43:10</span><span>CC</span><span>⛶</span></div>
+    </div>
+    <h1>Tidepool Detectives</h1>
+    <div class="sub">Season 2 · Episode 4 · “The Case of the Borrowed Lighthouse” · 43 min</div>
+    <div class="desc">Inspector Halvard Pym and his apprentice Odette follow a trail of wet footprints from the harbour office to the regatta finish line.</div>
+  </div>
+  <div class="next">
+    <h2>Up next</h2>
+    <a><span class="pic" data-pic="harbor" data-seed="4"></span><div><b>E5 · A Tide Too Early</b><span>44 min</span></div></a>
+    <a><span class="pic" data-pic="city" data-seed="9"></span><div><b>E6 · Night Tram to Nowhere</b><span>41 min</span></div></a>
+    <a><span class="pic" data-pic="hills" data-seed="12"></span><div><b>E7 · The Footbridge Alibi</b><span>45 min</span></div></a>
+    <a><span class="pic" data-pic="field" data-seed="6"></span><div><b>E8 · Saffron and Smoke</b><span>47 min</span></div></a>
+    <a><span class="pic" data-pic="harbor" data-seed="17"></span><div><b>E9 · Regatta Day</b><span>52 min</span></div></a>
+    <a><span class="pic" data-pic="hills" data-seed="2"></span><div><b>E10 · Low Water</b><span>49 min</span></div></a>
+  </div>
+</div>
+<script src="pics.js"></script>
+<script>
+(function () {
+  "use strict";
+  var W = 640, H = 360;
+  // the show: a harbour at dusk with boats that drift
+  function drawShow(g, t) {
+    var sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#3b3f7a"); sky.addColorStop(.6, "#e98a6a"); sky.addColorStop(1, "#f6c98b");
+    g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#fff3d0"; g.beginPath(); g.arc(470, 170, 34, 0, 6.3); g.fill();
+    g.fillStyle = "#2c3b4e"; g.beginPath(); g.moveTo(0, 215); for (var x = 0; x <= W; x += 40) g.lineTo(x, 200 - 22 * Math.abs(Math.sin(x * .017))); g.lineTo(W, 230); g.lineTo(0, 230); g.fill();
+    g.fillStyle = "#274a66"; g.fillRect(0, 225, W, H - 225);
+    for (var i = 0; i < 5; i++) {
+      var bx = ((i * 150 + t * (10 + i * 4)) % (W + 120)) - 60, by = 250 + i * 18 + Math.sin(t * 1.4 + i) * 3;
+      g.fillStyle = "#f2efe6"; g.beginPath(); g.moveTo(bx - 30, by); g.lineTo(bx + 30, by); g.lineTo(bx + 20, by + 11); g.lineTo(bx - 20, by + 11); g.fill();
+      g.fillStyle = "#3a3024"; g.fillRect(bx - 1, by - 50, 3, 50);
+      g.fillStyle = ["#e9765b", "#fff", "#f0b44c"][i % 3]; g.beginPath(); g.moveTo(bx + 3, by - 48); g.lineTo(bx + 30, by - 5); g.lineTo(bx + 3, by - 5); g.fill();
+    }
+  }
+  // the page's own made-up commercial
+  function drawAd(g, t) {
+    g.fillStyle = (Math.floor(t * 2) % 2) ? "#ff2e63" : "#ffe600"; g.fillRect(0, 0, W, H);
+    g.fillStyle = (Math.floor(t * 2) % 2) ? "#ffe600" : "#ff2e63";
+    g.font = "900 64px Impact, Arial Black, sans-serif"; g.textAlign = "center";
+    g.fillText("FIZZWICK COLA", W / 2, 150 + Math.sin(t * 6) * 10);
+    g.font = "900 34px Impact, Arial Black, sans-serif"; g.fillStyle = "#111"; g.fillText("NOW WITH 40% MORE FIZZ!!", W / 2, 230);
+  }
+  function record(draw, ms) {
+    return new Promise(function (ok, no) {
+      var c = document.createElement("canvas"); c.width = W; c.height = H; var g = c.getContext("2d"), t0 = performance.now();
+      draw(g, 0);
+      var iv = setInterval(function () { draw(g, (performance.now() - t0) / 1000); }, 40);
+      var rec, parts = [];
+      try { rec = new MediaRecorder(c.captureStream(25), { mimeType: "video/webm;codecs=vp8" }); } catch (e) { clearInterval(iv); no(e); return; }
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) parts.push(e.data); };
+      rec.onstop = function () { clearInterval(iv); ok(URL.createObjectURL(new Blob(parts, { type: "video/webm" }))); };
+      rec.start(); setTimeout(function () { rec.stop(); }, ms);
+    });
+  }
+  var player = document.getElementById("player"), v = document.getElementById("tech"), clock = document.getElementById("adclock");
+  function play(url) { v.loop = true; v.src = url; return v.play().catch(function () {}); }
+  window.__standin = { state: "recording" };
+  Promise.all([record(drawShow, 3000), record(drawAd, 2000)]).then(function (clips) {
+    window.__standin.state = "show";
+    play(clips[0]);
+    // the ad break: the player says so the way a Video.js player does
+    setTimeout(function () {
+      window.__standin.state = "ad";
+      player.classList.add("vjs-ad-playing");
+      play(clips[1]);
+      var left = 30, n = 1;
+      var iv = setInterval(function () {
+        left--;
+        if (left <= 0 && n === 1) { n = 2; left = 30; }
+        else if (left <= 0) { clearInterval(iv); player.classList.remove("vjs-ad-playing"); window.__standin.state = "show"; play(clips[0]); return; }
+        clock.textContent = "Ad (" + n + " of 2): 0:" + (left < 10 ? "0" : "") + left;
+      }, 1000);
+    }, 3000);
+  }, function (e) { window.__standin.state = "error: " + e; });
+})();
+</script>
+</body>
+</html>

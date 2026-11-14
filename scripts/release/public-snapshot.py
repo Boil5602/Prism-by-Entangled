@@ -32,7 +32,7 @@ PRIVATE_PATHS = ("CLAUDE.md", "docs/bugs/",
                  "scripts/doctor/")
 
 
-# A release or a public snapshot runs only after 6 PM Eastern or before 6 AM (2026-10-12), unless told otherwise (--daytime /
+# On a weekday a release or a public snapshot runs only after 6 PM Eastern or before 6 AM (2026-10-12; weekends at any hour since 2026-11-14), unless told otherwise (--daytime /
 # PRISM_DAYTIME=1). The private archive takes pushes at any hour.
 def eastern_now():
     from datetime import datetime
@@ -45,13 +45,13 @@ def eastern_now():
 
 def after_hours(now=None):
     t = now or eastern_now()
-    return t.hour >= 18 or t.hour < 6
+    return t.weekday() >= 5 or t.hour >= 18 or t.hour < 6   # Saturday and Sunday at any hour (2026-11-14)
 
 
 def daytime_guard(allowed, what):
     if allowed or os.environ.get("PRISM_DAYTIME") == "1" or after_hours():
         return
-    sys.exit(what + " runs after 6 PM Eastern (it is " + eastern_now().strftime("%H:%M") + " now); pass --daytime or PRISM_DAYTIME=1 to run it anyway")
+    sys.exit(what + " runs after 6 PM Eastern on a weekday (it is " + eastern_now().strftime("%H:%M") + " now); pass --daytime or PRISM_DAYTIME=1 to run it anyway")
 
 
 def git(*args, check=True):

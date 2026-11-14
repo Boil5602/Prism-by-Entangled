@@ -48,6 +48,22 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   names YouTube TV once as where it works today. The labels in Watch settings and on the phone still say YouTube TV, and change
   with the second service.
 
+- **Live TV picture reading in the PRISM extension for Firefox** (asked 2026-11-14; *Decision:* planned, not in 0.8.0 or 0.9.0).
+  In Edge and Chrome the extension reads a live TV tab's picture through the tab stream (`tabCapture` and an offscreen page) to
+  spot commercial breaks. Firefox has neither, so there the extension covers only the service's own ad marks and the option is
+  not offered. The routes Firefox has: (a) tab snapshots (`captureVisibleTab`) about once a second, with no new permission and
+  no prompt, but snapshots were ruled out on 2026-11-06 (in Edge about 150 ms a snapshot, near 15% of a core at one a second),
+  only the tab in front is read, and PRISM's own cover is in the picture; (b) the share dialog (`getDisplayMedia`), which in
+  Firefox shares a whole window or screen and never one tab, asks on every page load, and cannot be restricted to the video;
+  (c) reading the video element, which gives black for protected video. The candidate is (a), for Firefox alone, and it needs
+  the 2026-11-06 decision lifted for that browser. Not proven: that protected video shows in a Firefox snapshot at all, and that
+  the model holds its results at one frame a second (it runs on two in Edge). What it takes, in this order: a small probe in a
+  signed-in Firefox on a live channel (is the picture readable, what does a snapshot cost); the model scored on the bench at one
+  frame a second; then the reader on the Firefox background page (no offscreen page needed), the model and the Tesseract text
+  reader back in the Firefox package (about 8 MB, with their sources named for Mozilla's review in SOURCE-NOTES.md), the option
+  offered in Firefox with its own tooltip, the live TV pack fetched there through the one opt-in, and the store text, the
+  reviewer notes and the privacy policy changed to match. Nothing leaves the browser on any route.
+
 - **A delay for the big screen, so the break watch sees ahead** (asked 2026-11-06): the person watches the big screen a few seconds
   behind live while a hidden window on the same channel stays at the live edge for the break watch, so a cover can go up on the
   break's first frame and come down on the show's first frame. Most of what the watch misses is timing (on the seven exams: covers

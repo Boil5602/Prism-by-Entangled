@@ -2,14 +2,16 @@
   Build the shippable packages of the PRISM Veil extension from the ONE source
   in this folder. Run: `node build-firefox.mjs` -> ./dist/<browser>/ and
   ./dist/prism-veil-<browser>-<version>.zip for `firefox` and `chromium`
-  (chromium == this folder loaded unpacked).
+  (both are store builds since 2026-11-14: this folder with the start page cut
+  out, see STORE below; chromium also takes the store's name and description;
+  the folder itself loaded unpacked is the development build).
 
-  One package per browser. The start page ships inside it but is OFF until the
-  person flips "Use PRISM as my new-tab page" in the extension popup. There is
-  deliberately no chrome_url_overrides in the manifest (it cannot be toggled at
-  runtime in any browser); bg.js routes new tabs to ntp.html only while the
-  switch is on. Weather hosts are optional permissions requested when a
-  location is first set.
+  One package per browser. The start page (ntp.*, and the lines between the
+  @store-strip marks in bg.js, popup.js and popup.html) stays in this folder
+  for a later package of its own and ships in neither store build. In the
+  development build it is OFF until the person flips "Use PRISM as my new-tab
+  page" in the extension popup; bg.js routes new tabs to ntp.html only while
+  the switch is on.
 
   Nothing here is a fork: every behavior file (src/*, ima-hook.js, popup-hook.js,
   ntp.*, popup.*, art/*) is COPIED verbatim, and the Firefox manifest is DERIVED
@@ -87,13 +89,86 @@ function deriveManifest(v) {
         data_collection_permissions: { required: ["none"], optional: ["websiteContent"] } },
         gecko_android: { strict_min_version: MIN_FIREFOX_ANDROID } });
   }
-  return m;
+  // Both packages are store builds (Chrome Web Store and Edge Add-ons from the Chromium one, addons.mozilla.org from the Firefox
+  // one; 2026-11-14, docs/veil-release-checklist.md section 6a). The name is the trademark's, with the short one where space is
+  // tight; the description fits the Chrome store's 132 characters and says what the extension does to popups; the start page is
+  // cut (STORE below), so the optional `tabs` permission goes with it; optional_host_permissions repeated the required host
+  // permissions and nothing asked for them.
+  if (JSON.stringify(m.optional_permissions) !== '["tabs"]') throw new Error("optional_permissions is no longer only tabs: look at what the store builds must keep");
+  const out = {};
+  for (const k of Object.keys(m)) {
+    if (k === "optional_permissions" || k === "optional_host_permissions") continue;
+    out[k] = m[k];
+    if (k === "name") { out.name = STORE.name; out.short_name = STORE.shortName; }
+  }
+  out.description = STORE.description;
+  if (out.description.length > 132) throw new Error("the store description is " + out.description.length + " characters (132 at most)");
+  return out;
+}
+
+// ---- the store builds (Chromium, and Firefox since the same day) ----------------------------------------------------------
+// One source, as ever: a store build is this folder with the start page cut out by the build, never a fork. The lines between
+// `@store-strip-begin` and `@store-strip-end` (whole lines, a // comment in a script, an HTML comment in a page) are left out,
+// the phrases in `reword` that name the start page are taken out of the text that stays, and the build stops if a word of the
+// start page, a CDN address or a remote host that only the start page used is still in the package.
+const STORE = {
+  name: "PRISM by Entangled",
+  shortName: "PRISM",
+  description: "Ads become art. PRISM covers the ads on a page with pictures you chose and closes popups you did not ask for. Ads still load.",
+  drop: ["ntp.html", "ntp.css", "ntp.js"],
+  strip: ["bg.js", "popup.js", "popup.html"],
+  reword: [   // [file, find, replace, how many times it must be there]
+    ["popup.html", "Which pictures the veils and the start page draw from", "Which pictures the veils draw from", 1],
+    ["src/popups-ui.js", "photos, start page, time", "photos, time", 2],
+    ["bg.js", "list = Wikipedia RSP (kept for the start page)", "list = Wikipedia RSP", 1],
+  ],
+  refuse: [/ntp\.(html|js|css)/i, /ntpEnabled|startEnabled/, /start page|new-tab page/i, /open-meteo/i, /chrome_url_overrides/, /cdn\.jsdelivr\.net/i, /@store-strip/],
+};
+function count(text, find) { let n = 0, i = 0; while ((i = text.indexOf(find, i)) >= 0) { n++; i += find.length; } return n; }
+function stripMarked(text, rel) {
+  const lines = text.split("\n"), kept = [];
+  let cutting = false, cuts = 0;
+  for (const line of lines) {
+    if (line.includes("@store-strip-begin")) { if (cutting) throw new Error(rel + ": a second @store-strip-begin before the end"); cutting = true; cuts++; continue; }
+    if (line.includes("@store-strip-end")) { if (!cutting) throw new Error(rel + ": @store-strip-end without a begin"); cutting = false; continue; }
+    if (!cutting) kept.push(line);
+  }
+  if (cutting) throw new Error(rel + ": @store-strip-begin without an end");
+  if (!cuts) throw new Error(rel + ": no @store-strip block (the list in STORE.strip names it)");
+  return kept.join("\n");
+}
+function walk(dir, each) { for (const f of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, f.name); if (f.isDirectory()) walk(p, each); else each(p); } }
+function storeBuild(out) {
+  for (const rel of STORE.drop) rmSync(join(out, rel), { force: true });
+  for (const rel of STORE.strip) { const p = join(out, rel); writeFileSync(p, stripMarked(readFileSync(p, "utf8"), rel)); }
+  for (const [rel, find, put, times] of STORE.reword) {
+    const p = join(out, rel), text = readFileSync(p, "utf8"), n = count(text, find);
+    if (n !== times) throw new Error(rel + ": \"" + find + "\" is there " + n + " times, not " + times);
+    writeFileSync(p, text.split(find).join(put));
+  }
+  // every script that was cut still parses
+  for (const rel of STORE.strip.concat(STORE.reword.map((r) => r[0]))) {
+    if (!/\.js$/.test(rel)) continue;
+    const r = spawnSync(process.execPath, ["--check", join(out, rel)], { encoding: "utf8" });
+    if (r.status !== 0) throw new Error(rel + " does not parse after the cut:\n" + r.stderr);
+  }
+  // nothing of the start page is left, in any text file of the package
+  const left = [];
+  walk(out, (p) => {
+    if (!/\.(js|html|css|json|md|txt)$/i.test(p)) return;
+    const text = readFileSync(p, "utf8");
+    for (const re of STORE.refuse) { const m = re.exec(text); if (m) left.push(p.slice(out.length + 1) + ": " + m[0]); }
+  });
+  if (left.length) throw new Error("the store build still carries:\n  " + left.join("\n  "));
 }
 
 // Reset dist/ but KEEP signed .xpi files: AMO signing is rate-limited and a
 // later build must not throw a signed artifact away (it did, 2026-08-29).
 if (existsSync(DIST)) {
-  for (const f of readdirSync(DIST)) { if (!/\.xpi$/i.test(f)) rmSync(join(DIST, f), { recursive: true, force: true }); }
+  // only what this run builds again: `node build-firefox.mjs firefox` leaves the Chromium folder and zip as they are (2026-11-14,
+  // a package already uploaded to a store must stay byte for byte while the other one is built again)
+  const mine = (f) => wanted.some((v) => f === v.name || f === "prism-veil-" + v.name + "-" + base.version + ".zip");   // never another version's zip
+  for (const f of readdirSync(DIST)) { if (!/\.xpi$/i.test(f) && mine(f)) rmSync(join(DIST, f), { recursive: true, force: true }); }
 }
 mkdirSync(DIST, { recursive: true });
 
@@ -109,7 +184,8 @@ for (const v of wanted) {
     copied++;
   }
   // Firefox has no tab stream, so the live TV picture's offscreen page and the break watch's model (1.6 MB) never run there (2026-11-06)
-  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch/model.json", "src/breakwatch/picture-net.json", "sounds", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
+  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch", "src/live-picture.js", "sounds", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
+  storeBuild(out);   // both packages
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";
   if (zip && process.platform === "win32") {

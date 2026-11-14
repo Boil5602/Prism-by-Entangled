@@ -300,7 +300,21 @@
       try { navigator.clipboard.writeText(json).then(function () { toast("✓ Copied to clipboard.", "#7fd08a"); }, function () { toast("Couldn't copy - the report is in the console (F12).", "#F0A83C"); }); }
       catch (x) { toast("Couldn't copy - the report is in the console (F12).", "#F0A83C"); }
     }, true);
-    send.addEventListener("click", function () {
+    // Firefox asks for its own permission before the first report (2026-11-14): the background says if it is still owed; the settings
+    // page, opened as a tab, asks for it from a press there, and Send is pressed again here afterwards. No answer = nothing owed.
+    var consent = function (then) {
+      var answered = false, ask = setTimeout(function () { if (!answered) { answered = true; then(); } }, 1500);
+      try {
+        chrome.runtime.sendMessage({ type: "prism-report-consent" }, function (c) {
+          void chrome.runtime.lastError;
+          if (answered) return; answered = true; clearTimeout(ask);
+          if (!(c && c.need)) { then(); return; }
+          p.textContent = "Firefox asks once before PRISM may send a report. A PRISM tab has opened for that. Allow it there, then come back and press Send to PRISM again.";
+          try { chrome.runtime.sendMessage({ type: "pv:open-options", highlight: "report" }); } catch (eO) {}
+        });
+      } catch (eC) { if (!answered) { answered = true; clearTimeout(ask); then(); } }
+    };
+    send.addEventListener("click", function () { clearTimeout(timer); consent(function () {
       clearTimeout(timer); send.disabled = true; send.textContent = "Sending…";
       // A stale page (extension reloaded under it) throws "Extension context
       // invalidated" on the first chrome.runtime call - stuck on "Sending…"
@@ -332,7 +346,7 @@
           go();
         });
       } catch (e) { if (!done) { done = true; clearTimeout(to); t.remove(); toast("Couldn't send - reload the page (F5) and report again.", "#F0A83C"); } }
-    }, true);
+    }); }, true);
     row.appendChild(send); row.appendChild(no);
     t.appendChild(h); t.appendChild(kindRow); t.appendChild(note); t.appendChild(fullRow); t.appendChild(p); t.appendChild(row);
     document.documentElement.appendChild(t);

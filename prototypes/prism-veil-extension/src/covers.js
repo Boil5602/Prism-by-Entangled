@@ -107,7 +107,7 @@
   PV.coverWhy = function (reason, ai) {
     reason = String(reason || "");
     var d = reason.replace(/^[a-z0-9-]+:\s*/i, "");
-    if (ai) return { kind: "Labelled AI content", source: "The platform's own label" + (d ? ": " + d : "") };
+    if (ai) return { kind: "Labeled AI content", source: "The platform's own label" + (d ? ": " + d : "") };
     if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
     if (/^facebook-sponsored/.test(reason)) return { kind: "An ad", source: "Facebook's own Sponsored or Ad label in the post's header" };
     if (/^(badge-label|section-label)/.test(reason)) return { kind: "An ad", source: "The page's own label" + (d ? ": " + d : "") };

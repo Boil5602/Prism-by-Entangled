@@ -131,6 +131,7 @@
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
     $("sound-row").hidden = !chrome.offscreen;   // Firefox has no offscreen page to play it from
+    if (!chrome.offscreen) { $("pack-row").hidden = true; $("pack-note").hidden = true; }   // nor anything that reads the pack (2026-11-14)
     Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) { l.classList.toggle("on", l.dataset.look === look); });
     $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
     $("pack-updates").checked = !!ui.packUpdates;
@@ -164,7 +165,7 @@
   function paintPack() {
     chrome.storage.local.get(["pv:pack", "pv:pack:last"], function (r) {
       var held = r && r["pv:pack"], last = r && r["pv:pack:last"], note = $("pack-note");
-      if (!$("pack-updates").checked && !held) { note.hidden = true; return; }
+      if (!chrome.offscreen || (!$("pack-updates").checked && !held)) { note.hidden = true; return; }
       var s = held ? "Detections: pack " + held.pack + (held.date ? " (" + held.date + ")" : "") + (held.notes ? ". " + held.notes : "") : "Detections: the ones that came with this version.";
       if (last && !last.ok && last.error) s += " Last check: " + last.error + ".";
       else if (last && last.same) s += " Checked: nothing newer.";
@@ -248,6 +249,21 @@
   // scrolled into view, with a line on what they do; the light goes out when one is touched.
   try {
     var hl = new URLSearchParams(location.search).get("highlight");
+    // Opened from the report panel in Firefox (popup.html?highlight=report, 2026-11-14): the browser's permission to send reports is
+    // asked for from a press here, as the browser requires
+    if (hl === "report") {
+      var grant = $("report-grant"), gsay = $("report-grant-say");
+      grant.hidden = false;
+      $("report-grant-ok").addEventListener("click", function () {
+        try {
+          chrome.permissions.request({ data_collection: ["websiteContent"] }, function (ok) {
+            void chrome.runtime.lastError;
+            gsay.textContent = ok ? "Allowed. Go back to the page and press Send to PRISM again. You can close this tab." : "Not allowed. No report is sent.";
+            if (ok) $("report-grant-ok").hidden = true;
+          });
+        } catch (eG) { gsay.textContent = "This browser did not ask. No report is sent."; }
+      });
+    }
     if (hl === "live") {
       var rows = [$("ytv-veil-row"), $("live-picture-row")].filter(Boolean);
       rows.forEach(function (r) { r.classList.add("hl"); });
@@ -350,6 +366,7 @@
     window.close();
   });
 
+  // @store-strip-begin (the start page is not in the Chromium store build, 2026-11-14)
   // ---- PRISM page (opt-in; "tabs" is an optional permission asked on the click)
   function withTabs(cb) { try { chrome.permissions.request({ permissions: ["tabs"] }, function (g) { cb(!!g); }); } catch (e) { cb(false); } }
   $("startpage-on").addEventListener("change", function () {
@@ -365,12 +382,15 @@
     if (!on) return chrome.storage.local.set({ startEnabled: false });
     withTabs(function (ok) { if (!ok) { $("homepage-on").checked = false; return; } chrome.storage.local.set({ startEnabled: true }); });
   });
+  // @store-strip-end
 
   // ---- boot -----------------------------------------------------------------
   chrome.storage.local.get(null, function (all) {
     all = all || {};
+    // @store-strip-begin
     $("startpage-on").checked = !!all.ntpEnabled;
     $("homepage-on").checked = !!all.startEnabled;
+    // @store-strip-end
     ui = all["pv:ui"] || {}; uiLoaded = true; paintUi();
     paintArt(all["pv:art"]);
     paintReclaimed(all["pv:reclaimed:days"]);

@@ -956,7 +956,7 @@
     }
     if (vidVeil.mode === "ai") {
       var ai = vidVeil.ai || { label: "AI-generated", source: "" };
-      if (c.__sub) c.__sub.textContent = "Labelled \u201c" + ai.label + "\u201d by " + (ai.source || "the platform");
+      if (c.__sub) c.__sub.textContent = "Labeled \u201c" + ai.label + "\u201d by " + (ai.source || "the platform");
       var apos = positionLine(vidVeil.video, vidVeil.box);
       if (c.__time.textContent !== apos) c.__time.textContent = apos;
       c.__count.textContent = ""; c.__count.style.display = "none";

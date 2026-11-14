@@ -384,7 +384,7 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     panel.textContent = "";
     panel.appendChild(el("h2", null, "PRISM on " + site));
     // The veil: the main switch, a report, a look underneath.
-    var tv = el("label", "toggle"); tv.title = "The main switch. On: ads, video breaks and, if you chose it, AI-labelled content are covered with art. Off: every cover comes down on every page at once. Popups are still intercepted.";
+    var tv = el("label", "toggle"); tv.title = "The main switch. On: ads, video breaks and, if you chose it, AI-labeled content are covered with art. Off: every cover comes down on every page at once. Popups are still intercepted.";
     var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff();
     cv.addEventListener("change", function () { if (PV.setUiPref) PV.setUiPref("veilOff", !cv.checked); else if (PV.setVeilOff) PV.setVeilOff(!cv.checked); });
     tv.appendChild(cv); tv.appendChild(document.createTextNode("Veil on")); panel.appendChild(tv);
