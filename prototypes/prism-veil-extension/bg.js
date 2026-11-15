@@ -14,6 +14,9 @@
      closes the tab at once and lands in the ledger. A deliberate Open from
      the Control Center announces itself first and is never touched.
 */
+// The rule updates' reader (src/rules-pack.js, 0.9.0): a service worker loads it here; Firefox's background page lists it before
+// this file in its manifest (build-firefox.mjs).
+try { if (typeof importScripts === "function" && typeof PrismRulesPack === "undefined") importScripts("src/rules-pack.js"); } catch (eRP) {}
 var frameTraces = {};      // tabId -> frameId -> { at, href, errs } (embed frames' trace rings, for reports)
 var pendingByOpener = {};   // openerTabId -> [{ tabId, at }]
 var BOUNCE_MS = 3000;       // a background about:blank popup is navigated by its opener well within this
@@ -428,20 +431,71 @@ function packCheck(cb) {
     .then(function (r) { packInflight = null; try { var s = {}; s["pv:pack:last"] = { at: Date.now(), ok: !!r.ok, error: r.error || "", pack: r.pack || "", same: !!r.same }; chrome.storage.local.set(s); } catch (e2) {} return r; });
   return packInflight.then(cb, cb);
 }
-function packApply(on) {
-  if (!chrome.offscreen) return;   // nothing reads the pack where there is no offscreen page (Firefox): no check is made there (2026-11-14)
+// Rule updates (docs/features/rule-updates.md, 0.9.0): with the same opt-in (pv:ui.packUpdates) the extension fetches rules.json and
+// rules.sig from prism.entangled.world (a host its manifest already names; no cookie, no query string, nothing about the person).
+// src/rules-pack.js checks the size, the signature (the pack key, or the spare key kept offline; either one verifies a file), the
+// schema and the versions; a file that fails any of them changes nothing. What is kept is DATA (selectors, words, hostnames) that
+// src/rules.js reads at a page's start: nothing in it is ever run. Only pv:rules and pv:rules:last are written here; the person's
+// own rules (pv:rules:mine) are never touched. Switching the opt-in off removes the kept file, and a page loaded after that uses
+// the packaged rules alone.
+var RULES_HOST = "https://prism.entangled.world/veil/rules/";
+var RULES_SPARE_PUBKEY = {"kty":"EC","x":"3uiKUa0BkEC6fVOfryxiVtByp18YQ0qPQltKEDuEEDk","y":"UtNrvMWc6fU9GHw1zpRCFpgkoGdLE_0gQ-Mtck-OrVg","crv":"P-256"};
+var RULES_KEYS = [PACK_PUBKEY, RULES_SPARE_PUBKEY];
+var UPDATES_EVERY_MS = 23 * 3600 * 1000;   // a check that was not asked for by a press waits this long after the last one
+var rulesInflight = null;
+function rulesCheck(cb) {
+  if (rulesInflight) return rulesInflight.then(cb, cb);
+  var RP = typeof PrismRulesPack !== "undefined" ? PrismRulesPack : null;
+  if (!RP) { cb({ ok: false, error: "the rules reader did not load" }); return; }
+  var opts = { referrerPolicy: "no-referrer", cache: "no-cache", credentials: "omit" };
+  rulesInflight = Promise.all([
+    fetch(RULES_HOST + "rules.json", opts).then(function (r) { if (!r.ok) throw new Error("rules.json " + r.status); return r.arrayBuffer(); }),
+    fetch(RULES_HOST + "rules.sig", opts).then(function (r) { if (!r.ok) throw new Error("rules.sig " + r.status); return r.text(); }),
+    new Promise(function (res) { chrome.storage.local.get(["pv:rules"], function (r) { res((r && r["pv:rules"]) || null); }); })
+  ]).then(function (x) {
+    return RP.accept({ bytes: x[0], sig: x[1], keys: RULES_KEYS, ownVersion: chrome.runtime.getManifest().version, heldSerial: x[2] && x[2].serial, subtle: crypto.subtle });
+  }).then(function (r) {
+    if (!r.ok || r.same) return r;
+    return new Promise(function (res, rej) {
+      chrome.storage.local.set({ "pv:rules": { serial: r.rules.serial, date: r.rules.date, notes: r.rules.notes, at: Date.now(), file: r.file } },
+        function () { if (chrome.runtime.lastError) rej(new Error(chrome.runtime.lastError.message)); else res({ ok: true, serial: r.rules.serial }); });
+    });
+  }).catch(function (e) { return { ok: false, error: String(e && e.message || e).slice(0, 200) }; })
+    .then(function (r) { rulesInflight = null; try { chrome.storage.local.set({ "pv:rules:last": { at: Date.now(), ok: !!r.ok, error: r.error || "", serial: r.serial || "", same: !!r.same } }); } catch (e2) {} return r; });
+  return rulesInflight.then(cb, cb);
+}
+// One check of everything the opt-in covers: the rules in every browser, the live TV pack where an offscreen page can read it.
+// `force` = the person just switched it on or pressed for a check; without it a check waits a day after the last one, however
+// often the background starts.
+function updatesCheck(force, cb) {
+  cb = cb || function () {};
+  chrome.storage.local.get(["pv:rules:last"], function (r) {
+    var last = r && r["pv:rules:last"];
+    if (!force && last && Date.now() - (last.at || 0) < UPDATES_EVERY_MS) { cb({ ok: true, waited: true }); return; }
+    rulesCheck(function (rr) {
+      if (!chrome.offscreen) { cb({ ok: !!(rr && rr.ok), rules: rr }); return; }
+      packCheck(function (pr) { cb({ ok: !!(rr && rr.ok) && !!(pr && pr.ok), rules: rr, pack: pr }); });
+    });
+  });
+}
+function packApply(on, force) {
   try {
-    if (on) { chrome.alarms.create(PACK_ALARM, { periodInMinutes: 24 * 60 }); packCheck(function () {}); }
-    else chrome.alarms.clear(PACK_ALARM);
+    if (on) { chrome.alarms.get(PACK_ALARM, function (a) { if (!a) chrome.alarms.create(PACK_ALARM, { periodInMinutes: 24 * 60 }); }); updatesCheck(!!force); }
+    else { chrome.alarms.clear(PACK_ALARM); chrome.storage.local.remove(["pv:rules", "pv:rules:last"]); }
   } catch (e) {}
 }
 try {
-  chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === PACK_ALARM) packCheck(function () {}); });
-  chrome.storage.local.get("pv:ui", function (r) { var ui = (r && r["pv:ui"]) || {}; if (ui.packUpdates) packApply(true); });
+  chrome.alarms.onAlarm.addListener(function (a) { if (a && a.name === PACK_ALARM) updatesCheck(false); });
+  chrome.storage.local.get(["pv:ui", "pv:rules"], function (r) {
+    var ui = (r && r["pv:ui"]) || {}, held = r && r["pv:rules"];
+    // a kept file no newer than this package's own rules (after an update of the extension) is of no use: gone
+    try { if (held && typeof PrismRulesPack !== "undefined" && !PrismRulesPack.newer(held.serial, PrismRulesPack.BASE_SERIAL)) chrome.storage.local.remove(["pv:rules"]); } catch (eH) {}
+    if (ui.packUpdates) packApply(true, false);
+  });
   chrome.storage.onChanged.addListener(function (ch, area) {
     if (area !== "local" || !ch["pv:ui"]) return;
     var o = ch["pv:ui"].oldValue || {}, n = ch["pv:ui"].newValue || {};
-    if (!!o.packUpdates !== !!n.packUpdates) packApply(!!n.packUpdates);
+    if (!!o.packUpdates !== !!n.packUpdates) packApply(!!n.packUpdates, true);
   });
 } catch (e) {}
 var veilLogQ = Promise.resolve();
@@ -469,7 +523,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   // the veil log (2026-11-07): every video veil over an ad break, up and down, from every tab, as the PRISM app keeps its calls.log;
   // the newest 1000 records stay, the panel copies or clears them. Appends are queued so two tabs' records never overwrite each other.
   if (msg && msg.type === "pv:veil-log") { if (msg.rec && typeof msg.rec === "object") veilLogAppend(msg.rec); return; }
-  if (msg && msg.type === "pv:pack-check") { packCheck(function (r) { try { sendResponse(r); } catch (e) {} }); return true; }   // the panel's Check now
+  if (msg && msg.type === "pv:pack-check") { updatesCheck(true, function (r) { try { sendResponse(r); } catch (e) {} }); return true; }   // the panel's Check now
   // a veil's way to the options (2026-11-07): the panel's page opened as a tab with the named rows lit (popup.html?highlight=live)
   if (msg && msg.type === "pv:open-options") { try { chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") + "?highlight=" + encodeURIComponent(String(msg.highlight || "").slice(0, 20)) }); } catch (e) {} return; }
   if (msg && msg.type === "pv:veil-log-get") { veilLogQ = veilLogQ.then(function () { return new Promise(function (res) { chrome.storage.local.get("pv:veil-log", function (r) { sendResponse((r && r["pv:veil-log"]) || []); res(); }); }); }); return true; }

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Quillhaven Courier · After the redesign</title>
+<!-- A stand-in news page for the PRISM extension's rule update test: the same made-up paper after a "redesign". Its ad units no
+     longer carry the markup the packaged rules know, so only a rule update can cover them. Every name here is made up. -->
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f7f4ee; color: #1d1b18; font: 16px/1.5 Georgia, "Times New Roman", serif; }
+  header { padding: 16px 60px; border-bottom: 3px double #1d1b18; font: 700 34px Georgia, serif; }
+  .cols { width: 1160px; margin: 20px auto; display: grid; grid-template-columns: 1fr 300px; gap: 40px; }
+  h1 { margin: 0 0 8px; font: 700 34px/1.15 Georgia, serif; }
+  .pic { display: block; height: 240px; background: #ddd; margin-bottom: 12px; }
+  .qh-unit { display: block; overflow: hidden; margin: 14px 0; }
+  .qh-unit a { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; font: 400 30px Impact, "Arial Black", sans-serif; color: #fff; text-decoration: none; background: repeating-linear-gradient(45deg, #d6002a, #d6002a 24px, #ff5a1f 24px, #ff5a1f 48px); }
+  .qh-wide { width: 728px; height: 90px; }
+  .qh-box { width: 300px; height: 250px; }
+  .story-card { border: 1px solid #d8d1c2; padding: 12px; margin: 14px 0; height: 150px; }
+  .story-card .kicker { font: 700 11px "Segoe UI", Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #8a5a00; }
+  /* the page's own house box, which must stay uncovered */
+  .qh-house { width: 300px; height: 120px; background: #e9e2d0; display: flex; align-items: center; justify-content: center; font: 700 16px "Segoe UI", Arial, sans-serif; }
+</style>
+</head>
+<body>
+<header>The Quillhaven Courier</header>
+<div class="cols">
+  <main>
+    <h1>Harbor council approves the new ferry timetable</h1>
+    <span class="pic" data-pic="harbor" data-seed="3"></span>
+    <section class="qh-unit qh-wide" id="unit-wide" data-qh-unit="in-article"><a href="#">GLOWMAX TEETH STRIPS</a></section>
+    <p>The council voted six to one on Tuesday for a timetable that adds two evening crossings and moves the first morning boat to a quarter past six.</p>
+    <div class="story-card" id="card-paid"><span class="kicker">Partner story</span><p>Five reasons the Brindle 3000 kettle boils faster.</p></div>
+    <div class="story-card" id="card-news"><span class="kicker">Harbor</span><p>The lighthouse keeper retires after forty years.</p></div>
+  </main>
+  <aside>
+    <section class="qh-unit qh-box" id="unit-box" data-qh-unit="rail"><a href="#">MEGA SOFA SALE</a></section>
+    <div class="qh-unit qh-house" id="unit-house" data-qh-unit="house">Subscribe to the Courier</div>
+  </aside>
+</div>
+<script src="pics.js"></script>
+</body>
+</html>

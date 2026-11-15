@@ -1,0 +1,25 @@
+{
+ "format": 1,
+ "serial": "2026-11-14.2",
+ "date": "2026-11-14",
+ "minVeil": "0.9.0",
+ "notes": "A demonstration for the stand-in pages. Never published.",
+ "display": {
+  "sites": [
+   {
+    "id": "courier-units",
+    "hosts": ["quillhaven-courier.example"],
+    "cover": ["section.qh-unit[data-qh-unit]"],
+    "never": ["[data-qh-unit='house']"]
+   },
+   {
+    "id": "courier-partner-story",
+    "hosts": ["quillhaven-courier.example"],
+    "cover": [".story-card .kicker"],
+    "closest": ".story-card",
+    "text": { "sel": ".kicker", "equals": ["Partner story"] },
+    "whole": true
+   }
+  ]
+ }
+}

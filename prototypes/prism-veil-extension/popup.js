@@ -131,7 +131,6 @@
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
     $("sound-row").hidden = !chrome.offscreen;   // Firefox has no offscreen page to play it from
-    if (!chrome.offscreen) { $("pack-row").hidden = true; $("pack-note").hidden = true; }   // nor anything that reads the pack (2026-11-14)
     Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) { l.classList.toggle("on", l.dataset.look === look); });
     $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
     $("pack-updates").checked = !!ui.packUpdates;
@@ -163,15 +162,26 @@
   $("ytv-veil").addEventListener("change", function () { setUi("ytvVeil", $("ytv-veil").checked); });
   // The pack (2026-11-07): the one opt-in; the note names the pack held, or the bundled one, and the last check's word
   function paintPack() {
-    chrome.storage.local.get(["pv:pack", "pv:pack:last"], function (r) {
-      var held = r && r["pv:pack"], last = r && r["pv:pack:last"], note = $("pack-note");
-      if (!chrome.offscreen || (!$("pack-updates").checked && !held)) { note.hidden = true; return; }
-      var s = held ? "Detections: pack " + held.pack + (held.date ? " (" + held.date + ")" : "") + (held.notes ? ". " + held.notes : "") : "Detections: the ones that came with this version.";
-      if (last && !last.ok && last.error) s += " Last check: " + last.error + ".";
-      else if (last && last.same) s += " Checked: nothing newer.";
+    // 0.9.0: the rule set first (every browser), then the live TV pack where this browser can read it. Each line names what is
+    // held and when it came, or says that the packaged ones are in use.
+    chrome.storage.local.get(["pv:rules", "pv:rules:last", "pv:pack", "pv:pack:last"], function (r) {
+      var rules = r && r["pv:rules"], rl = r && r["pv:rules:last"], held = r && r["pv:pack"], last = r && r["pv:pack:last"], note = $("pack-note");
+      if (!$("pack-updates").checked && !held && !rules) { note.hidden = true; return; }
+      var day = function (at) { try { return new Date(at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } };
+      var s = rules && $("pack-updates").checked ? "Rules " + rules.serial + ", updated " + day(rules.at) + "." : "Rules: the ones that came with this version.";
+      if (rl && !rl.ok && rl.error) s += " Last check: " + rl.error + ".";
+      else if (rl && rl.same) s += " Checked " + day(rl.at) + ": nothing newer.";
+      if (chrome.offscreen) {
+        s += held ? " Live TV detection: pack " + held.pack + (held.date ? " (" + held.date + ")" : "") + "." : " Live TV detection: the one that came with this version.";
+        if (last && !last.ok && last.error) s += " Last check: " + last.error + ".";
+      }
       note.textContent = s; note.hidden = false;
     });
   }
+  // what the switch fetches differs by browser: the tooltip says what this one gets
+  $("pack-row").setAttribute("data-tip", chrome.offscreen
+    ? "Once a day PRISM fetches its newest ad detection from Entangled: the rules that find ads on pages (selectors, words and site names), and the live TV detector's numbers. Both are signed data. Nothing in them runs as code. Nothing about you is sent: no cookie, no identifier, one plain request. Off, PRISM uses what came with this version."
+    : "Once a day PRISM fetches its newest ad detection rules from Entangled: selectors, words and site names, as signed data. Nothing in them runs as code. Nothing about you is sent: no cookie, no identifier, one plain request. Off, PRISM uses the rules that came with this version.");
   $("pack-updates").addEventListener("change", function () {
     setUi("packUpdates", $("pack-updates").checked);
     if ($("pack-updates").checked) { $("pack-note").textContent = "Checking..."; $("pack-note").hidden = false; chrome.runtime.sendMessage({ type: "pv:pack-check" }, function () { void chrome.runtime.lastError; paintPack(); }); }

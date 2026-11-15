@@ -78,7 +78,7 @@ function deriveManifest(v) {
   const m = JSON.parse(JSON.stringify(base));
   if (v.browser === "firefox") {
     const swFile = (m.background && m.background.service_worker) || "bg.js";
-    m.background = { scripts: [swFile] };
+    m.background = { scripts: ["src/rules-pack.js", swFile] };   // the rule updates' reader first: a background page has no importScripts (0.9.0)
     // Firefox has no tab stream (chrome.tabCapture): the YouTube TV picture option is shown disabled there (2026-11-06)
     m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");   // and no offscreen pages
     m.browser_specific_settings = Object.assign({}, m.browser_specific_settings,

@@ -1,0 +1,8 @@
+{
+ "format": 1,
+ "serial": "2026-11-14.1",
+ "date": "2026-11-14",
+ "minVeil": "0.9.0",
+ "notes": "The first rule set. It adds nothing to the rules in the package.",
+ "display": {}
+}

@@ -1,0 +1,10 @@
+{
+ "pages": [
+  {
+   "host": "quillhaven-courier.example",
+   "page": "changed.html",
+   "why": { "update: courier-units": 2, "update: courier-partner-story": 1 },
+   "total": 3
+  }
+ ]
+}

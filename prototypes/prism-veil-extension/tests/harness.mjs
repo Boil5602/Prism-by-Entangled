@@ -40,7 +40,7 @@ export function loadVeil({ host = "example.com", width = 1881, height = 859 } = 
       return el ? el.getBoundingClientRect() : { width: 0, height: 0, top: 0, left: 0 };
     };
   }
-  for (const f of ["art.js", "dom.js", "rules.js", "video.js"]) (0, eval)(src(f));
+  for (const f of ["art.js", "dom.js", "rules-pack.js", "rules.js", "video.js"]) (0, eval)(src(f));
   return window.__prismVeilNS;
 }
 

@@ -153,6 +153,44 @@
     { stack: "EthicalAds", sel: "[data-ea-publisher]" },
   ];
   var STACK_QUERY = AD_STACKS.map(function (a) { return a.sel; }).join(",");
+
+  // RULE UPDATES (0.9.0, src/rules-pack.js): with "Get ad cover updates" on, a signed rule file the background has verified and
+  // stored joins the packaged rules here, and so do the person's own rules (pv:rules:mine), which an update never writes and which
+  // always win. Data only: a selector from a file goes to querySelectorAll / matches / closest and nowhere else, a word is compared
+  // with a label's text, a hostname with this page's. Each selector is tried once on an empty fragment first; one this browser
+  // refuses is dropped alone. The packaged lists are kept (BASE_*) so the rules can be put back as they came.
+  var BASE_SLOTS = SLOT_SELECTORS.slice(), BASE_STACKS = AD_STACKS.map(function (a) { return { stack: a.stack, sel: a.sel }; });
+  var UPD = { badge: Object.create(null), section: Object.create(null), noAds: [], labelOff: [], sites: [], kill: Object.create(null) };
+  var updSlow = 0;   // passes in a row in which the update's site entries took too long: after three they are dropped on this page
+  function selLive(sel) { try { document.createDocumentFragment().querySelector(sel); return true; } catch (e) { return false; } }
+  PV.rulesInfo = { serial: "", own: false, dropped: [] };
+  PV.applyRules = function (update, mine) {
+    var RP = PV.rulesPack;
+    if (!RP) return;
+    var eff = RP.effective({ slots: BASE_SLOTS, stacks: BASE_STACKS }, update ? update.display : null, mine || null), dropped = [];
+    var live = function (sel) { if (selLive(sel)) return true; dropped.push(sel); return false; };
+    SLOT_SELECTORS.length = 0; eff.slots.forEach(function (x) { if (live(x)) SLOT_SELECTORS.push(x); });
+    AD_STACKS.length = 0; eff.stacks.forEach(function (x) { if (live(x.sel)) AD_STACKS.push(x); });
+    SLOT_QUERY = SLOT_SELECTORS.join(","); STACK_QUERY = AD_STACKS.map(function (a) { return a.sel; }).join(",");
+    eff.sites.forEach(function (st) {
+      st.cover = st.cover.filter(live); st.never = st.never.filter(live);
+      if (st.closest && !live(st.closest)) { st.cover = []; }
+      if (st.text && !live(st.text.sel)) { st.cover = []; }
+    });
+    UPD = { badge: eff.badge, section: eff.section, noAds: eff.noAds, labelOff: eff.labelOff, sites: eff.sites, kill: eff.kill };
+    updSlow = 0;
+    PV.rulesInfo = { serial: update ? update.serial : "", own: !!mine, dropped: dropped };
+  };
+  // What is in storage, as a page may use it: nothing of the download while the switch is off (the packaged rules alone, with the
+  // person's own), nothing that fails the schema or the version check.
+  PV.applyRulesFromStore = function (switchOn, held, mine, version) {
+    var RP = PV.rulesPack;
+    if (!RP) return;
+    var upd = RP.fromStore(held, version, switchOn), own = mine ? RP.validateMine(mine) : null;
+    PV.applyRules(upd, own && own.ok ? own.display : null);
+  };
+  function updHost(list) { return list.length ? PV.rulesPack.hostIn(location.hostname, list) : false; }
+  function updSites() { return UPD.sites.filter(function (st) { return PV.rulesPack.hostIn(location.hostname, st.hosts); }); }
   function stackMatch(el) {
     for (var i = 0; i < AD_STACKS.length; i++) { try { if (el.matches(AD_STACKS[i].sel)) return AD_STACKS[i].stack; } catch (e) {} }
     return null;
@@ -1180,10 +1218,15 @@
   function collectTargets() {
     var targets = new Set(), why = new Map(), wholeCovers = new Set();
     if (!document.body) return { targets: targets, why: why };
-    if (hostIs(NO_ADS_HOSTS)) return { targets: targets, why: why };
+    if (hostIs(NO_ADS_HOSTS) || updHost(UPD.noAds)) return { targets: targets, why: why };
+    var mySites = UPD.sites.length ? updSites() : [], never = [];
+    mySites.forEach(function (st) { never = never.concat(st.never); });
+    var neverQuery = never.join(",");
     var ctx = {
       add: function (el, reason, whole) {
         if (!el || !PV.isVisible(el)) return;
+        // an update's (or the person's) "never cover this here": the element, or anything inside one that matches
+        if (neverQuery) { try { if (el.closest && el.closest(neverQuery)) return; } catch (eN) {} }
         if (el.closest && el.closest("[data-prism-ui]")) return;   // PRISM's own cards: the look under a cover holds a copy of the covered element (covers.js)
         if (el.__prismTooBigAt && Date.now() - el.__prismTooBigAt < 15000) return;   // a cover the sweep just dropped for growing to page/column size (any rule)
         targets.add(el); why.set(el, reason);
@@ -1197,7 +1240,7 @@
     // that only grows as you scroll, and a promoted post far down was covered
     // (2026-09-12) - the budget ran out above it.
     var roots = PV.collectRoots(), budget = 120000;
-    var active = SITE_RULES.filter(function (r) { return !r.host || hostIs(r.host); });
+    var active = SITE_RULES.filter(function (r) { return !UPD.kill[r.id] && (!r.host || hostIs(r.host)); });
     // The selector and site passes are cheap and run for EVERY root; only the
     // text walker below is budget-limited, else deep feed ads get no pass.
     for (var ri = 0; ri < roots.length; ri++) {
@@ -1255,17 +1298,41 @@
       for (var si = 0; si < active.length; si++) {
         try { active[si].run(root, ctx); } catch (e) {}
       }
+      // Site entries from a rule update or the person's own rules: data only. Each `cover` selector's elements are covered (or the
+      // nearest ancestor that matches `closest`), when `text` is given only where an element inside reads exactly one of its words.
+      if (mySites.length) {
+        var t0 = Date.now();
+        mySites.forEach(function (st) {
+          st.cover.forEach(function (sel) {
+            try {
+              root.querySelectorAll(sel).forEach(function (el) {
+                var target = st.closest ? (el.closest ? el.closest(st.closest) : null) : el;
+                if (!target || target === document.body || target === document.documentElement) return;
+                if (st.text) {
+                  var hit = false, cands = target.matches(st.text.sel) ? [target] : Array.prototype.slice.call(target.querySelectorAll(st.text.sel), 0, 20);
+                  for (var ci = 0; ci < cands.length && !hit; ci++) { if (st.text.equals.indexOf((cands[ci].textContent || "").trim().toLowerCase()) >= 0) hit = true; }
+                  if (!hit) return;
+                }
+                try { if (PV.pageSized(target.getBoundingClientRect())) return; } catch (eP) {}
+                ctx.add(target, (st.own ? "own-rule: " : "update: ") + st.id, st.whole);
+              });
+            } catch (eU) {}
+          });
+        });
+        // a page these entries slow down goes without them: three passes in a row over 30 ms and they are dropped until the next load
+        if (Date.now() - t0 > 30) { if (++updSlow >= 3) { UPD.sites = []; PV.rulesInfo.dropped.push("(site entries: too slow on this page)"); } } else updSlow = 0;
+      }
       // Generic "Ad"/"Sponsored" label walker within this root's light tree.
       // Skipped on LABEL_WALKER_OFF hosts (Amazon), where "Sponsored" tags
       // shopping results rather than ad units.
       var base = (root === document) ? document.body : root;
-      var walker = LABEL_WALKER_OFF.test(location.hostname) ? null : document.createTreeWalker(base, NodeFilter.SHOW_TEXT), n;
+      var walker = (LABEL_WALKER_OFF.test(location.hostname) || updHost(UPD.labelOff)) ? null : document.createTreeWalker(base, NodeFilter.SHOW_TEXT), n;
       while (walker && (n = walker.nextNode()) && budget > 0) {
         budget--;
         var t = n.nodeValue && n.nodeValue.trim();
         if (!t || t.length > 28) continue;
-        var isSection = SECTION_AD.test(t);
-        if (!BADGE.test(t) && !isSection) continue;
+        var tl = t.toLowerCase(), isSection = SECTION_AD.test(t) || UPD.section[tl] === true;
+        if (!BADGE.test(t) && UPD.badge[tl] !== true && !isSection) continue;
         var host = n.parentElement;
         if (!host) continue;
         if (inSearchUi(host)) continue;
@@ -1303,4 +1370,21 @@
   PV.SECTION_AD = SECTION_AD;
   PV.badgeUnit = badgeUnit;
   PV.collectTargets = collectTargets;
+
+  // The stored rules, read once as the page starts (one key a read: Firefox refuses a list of keys on some pages). Until they are
+  // read, and whenever anything here fails, the packaged rules stand. Turning the switch off is seen at the next page load.
+  try {
+    chrome.storage.local.get("pv:ui", function (r1) {
+      if (chrome.runtime.lastError) return;
+      var on = !!(r1 && r1["pv:ui"] && r1["pv:ui"].packUpdates);
+      chrome.storage.local.get("pv:rules", function (r2) {
+        var held = (!chrome.runtime.lastError && r2 && r2["pv:rules"]) || null;
+        chrome.storage.local.get("pv:rules:mine", function (r3) {
+          var mine = (!chrome.runtime.lastError && r3 && r3["pv:rules:mine"]) || null;
+          if (!held && !mine) return;
+          try { PV.applyRulesFromStore(on, held, mine, chrome.runtime.getManifest().version); } catch (eA) {}
+        });
+      });
+    });
+  } catch (eS) {}
 })();
