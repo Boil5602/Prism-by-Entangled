@@ -1,13 +1,13 @@
 # PRISM extension 0.9.0: store submission text
 
-Paste-ready text for the three stores (assembled 2026-11-14). Each block is final text for version 0.9.0.
+Paste-ready text for the three stores (assembled 2026-11-14). Each block is final text for version 0.9.0. The Firefox package is 0.9.1: the same extension with the settings tooltips built without innerHTML, and a new number because Mozilla had already signed 0.9.0 as a self-distributed file.
 
 ## Files
 
 | What                                                   | Path                                                                 |
 | ------------------------------------------------------ | -------------------------------------------------------------------- |
 | Package for Chrome and Edge                            | `prototypes\prism-veil-extension\dist\prism-veil-chromium-0.9.0.zip` |
-| Package for Firefox                                    | `prototypes\prism-veil-extension\dist\prism-veil-firefox-0.9.0.zip`  |
+| Package for Firefox                                    | `prototypes\prism-veil-extension\dist\prism-veil-firefox-0.9.1.zip`  |
 | Screenshot 1, news page with covered ad slots          | `assets\store\shot-1-news.png`                                       |
 | Screenshot 2, feed with a covered sponsored post       | `assets\store\shot-2-feed.png`                                       |
 | Screenshot 3, video intermission card                  | `assets\store\shot-3-intermission.png`                               |
@@ -314,7 +314,7 @@ Source: https://github.com/Boil5602/Prism-by-Entangled
 
 ### Package
 
-Upload `prism-veil-firefox-0.9.0.zip`. No separate source upload is needed if the public repository has this version. The add-on id is `prism-veil@entangled.world`.
+Upload `prism-veil-firefox-0.9.1.zip`. No separate source upload is needed if the public repository has this version. The add-on id is `prism-veil@entangled.world`.
 
 ### Name
 
@@ -470,6 +470,7 @@ SOURCE AND BUILD
 No file in the package is minified or obfuscated, and there is no third-party library. Three files are unminified esbuild bundles of TypeScript in the same repository. SOURCE-NOTES.md in prototypes/prism-veil-extension lists every generated file and its source.
 Repository: https://github.com/Boil5602/Prism-by-Entangled
 Build (Node 22 or newer):
+   Environment: any OS with Node.js 22 and npm 10 (built on Windows 11). No other tools are needed.
 npm ci
 npm run build:veil
 cd prototypes/prism-veil-extension
