@@ -530,7 +530,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "pv:veil-log-clear") { veilLogQ = veilLogQ.then(function () { return new Promise(function (res) { chrome.storage.local.remove("pv:veil-log", function () { sendResponse({ ok: true }); res(); }); }); }); return true; }
   // the soundscape for a veiled ad break (the person's choice; the tab is muted, so it plays from the offscreen page)
   if (msg && msg.type === "pv:ambient") {
-    if (!chrome.offscreen) return;
+    ambientTab = msg.on && sender && sender.tab ? sender.tab.id : null;
+    if (!chrome.offscreen) { ambientHere(!!msg.on, String(msg.sound || "")); return; }
     var amb = { type: "pv:ambient-play", target: "offscreen", on: !!msg.on, sound: String(msg.sound || "") };
     if (!amb.on) { try { chrome.runtime.sendMessage(amb, function () { void chrome.runtime.lastError; }); } catch (e) {} return; }
     ensureOffscreen().then(function () { try { chrome.runtime.sendMessage(amb, function () { void chrome.runtime.lastError; }); } catch (e) {} }, function () {});
@@ -731,6 +732,33 @@ function ytvApply(sc, on, ui, again) {
   } catch (e) {}
 }
 // The tab's own stream for the live TV picture (2026-11-06): asked for with Veil's own pages as its user (no consumer tab), and held by
+// Where there is no offscreen page (Firefox) the background page has a document of its own and plays the soundscape itself
+// (src/ambient.js, listed before this file in that build's background scripts). A background page is put to sleep after half a
+// minute without an event, which would cut the sound in the middle of a break: while a loop plays, a call to the extension's own
+// API every twenty seconds keeps it awake, and stops with the sound. A break lasts minutes; ten minutes is the most it is held.
+var ambientTab = null, ambientAwake = 0, ambientSince = 0;
+function ambientHere(on, sound) {
+  if (typeof PrismAmbient === "undefined") return;
+  var rest = function () { if (ambientAwake) { clearInterval(ambientAwake); ambientAwake = 0; } };
+  PrismAmbient.play(on, sound, rest);
+  if (on && PrismAmbient.playing() && !ambientAwake) {
+    ambientSince = Date.now();
+    ambientAwake = setInterval(function () {
+      if (Date.now() - ambientSince > 600000) { ambientHere(false, ""); return; }
+      try { chrome.runtime.getPlatformInfo(function () { void chrome.runtime.lastError; }); } catch (e) {}
+    }, 20000);
+  }
+}
+// the tab that asked for the sound closed or went to another page in the middle of a break: nothing will say the break is over
+function ambientGone(tid) {
+  if (ambientTab === null || tid !== ambientTab) return;
+  ambientTab = null;
+  if (!chrome.offscreen) { ambientHere(false, ""); return; }
+  try { chrome.runtime.sendMessage({ type: "pv:ambient-play", target: "offscreen", on: false, sound: "" }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+}
+try { chrome.tabs.onRemoved.addListener(ambientGone); } catch (e) {}
+try { chrome.tabs.onUpdated.addListener(function (tid, info) { if (info && info.status === "loading") ambientGone(tid); }); } catch (e) {}
+
 // Veil's offscreen page (offscreen.html), so the browser's sharing notice names the extension rather than the site. The tab's page asks
 // that page for its frames. Chromium hands a tab's stream only once Veil was invoked on the tab (its toolbar button); the panel then asks
 // the page to start again.

@@ -130,7 +130,6 @@
     $("small-view").checked = ui.smallView !== false;   // on unless switched off
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
-    $("sound-row").hidden = !chrome.offscreen;   // Firefox has no offscreen page to play it from
     Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) { l.classList.toggle("on", l.dataset.look === look); });
     $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
     $("pack-updates").checked = !!ui.packUpdates;

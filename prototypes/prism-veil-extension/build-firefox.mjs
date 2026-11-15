@@ -78,7 +78,8 @@ function deriveManifest(v) {
   const m = JSON.parse(JSON.stringify(base));
   if (v.browser === "firefox") {
     const swFile = (m.background && m.background.service_worker) || "bg.js";
-    m.background = { scripts: ["src/rules-pack.js", swFile] };   // the rule updates' reader first: a background page has no importScripts (0.9.0)
+    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", swFile] };   // and the soundscape, which the background page plays itself there (0.9.2)
+      // the rule updates' reader first: a background page has no importScripts (0.9.0)
     // Firefox has no tab stream (chrome.tabCapture): the YouTube TV picture option is shown disabled there (2026-11-06)
     m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");   // and no offscreen pages
     m.browser_specific_settings = Object.assign({}, m.browser_specific_settings,
@@ -184,7 +185,7 @@ for (const v of wanted) {
     copied++;
   }
   // Firefox has no tab stream, so the live TV picture's offscreen page and the break watch's model (1.6 MB) never run there (2026-11-06)
-  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch", "src/live-picture.js", "sounds", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
+  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch", "src/live-picture.js", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
   storeBuild(out);   // both packages
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";

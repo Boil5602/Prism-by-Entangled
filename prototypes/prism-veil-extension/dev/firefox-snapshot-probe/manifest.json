@@ -1,0 +1,9 @@
+{
+  "manifest_version": 2,
+  "name": "PRISM snapshot probe (test only)",
+  "version": "0.1",
+  "description": "PRISM development test: tab snapshot reading in Firefox. Not published.",
+  "permissions": ["<all_urls>", "tabs"],
+  "browser_action": { "default_title": "PRISM snapshot probe", "default_popup": "probe.html" },
+  "browser_specific_settings": { "gecko": { "id": "prism-snapshot-probe@entangled.world" } }
+}

@@ -26,8 +26,9 @@ JavaScript, HTML, and CSS written for PRISM, except the files in this table.
 The three bundles are checked in. `npm run build:veil` writes them again byte for byte (checked 2026-11-14 on Windows 11
 with Node 24.20.0 and esbuild 0.28.2).
 
-The live TV picture reader (`src/live-picture.js`, `src/breakwatch/`), the offscreen page, the sounds, and Tesseract are not in
-the Firefox package, because Firefox has no tab stream and no offscreen page.
+The live TV picture reader (`src/live-picture.js`, `src/breakwatch/`), the offscreen page, and Tesseract are not in
+the Firefox package, because Firefox has no tab stream and no offscreen page. The sounds are in it: the Firefox background
+page plays them (`src/ambient.js`).
 
 ### Build steps
 

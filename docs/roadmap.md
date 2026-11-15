@@ -63,6 +63,12 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   reader back in the Firefox package (about 8 MB, with their sources named for Mozilla's review in SOURCE-NOTES.md), the option
   offered in Firefox with its own tooltip, the live TV pack fetched there through the one opt-in, and the store text, the
   reviewer notes and the privacy policy changed to match. Nothing leaves the browser on any route.
+  **Probe, 2026-11-15** (*Decision:* snapshots are allowed for Firefox alone; the 2026-11-06 rule stands for Edge and Chrome): in a
+  headless Firefox 157 a public Widevine test stream was readable through `tabs.captureTab` with a rectangle and a scale (the video's
+  box at 320x180): a picture with detail that moves, 30 to 67 ms a snapshot in software rendering, against 55 to 68 ms for the whole
+  tab. A tab that is not in front gives the same still frame again, so only the tab in front can be read. Not yet seen: a real
+  Firefox window with hardware acceleration on YouTube TV. The tool for that is `prototypes/prism-veil-extension/dev/firefox-snapshot-probe`
+  (a temporary add-on, never packaged): pressed on a playing tab it reads 20 snapshots and says readable or black and the cost.
 
 - **A delay for the big screen, so the break watch sees ahead** (asked 2026-11-06): the person watches the big screen a few seconds
   behind live while a hidden window on the same channel stays at the live edge for the break watch, so a cover can go up on the

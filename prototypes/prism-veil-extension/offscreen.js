@@ -108,7 +108,7 @@
     if (!quiet) { try { chrome.runtime.sendMessage({ type: "pv:live-ended", tabId: id }); } catch (e) {} }   // bg.js takes the toolbar button's line down
     try { if (t.stream) t.stream.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {}
     try { if (t.sv) t.sv.srcObject = null; } catch (e) {}
-    if (!quiet && !Object.keys(tabs).length && !ambientEl) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} }
+    if (!quiet && !Object.keys(tabs).length && !PrismAmbient.playing()) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} }
   }
   function open(id, streamId, reply) {
     var keep = tabs[id] && tabs[id].chans;   // a reopened tab keeps what its channels have learned
@@ -378,28 +378,9 @@
     if (st) { try { chrome.runtime.sendMessage({ type: "pv:live-save", key: String(key || "?"), state: st }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
   }
 
-  // The soundscape (2026-11-06): one of the extension's three CC0 loops (sounds/CREDITS.txt), faded in over two seconds while a veil
-  // covers an ad break and out over one when it lifts
-  var SOUNDS = { river: "sounds/river.mp3", chimes: "sounds/wind-chimes.mp3", stars: "sounds/star-walk.mp3" };
-  var ambientEl = null, fadeIv = 0;
-  function fadeTo(el, target, ms, done) {
-    if (fadeIv) clearInterval(fadeIv);
-    var steps = Math.max(1, Math.round(ms / 50)), start = el.volume, n = 0;
-    fadeIv = setInterval(function () { n++; el.volume = Math.max(0, Math.min(1, start + (target - start) * n / steps)); if (n >= steps) { clearInterval(fadeIv); fadeIv = 0; if (done) done(); } }, 50);
-  }
+  // The soundscape (src/ambient.js): this page plays it, and stays open while it does
   function ambientPlay(on, sound) {
-    var src = SOUNDS[sound];
-    if (on && src) {
-      if (!ambientEl || ambientEl.getAttribute("data-src") !== src) {
-        if (ambientEl) { try { ambientEl.pause(); } catch (e) {} }
-        ambientEl = new Audio(chrome.runtime.getURL(src)); ambientEl.setAttribute("data-src", src); ambientEl.loop = true; ambientEl.volume = 0;
-      }
-      ambientEl.play().catch(function () {});
-      fadeTo(ambientEl, 0.35, 2000);
-    } else if (ambientEl) {
-      var el = ambientEl;
-      fadeTo(el, 0, 1000, function () { try { el.pause(); } catch (e) {} if (ambientEl === el) ambientEl = null; if (!Object.keys(tabs).length) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} } });
-    }
+    PrismAmbient.play(on, sound, function () { if (!Object.keys(tabs).length) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} } });
   }
 
   chrome.runtime.onMessage.addListener(function (msg, sender, reply) {

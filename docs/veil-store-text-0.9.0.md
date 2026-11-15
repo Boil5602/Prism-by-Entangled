@@ -1,13 +1,13 @@
 # PRISM extension 0.9.0: store submission text
 
-Paste-ready text for the three stores (assembled 2026-11-14). Each block is final text for version 0.9.0. The Firefox package is 0.9.1: the same extension with the settings tooltips built without innerHTML, and a new number because Mozilla had already signed 0.9.0 as a self-distributed file.
+Paste-ready text for the three stores (assembled 2026-11-14). Each block is final text for version 0.9.0. The Firefox package is 0.9.2 (0.9.1 with the sound during breaks, which Firefox plays from its background page; decided 2026-11-15). 0.9.1 was the same extension with the settings tooltips built without innerHTML, and a new number because Mozilla had already signed 0.9.0 as a self-distributed file.
 
 ## Files
 
 | What                                                   | Path                                                                 |
 | ------------------------------------------------------ | -------------------------------------------------------------------- |
 | Package for Chrome and Edge                            | `prototypes\prism-veil-extension\dist\prism-veil-chromium-0.9.0.zip` |
-| Package for Firefox                                    | `prototypes\prism-veil-extension\dist\prism-veil-firefox-0.9.1.zip`  |
+| Package for Firefox                                    | `prototypes\prism-veil-extension\dist\prism-veil-firefox-0.9.2.zip`  |
 | Screenshot 1, news page with covered ad slots          | `assets\store\shot-1-news.png`                                       |
 | Screenshot 2, feed with a covered sponsored post       | `assets\store\shot-2-feed.png`                                       |
 | Screenshot 3, video intermission card                  | `assets\store\shot-3-intermission.png`                               |
@@ -314,7 +314,7 @@ Source: https://github.com/Boil5602/Prism-by-Entangled
 
 ### Package
 
-Upload `prism-veil-firefox-0.9.1.zip`. No separate source upload is needed if the public repository has this version. The add-on id is `prism-veil@entangled.world`.
+Upload `prism-veil-firefox-0.9.2.zip`. No separate source upload is needed if the public repository has this version. The add-on id is `prism-veil@entangled.world`.
 
 ### Name
 
@@ -368,7 +368,7 @@ PICTURES
 24 photos come with the extension. You can get more from PRISM's own server. They are public domain and CC0 works. Those requests carry no cookie and no identifier.
 
 ON FIREFOX
-One option needs a browser feature that Firefox does not have: reading the picture of a live TV tab to spot commercial breaks. It is shown as unavailable. The ambient sound for ad breaks is also not in the Firefox version.
+One option needs a browser feature that Firefox does not have: reading the picture of a live TV tab to spot commercial breaks. It is shown as unavailable.
 
 OPEN SOURCE
 PRISM is free and open source under the GPL, version 3 or later.
@@ -480,6 +480,9 @@ The result is dist/firefox, whose contents are the submitted package.
 LINT WARNINGS
 
 - offscreen and tabCapture calls in bg.js: Chromium only. Each call is behind a check that the API exists, and the option is shown as unavailable in Firefox.
+
+SOUND DURING BREAKS
+An option, off by default. The background page plays one of three packaged recordings (sounds/, CC0) while a cover is over a video's ad break. Nothing is downloaded for it.
 
 ```
 

@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PRISM snapshot probe</title>
+<style>
+  body { margin: 0; padding: 14px; width: 360px; background: #14171c; color: #e8ecf2; font: 14px/1.45 "Segoe UI", Arial, sans-serif; }
+  h1 { margin: 0 0 8px; font-size: 15px; }
+  #verdict { font-size: 22px; font-weight: 700; margin: 8px 0; }
+  .good { color: #3fb950; } .bad { color: #f85149; } .wait { color: #f2b14c; }
+  canvas { display: block; width: 320px; height: 180px; background: #000; border: 1px solid #333; margin: 8px 0; }
+  pre { margin: 0; white-space: pre-wrap; font: 12px/1.4 Consolas, monospace; color: #e8ecf2; }
+  p { margin: 6px 0; color: #8a93a2; font-size: 12px; }
+</style>
+<h1>PRISM snapshot probe</h1>
+<div id="verdict" class="wait">Reading...</div>
+<canvas id="shot" width="320" height="180"></canvas>
+<pre id="numbers"></pre>
+<p>Test only. The pictures stay in this window. Nothing is saved or sent.</p>
+<script src="probe.js"></script>
