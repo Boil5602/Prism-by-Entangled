@@ -13,7 +13,7 @@
     var tip = document.getElementById("tip"), cur = null;
     if (!tip) return;
     function show(el) {
-      cur = el; tip.innerHTML = el.getAttribute("data-tip") || ""; tip.hidden = false;
+      cur = el; tip.replaceChildren.apply(tip, Array.from(new DOMParser().parseFromString(el.getAttribute("data-tip") || "", "text/html").body.childNodes)); tip.hidden = false;
       var r = el.getBoundingClientRect(), h = tip.offsetHeight, below = r.bottom + 6;
       tip.style.top = (below + h <= innerHeight - 8 ? below : Math.max(8, r.top - h - 6)) + "px";
     }
