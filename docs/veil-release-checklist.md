@@ -273,7 +273,9 @@ The one-time setup, the owner's (the Chrome Web Store API, version 2):
 6. The four values go in `~/.prism/chrome-webstore.json` (`client_id`, `client_secret`, `refresh_token`, `publisher_id`), outside
    the repository. The file can publish to the store account: it is kept like the signing keys.
 
-Not run against the store yet (2026-11-17): the dry run passes the package checks and stops where the file is missing.
+The access file was made on 2026-11-18 with `scripts/release/chrome-store-access.py` (a client of the type Desktop app, the owner's
+address as a test user, Google's own consent page) in place of steps 3 and 4. The status check reads the store (0.9.0 published)
+and the dry run passes for 0.9.41. Nothing has been sent by the script yet.
 
 ## 7b · A release to both stores by one command (2026-11-18)
 
@@ -288,8 +290,8 @@ account that owns PRISM by Entangled, its two values in `~/.prism/amo.env` as `A
 key has been in that file since 2026-11-18 (the one before it belonged to another account, the one the unlisted signing used).
 Edge has no listing of its own: it installs from the Chrome Web Store.
 
-Firefox's dry run passes in full (2026-11-18, version 0.9.41): the key's account is an author, the source archive is built, nothing
-was sent. Chrome's stops at the access file, which is not made.
+Firefox's first release by the command: 0.9.41 on 2026-11-18, a listed version sent for Mozilla's review with its source and both
+sets of notes (the store had 0.9.1 listed). Chrome's dry run passes too (section 7a).
 
 ## 8 · After release
 
