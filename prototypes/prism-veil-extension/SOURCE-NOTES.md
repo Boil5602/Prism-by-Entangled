@@ -8,8 +8,8 @@ Extension folder: `prototypes/prism-veil-extension/`
 
 ## The Firefox package (addons.mozilla.org)
 
-No file in the Firefox package is minified or obfuscated, and the package has no third-party library. Everything is plain
-JavaScript, HTML, and CSS written for PRISM, except the files in this table.
+Everything in the Firefox package is plain JavaScript, HTML, and CSS written for PRISM, except the files in the two tables
+below. The one minified third-party library is Tesseract.js (second table).
 
 | File in the package | What it is | Made from | Made by |
 |---|---|---|---|
@@ -26,8 +26,19 @@ JavaScript, HTML, and CSS written for PRISM, except the files in this table.
 The three bundles are checked in. `npm run build:veil` writes them again byte for byte (checked 2026-11-14 on Windows 11
 with Node 24.20.0 and esbuild 0.28.2).
 
-The live TV picture reader (`src/live-picture.js`, `src/breakwatch/`), the offscreen page, and Tesseract are not in
-the Firefox package, because Firefox has no tab stream and no offscreen page. The sounds are in it: the Firefox background
+Since 0.9.41 the Firefox package also carries the live TV picture reader (`src/live-picture.js`, `src/breakwatch/`, and
+`offscreen.js`, which runs there as a background script) and Tesseract. Firefox has no tab stream, so the reader asks
+`tabs.captureTab` for the video's rectangle once a second while the person has the option on. The picture is judged in the
+background page and is not kept or sent. These files are third-party or data:
+
+| File in the package | What it is | From |
+|---|---|---|
+| `vendor/tesseract/tesseract.min.js`, `worker.min.js` | Tesseract.js 6.0.1 (Apache-2.0), the official minified release files, with five small edits listed in `vendor/tesseract/PRISM-CHANGES.md`. | https://github.com/naptha/tesseract.js (tag v6.0.1) |
+| `vendor/tesseract/core/tesseract-core-simd-lstm.wasm.js` | tesseract.js-core 6.1.2, unmodified. | https://github.com/naptha/tesseract.js-core |
+| `vendor/tesseract/lang/eng.traineddata.gz` | English language data (fast) from the Tesseract.js project, unmodified. | https://github.com/naptha/tesseract.js |
+| `src/breakwatch/model.json`, `picture-net.json` | Data only: numbers for the live TV break detector, trained by Entangled Labs. | `scripts/breakwatch/` |
+
+Apart from the Tesseract files, no file in the Firefox package is minified. The sounds are in it: the Firefox background
 page plays them (`src/ambient.js`).
 
 ### Build steps

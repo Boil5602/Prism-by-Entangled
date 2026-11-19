@@ -79,6 +79,16 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   frames while the tab is behind, and the existing http/https host permission is enough (no new permission). Owed: a break covered
   on YouTube TV in the person's Firefox; how the model does on snapshot pictures (they are JPEG, the stream's frames are not); and,
   before a release, SOURCE-NOTES.md for the bundled Tesseract, the store text, the reviewer notes and the privacy policy.
+  **On YouTube TV, 2026-11-18** (a hidden Firefox 160 on a copy of the sign-in cookies, a local NBC station set to all breaks, 15
+  minutes): a frame a second read from the protected picture, the stream's noise 0.8 to 1.6 grey levels, the text reader reading,
+  and the cover drawn. One real break was covered and its cover came down as the show came back. Faults in the same run: a cover
+  of 44 seconds over the show three minutes after the channel was opened (no logo learned yet), a cover that began while the show
+  was still on, and 12 seconds of commercials shown in the middle of the break. The channel is one the model was not measured on,
+  which the default (sure breaks only) keeps from this. Not known: whether Edge does better on the same channel and minutes.
+  **Snapshots against the stream on the bench, 2026-11-18** (the seven exams, the extension's model and network, the standing
+  conditions; `SNAPSIM=90` in bwtest makes each recorded frame a JPEG 640 wide at quality 90, read back and halved): as recorded
+  90.4% of ad time covered, 1.72% of show time wrongly covered, 10 pop-ups; as snapshots 91.3%, 1.68%, 9. The compression costs
+  nothing that the exams can see. Left out: Firefox's own scaling of the video, which the recordings cannot show.
 
 - **A delay for the big screen, so the break watch sees ahead** (asked 2026-11-06): the person watches the big screen a few seconds
   behind live while a hidden window on the same channel stays at the live edge for the break watch, so a cover can go up on the

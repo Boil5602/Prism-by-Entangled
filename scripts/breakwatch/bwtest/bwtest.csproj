@@ -12,6 +12,7 @@
     <Compile Include="../../../targets/win-host/PrismHost/Services/FrameHash.cs" />
     <Compile Include="../../../targets/win-host/PrismHost/Services/AudioLandmarks.cs" />
     <Compile Include="../../../targets/win-host/PrismHost.Core/EndFinder.cs" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />   <!-- the bench only (2026-11-18): SNAPSIM, a frame as a Firefox JPEG snapshot gives it -->
     <PackageReference Include="NAudio" Version="2.2.1" />   <!-- the bench only (2026-11-08): MP3 to PCM for the fingerprinter's prototype -->
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />   <!-- the bench only (2026-11-08): the end verifier's cost a call; the host carries no runtime -->
   </ItemGroup>

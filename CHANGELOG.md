@@ -2,6 +2,14 @@
 
 Every Windows release, newest first. The same notes travel in the update manifest and on the website.
 
+## 0.45.0 - 2026-11-18 (alpha, 8fa104d5)
+
+Quick play in the music player is now one music panel. A playlist opens its play choices with a saved place, Up next shows each song's cover, and Add to playlist, Start a station, Scenes and Song history are one press away. Lyrics show on the screen for Apple Music. A right press on the mini player opens the panel. After a start nothing plays by itself and the big window offers one Resume. The video player's bar has a Quality button and a Service page button. A channel's ad covers follow the YouTube TV setting until you choose otherwise. The small view under a cover says why the cover is up and credits the photo. A title that plays with no full-screen player no longer waits behind the curtain. New and off unless you turn it on, the look-ahead plays a YouTube TV live channel about 15 seconds behind live so ad covers start on time. Stadium Wave and Snowfall Village are drawn again, and the tour's Watching, Live TV and Music pages are written again.
+
+- download: https://prism.entangled.world/windows/Prism-0.45.0-8fa104d5.zip
+- sha256: b3d3e87fba06224a1c74594e4f552b06c8ccf2d9f75f2ba5d1bfa860425acdcb
+- release: https://github.com/Boil5602/Prism-by-Entangled/releases/tag/v0.45.0
+
 ## 0.44.0 - 2026-11-12 (alpha, 656769f6)
 
 Every visual of the music player is drawn again as a stage scene, with people that read as people and scenes that move with the music. Stadium Wave plays a match with goals. Rain on the Window has drops that bend the light and leave tracks. Sunrise Meadow, Campfire Circle and the others have new art. A visual's name shows as a title when it changes, there is a button for the visual before and one for the visual after, and the live frame rate follows the screen's refresh. With no music the visuals almost stand still. The song's label on a visual can be read on a bright picture. The pointer on a cover's corner shows a small look at what is under it, and a press on a cover no longer pauses the player. A title paused in an ad break comes back paused. On YouTube TV an ad cue is read only from the player on show, so a preview tile no longer covers the show. The music bar has thumbs up before thumbs down and skip back beside skip forward. The name is written PRISM everywhere. The Seasons visual is under construction and is not in this release.

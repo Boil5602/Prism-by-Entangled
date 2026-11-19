@@ -12,9 +12,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { afterAll } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (f) => readFileSync(join(here, "..", "src", f), "utf8");
+
+const intervals = [];
+afterAll(() => { for (const id of intervals.splice(0)) clearInterval(id); });
 
 export function loadVeil({ host = "example.com", width = 1881, height = 859 } = {}) {
   // fresh namespace per load
@@ -40,7 +44,12 @@ export function loadVeil({ host = "example.com", width = 1881, height = 859 } = 
       return el ? el.getBoundingClientRect() : { width: 0, height: 0, top: 0, left: 0 };
     };
   }
-  for (const f of ["art.js", "dom.js", "rules-pack.js", "rules.js", "video.js"]) (0, eval)(src(f));
+  // The sources start intervals of their own (video.js). They are stopped when the test file ends: one that fires
+  // after the page is gone throws, and the run counts it as an error.
+  const realInterval = globalThis.setInterval;
+  globalThis.setInterval = function () { const id = realInterval.apply(this, arguments); intervals.push(id); return id; };
+  try { for (const f of ["art.js", "dom.js", "rules-pack.js", "rules.js", "video.js"]) (0, eval)(src(f)); }
+  finally { globalThis.setInterval = realInterval; }
   return window.__prismVeilNS;
 }
 

@@ -547,6 +547,7 @@ if (args.Length >= 4 && args[0] == "bench")
             if (half && !m.Active && m.Chance < 0.2 && !lshown && (lst is null || lst.LastP < 0.3) && (skips++ % 2 == 1)) continue;
             if (Environment.GetEnvironmentVariable("BWTITLE") is { Length: > 0 } bt && win.EndsWith(Environment.GetEnvironmentVariable("BWTITLEWIN") ?? "~")) m.ShowTitle = bt;
             var g = File.ReadAllBytes(frame); if (g.Length != BreakModel.W * BreakModel.H) continue;
+            if (SnapSim.Q > 0) g = SnapSim.Do(g, BreakModel.W, BreakModel.H);   // SNAPSIM=<jpeg quality>: the frame as a Firefox tab snapshot gives it
             if (BreakModel.StripRow(m.ChannelName) is > 0 and var stripRow) g = BreakModel.AboveStrip(g, stripRow);   // as PRISM reads a strip channel (STRIPCUT=0: as recorded)
             var coveredNow = coverSight is not null && lshown;   // this look is taken through the cover (and says so: cover_up)
             if (coveredNow) g = UnderCover(g, m, coverSight, coverArt, coverRng);
@@ -899,4 +900,34 @@ foreach (var dir in Directory.GetDirectories(root).OrderBy(d => d))
     if (on is not null) runs.Add(on + "-now");
     Console.WriteLine($"== {win} logo {(m.HasLogo ? "learned" : "none")}" + (P > 0 ? $"  break covered {tp}/{P} ({100.0 * tp / P:0}%)  show wrongly covered {fp}/{N} ({100.0 * fp / Math.Max(1, N):0.0}%)" : ""));
     Console.WriteLine("   covered: " + string.Join(", ", runs));
+}
+
+// SNAPSIM=<quality> (2026-11-18): a recorded frame as the PRISM extension reads it in Firefox, where the tab's picture comes as a JPEG
+// snapshot 640 wide that is halved to 320x180: the frame is drawn at twice its size, kept as a JPEG of that quality, read back and
+// halved with linear filtering. What it leaves out: the browser's own scaling of the video to 640, which the recordings cannot show.
+static class SnapSim
+{
+    public static readonly int Q = int.TryParse(Environment.GetEnvironmentVariable("SNAPSIM"), out var q) ? q : 0;
+    static readonly System.Drawing.Imaging.ImageCodecInfo Jpeg = System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders().First(c => c.MimeType == "image/jpeg");
+    public static byte[] Do(byte[] g, int W, int H)
+    {
+        using var small = new System.Drawing.Bitmap(W, H, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        var bd = small.LockBits(new System.Drawing.Rectangle(0, 0, W, H), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        var row = new byte[bd.Stride];
+        for (var y = 0; y < H; y++) { for (var x = 0; x < W; x++) { var v = g[y * W + x]; row[x * 3] = v; row[x * 3 + 1] = v; row[x * 3 + 2] = v; } System.Runtime.InteropServices.Marshal.Copy(row, 0, bd.Scan0 + y * bd.Stride, bd.Stride); }
+        small.UnlockBits(bd);
+        using var big = new System.Drawing.Bitmap(W * 2, H * 2, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        using (var gr = System.Drawing.Graphics.FromImage(big)) { gr.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear; gr.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half; gr.DrawImage(small, 0, 0, W * 2, H * 2); }
+        using var ms = new MemoryStream();
+        using (var ep = new System.Drawing.Imaging.EncoderParameters(1)) { ep.Param[0] = new System.Drawing.Imaging.EncoderParameter(System.Drawing.Imaging.Encoder.Quality, (long)Q); big.Save(ms, Jpeg, ep); }
+        ms.Position = 0;
+        using var back = new System.Drawing.Bitmap(ms);
+        using var outb = new System.Drawing.Bitmap(W, H, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        using (var gr = System.Drawing.Graphics.FromImage(outb)) { gr.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.Bilinear; gr.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half; gr.DrawImage(back, 0, 0, W, H); }
+        var od = outb.LockBits(new System.Drawing.Rectangle(0, 0, W, H), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        var res = new byte[W * H];
+        for (var y = 0; y < H; y++) { System.Runtime.InteropServices.Marshal.Copy(od.Scan0 + y * od.Stride, row, 0, od.Stride); for (var x = 0; x < W; x++) res[y * W + x] = (byte)((row[x * 3] * 29 + row[x * 3 + 1] * 150 + row[x * 3 + 2] * 77) >> 8); }
+        outb.UnlockBits(od);
+        return res;
+    }
 }

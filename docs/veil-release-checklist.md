@@ -275,6 +275,22 @@ The one-time setup, the owner's (the Chrome Web Store API, version 2):
 
 Not run against the store yet (2026-11-17): the dry run passes the package checks and stops where the file is missing.
 
+## 7b · A release to both stores by one command (2026-11-18)
+
+`python scripts/release/publish-extension.py --notes "<what is new>"` does a release: the tree clean and pushed, the packages built,
+the tests, each store asked what it has, the public snapshot pushed (the source Mozilla builds from), then the Chrome Web Store
+(`publish-chrome.py`) and addons.mozilla.org (`publish-firefox.py`, a listed version with the source archive and the notes in
+`docs/veil-amo-reviewer-notes.md`). `--dry-run` runs the checks and sends nothing; `--only chrome` or `--only firefox` sends one.
+The packages sent are copied to `dist/<version>-submitted/`. The owner runs it, or says to; on a weekday it waits for the evening.
+
+Firefox's one-time setup, the owner's: a key made on `https://addons.mozilla.org/developers/addon/api/key/` while signed in to the
+account that owns PRISM by Entangled, its two values in `~/.prism/amo.env` as `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`. The owner's
+key has been in that file since 2026-11-18 (the one before it belonged to another account, the one the unlisted signing used).
+Edge has no listing of its own: it installs from the Chrome Web Store.
+
+Firefox's dry run passes in full (2026-11-18, version 0.9.41): the key's account is an author, the source archive is built, nothing
+was sent. Chrome's stops at the access file, which is not made.
+
 ## 8 · After release
 
 - **Inbox**: pull reports every day for the first week (`python pull-reports.py`), then weekly. Each report that changes a rule ships with a fixture from that report.
