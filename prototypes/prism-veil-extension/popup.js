@@ -53,7 +53,20 @@
   var tabId = null, curSite = null;
   var OWN_WINDOW = new URLSearchParams(location.search).get("window") === "1";
   // the live TV picture can be read: by the tab's stream (Edge, Chrome) or by snapshots of the tab (Firefox on a computer)
-  var CAN_PICTURE = !!chrome.tabCapture || !!(chrome.tabs && chrome.tabs.captureTab);
+  // Firefox gives a frame of the extension inside a web page no tabs calls at all (seen in Firefox 160, 2026-11-18: the panel's
+  // Close did nothing there). In that frame the background makes them, for the frame's own tab alone (bg.js, prism-tabs-relay).
+  var NO_TABS = !chrome.tabs;
+  function tabsRelay(fn, args, cb) {
+    try { chrome.runtime.sendMessage({ type: "prism-tabs-relay", fn: fn, args: args }, function (r) { void chrome.runtime.lastError; if (cb) cb(r ? r.value : undefined); }); }
+    catch (e) { if (cb) cb(undefined); }
+  }
+  var TABS = chrome.tabs || {
+    sendMessage: function (id, msg, cb) { tabsRelay("sendMessage", [id, msg], cb); },
+    get: function (id, cb) { tabsRelay("get", [id], cb); },
+    create: function (o, cb) { tabsRelay("create", [o], cb); }
+  };
+  // only Firefox withholds the calls, and Firefox on a computer has the snapshots
+  var CAN_PICTURE = !!chrome.tabCapture || (NO_TABS ? !/Android/i.test(navigator.userAgent) : !!chrome.tabs.captureTab);
   // In the panel over the web page (popup.html?frame=1&tab=<id>, 2026-11-18): the page under it holds the frame, closes it on a press
   // beside it, and is told this page's height so that nothing scrolls.
   var IN_FRAME = new URLSearchParams(location.search).get("frame") === "1";
@@ -69,7 +82,7 @@
     } catch (e) {}
   }
   var FOR_TAB = parseInt(new URLSearchParams(location.search).get("tab"), 10);
-  function tellPage(msg) { try { if (isFinite(FOR_TAB)) chrome.tabs.sendMessage(FOR_TAB, msg, function () { void chrome.runtime.lastError; }); } catch (e) {} }
+  function tellPage(msg) { try { if (isFinite(FOR_TAB)) TABS.sendMessage(FOR_TAB, msg, function () { void chrome.runtime.lastError; }); } catch (e) {} }
   function closeSettings() { if (IN_FRAME) tellPage({ type: "prism-settings-close" }); else window.close(); }
   try {
     var cb = document.getElementById("settings-close");
@@ -137,7 +150,7 @@
   function siteIcon() {
     if (icoDone || tabId == null) return; icoDone = true;
     try {
-      chrome.tabs.get(tabId, function (t) {
+      TABS.get(tabId, function (t) {
         void chrome.runtime.lastError;
         var u = t && t.favIconUrl, im = $("site-ico");
         if (!im || !u || !/^(https?:|data:image.)/i.test(u)) return;
@@ -160,7 +173,7 @@
       var row = el("div", "row"); row.title = r.reason + " · last " + ago(r.last);
       var d = el("div", "dest"); d.appendChild(el("b", null, r.dest)); row.appendChild(d);
       row.appendChild(el("span", "count", r.count + "×"));
-      row.appendChild(btn("Open", function () { try { chrome.tabs.create({ url: r.url, active: true }); } catch (e) {} }));
+      row.appendChild(btn("Open", function () { try { TABS.create({ url: r.url, active: true }); } catch (e) {} }));
       var al = btn("Allow", function () { policy.allow(v.site, r.dest); refresh(); }); al.title = "Always let this site open " + r.dest;
       row.appendChild(al);
       view.appendChild(row);
@@ -211,7 +224,7 @@
 
   function refresh() {
     if (tabId == null) { render(null); return; }
-    chrome.tabs.sendMessage(tabId, { type: "prism-popup-visit" }, function (v) {
+    TABS.sendMessage(tabId, { type: "prism-popup-visit" }, function (v) {
       if (chrome.runtime.lastError || !v) { render(null); return; }
       render(v);
     });
@@ -356,7 +369,7 @@
   function askPicture(again) {
     if (tabId == null || !CAN_PICTURE || !ui.livePicture) { $("live-now").hidden = true; $("live-chan").hidden = true; return; }
     try {
-      chrome.tabs.sendMessage(tabId, { type: "pv:live-picture-start" }, function (st) {
+      TABS.sendMessage(tabId, { type: "pv:live-picture-start" }, function (st) {
         void chrome.runtime.lastError;
         $("live-now").hidden = !(st && st.state === "on");
         paintChannel(st && st.channel, st && st.mode);
@@ -488,14 +501,14 @@
       Object.keys(policy.prefsBySite || {}).forEach(function (st) { policy.setHidden(st, false); policy.setCollapsed(st, false); });
       policy.setHidden(curSite, false); policy.setCollapsed(curSite, false);
     } else policy.setHidden(curSite, true);
-    if (tabId != null) { try { chrome.tabs.sendMessage(tabId, { type: show ? "prism-popup-show-pill" : "prism-popup-hide-pill" }); } catch (e) {} }
+    if (tabId != null) { try { TABS.sendMessage(tabId, { type: show ? "prism-popup-show-pill" : "prism-popup-hide-pill" }); } catch (e) {} }
   });
   $("reveal-15").addEventListener("click", function () {
-    if (tabId != null) { try { chrome.tabs.sendMessage(tabId, { type: "prism-popup-reveal", ms: 15000 }); } catch (e) {} }
+    if (tabId != null) { try { TABS.sendMessage(tabId, { type: "prism-popup-reveal", ms: 15000 }); } catch (e) {} }
     window.close();
   });
   $("open-here").addEventListener("click", function () {
-    if (tabId != null) { try { chrome.tabs.sendMessage(tabId, { type: "prism-popup-open-panel" }); } catch (e) {} }
+    if (tabId != null) { try { TABS.sendMessage(tabId, { type: "prism-popup-open-panel" }); } catch (e) {} }
     window.close();
   });
 
@@ -507,7 +520,7 @@
     if (!on) return chrome.storage.local.set({ ntpEnabled: false });
     withTabs(function (ok) {
       if (!ok) { $("startpage-on").checked = false; return; }
-      chrome.storage.local.set({ ntpEnabled: true }, function () { try { chrome.tabs.create({ url: chrome.runtime.getURL("ntp.html") }); } catch (e) {} window.close(); });
+      chrome.storage.local.set({ ntpEnabled: true }, function () { try { TABS.create({ url: chrome.runtime.getURL("ntp.html") }); } catch (e) {} window.close(); });
     });
   });
   $("homepage-on").addEventListener("change", function () {

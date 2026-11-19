@@ -621,6 +621,19 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "prism-report-send") { sendReport(msg.report || {}, sendResponse); return true; }
   if (msg && msg.type === "prism-settings-pass") { sendResponse({ ok: settingsPassGood(String(msg.pass || ""), sender) }); return; }
   if (msg && msg.type === "prism-settings-blur") { settingsBlurAt = Date.now(); return; }
+  // The settings panel in its frame over a web page: Firefox gives that frame no tabs calls, so they are made here (popup.js TABS).
+  // Only for the settings page in a tab, and only on that tab: the tab the page names is never trusted.
+  if (msg && msg.type === "prism-tabs-relay") {
+    var rTab = sender && sender.tab, rArgs = msg.args || [];
+    if (!rTab || rTab.id == null || sender.id !== chrome.runtime.id || String(sender.url || "").indexOf(chrome.runtime.getURL("popup.html")) !== 0) { sendResponse({}); return; }
+    try {
+      if (msg.fn === "sendMessage") chrome.tabs.sendMessage(rTab.id, rArgs[1], function (v) { void chrome.runtime.lastError; sendResponse({ value: v }); });
+      else if (msg.fn === "get") chrome.tabs.get(rTab.id, function (t) { void chrome.runtime.lastError; sendResponse({ value: t }); });
+      else if (msg.fn === "create" && /^https?:\/\//i.test(String((rArgs[0] || {}).url || ""))) chrome.tabs.create({ url: String(rArgs[0].url), active: true }, function () { void chrome.runtime.lastError; sendResponse({ value: null }); });
+      else sendResponse({});
+    } catch (eR) { sendResponse({}); }
+    return true;
+  }
   if (msg && msg.type === "prism-open-settings") { openSettings(sender && sender.tab, function (ok) { sendResponse({ ok: ok }); }); return true; }
   if (msg && msg.type === "prism-art-refresh") { try { artRefresh(sendResponse); } catch (eA) { sendResponse({ ok: false, error: "threw: " + eA }); } return true; }
   if (msg && msg.type === "prism-art-reset") { chrome.storage.local.remove("pv:art", function () { sendResponse({ ok: true }); }); return true; }

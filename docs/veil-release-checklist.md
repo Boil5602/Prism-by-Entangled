@@ -275,7 +275,7 @@ The one-time setup, the owner's (the Chrome Web Store API, version 2):
 
 The access file was made on 2026-11-18 with `scripts/release/chrome-store-access.py` (a client of the type Desktop app, the owner's
 address as a test user, Google's own consent page) in place of steps 3 and 4. The status check reads the store (0.9.0 published)
-and the dry run passes for 0.9.41. Nothing has been sent by the script yet.
+and the dry run passes for 0.9.41. 0.9.41 was sent for Google's review the same evening.
 
 ## 7b · A release to both stores by one command (2026-11-18)
 
