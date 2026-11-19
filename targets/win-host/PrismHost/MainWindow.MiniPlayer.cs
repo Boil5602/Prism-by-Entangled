@@ -67,6 +67,8 @@ public sealed partial class MainWindow
             }
             _ = System.Threading.Tasks.Task.Delay(400).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(() => _ = RefreshVisualizationTransportAsync()));
         };
+        // a right press on the mini player opens the music panel on it (2026-11-16, the full player's right press did, this one did nothing)
+        mini.MenuRequested += (el, pt) => { LogLine("mini player: music panel asked for"); _ = ShowMusicPanelAsync(el, source, pt, el); };
         mini.ReturnRequested += () => { LogLine("mini player: back to the full player"); CloseMiniPlayer(); RestoreMainFromMini(); };
         mini.Closed += (_, __) => { if (ReferenceEquals(_mini, mini)) { _mini = null; _miniTile = null; LogLine("mini player: closed"); } };
         _mini = mini; _miniTile = tileId;
@@ -100,6 +102,9 @@ public sealed partial class MainWindow
             {
                 _mainParkedFrom = AppWindow.Position;
                 AppWindow.Move(new Windows.Graphics.PointInt32(ParkX, ParkY));
+                // off the taskbar and the Alt+Tab list while it is parked (2026-11-16: its entry showed beside the mini player's); the window
+                // itself stays a restored, shown window, so its pages still read as visible
+                try { AppWindow.IsShownInSwitchers = false; } catch { }
                 _mainHiddenForMini = true;
                 LogLine("mini player: full player parked off screen (from " + _mainParkedFrom.Value.X + "," + _mainParkedFrom.Value.Y + ")");
             }
@@ -114,6 +119,7 @@ public sealed partial class MainWindow
             if (_mainHiddenForMini)
             {
                 _mainHiddenForMini = false;
+                try { AppWindow.IsShownInSwitchers = true; } catch { }
                 if (!AppWindow.IsVisible) AppWindow.Show();
                 if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter op && op.State == Microsoft.UI.Windowing.OverlappedPresenterState.Minimized) op.Restore();
                 if (_mainParkedFrom is { } from && AppWindow.Position.X <= ParkX + 1) { AppWindow.Move(from); }

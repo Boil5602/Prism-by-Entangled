@@ -101,7 +101,7 @@ public sealed class FireworksNight : Tableau
         // ---- the shells: the light each one throws on the sky sits behind the town
         for (var i = 0; i < Shells; i++) { var s = _shells[i] = new Shell { Hue = P(i % 4) }; s.Sky = Glow(0, 0, 10, s.Hue, 0.55, 0); }
 
-        // ---- the hills and the town on the far bank: houses, a church, a castle on its rock
+        // ---- the hills and the town on the far bank: houses, the town hall with its tower, a castle on its rock
         void Hill(Color top, Color bottom, params double[] f) { for (var i = 0; i + 1 < f.Length; i += 2) { f[i] = X(f[i]); f[i + 1] = Y(f[i + 1]); } GB(Vertical((top, 0), (bottom, 0.5), (bottom, 1)), 1, TableauCurve.Closed(f, 4)); }
         Hill(Color.FromArgb(255, 0x1C, 0x20, 0x46), Color.FromArgb(255, 0x14, 0x16, 0x34), -0.1, 0.60, 0.08, 0.55, 0.22, 0.57, 0.38, 0.52, 0.52, 0.58, 0.68, 0.53, 0.84, 0.47, 0.97, 0.54, 1.1, 0.52, 1.25, 1.0, -0.25, 1.0);
         var town = Color.FromArgb(255, 0x0E, 0x0E, 0x1E); var townB = B(town); var win = B(Color.FromArgb(255, 0xFF, 0xD0, 0x80));
@@ -125,11 +125,11 @@ public sealed class FireworksNight : Tableau
             for (var k = 0; k < 4; k++) if (rng.NextDouble() < 0.7) RB(x + bw * (0.12 + 0.7 * rng.NextDouble()), wy - bh * (0.2 + 0.65 * rng.NextDouble()), Math.Max(1.5, S(0.004)), Math.Max(1.5, S(0.005)), win, 0.5 + 0.4 * rng.NextDouble());
             x += bw + S(0.002 + 0.01 * rng.NextDouble());
         }
-        {   // the church
+        {   // the town hall and its tower: a plain pole on top, no sign of any faith (2026-11-16; a cross stood here before)
             double cx = X(0.21), u = S(0.01);
             RB(cx - u * 1.6, wy - u * 11, u * 3.2, u * 11, townB); GB(townB, 1, cx - u * 1.9, wy - u * 10.8, cx, wy - u * 17.5, cx + u * 1.9, wy - u * 10.8);
             RB(cx + u * 1.4, wy - u * 6, u * 7, u * 6, townB); GB(townB, 1, cx + u * 1.2, wy - u * 5.8, cx + u * 4.9, wy - u * 8.6, cx + u * 8.6, wy - u * 5.8);
-            E(cx, wy - u * 8.6, u * 1.5, Color.FromArgb(255, 0xFF, 0xE0, 0xA0), 0.9); L(cx, wy - u * 17.4, cx, wy - u * 19, town, Math.Max(1, u * 0.2)); L(cx - u * 0.6, wy - u * 18.3, cx + u * 0.6, wy - u * 18.3, town, Math.Max(1, u * 0.2));
+            E(cx, wy - u * 8.6, u * 1.5, Color.FromArgb(255, 0xFF, 0xE0, 0xA0), 0.9); L(cx, wy - u * 17.4, cx, wy - u * 19, town, Math.Max(1, u * 0.2));
         }
 
         // ---- the river, and each shell's light on it

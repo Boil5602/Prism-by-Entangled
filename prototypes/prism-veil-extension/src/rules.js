@@ -386,6 +386,67 @@
     return null;
   }
 
+  // Who posted, as a key that is the same on every post of that page: the path of the link on the post's first name
+  // ("/forbes", "/groups/123", "id:123" for profile.php). "" when the header has no such link.
+  function fbPageKey(post) {
+    try {
+      var name = post.querySelector('[data-ad-rendering-role="profile_name"], h2, h3, h4');
+      if (!name) return "";
+      var a = name.querySelector("a[href]") || (name.closest && name.closest("a[href]"));
+      if (!a) return "";
+      var u = new URL(a.getAttribute("href"), location.href);
+      if (!/(^|\.)facebook\.com$/i.test(u.hostname)) return "";
+      var p = u.pathname.replace(/\/+$/, "").toLowerCase();
+      if (p === "/profile.php") { var id = u.searchParams.get("id"); return id ? "id:" + id : ""; }
+      var g = /^\/groups\/[^\/]+/.exec(p); if (g) return g[0];
+      var pe = /^\/people\/[^\/]+\/[^\/]+/.exec(p); if (pe) return pe[0];
+      return /^\/[^\/]+$/.test(p) ? p : "";
+    } catch (e) { return ""; }
+  }
+  PV.fbPageKey = fbPageKey;
+  // The pages Facebook itself said the person does not follow (2026-11-16, from a report and a walk of the feed: four posts of
+  // one page in one feed, the Follow button on one of them and the other three with headers the same to the last attribute).
+  // A Follow or Join button on one post of a page is Facebook's own word that the person does not follow that page; it is kept
+  // by the page's key for FB_SEEN_MS, in this browser only, and a post of that page with no button is a suggested post too.
+  // The time is short on purpose: a person who follows the page afterwards gets its posts back when the entry runs out, and
+  // Facebook shows the button again often enough to keep an entry fresh while it is true.
+  var FB_SEEN_MS = 3 * 24 * 3600 * 1000, FB_SEEN_MAX = 300, FB_SEEN_KEY = "pv:fb:follow-seen";
+  PV.fbSeen = PV.fbSeen || {};
+  try { chrome.storage.local.get(FB_SEEN_KEY, function (r) { try { var m = r && r[FB_SEEN_KEY]; if (m && typeof m === "object") for (var k in m) if (typeof m[k] === "number" && !(PV.fbSeen[k] > m[k])) PV.fbSeen[k] = m[k]; } catch (e) {} }); } catch (e0) {}
+  var fbSeenT = 0;
+  function fbSeenNote(key, now) {
+    if (!key) return;
+    var had = PV.fbSeen[key];
+    PV.fbSeen[key] = now;
+    if (had && now - had < 3600 * 1000) return;   // written at most once an hour for a page
+    clearTimeout(fbSeenT);
+    fbSeenT = setTimeout(function () {
+      try {
+        var keys = Object.keys(PV.fbSeen).filter(function (k2) { return now - PV.fbSeen[k2] < FB_SEEN_MS; }).sort(function (x, y) { return PV.fbSeen[y] - PV.fbSeen[x]; }).slice(0, FB_SEEN_MAX), out = {};
+        keys.forEach(function (k2) { out[k2] = PV.fbSeen[k2]; });
+        var o = {}; o[FB_SEEN_KEY] = out; chrome.storage.local.set(o);
+      } catch (e) {}
+    }, 1500);
+  }
+  function fbSeenHas(key, now) { var t = key ? PV.fbSeen[key] : 0; return !!t && now - t < FB_SEEN_MS && !PV.fbMine[key]; }
+  // The pages the person said they follow (2026-11-16, the cover's own button `Stop covering this page`): a post of such a page with
+  // no button is never covered by the rule above, whatever was noted. Kept in this browser only, 300 at most, the oldest dropped.
+  // A post that carries Facebook's Follow button itself is still covered: the button is Facebook's word about that post.
+  var FB_MINE_KEY = "pv:fb:followed";
+  PV.fbMine = PV.fbMine || {};
+  try { chrome.storage.local.get(FB_MINE_KEY, function (r) { try { var m = r && r[FB_MINE_KEY]; if (m && typeof m === "object") for (var k in m) if (typeof m[k] === "number" && !PV.fbMine[k]) PV.fbMine[k] = m[k]; } catch (e) {} }); } catch (e1) {}
+  PV.fbFollowed = function (key) {
+    if (!key) return false;
+    PV.fbMine[key] = Date.now();
+    try {
+      var keys = Object.keys(PV.fbMine).sort(function (x, y) { return PV.fbMine[y] - PV.fbMine[x]; }).slice(0, FB_SEEN_MAX), out = {};
+      keys.forEach(function (k2) { out[k2] = PV.fbMine[k2]; });
+      PV.fbMine = out;
+      var o = {}; o[FB_MINE_KEY] = out; chrome.storage.local.set(o);
+    } catch (e) {}
+    return true;
+  };
+
   // The pair of buttons Facebook puts on a group it suggests: one element that reads exactly "Interested" and one that reads
   // exactly "Not interested", on one line (report 2026-11-12: such a post has no Join button, so it came through). Both must
   // be there: one word alone could be a post's own text. Returns the first of the pair or null.
@@ -743,18 +804,63 @@
       host: /(^|\.)facebook\.com$/i,
       run: function (root, ctx) {
         if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil)) return;
-        var seen = new Set();
+        var seen = new Set(), now = Date.now(), posts = [];
         root.querySelectorAll("[aria-posinset]").forEach(function (post) {
           if (seen.has(post) || post.querySelector("[aria-posinset]")) return;   // innermost posts only
           seen.add(post);
-          var el = fbFollowButton(post), pair = el ? null : fbInterestPair(post);
+          var b = fbFollowButton(post);
+          if (b) fbSeenNote(fbPageKey(post), now);   // first, every button on the page is noted: a post above it is then covered in this same pass
+          posts.push([post, b]);
+        });
+        posts.forEach(function (pb) {
+          var post = pb[0];
+          var el = pb[1], pair = el ? null : fbInterestPair(post);
           el = el || pair;
-          if (!el) return;
+          if (!el) {
+            // no button on this post, and Facebook put one on another post of the same page within the last days
+            if (!fbSeenHas(fbPageKey(post), now)) return;
+            var nm = post.querySelector('[data-ad-rendering-role="profile_name"], h2, h3, h4');
+            var t2 = nm ? fbSinglePost(post, nm) : null;
+            if (!t2) return;
+            var r2 = t2.getBoundingClientRect();
+            if (r2.width > innerWidth * 0.7 || r2.height > innerHeight * 1.6 || r2.height < 120) return;
+            ctx.add(t2, "facebook-suggested: Follow button on another post from this page", true);
+            return;
+          }
           var target = fbSinglePost(post, el);
           if (!target) return;
           var pr = target.getBoundingClientRect();
           if (pr.width > innerWidth * 0.7 || pr.height > innerHeight * 1.6 || pr.height < 120) return;
           ctx.add(target, "facebook-suggested: " + (pair ? "Interested and Not interested buttons" : ((el.textContent || "").indexOf("Join") >= 0 ? "Join" : "Follow") + " button in the header"), true);
+        });
+      },
+    },
+    {
+      // LinkedIn's suggested posts (the same opt-in, pv:ui.suggestedVeil; 2026-11-18, a report from the feed asked for them).
+      // Traceable source: LinkedIn's own Follow button at the top of a feed item, named for the account ("Follow <name>").
+      // LinkedIn shows it only for an account the person does not follow, so the item was put in the feed by LinkedIn: a
+      // post from a stranger, or its Recommended for you list. The feed is a list of items (role=list / listitem; the
+      // class names are scrambled and never read). A connection's repost keeps the Follow button lower down, under the
+      // connection's own name and words; only a button within the item's first 90 px counts, so a repost is left alone
+      // (read live 2026-11-18: 1 to 55 px on suggested items, 121 px on a repost). It is not an ad label and the cover
+      // does not call the item an ad.
+      id: "linkedin-suggested",
+      host: /(^|\.)linkedin\.com$/i,
+      run: function (root, ctx) {
+        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil)) return;
+        if (!/^\/feed(\/|$)/.test(location.pathname)) return;
+        root.querySelectorAll('[role="listitem"]').forEach(function (item) {
+          if (item.parentElement && item.parentElement.closest('[role="listitem"]')) return;   // the feed's own items only, not a list inside one
+          var ir = item.getBoundingClientRect();
+          if (ir.width < 400 || ir.width > innerWidth * 0.7 || ir.height < 150 || ir.height > innerHeight * 1.6) return;
+          var bs = item.querySelectorAll("button[aria-label]");
+          for (var i = 0; i < bs.length; i++) {
+            var b = bs[i];
+            if (!/^Follow\s+\S/.test(b.getAttribute("aria-label") || "") || (b.textContent || "").trim() !== "Follow") continue;
+            var br = b.getBoundingClientRect();
+            if (br.height > 0 && br.top - ir.top <= 90) ctx.add(item, "linkedin-suggested: Follow button at the top of the item", true);
+            return;   // the first Follow button decides: one lower down is a connection's repost
+          }
         });
       },
     },

@@ -140,7 +140,7 @@ public sealed partial class SurfaceManager
         public int PeekRemaining;
         /// <summary>The look under the cover (B-486): the panel under the corner symbol, the box the page is drawn into, where that box is in
         /// the window, the page view's own transform while it is lent to the box, and the three clocks (rest, leave, the 20 s end).</summary>
-        public Grid? PeepPanel; public Border? PeepBox;
+        public Grid? PeepPanel; public Border? PeepBox; public StackPanel? PeepInfo;
         public bool PeepOn; public Windows.Foundation.Rect PeepRect; public Transform? PeepBase;
         public Microsoft.UI.Dispatching.DispatcherQueueTimer? PeepRest, PeepLeave, PeepEnd;
         public Border[] SubSlabs = Array.Empty<Border>();
@@ -171,6 +171,8 @@ public sealed partial class SurfaceManager
         public Button? FaceBtn;
         /// <summary>The page's player is in its own fullscreen (the top layer): laid out at the rect's size while it is (2026-09-24).</summary>
         public bool InFullscreen;
+        /// <summary>The service's own page in a window (2026-11-15): the stage shield is down, the page takes the presses itself.</summary>
+        public bool ShieldOff;
         /// <summary>Multiview's X on the bar (2026-09-24): shown only while the window is a multiview window.</summary>
         public Button? CloseBtn;
         /// <summary>Multiview's X in the window's own top right corner, above the veil (SyncCornerX).</summary>
@@ -512,7 +514,7 @@ public sealed partial class SurfaceManager
             // it drew at the layout's size and showed only its top-left - "why is the video so zoomed in", and Hulu's captions, at the
             // player's bottom, fell off the window (2026-09-24). While the player is fullscreen the page is laid out at the rect's own size.
             if (tile.InFullscreen != contains) { tile.InFullscreen = contains; ApplyViewport(tile); }
-            if (tile.Shield is { } sh) sh.Visibility = contains && tile.Kind != SurfaceKind.Hidden ? Visibility.Visible : Visibility.Collapsed;   // the stage shield follows the player's fullscreen
+            if (tile.Shield is { } sh) sh.Visibility = contains && tile.Kind != SurfaceKind.Hidden && !tile.ShieldOff ? Visibility.Visible : Visibility.Collapsed;   // the stage shield follows the player's fullscreen
             _forwardEvent(tile.Id, JsonSerializer.Serialize(new { type = SurfaceEvents.FullscreenElement, id = tile.Id, contains }));
         };
         if (tile.Kind == SurfaceKind.Popup)
@@ -678,9 +680,12 @@ public sealed partial class SurfaceManager
     // a reader is core's own page for a service ("app:<service>:lookup", "app:<service>:work", "app:prism-scores:work"); a music player's facet
     // is kind "hidden" too and plays while hidden - never a reader
     private bool IsReader(Tile t) => t.Kind == SurfaceKind.Hidden && t.Id.StartsWith("app:", StringComparison.Ordinal);
+    /// <summary>The look-ahead's live page (core's scout surface, 2026-11-17): of the hidden kind, but it plays a channel for the break watch all the
+    /// while - never a reader, never a music facet, never parked.</summary>
+    public static bool IsScout(string id) => id.StartsWith("scout:", StringComparison.Ordinal);
     // a music player's hidden facet (2026-10-03, the one browser's split: Apple Music 430 MB, Spotify 216, Amazon 160, Pandora 147 idle): parked
     // the same way once it has not played and nothing has touched it for ten minutes - a pick wakes it before the first script reaches it
-    private bool IsMusicFacet(Tile t) => t.Kind == SurfaceKind.Hidden && !t.Id.StartsWith("app:", StringComparison.Ordinal);
+    private bool IsMusicFacet(Tile t) => t.Kind == SurfaceKind.Hidden && !t.Id.StartsWith("app:", StringComparison.Ordinal) && !IsScout(t.Id);
     public static readonly TimeSpan MusicIdle = TimeSpan.FromMinutes(10);
     /// <summary>A page that may be frozen while idle: a reader, or a music facet that is not playing.</summary>
     private bool IsParkable(Tile t) => IsReader(t) || IsMusicFacet(t);
@@ -983,6 +988,15 @@ public sealed partial class SurfaceManager
     }
     public bool InPip(string id) => _pip.ContainsKey(id);
 
+    /// <summary>The stage shield down (the service's own page in a window: its controls take the presses) or back where the player's fullscreen puts it.</summary>
+    public void SetShieldOff(string id, bool off)
+    {
+        if (Get(id) is not { } t) return;
+        t.ShieldOff = off;
+        if (t.Shield is { } sh) sh.Visibility = t.InFullscreen && t.Kind != SurfaceKind.Hidden && !off ? Visibility.Visible : Visibility.Collapsed;
+        SyncBreakCard(t);
+    }
+
     /// <summary>The window's break is the Video player's (the host answers): Watch in place of Fill slot and Minimize.</summary>
     public Func<string, bool>? BreakWatchFor;
     /// <summary>Watch / Return to video pressed on a break (or the break tapped in Watch's corner).</summary>
@@ -1013,7 +1027,7 @@ public sealed partial class SurfaceManager
         // with Watch open and the screen in its corner it still offers the way back, Return to video
         if (t.WatchChip is { } w) { w.Visibility = vp && corner ? Visibility.Visible : Visibility.Collapsed; w.Content = "Return to video"; }
         // 2026-09-23: the Video player's breaks start collapsed (ShowIntermission)
-        t.Intermission.Background = vp && corner ? ClearHit : null;   // in the corner the whole break is the way back
+        t.Intermission.Background = vp && corner && !t.ShieldOff ? ClearHit : null;   // in the corner the whole break is the way back (not in the service's own page's window: its presses are the page's)
         // on the stage the cover's ground takes the press (B-487): a press passed through to the page paused a player nobody could see
         foreach (var slab in t.SubSlabs) slab.IsHitTestVisible = vp && !corner;
     }
@@ -1052,6 +1066,44 @@ public sealed partial class SurfaceManager
     /// small into the opening. The view itself is what shows, so a protected video is seen as any other is (a copy of one is black), and
     /// no service needs a rule of its own. The sound stays as the cover left it. Not in Watch's corner or a window too small to hold it.
     /// </summary>
+    /// <summary>The lines under the look's picture (2026-11-18): what the cover is and why, then the cover picture's own credit from its
+    /// pack's manifest - the same facts the extension's small view gives. A line with nothing to say is left out.</summary>
+    private void FillPeepInfo(Tile tile, double width)
+    {
+        if (tile.PeepInfo is not { } info) return;
+        info.Children.Clear();
+        info.MaxWidth = width;
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        head.Children.Add(new TextBlock { Text = "Covered by PRISM", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Tokens.Ink });
+        head.Children.Add(new TextBlock { Text = "An ad", FontSize = 14, Foreground = Tokens.Amber });
+        info.Children.Add(head);
+        void Row(string label, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var l = new TextBlock { Text = label, FontSize = 12, Foreground = Tokens.Dim, Margin = new Thickness(0, 1, 0, 0) };
+            var v = new TextBlock { Text = value, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Tokens.Ink, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis };
+            Grid.SetColumn(v, 1);
+            row.Children.Add(l); row.Children.Add(v);
+            info.Children.Add(row);
+        }
+        // why: the service's own signal for an ad, or the break watch's reading of the picture with what it went on
+        Row("Why", _watchAd.GetValueOrDefault(tile.Id)
+            ? "PRISM spotted an ad break" + (_coverWhy.TryGetValue(tile.Id, out var why) && why.Length > 0 ? ": " + why : "")
+            : "The service marked this as an ad");
+        if (tile.ArtInfo is { } a)
+        {
+            Row("Picture", a.Headline);
+            Row("Credit", a.Credit);
+            Row("License", a.LicenseName);
+            // a pack names an address, the pool a place by name
+            var from = a.SourceUrl;
+            try { if (from.StartsWith("http", StringComparison.OrdinalIgnoreCase)) from = new Uri(from).Host; } catch { }
+            Row("Source", from);
+        }
+    }
     private void StartPeep(Tile tile)
     {
         if (tile.PeepOn || tile.PeepPanel is not { } panel || tile.PeepBox is not { } box || tile.View is not { } v) return;
@@ -1060,6 +1112,7 @@ public sealed partial class SurfaceManager
         panel.Margin = new Thickness(p.X - PeepEdge, p.Y - PeepEdge, 0, 0);
         box.Width = p.W + PeepEdge * 2; box.Height = p.H + PeepEdge * 2;
         tile.PeepRect = new Windows.Foundation.Rect(p.X, p.Y, p.W, p.H);
+        FillPeepInfo(tile, p.W);
         tile.PeepBase = v.RenderTransform;
         tile.PeepOn = true;
         SetPeepHole(tile);
@@ -1472,7 +1525,12 @@ public sealed partial class SurfaceManager
             MainWindow.OwnHover(peepShow);
             ToolTipService.SetToolTip(peepShow, "Lifts the cover for the rest of this break");
             peepShow.Click += (_, __) => { StopPeep(tile); if (!tile.Peeked) TogglePeek(tile.Id); };
-            var peepFoot = new Border { Background = Tokens.Panel, CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(PeepEdge, 0, PeepEdge, PeepEdge), Child = peepShow };
+            // under the picture: what the cover is and the picture's credit, as the extension's small view says them (2026-11-18)
+            var peepInfo = new StackPanel { Spacing = 3, Margin = new Thickness(2, 6, 2, 8) };
+            var peepFootRows = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left };
+            peepFootRows.Children.Add(peepInfo); peepFootRows.Children.Add(peepShow);
+            var peepFoot = new Border { Background = Tokens.Panel, CornerRadius = new CornerRadius(0, 0, 10, 10), Padding = new Thickness(PeepEdge, 0, PeepEdge, PeepEdge), Child = peepFootRows };
+            tile.PeepInfo = peepInfo;
             var peepPanel = new Grid { HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed };
             peepPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             peepPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1520,7 +1578,7 @@ public sealed partial class SurfaceManager
             tile.FillChip = fillSlot;
             tile.WatchChip = watch;
             // in Watch's corner the whole break is the way back: a tap anywhere on it off the card returns to the video
-            g.Tapped += (_, e) => { if (!ReferenceEquals(e.OriginalSource, g) || !_pip.ContainsKey(tile.Id) || BreakWatchFor?.Invoke(tile.Id) != true) return; e.Handled = true; BreakWatchPressed?.Invoke(tile.Id); };
+            g.Tapped += (_, e) => { if (!ReferenceEquals(e.OriginalSource, g) || !_pip.ContainsKey(tile.Id) || tile.ShieldOff || BreakWatchFor?.Invoke(tile.Id) != true) return; e.Handled = true; BreakWatchPressed?.Invoke(tile.Id); };
             tile.Card = card;
             tile.ArtChipHost = chipHost;
         }
@@ -3491,6 +3549,9 @@ public sealed partial class SurfaceManager
 
     /// <summary>The break watch's word on a window: posted on as the page's ad-break, joined with the page's own.</summary>
     public void WatchAdBreak(string id, bool active) => JoinAdBreak(id, () => _watchAd[id] = active);
+    /// <summary>What the break watch went on when it called this window's break (2026-11-18), said in the look under the cover.</summary>
+    public void SetCoverWhy(string id, string why) => _coverWhy[id] = why ?? "";
+    private readonly Dictionary<string, string> _coverWhy = new();
 
     /// <summary>The break watch's break said to core again: the cover came down at core's backstop while the watch still vouches for the
     /// break (a paid programme whose next half hour's notice came a few seconds after the cover fell, B-364).</summary>
@@ -3771,7 +3832,7 @@ public sealed partial class SurfaceManager
     notifyPosition: function (p, d) { post({ type: 'media-position', position: +p || 0, duration: (d == null || d < 0) ? null : +d }); },
     // Quick play cross-service lookup (2026-09-16): an adapter's musicLookup script answers core's question (search /
     // add to playlist / station from song) with the token core handed it; core matches the answer to its wait
-    notifyMusicResult: function (r) { try { post({ type: 'music-result', token: String(r && r.token || ''), op: String(r && r.op || 'lookup'), ok: !!(r && r.ok), candidates: (r && r.candidates) || undefined, error: (r && r.error) ? String(r.error) : undefined, count: (r && typeof r.count === 'number') ? r.count : undefined, total: (r && typeof r.total === 'number') ? r.total : undefined, data: (r && r.data !== undefined) ? r.data : undefined }); } catch (e) {} },
+    notifyMusicResult: function (r) { try { post({ type: 'music-result', token: String(r && r.token || ''), op: String(r && r.op || 'lookup'), ok: !!(r && r.ok), candidates: (r && r.candidates) || undefined, items: (r && r.items) || undefined, error: (r && r.error) ? String(r.error) : undefined, count: (r && typeof r.count === 'number') ? r.count : undefined, total: (r && typeof r.total === 'number') ? r.total : undefined, data: (r && r.data !== undefined) ? r.data : undefined }); } catch (e) {} },
   };
   // a person's tap only (2026-09-28): a pointer event an adapter's own script dispatches is the wall's doing, not the person's - core reads
   // 'interaction' as the person acting (the resume after a restart stands aside for it, a stopped autoplay is let go)

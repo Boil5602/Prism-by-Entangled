@@ -56,8 +56,9 @@ function cleanReport(r) {
     veil: STR(r.veil, 16),        // extension version
     note: STR(r.note, 280),       // optional free text the user typed
     kind: ["video", "display", "sponsored", "popup", "sound", "other", "not-an-ad", "is-an-ad", "cover-stayed", "small-view", "sound-wrong", "player"].includes(r.kind) ? r.kind : undefined,   // what the person chose (2026-09-26); not-an-ad: the break watch covered a show (2026-10-06); a fault of a cover (2026-11-12)
-    fb: (r.fb && typeof r.fb === "object" && JSON.stringify(r.fb).length <= 8000) ? r.fb : undefined,   // site diagnostics block (see report.js), capped
+    fb: (r.fb && typeof r.fb === "object" && JSON.stringify(r.fb).length <= 20000) ? r.fb : undefined,   // site diagnostics block (see report.js), capped
     fbErr: STR(r.fbErr, 120),
+    fbDropped: (r.fb && typeof r.fb === "object" && JSON.stringify(r.fb).length > 20000) ? JSON.stringify(r.fb).length : undefined,   // the block was over the cap: its size, so a missing block is explained (2026-11-16: no report since August kept one)
     diag: (r.diag && typeof r.diag === "object" && JSON.stringify(r.diag).length <= 8000) ? r.diag : undefined,
     // card: the enclosing card's label-grade interior; stack: the elements
     // under the click point (top to bottom); frames/framesDirect: embed and

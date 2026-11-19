@@ -10,6 +10,25 @@
 (function () {
   "use strict";
   var NS = globalThis.PrismBreak, P = NS && NS.picture;
+  // Firefox (2026-11-18): it has no tab stream and no offscreen page, so there this file runs on the background page itself and reads
+  // the tab by snapshots (tabs.captureTab with the video's rectangle), one a look. A page never hears its own messages, so what this
+  // file asks of bg.js elsewhere (the storage, the toolbar line) it does directly there. Only the tab in front can be read: a tab
+  // behind another gives its last picture again, so a look at one is left out.
+  var SNAP = !!(chrome.tabs && chrome.tabs.captureTab);
+  function bgLoad(key, cb) {
+    if (!SNAP) { try { chrome.runtime.sendMessage({ type: "pv:live-load", key: key }, function (v) { void chrome.runtime.lastError; cb(v); }); } catch (e) {} return; }
+    var k = "pv:bw:" + String(key || "?").slice(0, 80);
+    try { chrome.storage.local.get(k, function (r) { void chrome.runtime.lastError; cb((r && r[k]) || null); }); } catch (e) {}
+  }
+  function bgSave(key, state) {
+    if (!SNAP) { try { chrome.runtime.sendMessage({ type: "pv:live-save", key: key, state: state }, function () { void chrome.runtime.lastError; }); } catch (e) {} return; }
+    var o = {}; o["pv:bw:" + String(key || "?").slice(0, 80)] = state;
+    try { chrome.storage.local.set(o, function () { void chrome.runtime.lastError; }); } catch (e) {}
+  }
+  function bgSay(msg) {
+    if (SNAP) { if (msg.type === "pv:live-ended" && typeof globalThis.liveTitle === "function") globalThis.liveTitle(msg.tabId, false); return; }
+    try { chrome.runtime.sendMessage(msg, function () { void chrome.runtime.lastError; }); } catch (e) {}
+  }
   NS.BreakModel.BandLogo = true; NS.BreakModel.BandStrict = false;   // as the model was judged on the bench (BANDLOGO=1 BANDSTRICT=0)
   var tabs = {};   // tab id -> { stream, sv, chans: { key: { m, lst, lastT } } }
   var canvas = document.createElement("canvas"); canvas.width = P.W; canvas.height = P.H;
@@ -20,27 +39,21 @@
   var prints = new NS.AdPrints(null), printsSavedAt = 0;
   // ... and their sounds (AdSounds, the app's sounds.bin format), learned from a sure break's sound all but its last twenty seconds
   var sounds = new NS.AdSounds(null), soundsSavedAt = 0;
-  try {
-    chrome.runtime.sendMessage({ type: "pv:live-load", key: "__sounds" }, function (b64) {
-      void chrome.runtime.lastError;
-      if (typeof b64 === "string" && b64.length > 16) { try { sounds = new NS.AdSounds(P.fromB64(b64).buffer); } catch (e) {} }
-    });
-  } catch (e) {}
+  bgLoad("__sounds", function (b64) {
+    if (typeof b64 === "string" && b64.length > 16) { try { sounds = new NS.AdSounds(P.fromB64(b64).buffer); } catch (e) {} }
+  });
   function keepSounds(now) {
     if (!sounds._dirty || now - soundsSavedAt < 300) return;
     soundsSavedAt = now; sounds._dirty = false;
-    try { chrome.runtime.sendMessage({ type: "pv:live-save", key: "__sounds", state: P.toB64(new Uint8Array(sounds.save())) }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+    try { bgSave("__sounds", P.toB64(new Uint8Array(sounds.save()))); } catch (e) {}
   }
-  try {
-    chrome.runtime.sendMessage({ type: "pv:live-load", key: "__prints" }, function (b64) {
-      void chrome.runtime.lastError;
-      if (typeof b64 === "string" && b64.length > 16) { try { prints = new NS.AdPrints(P.fromB64(b64).buffer); } catch (e) {} }
-    });
-  } catch (e) {}
+  bgLoad("__prints", function (b64) {
+    if (typeof b64 === "string" && b64.length > 16) { try { prints = new NS.AdPrints(P.fromB64(b64).buffer); } catch (e) {} }
+  });
   function keepPrints(now) {
     if (!prints._dirty || now - printsSavedAt < 300) return;
     printsSavedAt = now; prints._dirty = false;
-    try { chrome.runtime.sendMessage({ type: "pv:live-save", key: "__prints", state: P.toB64(new Uint8Array(prints.save())) }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+    try { bgSave("__prints", P.toB64(new Uint8Array(prints.save()))); } catch (e) {}
   }
   // the picture network (2026-11-06, scripts/breakwatch/cnn.py): its chance is added in logit to the learned one at the model's
   // policy.picture weight; a model without that weight, or a package without picture-net.json, leaves it out
@@ -105,14 +118,15 @@
     // reopening (quiet): the tab's old stream goes without telling bg.js the page is idle, which would close this page mid-open
     var t = tabs[id]; if (!t) return;
     delete tabs[id];
-    if (!quiet) { try { chrome.runtime.sendMessage({ type: "pv:live-ended", tabId: id }); } catch (e) {} }   // bg.js takes the toolbar button's line down
+    if (!quiet) bgSay({ type: "pv:live-ended", tabId: id });   // bg.js takes the toolbar button's line down
     try { if (t.stream) t.stream.getTracks().forEach(function (x) { x.stop(); }); } catch (e) {}
     try { if (t.sv) t.sv.srcObject = null; } catch (e) {}
-    if (!quiet && !Object.keys(tabs).length && !PrismAmbient.playing()) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} }
+    if (!quiet && !Object.keys(tabs).length && !PrismAmbient.playing()) bgSay({ type: "pv:offscreen-idle" });
   }
   function open(id, streamId, reply) {
     var keep = tabs[id] && tabs[id].chans;   // a reopened tab keeps what its channels have learned
     close(id, true);
+    if (SNAP) { tabs[id] = { snap: true, stream: null, sv: null, chans: keep || {} }; reply({ ok: true }); return; }
     navigator.mediaDevices.getUserMedia({ audio: false, video: { mandatory: { chromeMediaSource: "tab", chromeMediaSourceId: streamId,
       maxWidth: 1280, maxHeight: 720, maxFrameRate: 2 } } })
       .then(function (s) {
@@ -151,12 +165,9 @@
         coveredAt: -999, savedAt: 0, paidUntil: 0, paidCardSeen: -9999, paidOpenSeen: -9999, paidCloseSeen: -9999, paidLogoSince: -1,
         pending: [], recent: [], runs: new NS.PrintRuns(), backfilled: false, clip: 0, clipStart: 0, sound: [], breakSound: [], recentSound: [] };
       // the logo learned before, if this channel has one saved: taken while the new model has not learned its own
-      try {
-        chrome.runtime.sendMessage({ type: "pv:live-load", key: key }, function (st) {
-          void chrome.runtime.lastError;
-          if (st && st.v === 3 && !c.m.HasLogo) { var mm = NS.BreakModel.loadState(st, Math.floor(Date.now() / 1000)); mm.ChannelName = c.m.ChannelName; mm.AdFreeChannel = c.m.AdFreeChannel; mm.ShowTitle = c.m.ShowTitle; c.m = mm; c.savedAt = performance.now() / 1000; }
-        });
-      } catch (e) {}
+      bgLoad(key, function (st) {
+        try { if (st && st.v === 3 && !c.m.HasLogo) { var mm = NS.BreakModel.loadState(st, Math.floor(Date.now() / 1000)); mm.ChannelName = c.m.ChannelName; mm.AdFreeChannel = c.m.AdFreeChannel; mm.ShowTitle = c.m.ShowTitle; c.m = mm; c.savedAt = performance.now() / 1000; } } catch (e) {}
+      });
     }
     if (!c.lst && learned) c.lst = learned.NewState();
     return c;
@@ -204,6 +215,40 @@
       try { var big = P.cutTo(t.sv, msg.rect, msg.vw, msg.vh, bigG, 960, 540); if (big && NS.BreakModel.prototype.Qr.call({}, big, 960, 540, 0)) msg.qr = true; if (big) msg.screen = bigCanvas; } catch (e) {}
     }
     return judge(t, seen, msg);
+  }
+  // The snapshot route (Firefox, 2026-11-18): the video's middle 16:9, where the page says it is, asked of the browser as one small
+  // picture and judged as a stream's frame is. Every other look the picture is asked for at 960 wide, for the QR finder and the
+  // text reader; the others at 640, halved here with the same filtering the stream's frames get.
+  function snapWatch(t, tabId, msg, tab) {
+    if (tab && tab.active === false) return Promise.resolve({ away: true });
+    var r = msg.rect, vw = msg.vw, vh = msg.vh;
+    if (!r || !(vw > 0 && vh > 0)) return Promise.resolve({});
+    var x0 = Math.max(0, r.x), y0 = Math.max(0, r.y), w = Math.min(r.w, vw - x0), h = Math.min(r.h, vh - y0);
+    if (!(w > 8 && h > 8)) return Promise.resolve({});
+    var a = P.videoArea(w, h, P.W, P.H);
+    var big = !msg.covered && (t.looks = (t.looks || 0) + 1) % 2 === 0, outW = big ? 960 : 640;
+    var opts = { format: "jpeg", quality: 90, rect: { x: x0 + a.x + (+msg.sx || 0), y: y0 + a.y + (+msg.sy || 0), width: a.w, height: a.h }, scale: outW / a.w };
+    return chrome.tabs.captureTab(tabId, opts).then(function (url) {
+      return new Promise(function (ok, no) {
+        var im = new Image();
+        im.onload = function () { ok(im); }; im.onerror = function () { no(new Error("the snapshot is not a picture")); };
+        im.src = url;
+      });
+    }).then(function (im) {
+      if (tabs[tabId] !== t) return {};
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "low";
+      g.drawImage(im, 0, 0, P.W, P.H);
+      var seen = P.grey(g.getImageData(0, 0, P.W, P.H).data);
+      if (big) {
+        try {
+          bigG.imageSmoothingEnabled = true; bigG.drawImage(im, 0, 0, 960, 540);
+          var px = P.grey(bigG.getImageData(0, 0, 960, 540).data);
+          if (NS.BreakModel.prototype.Qr.call({}, px, 960, 540, 0)) msg.qr = true;
+          msg.screen = bigCanvas;
+        } catch (e) {}
+      }
+      return judge(t, seen, msg);
+    });
   }
   // one frame judged, whichever route brought it: the tab's stream cut here, or the page's own restricted picture (pv:live-gray)
   function judge(t, seen, msg) {
@@ -375,12 +420,12 @@
     if (c.savedAt > 0 && now - c.savedAt < 600) return;
     c.savedAt = now;
     var st = c.m.saveState(Math.floor(Date.now() / 1000));
-    if (st) { try { chrome.runtime.sendMessage({ type: "pv:live-save", key: String(key || "?"), state: st }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
+    if (st) bgSave(String(key || "?"), st);
   }
 
   // The soundscape (src/ambient.js): this page plays it, and stays open while it does
   function ambientPlay(on, sound) {
-    PrismAmbient.play(on, sound, function () { if (!Object.keys(tabs).length) { try { chrome.runtime.sendMessage({ type: "pv:offscreen-idle" }); } catch (e) {} } });
+    PrismAmbient.play(on, sound, function () { if (!Object.keys(tabs).length) bgSay({ type: "pv:offscreen-idle" }); });
   }
 
   chrome.runtime.onMessage.addListener(function (msg, sender, reply) {
@@ -392,7 +437,13 @@
     if (tid == null) return;
     if (msg.type === "pv:live-look") {
       var t = tabs[tid];
+      // Firefox may put its background page to sleep while the video is paused; awake again it has forgotten the tab, and reads on
+      if (!t && SNAP) { open(tid, null, function () {}); t = tabs[tid]; }
       if (!t) { reply({ error: "no stream" }); return; }
+      if (t.snap) {
+        snapWatch(t, tid, msg, sender.tab).then(reply, function (e) { reply({ error: String(e && (e.message || e)) }); });
+        return true;
+      }
       try { reply(watch(t, msg)); } catch (e) { reply({ error: String(e && (e.name + " " + e.message)) }); }
       return;
     }
@@ -409,4 +460,6 @@
     }
     if (msg.type === "pv:live-close") { close(tid); reply({ ok: true }); }
   });
+  // bg.js, on the same page there, opens and shuts a tab's reading by these
+  if (SNAP) globalThis.PrismLiveSnap = { open: function (id, reply) { open(id, null, reply || function () {}); }, shut: function (id) { close(id); } };
 })();

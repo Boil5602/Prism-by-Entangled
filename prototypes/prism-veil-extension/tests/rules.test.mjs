@@ -147,11 +147,44 @@ describe("Facebook", () => {
     expect(out[0].why).toMatch(/^facebook-suggested: /);
     expect(detect(PV, post("g", sug("Join"))).map((o) => o.why)).toEqual(["facebook-suggested: Join button in the header"]);
   });
+  it("covers a LinkedIn feed item with a Follow button at its top, and leaves a repost and a followed account", () => {
+    const PV = loadVeil({ host: "www.linkedin.com" }); window.history.pushState({}, "", "/feed/");
+    const item = (id, y, btnAt, label = "Follow Some Person") => `<div role="listitem" id="${id}" ${R(0, y, 552, 300)}><p ${R(0, y, 200, 20)}>Some Person</p>` +
+      (btnAt === null ? "" : `<button aria-label="${label}" ${R(450, y + btnAt, 78, 32)}>Follow</button>`) + `<p ${R(0, y + 150, 500, 100)}>words</p></div>`;
+    const feed = `<div role="list">${item("sug", 0, 38)}${item("repost", 320, 121)}${item("mine", 640, null)}${item("other", 960, 20, "Unfollow Some Person")}</div>`;
+    expect(detect(PV, feed)).toEqual([]);
+    PV.uiPrefs = { suggestedVeil: true };
+    const out = detect(PV, feed);
+    expect(out.map((o) => o.id)).toEqual(["sug"]);
+    expect(out[0].why).toBe("linkedin-suggested: Follow button at the top of the item");
+  });
   it("leaves a followed page's post and a share with Follow lower down", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
     PV.uiPrefs = { suggestedVeil: true };
     expect(detect(PV, post("org", sug("Following")))).toEqual([]);
     expect(detect(PV, post("share", sug("Follow", 140)))).toEqual([]);
+  });
+  it("covers a post with no Follow button when Facebook put the button on another post of the same page (2026-11-16)", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    PV.uiPrefs = { suggestedVeil: true };
+    const by = (path, follow) => `<div ${R(0, 0, 680, 60)}><h3 ${R(0, 0, 200, 20)}><a href="https://www.facebook.com${path}?__cft__[0]=x"><strong>Paper Boats</strong></a></h3>${follow ? `<span ${R(210, 2, 50, 18)}>Follow</span>` : ""}<div ${R(0, 30, 200, 20)}><span>13h</span></div></div><div data-ad-rendering-role="story_message" ${R(0, 60, 680, 600)}></div>`;
+    // the page's post with no button, alone: nothing says the person does not follow it
+    expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
+    // the same feed holds a post of the page with the button: both are covered, the one above it too
+    const out = detect(PV, post("a", by("/paperboats", false)) + post("b", by("/paperboats", true)) + post("c", by("/tallgrass", false)));
+    expect(out.map((o) => o.id)).toEqual(["a", "b"]);
+    expect(out[0].why).toBe("facebook-suggested: Follow button on another post from this page");
+    // it is remembered for a later pass, and forgotten after three days
+    expect(detect(PV, post("a", by("/paperboats/", false))).map((o) => o.id)).toEqual(["a"]);
+    // the person says they follow the page: its posts with no button are left alone, a post with the button is still covered
+    expect(PV.fbFollowed("/paperboats")).toBe(true);
+    expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
+    expect(detect(PV, post("b", by("/paperboats", true))).map((o) => o.id)).toEqual(["b"]);
+    expect(PV.fbFollowed("")).toBe(false);
+    PV.fbMine = {};
+    expect(detect(PV, post("a", by("/paperboats", false))).map((o) => o.id)).toEqual(["a"]);
+    PV.fbSeen["/paperboats"] = Date.now() - 4 * 24 * 3600 * 1000;
+    expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
   });
   it("covers a suggested group by its Interested and Not interested buttons, never by one word alone", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
@@ -436,6 +469,23 @@ describe("page-sized guard is about height, not area", () => {
   });
 });
 
+// Pandora's video advertisement (2026-11-18): a display rule put a second cover over the video cover and took every press.
+describe("what the video cover holds gets no display cover", () => {
+  it("an ad element inside the video cover is left to it, and is covered again when the video cover is gone", () => {
+    const PV = loadVeil({ host: "www.pandora.com", width: 1600, height: 900 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    document.body.innerHTML = `<div class="ad-unit" id="in" ${R(300, 100, 800, 450)}></div><div class="ad-unit" id="out" ${R(1250, 100, 300, 250)}></div>`;
+    const vc = document.createElement("div"); vc.setAttribute("data-prism-veil", "1"); vc.setAttribute("data-rect", "300,100,800,450"); document.documentElement.appendChild(vc);
+    let veil = { cover: vc, mode: "ad" };
+    PV.videoAdBreak = () => {}; PV.vidVeil = () => veil; PV.pickArt = () => "data:,"; PV.artOnto = undefined;
+    const whys = () => document.querySelectorAll("[data-prism-why]").length;
+    PV.sweep(); expect(whys()).toBe(1);
+    veil = null; PV.sweep(); expect(whys()).toBe(2);
+    veil = { cover: vc, mode: "ad" }; PV.sweep(); expect(whys()).toBe(1);
+    vc.remove();
+  });
+});
+
 // Fox's collapsed Jetpack strip, as reported 2026-09-12 with the pick ON the
 // close button: a 42x42 `*_ButtonModule_*` whose class is "closeleavebehind",
 // top of the stack over the full-width "clickcollapsed" click-layer.
@@ -716,6 +766,7 @@ describe("the look under a display cover", () => {
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).kind).toBe("A suggested post");
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).source).toContain("Join");
     expect(PV.coverWhy("facebook-suggested: Interested and Not interested buttons", false).source).toContain("Interested");
+    expect(PV.coverWhy("facebook-suggested: Follow button on another post from this page", false).source).toContain("another post");
     expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labeled AI content");
     expect(PV.coverWhy("slot-selector: .ad-slot", false).source).toBe("An ad slot in the page");
   });
@@ -733,6 +784,9 @@ describe("the look under a display cover", () => {
     // an element at the bottom edge with the frame at the panel's top: no place (the panel then turns its frame to its foot)
     expect(PV.lookPlace(570, 10, 360, 200, 100, 543, 674, 674)).toBeNull();
     expect(PV.lookPlace(175, 150, 360, 200, 100, 543, 674, 674)).toEqual({ p: 308, a: 85 });
+    // a view a hair longer than its frame (a rounding of the fit) still has a place (2026-11-16, from the reports of 2026-11-12)
+    expect(PV.lookPlace(352, 10, 330, 108, 108.00000000000001, 312, 1145, 1266)).toEqual({ p: 352, a: 0 });
+    for (let h = 300; h < 1400; h += 0.5) { const hole = PV.lookHole({ width: 680, height: h }, { left: 928, top: 100, right: 1608, bottom: 1200 }, 192, 108, 10, 40); expect(hole.h <= 108 && hole.w <= 192).toBe(true); }
   });
   it("sets a picture's credit out in rows", () => {
     const PV = load();
@@ -760,10 +814,10 @@ describe("the look under a display cover", () => {
     expect(cards.length).toBe(1);
     expect(cards[0].getAttribute("data-prism-ui")).toBe("1");
     expect(cards[0].children.length).toBe(0);                    // nothing of the page is copied into the card
-    expect(ad.style.getPropertyValue("transform")).toMatch(/scale\(0\.2700\)/);
+    expect(ad.style.getPropertyValue("transform")).toMatch(/scale\(0\.4500\)/);
     expect(c.__lookOn).toBe(true);
     expect(document.getElementById("wrap").style.getPropertyValue("transform")).toBe("");            // no box of its own: left alone
-    expect(document.getElementById("in").style.getPropertyValue("transform")).toMatch(/scale\(0\.2700\)/);   // its child is scaled in its place
+    expect(document.getElementById("in").style.getPropertyValue("transform")).toMatch(/scale\(0\.4500\)/);   // its child is scaled in its place
     expect(c.style.clipPath).toMatch(/^polygon\(/);             // the hole
     expect(c.style.getPropertyValue("transform")).toBe("none");  // the cover itself is never scaled
     PV.lookClose();

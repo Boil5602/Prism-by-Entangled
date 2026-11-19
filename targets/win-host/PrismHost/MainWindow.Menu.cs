@@ -1246,6 +1246,7 @@ public sealed partial class MainWindow
     /// it works no matter where keyboard focus is.</summary>
     private bool EscapePressed()
     {
+        if (ServicePageOpen) { CloseServicePage(); return true; }   // the service's own page in a window (2026-11-15)
         if (_channelCard is not null) { CloseChannelCard(); return true; }   // a channel's card
         if (_purchaseCard is not null) { ClosePurchaseCard(); return true; }   // the Rent or Buy card
         if (_tmdbGuide is not null) { CloseTmdbGuide(); return true; }   // the TMDB guide, over whatever opened it

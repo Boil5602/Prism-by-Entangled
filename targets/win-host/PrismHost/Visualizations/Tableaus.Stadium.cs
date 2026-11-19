@@ -16,10 +16,13 @@ namespace PrismHost.Visualizations;
 ///
 /// The far stand is the meter: twenty-four blocks of seats round the bowl, a band a block, low notes at the left and high at the
 /// right, and the crowd in a block lights its rows from the front row up as its band rises. The big screen over the roof shows the
-/// same twenty-four levels as bars. Two sides play a match on the pitch (Tableaus.Stadium.Match.cs), and a goal is what starts the
+/// same twenty-four levels as bars, twelve on each side of the score (2026-11-17, asked for the score on the screen with the
+/// music, the two as one board). Two sides play a match on the pitch (Tableaus.Stadium.Match.cs), and a goal is what starts the
 /// wave (2026-11-11; a beat had started it): three crests run round the far stand as raised lights and come back along the near
 /// stand, where the people in front jump as each passes, and confetti falls. The floodlights and their beams breathe with the
-/// loudness, and the flags fly faster as the music gets louder.
+/// loudness, and the flags fly faster as the music gets louder. Cameras flash in the stands, more as the ball nears a goal and
+/// in a burst at a shot, and a goal pulses the floodlights three times (2026-11-17, asked for flashing lights. Never faster than
+/// three pulses a second, and neither is drawn with motion turned down).
 ///
 /// Every shape is made once in OnBuild. A row of seats in a block is one dotted line, a block's wave crest is one path, so a
 /// frame allocates nothing.
@@ -45,6 +48,15 @@ public sealed partial class StadiumWave : Tableau
     private double _cx, _cy, _a0, _da, _b0, _db, _lift;
     private double _flare, _prevBeat, _sinceBeat = 9, _sinceWave = 9, _idle, _tw, _fl, _confCool;
     private int _confLeft;
+    private const int Cams = 72;
+    private readonly Ellipse[] _cam = new Ellipse[Cams];
+    private readonly double[] _camT = new double[Cams];
+    private double _camAcc, _camBurst, _strobe, _goalT, _matchT, _fullT, _scoreFs;
+    private readonly TextBlock[] _scoreT = new TextBlock[2];
+    private readonly ScaleTransform[] _scoreS = new ScaleTransform[2];
+    private readonly int[] _scoreShown = { -1, -1 };
+    private TextBlock _goalWord = null!;
+    private Rectangle _scoreRule = null!;
 
     private const double Th0 = Math.PI - 0.3, Th1 = 2 * Math.PI + 0.3;
     private static Color Rgb(int v) => Color.FromArgb(255, (byte)(v >> 16), (byte)(v >> 8), (byte)v);
@@ -85,9 +97,28 @@ public sealed partial class StadiumWave : Tableau
             _screenGlow = Glow(_cx, sy + sh / 2, sw * 1.5, P(2), 0.3, 0.5); _screenGlow.Height = sh * 2.6; At(_screenGlow, _cx - sw * 0.75, sy + sh / 2 - sh * 1.3);
             var frame = RB(sx - S(0.008), sy - S(0.008), sw + S(0.016), sh + S(0.016), B(Rgb(0x141C2C))); frame.RadiusX = frame.RadiusY = S(0.006);
             RB(sx, sy, sw, sh, Vertical((Rgb(0x060A14), 0), (Rgb(0x0C1424), 1)));
+            // the board: the score in the middle, the music's twenty-four bars as its two wings
+            double mid = sw * 0.3, wing = (sw * 0.94 - mid) / 2; const int half = Secs / 2;
+            {
+                double mx = _cx - mid / 2, fs = sh * 0.38, cw = mid * 0.46; _scoreFs = fs;
+                TextBlock Word(string text, double x, double y, double w, double size, Color c, double op = 1)
+                {
+                    var t = new TextBlock { Text = text, Width = w, FontSize = Math.Max(6, size), TextAlignment = TextAlignment.Center, Foreground = B(c), FontWeight = Microsoft.UI.Text.FontWeights.Bold, IsHitTestVisible = false, Opacity = op };
+                    At(t, x, y); C.Children.Add(t); return t;
+                }
+                for (var k = 0; k < 2; k++)
+                {
+                    var x = k == 0 ? mx : mx + mid - cw; var shirt = Mix(P(k == 0 ? 1 : 3), White, 0.18);
+                    _scoreT[k] = Word("0", x, sy + sh * 0.13, cw, fs, White); _scoreS[k] = new ScaleTransform(); _scoreT[k].RenderTransformOrigin = new Pt(0.5, 0.55); _scoreT[k].RenderTransform = _scoreS[k]; _scoreShown[k] = -1;
+                    var chip = RB(x + cw * 0.15, sy + sh * 0.74, cw * 0.7, sh * 0.07, B(shirt)); chip.RadiusX = chip.RadiusY = sh * 0.035;
+                }
+                Word("-", _cx - mid * 0.15, sy + sh * 0.13, mid * 0.3, fs, A(White, 0.7));
+                _scoreRule = RB(_cx - mid * 0.08, sy + sh * 0.765, mid * 0.16, Math.Max(1, sh * 0.02), B(A(White, 0.35)));
+                _goalWord = Word("GOAL", mx, sy + sh * 0.64, mid, sh * 0.15, P(2), 0);
+            }
             for (var i = 0; i < Secs; i++)
             {
-                var col = Hue(i / 23.0); double bw = sw * 0.94 / Secs, bx = sx + sw * 0.03 + bw * i, bh = sh * 0.86;
+                var col = Hue(i / 23.0); double bw = wing / half, bx = sx + sw * 0.03 + (i < half ? bw * i : wing + mid + bw * (i - half)), bh = sh * 0.86;
                 var bar = RB(bx + bw * 0.14, sy + sh * 0.07, bw * 0.72, bh, Vertical((Mix(col, White, 0.55), 0), (col, 1)));
                 bar.RenderTransformOrigin = new Pt(0.5, 1); _barS[i] = new ScaleTransform { ScaleY = 0.2 }; bar.RenderTransform = _barS[i];
             }
@@ -174,6 +205,9 @@ public sealed partial class StadiumWave : Tableau
             _beams.Add(GB(Vertical((A(White, 0.3), 0), (A(White, 0.08), 0.5), (A(White, 0), 1)), 0.5, x - S(0.04), y, x + S(0.04), y, _cx + dir * _a0 * 0.35, _cy + _b0 * 0.3, _cx - dir * _a0 * 0.75, _cy + _b0 * 0.3));
         }
 
+        // ---- the cameras in the stands: small lights that are off until one goes
+        for (var i = 0; i < Cams; i++) { _cam[i] = Glow(0, 0, S(0.02), White, 1, 0); _camT[i] = 0; }
+
         // ---- confetti, the flags, the people in front
         for (var i = 0; i < Conf; i++) { _conf[i] = RB(0, 0, S(0.009), S(0.006), B(i % 5 == 0 ? White : P(1 + i % 3)), 0); _cLive[i] = false; }
         for (var k = 0; k < 2; k++)
@@ -240,14 +274,28 @@ public sealed partial class StadiumWave : Tableau
 
         // ---- the beat starts a wave; with no beat one starts by itself now and then
         _sinceBeat += dt; _sinceWave += dt; var hit = false;
-        if (f.Beat > 0.06 && _prevBeat <= 0.06 && _sinceBeat > 0.2 && !f.Reduced) { _sinceBeat = 0; hit = true; }
+        if (f.Beat > 0.15 && _prevBeat <= 0.15 && _sinceBeat > 0.2 && !f.Reduced) { _sinceBeat = 0; hit = true; }   // a strong beat: the one tie between the music and the play
         _prevBeat = f.Beat;
         if (f.Beat > 0.03) _flare = Math.Max(_flare, Clamp01(f.Beat * 2.2) * (f.Reduced ? 0.3 : 1));
         _flare *= Math.Exp(-dt * 4.2);
         _idle += dts * 0.9; _tw += dts;
         // the match; a goal is the only thing that starts the wave: three crests, one behind the other, and the confetti
         var goal = PlayMatch(f, dt, hit);
-        if (goal) { for (var k = 0; k < Waves; k++) _wp[k] = -0.12 - 0.42 * k; _sinceWave = 0; _flare = 1; _confLeft = 4; _confCool = 0; }
+        if (goal) { for (var k = 0; k < Waves; k++) _wp[k] = -0.12 - 0.42 * k; _sinceWave = 0; _flare = 1; _confLeft = 4; _confCool = 0; _goalT = 4; if (!f.Reduced) { _strobe = 1.2; _camBurst += 70; } }
+        if (!f.Reduced) { if (_evShot) { _camBurst += 16; _flare = Math.Max(_flare, 0.5); } if (_evSave || _evClose) _camBurst += 12; }
+
+        // ---- the board's score: a number changes when a goal goes in and swells for a moment, and the word shows under it
+        for (var k = 0; k < 2; k++)
+        {
+            if (_scoreShown[k] != _score[k]) { _scoreShown[k] = _score[k]; _scoreT[k].Text = (_score[k] % 100).ToString(System.Globalization.CultureInfo.InvariantCulture); _scoreT[k].FontSize = Math.Max(6, _score[k] > 9 ? _scoreFs * 0.7 : _scoreFs); }
+            var big = _goalT > 0 && _fullT <= 0 && _sim.Scorers == k ? 1 + 0.28 * Clamp01(_goalT - 3) : 1; if (_scoreS[k].ScaleX != big) _scoreS[k].ScaleX = _scoreS[k].ScaleY = big;
+        }
+        // a match is ten minutes: the board says so, and the next one starts from nothing each
+        _matchT += dt;
+        if (_fullT > 0) { _fullT -= dt; _goalT = Math.Max(_goalT, 0.01); if (_fullT <= 0) { _score[0] = _score[1] = 0; _matchT = 0; _sim.Reset(); _goalWord.Text = "GOAL"; } }
+        else if (_matchT > 600 && _goalT <= 0 && _sim.Celebrate <= 0) { _fullT = 6; _goalT = 6; _goalWord.Text = "FULL TIME"; }
+        if (goal && _fullT <= 0) _goalWord.Text = "GOAL";
+        if (_goalT > 0) { _goalT -= dt; Op(_goalWord, Clamp01(_goalT * 2) * (f.Reduced ? 1 : 0.65 + 0.35 * Math.Cos(_goalT * 6))); Op(_scoreRule, 0); if (_goalT <= 0) { Op(_goalWord, 0); Op(_scoreRule, 1); } }
         for (var k = 0; k < Waves; k++) if (_wp[k] <= 2.2) _wp[k] += Math.Max(dts, dt * 0.5) * 0.85;
 
         // ---- the far stand: a band a block, rows lit from the front row up; the crest of the wave over it
@@ -271,10 +319,26 @@ public sealed partial class StadiumWave : Tableau
         }
 
         // ---- the lights
-        var lampOp = 0.55 + 0.35 * f.Loud + 0.1 * _flare;
+        // a goal pulses the floodlights three times in a little over a second
+        var pulse = 0.0; if (_strobe > 0) { _strobe -= dt; pulse = 0.5 - 0.5 * Math.Cos(_strobe * 2 * Math.PI * 2.5); }
+        var lampOp = 0.55 + 0.35 * f.Loud + 0.1 * _flare + 0.45 * pulse;
         for (var i = 0; i < _lamps.Count; i++) Op(_lamps[i], lampOp);
-        for (var i = 0; i < _beams.Count; i++) Op(_beams[i], 0.3 + 0.5 * f.Loud + 0.15 * _flare);
-        Op(_pitchGlow, 0.3 + 0.4 * f.Loud + 0.15 * _flare); Op(_haze, 0.4 + 0.4 * f.Loud); Op(_screenGlow, 0.3 + 0.5 * f.Loud);
+        for (var i = 0; i < _beams.Count; i++) Op(_beams[i], 0.3 + 0.5 * f.Loud + 0.15 * _flare + 0.4 * pulse);
+        Op(_pitchGlow, 0.3 + 0.4 * f.Loud + 0.15 * _flare + 0.3 * pulse);
+
+        // ---- the cameras: a few all the time, more as the ball nears a goal, a burst at a shot and a storm at a goal
+        _camBurst *= Math.Exp(-dt * 1.3);
+        if (!f.Reduced) _camAcc += dt * (0.5 + 7 * _threat * _threat + _camBurst);
+        while (_camAcc >= 1)
+        {
+            _camAcc -= 1; var i = Rng.Next(Cams); if (_camT[i] > 0) continue;
+            double x, y, d;
+            if (Rng.Next(5) == 0) { x = Rng.NextDouble() * W; y = H - S(0.02 + 0.09 * Rng.NextDouble()); d = S(0.022 + 0.014 * Rng.NextDouble()); }
+            else { var th = Th0 + (Th1 - Th0) * Rng.NextDouble(); var r = 1 + 15 * Rng.NextDouble(); x = PX(th, r); y = PY(th, r); d = S(0.012 + 0.012 * Rng.NextDouble()); }
+            Size(_cam[i], x, y, d); _camT[i] = 0.16;
+        }
+        for (var i = 0; i < Cams; i++) { if (_camT[i] <= 0) continue; _camT[i] -= dt; Op(_cam[i], _camT[i] <= 0 ? 0 : _camT[i] / 0.16); }
+ Op(_haze, 0.4 + 0.4 * f.Loud); Op(_screenGlow, 0.3 + 0.5 * f.Loud);
 
         // ---- confetti after a goal: four showers
         _confCool -= dt;

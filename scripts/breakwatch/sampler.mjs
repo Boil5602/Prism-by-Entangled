@@ -64,7 +64,7 @@ async function call(js) {
 const q = (s) => JSON.stringify(s);
 
 function pcMute(arg) {
-  try { return execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join("scripts", "breakwatch", "pc-mute.ps1"), arg], { encoding: "utf8" }).trim(); }
+  try { return execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join("scripts", "breakwatch", "pc-mute.ps1"), arg], { encoding: "utf8", windowsHide: true }).trim(); }
   catch (e) { log("pc mute " + arg + " failed: " + e.message); return "?"; }
 }
 const muteWord = (r) => (r?.muted === true ? "muted" : r?.muted === false ? "unmuted" : "?");
@@ -152,7 +152,7 @@ async function busyReason(tail) {
   let roomMuted = false;
   try { roomMuted = (await call("PrismRuntime.wallMute()"))?.muted === true; } catch { return ["prism", "PRISM did not answer"]; }
   let idle = -1;
-  try { idle = Number(execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join("scripts", "breakwatch", "pc-idle.ps1")], { encoding: "utf8" }).trim()); } catch {}
+  try { idle = Number(execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", join("scripts", "breakwatch", "pc-idle.ps1")], { encoding: "utf8", windowsHide: true }).trim()); } catch {}
   if (!roomMuted && !(idle >= 0)) return ["pc?", "the PC's idle time could not be read"];
   if (!roomMuted && idle < IDLE) return ["pc", "the PC was used " + idle + " min ago"];
   tail.read();

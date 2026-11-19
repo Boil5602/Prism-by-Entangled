@@ -211,13 +211,14 @@
     var cc = ccBuf.join(" "); ccBuf = [];
     asking = true;
     try {
-      chrome.runtime.sendMessage({ type: "pv:live-look", rect: { x: r.left, y: r.top, w: r.width, h: r.height }, vw: innerWidth, vh: innerHeight,
+      chrome.runtime.sendMessage({ type: "pv:live-look", rect: { x: r.left, y: r.top, w: r.width, h: r.height }, vw: innerWidth, vh: innerHeight, sx: scrollX, sy: scrollY,
         chan: channelKey(), name: channelName(), title: showTitle(), edges: programmeEdges(), mode: channelMode(), cues: takeCues(), live: !behind, covered: covered, art: art, cc: cc, ccQuietMs: ccAt ? Date.now() - ccAt : -1 }, function (res) {
         asking = false;
         var err = chrome.runtime.lastError;
         if (err || !res) return;
         if (res.error) { if (/no stream/.test(res.error)) stop("ended"); return; }
         if (typeof res.noise === "number") spotted.noise = res.noise;
+        if (devMode && typeof res.ocr === "string") { try { document.documentElement.setAttribute("data-prism-live-text", (res.diag ? res.diag + " | " : "") + res.ocr); } catch (e) {} }
         if (typeof res.gated === "boolean") gatedNow = res.gated;
         if (typeof res.up === "boolean") { var was = spotted.up; spotted.up = res.up; spotted.p = res.p || 0; spotted.why = res.why || ""; spotted.at = Date.now(); if (was !== res.up) note(); }
         if (!res.b64) return;

@@ -187,6 +187,22 @@ export interface AdapterSpec {
   /** musicQueueView (2026-11-04, Up next): window.__prismMusicQueueView(token) answers op "queue" with items [{title, artist, current}] from the player's
    *  own queue at its position (Apple Music's MusicKit). Read only; a service without one says it does not show its queue. */
   musicQueueView?: string;
+  /** musicLyrics (2026-11-15): window.__prismMusicLyrics(cmd) answers at once with a JSON string. "open" and "close" press the page's own
+   *  Lyrics control; "read" gives {ok, open, can, song, timed, n, cur, playing, t, words:[{w, sp, p}]} (the line being sung and each word's
+   *  progress, 0 to 100); "lines" gives the same with lines:[text]. What the page draws, read as it is drawn: nothing fetched, nothing kept. */
+  musicLyrics?: string;
+  /** musicQueueRemove (2026-11-16): window.__prismMusicQueueRemove(token, index, id) takes one track that is still to play out of the player's own
+   *  queue, only when the track at that place has that id, and answers through notifyMusicResult {token, op:"queue-remove", ok, error?}. */
+  musicQueueRemove?: string;
+  /** musicQueueSkip (2026-11-16): window.__prismMusicQueueSkip(token, index, id) makes the player go to one track that is still to play in its own
+   *  queue, only when the track at that place has that id, and answers through notifyMusicResult {token, op:"queue-skip", ok, error?}. */
+  musicQueueSkip?: string;
+  /**
+   * Where the service's own site gives a collection's cover (2026-11-16, the music panel's recents from before covers were kept): "og"
+   * = the collection's page names it in its og:image; "oembed:<path with {url}>" = the site's public embed address answers JSON with a
+   * thumbnail_url. Asked from the service's own page, same site, one recent at a time. Absent: no cover is asked for.
+   */
+  musicCover?: string;
   /**
    * musicLookup (Quick play cross-service lookup, 2026-09-16): window.__prismMusicLookup(token, {title, artist, album, term}) searches the
    * service's catalog and answers through PrismTile.notifyMusicResult({token, op:"lookup", ok, candidates}); the same script defines
@@ -353,6 +369,11 @@ export interface AdapterSpec {
   /** How long the service's player takes from a press to its first frame, in ms, when longer than the usual 35 s (Apple TV's takes 43 s, 2026-10-12):
    *  the playback doctor and a pick's own clock wait this long before calling a start missed. */
   videoStartMs?: number;
+  /** The look-ahead (docs/features/look-ahead.md, 2026-11-17): on this service a second page at a live channel's own address plays the
+   *  channel at its live edge, and the page's own Back button (videoCmd "seekbackward") moves the picture backSec seconds behind live and
+   *  holds it there; "seeklive" returns it. tooMany is a pattern for the words the page shows when too many streams play on the
+   *  account. A service without the field is never delayed. */
+  videoLookAhead?: { backSec: number; tooMany?: string };
   /**
    * Address paths at which the service starts playback on load (2026-09-23: Tubi's /movies/<id> is its player - a hidden list job opened one and
    * played the film for six minutes, which put it back in Continue Watching each time it was removed; Apple TV's /episode/). Core never opens
@@ -408,6 +429,14 @@ export interface AdapterSpec {
    * A human's pick from the wall, never a timer's.
    */
   videoTracks?: string;
+  /**
+   * videoQuality (2026-11-15): the service's own picture quality choices, offered on PRISM's stage bar (the stage shield keeps
+   * the pointer from the service's menu, so the person could not reach it). window.__prismVideoQualities() -> {items:[{id, name,
+   * selected}]} | null as the player's own menu lists them (null while the menu is being opened under the adapter's stylesheet:
+   * asked again, briefly); window.__prismVideoQualityPick(id) -> true, made by the presses a person makes in that menu, never by
+   * a player function; window.__prismVideoQualitiesDone() closes the menu if the read left it open. A human's pick, never a timer's.
+   */
+  videoQuality?: string;
   /**
    * Seek to a spot (2026-09-23): window.__prismVideoSeek(seconds) -> true when the player took it, through the service's OWN player - its
    * player object or its own scrubber - never a bare video.currentTime where the service forbids it (Netflix errors, Disney+ desyncs).

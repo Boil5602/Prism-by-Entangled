@@ -223,7 +223,7 @@ def run_hsmm(series, c, share_base, hazards):
 # ---------------------------------------------------------------- a configuration
 def parse(cfg):
     c = dict(on=POL["on"], off=POL["off"], hold=POL["hold"], agree=bool(POL.get("agree")) or FORCE_AGREE, treeMin=POL.get("treeMin", 0.5), netMin=POL.get("netMin", 0.5),
-             grid=None, refr=0, soft=0, clock=0.0, hsmm=False, alpha=1.0, gridk=1.0, hardoff=False, cend=0, softon=0.9, hard=0, verif=0.0, pchan=False)
+             grid=None, refr=0, soft=0, clock=0.0, hsmm=False, alpha=1.0, gridk=1.0, hardoff=False, cend=0, softon=0.9, hard=0, verif=0.0, pchan=False, offhold=float(POL.get("offHold", 0)), offdeep=float(POL.get("offDeep", 0)), showend=False)
     for part in cfg.split("+"):
         if part == "base": continue
         k, _, v = part.partition(":")
@@ -243,6 +243,9 @@ def parse(cfg):
         elif k == "agree": c["agree"] = v == "1"
         elif k == "on": c["on"] = float(v)
         elif k == "off": c["off"] = float(v)
+        elif k == "offhold": c["offhold"] = float(v)   # the lift hold (LearnedBreak.Decide): below off for v s before the cover lifts
+        elif k == "showend": c["showend"] = v == "1"   # the lift hold ends at once on a look every rule calls show
+        elif k == "offdeep": c["offdeep"] = float(v)   # ... but below this the cover lifts at once
         else: raise ValueError(part)
     return c
 
@@ -253,6 +256,7 @@ def run_policy(series, c, share_base, vchance=None, exam=None):
     ptable = pchan_table(exam["day"]) if (c["pchan"] and exam) else {}
     up = False; run = 0; calls = []; shown = False
     anchor = None; last_end = -1e9; recent = []
+    below = -1.0
     pending_end = None; sure_run = 0; armed_end = -1e9   # a confirmed end (cend): the end waiting for its confirmation, the sure-show looks since
     for r in series:
         t = r["t"]
@@ -280,7 +284,11 @@ def run_policy(series, c, share_base, vchance=None, exam=None):
                 back = min(r["black"], r["cut"]) if min(r["black"], r["cut"]) <= 20 else 0
                 anchor = t - back
         else:
-            end = p < c["off"]
+            if p >= c["off"]: below = -1.0; end = False
+            elif c["offhold"] <= 0 or p < c["offdeep"] or (c["showend"] and r["sure_show"]): end = True
+            else:
+                if below < 0: below = t
+                end = t - below >= c["offhold"]
             if c["grid"] and not end:
                 th, n, tol = c["grid"]; since = t - anchor
                 k = round(since / 15)
@@ -289,7 +297,7 @@ def run_policy(series, c, share_base, vchance=None, exam=None):
                 vlast = t; vp = vchance.get(int(t), vchance.get(int(t) - 1, 0.0))
                 vhits = vhits + 1 if vp > c["verif"] else 0
                 if vhits >= 2: end = True
-            if end: up = False; last_end = t; pending_end = t; sure_run = 0; vhits = 0
+            if end: up = False; below = -1.0; last_end = t; pending_end = t; sure_run = 0; vhits = 0
         s = up or (r["sure_ad"] and SURE_AD)
         if s != shown:
             shown = s; calls.append((t, "break" if s else "show"))
@@ -347,7 +355,9 @@ if __name__ == "__main__":
     if VERIF_DIR: print("verifier chances:", {k: len(v) for k, v in VERIF.items()}, flush=True)
     print("looks:", {k: len(v) for k, v in LOOKS.items()}, flush=True)
     configs = ["base"]
-    if GRID != "none":
+    if GRID == "offhold2":
+        configs += [f"offhold:{h}+offdeep:{d}+showend:1" for h in (5, 8, 12) for d in (0.2, 0.3)] + ["offhold:8+offdeep:0.3"]
+    if GRID not in ("none", "offhold", "offhold2"):
         # 1a: the plan's thresholds 0.5 / 0.6 sit under the policy's off (0.65 app) and can never fire first; 0.7 to 0.9 are the ones that act
         configs += [f"grid:{th},{n},{tol}" for th in (0.6, 0.7, 0.8, 0.9) for n in (1, 2, 3) for tol in (1, 2)]
         configs += [f"refr:{r}" for r in (90, 180)]            # the hard refractory as specified (it costs every mid-break re-cover)
@@ -359,6 +369,8 @@ if __name__ == "__main__":
             configs += ["hold:2", "hold:1", "agree:0", "hold:2+agree:0"]
     if GRID == "soft":          # the two pack rows alone (2026-11-08: the promo-neutral rescoring)
         configs += ["soft:90"]
+    if GRID == "offhold":     # 2026-11-15: the cover that drops and comes back inside a break
+        configs += [f"offhold:{h}+offdeep:{d}" for h in (3, 5, 8, 12, 20) for d in (0.1, 0.2, 0.3, 0.45)] + ["soft:90", "off:0.5", "off:0.35"]
     if GRID == "b3":
         configs += ["soft:90", "soft:90+pchan:1", "soft:90+pchan:1+softon:0.95", "soft:120+pchan:1"]
     if GRID == "verif":

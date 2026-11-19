@@ -137,7 +137,7 @@ public sealed partial class MainWindow
         {
             var never = new CheckBox { Content = new TextBlock { Text = "Never cover " + channel, FontSize = 13, Foreground = HubInk }, MinWidth = 0 };
             never.Checked += (_, __) => SetChannelOff(channel, true);
-            never.Unchecked += (_, __) => SetChannelOff(channel, false);
+            never.Unchecked += (_, __) => ClearChannelMode(channel);
             body.Children.Add(never);
         }
         body.Children.Add(new TextBlock { Text = "Sends the channel" + (channel.Length > 0 ? " (" + channel + ")" : "") + ", what PRISM read over the last forty seconds (how sure it was of a break and why), your note if you write one, and PRISM's version. No picture, no account, no page address.", FontSize = 13, Foreground = HubInk, TextWrapping = TextWrapping.Wrap });

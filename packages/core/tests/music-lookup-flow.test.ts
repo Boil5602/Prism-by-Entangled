@@ -311,6 +311,23 @@ describe("Quick play: the song playing now, on another service", () => {
     await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicQueue"), op: "queue", ok: true });
     expect(await cont).toBe("ok");
     expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicOrder).toMatchObject({ order: "reverse", spot: 3 });
+    // a saved place for every playlist (2026-11-16): another playlist plays, and the place in this one is kept for it
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "B", artist: "x", library: { playlists: [{ id: "p.1", name: "Vibes", kind: "playlist" }, { id: "p.2", name: "Road Mix", kind: "playlist" }], stations: [{ id: "ra.1", name: "Vibes Station", kind: "station" }] } } });
+    expect(await o.playCollection("am", "playlist", "p.2", "normal")).toBe("ok");
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicOrder).toBeUndefined();
+    expect(o.musicPlaceOf("am", "playlist", "p.1")).toMatchObject({ order: "reverse", spot: 3, count: 4 });
+    expect(o.musicPlaceOf("am", "playlist", "p.2")).toBeNull();
+    expect(await drivers.store!.get("music:places:lounge:am")).toContain('"p.1"');
+    // the plain press on the first playlist carries on from the kept place: no track read, the rest of its order
+    calls.length = 0;
+    const back = o.playCollection("am", "playlist", "p.1");
+    await tick();
+    expect(injects("__prismMusicTracks").length).toBe(0);
+    expect(injects("__prismMusicQueue")[0]).toContain(JSON.stringify(["2", "1"]));
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicQueue"), op: "queue", ok: true });
+    expect(await back).toBe("ok");
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicOrder).toMatchObject({ order: "reverse", spot: 3 });
+    expect(await drivers.store!.get("music:places:lounge:am")).not.toContain('"p.1"');
     // a resume with nothing loaded takes the same road
     await o.onSurfaceEvent({ type: "now-playing", id: "am", info: null });
     calls.length = 0;
@@ -337,6 +354,22 @@ describe("Quick play: the song playing now, on another service", () => {
     expect(await o.playCollection("am", "playlist", "p.1")).toBe("ok");
     expect(injects("__prismMusicPlay").length).toBe(1);
     expect(injects("__prismMusicQueue").length).toBe(0);
+    // a play in order keeps a place too (2026-11-16): the page plays song 2 of the first playlist in order, the second playlist starts
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "B", artist: "x", context: { kind: "playlist", id: "p.1", label: "Vibes", trackId: "2" } } });
+    expect(await o.playCollection("am", "playlist", "p.2", "normal")).toBe("ok");
+    expect(o.musicPlaceOf("am", "playlist", "p.1")).toMatchObject({ order: "normal", kept: true, song: "B" });
+    await o.onSurfaceEvent({ type: "now-playing", id: "am", info: { playing: true, title: "Z", artist: "x", context: { kind: "playlist", id: "p.2", label: "Road Mix", trackId: "9" } } });
+    // the plain press on the first: the track list is read, and the player gets it from the kept song on
+    calls.length = 0;
+    const inOrder = o.playCollection("am", "playlist", "p.1");
+    await tick();
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicTracks"), op: "tracks", ok: true, candidates: [{ id: "1", title: "A", artist: "x" }, { id: "2", title: "B", artist: "x" }, { id: "3", title: "C", artist: "x" }] });
+    await tick();
+    expect(injects("__prismMusicQueue")[0]).toContain(JSON.stringify(["2", "3"]));
+    await o.onSurfaceEvent({ type: "music-result", id: "am", token: tokenOf(calls, "__prismMusicQueue"), op: "queue", ok: true });
+    expect(await inOrder).toBe("ok");
+    expect(o.getState()?.tiles.find((t) => t.id === "am")?.musicOrder).toMatchObject({ order: "normal", spot: 2, count: 3 });
+    expect(o.musicPlaceOf("am", "playlist", "p.2")).toMatchObject({ order: "normal", kept: true, song: "Z" });
     // a station has no order; a service without the hooks cannot do PRISM's orders
     expect(await o.playCollection("am", "station", "ra.1", "reverse")).toBe("unsupported");
     await o.onSurfaceEvent({ type: "now-playing", id: "sp", info: { playing: false, title: "", artist: "", library: { playlists: [{ id: "s1", name: "Mix", kind: "playlist", url: "https://open.spotify.com/playlist/s1" }], stations: [] } } });

@@ -202,6 +202,8 @@ scripts/verify-presentation-fixtures.mjs	a7ef3d5f23380ae5
 targets/win-host/PrismHost.Core/Redact.cs	884809a356cdfd4f
 targets/win-host/PrismHost.Core/VisualizationChrome.cs	551a234686b48512
 targets/win-host/PrismHost.Core/VisualizationChrome.cs	88d7f29ba07e83eb
+targets/win-host/PrismHost/Assets/credits/pool-credits.json	18e6c2ac3ee8dd29
+targets/win-host/PrismHost/Assets/credits/pool-credits.json	2a224703c55ec99b
 targets/win-host/PrismHost/Assets/licenses/Windows.AI.MachineLearning-ThirdPartyNotices.txt	9075082ee1ceb1b1
 targets/win-host/PrismHost/Assets/licenses/WindowsAppSDK-NOTICE.txt	9075082ee1ceb1b1
 targets/win-host/PrismHost/Assets/tutorial/tutorial.json	471ada98689acbaa

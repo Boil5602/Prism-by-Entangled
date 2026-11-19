@@ -4,37 +4,97 @@
 <meta charset="utf-8">
 <title>PRISM</title>
 <style>
-  :root { --bezel:#0A0C0F; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; }
+  :root { --bezel:#0A0C0F; --rail:#101317; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; --off:#3A4250; --card:#1D222A; }
   * { box-sizing: border-box; }
-  body { margin:0; width:380px; max-height:560px; overflow:auto; background:var(--wall); color:var(--ink); font:13px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif; }
-  header { display:flex; align-items:center; gap:10px; padding:10px 14px 8px; border-bottom:1px solid var(--edge); }
-  header .brand { font:600 11px/1 "IBM Plex Mono",Consolas,monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); }
-  header .site { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
-  section { padding: 6px 14px 8px; }
+  /* The settings (redrawn 2026-11-18): the main switch and the time reclaimed on top, the open site on a rail at the left, and
+     everything that holds for every site on a sheet of two columns. One sheet, no scroll area, nothing deeper than a list that
+     opens in place. Switches sit at the right of their rows; the picture sets and the sources are chips. */
+  html, body { margin:0; }
+  html.framed { overflow:hidden; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
+  html.framed body { min-width:0; }
+  body { min-width:1000px; background:var(--wall); color:var(--ink); font:13px/1.45 "Segoe UI Variable Text","Segoe UI",-apple-system,Roboto,sans-serif; }
+  .top { display:flex; align-items:center; gap:24px; padding:14px 24px; background:var(--bezel); border-bottom:1px solid var(--edge); }
+  .brand { font:700 15px/1 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; letter-spacing:.34em; color:var(--accent); }
+  .desk { display:grid; grid-template-columns:minmax(250px,320px) minmax(0,1fr); align-items:stretch; }
+  .rail { background:var(--rail); border-right:1px solid var(--edge); padding:4px 24px 20px; min-width:0; }
+  .sitehead { display:flex; align-items:center; gap:10px; margin-top:16px; min-height:36px; }
+  .sitehead .site { flex:1; min-width:0; font:600 18px/1.2 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sheet { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; padding:2px 16px 18px; min-width:0; }
+  #site-ico { flex:none; width:18px; height:18px; border-radius:4px; }
+  #site-ico[hidden] { display:none; }
+  .col { min-width:0; }
+  section { margin:16px 0 0; }
+  /* each group of settings is a card of its own on the sheet (2026-11-18, asked for more separation between the groups) */
+  .sheet section { margin:14px 0 0; padding:12px 16px 8px; background:var(--card); border:1px solid var(--edge); border-radius:12px; box-shadow:0 1px 0 rgba(255,255,255,.07) inset, 0 6px 16px rgba(0,0,0,.5); }
+  .sheet section > h3 { margin:0 0 6px; padding-bottom:8px; border-bottom:1px solid var(--edge); color:var(--accent); letter-spacing:.02em; }
+  section[hidden] { display:none; }
+  h3 { margin:0 0 2px; font:600 14px/1.3 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; color:var(--ink); }
   .sum { color:var(--dim); font-size:12px; margin:4px 0 6px; }
-  h3 { margin:10px 0 2px; font:600 10px/1 "IBM Plex Mono",Consolas,monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
-  .row { display:flex; align-items:center; gap:8px; min-height:32px; padding:3px 0; border-top:1px solid rgba(255,255,255,.06); }
-  .row:first-of-type { border-top:0; }
+  .row { display:flex; align-items:center; gap:10px; min-height:36px; padding:3px 0; border-top:1px solid rgba(255,255,255,.07); color:var(--dim); }
+  h3 + .row, .sum + .row, .sitehead + .row { border-top:0; }
   label.row { cursor:pointer; }
-  .row input[type=checkbox], .row input[type=radio] { accent-color:var(--accent); width:15px; height:15px; margin:0; flex:none; }
+  label.row:hover { color:var(--ink); }
   .dest { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .dest b { font-weight:600; }
+  .dest b { font-weight:600; color:var(--ink); }
   .dest .meta { color:var(--faint); font-size:12px; margin-left:6px; }
-  .count { font:600 13px "IBM Plex Mono",Consolas,monospace; color:var(--accent); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
-  .btn { font:600 12px -apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:#2A2F38; border:1px solid var(--edge); border-radius:8px; padding:5px 10px; cursor:pointer; white-space:nowrap; }
+  .count { font:600 13px "Segoe UI",sans-serif; color:var(--accent); min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+  /* a switch: every checkbox of a row, at the row's right */
+  input[type=checkbox] { -webkit-appearance:none; appearance:none; flex:none; width:108px; height:28px; margin:0; border-radius:8px; border:1px solid var(--edge); background:var(--bezel); box-shadow:inset 0 2px 4px rgba(0,0,0,.7); position:relative; cursor:pointer; }
+  input[type=checkbox]::before { content:"Off"; position:absolute; left:2px; top:2px; width:52px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font:600 11px/1 "Segoe UI",-apple-system,Roboto,sans-serif; color:var(--ink); background:linear-gradient(#4A5362,#2F3642); box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 3px rgba(0,0,0,.8); transition:transform .15s; }
+  input[type=checkbox]:checked { border-color:var(--accent); }
+  input[type=checkbox]:checked::before { content:"On"; transform:translateX(50px); color:var(--bezel); background:linear-gradient(#F7C469,#E39A2C); box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 3px rgba(0,0,0,.8); }
+  input[type=checkbox][hidden] { display:none; }
+  input[type=checkbox]:disabled { opacity:.45; cursor:default; }
+  input:focus-visible, .btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  label.row > input[type=checkbox] { order:2; margin-left:auto; }
+  /* the main switch, said large */
+  .row.master { border:0; min-height:0; padding:0; gap:14px; color:var(--ink); font:600 18px/1.2 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; }
+  .row.master .dest { flex:none; overflow:visible; }
+  .row.master > input[type=checkbox] { order:2; margin:0; }
+  .row.saved { border:0; min-height:0; padding:0; margin-left:auto; gap:12px; }
+  .row.saved .dest { flex:none; overflow:visible; }
+  .btn { font:600 12px/1 "Segoe UI",-apple-system,Roboto,sans-serif; color:var(--ink); background:#2A2F38; border:1px solid var(--edge); border-radius:8px; height:28px; padding:0 12px; cursor:pointer; white-space:nowrap; }
+  /* one width for every button and switch (2026-11-18), so the right edge of a column reads as one line of equal controls */
+  .btn { min-width:108px; text-align:center; }
+  #view .btn, .chip button { min-width:0; }
+  .seg { width:224px; }   /* a choice bar is as wide as two buttons and the gap between them */
+  .seg label { flex:1 1 auto; justify-content:center; padding:0 6px; white-space:nowrap; }
   .btn:hover { border-color:var(--accent); }
-  .btn.primary { background:var(--accent); color:var(--bezel); border-color:var(--accent); }
-  input.filter { width:100%; box-sizing:border-box; margin:4px 0 6px; padding:6px 8px; border-radius:8px; border:1px solid var(--edge); background:var(--wall); color:var(--ink); font:12px -apple-system,"Segoe UI",Roboto,sans-serif; }
+  /* a button is raised as the switch's paddle is (2026-11-18): lit from above, a shadow under it, and it goes in when pressed */
+  .btn { background:linear-gradient(#3A414D,#262B34); border-color:#0A0C0F; box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 3px rgba(0,0,0,.7); }
+  .btn.primary { background:linear-gradient(#F7C469,#E39A2C); color:var(--bezel); border-color:#0A0C0F; box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 3px rgba(0,0,0,.8); }
+  .btn:active:not([disabled]) { box-shadow:inset 0 2px 4px rgba(0,0,0,.6); transform:translateY(1px); }
   .btn[disabled] { opacity:.6; cursor:default; }
+  input.filter { width:100%; margin:4px 0 6px; padding:7px 9px; border-radius:8px; border:1px solid var(--edge); background:var(--bezel); color:var(--ink); font:12px "Segoe UI",-apple-system,Roboto,sans-serif; }
   .empty { color:var(--dim); padding:6px 0; }
-  .seg { display:inline-flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
-  .seg label { padding:4px 9px; cursor:pointer; font-size:12px; color:var(--dim); }
-  .seg label.on { background:var(--accent); color:var(--bezel); font-weight:600; }
+  /* a choice bar is built as the switch is (2026-11-18): a dark slot, and the choice that is on is a raised amber paddle in it */
+  .seg { display:inline-flex; flex:none; height:28px; align-items:stretch; padding:2px; border:1px solid var(--edge); border-radius:8px; overflow:hidden; background:var(--bezel); box-shadow:inset 0 2px 4px rgba(0,0,0,.7); }
+  .seg label { display:flex; align-items:center; padding:0 6px; border-radius:6px; cursor:pointer; font:600 11px/1 "Segoe UI",-apple-system,Roboto,sans-serif; color:var(--dim); }
+  .seg label:hover { color:var(--ink); }
+  .seg label.on { background:linear-gradient(#F7C469,#E39A2C); color:var(--bezel); box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 3px rgba(0,0,0,.8); }
   .seg input { position:absolute; opacity:0; width:0; height:0; }
-  .sources { display:flex; gap:10px; padding:2px 0 4px 23px; font-size:12px; color:var(--dim); }
-  .sources label { display:flex; align-items:center; gap:4px; cursor:pointer; }
-  .livesites { padding:2px 0 6px 23px; font-size:12px; }
-  .livesites .sub { color:var(--dim); margin:2px 0 4px; }
+  /* chips: the sources and the picture sets, on when lit */
+  .sources { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding:2px 0 8px; font-size:12px; }
+  .sources label, #art-sets label { display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border:1px solid var(--edge); border-radius:999px; cursor:pointer; color:var(--dim); font-size:12px; white-space:nowrap; }
+  .sources input, #art-sets input { position:absolute; opacity:0; width:0; height:0; }
+  .sources label:has(input:checked), #art-sets label:has(input:checked) { border-color:var(--accent); background:rgba(240,168,60,.16); color:var(--ink); }
+  .sources label:has(input:focus-visible), #art-sets label:has(input:focus-visible) { outline:2px solid var(--accent); outline-offset:2px; }
+  .livesites { padding:2px 0 8px; font-size:12px; color:var(--dim); }
+  .livesites .sub { color:var(--dim); font-size:13px; margin:0; }
+  /* one grid for every line (2026-11-18): the words start at the left edge of their column and the control ends at its right edge,
+     whatever the control is. The lines that were built another way are brought onto it here. */
+  .row > .btn:only-child { margin-left:auto; }
+  #live-chan:not([hidden]) { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:36px; padding:3px 0; font-size:13px; }
+  #live-sites { padding:0; }
+  #live-sites .sub { display:flex; align-items:center; min-height:36px; border-top:1px solid rgba(255,255,255,.07); }
+  #live-sites .addrow { gap:10px; }
+  #live-sites .addrow input.filter { flex:1; height:28px; padding:0 9px; }
+  #photos-text { white-space:nowrap; }
+  #veil-log-row { padding:0; }
+  #veil-log-row .addrow { gap:10px; min-height:36px; }
+  #veil-log-row .addrow .sub:first-child { flex:1; }
+  #veil-log-note { order:1; font-size:12px; }
+  #veil-log-row .btn { order:2; }
   /* the rows a veil's link points at (popup.html?highlight=live): lit until the person touches one */
   .row.hl { outline:2px solid #F0A83C; outline-offset:2px; border-radius:8px; animation:hl-pulse 1.2s ease-in-out 3; }
   @keyframes hl-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(240,168,60,.0); } 50% { box-shadow:0 0 0 6px rgba(240,168,60,.35); } }
@@ -44,13 +104,20 @@
   .addrow { display:flex; gap:6px; align-items:center; }
   .addrow input.filter { margin:0; }
   .disk { display:inline-block; width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
-  .mono { font:600 12px "IBM Plex Mono",Consolas,monospace; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .mono { font:600 13px "Segoe UI",sans-serif; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .err { color:var(--accent); font-size:12px; }
-  footer { padding:8px 14px 10px; border-top:1px solid var(--edge); color:var(--faint); font-size:11px; }
+  footer { padding:8px 24px 12px; border-top:1px solid var(--edge); background:var(--bezel); color:var(--faint); font-size:11px; }
+  /* a narrow place (a small browser window): one column, and the page may scroll there */
+  /* narrower (the browser window shrinks, or the screen is small): first the gaps close up, then the sheet is one column beside the
+     rail, then everything is one column */
+  @media (max-width: 1060px) { .sheet { gap:0 12px; padding:2px 12px 16px; } .sheet section { padding:12px 12px 8px; } .rail { padding:4px 20px 20px; } .top { padding:14px 20px; gap:16px; } footer { padding:8px 20px 12px; } }
+  @media (max-width: 900px) { body { min-width:0; } .sheet { grid-template-columns:1fr; } }
+  @media (max-width: 640px) { .desk { grid-template-columns:1fr; } .rail { border-right:0; border-bottom:1px solid var(--edge); } .top { flex-wrap:wrap; gap:12px; } .row.saved { margin-left:0; } }
+  @media (prefers-reduced-motion: reduce) { input[type=checkbox], input[type=checkbox]::before { transition:none; } .row.hl { animation:none; } }
   /* Tooltips: one styled panel for every row (native title bubbles are
      unformatted and wrap badly). Content is our own HTML: a lead line, then
      short bullets. Shown on hover/focus of a [data-tip] row. */
-  #tip { position:fixed; z-index:9; left:14px; right:14px; background:#0F1216; color:#F2F4F7; border:1px solid #3A4250; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.45; box-shadow:0 8px 24px #0009; pointer-events:none; }
+  #tip { position:fixed; z-index:9; left:14px; width:380px; background:#0F1216; color:#F2F4F7; border:1px solid #3A4250; border-radius:10px; padding:9px 12px; font-size:12px; line-height:1.45; box-shadow:0 8px 24px #0009; pointer-events:none; }
   #tip[hidden] { display:none; }
   #tip b { color:#FFFFFF; font-weight:600; }
   #tip p { margin:0 0 5px; }
@@ -59,86 +126,102 @@
 </style>
 </head>
 <body>
-  <header><span class="brand">prism</span><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open this site's controls on the page: popups intercepted here, per-site switches, this site's reliability rating">This site</button></header>
+  <div class="top">
+    <span class="brand">PRISM</span>
+    <label class="row master" data-tip="Off: no covers on any site. Popups are still blocked."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
+    <div class="row saved" data-tip="Ad time PRISM covered. Video breaks are measured; a display ad counts as 30 s."><span class="dest" id="reclaimed">…</span><button class="btn" id="reclaimed-reset" type="button" data-tip="Start again from zero">Reset</button></div>
+    <button class="btn" id="settings-close" type="button" aria-label="Close the settings">Close</button>
+  </div>
+  <main class="desk">
+  <aside class="rail">
+    <div class="sitehead"><img id="site-ico" alt="" width="18" height="18" referrerpolicy="no-referrer" hidden><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open the PRISM button's menu for this site">Menu</button></div>
   <section id="view"></section>
-
+    <section>
+      <h3>This page</h3>
+    <label class="row" data-tip="The PRISM button at the bottom right of pages. Off hides it on this site."><input type="checkbox" id="pill-on"><span class="dest">PRISM button</span></label>
+    <div class="row" data-tip="Lift every cover on this page for 15 s. Or hold a cover for 3 s."><span class="dest">Covers</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
+    <div class="livesites" id="live-now" hidden>Reading this tab's picture now.</div>
+    <div class="livesites" id="live-chan" hidden data-tip="What to cover on this channel. Sure only: the service's marked slots and paid programming."><span id="live-chan-name"></span>
+      <span class="seg" id="live-chan-seg"><label data-mode="all">All breaks</label><label data-mode="sure">Sure only</label><label data-mode="off">None</label></span></div>
+    </section>
   <section id="report-grant" hidden>
     <h3>Sending a report</h3>
     <div class="livesites" style="padding-left:0">You pressed Send on a report. Firefox asks once before PRISM may send the reports you choose to send. A report holds only what its panel showed you, and nothing is sent until you press Send.</div>
     <div class="row"><button class="btn" id="report-grant-ok">Ask Firefox now</button></div>
     <div class="livesites" id="report-grant-say" style="padding-left:0"></div>
   </section>
-
-  <section id="allowed-all" hidden>
-    <h3>Popups you've allowed</h3>
-    <div class="row" data-tip="Every popup you have allowed, on every site: the site, then the destination it may open. Remove one and that site's popups to it are held again. The PRISM button's panel shows only the current site's."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
-    <div id="allowed-list" hidden></div>
-  </section>
-
-  <section>
-    <h3>Covering ads</h3>
-    <label class="row" data-tip="The main switch. On: ads, video breaks and (if you chose it) AI-labeled content are covered with art. Off: every cover comes down on every page at once and nothing is covered until you switch it back on. Popups are still intercepted."><input type="checkbox" id="veil-on"><span class="dest">Veil on</span></label>
-    <label class="row" data-tip="The bottom-right PRISM button on pages: the main switch, Report an ad, Reveal, and this site's popups. On = every site (clears any per-site hides). Off = hidden on this site only; the button's › collapses it to the edge instead."><input type="checkbox" id="pill-on"><span class="dest">Show the PRISM button</span></label>
-    <div class="row" data-tip="Lifts every veil on this page for 15 s so you can see what was underneath. Also: press-and-hold a veil for 3 s, or Esc for 6 s."><span class="dest">Check what's covered</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
-    <div class="row" data-tip="How the intermission over a video ad looks. Full card: art with the countdown and controls in the middle. Corner chip: art only, a small chip top-left that opens the controls."><span class="dest">Intermission</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
-  </section>
-
-  <section>
-    <h3>Content</h3>
-    <div class="row" id="look-row" data-tip="How a video's ad break looks. Veil covers it with art and mutes it. Mute only leaves the ad in view with its sound off, with an Unmute button. Show lets it play as it is."><span class="dest">During ad breaks</span>
-      <span class="seg" id="look-seg"><label data-look="veil">Veil</label><label data-look="mute">Mute only</label><label data-look="show">Show</label></span></div>
-    <div class="row" id="sound-row" data-tip="A quiet soundscape while a veil covers a video's ad break (the tab itself stays muted). Field recordings, free to use (CC0). Off by default."><span class="dest">Sound during breaks</span>
-      <span class="seg" id="sound-seg"><label data-snd="">Off</label><label data-snd="river">River</label><label data-snd="chimes">Chimes</label><label data-snd="stars">Stars</label></span></div>
-    <label class="row" data-tip="Veil content the platform itself labels as AI-generated: YouTube's 'Made with AI' / 'Altered or synthetic content' (watch pages and, looked up per tile, the feed), Meta's 'AI info' / 'Made with AI', TikTok's 'AI-generated'. Only the platform's own label counts. Escape, hold-to-reveal or Watch anyway lifts it."><input type="checkbox" id="ai-veil"><span class="dest">Veil AI-labeled content</span></label>
-    <label class="row" data-tip="Covers the posts a feed puts in from accounts you do not follow. For now this works on Facebook: a post whose header shows Facebook&#39;s own Follow or Join button beside the page&#39;s or group&#39;s name, or its Interested and Not interested buttons. A friend&#39;s share is left alone. These are the service&#39;s suggestions, not marked ads. Off by default."><input type="checkbox" id="suggested-veil"><span class="dest">Veil suggested posts</span></label>
-    <label class="row" data-tip="Rest the pointer on a cover&#39;s symbol to see what is under it, small: the ad, the post or the video as it is at that moment. Nothing is loaded a second time. Off, the panel keeps its words and its Reveal button and shows no small view. On by default."><input type="checkbox" id="small-view"><span class="dest">Small view under a cover</span></label>
-    <div class="livesites" id="live-note" hidden>These two switches are the live TV ad detection. Off, PRISM puts up no veil of its own on live TV; the services' own marked breaks are still covered elsewhere.</div>
-    <label class="row" id="ytv-veil-row" data-tip="Some live TV services mark the ad slots they add to a channel. With this on, PRISM covers the channel while one of those slots plays. A channel's own commercials carry no mark, so they still show. For now this works on YouTube TV. On by default."><input type="checkbox" id="ytv-veil"><span class="dest">Veil marked ad slots in live TV</span></label>
-    <label class="row" id="live-picture-row" data-tip="Reads the live TV picture once a second, for spotting the channel&#39;s commercials. Nothing leaves the browser. The tab shows a sharing mark while it runs. For now this works on YouTube TV. Off by default."><input type="checkbox" id="live-picture"><span class="dest">Read the live TV picture</span></label>
-    <label class="row" id="pack-row" data-tip="Once a day PRISM fetches its newest ad detections from Entangled: the break watch's model, its picture network and the catalog of known ads, as signed data (nothing that runs). Nothing about you is sent: no cookie, no identifier, one plain request. Off, the detections that came with this version are used."><input type="checkbox" id="pack-updates"><span class="dest">Get ad cover updates from Entangled</span></label>
+  </aside>
+  <div class="sheet">
+  <div class="col">
+    <section>
+      <h3>Covers</h3>
+    <label class="row" data-tip="Rest the pointer on a cover's symbol to see what is under it, small."><input type="checkbox" id="small-view"><span class="dest">Small view</span></label>
+    <label class="row" id="pack-row" data-tip="Fetch new ad detections from Entangled once a day. Signed data, nothing that runs. Nothing about you is sent."><input type="checkbox" id="pack-updates"><span class="dest">Rule updates</span></label>
     <div class="livesites" id="pack-note" hidden></div>
-    <div class="livesites" id="live-now" hidden>Reading this tab's picture now.</div>
-    <div class="livesites" id="live-chan" hidden data-tip="What PRISM covers on this channel. Sure breaks only covers YouTube TV's own marked slots and paid programming, never a break it only judged."><span id="live-chan-name"></span>
-      <span class="seg" id="live-chan-seg"><label data-mode="all">All breaks</label><label data-mode="sure">Sure only</label><label data-mode="off">None</label></span></div>
+    </section>
+    <section>
+      <h3>Video ads</h3>
+    <div class="row" id="look-row" data-tip="Veil: cover and mute the ad. Mute only: sound off, ad in view. Show: leave it alone."><span class="dest">During ads</span>
+      <span class="seg" id="look-seg"><label data-look="veil">Veil</label><label data-look="mute">Mute only</label><label data-look="show">Show</label></span></div>
+    <div class="row" data-tip="Full card: countdown and controls in the middle. Corner chip: art, with a small chip that opens the controls."><span class="dest">Card</span><span class="seg" id="hud"><label class="on"><input type="radio" name="hud" value="interactive">Full card</label><label><input type="radio" name="hud" value="minimal">Corner chip</label></span></div>
+    <div class="row" id="sound-row" data-tip="A quiet soundscape while a video ad is covered. The tab stays muted."><span class="dest">Sound</span>
+      <span class="seg" id="sound-seg"><label data-snd="">Off</label><label data-snd="river">River</label><label data-snd="chimes">Chimes</label><label data-snd="stars">Stars</label></span></div>
+    </section>
+    <section>
+      <h3>Live TV</h3>
+    <div class="livesites" id="live-note" hidden>Both off: PRISM covers no live TV ads itself.</div>
+    <label class="row" id="ytv-veil-row" data-tip="Cover the ad slots a live TV service marks itself. YouTube TV for now."><input type="checkbox" id="ytv-veil"><span class="dest">Marked ad slots</span></label>
+    <label class="row" id="live-picture-row" data-tip="Read the live TV picture once a second to spot commercials. Nothing leaves the browser. The tab shows a sharing mark. YouTube TV for now."><input type="checkbox" id="live-picture"><span class="dest">Picture detection</span></label>
     <div class="livesites" id="live-sites" hidden>
-      <div class="sub" data-tip="The sites whose live TV picture is read. YouTube TV is the one tried so far. Add another live TV site to try the ad detection there.">Live TV sites</div>
+      <div class="sub" data-tip="Sites where the live TV picture is read.">Sites</div>
       <div id="live-site-list"></div>
-      <div class="addrow"><input class="filter" id="live-site-add" placeholder="Add a site, like example.com" spellcheck="false"><button class="btn" id="live-site-here" hidden>Add this site</button></div>
+      <div class="addrow"><input class="filter" id="live-site-add" placeholder="example.com" spellcheck="false"><button class="btn" id="live-site-here" hidden>Add this site</button></div>
     </div>
-    <div class="livesites" id="veil-log-row" data-tip="A record of every veil PRISM put over a video's ad break on this browser: when it went up and came down, the site and channel, whether the service marked the break or PRISM's break watch spotted it, and the rule that called it. It stays in this browser. Copy puts it on the clipboard as text.">
-      <div class="addrow"><span class="sub">Veil log</span><button class="btn" id="veil-log-copy">Copy</button><button class="btn" id="veil-log-clear">Clear</button><span class="sub" id="veil-log-note"></span></div>
+    </section>
+  </div>
+  <div class="col">
+    <section>
+      <h3>Other content</h3>
+    <label class="row" data-tip="Cover what the platform itself labels as AI-made: YouTube, Meta, TikTok."><input type="checkbox" id="ai-veil"><span class="dest">AI-labeled content</span></label>
+    <label class="row" data-tip="Cover posts from accounts you do not follow. Facebook and LinkedIn for now. A friend's share is left alone."><input type="checkbox" id="suggested-veil"><span class="dest">Suggested posts</span></label>
+    <div class="row" data-tip="<p>Three disks beside links to rated outlets, one per source.</p><p><span class='d' style='background:#3fb950'></span>good &middot; <span class='d' style='background:#d29922'></span>mixed &middot; <span class='d' style='background:#f85149'></span>poor &middot; grey = not rated</p><p>Click a disk for the reason. Nothing is hidden.</p>"><input type="checkbox" id="src-marks" hidden><span class="dest">Source reliability</span></div>
+    <div class="sources" id="sources">
+      <label data-tip="<p><b>Wikipedia Perennial Sources</b></p><p>Editors' ratings. Each links to its discussion.</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>
+      <label data-tip="<p><b>Iffy Index</b></p><p>Sites Media Bias/Fact Check rates low. Links to the review.</p>"><input type="checkbox" data-src="iffy"><span class="disk" style="background:#d29922"></span>Iffy Index</label>
+      <label data-tip="<p><b>Steven Black hosts</b></p><p>A fake-news domain list: red if listed.</p>"><input type="checkbox" data-src="sb"><span class="disk" style="background:#f85149"></span>Steven Black</label>
     </div>
-    <label class="row" data-tip="<p><b>Three-disk cylinder</b> next to links to rated outlets, and on the PRISM button for the site you're on. One disk per source, on that source's own scale:</p><p><span class='d' style='background:#3fb950'></span>green &middot; <span class='d' style='background:#d29922'></span>yellow &middot; <span class='d' style='background:#f85149'></span>red</p><p>grey = no information &middot; hollow = source switched off</p><p>Click a disk to open the discussion behind the rating</p><p>Nothing is hidden or blocked. Unlisted is not &ldquo;bad&rdquo;.</p>"><input type="checkbox" id="src-marks"><span class="dest">Mark source reliability</span></label>
-    <div class="sources" id="sources" hidden>
-      <label data-tip="<p><b>Wikipedia &ndash; Perennial Sources</b> (CC BY-SA)</p><p>Community-adjudicated: reliable / no consensus / unreliable / deprecated</p><p>Every rating links to the discussion that set it</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>
-      <label data-tip="<p><b>Iffy Index</b> (CC BY 4.0)</p><p>Sites that Media Bias/Fact Check rates low credibility</p><p>Colour = MBFC&rsquo;s factual-reporting grade</p><p>The disk links to the MBFC review</p>"><input type="checkbox" data-src="iffy"><span class="disk" style="background:#d29922"></span>Iffy Index</label>
-      <label data-tip="<p><b>Steven Black hosts</b> &ndash; fakenews list (MIT)</p><p>A plain domain list: red if listed, grey if not</p><p>No per-site rationale exists, so the disk links to the list itself</p>"><input type="checkbox" data-src="sb"><span class="disk" style="background:#f85149"></span>Steven Black</label>
-    </div>
-  </section>
-
-  <section>
-    <h3>Photos</h3>
-    <div class="row" id="photos-row" data-tip="The photos behind every veil. Built-in: the 24 that ship inside PRISM. Server: 24 random photos from the signed pool at prism.entangled.world (CC0 / public domain, each photo checked against the signed index; no identifiers sent)."><span class="dest" id="photos-text">…</span><button class="btn primary" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Restore defaults</button></div>
+    </section>
+    <section>
+      <h3>Pictures</h3>
+    <div class="row" id="photos-row" data-tip="The pictures on covers. Get 24 new: random public-domain pictures from PRISM's server, nothing about you sent. Defaults: the 24 built in."><span class="dest" id="photos-text">…</span><button class="btn" id="photos-get" type="button">Get 24 photos</button><button class="btn" id="photos-reset" type="button" hidden>Defaults</button></div>
     <div class="err" id="photos-err" hidden></div>
-    <div class="row" id="art-sets" data-tip="Which pictures the veils and the start page draw from, all public domain from PRISM's server: Nature photos, NASA's Cosmos, and Museum art from the Art Institute of Chicago. At least one stays on."><span class="dest">Pictures</span><label><input type="checkbox" value="nature"> Nature</label> <label><input type="checkbox" value="cosmos"> Cosmos</label> <label><input type="checkbox" value="gallery"> Museum art</label></div>
+    <div class="row" id="art-sets" data-tip="Which sets the pictures come from. One stays on."><span class="dest">Sets</span><label><input type="checkbox" value="nature"> Nature</label> <label><input type="checkbox" value="cosmos"> Cosmos</label> <label><input type="checkbox" value="gallery"> Museum art</label></div>
     <div class="err" id="art-sets-note" hidden></div>
-    <label class="row" data-tip="Fetch a fresh random 24 from the server once a week, automatically (catches up at next start if the browser was closed)."><input type="checkbox" id="art-weekly"><span class="dest">Refresh photos weekly</span></label>
-  </section>
-
+    <label class="row" data-tip="Get 24 new pictures once a week."><input type="checkbox" id="art-weekly"><span class="dest">Weekly refresh</span></label>
+    </section>
   <!-- @store-strip-begin (the start page is not in the Chromium store build, 2026-11-14) -->
   <section>
     <h3>PRISM page</h3>
-    <label class="row" data-tip="Every new tab opens PRISM's start page (art, clock, search, your links, weather, calendar). Asks once for the 'tabs' permission it needs."><input type="checkbox" id="startpage-on"><span class="dest">Use PRISM as my new-tab page</span></label>
-    <label class="row" data-tip="When the browser starts or a new window opens, its first tab is PRISM's start page."><input type="checkbox" id="homepage-on"><span class="dest">Use PRISM as my start page</span></label>
+    <label class="row" data-tip="Every new tab opens PRISM's start page. Asks once for the tabs permission."><input type="checkbox" id="startpage-on"><span class="dest">New-tab page</span></label>
+    <label class="row" data-tip="The browser's first tab is PRISM's start page."><input type="checkbox" id="homepage-on"><span class="dest">Start page</span></label>
   </section>
   <!-- @store-strip-end -->
-
-  <section>
-    <h3>Time reclaimed</h3>
-    <div class="row" data-tip="Time spent behind the veil instead of watching ads: measured for video breaks, 30 s estimated per covered display ad. Local only - a receipt, not a scoreboard."><span class="dest" id="reclaimed">…</span><button class="btn" id="reclaimed-reset" type="button" data-tip="Start the count again from zero">Reset</button></div>
+  <section id="allowed-all" hidden>
+    <h3>Allowed popups</h3>
+    <div class="row" data-tip="Every popup you have allowed, on every site. Remove one to block it again."><span class="dest" id="allowed-text">…</span><button class="btn" id="allowed-show" type="button">Show</button></div>
+    <div id="allowed-list" hidden></div>
   </section>
+    <section>
+      <h3>Diagnostics</h3>
+    <div class="livesites" id="veil-log-row" data-tip="The last 1,000 video ad covers: time, site, channel and the rule. Kept in this browser only.">
+      <div class="addrow"><span class="sub">Veil log</span><button class="btn" id="veil-log-copy">Copy</button><button class="btn" id="veil-log-clear">Clear</button><span class="sub" id="veil-log-note"></span></div>
+    </div>
+    </section>
+  </div>
+  </div>
+  </main>
 
-  <footer>Local only — nothing here ever leaves this browser.</footer>
+  <footer>Settings stay in this browser.</footer>
   <div id="tip" hidden></div>
   <script src="src/core-popups.js"></script>
   <script src="src/core-reclaimed.js"></script>

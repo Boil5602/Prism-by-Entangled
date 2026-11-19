@@ -285,6 +285,10 @@ public sealed partial class MainWindow
 
     // ---------------------------------------------------------------- the empty stage
     private Grid? _emptyStage;
+    /// <summary>What a start held (core's videoResumeOffer, 2026-11-17): after a restart nothing plays by itself, and the empty stage offers one Resume.</summary>
+    private JsonArray? _mvResume;
+    private Button? _resumeChip;
+    private TextBlock? _resumeWhat, _emptyHint;
     /// <summary>Multiview on and no window left: nothing is playing, and PRISM says so on a flat ground with its mark (the curtains
     /// were taken down 2026-10-17). Gone the moment a window is filled.</summary>
     private void SyncEmptyStage()
@@ -293,10 +297,25 @@ public sealed partial class MainWindow
         // Only while the Video player is the wall; a pick (loading counts) takes it away
         // never over Watch: the stage stands above the tile canvas, Watch included - it comes up as Watch closes
         // never over a sign-in or the welcome page (2026-09-29, a new device: the stage stood over the service's sign-in page)
-        var show = !VideoHubOpen && !_asSession && _welcome is null && ((_mvOn && _mvWindows.Count == 0) || (!_mvOn && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible));
+        var held = _mvResume is { Count: > 0 } && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible;   // held for Resume: the stage stands over the waiting windows too
+        var show = !VideoHubOpen && !_asSession && _welcome is null && (held || (_mvOn && _mvWindows.Count == 0) || (!_mvOn && !_mvBigHas && WatchGrip.Visibility == Visibility.Visible));
         if (!show) { if (_emptyStage is not null) _emptyStage.Visibility = Visibility.Collapsed; return; }
         _emptyStage ??= BuildEmptyStage();
         _emptyStage.Visibility = Visibility.Visible;
+        // the Resume: one button, and under it what it brings back (the big window's name, then how many more)
+        _emptyStage.IsHitTestVisible = held;   // the bare stage lets the pointer through to the stage bar; with the button it takes presses
+        if (_resumeChip is not null) _resumeChip.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
+        if (_emptyHint is not null) _emptyHint.Visibility = held ? Visibility.Collapsed : Visibility.Visible;
+        if (_resumeWhat is not null)
+        {
+            _resumeWhat.Visibility = held ? Visibility.Visible : Visibility.Collapsed;
+            if (held)
+            {
+                var first = _mvResume![0]?.GetValue<string>() ?? "";
+                var more = _mvResume.Count - 1;
+                _resumeWhat.Text = Shorten(first, 40) + (more > 0 ? " and " + more + " more" : "");
+            }
+        }
     }
     /// <summary>The empty stage, flat (2026-10-17): the page
     /// ground, PRISM's mark, and the two lines. The purple drapes, the gold ropes, the valance and the spot that stood here since 2026-09-25 are gone.</summary>
@@ -312,11 +331,25 @@ public sealed partial class MainWindow
             {
                 mark,
                 new TextBlock { Text = "Nothing is playing", FontSize = 34, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) },
-                new TextBlock { Text = "Drag a title from Watch onto the big window", FontSize = 17, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center },
+                (_emptyHint = new TextBlock { Text = "Drag a title from Watch onto the big window", FontSize = 17, Foreground = HubDim, HorizontalAlignment = HorizontalAlignment.Center }),
+                (_resumeChip = BuildResumeChip()),
+                (_resumeWhat = new TextBlock { FontSize = 17, Foreground = HubInk, HorizontalAlignment = HorizontalAlignment.Center, Visibility = Visibility.Collapsed }),
             },
         });
         Canvas.SetZIndex(g, 924);   // under the stage curtain (925) and the Watch page (930): a pick's own face and the page stand over it
         RootGrid.Children.Add(g);
         return g;
+    }
+    /// <summary>Resume on the empty stage (2026-11-17): every window a start held goes back to what it had up, by core's own restore.</summary>
+    private Button BuildResumeChip()
+    {
+        var b = Chip(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = {
+            new FontIcon { Glyph = "\uE768", FontSize = 18, Foreground = HubInk },
+            new TextBlock { Text = "Resume", FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = HubInk } } }, true);
+        b.Padding = new Thickness(26, 12, 26, 12); b.HorizontalAlignment = HorizontalAlignment.Center; b.Margin = new Thickness(0, 14, 0, 0);
+        b.Visibility = Visibility.Collapsed;
+        ToolTipService.SetToolTip(b, "Play what was on before PRISM restarted.");
+        b.Click += async (_, __) => { b.IsEnabled = false; try { await MvCallAsync("resume"); } finally { b.IsEnabled = true; } };
+        return b;
     }
 }

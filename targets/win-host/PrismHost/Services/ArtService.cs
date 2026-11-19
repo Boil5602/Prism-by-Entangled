@@ -97,7 +97,7 @@ public sealed class ArtService
             if (packId is null) { pool = true; continue; }
             if (_packs.TryGetValue(packId, out var images)) candidates.AddRange(images);
         }
-        if (pool || candidates.Count == 0) candidates.AddRange(PoolArt().Select(p => new ArtPick(p, null, null)));   // a pack that shipped nothing: the pool
+        if (pool || candidates.Count == 0) candidates.AddRange(PoolArt().Select(p => new ArtPick(p, null, PoolCredit(p))));   // a pack that shipped nothing: the pool
         if (candidates.Count == 0) return null;
         var fresh = candidates.Where(c => !_recent.Contains(c.Path)).ToList();
         var pick = (fresh.Count > 0 ? fresh : candidates)[_rng.Next(fresh.Count > 0 ? fresh.Count : candidates.Count)];
@@ -184,6 +184,31 @@ public sealed class ArtService
         catch { /* no packs: the pool and the dark substrate still work */ }
     }
 
+    /// <summary>A pool photo's own credit (2026-11-18): title, who made it, license and where it is from, read from the list that ships
+    /// with the app (Assets/credits/pool-credits.json, written by scripts/pool-credits.mjs from the extension's own list). Nothing is
+    /// looked up. A photo the list does not name has no credit.</summary>
+    private static Dictionary<string, ArtAttribution>? s_poolCredits;
+    private static ArtAttribution? PoolCredit(string path)
+    {
+        if (s_poolCredits is null)
+        {
+            var map = new Dictionary<string, ArtAttribution>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Assets", "credits", "pool-credits.json")));
+                foreach (var e in doc.RootElement.EnumerateObject())
+                {
+                    var title = Str(e.Value, "title"); var credit = Str(e.Value, "credit"); var license = Str(e.Value, "license");
+                    if (title is null || credit is null) continue;
+                    var line = string.Join(" · ", new[] { title, credit, license }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    map[e.Name] = new ArtAttribution(title, credit, license ?? "", Str(e.Value, "source") ?? "", line, credit);
+                }
+            }
+            catch { /* no list: the pool has no credits, as before */ }
+            s_poolCredits = map;
+        }
+        return s_poolCredits.TryGetValue(Path.GetFileName(path), out var a) ? a : null;
+    }
     private static ArtPick? ToPick(string dir, string packId, JsonElement img)
     {
         var file = Str(img, "file");

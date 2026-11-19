@@ -16,9 +16,21 @@
       cur = el; tip.replaceChildren.apply(tip, Array.from(new DOMParser().parseFromString(el.getAttribute("data-tip") || "", "text/html").body.childNodes)); tip.hidden = false;
       var r = el.getBoundingClientRect(), h = tip.offsetHeight, below = r.bottom + 6;
       tip.style.top = (below + h <= innerHeight - 8 ? below : Math.max(8, r.top - h - 6)) + "px";
+      tip.style.left = Math.max(14, Math.min(r.left, innerWidth - tip.offsetWidth - 14)) + "px";   // under its own row: the page is three columns wide
     }
-    function hide() { cur = null; tip.hidden = true; }
-    document.addEventListener("mouseover", function (e) { var el = e.target.closest && e.target.closest("[data-tip]"); if (el && el !== cur) show(el); else if (!el && cur) hide(); });
+    // The pointer has to rest on a row before its text shows: the panels opened the moment the pointer crossed a row, one after
+    // another on the way down the list, and hid the rows under them (2026-11-17, asked for them to stop getting in the way). A move
+    // to another row closes the panel and starts the wait again. The keyboard's focus shows a row's text at once, as before.
+    var REST_MS = 700, wait = 0, over = null;
+    function hide() { clearTimeout(wait); over = null; cur = null; tip.hidden = true; }
+    document.addEventListener("mouseover", function (e) {
+      var el = e.target.closest && e.target.closest("[data-tip]");
+      if (!el) { if (cur || over) hide(); return; }
+      if (el === over || el === cur) return;
+      hide(); over = el;
+      wait = setTimeout(function () { if (over === el && el.isConnected) show(el); }, REST_MS);
+    });
+    document.addEventListener("mousedown", hide, true);
     document.addEventListener("mouseleave", hide);
     document.addEventListener("focusin", function (e) { var el = e.target.closest && e.target.closest("[data-tip]"); if (el) show(el); });
     document.addEventListener("focusout", hide);
@@ -39,17 +51,111 @@
   };
   var policy = new core.PopupPolicy(store);
   var tabId = null, curSite = null;
+  var OWN_WINDOW = new URLSearchParams(location.search).get("window") === "1";
+  // the live TV picture can be read: by the tab's stream (Edge, Chrome) or by snapshots of the tab (Firefox on a computer)
+  var CAN_PICTURE = !!chrome.tabCapture || !!(chrome.tabs && chrome.tabs.captureTab);
+  // In the panel over the web page (popup.html?frame=1&tab=<id>, 2026-11-18): the page under it holds the frame, closes it on a press
+  // beside it, and is told this page's height so that nothing scrolls.
+  var IN_FRAME = new URLSearchParams(location.search).get("frame") === "1";
+  // In any frame this page is hidden, and so takes no press and no key, until the background says the frame is one PRISM made
+  // (bg.js settingsPass). A web page that frames the settings itself gets an empty frame.
+  if (window.top !== window) {
+    try { document.documentElement.style.display = "none"; } catch (e) {}
+    try {
+      chrome.runtime.sendMessage({ type: "prism-settings-pass", pass: new URLSearchParams(location.search).get("pass") || "" }, function (r) {
+        void chrome.runtime.lastError;
+        if (IN_FRAME && r && r.ok) document.documentElement.style.display = "";
+      });
+    } catch (e) {}
+  }
+  var FOR_TAB = parseInt(new URLSearchParams(location.search).get("tab"), 10);
+  function tellPage(msg) { try { if (isFinite(FOR_TAB)) chrome.tabs.sendMessage(FOR_TAB, msg, function () { void chrome.runtime.lastError; }); } catch (e) {} }
+  function closeSettings() { if (IN_FRAME) tellPage({ type: "prism-settings-close" }); else window.close(); }
+  try {
+    var cb = document.getElementById("settings-close");
+    if (cb) { cb.hidden = !(IN_FRAME || OWN_WINDOW); cb.addEventListener("click", closeSettings); }
+  } catch (e) {}
+  if (IN_FRAME) {
+    // No scroll bar of the frame's own while the settings fit (2026-11-18: a bar came up with room to spare, took its width from
+    // the page, and that brought the second bar). The frame is made as tall as the settings; only when the browser window is
+    // too short to hold them does the page scroll, up and down alone.
+    try { document.documentElement.classList.add("framed"); } catch (e) {}
+    var fitScroll = function () {
+      try { document.documentElement.style.overflowY = document.body.getBoundingClientRect().height > innerHeight + 2 ? "auto" : "hidden"; } catch (e) {}
+    };
+    addEventListener("resize", function () { fitScroll(); setTimeout(fitScroll, 120); });
+    var sizeT = 0, sayHeight = function () {
+      clearTimeout(sizeT);
+      sizeT = setTimeout(function () { tellPage({ type: "prism-settings-size", h: Math.ceil(document.body.getBoundingClientRect().height) }); setTimeout(fitScroll, 150); }, 40);
+    };
+    try { new ResizeObserver(sayHeight).observe(document.body); } catch (e) {}
+    addEventListener("load", sayHeight);
+    addEventListener("keydown", function (e) { if (e.key === "Escape") closeSettings(); });
+  }
+  if (OWN_WINDOW) {
+    try { document.title = "PRISM settings"; } catch (e) {}
+    // The window is as tall as what it holds, so nothing scrolls (2026-11-18); it follows a list that opens or grows, up to the screen.
+    // No scroll bar of the window's own while the settings fit (2026-11-18: on the browser's own pages the bars came and went
+    // without end, each one changing the height that was then asked for). The height asked for is that of the settings themselves,
+    // never of the window; only a screen too short for them scrolls, up and down alone.
+    try { document.documentElement.classList.add("framed"); } catch (e) {}
+    var winScroll = function () {
+      try { document.documentElement.style.overflowY = document.body.getBoundingClientRect().height > innerHeight + 2 ? "auto" : "hidden"; } catch (e) {}
+    };
+    addEventListener("resize", function () { winScroll(); setTimeout(winScroll, 150); });
+    var fitT = 0, fit = function () {
+      clearTimeout(fitT);
+      fitT = setTimeout(function () {
+        try {
+          chrome.windows.getCurrent(function (w) {
+            if (chrome.runtime.lastError || !w) return;
+            var want = Math.min(Math.ceil(document.body.getBoundingClientRect().height) + (window.outerHeight - window.innerHeight), (screen.availHeight || 900) - 20);
+            if (Math.abs(want - w.height) > 3) chrome.windows.update(w.id, { height: want }, function () { void chrome.runtime.lastError; setTimeout(winScroll, 150); }); else winScroll();
+          });
+        } catch (e) {}
+      }, 60);
+    };
+    try { new ResizeObserver(fit).observe(document.body); } catch (e) {}
+    addEventListener("load", fit);
+    // A press anywhere else closes it, as a menu closes (2026-11-18: left open it went behind the browser and was lost there). Not
+    // while Firefox asks its permission question from this page, which takes the focus for a moment.
+    var openedAt = Date.now();
+    addEventListener("blur", function () {
+      if (Date.now() - openedAt < 600) return;
+      if (new URLSearchParams(location.search).get("highlight") === "report") return;
+      // told at once: a press on the toolbar icon while this is open closes it, and must not open it again (bg.js)
+      try { chrome.runtime.sendMessage({ type: "prism-settings-blur" }, function () { void chrome.runtime.lastError; }); } catch (e) {}
+      setTimeout(function () { if (!document.hasFocus()) window.close(); }, 150);
+    });
+    addEventListener("keydown", function (e) { if (e.key === "Escape") window.close(); });
+  }
 
   // ---- this site's popups (the page's visit ledger) --------------------------
+  // The site's icon beside its address, as in the PRISM button's menu (2026-11-18): the address the browser holds as the tab's
+  // icon, asked for once with no referrer. No icon, or one that will not load, leaves the address alone.
+  var icoDone = false;
+  function siteIcon() {
+    if (icoDone || tabId == null) return; icoDone = true;
+    try {
+      chrome.tabs.get(tabId, function (t) {
+        void chrome.runtime.lastError;
+        var u = t && t.favIconUrl, im = $("site-ico");
+        if (!im || !u || !/^(https?:|data:image.)/i.test(u)) return;
+        im.addEventListener("load", function () { im.hidden = false; });
+        im.addEventListener("error", function () { im.hidden = true; });
+        im.src = u;
+      });
+    } catch (e) {}
+  }
   function render(v) {
     var view = $("view"); view.textContent = "";
     if (!v) { $("site").textContent = ""; view.appendChild(el("div", "empty", "PRISM isn't running on this page (browser pages, the store, PDFs).")); $("open-here").disabled = true; return; }
-    $("site").textContent = v.site; curSite = v.site; try { paintLiveSites(); } catch (e) {}
+    $("site").textContent = v.site; siteIcon(); curSite = v.site; try { paintLiveSites(); } catch (e) {}
     var pf0 = policy.prefs(v.site); $("pill-on").checked = !pf0.hidden;
     var total = 0; v.rows.forEach(function (r) { total += r.count; });
     view.appendChild(el("div", "sum", total
-      ? total + (total === 1 ? " popup" : " popups") + " intercepted on this visit (" + ago(v.since) + "), none loaded."
-      : "No popups intercepted on this visit (" + ago(v.since) + ")."));
+      ? total + (total === 1 ? " popup blocked" : " popups blocked")
+      : "No popups blocked"));
     v.rows.forEach(function (r) {
       var row = el("div", "row"); row.title = r.reason + " · last " + ago(r.last);
       var d = el("div", "dest"); d.appendChild(el("b", null, r.dest)); row.appendChild(d);
@@ -76,7 +182,7 @@
     var nSites = Object.keys(sites).length;
     $("allowed-all").hidden = !rows.length;
     if (!rows.length) return;
-    $("allowed-text").textContent = rows.length + (rows.length === 1 ? " popup allowed" : " popups allowed") + " on " + nSites + (nSites === 1 ? " site" : " sites");
+    $("allowed-text").textContent = rows.length + " on " + nSites + (nSites === 1 ? " site" : " sites");
     $("allowed-show").textContent = allowedOpen ? "Hide" : "Show";
     var list = $("allowed-list"); list.hidden = !allowedOpen; list.textContent = "";
     if (!allowedOpen) return;
@@ -134,14 +240,15 @@
     $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
     $("pack-updates").checked = !!ui.packUpdates;
     paintPack();
-    $("live-picture").checked = !!ui.livePicture && !!chrome.tabCapture;
-    $("live-sites").hidden = !(ui.livePicture && chrome.tabCapture);
+    $("live-picture").checked = !!ui.livePicture && CAN_PICTURE;
+    $("live-sites").hidden = !(ui.livePicture && CAN_PICTURE);
     if (!ui.livePicture) $("live-now").hidden = true;
     paintLiveSites();
     $("src-marks").checked = !!ui.srcMarks;
-    $("sources").hidden = !ui.srcMarks;
+    // The marks have no switch of their own (2026-11-18): they are on while any source is lit, and a source is lit only while they are on.
+    $("sources").hidden = false;
     var cs = ui.credSrc || {};
-    Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (i) { i.checked = cs[i.dataset.src] !== false; });
+    Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (i) { i.checked = !!ui.srcMarks && cs[i.dataset.src] !== false; });
     var hud = ui.hud || "interactive";
     Array.prototype.forEach.call(document.querySelectorAll("#hud label"), function (l) { var on = l.querySelector("input").value === hud; l.classList.toggle("on", on); l.querySelector("input").checked = on; });
     $("art-weekly").checked = !!ui.artWeekly;
@@ -167,18 +274,18 @@
       var rules = r && r["pv:rules"], rl = r && r["pv:rules:last"], held = r && r["pv:pack"], last = r && r["pv:pack:last"], note = $("pack-note");
       if (!$("pack-updates").checked && !held && !rules) { note.hidden = true; return; }
       var day = function (at) { try { return new Date(at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return ""; } };
-      var s = rules && $("pack-updates").checked ? "Rules " + rules.serial + ", updated " + day(rules.at) + "." : "Rules: the ones that came with this version.";
-      if (rl && !rl.ok && rl.error) s += " Last check: " + rl.error + ".";
+      var s = rules && $("pack-updates").checked ? "Rules " + rules.serial + "." : "Built-in rules.";
+      if (rl && !rl.ok && rl.error) s += " Check failed: " + rl.error + ".";
       else if (rl && rl.same) s += " Checked " + day(rl.at) + ": nothing newer.";
-      if (chrome.offscreen) {
-        s += held ? " Live TV detection: pack " + held.pack + (held.date ? " (" + held.date + ")" : "") + "." : " Live TV detection: the one that came with this version.";
-        if (last && !last.ok && last.error) s += " Last check: " + last.error + ".";
+      if (CAN_PICTURE) {
+        s += held ? " Live TV pack " + held.pack + "." : " Live TV: built-in.";
+        if (last && !last.ok && last.error && s.indexOf("Check failed") < 0) s += " Check failed: " + last.error + ".";
       }
       note.textContent = s; note.hidden = false;
     });
   }
   // what the switch fetches differs by browser: the tooltip says what this one gets
-  $("pack-row").setAttribute("data-tip", chrome.offscreen
+  $("pack-row").setAttribute("data-tip", CAN_PICTURE
     ? "Once a day PRISM fetches its newest ad detection from Entangled: the rules that find ads on pages (selectors, words and site names), and the live TV detector's numbers. Both are signed data. Nothing in them runs as code. Nothing about you is sent: no cookie, no identifier, one plain request. Off, PRISM uses what came with this version."
     : "Once a day PRISM fetches its newest ad detection rules from Entangled: selectors, words and site names, as signed data. Nothing in them runs as code. Nothing about you is sent: no cookie, no identifier, one plain request. Off, PRISM uses the rules that came with this version.");
   $("pack-updates").addEventListener("change", function () {
@@ -186,10 +293,13 @@
     if ($("pack-updates").checked) { $("pack-note").textContent = "Checking..."; $("pack-note").hidden = false; chrome.runtime.sendMessage({ type: "pv:pack-check" }, function () { void chrome.runtime.lastError; paintPack(); }); }
     else paintPack();
   });
-  // the tab's stream exists in Chromium only: elsewhere the option stays visible, disabled, with the reason
-  if (!chrome.tabCapture) {
+  // the tab's stream exists in Chromium only; Firefox on a computer reads snapshots of the tab in front (2026-11-18); where there is
+  // neither, the option stays visible, disabled, with the reason
+  if (!CAN_PICTURE) {
     $("live-picture").disabled = true;
-    $("live-picture-row").setAttribute("data-tip", "This browser does not let an extension read a tab's picture, so this needs Edge or Chrome. Marked ad slots are still covered when that option is on.");
+    $("live-picture-row").setAttribute("data-tip", "This browser does not let an extension read a tab's picture, so this needs Edge, Chrome or Firefox on a computer. Marked ad slots are still covered when that option is on.");
+  } else if (!chrome.tabCapture) {
+    $("live-picture-row").setAttribute("data-tip", "Read the live TV picture once a second to spot commercials. Nothing leaves the browser. It reads only while the live TV tab is in front. YouTube TV for now.");
   }
   $("live-picture").addEventListener("change", function () { setUi("livePicture", $("live-picture").checked); askPicture(); });
   // The list of live TV sites whose picture is read (tv.youtube.com to start with): a host, or a site above it (example.com covers
@@ -244,7 +354,7 @@
     });
   });
   function askPicture(again) {
-    if (tabId == null || !chrome.tabCapture || !ui.livePicture) { $("live-now").hidden = true; $("live-chan").hidden = true; return; }
+    if (tabId == null || !CAN_PICTURE || !ui.livePicture) { $("live-now").hidden = true; $("live-chan").hidden = true; return; }
     try {
       chrome.tabs.sendMessage(tabId, { type: "pv:live-picture-start" }, function (st) {
         void chrome.runtime.lastError;
@@ -298,7 +408,16 @@
       a = Array.isArray(a) ? a : [];
       var text = a.map(veilLogLine).join("\n") + (a.length ? "\n" : "");
       var done = function (ok) { $("veil-log-note").textContent = ok ? (a.length ? a.length + " lines copied" : "Nothing logged yet") : "Could not copy"; };
-      try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+      // The settings are in a frame on the web page, where the browser may refuse the clipboard (2026-11-18: Copy said it could not).
+      // The frame is given the right (src/popups-ui.js); where that is still refused, the text is copied from a field, the old way.
+      var old = function () {
+        try {
+          var ta = document.createElement("textarea"); ta.value = text; ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          var ok = document.execCommand("copy"); ta.remove(); done(!!ok);
+        } catch (e) { done(false); }
+      };
+      try { navigator.clipboard.writeText(text).then(function () { done(true); }, old); } catch (e) { old(); }
     });
   });
   $("veil-log-clear").addEventListener("click", function () {
@@ -306,7 +425,12 @@
   });
   $("src-marks").addEventListener("change", function () { setUi("srcMarks", $("src-marks").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (i) {
-    i.addEventListener("change", function () { var n = {}; var cs = ui.credSrc || {}; for (var k in cs) n[k] = cs[k]; n[i.dataset.src] = i.checked; setUi("credSrc", n); });
+    i.addEventListener("change", function () {
+      // what is lit now is the whole answer: each source on or off as its chip shows, and the marks on if any is lit
+      var n = {}, any = false;
+      Array.prototype.forEach.call(document.querySelectorAll("#sources input"), function (x) { n[x.dataset.src] = !!x.checked; if (x.checked) any = true; });
+      setUi("credSrc", n); setUi("srcMarks", any);
+    });
   });
   Array.prototype.forEach.call(document.querySelectorAll("#hud input"), function (r) { r.addEventListener("change", function () { if (r.checked) setUi("hud", r.value); }); });
   $("art-weekly").addEventListener("change", function () { setUi("artWeekly", $("art-weekly").checked); });
@@ -325,7 +449,7 @@
   // ---- photos (bg.js fetches; pv:art holds the set) ---------------------------
   function paintArt(rec) {
     var n = rec && rec.urls ? rec.urls.length : 0;
-    $("photos-text").textContent = n ? n + " from the server · fetched " + ago(rec.at || 0) : "24 built-in";
+    $("photos-text").textContent = n ? "From " + ago(rec.at || 0) : "Built-in";
     $("photos-get").textContent = n ? "Get 24 new" : "Get 24 photos";
     $("photos-get").title = n ? "Swap these for a different random 24 from the pool" : "Fetch 24 random photos from the signed pool on prism.entangled.world";
     $("photos-reset").hidden = !n;
@@ -406,7 +530,11 @@
     Object.keys(all).forEach(function (k) { if (k.indexOf("pv:") === 0) cache[k.slice(3)] = all[k]; });
     policy.load().then(function () {
       paintAllowedAll();
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      // In a window of its own (popup.html?window=1&tab=<id>, 2026-11-18) the page is told which tab it is for: the active tab of
+      // its own window is the settings page itself.
+      var forTab = FOR_TAB;
+      if (OWN_WINDOW || IN_FRAME) { tabId = isFinite(forTab) ? forTab : null; refresh(); askPicture(); }
+      else chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         tabId = (tabs && tabs[0] && tabs[0].id != null) ? tabs[0].id : null;
         refresh();
         askPicture();

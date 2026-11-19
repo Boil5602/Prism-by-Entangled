@@ -1263,7 +1263,7 @@ public sealed partial class MainWindow
     }
 
     // ------------------------------------------------ music transport (§32 layer 3): pass-through, disabled-not-hidden
-    private sealed record TransportState(string TileId, string Facet, bool Playing, bool Play, bool Pause, bool Prev, bool Next, bool SeekBack, bool SeekFwd, string? Title, string? Artist, string? Artwork, double? Position, double? Duration, string? Album = null, string? Collection = null, string? Pending = null, string? PendingFailed = null, string? Session = null, string? CollectionKind = null, bool Intermission = false, bool Rate = false, int Rating = 0, string? Offer = null, string? AdCount = null, string? ResumeTitle = null, string? ResumeArtist = null, string? ResumeLabel = null, string? Order = null, string? OrderName = null, string? OrderSpot = null, string? OrderKind = null, string? OrderId = null, string? CollectionId = null, bool Repeat = false, int? OrderPass = null, string? Work = null);
+    private sealed record TransportState(string TileId, string Facet, bool Playing, bool Play, bool Pause, bool Prev, bool Next, bool SeekBack, bool SeekFwd, string? Title, string? Artist, string? Artwork, double? Position, double? Duration, string? Album = null, string? Collection = null, string? Pending = null, string? PendingFailed = null, string? Session = null, string? CollectionKind = null, bool Intermission = false, bool Rate = false, int Rating = 0, string? Offer = null, string? AdCount = null, string? ResumeTitle = null, string? ResumeArtist = null, string? ResumeLabel = null, string? Order = null, string? OrderName = null, string? OrderSpot = null, string? OrderKind = null, string? OrderId = null, string? CollectionId = null, bool Repeat = false, int? OrderPass = null, string? Work = null, string? ResumeArtwork = null);
 
     /// <summary>The hidden music facets of the active scene with what their pages published (Media Session via the tile's nowPlaying) - what transport may offer.</summary>
     private async Task<List<TransportState>> ReadTransportAsync()
@@ -1289,7 +1289,7 @@ public sealed partial class MainWindow
                 var adCount = t.TryGetProperty("adCount", out var acn) && acn.ValueKind == JsonValueKind.String ? acn.GetString() : null;   // 2026-09-15: the page's own "2 of 3" for the break it is under
                 var rating = 0;
                 // B-204 (2026-09-15): nothing loaded, but core remembers what this tile played - Play resumes it and the block names it
-                string? resumeTitle = null, resumeArtist = null, resumeLabel = null;
+                string? resumeTitle = null, resumeArtist = null, resumeLabel = null, resumeArt = null;
                 // Play orders (2026-09-17): the standing order this tile plays in, and the collection it applies to
                 string? order = null, orderName = null, orderSpot = null, orderKind = null, orderId = null, collectionId = null; int? orderPass = null;
                 var repeat = t.TryGetProperty("musicRepeat", out var mr) && mr.ValueKind == JsonValueKind.True;   // 2026-09-18: the standing repeat
@@ -1324,7 +1324,7 @@ public sealed partial class MainWindow
                 {
                     resumeTitle = rsm.TryGetProperty("title", out var rst) && rst.ValueKind == JsonValueKind.String ? rst.GetString() : null;
                     resumeArtist = rsm.TryGetProperty("artist", out var rsa) && rsa.ValueKind == JsonValueKind.String ? rsa.GetString() : null;
-                    resumeLabel = rsm.TryGetProperty("label", out var rsl) && rsl.ValueKind == JsonValueKind.String ? rsl.GetString() : null;
+                    resumeLabel = rsm.TryGetProperty("label", out var rsl) && rsl.ValueKind == JsonValueKind.String ? rsl.GetString() : null; resumeArt = rsm.TryGetProperty("artwork", out var rsw) && rsw.ValueKind == JsonValueKind.String ? rsw.GetString() : null;
                 }
                 // a quick-play pick the page has not started yet: the loading signal (core's musicPending)
                 if (t.TryGetProperty("musicPending", out var mp) && mp.ValueKind == JsonValueKind.Object)
@@ -1364,7 +1364,7 @@ public sealed partial class MainWindow
                     if (pending is not null) pending = song?.Album ?? "Stand-in";
                 }
                 // core's transportAvailability: registered actions enable, play/pause also follow the state; the rest render disabled
-                out_.Add(new TransportState(id, item.Facet, playing, actions.Contains("play") || !playing && title is not null || resumeTitle is not null, actions.Contains("pause") || playing, actions.Contains("previoustrack"), actions.Contains("nexttrack"), actions.Contains("seekbackward"), actions.Contains("seekforward"), title, artist, art, pos, dur, album, collection, pending, pendingFailed, session, collectionKind, inBreak, canRate, rating, offer, adCount, resumeTitle, resumeArtist, resumeLabel, order, orderName, orderSpot, orderKind, orderId, collectionId, repeat, orderPass, work));
+                out_.Add(new TransportState(id, item.Facet, playing, actions.Contains("play") || !playing && title is not null || resumeTitle is not null, actions.Contains("pause") || playing, actions.Contains("previoustrack"), actions.Contains("nexttrack"), actions.Contains("seekbackward"), actions.Contains("seekforward"), title, artist, art, pos, dur, album, collection, pending, pendingFailed, session, collectionKind, inBreak, canRate, rating, offer, adCount, resumeTitle, resumeArtist, resumeLabel, order, orderName, orderSpot, orderKind, orderId, collectionId, repeat, orderPass, work, ResumeArtwork: resumeArt));
             }
         }
         catch { }

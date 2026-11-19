@@ -46,7 +46,9 @@ A, B = sec(a), sec(b)
 lab = json.load(open(os.path.join(G, "labels.json"), encoding="utf-8"))["windows"][win]
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import promos as _promos   # PROMOS=show: a network promo scores as show (2026-11-04)
+_btw = _promos.between(G, win, lab.get("ads", []))   # PROMOBETWEEN: a short promo between two ads is neither (2026-11-17)
 if _promos.on(): lab = dict(lab, ads=_promos.ads_for(G, win, lab.get("ads", [])))
+if _btw: lab = dict(lab, neutral=list(lab.get("neutral", [])) + _btw)
 if _promos.neutral():   # PROMOS=neutral (2026-11-08): the promo seconds leave the score, neither ad nor show
     lab = dict(lab, neutral=list(lab.get("neutral", [])) + list(_promos.load(G).get(win, [])))
 T = np.arange(A, B + 1)

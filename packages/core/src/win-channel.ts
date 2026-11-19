@@ -315,12 +315,16 @@ export const HOST_CALLS: string[] = [
   "titleEpisodePlay",      // (appId, series, season, episode) -> {ok, resolving?}: one episode played on that service
   "bootTimings",           // () -> {now, rowsCache, menuReady, lists} (sync): startup milestones in ms since the runtime began (2026-09-24)
   "videoResync",           // () -> {ok, did: nudged|reopened} (sync): the big screen's sound and picture together again - pause/play, or again soon: reopened at its place
+  "videoLookAhead",        // (tile) -> {ok, why, channel, backSec, tooMany} (sync): may this live channel be watched behind live (look-ahead.ts, 2026-11-17)
+  "videoScout",            // (tile | "") -> {ok, asked} (sync): the look-ahead's live page opened on this window's channel, or closed
+  "videoScoutState",       // () -> {id, of, url, up}|null (sync): the look-ahead's live page
   "videoProgramEdges",     // (tile) -> {title, start, end}|null (sync): the guide's program on a channel window now - the break watch's program edges (2026-10-06)
   "adBreakHold",           // (tile, remainingSec) -> {ok} (sync): the break watch knows when the window's break ends; its cover's backstop waits for it (B-364, 2026-10-10)
   "videoPictureFrozen",    // (tile, seconds) -> {ok, did} (sync): the shell saw the picture stand still while it plays; the doctor reopens it (2026-10-06)
   "videoStartOver",        // () -> {ok, did: start|previous, season?, episode?} (sync): the big screen back to its start, or in its first 5 s the episode before (2026-09-24)
   "videoNextEpisode",      // (tileId) -> {ready, next, series} (sync): the next episode of the series the tile plays, as TMDB knows it - the stage bar's card
   "videoTrack",            // (tileId, kind, trackId) - a human's pick of the service's own subtitle / audio track from the stage bar (adapter videoTracks)
+  "videoQuality",          // (tileId, id) - a human's pick of the service's own picture quality from the stage bar (adapter videoQuality, 2026-11-15)
   "videoMenu",             // () -> the universal video menu's rows (video-menu-spec §2), ordered by §4 through menu-order.ts alone
   "videoMenuRows",         // (withLenses) -> the menu's rows without the Library, for the page's follow loops (2026-10-03, perf)
   "videoSearch",           // (facetId, q, open|null) -> {ok, switched}: the service's own search page with the words in place (§2 row 5); open = the result to press once shown
@@ -373,8 +377,21 @@ export const HOST_CALLS: string[] = [
   "musicSearchState",      // () -> JSON {q, at, working, services:[{tile, app, status, reason?, candidates}]} (sync) - poll while working
   "musicSearchPlay",       // (tileId, candidateJson) -> {ok} - a row of the search played on its service; the stage follows
   "musicUpNext",           // (tileId) - Up next (2026-11-04): read the service's own queue from its position (adapter musicQueueView)
+  "musicLyrics",           // (tileId, on) - the service's own lyrics opened or closed on its page (adapter musicLyrics, 2026-11-15)
+  "musicLyricsState",      // (tileId) -> JSON {status: on|off|unavailable|error, reason?, can} (sync)
   "musicUpNextState",      // (tileId) -> JSON {status, reason?, items:[{title, artist, current?}], order?} (sync) - poll while working
   "recycleApp",            // (appId) - B-124 recovery: destroy + recreate the App's own wall surfaces after App setup closes (by App since 2026-10-05, one browser)
+  "musicPanelNav",         // (op, screen?, arg?) -> JSON {open, screen, arg, canBack, depth} (sync) - the music panel's place (music-panel.ts, 2026-11-16)
+  "musicPanelHome",        // (q?) -> JSON {recents, services, matches?} (sync) - the panel's Home lists from what core holds
+  "musicPanelUpNext",      // (tileId) -> JSON: the Up next screen's order, repeat, collection and what the service allows
+  "musicQueueRemove",      // (tileId, index, id) - one track out of the player's own queue (adapter musicQueueRemove)
+  "musicQueueSkip",        // (tileId, index, id) - the player goes to one track of its own queue (adapter musicQueueSkip)
+  "musicQueueRemoveState", // (tileId) -> JSON {status, error?}
+  "musicHistory",          // () -> JSON: the song history, newest first
+  "musicHistoryClear",     // () - empties it
+  "musicHistoryPlay",      // (at) -> "ok" | "signed-out" | "unknown"
+  "musicPanelPlay",        // (tileId, id) -> JSON: one playlist's play choices (Resume with its place and order, Start over in each order)
+  "musicPanelLibrary",     // (tileId) -> JSON {tile, name, signedOut, playlists, stations} (sync) - one service's library, each row with its saved place
   "musicSources",          // () -> JSON [{tile, app, name, session, active, stages}] (sync) - the scene's music sources, for a menu grouped by service
   "setIntermissionAmbient", // (sound|null) - section 26 ambient audio: the soundscape for every music source's breaks, or silence
   "registerStylePalettes", // (json {styleId: ["#RRGGBB", …]}) -> count (sync) - the shell declares the packs it loaded so CORE does the §32 backdrop tint

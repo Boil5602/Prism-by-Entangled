@@ -12,7 +12,9 @@ real thing and is none of it. Same input, same output: every choice comes from a
   album-NN.png      640 x 640    a made-up record
   standin.json      the titles' words: year, rating, runtime, tagline, overview, seasons and episode names, cast
 
-Backgrounds are the CC0 and public-domain nature photographs of the extension's art pool (prototypes/prism-veil-art: the hosted
+Backgrounds are the film-like photographs of cinema-pool.json (2026-11-17: night streets, city lights, tunnels, desert roads, each CC0 or
+public domain on Wikimedia Commons, its page, author and licence in that file, fetched once and kept beside the output). Without that
+file they are the CC0 and public-domain nature photographs of the extension's art pool (prototypes/prism-veil-art: the hosted
 copies, re-encoded at 1920 px; a photo not on this PC is fetched once from the public pool and kept beside the output). No studio's
 artwork, no real title, no real person's name or face. The typefaces are in scripts/standin/fonts, each under the SIL Open Font
 License (THIRD-PARTY-NOTICES.md). --sheet also writes contact sheets of everything into that folder.
@@ -63,6 +65,11 @@ def pool_list():
     names = sorted(MANIFEST) if MANIFEST else sorted(json.load(io.open(os.path.join(HERE, "pool.json"), encoding="utf-8")))
     return [n for n in names if not any(s in n for s in SKIP)]
 PHOTOS = pool_list()
+# The film-like photographs (cinema-pool.json, 2026-11-17): when the file is there they are the whole pool, and a genre takes its own.
+CINEMA = {}
+if os.path.exists(os.path.join(HERE, "cinema-pool.json")):
+    CINEMA = {m["file"]: m for m in json.load(io.open(os.path.join(HERE, "cinema-pool.json"), encoding="utf-8"))["photos"]}
+    PHOTOS = sorted(CINEMA)
 LIKES = {"scifi": ("nebula", "webb", "m57", "cosmic", "galaxy", "midnight_sun", "geyser", "erupting"),
          "thriller": ("fog", "forest", "snow", "cliff", "canyon", "black", "river", "falls", "rapids"),
          "mystery": ("fog", "forest", "lake", "reflections", "cliff", "falls", "sunset"),
@@ -72,6 +79,7 @@ LIKES = {"scifi": ("nebula", "webb", "m57", "cosmic", "galaxy", "midnight_sun", 
          "western": ("canyon", "pueblo", "cactus", "valley", "sunset", "mountains", "waring", "coyote"),
          "kids": ("meadow", "wildflowers", "poppies", "coral", "clouds", "lupine", "paintbrush", "aster", "lake"),
          "documentary": ("glacier", "mountain", "mt_", "cliffs", "sea", "superior", "peak", "river", "island", "dunes")}
+if CINEMA: LIKES = {g: ("cine-" + g + "-",) for g in LIKES}
 _used = set(); _wide = set()
 def photo_for(genre, *key):
     """A photograph for a genre, by the key's hash: one of the genre's kind first, and none twice for a poster while others are left."""
@@ -86,6 +94,15 @@ def load_photo(name):
     p = os.path.join(POOL, name)
     if not os.path.exists(p):
         os.makedirs(CACHE, exist_ok=True); p = os.path.join(CACHE, name)
+        if not os.path.exists(p) and name in CINEMA:
+            import time
+            for k in range(5):   # Commons refuses fast requests: one at a time, slowly, and again after a refusal
+                try:
+                    time.sleep(2 + 8 * k)
+                    with urllib.request.urlopen(urllib.request.Request(CINEMA[name]["url"], headers={"User-Agent": "standin-pool/1.0 (test artwork)"}), timeout=90) as rsp: data = rsp.read()
+                    with open(p, "wb") as f: f.write(data)
+                    break
+                except Exception as e: print("  fetch again:", name, e)
         if not os.path.exists(p):
             with urllib.request.urlopen(urllib.request.Request(POOL_URL + name, headers={"User-Agent": "standin-pool"}), timeout=60) as rsp, open(p, "wb") as f: f.write(rsp.read())
     im = Image.open(p).convert("RGB")

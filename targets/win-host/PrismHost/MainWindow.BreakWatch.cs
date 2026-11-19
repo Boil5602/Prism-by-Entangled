@@ -44,6 +44,8 @@ public sealed partial class MainWindow
         // the learned detector's running state, and what the window shows now (the learned decision, or the hand rules' without a model)
         public LearnedBreak.State? L;
         public bool Covered;
+        /// <summary>The look-ahead's last word for this window's cover, when it had one (MainWindow.LookAhead).</summary>
+        public bool? Planned;
         /// <summary>The inset rule is standing down for a programme shown inset (BreakModel.InsetProgramme), as last logged.</summary>
         public bool InsetProgramme;
         /// <summary>When the learned detector's cover (or a sure rule's) was last up, and whether the standing ad line holds it now.</summary>
@@ -98,7 +100,7 @@ public sealed partial class MainWindow
     private bool _ocrTried;
 
     /// <summary>YouTube TV breaks, for every channel (2026-10-15): "all" every break the watch finds, "sure" only what does not guess (Sure breaks only, as a channel's own choice), "off"
-    /// none. A channel's own choice still narrows it (a channel Off or Sure stays so under All). Read from the old on/off switch until set.</summary>
+    /// none. A channel's own choice overrides it, both ways (EffectiveCovers, 2026-11-15). Read from the old on/off switch until set.</summary>
     private static string BreakWatchMode
     {
         get
@@ -192,6 +194,7 @@ public sealed partial class MainWindow
         _notAdHandler = id =>
         {
             if (!DismissBreak(id, out var st, out var now)) return;
+            LookAheadDismissed(id, now);
             Correction(id, st.ChannelName, "not an ad");
             NotAdCounted(st.ChannelName);
             Bench(id, now, null, "notanad");
@@ -218,12 +221,15 @@ public sealed partial class MainWindow
     {
         if (_surfaces is null) return;
         if (!_notAdWired && _notAdHandler is not null) { _surfaces.NotAnAdPressed += _notAdHandler; _notAdWired = true; }   // the surfaces are made after the watch starts
-        var ids = BreakWatchOn ? _surfaces.TilesAt("tv.youtube.com/watch") : new List<string>();
+        // off overall still watches when a channel has a choice of its own to cover (2026-11-15: a channel's choice overrides the overall one)
+        var ids = BreakWatchOn || ChannelsOn().Count + ChannelsSure().Count > 0 ? _surfaces.TilesAt("tv.youtube.com/watch") : new List<string>();
+        // the look-ahead's live page joins the windows to look at, first of them (MainWindow.LookAhead, 2026-11-17)
+        await LookAheadStepAsync(_surfaces.BigWindowId(), ids, _watchClock.Elapsed.TotalSeconds);
         // a window that left YouTube TV (or the watch was turned off): its break, if one was called, ends with it
         foreach (var gone in _watches.Keys.Where(k => !ids.Contains(k)).ToList())
         {
             var st = _watches[gone];
-            if (st.Covered) _surfaces.WatchAdBreak(gone, false);
+            if (st.Covered && gone != ScoutId) _surfaces.WatchAdBreak(gone, false);
             st.Model.Save(ModelPath(st.Channel));
             _watches.Remove(gone);
         }
@@ -233,18 +239,19 @@ public sealed partial class MainWindow
         {
             var channel = ChannelOf(_surfaces.SourceOf(id));
             if (channel is null) continue;
+            var isScout = id == ScoutId;   // the look-ahead's live page: read as any window, never covered, never reported to core
             if (!_watches.TryGetValue(id, out var st) || st.Channel != channel)
             {
                 if (st is not null)
                 {
-                    if (st.Covered) _surfaces.WatchAdBreak(id, false);
+                    if (st.Covered && !isScout) _surfaces.WatchAdBreak(id, false);
                     st.Model.Save(ModelPath(st.Channel));
                 }
                 st = new BreakWatchState { Model = BreakModel.Load(ModelPath(channel)), Channel = channel, L = s_learned?.NewState() };
                 _watches[id] = st;
                 LogLine("break watch " + id + ": channel " + channel + (st.Model.HasLogo ? " (logo known)" : " (learning its logo)"));
                 // in a break when PRISM closed a moment ago, on this channel: the cover goes straight back up
-                if (st.Model.HasLogo && BreakWasUp(id, channel)) { st.Model.ResumeBreak(_watchClock.Elapsed.TotalSeconds); st.Covered = true; if (st.L is not null) st.L.Up = true; _surfaces.WatchAdBreak(id, true); _surfaces.SetNotAnAd(id, true); LogLine("break watch " + id + ": the break that was up before the restart is covered again"); }
+                if (!isScout && st.Model.HasLogo && BreakWasUp(id, channel)) { st.Model.ResumeBreak(_watchClock.Elapsed.TotalSeconds); st.Covered = true; if (st.L is not null) st.L.Up = true; _surfaces.WatchAdBreak(id, true); _surfaces.SetNotAnAd(id, true); LogLine("break watch " + id + ": the break that was up before the restart is covered again"); }
                 Bench(id, _watchClock.Elapsed.TotalSeconds, null, "channel " + channel);
             }
             // the big window first (2026-10-07): a quiet small window
@@ -253,7 +260,7 @@ public sealed partial class MainWindow
             // ... "quiet" by the learned detector's word too (2026-10-08): it decides the covers, and a window whose score is rising or whose
             // cover is up was still looked at every other second while the hand rules read under 20% - a slower start and a slower lift on
             // every small window of a household that has Ad debug off
-            if (!s_adDebug && !s_record && id != bigId && !st.Model.Active && st.Model.Chance < 0.2 && !st.Covered && (st.L is null || st.L.LastP < 0.3) && (st.Skips++ % 2 == 1)) continue;
+            if (!s_adDebug && !s_record && id != bigId && !isScout && !st.Model.Active && st.Model.Chance < 0.2 && !st.Covered && (st.L is null || st.L.LastP < 0.3) && (st.Skips++ % 2 == 1)) continue;
             var withText = st.Ticks % 2 == 0;   // the text reader every other look: every two seconds a window (four on a quiet small one)
             var shot = await _surfaces.CaptureForWatchAsync(id, withText);
             if (shot is null) continue;
@@ -261,8 +268,10 @@ public sealed partial class MainWindow
             var dt = st.LastT > 0 ? Math.Clamp(now - st.LastT, 0.5, 6) : 2;
             st.LastT = now;
             Bench(id, now, shot.Value.Gray, null);
+            // a channel that keeps its strip under its advertisements is read above the strip (BreakModel.StripRow); the recording keeps the frame whole
+            var gray = BreakModel.StripRow(st.ChannelName) is > 0 and var stripRow ? BreakModel.AboveStrip(shot.Value.Gray, stripRow) : shot.Value.Gray;
             if (BenchOn && (s_adDebug || s_record)) Bench(id, now, null, "palette " + Convert.ToHexString(shot.Value.Palette));   // the Phase D sidecar, one line a frame
-            if (shot.Value.Gray is { Length: 320 * 180 } hg) { st.RecentHashes.Enqueue((now, FrameHash.Of(hg))); while (st.RecentHashes.Count > 15) st.RecentHashes.Dequeue(); }
+            if (gray is { Length: 320 * 180 } hg) { st.RecentHashes.Enqueue((now, FrameHash.Of(hg))); while (st.RecentHashes.Count > 15) st.RecentHashes.Dequeue(); }
             // the recording's sound beside its frames (Services/GoldenAudio.cs, 2026-11-08): on while frames are recorded, off otherwise
             if (BenchOn && (s_adDebug || s_record)) Services.GoldenAudio.Ensure(_surfaces.AnyBrowserPid(), LogLine); else Services.GoldenAudio.Stop();
             if (shot.Value.BigGray is { } bg && st.Model.Qr(bg, 960, 540, now))
@@ -293,17 +302,20 @@ public sealed partial class MainWindow
                     var lr = ld.RootElement;
                     playing = lr.TryGetProperty("paused", out var pz) && pz.ValueKind == System.Text.Json.JsonValueKind.False;
                     st.BehindLive = lr.TryGetProperty("behind", out var bh) && bh.ValueKind == System.Text.Json.JsonValueKind.True;
+                    if (lr.TryGetProperty("off", out var lof) && lof.ValueKind == System.Text.Json.JsonValueKind.Number) LookAheadClock(id, now, lof.GetDouble(), playing, st.BehindLive);
                     // the sound's fingerprint (AdSounds): matched against the ads heard before; a sure break's words are kept as it goes
                     if (lr.TryGetProperty("afp", out var af) && af.GetString() is { Length: >= 8 } hex)
                     {
                         Bench(id, now, null, "afp " + hex);
+                        var heard = new List<uint>();   // this look's words, for the look-ahead's measure of the delay
                         for (var k = 0; k + 8 <= hex.Length; k += 8)
                             if (uint.TryParse(hex.AsSpan(k, 8), System.Globalization.NumberStyles.HexNumber, null, out var w))
                             {
-                                st.Sound.Add(w);
+                                st.Sound.Add(w); heard.Add(w);
                                 if (st.Model.LearnableAt(now)) st.BreakSound.Add((now, w));
                                 st.RecentSound.Enqueue((now, w, st.Model.LogoAwayNow));
                             }
+                        LookAheadWords(id, now, heard);
                         if (st.Sound.Count > 400) st.Sound.RemoveRange(0, st.Sound.Count - 400);
                         if (Sounds.Heard(st.Sound)) st.Model.SoundSeen(now);
                     }
@@ -350,7 +362,7 @@ public sealed partial class MainWindow
             }
             var printSeenNow = false;   // a known ad's picture in this look (the learned detector's print_seen)
             // fingerprints: a picture seen in a break before; a picture of a break the watch is sure of is kept
-            if (AdPrints.Of(shot.Value.Gray, BreakModel.W, BreakModel.H) is { } fp)
+            if (AdPrints.Of(gray, BreakModel.W, BreakModel.H) is { } fp)
             {
                 if (Prints.Seen(fp)) { st.Model.PrintSeen(now); printSeenNow = true; }
                 else if (st.Model.LearnableAt(now)) st.PendingPrints.Enqueue((now, fp));
@@ -406,13 +418,13 @@ public sealed partial class MainWindow
                 st.EdgesAt = now;
                 try
                 {
-                    var er = await ModelCallAsync(PrismHost.Channel.HostCalls.VideoProgramEdges, id);
+                    var er = await ModelCallAsync(PrismHost.Channel.HostCalls.VideoProgramEdges, isScout ? _look.Of : id);
                     if (er is { Length: > 4 } && System.Text.Json.Nodes.JsonNode.Parse(er) is System.Text.Json.Nodes.JsonObject eo)
                     {
                         st.ChannelName = eo["channel"]?.GetValue<string>() ?? "";
                         st.Model.ChannelName = st.ChannelName;
-                        _surfaces.SetVeilBand(id, TickerBand(st.ChannelName));   // a channel's ticker stays readable under the cover
-                        st.Model.TickerChannel = TickerBand(st.ChannelName) > 0;  // ... and on such a channel an inset picture is the break
+                        if (!isScout) _surfaces.SetVeilBand(id, TickerBand(st.ChannelName));   // a channel's ticker stays readable under the cover
+                        st.Model.TickerChannel = InsetChannel(st.ChannelName);    // ... and on NFL Network an inset picture is the break
                         st.Model.ShowTitle = eo["title"]?.GetValue<string>() ?? "";   // the program on now, by the guide
                         st.EdgeStart = (long)(eo["start"]?.GetValue<double>() ?? 0);
                         st.EdgeEnd = eo["end"] is { } en ? (long)en.GetValue<double>() : 0;
@@ -429,15 +441,16 @@ public sealed partial class MainWindow
             if (st.Ticks % 60 == 0 && st.Model.ShowTitle.Length > 0) Bench(id, now, null, "title " + st.Model.ShowTitle.Replace('\n', ' '));
             st.Model.NearEdge = near;
             st.Model.EdgeKnown = st.EdgeStart > 0;
-            st.Model.AdFreeChannel = AdFree.IsMatch(st.ChannelName) || ChannelOff(st.ChannelName);   // and the channels the person turned off
-            st.SureOnly = !st.Model.AdFreeChannel && (BreakWatchMode == "sure" || ChannelsSure().Contains(st.ChannelName, StringComparer.OrdinalIgnoreCase));
+            var covers = EffectiveCovers(st.ChannelName);   // the channel's own choice, else the overall setting (2026-11-15)
+            st.Model.AdFreeChannel = AdFree.IsMatch(st.ChannelName) || covers == ChannelCovers.Off;   // and the channels that are off
+            st.SureOnly = !st.Model.AdFreeChannel && covers == ChannelCovers.Sure;
             // the channel gate (LearnedBreak.Measured): a channel the model was not measured on, or measured badly on, is covered in sure
             // breaks only, unless the person set it to On themselves
             var gated = !st.Model.AdFreeChannel && !st.SureOnly && ChannelGated(st.ChannelName);
             if (gated != st.Gated) { st.Gated = gated; if (gated) LogLine("break watch " + id + ": " + st.ChannelName + " has no measured rate good enough in this model (sure breaks only)"); }
             st.SureOnly |= gated;
             var hadLogo = st.Model.HasLogo;
-            var changed = st.Model.Step(shot.Value.Gray, now, dt);
+            var changed = st.Model.Step(gray, now, dt);
             st.Recent.Enqueue(DateTime.Now.ToString("HH:mm:ss") + " " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " covered" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : "") + (st.Model.NearEdge ? " near edge" : ""));
             while (st.Recent.Count > 40) st.Recent.Dequeue();
             st.Ticks++;
@@ -449,7 +462,7 @@ public sealed partial class MainWindow
             }
             // a picture that stands still while the player plays is frozen (2026-10-06,:
             // it sat on one ad frame for seven minutes): the playback doctor opens it again, at most every two minutes a window
-            if (playing && st.Model.StillFor(now) >= 20 && now - st.FrozenAskedAt > 120)
+            if (!isScout && playing && st.Model.StillFor(now) >= 20 && now - st.FrozenAskedAt > 120)
             {
                 st.FrozenAskedAt = now;
                 var r = await ModelCallAsync(PrismHost.Channel.HostCalls.VideoPictureFrozen, id, Math.Round(st.Model.StillFor(now)));
@@ -468,10 +481,10 @@ public sealed partial class MainWindow
             if (LearnedOn && st.L is not null)
             {
                 Dictionary<string, double>? repNow = null;
-                if (s_repLib is not null && shot.Value.Gray is { Length: 320 * 180 } rg) { st.Rep ??= new RepFeatures(s_repLib, 6, s_knownShow); st.Rep.Step(rg, now); repNow = st.Rep.Readings(); }
+                if (s_repLib is not null && gray is { Length: 320 * 180 } rg) { st.Rep ??= new RepFeatures(s_repLib, 6, s_knownShow); st.Rep.Step(rg, now); repNow = st.Rep.Readings(); }
                 var lp = s_learned!.Score(st.L, st.Model.Features(now), printSeenNow ? 1 : 0, now, 0, DateTime.Now.TimeOfDay.TotalSeconds, repNow);
                 // the picture network's chance for this frame, added in logit at the policy's weight (as the bench's PICW and the extension)
-                if (s_picNet is not null && shot.Value.Gray is { Length: 320 * 180 } g)
+                if (s_picNet is not null && gray is { Length: 320 * 180 } g)
                 {
                     var q = Math.Clamp(PicChance(st, g, now), 0.001, 0.999); var l0 = Math.Clamp(lp, 0.001, 0.999);
                     var blended = 1 / (1 + Math.Exp(-(Math.Log(l0 / (1 - l0)) + s_learned.PictureWeight * Math.Log(q / (1 - q)))));
@@ -549,7 +562,7 @@ public sealed partial class MainWindow
             var paidLeft = (st.PaidUntil - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) / 1000.0;
             if (paidLeft <= 0 && string.Equals(st.Model.ShowTitle.Trim(), "Paid Programming", StringComparison.OrdinalIgnoreCase))
                 paidLeft = (BreakModel.PaidSlotEnd(DateTimeOffset.Now, false) - DateTimeOffset.Now).TotalSeconds;
-            if (covered && paidLeft > 0 && now - st.PaidHoldAt >= 30)
+            if (!isScout && covered && paidLeft > 0 && now - st.PaidHoldAt >= 30)
             {
                 st.PaidHoldAt = now;
                 // core answers ok:false when the window has no cover to hold: it came down at the backstop in the seconds between one
@@ -584,25 +597,35 @@ public sealed partial class MainWindow
                 if (withheld != st.Withheld) { st.Withheld = withheld; if (withheld) LogLine("break watch " + id + ": a break the watch found is not covered (sure breaks only on " + st.ChannelName + ")"); }
             }
             else st.Withheld = false;
+            // the look-ahead (MainWindow.LookAhead, 2026-11-17): the live page's call is noted for the big screen, and the big screen's cover
+            // comes from that plan while it has one. The channel's own rules and the person's Not an ad still stand over it.
+            if (isScout) LookAheadLook(now, LearnedOn && st.L is not null ? st.L.LastP : st.Model.Chance, covered, covered && (st.SureOnly || st.Model.CueOnAt(now) || inset || paidLeft > 0), st.Model.LastBlack, st.Model.Features(now));
+            else if (LookAheadCover(id, now) is { } planned)
+            {
+                planned = planned && !st.Model.AdFreeChannel && !st.Model.DismissedAt(now);
+                if (planned != st.Planned && planned != covered) LogLine("break watch " + id + ": the look-ahead says " + (planned ? "break" : "show") + " here (this window's own reading says " + (covered ? "break" : "show") + ")");
+                st.Planned = planned; covered = planned;
+            }
+            else st.Planned = null;
             // Covered only while watched live (2026-11-06, PRISM and Veil alike): rewound, paused behind or a recording, the viewer can skip an
             // ad themselves and undo a wrong cover by scanning back. The adapter's meter reads it from the video's clock. The watch goes on reading
             // and learning; only the cover is held back.
             if (st.BehindLive != st.BehindNoted) { st.BehindNoted = st.BehindLive; LogLine("break watch " + id + ": " + (st.BehindLive ? "behind the live edge or a recording - no cover" : "at the live edge")); }
-            if (st.BehindLive) covered = false;
+            if (st.BehindLive && !isScout) covered = false;
             var shownChanged = covered != st.Covered;
             if (shownChanged)
             {
                 st.Covered = covered;
                 LogLine("break watch " + id + ": " + (covered ? "break" : "show") + " (" + (LearnedOn && st.L is not null ? "learned " + st.L.LastP.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ", rules " : "") + st.Model.Chance.ToString("P0") + "; " + st.Model.Why + ")");
                 Bench(id, now, null, covered ? "call break" : "call show");
-                _surfaces.WatchAdBreak(id, covered);
-                _surfaces.SetNotAnAd(id, covered);
+                if (!isScout) { if (covered) _surfaces.SetCoverWhy(id, st.Model.Why); _surfaces.WatchAdBreak(id, covered); _surfaces.SetNotAnAd(id, covered); }
             }
             else if (st.Ticks % 30 == 0)
                 LogLine("break watch " + id + ": " + st.Model.Chance.ToString("P0") + (st.Model.Active ? " break" : "") + (st.Model.Why.Length > 0 ? " (" + st.Model.Why + ")" : ""));
             if (st.Ticks % 300 == 0) { st.Model.Save(ModelPath(channel)); Prints.Save(); Sounds.Save(); }   // the learned logo and the ads seen, every five minutes
-            if (shownChanged || (st.Covered && st.Ticks % 10 == 0)) NoteBreakUp(id, channel, st.Covered);   // what a restart resumes
+            if (!isScout && (shownChanged || (st.Covered && st.Ticks % 10 == 0))) NoteBreakUp(id, channel, st.Covered);   // what a restart resumes
         }
+        await LookAheadAfterAsync(_watchClock.Elapsed.TotalSeconds);
     }
 
     // the windows in a break, kept on this PC so a restart puts their covers back (breakwatch/up.json: window, channel, when last seen up)
@@ -679,6 +702,30 @@ public sealed partial class MainWindow
     private static List<string> ChannelsSure() => HostPrefs.GetString("video.breakWatchSure", "").Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
     private static ChannelCovers ChannelMode(string name) =>
         name.Length == 0 ? ChannelCovers.On : ChannelOff(name) ? ChannelCovers.Off : ChannelsSure().Contains(name, StringComparer.OrdinalIgnoreCase) ? ChannelCovers.Sure : ChannelCovers.On;
+    /// <summary>How this channel is covered in effect (2026-11-15): the person's own choice for the channel when they made one (On, Sure
+    /// or Off, kept in the three lists), else the overall setting. A channel's choice overrides the overall setting both ways.</summary>
+    private static ChannelCovers EffectiveCovers(string name)
+    {
+        if (name.Length > 0)
+        {
+            if (ChannelOff(name)) return ChannelCovers.Off;
+            if (ChannelsSure().Contains(name, StringComparer.OrdinalIgnoreCase)) return ChannelCovers.Sure;
+            if (ChannelsOn().Contains(name, StringComparer.OrdinalIgnoreCase)) return ChannelCovers.On;
+        }
+        return BreakWatchMode == "all" ? ChannelCovers.On : BreakWatchMode == "sure" ? ChannelCovers.Sure : ChannelCovers.Off;
+    }
+    /// <summary>The person made a choice for this channel itself (2026-11-18): it is in one of the three lists. A channel with none follows
+    /// YouTube TV's setting.</summary>
+    private static bool ChannelHasOwn(string name) =>
+        name.Length > 0 && (ChannelOff(name) || ChannelsSure().Contains(name, StringComparer.OrdinalIgnoreCase) || ChannelsOn().Contains(name, StringComparer.OrdinalIgnoreCase));
+    /// <summary>The channel goes back to the overall setting: its own choice is forgotten.</summary>
+    private void ClearChannelMode(string name)
+    {
+        if (name.Length == 0) return;
+        foreach (var key in new[] { "video.breakWatchOn", "video.breakWatchOff", "video.breakWatchSure" })
+            HostPrefs.Set(key, string.Join("|", HostPrefs.GetString(key, "").Split('|', StringSplitOptions.RemoveEmptyEntries).Where(x => !string.Equals(x, name, StringComparison.OrdinalIgnoreCase))));
+        LogLine("break watch: " + name + " follows the overall setting again");
+    }
     private void SetChannelMode(string name, ChannelCovers mode)
     {
         if (name.Length == 0) return;
@@ -801,7 +848,10 @@ public sealed partial class MainWindow
     /// the ads play in the picture above it; on the recorded frames the picture ends at row 161 of 180 and everything under it barely
     /// changes through a break. Learning the band per channel is the next step (a strip that stands still through sure breaks).
     /// </summary>
-    private static double TickerBand(string channel) => string.Equals(channel.Trim(), "NFL Network", StringComparison.OrdinalIgnoreCase) ? 0.10 : 0;
+    private static bool InsetChannel(string channel) => string.Equals(channel.Trim(), "NFL Network", StringComparison.OrdinalIgnoreCase);
+    // the share of the picture's height the cover leaves open at the bottom: NFL Network's band set by hand (B-359), a measured strip
+    // channel's from its first row (BreakModel.StripRow, 2026-11-15), so the scores stay in view under the cover
+    private static double TickerBand(string channel) => InsetChannel(channel) ? 0.10 : BreakModel.StripRow(channel) is > 0 and var r ? (BreakModel.H - r) / (double)BreakModel.H : 0;
 
     private static void Bench(string id, double t, byte[]? frame, string? evt)
     {

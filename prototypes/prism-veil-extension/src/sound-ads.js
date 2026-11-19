@@ -143,7 +143,8 @@
       var line = PV.soundAdLine(r), t = noteRoot.querySelector(".t"); if (t.textContent !== line) t.textContent = line;
     } catch (e) {}
   }
-  function noteHide() { try { if (note && note.isConnected) note.remove(); } catch (e) {} }
+  // The keeper is let go first (2026-11-18): it put the note back the moment it was taken away, so the note stayed up through the songs.
+  function noteHide() { try { if (note) { if (PV.releaseOnTop) PV.releaseOnTop(note); if (note.isConnected) note.remove(); } } catch (e) {} }
 
   function tick() {
     var r = null;

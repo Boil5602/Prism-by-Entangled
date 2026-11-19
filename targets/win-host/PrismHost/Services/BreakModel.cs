@@ -128,6 +128,9 @@ internal sealed class BreakModel
     private double _lastChange, _lastMean, _lastStd;
     /// <summary>The model's readings at t, for training a learned break detector (2026-10-07): levels, and
     /// seconds since each kind of evidence was last seen (capped at 120). The names are <see cref="FeatureNames"/>.</summary>
+    /// <summary>When the page last showed a black frame (a time long ago when it has not).</summary>
+    public double LastBlack => _lastBlack;
+
     public static readonly string[] FeatureNames = { "logo", "logo_seen", "logo_ratio", "since_logo_up", "absent_for", "change", "mean", "std", "since_black", "since_cut",
         "since_ad_text", "since_show_text", "since_show_card", "since_promo", "since_snipe", "since_badge", "since_cc_ad", "since_cc_line", "since_game", "since_qr",
         "since_sound", "since_credits", "known_ad", "chance", "active", "near_edge", "has_logo", "set_aside", "game_words", "cue_on", "since_cue_stop", "since_cue_predict",
@@ -450,6 +453,33 @@ internal sealed class BreakModel
     // ads play full screen with no ticker, which the logo's leaving already tells.
     /// <summary>The channel on now keeps its ticker up through its breaks (set by the window's watch): an inset picture is a break.</summary>
     public bool TickerChannel { get; set; }
+
+    // A strip the channel keeps under its advertisements (2026-11-15, the strip study in docs/break-watch-scorecard.md). FS1 plays its
+    // advertisements with the score strip still under them, and the strip's logo then reads as the programme: on its exam half hour
+    // the trees covered 41.9% of the ad time as recorded and 73.9% given only the picture above the strip, for 1.63% and 2.00% of the
+    // programme wrongly covered. So on such a channel every reading takes the picture above the strip, drawn to the full height.
+    // Measured channel by channel, never guessed: the same cut cost a channel with no strip show time, did nothing for Bloomberg TV+
+    // (its strip is in the programme and the advertisements alike), and lost ad time on NFL Network (83.2% to 69.3%; the inset rule
+    // above is that channel's) and on ESPN at a guessed row. The row is the strip's first, of the 180
+    // (scripts/breakwatch/tickerstudy.py finds it, scripts/breakwatch/striptest.py judges the cut).
+    /// <summary>The first row of the strip a channel keeps under its advertisements, or 0 for a channel with none measured.</summary>
+    public static int StripRow(string? channel) => StripCut && string.Equals(channel?.Trim(), "FS1", StringComparison.OrdinalIgnoreCase) ? 167 : 0;
+    /// <summary>The bench turns the cut off (STRIPCUT=0) to score a channel as recorded.</summary>
+    public static bool StripCut = true;
+    /// <summary>A frame's picture above the strip's first row, drawn to the full height again (each row a blend of the two it falls
+    /// between). A frame of another size, or a row that is no strip, comes back as it is.</summary>
+    public static byte[] AboveStrip(byte[] g, int row)
+    {
+        if (g.Length != W * H || row < H / 2 || row >= H) return g;
+        var o = new byte[W * H];
+        for (var y = 0; y < H; y++)
+        {
+            var sy = Math.Clamp((y + 0.5) * row / H - 0.5, 0, row - 1);
+            var y0 = (int)sy; var y1 = Math.Min(row - 1, y0 + 1); var f = sy - y0;
+            for (var x = 0; x < W; x++) o[y * W + x] = (byte)(g[y0 * W + x] * (1 - f) + g[y1 * W + x] * f + 0.5);
+        }
+        return o;
+    }
     /// <summary>B-476 (2026-11-04, election night): every local channel kept its results ticker, the station's bug on it, through every
     /// break, with the ads inset above it 18 px in from the left and 35 from the right - outside the 10-24 px band, and the rule gated to
     /// NFL Network by name besides, so the watch said show all night (10% of ABC 23's ad time covered, 0.3% of FOX 8's). An inset picture

@@ -218,7 +218,7 @@ public sealed partial class MainWindow
         CurtainBody.Children.Add(outs);
         StageCurtain.Visibility = Visibility.Visible;
         StageCurtain.Opacity = 1;
-        _curtainSteadyAt = DateTime.MinValue; _curtainUpAt = DateTime.UtcNow; LogLine("curtain: up for " + title + " on " + service);
+        _curtainSteadyAt = DateTime.MinValue; _curtainPlayAt = DateTime.MinValue; _curtainUpAt = DateTime.UtcNow; LogLine("curtain: up for " + title + " on " + service);
         _ = FollowCurtainAsync(run, status, line, verbs, title, service);
     }
     private async Task FollowCurtainAsync(int run, TextBlock status, StackPanel line, StackPanel verbs, string title, string service)
@@ -311,6 +311,12 @@ public sealed partial class MainWindow
             var moved = vid != startId || (slot is not null && _navAt.TryGetValue(slot, out var navAt) && navAt > _curtainUpAt) || (DateTime.UtcNow - t0).TotalSeconds > 8;
             if (stageUp && playingNow && moved) { if (_curtainSteadyAt == DateTime.MinValue) _curtainSteadyAt = DateTime.UtcNow; }
             else _curtainSteadyAt = DateTime.MinValue;
+            // ... and a title that plays with no full-screen player is not kept behind the curtain (2026-11-18: Disney+ was heard for fourteen
+            // seconds before its picture showed - the player never went full-screen, and the curtain waited out its thirty seconds). Five
+            // seconds of the title playing is the wait for the player's own full screen; after that the curtain lifts onto the picture as it is.
+            if (playingNow && moved) { if (_curtainPlayAt == DateTime.MinValue) _curtainPlayAt = DateTime.UtcNow; }
+            else _curtainPlayAt = DateTime.MinValue;
+            if (!stageUp && _curtainPlayAt != DateTime.MinValue && (DateTime.UtcNow - _curtainPlayAt).TotalSeconds >= 5) { LogLine("curtain: no full screen after 5 s of playing"); HideStageCurtain(); return; }
             if ((stageUp && playingNow && (DateTime.UtcNow - _curtainSteadyAt).TotalMilliseconds >= 900) || (DateTime.UtcNow - t0).TotalSeconds > 30) { HideStageCurtain(); return; }
             if (playingNow) status.Text = "Playing on " + service + "\u2026";
         }
@@ -378,7 +384,7 @@ public sealed partial class MainWindow
         // a title that began playing behind it never moved in. The corner holds "Starting on..." while the pick is open and takes the screen
         // in once it plays or fails, as it does for a title dropped on a window
     }
-    private DateTime _curtainSteadyAt = DateTime.MinValue;
+    private DateTime _curtainSteadyAt = DateTime.MinValue, _curtainPlayAt = DateTime.MinValue;
     /// <summary>When the curtain went up: a press within the next moment is the rest of the double-click that raised it, not a tap to lift it.</summary>
     private DateTime _curtainUpAt = DateTime.MinValue;
     public void HideStageCurtain()
@@ -584,7 +590,7 @@ public sealed partial class MainWindow
     /// <summary>PRISM's transport over the service's player: the face and the verbs, from core's videoState for the screen slot. Hides after six seconds.</summary>
     public async Task ShowStageBarAsync(bool force = false)
     {
-        if (WatchGrip.Visibility != Visibility.Visible || VideoHubOpen || _asSession || _stageBarBuilding) return;
+        if (WatchGrip.Visibility != Visibility.Visible || VideoHubOpen || _asSession || _stageBarBuilding || ServicePageOpen) return;
         // the bar up already: a mouse moving over the picture keeps it up, it does not draw it again (2026-09-23, - every move rebuilt the bar under the pointer); a verb that
         // changes what the bar shows asks for the drawing (force)
         HookStageBarPointer();
@@ -731,6 +737,7 @@ public sealed partial class MainWindow
             var canTracks = (tile?["can"] as JsonObject)?["tracks"]?.GetValue<bool>() == true;
             if (canTracks) TracksVerb(screenSlot, 15, b => StageBarBody.Children.Add(b), RestartStageBarTimer);   // the service's own tracks in PRISM's chrome
             else Verb("\uED1E", "Captions", "captions", canCmd);
+            if ((tile?["can"] as JsonObject)?["quality"]?.GetValue<bool>() == true) QualityVerb(screenSlot, b => StageBarBody.Children.Add(b), RestartStageBarTimer);   // the service's own quality choices (2026-11-15)
             // Re-sync (2026-09-25):
             // a press is the pause and play that brings sound and picture together; pressed again within 10 s, the title opens again at its place
             {
@@ -746,6 +753,7 @@ public sealed partial class MainWindow
                 };
                 StageBarBody.Children.Add(resync);
             }
+            ServicePageVerb(screenSlot, b => StageBarBody.Children.Add(b));   // the service's own page in a window, for trouble (2026-11-15)
             // Full screen is the WALL's (2026-09-23): the player already fills its window, so the page's own fullscreen changed nothing - the
             // whole PRISM window goes borderless across the monitor (F11's toggle), every window of multiview in its place, Watch opening over it
             var fsIcon = new FontIcon { Glyph = _wallFs ? "\uE73F" : "\uE740", FontSize = 15 };
@@ -1172,6 +1180,7 @@ public sealed partial class MainWindow
     private DateTime? _hubArrivedAt;
     public async Task ShowVideoHubAsync()
     {
+        CloseServicePage();   // the service's page in its window goes back first: Watch places the screens itself
         var wasOpen = VideoHubOpen;   // a fresh open settles its clicks; a page redrawn under the person's own press does not
         // where the open's time goes (2026-11-04: every open stalled the window 2 to 5 s, and one ended in a window close): a mark at each
         // step, written with the open line; the steps between two marks with no await in them are what holds the window
@@ -2904,6 +2913,48 @@ public sealed partial class MainWindow
             if (fly.Items.Count == 0) fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no tracks right now.", Foreground = HubInk, IsHitTestVisible = false });
         };
         fly.Closed += (_, __) => { hold?.Invoke(); _ = _surfaces.EvalOnTileAsync(slot, "(function(){try{return !!(window.__prismVideoTracksDone&&window.__prismVideoTracksDone());}catch(e){return false;}})()"); };   // a service whose lists live in its own panel closes it
+        b.Click += (_, __) => fly.ShowAt(b);
+        place(b);
+    }
+    /// <summary>The service's own picture quality choices as a PRISM menu (2026-11-15, asked for the service's quality choice to be reachable: the stage shield keeps the
+    /// pointer from the player's own menu). The list is read through the adapter's videoQuality script when the menu opens; a pick goes through core, and the
+    /// adapter makes it by the presses a person makes in the service's menu.</summary>
+    private const string QualitiesJs = "(function(){try{var r=window.__prismVideoQualities&&window.__prismVideoQualities();return r?JSON.stringify(r):null;}catch(e){return null;}})()";
+    private void QualityVerb(string slot, Action<Button> place, Action? hold)
+    {
+        var b = Chip(new TextBlock { Text = "Quality", FontSize = 13, Foreground = HubInk }, false);
+        ToolTipService.SetToolTip(b, "The picture quality. Choose from what the service offers.");
+        var fly = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
+        fly.Items.Add(new MenuFlyoutItem { Text = "Reading", Foreground = HubInk, IsHitTestVisible = false });
+        var picked = false;
+        fly.Opening += async (_, __) =>
+        {
+            hold?.Invoke(); picked = false;
+            JsonArray? list = null;
+            try
+            {
+                // the service's menu opens under the adapter's stylesheet on the first ask and answers once it has drawn: asked again, briefly
+                for (var attempt = 0; attempt < 8 && list is null; attempt++)
+                {
+                    if (attempt > 0) await Task.Delay(450);
+                    var raw = await _surfaces.EvalOnTileAsync(slot, QualitiesJs);
+                    if (raw is not null && raw != "null" && !raw.StartsWith("__prism_eval_error", StringComparison.Ordinal) && JsonNode.Parse(raw)?.GetValue<string>() is { } inner) list = (JsonNode.Parse(inner) as JsonObject)?["items"] as JsonArray;
+                }
+            }
+            catch (Exception e) { LogLine("quality: " + e.Message); }
+            fly.Items.Clear();
+            foreach (var q in (list ?? new JsonArray()).OfType<JsonObject>())
+            {
+                var id = q["id"]?.GetValue<string>() ?? ""; var name = q["name"]?.GetValue<string>() ?? id;
+                if (id.Length == 0) continue;
+                var it = new ToggleMenuFlyoutItem { Text = name, IsChecked = q["selected"]?.GetValue<bool>() == true };
+                it.Click += (_, ___) => { picked = true; _ = ModelCallAsync("videoQuality", slot, id); LogLine("quality: " + slot + " -> " + name); SetPill("PRISM" + Mid + "quality: " + name); hold?.Invoke(); };
+                fly.Items.Add(it);
+            }
+            if (fly.Items.Count == 0) fly.Items.Add(new MenuFlyoutItem { Text = "The player lists no quality choices right now.", Foreground = HubInk, IsHitTestVisible = false });
+        };
+        // closed with no pick: the service's menu is closed if the read left it open (a pick closes it itself)
+        fly.Closed += (_, __) => { hold?.Invoke(); if (!picked) _ = _surfaces.EvalOnTileAsync(slot, "(function(){try{return !!(window.__prismVideoQualitiesDone&&window.__prismVideoQualitiesDone());}catch(e){return false;}})()"); };
         b.Click += (_, __) => fly.ShowAt(b);
         place(b);
     }

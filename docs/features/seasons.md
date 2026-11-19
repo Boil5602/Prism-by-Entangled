@@ -1,5 +1,7 @@
 # The Seasons visual
 
+Named **Convergence** on the screen since 2026-11-16 (the list of scenes, its settings window and its tooltips). The style id `seasons`, the file names, the settings keys and this document keep the first name.
+
 > **Under construction (2026-11-12).** Seasons is not ready. It is held back from releases: it is in no list of visuals and
 > cannot be picked. Only a development start of the PRISM app shows it. What follows is the plan and what is built so far.
 

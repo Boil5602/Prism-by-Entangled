@@ -119,6 +119,27 @@
         out.fb = { posinset: post.getAttribute("aria-posinset"), postH: Math.round(pr.height), postW: Math.round(pr.width), viewH: innerHeight, viewW: innerWidth,
                    headings: post.querySelectorAll("h2,h3,h4").length, names: post.querySelectorAll('[data-ad-rendering-role="profile_name"]').length,
                    labelFound: !!(PV.fbLabelElement && PV.fbLabelElement(post)), headerRow: rowText, headerLinks: hlinks, ariaLabels: labels, band: band };
+        // How this post differs from its neighbours (2026-11-16: a post from a page the person does not follow, with no Follow button
+        // and no label, was reported and the report could not say what set it apart). Shapes only: which of Facebook's own role
+        // marks the post carries, the kind of address each header link has (never the address), the short words on its buttons,
+        // and the same counts for the two posts before it, to compare.
+        try {
+          var hrefKind = function (h) { h = String(h || ""); try { h = new URL(h, location.href).pathname; } catch (eU) {} return /^\/groups\//.test(h) ? "group" : /^\/profile\.php/.test(h) ? "profile" : /^\/people\//.test(h) ? "people" : /^\/(reel|watch|videos?)\b/.test(h) ? "video" : /^\/(ads|business)\b/.test(h) ? "ads" : /^\/l\.php/.test(h) ? "out" : /^\/[^\/]+\/posts\//.test(h) ? "page-post" : /^\/[^\/]+\/?$/.test(h) ? "name" : "other"; };
+          // Facebook's own words only: any other short text on a button or link could be a person's name, and it is sent as "other".
+          var FB_WORDS = /^(Follow|Following|Join|Joined|Like|Comment|Share|Send|Interested|Not interested|Sponsored|Suggested for you|See more|See less|Learn more|Shop now|Sign up|Book now|Subscribe|Message|Save|Hide|Reels)$/;
+          var shape = function (po) {
+            var t0 = po.getBoundingClientRect().top, roles = {}, kinds = [], btn = [];
+            po.querySelectorAll("[data-ad-rendering-role]").forEach(function (x) { var v = x.getAttribute("data-ad-rendering-role"); roles[v] = (roles[v] || 0) + 1; });
+            po.querySelectorAll("a").forEach(function (a3) { var r4 = a3.getBoundingClientRect(); if (kinds.length < 8 && r4.height > 0 && r4.top - t0 < 160 && r4.top - t0 > -50) kinds.push(hrefKind(a3.getAttribute("href")) + ":" + Math.round(r4.width) + "x" + Math.round(r4.height)); });
+            po.querySelectorAll('[role="button"],a[role="link"]').forEach(function (x) { if (btn.length >= 14 || x.childElementCount > 6) return; var w = (PV.ownText ? PV.ownText(x) : "") || (x.innerText || "").trim(); if (w && w.length <= 18 && w.split(/\s+/).length <= 3 && !/\d/.test(w)) btn.push(FB_WORDS.test(w) ? esc(w) : "other"); });
+            var ids = []; ["aria-labelledby", "aria-describedby"].forEach(function (n2) { var art = po.querySelector("[" + n2 + "]"); ids.push(n2 + ":" + (art ? (art.getAttribute(n2) || "").split(/\s+/).length : 0)); });
+            return { roles: roles, links: kinds, buttons: btn, ids: ids, h: Math.round(po.getBoundingClientRect().height), media: po.querySelectorAll("img").length + "i/" + po.querySelectorAll("video").length + "v" };
+          };
+          out.fb.shape = shape(post);
+          var near = [], all2 = document.querySelectorAll("[aria-posinset]");
+          for (var ni = 0; ni < all2.length; ni++) if (all2[ni] === post) { for (var nj = ni - 1; nj >= 0 && near.length < 2; nj--) near.push(shape(all2[nj])); break; }
+          out.fb.near = near;
+        } catch (eS) { out.fb.shapeErr = ("" + eS).slice(0, 80); }
       }
     } catch (e) { out.fbErr = "" + e; }
     // Engine diagnostics (any site): did detection see this element, and why not.
@@ -251,6 +272,10 @@
       coveredByPrism: !!report.coveredByPrism, nearbyAdLabel: report.nearbyAdLabel,
       target: report.target, chain: report.chain, card: report.card, stack: report.stack, diag: diag,
     };
+    // Facebook: the shapes of the post and the two before it (report 2026-11-16: the block was built and never sent, so a missed
+    // post could not be compared). Counts, link kinds and Facebook's own button words only; the header's text stays on the PC.
+    if (report.fb && (report.fb.shape || report.fb.shapeErr)) p.fb = { shape: report.fb.shape, near: report.fb.near, shapeErr: report.fb.shapeErr, posinset: report.fb.posinset, postH: report.fb.postH };
+    if (report.fbErr) p.fbErr = String(report.fbErr).slice(0, 120);
     if (opt.note) p.note = opt.note.slice(0, 280);
     if (opt.full) {
       p.url = location.href.slice(0, 200);
@@ -258,8 +283,10 @@
     }
     return p;
   }
+  PV.reportSendable = sendable;   // tests
   function whatSent(site, full) {
     return "Sends the site (" + (site || "this site") + "), the ad's element details (its tags, classes and sizes, and the short labels and domains inside it), what you chose above, your note if you write one, and PRISM's version" +
+      (/(^|\.)facebook\.com$/i.test(site || "") ? ", how the post and the two before it are built (counts and Facebook's own button words, no names)" : "") +
       (full ? ", plus the full page address and the addresses of the video players embedded in the page" : "") + ". No page text, no account, no cookies.";
   }
   function offerSend(report, json, headline) {
@@ -395,8 +422,23 @@
   // PRISM-wide UI prefs (chrome.storage.local "pv:ui"). Live-toggled: the
   // main switch and the intermission layout apply the moment they change.
   PV.uiPrefs = {};
+  // The veil off on one site (pv:ui.veilOffSites, 2026-11-18): the switch in the PRISM button's menu is for the site the person is
+  // on, the one in the settings for every site. A frame inside a page goes by the page's site, not its own.
+  PV.veilSite = function () {
+    try { if (window.top === window) return location.hostname; } catch (e) {}
+    try { return window.top.location.hostname; } catch (e1) {}
+    try { var ao = location.ancestorOrigins; if (ao && ao.length) return new URL(ao[ao.length - 1]).hostname; } catch (e2) {}
+    return location.hostname;
+  };
+  PV.veilOffHere = function () { var m = PV.uiPrefs && PV.uiPrefs.veilOffSites; return !!(m && m[PV.veilSite()] === true); };
+  PV.setVeilOffHere = function (off) {
+    var m = {}, old = (PV.uiPrefs && PV.uiPrefs.veilOffSites) || {};
+    Object.keys(old).forEach(function (k) { if (old[k] === true) m[k] = true; });
+    if (off) m[PV.veilSite()] = true; else delete m[PV.veilSite()];
+    PV.setUiPref("veilOffSites", m);
+  };
   function applyUiPrefs() {
-    if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff); } catch (e0) {} }
+    if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff || PV.veilOffHere()); } catch (e0) {} }
     if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} }
   }
   PV.setUiPref = function (k, v) {

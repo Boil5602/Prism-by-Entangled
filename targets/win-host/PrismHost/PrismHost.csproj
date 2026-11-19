@@ -20,7 +20,7 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <!-- The app's version (2026-09-28): the middle number moves with each build that goes out for testing, the last with a fix.
          The SDK appends the commit it was built from (+<sha>); About and reports show 0.1.0+<first 7 of it> (AppVersion.cs). -->
-    <Version>0.44.0</Version>
+    <Version>0.45.0</Version>
     <!-- Program.cs is the entry point (2026-10-23): the same exe runs as the phone launcher with -launcher, before any XAML starts -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
@@ -66,6 +66,7 @@
     <Content Include="Assets\demo-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\learned.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\picture-net.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\breakwatch\end-finder.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\pack\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\breakwatch\catalog.bin" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\first-run-dashboard.json" CopyToOutputDirectory="PreserveNewest" />
@@ -79,6 +80,8 @@
     <Content Include="Assets\tutorial\*.*" CopyToOutputDirectory="PreserveNewest" />
     <!-- scene-model-spec §6a: the prism:// route registry (generated from core's routes.ts; the host router matches against it) -->
     <Content Include="..\..\..\packages\core\routes.registry.json" Link="Assets\routes.registry.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the music panel's Scenes: one picture of each scene (2026-11-16), named by the style's id -->
+    <Content Include="Assets\scene-previews\*.jpg" CopyToOutputDirectory="PreserveNewest" />
     <!-- dashboard-schema §32: visualization style packs (data, validated by core's tests) -->
     <Content Include="..\..\..\packages\core\data\visualization-styles\*.json" Link="Assets\visualization-styles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

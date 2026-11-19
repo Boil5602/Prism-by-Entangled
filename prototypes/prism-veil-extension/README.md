@@ -23,6 +23,15 @@ ad event fires. See the `veil-adtech-families` note for the full map.
 Display/banner ads are best-effort only (a filter-list problem); this extension's job
 is the **video break**.
 
+**Facebook's feed** (`src/rules.js`, 0.9.4 to 0.9.6, local only). A sponsored post is covered by its label. With the popup's
+suggested posts switch on, a post that carries Facebook's own Follow or Join button, or its Interested and Not interested
+buttons, is covered too. Facebook also shows posts of a page the person does not follow with no button and no label. The only
+mark found is that another post of the same page carries the Follow button, so the rule notes each page that showed the button
+(the path of its link and the time, `pv:fb:follow-seen`, three days, 300 pages, this browser only) and covers that page's posts
+that have no button. Such a cover's panel has `Stop covering this page`, which ends it for that page (`pv:fb:followed`). A
+friend's share is left alone. A report made on a Facebook post also sends how the post and the two before it are built: counts
+and Facebook's own button words, never a name (`src/report.js`, `tests/report-send.test.mjs`).
+
 ## Load it in Chrome (one time)
 
 Chrome 137+ ignores `--load-extension` on the command line, so load it unpacked:

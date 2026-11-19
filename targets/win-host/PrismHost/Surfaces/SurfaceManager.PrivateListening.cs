@@ -32,7 +32,7 @@ public sealed partial class SurfaceManager
         _soundTile = id;
     }
     /// <summary>A page the room hears: a visible one, or a music player's hidden facet (not a reader, which plays nothing).</summary>
-    private static bool Audible(Tile t) => t.Kind != SurfaceKind.Hidden || !t.Id.StartsWith("app:", StringComparison.Ordinal);
+    private static bool Audible(Tile t) => (t.Kind != SurfaceKind.Hidden || !t.Id.StartsWith("app:", StringComparison.Ordinal)) && !IsScout(t.Id);
 
     /// <summary>On while any phone listens. The sound itself needs nothing from it since B-472; it is said in the log for the record.</summary>
     public bool PrivateListening

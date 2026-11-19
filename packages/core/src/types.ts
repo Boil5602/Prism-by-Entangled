@@ -210,6 +210,8 @@ export interface LibraryItem {
   name: string;
   kind: "playlist" | "station" | "album";
   url?: string | null;
+  /** The collection's own picture as the service's page shows it (2026-11-16, the music panel's rows); absent when the page gave none. */
+  artwork?: string | null;
   /** A playlist the account may add to (Apple Music: canEdit - the person's own, not a curated one saved to the library). Unknown when the page did not say. */
   edit?: boolean;
 }

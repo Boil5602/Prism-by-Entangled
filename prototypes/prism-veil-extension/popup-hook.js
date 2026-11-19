@@ -37,8 +37,12 @@
     addEventListener(ev, noteGesture, true);
   });
   function currentGesture() {
-    // a gesture is "current" for a second; after that an open has no click behind it
-    if (Date.now() - gesture.at > 1000) return null;
+    // a gesture is "current" for a second; after that an open has no click behind it. On a page that is busy (still loading) the
+    // site's own handler can run later than that, and a new tab the person asked for was blocked (B-494, 2026-11-18): the press
+    // also counts while the browser itself still holds it as active, which it does for about five seconds.
+    var age = Date.now() - gesture.at, held = false;
+    try { held = !!(navigator.userActivation && navigator.userActivation.isActive); } catch (x) {}
+    if (age > 1000 && !(held && age <= 5500)) return null;
     gesture.windows += 1;
     return { url: gesture.url, windowsThisGesture: gesture.windows };
   }

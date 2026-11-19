@@ -32,6 +32,7 @@ public sealed class LearnedBreak
     private readonly Tree[] _trees;
     private readonly Dictionary<string, double> _capW;
     private readonly double _capB;
+    private readonly bool _capQuick;
     private readonly double _on, _off;
     private readonly int _hold;
     /// <summary>Seconds the chance must stay below "off" before a cover lifts (0 = at once). Inside a break the chance dips for a few
@@ -75,6 +76,8 @@ public sealed class LearnedBreak
         var cap = r.GetProperty("caption");
         _capB = cap.GetProperty("intercept").GetDouble();
         _capW = cap.GetProperty("weights").EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetDouble(), StringComparer.Ordinal);
+        // the quicker caption inputs (2026-11-15): read only by a model that names them in captionInputs
+        _capQuick = r.TryGetProperty("captionInputs", out var cin) && cin.ValueKind == JsonValueKind.Array && cin.EnumerateArray().Any(x => x.GetString() == "cap_last");
         var pol = r.GetProperty("policy");
         _on = pol.GetProperty("on").GetDouble(); _off = pol.GetProperty("off").GetDouble(); _hold = pol.GetProperty("hold").GetInt32();
         _offHold = pol.TryGetProperty("offHold", out var oh) && oh.ValueKind == JsonValueKind.Number ? oh.GetDouble() : 0;
@@ -224,6 +227,21 @@ public sealed class LearnedBreak
         x.Add(s.Caps.Count(c => c.T >= t - 20 && c.T <= t));
         var last = s.Caps.Where(c => c.T <= t).Select(c => c.T).DefaultIfEmpty(double.NaN).Max();
         x.Add(double.IsNaN(last) ? 60 : Math.Min(60, t - last));
+        if (_capQuick)
+        {
+            // bwfeatures.cap_quick: the last line's ad-ness while it is under 12 s old, the mean of the last 4 s, the highest line of the
+            // last 8 s (0.5 where there is none), the lines in the last 8 s
+            double lastScore = 0.5, sum4 = 0, max8 = 0; int n4 = 0, n8 = 0; var lastT = double.NegativeInfinity;
+            foreach (var c in s.Caps)
+            {
+                if (c.T > t) continue;
+                if (c.T >= lastT) { lastT = c.T; lastScore = c.Score; }
+                if (c.T >= t - 4) { sum4 += c.Score; n4++; }
+                if (c.T >= t - 8) { max8 = n8 == 0 ? c.Score : Math.Max(max8, c.Score); n8++; }
+            }
+            x.Add(!double.IsNegativeInfinity(lastT) && t - lastT <= 12 ? lastScore : 0.5);
+            x.Add(n4 > 0 ? sum4 / n4 : 0.5); x.Add(n8 > 0 ? max8 : 0.5); x.Add(n8);
+        }
         var z = _base;
         foreach (var tr in _trees)
         {

@@ -45,6 +45,7 @@ public sealed partial class MainWindow : Window
     {
         BootTrace.Note("window: constructor entered");
         InitializeComponent();
+        TipClamp.Log = LogLine;   // one line each time a tooltip is moved back inside the window
         BootTrace.Note("window: xaml loaded");
         InitDevShot();   InitFrameSampler();   InitBreakWatch();   InitAdDebugSoon();   InitBigWindowFirst();   // the break watch reads YouTube TV breaks off the picture (MainWindow.BreakWatch.cs); dev only: YouTube TV frames for the logo watch (MainWindow.FrameSampler.cs)   // PRISM_DEV_SHOT=1 only: XAML captures on request (MainWindow.DevShot.cs)
         ShowInstalledNoteIfAny();   // the first-run note: where PRISM now lives, and that the downloaded folder can go (2026-10-06)
@@ -249,6 +250,7 @@ public sealed partial class MainWindow : Window
         SetStatus($"core init ({_w:0}x{_h:0})");
         ReportWallFullscreen();   // the window came back full screen before core existed (RestoreWindowBounds): the phones' button reads it from the start (2026-10-31)
         StartRemote();
+        _ = Task.Delay(TimeSpan.FromSeconds(40)).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(RestoreLyrics));   // the lyrics the person had on (2026-11-15), once the pages are up
         // §28: core's first check runs soon after boot; a release ready (or staged) is said once on the status line (2026-10-05)
         _ = Task.Delay(TimeSpan.FromSeconds(75)).ContinueWith(_ => RootGrid.DispatcherQueue.TryEnqueue(async () => { await PollUpdateStatusAsync(); RefreshUpdateNotice(); }));
         // win-host-spec §5 launched Edge windows: warn when a hand-off would run without the veil extension (B-24: no hand-off exists yet → reported only)

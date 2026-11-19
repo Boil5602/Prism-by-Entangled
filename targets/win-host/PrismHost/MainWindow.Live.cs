@@ -682,13 +682,22 @@ public sealed partial class MainWindow
         if (facet.StartsWith("youtube-tv", StringComparison.OrdinalIgnoreCase))
         {
             fly.Items.Add(new MenuFlyoutSeparator());
-            var mode = ChannelMode(name);
+            var mode = EffectiveCovers(name);   // the channel's own choice, else the overall setting
             var gated = mode == ChannelCovers.On && ChannelGated(name);   // the channel gate: not measured yet, so sure breaks only until the person says On
             if (gated) mode = ChannelCovers.Sure;
-            var covers = new MenuFlyoutSubItem { Text = "Ad covers on " + name + Mid + (mode == ChannelCovers.Off ? "Off" : mode == ChannelCovers.Sure ? "Sure breaks only" : "On") };
+            // YouTube TV's setting first, a channel's own choice over it (2026-11-18, asked for a setting for the service that every channel
+            // follows until the person chooses otherwise for one): the first choice says the channel follows YouTube TV and names what that
+            // is; On, Sure breaks only and Off are the channel's own, and stay until Same as YouTube TV is chosen again
+            var own = ChannelHasOwn(name);
+            string Said(ChannelCovers m) => m == ChannelCovers.Off ? "Off" : m == ChannelCovers.Sure ? "Sure breaks only" : "On";
+            var svc = BreakWatchMode == "all" ? ChannelCovers.On : BreakWatchMode == "sure" ? ChannelCovers.Sure : ChannelCovers.Off;
+            var covers = new MenuFlyoutSubItem { Text = "Ad covers on " + name + Mid + Said(mode) + (own ? "" : " (YouTube TV's setting)") };
+            var same = Radio("Same as YouTube TV" + Mid + Said(svc), "channel-covers", !own, () => { ClearChannelMode(name); SetPill("PRISM" + Mid + name + ": follows YouTube TV's setting"); });
+            ToolTipService.SetToolTip(same, name + " follows the YouTube TV breaks setting in Watch settings." + (gated ? " PRISM has not tested itself on this channel yet, so until it has, only sure breaks are covered here. Choose On to cover every break it finds." : ""));
+            covers.Items.Add(same);
             void Choice(string text, ChannelCovers m, string tip, string said)
             {
-                var c = Radio(text, "channel-covers", mode == m, () => { SetChannelMode(name, m); SetPill("PRISM" + Mid + name + ": " + said); });
+                var c = Radio(text, "channel-covers", own && mode == m, () => { SetChannelMode(name, m); SetPill("PRISM" + Mid + name + ": " + said); });
                 ToolTipService.SetToolTip(c, tip);
                 covers.Items.Add(c);
             }

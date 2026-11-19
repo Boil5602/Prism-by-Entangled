@@ -136,7 +136,9 @@ def cap_feat(t, ct, sc):
     """Each row's view of the captions so far: mean ad-ness over the last 8 and 20 s (0.5 with none), lines in the last 20 s, seconds since
     the last line (60 at most). t: the rows' times; ct, sc: the caption lines' times and scores, in time order."""
     out = np.zeros((len(t), 4)); out[:, 0] = out[:, 1] = 0.5; out[:, 3] = 60
-    if len(ct) == 0: return out
+    if len(ct) == 0:
+        if os.environ.get("CAPQUICK") == "1": q = np.zeros((len(t), 4)); q[:, :3] = 0.5; out = np.hstack([out, q])
+        return out
     cs = np.concatenate([[0], np.cumsum(sc)])
     for w, col in ((8, 0), (20, 1)):
         a = np.searchsorted(ct, t - w, side="left"); b = np.searchsorted(ct, t, side="right"); n = b - a
@@ -144,4 +146,24 @@ def cap_feat(t, ct, sc):
         if w == 20: out[:, 2] = n
     b = np.searchsorted(ct, t, side="right") - 1
     out[:, 3] = np.where(b >= 0, np.minimum(60, t - ct[np.maximum(b, 0)]), 60)
+    if os.environ.get("CAPQUICK") == "1": out = np.hstack([out, cap_quick(t, ct, sc)])
+    return out
+
+
+CAP_QUICK = ["cap_last", "cap_mean4", "cap_max8", "cap_lines8"]
+
+
+def cap_quick(t, ct, sc):
+    """Quicker views of the captions (2026-11-15, a study of the late start: the 20 s mean turns slowly). The last line's ad-ness while
+    it is under 12 s old (0.5 otherwise), the mean over the last 4 s, the highest line of the last 8 s, the lines in the last 8 s."""
+    out = np.zeros((len(t), 4)); out[:, :3] = 0.5
+    sc = np.asarray(sc, float); cs = np.concatenate([[0], np.cumsum(sc)])
+    b = np.searchsorted(ct, t, side="right"); last = b - 1
+    out[:, 0] = np.where((last >= 0) & (t - ct[np.maximum(last, 0)] <= 12), sc[np.maximum(last, 0)], 0.5)
+    a4 = np.searchsorted(ct, t - 4, side="left"); n4 = b - a4
+    out[:, 1] = np.where(n4 > 0, (cs[b] - cs[a4]) / np.maximum(n4, 1), 0.5)
+    a8 = np.searchsorted(ct, t - 8, side="left"); n8 = b - a8
+    ext = np.concatenate([sc, [0.0]]); idx = np.empty(2 * len(t), int); idx[0::2] = np.minimum(a8, len(sc)); idx[1::2] = np.minimum(b, len(sc))
+    mx = np.maximum.reduceat(ext, idx)[0::2] if len(t) else np.zeros(0)
+    out[:, 2] = np.where(n8 > 0, mx, 0.5); out[:, 3] = n8
     return out

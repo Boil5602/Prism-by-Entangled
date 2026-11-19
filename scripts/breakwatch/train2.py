@@ -167,6 +167,7 @@ for feat, day in DAYS:
     for w, a in rows.items():
         lab = labels.get(w)
         if not lab or not lab.get("ads"): continue
+        raw_ads = lab["ads"]
         if promos.on(): lab = dict(lab, ads=promos.ads_for(day, w, lab["ads"]))   # PROMOS=show: a network promo trains as show (2026-11-04)
         t = a[:, 0]
         X, fn = features(a, names, ix, skip=SKIP2, taus=TAUS, by_seconds=True)
@@ -181,6 +182,9 @@ for feat, day in DAYS:
             more = inset_ads(day, w, t, np.isin(chn, list(INSET))) & ~y
             if more.any(): print(f"{tag} {w[-6:]:>6}: {int((more & keep).sum())} marked-show seconds on {', '.join(sorted(INSET))} are an inset picture: counted as ads", flush=True)
             y = y | more
+        promo = spans(t, raw_ads) & ~spans(t, lab["ads"])   # the promo seconds (none unless PROMOS cut them out of the marks)
+        # PROMOTRAIN=break (2026-11-18): the trees and the caption classifier learn a promo as break; every score still counts it apart
+        ytr = (y | promo) if os.environ.get("PROMOTRAIN") == "break" else y
         cap = events(day, w, "cc")
         if os.environ.get("NOCC") == "1": cap = []   # the extension's model without captions (2026-11-06; bench NOCC=1)
         # the day's own seconds alone: frames recorded on its date, and none from the time of day where another date's lines stand in its
@@ -197,8 +201,8 @@ for feat, day in DAYS:
         keep = keep & (exam < 0)     # an exam's seconds train nothing
         ct = np.array([c for c, _ in cap]); lines = [x for _, x in cap]
         at = np.clip(np.searchsorted(t, ct - 3), 0, len(t) - 1) if len(ct) else np.array([], int)
-        P[f"{tag}|{w}"] = dict(day=tag, t=t, X=X, y=y, keep=keep, exam=exam, act=a[:, ix["active"]], chance=a[:, ix["chance"]], adtext=a[:, ix["since_ad_text"]], cut=a[:, ix["since_cut"]], qr=a[:, ix["since_qr"]], known=a[:, ix["known_ad"]], ch=channel_at(day, w, t), ct=ct, lines=lines,
-                               cy=y[at] if len(ct) else np.array([]), ckeep=keep[at] if len(ct) else np.array([], bool),
+        P[f"{tag}|{w}"] = dict(day=tag, t=t, X=X, y=y, ytrain=ytr, promo=promo, keep=keep, exam=exam, act=a[:, ix["active"]], chance=a[:, ix["chance"]], adtext=a[:, ix["since_ad_text"]], cut=a[:, ix["since_cut"]], qr=a[:, ix["since_qr"]], known=a[:, ix["known_ad"]], ch=channel_at(day, w, t), ct=ct, lines=lines,
+                               cy=ytr[at] if len(ct) else np.array([]), ckeep=keep[at] if len(ct) else np.array([], bool),
                                cch=channel_at(day, w, ct) if len(ct) else np.array([]))
 if PIC:
     S_ = np.load(PIC, allow_pickle=False)
@@ -224,7 +228,8 @@ if PIC:
         v["X"] = np.hstack([v["X"], np.stack(cols_, 1)])
         print(f"{key[-22:]:>22}: a picture reading for {int(ok.sum())} of {len(pic)} rows, {int((ok & v['keep']).sum())} of {int(v['keep'].sum())} training rows, {int((ok & (v['exam'] >= 0)).sum())} of {int((v['exam'] >= 0).sum())} exam rows", flush=True)
     fn = fn + PIC_NAMES
-FN = fn + ["cap_mean8", "cap_mean20", "cap_lines20", "cap_since"]
+CAPIN = ["cap_mean8", "cap_mean20", "cap_lines20", "cap_since"] + (["cap_last", "cap_mean4", "cap_max8", "cap_lines8"] if os.environ.get("CAPQUICK") == "1" else [])   # CAPQUICK=1: the quicker caption views, a study (bwfeatures.cap_quick)
+FN = fn + CAPIN
 chans = sorted({c for v in P.values() for c, k in zip(v["ch"], v["keep"]) if k})
 counts = {c: (sum(int((v["keep"] & (v["ch"] == c)).sum()) for v in P.values()), sum(int((v["keep"] & (v["ch"] == c) & v["y"]).sum()) for v in P.values())) for c in chans}
 chans = [c for c in chans if counts[c][0] >= 600 and counts[c][1] >= 60]
@@ -285,7 +290,7 @@ def rows_of(sc, sel, days=None):
         k = v["keep"] & sel(v)
         if not k.any(): continue
         XF = np.hstack([v["X"], cap_feat(v["t"], v["ct"], sc[key])])
-        Xs.append(XF[k]); ys.append(v["y"][k].astype(float))
+        Xs.append(XF[k]); ys.append(v["ytrain"][k].astype(float))
     return np.concatenate(Xs), np.concatenate(ys)
 
 
@@ -416,7 +421,7 @@ if EXAMS:
                 for f_ in nd["feature_idx"][nd["is_leaf"] == 0]: cnt[f_] += 1
             top = np.argsort(-cnt)[:8]
             print("   splits by input: " + ", ".join(f"{FN[cols[i]]} {100 * cnt[i] / cnt.sum():.1f}%" for i in top) + "; " + ", ".join(f"{n} {100 * cnt[cols.index(FN.index(n))] / cnt.sum():.1f}%" for n in PIC_NAMES), flush=True)
-        tot = [0, 0, 0, 0]; lat_all = []; allp, ally = [], []
+        tot = [0, 0, 0, 0]; lat_all = []; allp, ally = [], []; ptot = [0, 0, 0]
         print(f" {vn}:", flush=True)
         for k_, e_ in enumerate(EXAMS):
             for key, v in P.items():
@@ -436,6 +441,7 @@ if EXAMS:
                     lat.append(float(tt[hit[0]] - sec(a_)) if len(hit) else float(sec(b_) - sec(a_)))
                 lat_all += lat
                 tot[0] += int((cc & yy).sum()); tot[1] += int(yy.sum()); tot[2] += int((cc & ~yy).sum()); tot[3] += int((~yy).sum())
+                pm = v["promo"][em] & ~yy; ptot[0] += int((cc & pm).sum()); ptot[1] += int(pm.sum()); ptot[2] += int((cc & ~yy & ~pm).sum())
                 allp.append(pr[em]); ally.append(yy)
                 print(f"   {e_['name']:<18} ads covered {100 * cc[yy].mean():5.1f}%  show wrongly covered {100 * cc[~yy].mean():5.2f}% ({int((cc & ~yy).sum())} s)  AUC {roc_auc_score(yy, pr[em]):.4f}  cover begins {np.median(lat):4.1f} s into a break (median of {len(lat)}, mean {np.mean(lat):.1f})", flush=True)
         if vn == "as live":
@@ -468,6 +474,7 @@ if EXAMS:
                 print(f"   look-ahead {D_:>2} s (from {lo_}, to {hi_}, {'first' if fi_ else 'last'} cut): ads covered {100 * tot2[0] / tot2[1]:5.1f}%  show wrongly covered {100 * tot2[2] / tot2[3]:5.2f}% ({tot2[2]} s)  cover begins {np.median(lat2):4.1f} s in (mean {np.mean(lat2):.1f}), stays {np.median(lin2):.0f} s after (mean {np.mean(lin2):.1f})  |  " + "  ".join(per), flush=True)
         allp = np.concatenate(allp); ally = np.concatenate(ally)
         print(f"   ALL                ads covered {100 * tot[0] / tot[1]:5.1f}%  show wrongly covered {100 * tot[2] / tot[3]:5.2f}% ({tot[2]} s)  AUC {roc_auc_score(ally, allp):.4f}  AP {average_precision_score(ally, allp):.4f}  cover begins {np.median(lat_all):.1f} s in (median of {len(lat_all)}, mean {np.mean(lat_all):.1f})", flush=True)
+        print(f"   THREE KINDS        promo seconds covered {100 * ptot[0] / max(1, ptot[1]):5.1f}% of {ptot[1]} s; show without the promos wrongly covered {100 * ptot[2] / max(1, tot[3] - ptot[1]):5.2f}% ({ptot[2]} s)", flush=True)
         # the same trees at the threshold that wrongly covers as much show time as the live inputs do at 0.80: the gain at equal cost
         for on2 in (0.70, 0.75, 0.85, 0.90):
             c0 = c1 = n0 = n1 = 0
@@ -565,7 +572,7 @@ if EXPORT:
     print(f"export check: {diff:.2e}"); assert diff < 1e-6
     model = {"version": 2, "trained": len(y), "days": [os.path.basename(d.rstrip("/\\")) for _, d in DAYS], "inputs": list(names), "skip": list(SKIP2),
              "kernels": list(TAUS), "rolls": {"signals": ["logo_ratio", "logo_seen", "change", "std", "mean"], "windows": [5, 15, 30], "seconds": True},
-             "captionInputs": ["cap_mean8", "cap_mean20", "cap_lines20", "cap_since"], "features": FN, "baseline": base, "trees": trees,
+             "captionInputs": CAPIN, "features": FN, "baseline": base, "trees": trees,
              "caption": final_cap.export(), "captionLag": 3, "policy": POLICY}
     # no caption word the private scrub list names (~/.prism/public-scrub.txt; the publishing check's own patterns): a model ships inside
     # Veil and goes into the public tree, and a word heard in a show's captions can match a household detail (2026-11-06)

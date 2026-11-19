@@ -55,6 +55,11 @@ public sealed class MiniPlayerWindow : Window
     private readonly FontIcon _upIcon = new() { FontSize = 13, Glyph = GlyphLike }, _downIcon = new() { FontSize = 13, Glyph = GlyphDislike };
     private Button _up = null!, _down = null!;
     private Button _prev = null!, _play = null!, _next = null!, _mute = null!, _back = null!;
+    // 2026-11-16: the wait after a press on Play, by the one rule every Play that resumes music follows (PlayWait): a ring on the
+    // button and Starting or Pausing on the line under the title until the player answers.
+    private readonly PlayWait _wait = new();
+    private readonly ProgressRing _playRing = new() { IsActive = true, Width = 18, Height = 18, Foreground = new SolidColorBrush(Ink) };
+    private string _fromText = "";
     private readonly DispatcherTimer _hide = new() { Interval = TimeSpan.FromMilliseconds(1100) };
     private VisualizationHost? _viz;
     private bool _playing, _muted, _shown, _placed;
@@ -68,6 +73,8 @@ public sealed class MiniPlayerWindow : Window
     public event Action<string>? Command;
     /// <summary>Escape or a double-click: bring the full player back.</summary>
     public event Action? ReturnRequested;
+    /// <summary>A right press on the tile (2026-11-16): the music panel opens there, as it does on the full player. The element and the point on it.</summary>
+    public event Action<FrameworkElement, Windows.Foundation.Point>? MenuRequested;
     public Action<string>? Log;
 
     public MiniPlayerWindow()
@@ -130,6 +137,7 @@ public sealed class MiniPlayerWindow : Window
             e.Handled = true;
         };
         _root.DoubleTapped += (_, e) => { e.Handled = true; ReturnRequested?.Invoke(); };
+        _root.RightTapped += (_, e) => { e.Handled = true; MenuRequested?.Invoke(_root, e.GetPosition(_root)); };
         _root.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Escape) { e.Handled = true; ReturnRequested?.Invoke(); } };
         _root.IsTabStop = true;
         _root.Loaded += (_, __) => { _root.Focus(FocusState.Programmatic); Place(); };
@@ -176,7 +184,13 @@ public sealed class MiniPlayerWindow : Window
         _up = Ctl("up", _upIcon, "Thumbs up tells the service you like this", () => Command?.Invoke("thumbup"));
         _prevIcon.Glyph = GlyphPrev; _nextIcon.Glyph = GlyphNext; _backIcon.Glyph = GlyphRestore;
         _prev = Ctl("prev", _prevIcon, "Previous", () => Command?.Invoke("prev"));
-        _play = Ctl("play", _playIcon, "Play / pause", () => Command?.Invoke(_playing ? "pause" : "play"));
+        _play = Ctl("play", _playIcon, "Play / pause", () =>
+        {
+            if (_wait.Waiting) return;
+            var cmd = _wait.Press(_playing, Environment.TickCount64);
+            _play.Content = _playRing; PaintFrom();
+            Command?.Invoke(cmd);
+        });
         _next = Ctl("next", _nextIcon, "Next", () => Command?.Invoke("next"));
         _mute = Ctl("mute", _muteIcon, "Mute / unmute PRISM", () => Command?.Invoke(_muted ? "unmute" : "mute"));
         _back = Ctl("back", _backIcon, "Back to the full player (Esc, or double-click)", () => ReturnRequested?.Invoke());
@@ -291,7 +305,7 @@ public sealed class MiniPlayerWindow : Window
     public void Feed(string json) { try { _viz?.SetFeed(json); } catch (Exception ex) { Log?.Invoke("mini player: feed failed: " + ex.Message); } }
 
     /// <summary>The transport as the stage shows it - the same facts, from the same poll.</summary>
-    public void Update(bool playing, string? title, string? artist, bool prev, bool next, bool canPlay, bool muted, string? collection = null, string? service = null, bool canRate = false, int rating = 0)
+    public void Update(bool playing, string? title, string? artist, bool prev, bool next, bool canPlay, bool muted, string? collection = null, string? service = null, bool canRate = false, int rating = 0, bool loading = false)
     {
         _playing = playing; _muted = muted;
         // the thumbs: live while the service rates, the standing verdict in amber (the stage fills the thumb; here the ink says it)
@@ -299,15 +313,25 @@ public sealed class MiniPlayerWindow : Window
         _upIcon.Foreground = new SolidColorBrush(rating == 1 ? Amber : Ink);
         _downIcon.Foreground = new SolidColorBrush(rating == -1 ? Amber : Ink);
         _playIcon.Glyph = playing ? GlyphPause : GlyphPlay;
+        _wait.Read(playing, canPlay || playing || loading, Environment.TickCount64, loading);
+        _play.Content = _wait.Waiting ? _playRing : _playIcon;
         _muteIcon.Glyph = muted ? GlyphAudioOff : GlyphAudioOn;
         _muteIcon.Foreground = new SolidColorBrush(muted ? Amber : Ink);
         _title.Text = title ?? "";
         _artist.Text = artist ?? "";
         var sep = " " + (char)0xB7 + " ";
-        _from.Text = !string.IsNullOrWhiteSpace(collection) && !string.IsNullOrWhiteSpace(service) ? collection + sep + service : (collection ?? service ?? "");
-        _from.Visibility = _from.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _fromText = !string.IsNullOrWhiteSpace(collection) && !string.IsNullOrWhiteSpace(service) ? collection + sep + service : (collection ?? service ?? "");
+        PaintFrom();
         _artist.Visibility = _artist.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         _prev.IsEnabled = prev; _next.IsEnabled = next; _play.IsEnabled = canPlay;
+    }
+
+    /// <summary>The line under the title: where the music is from, with the wait's words before it while there is a wait.</summary>
+    private void PaintFrom()
+    {
+        var sep = " " + (char)0xB7 + " ";
+        _from.Text = _wait.Words is { } w ? w + (_fromText.Length > 0 ? sep + _fromText : "") : _fromText;
+        _from.Visibility = _from.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ------------------------------------------------------------------ the window: always on top, no chrome, remembered place

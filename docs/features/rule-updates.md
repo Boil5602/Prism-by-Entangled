@@ -1,6 +1,7 @@
 # Rule updates: a fix for a changed site the same day
 
-*Status: built 2026-11-14 on the branch `veil-rules-updates` as the PRISM extension 0.9.0 (asked for that day: updated ad
+*Status: built 2026-11-14 on the branch `veil-rules-updates` as the PRISM extension 0.9.0, since merged to `main`, where the local
+version stands at 0.9.6 on 2026-11-17 (asked for that day: updated ad
 detection rules for every browser through the existing opt-in, as signed data and never code). First version: display rules. No
 rule file is published yet; the first one in the tree adds nothing.*
 

@@ -519,3 +519,17 @@ For `https://entangled.world/prism/privacy`, in page order. The page also covers
 14. **"Who else sees anything".** Change "the nature photos" to "the pictures, the lists, and the detection data". Add YouTube as in item 7.
 15. **The AI label switch name, wherever it appears.** Use "Veil AI-labeled content".
 ```
+
+---
+
+## Privacy policy changes after 0.9.0 (to 0.9.6, written 2026-11-16)
+
+These follow the list above. Nothing here is in a store version yet. Hand them to the website with the next store upload, not before.
+
+```
+16. **"The browser extensions", the suggested posts switch.** If you turn on the cover for suggested posts, then on Facebook the extension remembers which pages showed Facebook's own Follow or Join button, so that it can cover the same page's posts that carry no button. It keeps the page's link path and the time, for three days, 300 pages at most, in your browser only. It is never sent. A cover of that kind has a button, `Stop covering this page`. The pages you name with it are kept the same way, in your browser only, and are never sent.
+17. **The list of what stays in the browser (item 10).** Add: the pages Facebook showed a Follow or Join button for, kept for three days.
+18. **"The report tool", the list (item 12).** Add for the extension: a report made on a Facebook post also says how that post and the two posts before it are built. That is counts of the parts Facebook marks, the kind of each link in the header (never its address), the post's height, and the words on buttons when they are Facebook's own (Follow, Like, Share and the like). Any other short text on a button is sent as the word `other`. No name, no post text, and no header text is sent.
+19. **The sentence in the report window.** It now reads, on Facebook: `how the post and the two before it are built (counts and Facebook's own button words, no names)`. The policy must say the same.
+20. **The store forms' data usage answers.** No change: the block holds no personal data and is sent only when you press Send.
+```

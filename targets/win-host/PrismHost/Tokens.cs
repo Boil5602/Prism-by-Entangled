@@ -38,6 +38,11 @@ public static class Tokens
 
     public static readonly SolidColorBrush Ink = new(InkColor);
     public static readonly SolidColorBrush Dim = new(DimColor);
+    /// <summary>A secondary line in the music panel (2026-11-16): lighter than Dim, for small text read on the panel's dark ground.</summary>
+    public static readonly SolidColorBrush Soft = new(Color.FromArgb(255, 0xA9, 0xAD, 0xB8));
+    // the music panel's tiles where a service gives no picture: one of six quiet tints, chosen by the item's name so it keeps its colour
+    private static readonly SolidColorBrush[] ArtTints = { new(Color.FromArgb(255, 0x3B, 0x4A, 0x7A)), new(Color.FromArgb(255, 0x6A, 0x4A, 0x6E)), new(Color.FromArgb(255, 0x3F, 0x6B, 0x62)), new(Color.FromArgb(255, 0x7A, 0x5A, 0x3A)), new(Color.FromArgb(255, 0x4A, 0x5F, 0x85)), new(Color.FromArgb(255, 0x6B, 0x44, 0x50)) };
+    public static SolidColorBrush ArtTint(string name) { var h = 0; foreach (var c in name ?? "") h = (h * 31 + c) % 997; return ArtTints[h % ArtTints.Length]; }
     public static readonly SolidColorBrush Amber = new(AmberColor);
     public static readonly SolidColorBrush AmberInk = new(AmberInkColor);
     public static readonly SolidColorBrush Danger = new(DangerColor);
@@ -61,7 +66,8 @@ public static class Tokens
     public static readonly SolidColorBrush Band = new(Color.FromArgb(0x14, 0xE8, 0xEC, 0xF2));       // a shaded band behind a row
     public static readonly SolidColorBrush Ring = new(Color.FromArgb(0x90, 0xE8, 0xEC, 0xF2));       // a window's ring in the corner
     public static readonly SolidColorBrush Edge = new(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));       // a card's edge
-    public static readonly SolidColorBrush Scrim = new(Color.FromArgb(0xD8, 0x05, 0x06, 0x09));      // behind a modal
+    public static readonly SolidColorBrush ClockPlate = new(Color.FromArgb(0xA6, 0x05, 0x06, 0x09)); // behind the music clock, which stands over the scene's picture
+    public static readonly SolidColorBrush Scrim =new(Color.FromArgb(0xD8, 0x05, 0x06, 0x09));      // behind a modal
     public static readonly SolidColorBrush LabelBack = new(Color.FromArgb(0xC8, 0x0B, 0x0D, 0x12));  // a label over a picture
 
     /// <summary>Amber at an alpha: the borders and washes the rail, the wizard and the menu draw (0x18 to 0x66), and a lit edge (0xB0).</summary>

@@ -51,6 +51,29 @@ describe("popup hook (main world)", () => {
     expect(reports.at(-1).decision.reason).toMatch(/^burst/);
   });
 
+  it("a press still counts after a second while the browser holds it as active, and not after that", () => {
+    const { opened, reports } = loadHook();
+    document.body.innerHTML = `<a id="l" href="https://partner.example/offer">help</a>`;
+    const a = document.getElementById("l"), real = Date.now;
+    let held = true;
+    Object.defineProperty(navigator, "userActivation", { value: { get isActive() { return held; } }, configurable: true });
+    try {
+      a.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      const t0 = real();
+      Date.now = () => t0 + 3000;
+      expect(window.open("https://partner.example/offer", "_blank")).toEqual({ real: true });
+      a.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      const t1 = Date.now();
+      held = false; Date.now = () => t1 + 3000;
+      expect(window.open("https://partner.example/offer", "_blank").real).toBeUndefined();
+      a.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      const t2 = Date.now();
+      held = true; Date.now = () => t2 + 9000;
+      expect(window.open("https://partner.example/offer", "_blank").real).toBeUndefined();
+      expect(opened.length).toBe(1);
+    } finally { Date.now = real; delete navigator.userActivation; }
+  });
+
   it("intercepts gesture laundering (click on shop.com opens elsewhere) and resolves relative URLs", () => {
     const { opened, reports } = loadHook();
     document.body.innerHTML = `<a id="l" href="https://shop.com/help">help</a>`;

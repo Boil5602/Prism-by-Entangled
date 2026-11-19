@@ -212,12 +212,12 @@ public sealed class NightTrain : Tableau
                 for (var x = townFrom; x < townTo;)
                 {
                     var wd = u * (7 + 6 * pr.NextDouble()); var hgt = u * (7 + 7 * pr.NextDouble()); var wall = Mix(Rgb(0x141C28), P(pr.Next(4)), 0.1); var roofH = u * (2 + 3 * pr.NextDouble());
-                    var church = pr.NextDouble() < 0.14; var rows = Math.Max(1, (int)(hgt / (3.1 * u))); var cols = Math.Max(2, (int)(wd / (2.6 * u)));
+                    var tower = pr.NextDouble() < 0.14; var rows = Math.Max(1, (int)(hgt / (3.1 * u))); var cols = Math.Max(2, (int)(wd / (2.6 * u)));
                     var warm = Mix(Cream, P(1), 0.25); var lamp = pr.NextDouble() < 0.6; var xx = 0.5 * u;
                     Item(x, wd + 5 * u);
                     RB(xx, ry - hgt, wd, hgt + u, Vertical((wall, 0), (Mix(wall, Dark, 0.5), 1)));
                     G(Rgb(0x0A1018), 1, xx - 0.4 * u, ry - hgt, xx + wd / 2, ry - hgt - roofH, xx + wd + 0.4 * u, ry - hgt);
-                    if (church) { RB(xx + wd * 0.38, ry - hgt - 9 * u, wd * 0.24, 9 * u, B(Mix(wall, Dark, 0.3))); G(Rgb(0x0A1018), 1, xx + wd * 0.34, ry - hgt - 9 * u, xx + wd / 2, ry - hgt - 16 * u, xx + wd * 0.66, ry - hgt - 9 * u); _townLights.Add((Glow(xx + wd / 2, ry - hgt - 6.5 * u, 3.2 * u, warm, 0.9, 0.8), 0.8, pr.NextDouble() * 6)); }
+                    if (tower) { RB(xx + wd * 0.38, ry - hgt - 9 * u, wd * 0.24, 9 * u, B(Mix(wall, Dark, 0.3))); G(Rgb(0x0A1018), 1, xx + wd * 0.34, ry - hgt - 9 * u, xx + wd / 2, ry - hgt - 16 * u, xx + wd * 0.66, ry - hgt - 9 * u); _townLights.Add((Glow(xx + wd / 2, ry - hgt - 6.5 * u, 3.2 * u, warm, 0.9, 0.8), 0.8, pr.NextDouble() * 6)); }
                     for (var r = 0; r < rows; r++)
                         for (var c = 0; c < cols; c++)
                         {

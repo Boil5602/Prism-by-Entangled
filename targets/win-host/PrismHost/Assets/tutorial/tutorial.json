@@ -47,23 +47,53 @@
     {
       "id": "watch",
       "title": "Watching",
-      "about": "The Watch page, search, and a title's Details.",
+      "about": "The Watch page, its cards, search, and a title's Details.",
       "pages": [
         {
           "picture": "watch-page",
           "title": "The Watch page",
           "body": "The Video player opens on the Watch page. It gathers what your services offer into one place. You pick a title and PRISM opens it on the right service.",
           "points": [
+            "Continue watching comes first, with what you started on every service.",
+            "Under it are My watchlist, what is new this week, The Binge and a row for each service.",
             "The tabs along the top are Watch, Live, Library and Browse. Playlists joins them once a TMDB account is linked.",
-            "Esc on the video screen brings the Watch page back.",
-            "The gear opens Watch settings."
+            "Esc on the video screen brings the Watch page back. The gear opens Watch settings."
           ]
+        },
+        {
+          "picture": "watch-cards",
+          "title": "What a card tells you",
+          "body": "Every card carries what you need on its picture.",
+          "points": [
+            "The title's name, and the small marks of the services that have it.",
+            "The TMDB score on a pill, red for low and green for high. Your own rating stands beside it once you have rated.",
+            "A Continue watching card is washed grey over the part you have watched.",
+            "Press a card to play it. Right-click it for its menu: Details, and a way to remove it from Continue watching.",
+            "The (i) beside a row's name says how the row is picked."
+          ]
+        },
+        {
+          "picture": "watch-simple",
+          "title": "Simple Watch",
+          "body": "Simple Watch is a calmer Watch page. Continue watching comes first and larger, with a Resume button for the first title in it.",
+          "points": [
+            "My list and The Binge follow. Every other row waits behind More to watch.",
+            "Scores and row controls show when you point at a card.",
+            "Turn it on or off in Watch settings, with Use Simple Watch."
+          ],
+          "open": {
+            "label": "Open Watch settings",
+            "action": "watch-settings",
+            "where": "The gear on the Watch page"
+          }
         },
         {
           "picture": "watch-search",
           "title": "Search everywhere",
           "body": "The magnifier beside the tabs searches all your services at once. Type a title, a person or a word.",
           "points": [
+            "Your own lists come first, then every service you have.",
+            "The Genre and Service chips narrow the results.",
             "Press Details on a result for its full page.",
             "Press My List to keep it for later."
           ]
@@ -74,7 +104,39 @@
           "body": "Details brings a title together on one page: its trailer, the service to watch it on, and My List.",
           "points": [
             "Watch on starts it on that service.",
+            "A series lists its episodes. Choose one to play it, or Start from the beginning.",
+            "A Rent or Buy mark shows a code for your phone. The service's own page opens there, and you pay with the account you already have. PRISM takes no part in it.",
             "With a free TMDB key the page also shows the cast, Where to watch and the TMDB rating. See the subject TMDB extras."
+          ]
+        },
+        {
+          "picture": "watch-library",
+          "title": "Library and Browse",
+          "body": "Two more tabs hold everything else.",
+          "points": [
+            "Library is every title you own, by genre.",
+            "Browse is every genre across your services, a row at a time. Show more reads on.",
+            "The Binge is PRISM's pick of what to watch next, a row a genre. Hide from The Binge takes a title out, and Kids mode keeps it to the ratings an age allows.",
+            "You can add categories of your own in Watch settings."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "playing",
+      "title": "While you watch",
+      "about": "The control bar, captions and picture quality.",
+      "pages": [
+        {
+          "picture": "play-bar",
+          "title": "The control bar",
+          "body": "Move the pointer over a title that is playing and PRISM's own control bar shows. It is the same on every service.",
+          "points": [
+            "Play and pause, the skips, and the slider.",
+            "Start over goes back to the start. Press it again in the first 5 seconds for the previous episode.",
+            "Subtitles and audio lists the service's own tracks. Quality lists the picture sizes the service offers.",
+            "When a service shows Skip Intro or Skip Ad, PRISM shows one Skip button that presses it.",
+            "Return to Watch opens the Watch page. The title plays on."
           ]
         }
       ]
@@ -123,17 +185,28 @@
     {
       "id": "live",
       "title": "Live TV and several windows",
-      "about": "The channel schedule, and up to five things on screen at once.",
+      "about": "What is on now, the timetable, and up to five things on screen at once.",
       "pages": [
         {
-          "picture": "live-schedule",
+          "picture": "live-now",
           "title": "Live",
-          "body": "The Live tab on the Watch page is a schedule of your live channels and what is on each.",
+          "body": "The Live tab on the Watch page opens on what is on now: a card for each channel, with the programme's picture.",
+          "points": [
+            "Press a card to watch the channel in the big window.",
+            "Content creators who are live now sit beside the channels.",
+            "The chips along the top show only one kind, such as Sports or News. PRISM remembers the one you leave on.",
+            "Search channels and shows finds one by name."
+          ]
+        },
+        {
+          "picture": "live-schedule",
+          "title": "The timetable",
+          "body": "Timetable shows every channel with its programmes on a time line.",
           "points": [
             "Press a channel to watch it in the big window.",
             "Hold a channel and drag it up to the windows to watch it beside the big one.",
-            "Search channels and shows finds one by name.",
-            "Right-click a channel for a menu of the windows, and for how its ad breaks are covered."
+            "Right-click a channel for a menu of the windows, and for how its ad breaks are covered.",
+            "Refresh reads each service's guide again."
           ]
         },
         {
@@ -142,8 +215,9 @@
           "body": "PRISM can show up to five things at once: one big window and four smaller ones.",
           "points": [
             "Drag a title or a channel onto the + above the windows.",
+            "Drop it on a window that is in use and it takes that window's place.",
             "Or, in Live, right-click a channel and choose Add to window 2.",
-            "Press a small window to make it the big one.",
+            "Press a small window to make it the big one, with its sound. Swap does the same from the bar.",
             "The X in a window's corner clears it."
           ]
         }
@@ -160,7 +234,7 @@
           "body": "When PRISM sees an ad break it covers the picture, mutes the sound, and brings your show back when the break ends. The ad still plays underneath. PRISM covers ads and never blocks them.",
           "points": [
             "The cover is a picture with a half-moon mark and its credit. Press the mark to open the cover's card.",
-            "On the card, Show ad 15s lifts the cover for a look.",
+            "On the card, Show ad lifts the cover for the rest of the break. Hide ad covers it again.",
             "Not an ad tells PRISM it covered your show by mistake."
           ]
         },
@@ -193,15 +267,83 @@
     {
       "id": "music",
       "title": "Music",
-      "about": "The Music player and its visuals.",
+      "about": "The Music player, Quick play, playlists, stations and scenes.",
       "pages": [
         {
           "picture": "music-player",
           "title": "The Music player",
-          "body": "Choose Music player in the PRISM menu, or use the Music and Video switch at the top right.",
+          "body": "Choose Music player in the PRISM menu, or use the Music and Video switch at the top right. The screen is a scene that moves with the music, with the song's name at the bottom left.",
           "points": [
-            "The visual moves with the music. The corner button, Next visual, goes through PRISM Beams, Spectrum, Ribbon and Bloom, and PRISM remembers your pick.",
-            "Right-click the stage and choose Visual style for more."
+            "The bar at the bottom right has Play, the skips and the service's own thumbs.",
+            "Lyrics, on the same bar, puts the song's words on the screen, lit as they are sung, when the service has them.",
+            "The corner buttons are Next visual, Quick play and Mini player. Mini player is the scene and its controls in a small window that stays on top.",
+            "Ten seconds after the pointer stops, everything but the scene and the song fades. Move the pointer to bring it back."
+          ]
+        },
+        {
+          "picture": "music-panel",
+          "title": "Quick play",
+          "body": "The music-note button, or a right-click on the screen, opens Quick play. It is one panel for everything that plays.",
+          "points": [
+            "The card at the top is the song playing now, with Add to playlist, Start a station, Up next, Scene and Full Player.",
+            "The search box finds what is in your library as you type. Search every service looks for a song on all of them.",
+            "Jump back in lists what you played last.",
+            "Your services lists each music service. Press one for its library.",
+            "Back goes up one level. The panel stays open after a play."
+          ]
+        },
+        {
+          "picture": "music-library",
+          "title": "A service's library",
+          "body": "Press a service in Quick play and its Playlists and Stations open, with a count on each tab.",
+          "points": [
+            "Type in the filter to find one by name.",
+            "Press a playlist for its play choices. A station plays at once.",
+            "The button at the end of a row has Play next, and Add current song on a playlist you may add to.",
+            "Full Player opens the service's own page in a window, with all of its own controls. The music keeps playing."
+          ]
+        },
+        {
+          "picture": "music-play",
+          "title": "Play a playlist",
+          "body": "Press a playlist and PRISM shows its play choices.",
+          "points": [
+            "Resume goes on from where you stopped, and says which song that is.",
+            "Start over offers In order, Reverse and True shuffle. True shuffle plays every song once before any song again.",
+            "Play starts the choice you picked. With Start on its own after 10 seconds checked, it starts by itself.",
+            "PRISM keeps your place in each playlist, so you can leave one and come back to it."
+          ]
+        },
+        {
+          "picture": "music-add",
+          "title": "Add to playlist and Start a station",
+          "body": "Both are on the card at the top of Quick play, and both act on the song playing now.",
+          "points": [
+            "Add to playlist lists your playlists. Press one and it says Added. Press it again to take the song out.",
+            "Start a station plays more music like the song.",
+            "Another service can be chosen under the question at the top. PRISM looks the song up there first.",
+            "When the service has only near matches, PRISM shows them and you choose, or None of these."
+          ]
+        },
+        {
+          "picture": "music-upnext",
+          "title": "Up next and Song history",
+          "body": "Two lists show what plays next and what has played.",
+          "points": [
+            "Up next lists the songs that play next, each with its cover. Press one to skip to it.",
+            "Song history, on Quick play's first screen, lists the songs PRISM played. Press one to play it again.",
+            "Song history is kept on this PC and never sent anywhere. Clear history empties it."
+          ]
+        },
+        {
+          "picture": "music-scenes",
+          "title": "Scenes",
+          "body": "Scene in Quick play opens every scene, each with its picture. Press one and it goes on the screen.",
+          "points": [
+            "Each scene moves with the music in its own way.",
+            "The one on the screen says On screen now.",
+            "Next visual, the corner button, goes to the next scene without opening the panel.",
+            "PRISM remembers your pick."
           ]
         }
       ]

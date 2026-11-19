@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntime } from "../src/runtime.js";
-import { UNMUTE_PLAYER_JS, mvLayout, mvPipRect } from "../src/orchestrator.js";
+import { Orchestrator, UNMUTE_PLAYER_JS, mvLayout, mvPipRect } from "../src/orchestrator.js";
 import type { Drivers } from "../src/drivers.js";
 import type { DashboardDocument } from "../src/types.js";
 
@@ -59,6 +59,10 @@ async function bigNetflix(rt: ReturnType<typeof createRuntime>) {
   await vi.advanceTimersByTimeAsync(50);
 }
 describe("multiview", () => {
+  // The restart tests below are of the restore itself (the addresses, the tune, the spot, the Play press). Since 2026-11-17 a start holds
+  // all of it for the person's Resume; those tests switch the hold off, and the Resume's own tests (at the end) leave it on.
+  beforeEach(() => { Orchestrator.RESUME_BY_ASK = false; });
+  afterEach(() => { Orchestrator.RESUME_BY_ASK = true; });
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
@@ -945,6 +949,89 @@ describe("multiview", () => {
     report(1, 2, 1);   // the season's first episode, the season before not listed yet: the start
     await vi.advanceTimersByTimeAsync(10);
     expect(JSON.parse(rt.videoStartOver()).did).not.toBe("previous");
+  });
+});
+
+describe("after a start nothing plays by itself: the big window's Resume (2026-11-17)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+  const ADAPTERS = { hulu: { match: ["www.hulu.com"], videoContext: "/*c*/", videoTune: "/*tune*/" }, netflix: { match: ["www.netflix.com"], videoContext: "/*c*/" } };
+  // a wall with a live channel in the big window (Hulu) and a film in a second window (Netflix), then closed
+  async function wallThatWasWatching(): Promise<Map<string, string>> {
+    const kv = new Map<string, string>();
+    const { rt } = await setup(kv, { videoTune: "/*tune*/" });
+    rt.videoMultiview("on");
+    rt.event(JSON.stringify({ type: "navigated", id: "screen", url: "https://www.hulu.com/live/4928" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: true, video: { kind: "live", series: "Funniest Videos", title: "S7 E1", channel: "Funniest Videos", id: "4928", url: "https://www.hulu.com/live/4928", playing: true } } }));
+    rt.videoMultiview("target", "1");
+    rt.videoPlayOn("nf", "title", "81", "https://www.netflix.com/watch/81", "Grace");
+    await vi.advanceTimersByTimeAsync(50);
+    rt.event(JSON.stringify({ type: "navigated", id: "nf", url: "https://www.netflix.com/watch/81" }));
+    rt.event(JSON.stringify({ type: "now-playing", id: "nf", info: { playing: true, video: { kind: "movie", title: "Grace", playing: true } } }));
+    await vi.advanceTimersByTimeAsync(50);
+    return kv;
+  }
+  async function start(kv: Map<string, string>) {
+    const b = rig(kv);
+    const rt = createRuntime(b.drivers);
+    rt.init(kv.get("dashboard")!, 1920, 1080, JSON.stringify({ adapters: ADAPTERS }));
+    await vi.advanceTimersByTimeAsync(50);
+    return { ...b, rt };
+  }
+  const mv = (rt: ReturnType<typeof createRuntime>, action = "state") => JSON.parse(rt.videoMultiview(action)) as { ok?: boolean; on: boolean; windows: Array<{ tile: string }>; resume: { names: string[] } | null; resumed?: string[]; reason?: string };
+
+  it("a start loads each service's home, asks for no title and no tune, keeps the windows, and offers the names", async () => {
+    const b = await start(await wallThatWasWatching());
+    expect(b.ops.filter((o) => o.op === "navigate").map((o) => o.url).sort()).toEqual(["https://www.hulu.com/hub/home", "https://www.netflix.com/browse"]);
+    b.rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    b.rt.event(JSON.stringify({ type: "load-finished", id: "nf", ok: true }));
+    await vi.advanceTimersByTimeAsync(200_000);   // past every grace: no window is closed as empty while the offer stands
+    expect(b.ops.some((o) => o.op === "inject" && String(o.js).includes("__prismVideoTune"))).toBe(false);
+    expect(b.ops.filter((o) => o.op === "navigate").length).toBe(2);
+    const st = mv(b.rt);
+    expect(st.on).toBe(true);
+    expect(st.windows.map((w) => w.tile).sort()).toEqual(["nf", "screen"]);
+    expect(st.resume?.names.slice().sort()).toEqual(["Funniest Videos", "Grace"]);
+  });
+
+  it("Resume brings every window back by the restore's own path: the film's address, the channel's home and its tune, once", async () => {
+    const b = await start(await wallThatWasWatching());
+    b.ops.length = 0;
+    expect(mv(b.rt, "resume")).toMatchObject({ ok: true });
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "nf")?.url).toBe("https://www.netflix.com/watch/81");
+    expect(b.ops.find((o) => o.op === "navigate" && o.id === "screen")?.url).toBe("https://www.hulu.com/hub/home");
+    b.rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    await vi.advanceTimersByTimeAsync(50);
+    expect(b.ops.filter((o) => o.op === "inject" && o.id === "screen" && String(o.js).includes('__prismVideoTune("Funniest Videos")')).length).toBe(1);
+    expect(mv(b.rt).resume).toBeNull();
+    expect(mv(b.rt, "resume")).toMatchObject({ ok: false, reason: "nothing-held" });
+  });
+
+  it("the offer is still there after a second start with nothing pressed", async () => {
+    const kv = await wallThatWasWatching();
+    const one = await start(kv);
+    one.rt.event(JSON.stringify({ type: "load-finished", id: "screen", ok: true }));
+    one.rt.event(JSON.stringify({ type: "now-playing", id: "screen", info: { playing: false } }));   // the home page names nothing
+    await vi.advanceTimersByTimeAsync(120_000);
+    const two = await start(kv);
+    expect(mv(two.rt).resume?.names.slice().sort()).toEqual(["Funniest Videos", "Grace"]);
+  });
+
+  it("a pick of the person's own ends the offer, and Clear screens ends it: the next start offers nothing of the old", async () => {
+    const kv = await wallThatWasWatching();
+    const one = await start(kv);
+    one.rt.videoPlayOn("nf", "title", "90", "https://www.netflix.com/watch/90", "Another Film");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(mv(one.rt).resume).toBeNull();
+    expect(Object.keys(JSON.parse(kv.get("video:up:wall") ?? "{}"))).not.toContain("screen");
+    const kv2 = await wallThatWasWatching();
+    const two = await start(kv2);
+    two.rt.videoMultiview("clearAll");
+    await vi.advanceTimersByTimeAsync(50);
+    expect(mv(two.rt).resume).toBeNull();
+    const three = await start(kv2);
+    expect(mv(three.rt).resume).toBeNull();
   });
 });
 

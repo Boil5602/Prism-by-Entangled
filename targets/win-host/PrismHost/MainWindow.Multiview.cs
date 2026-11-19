@@ -41,6 +41,7 @@ public sealed partial class MainWindow
             _mvBigWhat = r["big"] is JsonObject bg ? (bg["name"]?.GetValue<string>() ?? "") + (bg["title"]?.GetValue<string>() is { Length: > 0 } bt ? " \u00B7 " + Shorten(bt, 22) : "") : "";
             if (r["max"] is JsonValue mv && mv.TryGetValue<int>(out var mx)) _mvMax = mx;
             _mvBig = r["big"] as JsonObject;
+            _mvResume = (r["resume"] as JsonObject)?["names"] as JsonArray;   // what a start held for the person's Resume (2026-11-17)
             SyncWatchStack();   // Watch's corner places follow the windows (MainWindow.WatchScreens)
             SyncMvBars();   // a window opened, closed or swapped: its bar follows the controls at once
             SyncMvGates();   // a small window behind the service's own gate wears its card (2026-10-15)

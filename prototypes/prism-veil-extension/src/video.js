@@ -1369,11 +1369,11 @@
     peep.style.cssText = "position:absolute;left:14px;top:52px;display:none;flex-direction:column;gap:8px;pointer-events:auto;font:500 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#D7DCE3;background:rgba(20,23,28,.92);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 30px rgba(0,0,0,.5)";
     var peepVideo = document.createElement("video");
     peepVideo.setAttribute("data-prism-ui", "1"); peepVideo.muted = true; peepVideo.autoplay = true; peepVideo.playsInline = true;
-    peepVideo.style.cssText = "display:none;width:192px;height:108px;background:#000;border-radius:6px;object-fit:contain";
+    peepVideo.style.cssText = "display:none;width:320px;height:180px;background:#000;border-radius:6px;object-fit:contain";
     var peepHole = document.createElement("div");
     peepHole.setAttribute("data-prism-ui", "1");
-    peepHole.style.cssText = "display:none;width:192px;height:108px;border-radius:6px;background:transparent";
-    var peepNote = document.createElement("div"); peepNote.setAttribute("data-prism-ui", "1"); peepNote.style.cssText = "color:#9AA4B2;font-size:12px;max-width:192px";
+    peepHole.style.cssText = "display:none;width:320px;height:180px;border-radius:6px;background:transparent";
+    var peepNote = document.createElement("div"); peepNote.setAttribute("data-prism-ui", "1"); peepNote.style.cssText = "color:#9AA4B2;font-size:12px;max-width:320px";
     var peepReveal = document.createElement("button"); peepReveal.setAttribute("data-prism-ui", "1"); peepReveal.type = "button";
     peepReveal.style.cssText = "cursor:pointer;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;color:#0A0C0F;background:#F0A83C;border:0;border-radius:9px;padding:7px 14px;align-self:flex-start";
     peepReveal.textContent = "Reveal 15 s"; peepReveal.title = "Shows the video for fifteen seconds, then the veil comes back";
@@ -2545,6 +2545,7 @@
   PV.videoTick = videoTick;
   PV.uncoverVideo = function () {
     pauseAfterPref = false;
+    ambient(false);   // a cover lifted by hand ends the break sound too (2026-11-18); a cover brought back starts it again
     if (!vidVeil) return;
     trace("removed(dismiss) mode=" + vidVeil.mode);
     var d = vidVeil; vidVeil = null;

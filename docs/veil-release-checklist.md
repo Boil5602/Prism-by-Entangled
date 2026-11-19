@@ -253,6 +253,28 @@ Walk PF-6 and PF-7 on this build before a submission: the popup has no PRISM pag
 | ST-3 | **Firefox AMO, listed**: `web-ext sign` cannot list; submit `prism-veil-firefox-0.8.0.zip` through the developer hub as a **listed** submission with source not required (no minification) | human review; keep submissions spaced — AMO throttles frequent uploads for hours | CODE |
 | ST-4 | after approval: install each store build in a fresh profile | version 0.8.0, updates enabled, PV-1..PV-4 hold on the store build | CODE |
 
+## 7a · Chrome updates by script (2026-11-17)
+
+The Chrome Web Store has PRISM by Entangled since 2026-11-16 (version 0.9.0, item `dhdlohmmnplaadhpafnbmamjciapcnfj`). A later
+version goes up with `python scripts/release/publish-chrome.py`: it checks the package, reads what the store has, sends the zip and
+submits it for review. `--dry-run` checks and sends nothing; `--status` reads the store's state; `--upload-only` leaves a draft.
+The owner runs it, or says to; on a weekday it waits for the evening.
+
+The one-time setup, the owner's (the Chrome Web Store API, version 2):
+
+1. Google Cloud Console: a project, then `Chrome Web Store API` enabled in it.
+2. `OAuth consent screen`: External, the app's name and the two email addresses, no scopes, the owner's address as a test user.
+3. `Credentials` > `Create Credentials` > `OAuth client ID`: Web application, with
+   `https://developers.google.com/oauthplayground` as an authorized redirect URI. This gives the client ID and the client secret.
+4. The OAuth Playground: the settings icon > `Use your own OAuth credentials`; the scope
+   `https://www.googleapis.com/auth/chromewebstore`; `Authorize APIs`; `Exchange authorization code for tokens`. This gives the
+   refresh token.
+5. The publisher ID is in the Developer Dashboard under Publisher > Settings.
+6. The four values go in `~/.prism/chrome-webstore.json` (`client_id`, `client_secret`, `refresh_token`, `publisher_id`), outside
+   the repository. The file can publish to the store account: it is kept like the signing keys.
+
+Not run against the store yet (2026-11-17): the dry run passes the package checks and stops where the file is missing.
+
 ## 8 · After release
 
 - **Inbox**: pull reports every day for the first week (`python pull-reports.py`), then weekly. Each report that changes a rule ships with a fixture from that report.

@@ -33,6 +33,8 @@
     this._capW = new Map();
     var w = r.caption.weights;
     for (var k in w) if (Object.prototype.hasOwnProperty.call(w, k)) this._capW.set(k, +w[k]);
+    // the quicker caption inputs (2026-11-15): read only by a model that names them in captionInputs
+    this._capQuick = Array.isArray(r.captionInputs) && r.captionInputs.indexOf('cap_last') >= 0;
     this._on = +r.policy.on; this._off = +r.policy.off; this._hold = r.policy.hold | 0;
     this._offHold = typeof r.policy.offHold === 'number' ? r.policy.offHold : 0;
     this._offDeep = typeof r.policy.offDeep === 'number' ? r.policy.offDeep : 0;
@@ -134,6 +136,20 @@
     }
     x.push(lines);
     x.push(last !== last ? 60 : Math.min(60, t - last));
+    if (this._capQuick) {
+      // bwfeatures.cap_quick, as the host's LearnedBreak.Score: the last line's ad-ness while it is under 12 s old, the mean of the
+      // last 4 s, the highest line of the last 8 s (0.5 where there is none), the lines in the last 8 s
+      var lastScore = 0.5, lastT = -Infinity, sum4 = 0, n4 = 0, max8 = 0, n8 = 0;
+      for (i = 0; i < s.caps.length; i++) {
+        var qt = s.caps[i][0], qs = s.caps[i][1];
+        if (qt > t) continue;
+        if (qt >= lastT) { lastT = qt; lastScore = qs; }
+        if (qt >= t - 4) { sum4 += qs; n4++; }
+        if (qt >= t - 8) { max8 = n8 === 0 ? qs : Math.max(max8, qs); n8++; }
+      }
+      x.push(lastT > -Infinity && t - lastT <= 12 ? lastScore : 0.5);
+      x.push(n4 > 0 ? sum4 / n4 : 0.5); x.push(n8 > 0 ? max8 : 0.5); x.push(n8);
+    }
     var z = this._base;
     for (i = 0; i < this._trees.length; i++) {
       var tr = this._trees[i], node = 0;

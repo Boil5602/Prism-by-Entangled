@@ -28,7 +28,7 @@
   Add-on" -> pick dist/firefox/manifest.json. (Temporary until restart;
   permanent install needs AMO signing - out of scope here.)
 */
-import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync, existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -78,9 +78,11 @@ function deriveManifest(v) {
   const m = JSON.parse(JSON.stringify(base));
   if (v.browser === "firefox") {
     const swFile = (m.background && m.background.service_worker) || "bg.js";
-    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", swFile] };   // and the soundscape, which the background page plays itself there (0.9.2)
+    // ... and the live TV picture's reader with what it needs, which reads snapshots of the tab there (2026-11-18)
+    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", "src/breakwatch/cs.js", "src/breakwatch/break-model.js", "src/breakwatch/learned-break.js",
+      "src/breakwatch/picture-net.js", "src/breakwatch/ad-prints.js", "vendor/tesseract/tesseract.min.js", "src/live-picture.js", "offscreen.js", swFile] };   // and the soundscape, which the background page plays itself there (0.9.2)
       // the rule updates' reader first: a background page has no importScripts (0.9.0)
-    // Firefox has no tab stream (chrome.tabCapture): the YouTube TV picture option is shown disabled there (2026-11-06)
+    // Firefox has no tab stream (chrome.tabCapture) and no offscreen pages
     m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");   // and no offscreen pages
     m.browser_specific_settings = Object.assign({}, m.browser_specific_settings,
       { gecko: { id: GECKO_ID, strict_min_version: MIN_FIREFOX,
@@ -119,7 +121,6 @@ const STORE = {
   drop: ["ntp.html", "ntp.css", "ntp.js"],
   strip: ["bg.js", "popup.js", "popup.html"],
   reword: [   // [file, find, replace, how many times it must be there]
-    ["popup.html", "Which pictures the veils and the start page draw from", "Which pictures the veils draw from", 1],
     ["src/popups-ui.js", "photos, start page, time", "photos, time", 2],
     ["bg.js", "list = Wikipedia RSP (kept for the start page)", "list = Wikipedia RSP", 1],
   ],
@@ -169,12 +170,26 @@ if (existsSync(DIST)) {
   // only what this run builds again: `node build-firefox.mjs firefox` leaves the Chromium folder and zip as they are (2026-11-14,
   // a package already uploaded to a store must stay byte for byte while the other one is built again)
   const mine = (f) => wanted.some((v) => f === v.name || f === "prism-veil-" + v.name + "-" + base.version + ".zip");   // never another version's zip
-  for (const f of readdirSync(DIST)) { if (!/\.xpi$/i.test(f) && mine(f)) rmSync(join(DIST, f), { recursive: true, force: true }); }
+  // a built folder is never removed: a browser that runs it unpacked drops the extension when its folder or manifest is gone for a
+  // moment (2026-11-18, Edge lost the unpacked build during a rebuild). The folder is brought up to date in place, below.
+  for (const f of readdirSync(DIST)) { if (!/\.xpi$/i.test(f) && mine(f) && /\.zip$/i.test(f)) rmSync(join(DIST, f), { recursive: true, force: true }); }
+}
+// Make `to` hold exactly what `from` holds: files written over, then what `from` does not have removed. The manifest is written last.
+function syncDir(from, to) {
+  mkdirSync(to, { recursive: true });
+  const have = new Set(readdirSync(from));
+  for (const f of readdirSync(to)) { if (!have.has(f)) rmSync(join(to, f), { recursive: true, force: true }); }
+  for (const f of [...have].sort((a, b) => (a === "manifest.json") - (b === "manifest.json"))) {
+    const a = join(from, f), b = join(to, f);
+    if (statSync(a).isDirectory()) { if (existsSync(b) && !statSync(b).isDirectory()) rmSync(b, { force: true }); syncDir(a, b); }
+    else { if (existsSync(b) && statSync(b).isDirectory()) rmSync(b, { recursive: true, force: true }); cpSync(a, b); }
+  }
 }
 mkdirSync(DIST, { recursive: true });
 
 for (const v of wanted) {
-  const out = join(DIST, v.name);
+  const live = join(DIST, v.name), out = join(DIST, ".stage-" + v.name);
+  rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });
   const manifest = deriveManifest(v);
   let copied = 0;
@@ -184,8 +199,8 @@ for (const v of wanted) {
     cpSync(from, join(out, rel), { recursive: true });
     copied++;
   }
-  // Firefox has no tab stream, so the live TV picture's offscreen page and the break watch's model (1.6 MB) never run there (2026-11-06)
-  if (v.browser === "firefox") for (const rel of ["offscreen.html", "offscreen.js", "src/breakwatch", "src/live-picture.js", "vendor"]) rmSync(join(out, rel), { force: true, recursive: true });
+  // Firefox has no offscreen pages: the reader (offscreen.js) is a background script there (2026-11-18)
+  if (v.browser === "firefox") rmSync(join(out, "offscreen.html"), { force: true });
   storeBuild(out);   // both packages
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";
@@ -195,5 +210,7 @@ for (const v of wanted) {
       `Compress-Archive -Path '${join(out, "*")}' -DestinationPath '${zipPath}' -Force`], { stdio: "inherit" });
     zipped = r.status === 0 ? ` + ${zipPath}` : " (zip failed)";
   }
+  syncDir(out, live);
+  rmSync(out, { recursive: true, force: true });
   log(`v${manifest.version} ${v.name}: ${copied} items, bg=${JSON.stringify(manifest.background)}${zipped}`);
 }

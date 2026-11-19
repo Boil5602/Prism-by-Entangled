@@ -29,7 +29,8 @@ import { orderLookup } from "./video-lookup.js";
 import type { VideoChannel, VideoItem } from "./types.js";
 import { SCORE_SOURCE, appsCarrying, gamesOfLastDay, namesGame, scoreLine, sportOf } from "./scores.js";
 import { normalizeTrackText } from "./music-lookup.js";
-import { MV_MAX, Orchestrator, type DashboardBundle, type LayoutRequest, type TilePatch } from "./orchestrator.js";
+import { MusicPanelNav, jumpBackIn, libraryMatches, libraryRows, orderServices, pictureOf, playChoices, serviceBadge, serviceStatus, type PanelSource } from "./music-panel.js";
+import { MV_MAX, UP_NEXT_ROWS, Orchestrator, type DashboardBundle, type LayoutRequest, type TilePatch } from "./orchestrator.js";
 import { customTile, pickerTile, validCatalogEntry, type PickerChoices } from "./catalog.js";
 import { htmlIcons, manifestIcons, manifestUrl, markIcons, wordmark } from "./poster.js";
 import { RemoteApi, type RemoteRequest } from "./remote.js";
@@ -250,6 +251,8 @@ export interface PrismRuntimeApi {
   videoProfile(tileId: string, id: string, always: boolean): void;
   /** A human's pick of the service's own subtitle / audio track from the stage bar (adapter videoTracks). */
   videoTrack(tileId: string, kind: string, id: string): void;
+  /** A human's pick of the service's own picture quality from the stage bar (adapter videoQuality, 2026-11-15). */
+  videoQuality(tileId: string, id: string): void;
   /** The slider: the service's own seek to that many seconds into the title; "ok" | "unavailable" | "ad" | "unknown-tile". */
   videoSeek(tileId: string, seconds: number): string;
   /** Sync JSON {ok, name}: the profile a service's App watches as, chosen plainly from the menu - stands until changed; applied to the gate wherever it shows (2026-09-19). */
@@ -354,6 +357,12 @@ export interface PrismRuntimeApi {
   adBreakHold(tileId: string, remainingSec: number): string;
   /** Sync JSON {title, start, end} | null: the program a channel window is on, as its guide lists it (the break watch's program edges, 2026-10-06). */
   videoProgramEdges(tileId: string): string;
+  /** Sync JSON {ok, why, channel, backSec, tooMany}: may this window's live channel be watched behind live (look-ahead.ts, 2026-11-17). */
+  videoLookAhead(tileId: string): string;
+  /** The look-ahead's live page opened on the channel this window plays, or ("" / null) closed. Sync JSON {ok, asked}; videoScoutState says how it went. */
+  videoScout(tileId: string | null): string;
+  /** Sync JSON {id, of, url, up} | null: the look-ahead's live page. */
+  videoScoutState(): string;
   /** Sync JSON {now, rowsCache, menuReady, lists:{app: ms}}: startup milestones in ms since this runtime began, null until reached. */
   bootTimings(): string;
   /** Sync JSON EpisodesView: a series' episodes on a service, for its Details page (poll until ready); itemId/season/episode = what Continue watching knows. */
@@ -593,8 +602,33 @@ export interface PrismRuntimeApi {
   /** Up next (2026-11-04): the service's own queue from its position; poll the state while working. */
   musicUpNext(tileId: string): void;
   musicUpNextState(tileId: string): string;
+  /** The music panel's Up next: JSON {tile, name, order, repeat, collection, canOwn, canRepeat, view, remove} (sync). */
+  musicPanelUpNext(tileId: string): string;
+  /** Remove one track that is still to play from the service's own queue; the answer lands in musicQueueRemoveState. */
+  musicQueueRemove(tileId: string, index: number, id: string): void;
+  /** Go to one track that is still to play in the service's own queue; the answer lands in musicQueueRemoveState too. */
+  musicQueueSkip(tileId: string, index: number, id: string): void;
+  /** JSON {status: "idle"|"working"|"ok"|"error", error?} (sync). */
+  musicQueueRemoveState(tileId: string): string;
+  /** Song history: JSON [{tile, service, title, artist?, album?, artwork?, id?, at, signedOut, gone}] newest first (sync; the first call reads the store, so ask twice). */
+  musicHistory(): string;
+  /** Empties the song history. */
+  musicHistoryClear(): void;
+  /** Plays a history entry again on its own service, by its time; "ok" | "signed-out" | "unknown". */
+  musicHistoryPlay(at: number): string;
+  /** Lyrics (2026-11-15): the service's own lyrics opened or closed on its page (adapter musicLyrics); the state says whether the service has the route. */
+  musicLyrics(tileId: string, on: boolean): void;
+  musicLyricsState(tileId: string): string;
   /** B-124 recovery: destroy and recreate the App's wall surfaces (by profile) after App setup closes - a stranded engine starts over. */
   recycleApp(profile: string): void;
+  /** The music panel (2026-11-16, music-panel.ts): where the panel is. op = open | go | back | close | state; go takes a screen and its argument. Returns JSON {open, screen, arg, canBack, depth}. */
+  musicPanelNav(op: string, screen?: string | null, arg?: string | null): string;
+  /** The music panel's Home: JSON {recents: PanelRow[], services: [{tile, name, status, badge, signedOut}]}; with words, {matches: PanelRow[]} too. Only what core already holds. */
+  musicPanelHome(q?: string | null): string;
+  /** One service's library for the panel: JSON {tile, name, signedOut, playlists, stations} (each row {id, name, kind, sub, edit}); the tabs' counts are the lists' lengths. */
+  musicPanelLibrary(tileId: string): string;
+  /** The music panel: one playlist's play choices as JSON {tile, service, id, kind, name, artwork, resume, orders, picked} (sync); "null" when the service does not list it. */
+  musicPanelPlay(tileId: string, id: string): string;
   /** Multi-service lounge: the scene's hidden music sources as JSON [{tile, app, name, session, active}] (sync) - the quick-play menu groups by these. */
   musicSources(): string;
   /** §26 ambient audio: the soundscape for every music source's breaks (a recording id from docs/soundscape-credits.md; the older synthesized ids still map), or null for silence. */
@@ -892,6 +926,20 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     return { tile: s.tile, app: appId, name: app?.name ?? appId ?? s.tile, session: orchestrator.sessionOf(s.tile) ?? null, active: s.stages.length > 0, stages: s.stages };
   });
   remote.musicQuick = () => musicSourcesNow();
+  // the music panel (2026-11-16): its place, and its sources as core holds them now (the lists read before, never asked for here)
+  const panelNav = new MusicPanelNav();
+  // song history (2026-11-16): each music service's now-playing is looked at every five seconds; a song is kept after 30 seconds of play
+  const queueRemoves = new Map<string, { status: string; error?: string }>();
+  setInterval(() => { try { void orchestrator.noteSongHistory(musicSourcesNow().map((s) => ({ tile: s.tile, name: s.name }))).catch(report); } catch (e) { report(e); } }, 5_000);
+  const panelSources = (): PanelSource[] => {
+    const tiles = orchestrator.getState()?.tiles ?? [];
+    const playing = new Set(tiles.filter((t) => t.playing).map((t) => t.id));
+    return musicSourcesNow().map((s) => {
+      const lib = orchestrator.musicLibraryNow(s.tile);
+      return { tile: s.tile, name: s.name, session: s.session, playing: playing.has(s.tile), active: s.active, now: tiles.find((t) => t.id === s.tile)?.nowPlaying ?? null, recents: orchestrator.recentMusicNow(s.tile), playlists: lib.playlists, stations: lib.stations };
+    });
+  };
+
   remote.players = () => players();
   // a pick from the phone cuts the sound at once (2026-10-04): every other music source that plays is
   // paused before the new collection is asked for, so the room does not hear the old one under the new one's loading
@@ -1332,6 +1380,7 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
   const mvPruneEmpty = (): string[] => {
     const st = orchestrator.videoMultiviewState();
     if (!st.on || st.collapsed) { mvEmptySince.clear(); return []; }
+    if (orchestrator.videoResumeOffer()) { mvEmptySince.clear(); return []; }   // held for Resume after a start: the windows wait, none is closed as empty
     const vs = orchestrator.videoState();
     const now = Date.now();
     const gone: string[] = [];
@@ -1561,7 +1610,14 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
         if (hero && !hero.slot && st.slot && keepUrl) orchestrator.videoPlayWhenUp(st.slot, { kind: "title", id: keepUrl, url: keepUrl });
         return { ok: true, on: false, sceneId: scene.id, ...mvState() };
       }
+    } else if (action === "resume") {
+      // Resume (2026-11-17): what a start held goes back up, every window at once
+      const offer = orchestrator.videoResumeOffer();
+      if (!offer) return { ok: false, reason: "nothing-held", ...mvState() };
+      orchestrator.videoResume().catch(report);
+      return { ok: true, resumed: offer.names, ...mvState() };
     } else if (action === "clearAll") {
+      orchestrator.videoResumeEnd();
       // Clear screens (2026-09-24):
       // every small window closes, the big screen is paused and its title forgotten (not brought back at the next start)
       let sceneId: string | undefined;
@@ -1646,7 +1702,8 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     const opened = !bt?.video && !loading ? bt?.opened ?? null : null;
     const bigTitle = bt?.video ? [bt.video.series, bt.video.title].filter(Boolean).join(" \u00B7 ") : loading ? bt!.pending!.name : opened ? opened.name : null;
     const big = scr ? { tile: scr.slot, app: scr.app, name: sv.services.find((x) => x.app === scr.app)?.name ?? scr.app, title: bigTitle, loading, playing: !!bt?.playing, starting: !!scr && orchestrator.videoStartingOpen(scr.slot), has: !!bt?.video || loading || !!opened, opened: !!opened } : null;   // playing: the host's corner holds a loading title out until it plays (2026-10-06)
-    return { on: st.on && !st.collapsed, target: mvTarget, max: MV_MAX, windows: st.collapsed ? wins.slice(0, 1) : wins, big };
+    // resume: what a start held for the person's Resume (names, the big window's first), or null
+    return { on: st.on && !st.collapsed, target: mvTarget, max: MV_MAX, windows: st.collapsed ? wins.slice(0, 1) : wins, big, resume: orchestrator.videoResumeOffer() };
   };
   const videoSwitch = (facetId: string): Record<string, unknown> => {
     const mv = mvPlace(facetId);   // multiview: the service gets a window (or its window comes forward); the screen slot is never re-pointed under it
@@ -3560,6 +3617,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       const k = kind === "audio" ? "audio" : "subtitles";
       orchestrator.videoTrack(tileId, k, String(id ?? "")).then((r) => { if (r !== "ok") report(new Error("videoTrack " + tileId + ": " + r)); }, report);
     },
+    videoQuality(tileId, id) {
+      orchestrator.videoQuality(String(tileId), String(id ?? "")).then((r) => { if (r !== "ok") report(new Error("videoQuality " + tileId + ": " + r)); }, report);
+    },
     videoProfileChoose(appId, profileId) {
       try {
         const s = videoServices().services.find((x) => x.app === appId);
@@ -4074,6 +4134,9 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
       } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
     },
     videoProgramEdges(tileId) { try { return json(orchestrator.videoProgramEdges(String(tileId))); } catch (e) { report(e); return "null"; } },
+    videoLookAhead(tileId) { try { return json(orchestrator.videoLookAhead(String(tileId))); } catch (e) { report(e); return json({ ok: false, why: "no-service", channel: "", backSec: 0, tooMany: null }); } },
+    videoScout(tileId) { try { void orchestrator.videoScout(tileId === null || tileId === undefined || String(tileId) === "" ? null : String(tileId)).then((r) => { if (!r.ok) report(new Error("look-ahead: " + (r.error ?? "the live page did not open"))); }).catch(report); return json({ ok: true, asked: true }); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
+    videoScoutState() { try { return json(orchestrator.videoScoutState()); } catch (e) { report(e); return "null"; } },
     adBreakHold(tileId, remainingSec) { try { return json(orchestrator.adBreakHold(String(tileId), Number(remainingSec))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); } },
     videoPictureFrozen(tileId, seconds) {
       try { return json(orchestrator.videoPictureFrozen(String(tileId), Number(seconds))); } catch (e) { report(e); return json({ ok: false, error: String(e) }); }
@@ -4338,6 +4401,40 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     setIntermissionAmbient(sound) {
       orchestrator.setIntermissionAmbient(sound && sound !== "off" ? sound : null).catch(report);
     },
+    musicPanelNav(op, screen, arg) {
+      const o = String(op);
+      return json(o === "open" ? panelNav.open() : o === "go" ? panelNav.go(String(screen ?? ""), arg ? String(arg) : null) : o === "back" ? panelNav.back() : o === "close" ? panelNav.close() : panelNav.state());
+    },
+    musicPanelHome(q) {
+      try {
+        const sources = panelSources();
+        const words = typeof q === "string" ? q.trim() : "";
+        for (const s of sources) void orchestrator.fillRecentCovers(s.tile).catch(report);   // a recent with no cover: its service's page asks for it, and a later ask of Home carries it
+        return json({
+          recents: jumpBackIn(sources, 6),
+          services: orderServices(sources).map((s) => ({ tile: s.tile, name: s.name, status: serviceStatus(s), badge: serviceBadge(s), signedOut: s.session === "signed-out" })),
+          ...(words ? { matches: libraryMatches(words, sources) } : {}),
+        });
+      } catch (e) { report(e); return json({ recents: [], services: [] }); }
+    },
+    musicPanelLibrary(tileId) {
+      try {
+        const tile = String(tileId);
+        const s = panelSources().find((x) => x.tile === tile);
+        if (!s) return "null";
+        const order = orchestrator.musicOrderOf(tile);
+        return json({ tile, name: s.name, signedOut: s.session === "signed-out", playlists: libraryRows(s.playlists, order), stations: libraryRows(s.stations, order) });
+      } catch (e) { report(e); return "null"; }
+    },
+    musicPanelPlay(tileId, id) {
+      try {
+        const tile = String(tileId);
+        const s = panelSources().find((x) => x.tile === tile);
+        const item = s?.playlists.find((x) => x.id === String(id));
+        if (!s || !item) return "null";
+        return json({ tile, service: s.name, id: item.id, kind: item.kind, name: item.name, artwork: pictureOf(item.artwork), ...playChoices(item, orchestrator.musicPlaceOf(tile, item.kind, item.id), orchestrator.musicOrderSupport(tile).own, (() => { const h = orchestrator.musicHeldPlace(tile); return h && h.kind === item.kind ? h : null; })()) });
+      } catch (e) { report(e); return "null"; }
+    },
     musicSources() {
       return json(musicSourcesNow());
     },
@@ -4407,6 +4504,58 @@ export function createRuntime(drivers: Drivers = createBridgeDrivers()): PrismRu
     },
     musicUpNextState(tileId) {
       return json(orchestrator.musicUpNextState(tileId));
+    },
+    musicPanelUpNext(tileId) {
+      try {
+        const tile = String(tileId);
+        const s = musicSourcesNow().find((x) => x.tile === tile);
+        if (!s) return "null";
+        const o = orchestrator.musicOrderOf(tile);
+        const sup = orchestrator.musicOrderSupport(tile);
+        const q = orchestrator.musicQueueSupport(tile);
+        const collection = o ? { kind: o.kind, id: o.id, name: o.name } : q.held && /^(playlist|album)$/.test(q.held.kind) ? { kind: q.held.kind, id: q.held.id, name: q.held.label ?? "" } : null;
+        const order = o?.order === "true-shuffle" || o?.order === "reverse" ? o.order : "normal";
+        return json({ tile, name: s.name, order, repeat: orchestrator.musicRepeatOf(tile), collection, canOwn: sup.own === true ? null : sup.own, canRepeat: sup.repeat === true || order !== "normal" ? null : sup.repeat, view: q.view, remove: q.remove, skip: q.skip, rows: UP_NEXT_ROWS });
+      } catch (e) { report(e); return "null"; }
+    },
+    musicQueueRemove(tileId, index, id) {
+      const tile = String(tileId);
+      queueRemoves.set(tile, { status: "working" });
+      orchestrator.musicQueueRemove(tile, Number(index), String(id)).then((r) => queueRemoves.set(tile, r.ok ? { status: "ok" } : { status: "error", error: r.error ?? "" }), (e) => { report(e); queueRemoves.set(tile, { status: "error", error: "" }); });
+    },
+    musicQueueSkip(tileId, index, id) {
+      const tile = String(tileId);
+      queueRemoves.set(tile, { status: "working" });
+      orchestrator.musicQueueSkip(tile, Number(index), String(id)).then((r) => queueRemoves.set(tile, r.ok ? { status: "ok" } : { status: "error", error: r.error ?? "" }), (e) => { report(e); queueRemoves.set(tile, { status: "error", error: "" }); });
+    },
+    musicQueueRemoveState(tileId) {
+      return json(queueRemoves.get(String(tileId)) ?? { status: "idle" });
+    },
+    musicHistory() {
+      try {
+        void orchestrator.songHistoryList().catch(report);
+        const out = new Map(musicSourcesNow().map((x) => [x.tile, x.session === "signed-out"]));
+        return json(orchestrator.songHistoryNow().map((e) => ({ ...e, signedOut: out.get(e.tile) === true, gone: !out.has(e.tile) })));
+      } catch (e) { report(e); return "[]"; }
+    },
+    musicHistoryClear() {
+      orchestrator.clearSongHistory().catch(report);
+    },
+    musicHistoryPlay(at) {
+      try {
+        const e = orchestrator.songHistoryNow().find((x) => x.at === Number(at));
+        const s = e ? musicSourcesNow().find((x) => x.tile === e.tile) : undefined;
+        if (!e || !s) return "unknown";
+        if (s.session === "signed-out") return "signed-out";
+        orchestrator.musicSearchPlay(e.tile, { id: e.id ?? "", title: e.title, ...(e.artist ? { artist: e.artist } : {}) }).then((r) => { if (r !== "ok") report(new Error("musicHistoryPlay " + e.tile + ": " + r)); else followMusic(e.tile); }, report);
+        return "ok";
+      } catch (e) { report(e); return "unknown"; }
+    },
+    musicLyrics(tileId, on) {
+      orchestrator.musicLyrics(String(tileId), on === true || (on as unknown) === "true").catch(report);
+    },
+    musicLyricsState(tileId) {
+      return json(orchestrator.musicLyricsState(String(tileId)));
     },
     musicStationFromSong(tileId, songId) {
       orchestrator.musicStationFromSong(tileId, songId).then((r) => { if (r === "unknown" || r === "unknown-tile") report(new Error("musicStationFromSong " + tileId + ": " + r)); else if (r === "ok") followMusic(tileId); }, report);

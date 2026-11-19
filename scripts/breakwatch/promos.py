@@ -74,6 +74,19 @@ def cut(ads, promos):
     return out
 
 
+def between(day_dir, win, ads):
+    """PROMOBETWEEN=<seconds> (2026-11-17, the rule agreed 2026-11-09): a promo of under that length with an advertisement on both sides
+    of it, inside one marked break, scores as neither ad nor show. A cover that stays up across it is what a person wants. Returns those
+    spans for the scorer's neutral time, [] when the variable is not set."""
+    n = float(os.environ.get("PROMOBETWEEN") or 0)
+    if n <= 0: return []
+    out = []
+    for pa, pb in load(day_dir).get(win, []):
+        x, y = _sec(pa), _sec(pb)
+        if y - x < n and any(_sec(a) < x and y < _sec(b) for a, b in ads): out.append([pa, pb])
+    return out
+
+
 def ads_for(day_dir, win, ads):
     return cut(ads, load(day_dir).get(win, []))
 

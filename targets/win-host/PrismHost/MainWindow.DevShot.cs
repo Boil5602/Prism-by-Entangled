@@ -201,6 +201,14 @@ public sealed partial class MainWindow
             if (text == "tutorial") { ShowTutorial(); return; }   // How PRISM works (2026-10-10)
             if (text == "tmdb guide close") { CloseTmdbGuide(); return; }
             if (text.StartsWith("tmdb guide", StringComparison.Ordinal)) { _ = ShowTmdbGuideAsync(int.TryParse(text.Substring(10).Trim(), out var gs) ? gs : 0); return; }   // "tmdb guide [0-4]": the TMDB guide, opened at a step (2026-10-10)
+            if (text == "service page close") { CloseServicePage(); return; }
+            if (text is "lookahead on" or "lookahead off") { SetLookAhead(text == "lookahead on"); return; }   // the look-ahead's switch (Watch settings), for a test without the mouse
+            if (text is "breakwatch all" or "breakwatch sure" or "breakwatch off") { SetBreakWatchMode(text.Substring(11), " (a dev command)"); return; }   // the overall cover choice, as the Watch settings set it
+            if (text.StartsWith("musicpanel type", StringComparison.Ordinal)) { if (_mpBox is { } mb) mb.Text = text.Substring(15).Trim(); return; }   // "musicpanel type <words>": the open panel's search or filter box, filled without keys
+            if (text.StartsWith("musicpanel go ", StringComparison.Ordinal)) { var mp = text.Substring(14).Trim().Split(' ', 2); _ = _mpGo?.Invoke(mp[0] == "back" ? "back" : "go", mp[0], mp.Length > 1 ? mp[1] : null); return; }   // "musicpanel go <screen> [arg]" or "musicpanel go back", on the open panel
+            if (text == "lyrics off") { SetLyrics(null); return; }
+            if (text.StartsWith("lyrics ", StringComparison.Ordinal)) { SetLyrics(text.Substring(7).Trim()); return; }
+            if (text.StartsWith("service page ", StringComparison.Ordinal)) { OpenServicePage(text.Substring(13).Trim()); return; }   // "service page <tile>": the service's own page in its window (2026-11-15)
             if (text.StartsWith("covers ", StringComparison.Ordinal)) { var cp = text.Substring(7).Split('='); if (cp.Length == 2) SetChannelMode(cp[0].Trim(), cp[1].Trim() == "off" ? ChannelCovers.Off : cp[1].Trim() == "sure" ? ChannelCovers.Sure : ChannelCovers.On); return; }   // "covers <channel>=on|sure|off": a channel's ad covers, as its menu in Live sets them (2026-10-10)
             if (text.StartsWith("live menu ", StringComparison.Ordinal)) { var lp = text.Substring(10).Split(','); if (lp.Length == 2 && double.TryParse(lp[0], out var lx) && double.TryParse(lp[1], out var ly)) DevLiveMenuAt(new Windows.Foundation.Point(lx, ly)); return; }   // the first channel's menu, at a point (2026-09-29)
             if (text.StartsWith("mv remove ", StringComparison.Ordinal)) { _ = MvRemoveWindowAsync(text.Substring(10).Trim()); return; }   // a multiview window closed, the host's own way (2026-09-29)
@@ -368,6 +376,13 @@ public sealed partial class MainWindow
                     var t = child.TransformToVisual(RootGrid).TransformPoint(new Windows.Foundation.Point(0, 0));
                     files.Add(p + "|" + (int)t.X + "," + (int)t.Y + "," + (int)child.ActualWidth + "," + (int)child.ActualHeight);
                 }
+            }
+            // the music panel's flyout is not always among the open popups (2026-11-17: open, taking presses, and not listed): its own content then
+            LogLine("dev shot: " + i + " popup(s) open, " + (files.Count - (root is null ? 0 : 1)) + " drawn" + ((_vizFlyout as Flyout)?.Content is FrameworkElement pb0 ? ", panel body " + (int)pb0.ActualWidth + "x" + (int)pb0.ActualHeight + (pb0.XamlRoot is null ? " (no root)" : "") : ""));
+            if (files.Count <= (root is null ? 0 : 1) && _vizFlyout is Flyout { IsOpen: true, Content: FrameworkElement panelBody } && panelBody.ActualWidth > 0)
+            {
+                var pp = await RenderPngAsync(panelBody, Path.Combine(dir, "shot-" + stamp + "-popup1.png"));
+                if (pp is not null) files.Add(pp + "|0,0," + (int)panelBody.ActualWidth + "," + (int)panelBody.ActualHeight);
             }
             var scale = RootGrid.XamlRoot?.RasterizationScale ?? 1.0;
             File.WriteAllText(Path.Combine(dir, "shot.done"), "scale=" + scale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n" + string.Join("\n", files) + "\n"

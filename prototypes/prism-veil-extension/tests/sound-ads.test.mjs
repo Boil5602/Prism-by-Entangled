@@ -88,6 +88,19 @@ describe("the tab's sound under a sound ad", () => {
     expect(sent).toEqual([true, false]); expect(PV.soundAdOn()).toBe(false);
   });
 
+  it("the note goes when the ad is over, and its keeper does not put it back", () => {
+    load("www.pandora.com");
+    const kept = new Set();
+    PV.keepOnTop = (el) => { el.setAttribute("data-prism-ui", "1"); kept.add(el); };
+    PV.releaseOnTop = (el) => { kept.delete(el); };
+    const keeper = () => kept.forEach((el) => { if (!el.isConnected) document.documentElement.appendChild(el); });   // dom.js, on each change of the page
+    const notes = () => [...document.documentElement.children].filter((e) => e.tagName === "DIV" && e.hasAttribute("data-prism-ui")).length;
+    adOn(); PV.__soundAdTick(); keeper(); expect(notes()).toBe(1);
+    adOff(); PV.__soundAdTick(); keeper(); expect(notes()).toBe(0);
+    adOn(); PV.__soundAdTick(); keeper(); expect(notes()).toBe(1);
+    adOff(); PV.__soundAdTick(); keeper();
+  });
+
   it("a video veil that is still up keeps the mute when the sound ad ends", () => {
     load("www.pandora.com");
     adOn(); PV.__soundAdTick(); veil = {};

@@ -359,6 +359,80 @@ function liveTitle(id, on) {
 // Development hooks (2026-11-07, before a store release): the self-reload from a localhost page, the version stamp and the live TV
 // state attributes on <html> exist for an unpacked (development) install alone. The install type is asked once and kept in storage
 // (pv:dev) for the content scripts, which cannot ask themselves.
+// Where the settings window goes: the top centre of the browser window it was asked from.
+function settingsPlace(bw, w) {
+  // A screen above or left of the main one has places below zero (2026-11-18: the window opened on the screen under the browser's,
+  // because a place below zero was moved up to zero). The place is the browser window's own, wherever that is.
+  return { left: Math.round((bw.left || 0) + ((bw.width || w) - w) / 2), top: Math.round((bw.top || 0) + 70) };
+}
+// The settings in a window of their own, at the top centre of the browser window they were asked from (2026-11-18, asked for: the
+// toolbar's popup is placed, sized and closed by the browser, and people had to fight it). The toolbar icon and the button's Settings
+// both open it. One such window: a second press brings it forward for the new tab. The page is told which tab it is for, since the
+// window's own tab is the page itself. Where no window can be made the settings open in a tab.
+// The settings page can be put in a frame by a web page too (it has to be, to be drawn over one), so a page could draw it unseen
+// under its own buttons and have the person press PRISM's switches. The settings in a frame therefore stay hidden and dead until
+// this side says the frame is one it asked for: a random pass, made here for one tab, good once and for ten seconds (2026-11-18).
+var settingsPasses = {};
+function settingsPass(tabId) {
+  var a = new Uint8Array(16); crypto.getRandomValues(a);
+  var p = Array.prototype.map.call(a, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+  for (var k in settingsPasses) { if (Date.now() - settingsPasses[k].at > 10000) delete settingsPasses[k]; }
+  settingsPasses[p] = { tab: tabId, at: Date.now() };
+  return p;
+}
+function settingsPassGood(p, sender) {
+  var r = p && Object.prototype.hasOwnProperty.call(settingsPasses, p) ? settingsPasses[p] : null;
+  if (!r) return false;
+  delete settingsPasses[p];
+  return Date.now() - r.at <= 10000 && !!(sender && sender.tab && sender.tab.id === r.tab) && sender.id === chrome.runtime.id;
+}
+function openSettings(tab, done) {
+  // The panel is drawn over the web page itself (src/popups-ui.js), so it is no window that can get behind another (2026-11-18).
+  // A page PRISM does not run on (the browser's own pages, the store, a PDF) cannot draw it: there the window below opens.
+  var asked = false, viaWindow = function () { if (asked) return; asked = true; openSettingsWindow(tab, done); };
+  try {
+    if (!tab || tab.id == null) { viaWindow(); return; }
+    var late = setTimeout(viaWindow, 700);
+    chrome.tabs.sendMessage(tab.id, { type: "prism-settings-open", tab: tab.id, pass: settingsPass(tab.id) }, { frameId: 0 }, function (r) {
+      var bad = !!chrome.runtime.lastError;
+      if (asked) return;
+      clearTimeout(late);
+      if (bad || !(r && r.ok)) { viaWindow(); return; }
+      asked = true; done && done(true);
+    });
+  } catch (e) { viaWindow(); }
+}
+function openSettingsWindow(tab, done) {
+  var base = chrome.runtime.getURL("popup.html"), tid = tab ? tab.id : null;
+  var url = base + "?window=1" + (tid != null ? "&tab=" + tid : ""), W = 1116, H = 660;
+  var inTab = function () { try { chrome.tabs.create({ url: url }, function () { var bad = !!chrome.runtime.lastError; done && done(!bad); }); } catch (e) { done && done(false); } };
+  try {
+    chrome.windows.getAll({ populate: true, windowTypes: ["popup"] }, function (ws) {
+      void chrome.runtime.lastError;
+      var have = null;
+      (ws || []).forEach(function (w) { (w.tabs || []).forEach(function (t) { if (!have && (t.url || t.pendingUrl || "").indexOf(base) === 0) have = { win: w.id, tab: t.id }; }); });
+      if (have) {
+        try { chrome.tabs.update(have.tab, { url: url }, function () { void chrome.runtime.lastError; }); chrome.windows.get(tab.windowId, function (bw) { var u = { focused: true }; if (!chrome.runtime.lastError && bw && bw.width != null) { var pl = settingsPlace(bw, W); u.left = pl.left; u.top = pl.top; } chrome.windows.update(have.win, u, function () { void chrome.runtime.lastError; done && done(true); }); }); } catch (e1) { inTab(); }
+        return;
+      }
+      var make = function (pos) {
+        var o = { url: url, type: "popup", width: W, height: H, focused: true };
+        if (pos) { o.left = pos.left; o.top = pos.top; }
+        chrome.windows.create(o, function (w) { if (chrome.runtime.lastError || !w) { inTab(); return; } done && done(true); });
+      };
+      try {
+        chrome.windows.get(tab.windowId, function (bw) {
+          if (chrome.runtime.lastError || !bw || bw.width == null) { make(null); return; }
+          make(settingsPlace(bw, W));
+        });
+      } catch (e2) { make(null); }
+    });
+  } catch (e0) { inTab(); }
+}
+// A press on the icon while the settings are open closes them: the window closes itself as it loses the focus to that press, and the
+// press that follows within a moment does not open it again.
+var settingsBlurAt = 0;
+try { chrome.action.onClicked.addListener(function (tab) { if (Date.now() - settingsBlurAt < 800) { settingsBlurAt = 0; return; } openSettings(tab, null); }); } catch (eA) {}
 var DEV = false;
 try {
   chrome.management.getSelf(function (info) {
@@ -371,7 +445,7 @@ try {
 // fetches pack.json and pack.sig once a day from prism.entangled.world (a host its manifest already names; no cookie, no query string,
 // nothing about the person), verifies the signature with the pack key (its own key, never the update key) and keeps the parts it reads
 // - the extension's model (veil) and the picture network - in storage when the pack is newer than the bundled one. The offscreen page
-// reads them at a channel's start, never mid-break. Firefox has no offscreen page: the parts are fetched and kept but never run.
+// reads them at a channel's start, never mid-break. In Firefox the same reader runs on the background page (2026-11-18).
 var PACK_HOST = "https://prism.entangled.world/breakwatch/";
 var PACK_PUBKEY = {"kty":"EC","x":"LrWgoxu5PyGer3kYoG6IbqfUUy9enje0FZFh5JaBaFA","y":"1OHpA5kQ0lZfWNgrtEeo1s-6rOGjSy-kqiSiEcf9T5Y","crv":"P-256"};
 var PACK_ALARM = "pv-pack";
@@ -441,6 +515,7 @@ function packCheck(cb) {
 var RULES_HOST = "https://prism.entangled.world/veil/rules/";
 var RULES_SPARE_PUBKEY = {"kty":"EC","x":"3uiKUa0BkEC6fVOfryxiVtByp18YQ0qPQltKEDuEEDk","y":"UtNrvMWc6fU9GHw1zpRCFpgkoGdLE_0gQ-Mtck-OrVg","crv":"P-256"};
 var RULES_KEYS = [PACK_PUBKEY, RULES_SPARE_PUBKEY];
+var UPDATES_RETRY_MS = 15 * 60 * 1000;
 var UPDATES_EVERY_MS = 23 * 3600 * 1000;   // a check that was not asked for by a press waits this long after the last one
 var rulesInflight = null;
 function rulesCheck(cb) {
@@ -469,11 +544,14 @@ function rulesCheck(cb) {
 // often the background starts.
 function updatesCheck(force, cb) {
   cb = cb || function () {};
-  chrome.storage.local.get(["pv:rules:last"], function (r) {
-    var last = r && r["pv:rules:last"];
-    if (!force && last && Date.now() - (last.at || 0) < UPDATES_EVERY_MS) { cb({ ok: true, waited: true }); return; }
+  chrome.storage.local.get(["pv:rules:last", "pv:pack:last"], function (r) {
+    var last = r && r["pv:rules:last"], pl = r && r["pv:pack:last"];
+    // a check that failed is tried again after a quarter of an hour, not a day (2026-11-18: one failed fetch stood in the settings as
+    // the last word until the next day's check)
+    var failed = (last && !last.ok) || (liveCan() && pl && !pl.ok);
+    if (!force && last && Date.now() - (last.at || 0) < (failed ? UPDATES_RETRY_MS : UPDATES_EVERY_MS)) { cb({ ok: true, waited: true }); return; }
     rulesCheck(function (rr) {
-      if (!chrome.offscreen) { cb({ ok: !!(rr && rr.ok), rules: rr }); return; }
+      if (!liveCan()) { cb({ ok: !!(rr && rr.ok), rules: rr }); return; }
       packCheck(function (pr) { cb({ ok: !!(rr && rr.ok) && !!(pr && pr.ok), rules: rr, pack: pr }); });
     });
   });
@@ -541,12 +619,9 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "pv:live-ended") { liveTitle(msg.tabId, false); return; }
   if (msg && msg.type === "prism-report-consent") { reportConsentNeeded(function (need) { sendResponse({ need: need }); }); return true; }
   if (msg && msg.type === "prism-report-send") { sendReport(msg.report || {}, sendResponse); return true; }
-  if (msg && msg.type === "prism-open-settings") {
-    // chrome.action.openPopup exists in Chrome 127+ / Firefox; it may refuse
-    // without a user gesture - the page then shows a hint instead.
-    try { var pr = chrome.action.openPopup && chrome.action.openPopup({ windowId: sender && sender.tab && sender.tab.windowId }); if (pr && pr.then) { pr.then(function () { sendResponse({ ok: true }); }, function () { sendResponse({ ok: false }); }); return true; } sendResponse({ ok: !!pr }); } catch (e) { sendResponse({ ok: false }); }
-    return;
-  }
+  if (msg && msg.type === "prism-settings-pass") { sendResponse({ ok: settingsPassGood(String(msg.pass || ""), sender) }); return; }
+  if (msg && msg.type === "prism-settings-blur") { settingsBlurAt = Date.now(); return; }
+  if (msg && msg.type === "prism-open-settings") { openSettings(sender && sender.tab, function (ok) { sendResponse({ ok: ok }); }); return true; }
   if (msg && msg.type === "prism-art-refresh") { try { artRefresh(sendResponse); } catch (eA) { sendResponse({ ok: false, error: "threw: " + eA }); } return true; }
   if (msg && msg.type === "prism-art-reset") { chrome.storage.local.remove("pv:art", function () { sendResponse({ ok: true }); }); return true; }
   // Embed frames' trace rings: kept in storage, not memory - Firefox's event
@@ -617,10 +692,8 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     sendResponse && sendResponse(true);
   }
 });
-chrome.action.onClicked.addListener(function (tab) {
-  if (!tab || tab.id == null) return;
-  try { chrome.tabs.sendMessage(tab.id, { type: "prism-popup-open-panel" }); } catch (e) {}
-});
+// (An older listener here opened the button's panel on the page at a press on the toolbar icon. It never ran while the icon had a
+// popup of its own; with the settings window it opened both, 2026-11-18. The icon opens the settings alone: openSettings above.)
 
 // A web popup is a web address. A tab on a local file, or on the browser's own pages, came from the browser itself - Edge's downloads menu opens a
 // PDF as a new tab and names the tab you were on as its opener; that page saw no click, called it a popup, and the tab closed as it opened
@@ -632,8 +705,19 @@ function wasDeliberate(opener, url) {
   for (var i = 0; i < l.length; i++) { if (l[i] === url || (l[i] && url.indexOf(l[i].split("#")[0]) === 0)) { l.splice(i, 1); return true; } }
   return false;
 }
+// The browser's menu for this extension has the extension's name as its first item, and that opens this extension's store page in a new tab
+// with the tab you were on as its opener. That page saw no click, called it a popup, and the tab closed as it opened (2026-11-17). A store
+// page that carries this extension's own id is the browser's doing, or harmless: it is left alone.
+function isOwnListing(url) {
+  try { return /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore|microsoftedge\.microsoft\.com\/addons)\//i.test(url) && url.indexOf(chrome.runtime.id) >= 0; } catch (e) { return false; }
+}
 function evaluateNewTab(opener, tabId, url) {
   if (!isWeb(url)) return;   // only a web address can be a web popup
+  if (isOwnListing(url)) return;
+  // Edge draws its New tab page from this one address. The first new tab after the extension is loaded was closed as it opened
+  // (2026-11-18, seen at every load and not again after): that tab can be born empty and go straight here, so the page the person
+  // was on was asked and had seen no press. A tab that lands on the browser's New tab content is left alone.
+  if (/^https:\/\/ntp\.msn\.com\//i.test(url)) return;
   if (wasDeliberate(opener, url)) return;
   try {
     chrome.tabs.sendMessage(opener, { type: "prism-popup-evaluate", url: url, tabId: tabId }, function (decision) {
@@ -647,6 +731,9 @@ function evaluateNewTab(opener, tabId, url) {
 // wait for a "real URL": Edge's Ctrl+T / + tab is born on edge://newtab with the tab you were on as its opener, and its New Tab page then
 // loads from https://ntp.msn.com within the bounce window, so the page you were on was asked, saw no click, and the new tab closed as it
 // opened (2026-10-20).
+// Addresses no web page can send a tab to: the browser's own scheme, and Firefox's New tab and home pages. Not about:blank in any form,
+// not about:srcdoc, not an extension's page: a page can reach those, and a tab there keeps waiting to be judged.
+function isBrowsersOwn(url) { return /^(?:chrome|edge|brave|opera|vivaldi):\/\//i.test(url || "") || /^about:(?:newtab|home)$/i.test(url || ""); }
 function isEmptyStart(url) { return !url || /^about:blank$/i.test(url); }
 chrome.tabs.onCreated.addListener(function (tab) {
   if (tab.openerTabId == null || tab.id == null) return;
@@ -658,6 +745,9 @@ chrome.tabs.onCreated.addListener(function (tab) {
 });
 chrome.tabs.onUpdated.addListener(function (tabId, change, tab) {
   var url = change.url || (change.status === "loading" && tab && tab.url) || "";
+  // A tab that was born empty and then shows one of the browser's own pages (its New tab page) is the browser's: no web page can
+  // send a tab there. It stops waiting, so the page that New tab page loads next is not judged as a popup (2026-11-18).
+  if (isBrowsersOwn(url)) { for (var o in pendingByOpener) pendingByOpener[o] = pendingByOpener[o].filter(function (q) { return q.tabId !== tabId; }); return; }
   if (!isReal(url)) return;
   for (var opener in pendingByOpener) {
     var list = pendingByOpener[opener];
@@ -712,7 +802,8 @@ function ytvInjectOpen(sc, ui) {
 // switched on (decision 2026-11-07)
 function scOn(sc, ui) { var v = ui && ui[sc.key]; return sc.key === "ytvVeil" ? v !== false : !!v; }
 function ytvApply(sc, on, ui, again) {
-  if (sc.needs && sc.needs.some(function (k) { return !chrome[k]; })) on = false;   // Firefox has no tab stream: the picture option is shown disabled there
+  // no tab stream and no snapshot reader (Firefox for Android): the picture option is shown disabled there
+  if (sc.needs && sc.needs.some(function (k) { return !chrome[k]; }) && !liveSnap()) on = false;
   var m = sc.matches(ui);
   if (!m.length) on = false;
   try {
@@ -774,14 +865,19 @@ function ensureOffscreen() {
     .then(function () { offscreenOpening = null; }, function (e) { offscreenOpening = null; throw e; });
   return offscreenOpening;
 }
+// Firefox (2026-11-18): no tab stream and no offscreen page. There the reader (offscreen.js) is one of this background page's own
+// scripts and reads the tab by snapshots; it names itself PrismLiveSnap.
+function liveSnap() { return (typeof PrismLiveSnap !== "undefined" && PrismLiveSnap) || null; }
+function liveCan() { return !!chrome.offscreen || !!liveSnap(); }
 function liveStreamId(sender, sendResponse) {
   try {
-    var t = sender && sender.tab;
-    if (!t || !chrome.tabCapture || !chrome.offscreen) { sendResponse({ error: "not available here" }); return; }
+    var t = sender && sender.tab, snap = liveSnap();
+    if (!t || !(snap || (chrome.tabCapture && chrome.offscreen))) { sendResponse({ error: "not available here" }); return; }
     chrome.storage.local.get("pv:ui", function (r) {
       var ui = (r && r["pv:ui"]) || {};
       if (!ui.livePicture) { sendResponse({ error: "switched off" }); return; }
       if (!onLiveTvList(t.url || "", ui)) { sendResponse({ error: "not on the list of live TV sites" }); return; }
+      if (snap) { snap.open(t.id, function (res) { if (res && res.ok) liveTitle(t.id, true); sendResponse(res || { error: "no reader" }); }); return; }
       chrome.tabCapture.getMediaStreamId({ targetTabId: t.id }, function (id) {
         var err = chrome.runtime.lastError;
         if (err || !id) { sendResponse({ error: err ? err.message : "no stream id" }); return; }
@@ -804,6 +900,7 @@ function closeOffscreen() {
 try {
   chrome.tabs.onRemoved.addListener(function (tabId) {
     delete titleParts[tabId];
+    if (liveSnap()) { try { liveSnap().shut(tabId); } catch (e) {} return; }
     try { chrome.runtime.sendMessage({ type: "pv:live-shut", target: "offscreen", tabId: tabId }, function () { void chrome.runtime.lastError; }); } catch (e) {}
   });
 } catch (e) {}

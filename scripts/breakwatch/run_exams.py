@@ -150,6 +150,9 @@ for e in exams:
     # LPARITYDIR=<folder> (2026-11-06, the look-ahead measure): each exam's learned chance per look, as <folder>/<exam>.csv
     if switches.get("LPARITYDIR"):
         env["LPARITY"] = os.path.join(switches["LPARITYDIR"], re.sub(r"[^A-Za-z0-9]+", "-", e["name"]) + ".csv")
+    # FEATDIR=<folder> (2026-11-17, the end finder's study): each exam's readings per look, as <folder>/<exam>.csv
+    if switches.get("FEATDIR"):
+        env["FEATCSV"] = os.path.join(switches["FEATDIR"], re.sub(r"[^A-Za-z0-9]+", "-", e["name"]) + ".csv")
     # below normal priority (2026-11-07): the bench at normal priority stalled the running PRISM's UI thread for up to a second at a time
     bout = subprocess.run([EXE, "bench", f0, f1, os.path.join(WORK, "rules.log")], env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           creationflags=getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)).stdout

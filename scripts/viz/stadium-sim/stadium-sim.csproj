@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StadiumSimTest</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\targets\win-host\PrismHost\Visualizations\Tableaus.Stadium.Sim.cs" Link="Tableaus.Stadium.Sim.cs" />
+  </ItemGroup>
+</Project>

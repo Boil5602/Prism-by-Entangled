@@ -7,7 +7,7 @@
 - **How PRISM works** in the PRISM menu opens a list of subjects: Getting started, Watching, TMDB extras (optional), Live TV and
   several windows, Ad breaks, Music, Your phone, Profiles, Updates and help. It also opens once by itself, the first time the Set up
   services page is closed.
-- A subject is one to three pages: a picture, a few plain lines, and on some pages a button that opens the real thing (Set up
+- A subject is one to seven pages: a picture, a few plain lines, and on some pages a button that opens the real thing (Set up
   services, the TMDB guide, Watch settings, Pair a phone, Profiles, Updates). That button closes the tour, and the menu item brings
   the person back to the page they left.
 - A subject's last page offers the next subject, All subjects, or Done. A subject gone through to its end is ticked in the list.
@@ -84,7 +84,20 @@ its Done when the tour opened it, and its Done and Escape go back to the tour to
 
 ## The pictures
 
-- Every one of the twenty pages has one (2026-10-10). They are in `Assets/tutorial/`, about 2 MB together.
+- Every one of the 31 pages in 10 subjects has one. They are in `Assets/tutorial/`, about 6 MB together. The Watching, Live TV and
+  Music pages were written again and their pictures taken again on 2026-11-17. The pictures of the TMDB link, the windows with the +,
+  the ad breaks, the phone, profiles and updates are those of 2026-10-10.
+- Since 2026-11-17 a title in a picture is a made-up film or series with a generated poster, a wordless still, a tagline, a cast and
+  episode names (`scripts/standin/make-standins.py` from `scripts/standin/titles.json`), and the music panel's songs, albums and
+  playlists are made-up too. The photographs behind them are film-like scenes from Wikimedia Commons, each CC0 or public domain,
+  listed with page, author and licence in `scripts/standin/cinema-pool.json` (the nature photographs read as wallpaper, not as films).
+  None shows a recognizable person, a business's sign as its subject, or an artwork. A name under a `playlists` or `stations` list is always replaced, whatever else the entry carries.
+- The music panel is a flyout that a dev shot lists but does not draw, so the shot renders the panel's own content when no popup file
+  was drawn (`MainWindow.DevShot.cs`). That drawing has a clear ground, and the picture is composed on the panel's colour.
+- The play choices screen starts playback after 10 seconds. Its picture is taken at once and Back is pressed, so nothing plays.
+- The control bar's picture is over a live channel with PRISM muted, with stand-ins off: it shows the public schedule's own names.
+- Owed: a page for Episodes and Next episode in While you watch. Its picture needs a series playing, and under stand-ins the
+  service's search is given the made-up name and finds nothing. The page is held out until its picture can be taken.
 - They are dev shots (PRISM_DEV_SHOT, `shot.request`) taken with **stand-ins on** (`MainWindow.StandIn.cs`, dev command
   `standin on`): every picture drawn from an address comes from a folder of plain coloured cards
   (`%LOCALAPPDATA%/Prism/diagnostics/standin/*.png`), the answers of the calls that feed the pages have their titles, people and

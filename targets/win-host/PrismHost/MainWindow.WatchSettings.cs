@@ -379,8 +379,8 @@ public sealed partial class MainWindow
             foreach (var ch in off)
             {
                 var chip = Chip(new TextBlock { Text = ch + "  \u00D7", FontSize = 12, Foreground = HubInk }, false);
-                ToolTipService.SetToolTip(chip, "Cover " + ch + "'s breaks again");
-                chip.Click += (_, __) => { SetChannelOff(ch, false); DrawOff(); };
+                ToolTipService.SetToolTip(chip, "Put " + ch + " back on the setting above");
+                chip.Click += (_, __) => { ClearChannelMode(ch); DrawOff(); };
                 offRow.Children.Add(chip);
             }
         }
@@ -398,13 +398,32 @@ public sealed partial class MainWindow
             foreach (var ch in sure)
             {
                 var chip = Chip(new TextBlock { Text = ch + "  \u00D7", FontSize = 12, Foreground = HubInk }, false);
-                ToolTipService.SetToolTip(chip, "Cover every break PRISM finds on " + ch + " again");
-                chip.Click += (_, __) => { SetChannelMode(ch, ChannelCovers.On); DrawSure(); };
+                ToolTipService.SetToolTip(chip, "Put " + ch + " back on the setting above");
+                chip.Click += (_, __) => { ClearChannelMode(ch); DrawSure(); };
                 sureRow.Children.Add(chip);
             }
         }
         DrawSure();
         body.Children.Add(sureRow);
+        // ... and the ones the person set to On themselves (the channel's menu in Live): covered in every break whatever the setting above
+        var onRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(28, 0, 0, 0) };
+        void DrawOn()
+        {
+            onRow.Children.Clear();
+            var on = ChannelsOn();
+            if (on.Count == 0) { onRow.Visibility = Visibility.Collapsed; return; }
+            onRow.Visibility = Visibility.Visible;
+            onRow.Children.Add(new TextBlock { Text = "All breaks:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
+            foreach (var ch in on)
+            {
+                var chip = Chip(new TextBlock { Text = ch + "  " + (char)0xD7, FontSize = 12, Foreground = HubInk }, false);
+                ToolTipService.SetToolTip(chip, "Put " + ch + " back on the setting above");
+                chip.Click += (_, __) => { ClearChannelMode(ch); DrawOn(); };
+                onRow.Children.Add(chip);
+            }
+        }
+        DrawOn();
+        body.Children.Add(onRow);
         // how many Not an ad presses in a week put a channel on sure breaks only (BreakWatch.NotAdCounted)
         var autoRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(28, 2, 0, 0) };
         autoRow.Children.Add(new TextBlock { Text = "When you keep pressing Not an ad on a channel:", FontSize = 13, Foreground = HubInk, VerticalAlignment = VerticalAlignment.Center });
@@ -421,6 +440,12 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(autoBox, "PRISM only knows a cover was wrong when you press Not an ad. After this many presses on one channel in a week, it covers that channel only where YouTube TV marks the break.");
         autoRow.Children.Add(autoBox);
         body.Children.Add(autoRow);
+        // the look-ahead (docs/features/look-ahead.md, 2026-11-17): off unless the person turns it on
+        var lookBox = new CheckBox { Content = new TextBlock { Text = "Watch the big screen 15 seconds behind live, so ad covers start on time", FontSize = 14, Foreground = HubInk }, IsChecked = LookAheadOn, MinWidth = 0, Margin = new Thickness(0, 10, 0, 0) };
+        ToolTipService.SetToolTip(lookBox, "YouTube TV live channels on the big screen only. PRISM plays the same channel a second time out of sight, at live, and reads it for breaks. The big screen plays about 15 seconds later, so a cover can go up as a break begins. It uses a second stream of your account. Sports and games are never delayed. Small windows stay live.");
+        lookBox.Checked += (_, __) => SetLookAhead(true);
+        lookBox.Unchecked += (_, __) => SetLookAhead(false);
+        body.Children.Add(lookBox);
         return async () =>
         {
             var said = new List<string>();

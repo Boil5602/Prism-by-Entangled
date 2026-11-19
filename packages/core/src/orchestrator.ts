@@ -17,6 +17,8 @@ import { newEpisodeBadge } from "./menu-order.js";
 import { aliasTileKind, parseAspectHint, SCHEMA_VERSION, type AppRecord, type VideoItem, type VideoContext, type DashboardDocument, type FloatSpec, type FocusSpec, type SlotShape, type LayoutSpec, type MasterLayout, type MasterSlot, type NowPlaying, type LibraryItem, type Scene, type SceneSlot, type Shortcut, type TapAction, type TileSpec } from "./types.js";
 import { LOOKUP_CHOICES, lookupTerm, matchTrack, normalizeTrackText, type MatchConfidence, type TrackCandidate } from "./music-lookup.js";
 import { isPlayOrder, orderTracks, playOrderLabel, type PlayOrder } from "./play-order.js";
+import { SongHistory, readHistory, type HistorySong } from "./song-history.js";
+import { coverAskJs, coverRoute, pictureOf, realName, recentPicture, squareCover } from "./music-panel.js";
 import { validRegion } from "./focus.js";
 import { clampZoom, hostSlug } from "./catalog.js";
 import type { Drivers, SurfaceEvent, InputEvent } from "./drivers.js";
@@ -37,6 +39,7 @@ import { CATALOG_ATTRIBUTION, atHomeFrom, catalogRows, isCatalogId, offerRank, o
 import { purchaseOffer, storeProvidersOf, type PurchaseOffer } from "./purchase.js";
 import { pageInfoOf, type PageInfo } from "./categories.js";
 import { cleanEvents, cleanLibrary, isVideoAdapter } from "./video.js";
+import type { LookAheadAnswer } from "./look-ahead.js";
 import { SCORE_URL, SCORE_SOURCE, SCORE_DAY_LEAGUES, mergeKept, parseLeagueScoreboard, parseScoreboard, scoreDayUrl, type ScoreGame } from "./scores.js";
 import { parseFeed, type NewsItem } from "./news-feeds.js";
 import { LIVE_TITLE_KEEP_MS, acceptSearch, certificationOf, type LiveTitle, type LiveTitleEntry } from "./live-titles.js";
@@ -717,7 +720,7 @@ export interface RemoteStateSnapshot {
     /** B-155: the source takes a thumbs up / down (its adapter declares the control or the player's rating API). */
     rate?: boolean;
     /** B-204 (2026-09-15): nothing is loaded on the page, but PRISM remembers what this tile played - what a Play press would resume. The wall names it instead of an empty block over a dead Play. */
-    resume?: { title: string; artist?: string; label?: string; kind?: string };
+    resume?: { title: string; artist?: string; label?: string; kind?: string; artwork?: string };
     /** Play orders (2026-09-17, spec 32 layer 5): the collection this tile plays in the order a person asked for - "shuffle" is the service's own switch, "true-shuffle" and "reverse" are PRISM's queue. The block names it. */
     musicOrder?: { kind: string; id: string; name: string; order: "normal" | "shuffle" | "true-shuffle" | "reverse"; label: string; count?: number; /** the saved spot, 1-based, in a PRISM-ordered play */ spot?: number; /** repeat: which pass this is, from the second on */ pass?: number };
     /** 2026-09-18: the standing repeat switch beside the order - the service's repeat-all for its orders, PRISM's next pass for its own */
@@ -810,6 +813,8 @@ export interface RecentMusic {
   id?: string;
   artist?: string;
   album?: string;
+  /** The picture of the track that was playing when the entry was made (2026-11-16): an album's own cover; for a playlist or a station a stand-in until the service's library gives the collection's picture. */
+  artwork?: string;
   title: string;
   at: number;
 }
@@ -822,7 +827,7 @@ export interface RecentMusic {
  */
 /** Everything an adapter runs in a page, in one script: its js, the music scripts, the session watch (null when it has none). */
 function adapterScript(spec: AdapterSpec): string | null {
-  return [spec.js, spec.musicContext, spec.musicLibrary, spec.musicPlay, spec.musicPlaySong, spec.musicQueueView, spec.musicCmd, spec.musicLookup, spec.musicShuffle, spec.musicTracks, spec.musicQueue, spec.musicQueueAppend, spec.musicRepeat, spec.musicStartOver, spec.videoContext, spec.videoLibrary, spec.videoPlay, spec.videoCmd, spec.videoLookup, spec.videoProfiles, spec.videoLive, spec.videoTune, spec.videoSearch, spec.videoTracks, spec.videoSeek, spec.videoSeekPoint, spec.videoPreview, spec.videoEpisodeNumber, spec.videoListRoute, spec.session && (spec.session.signedIn || spec.session.signedOut) ? sessionWatchJs(spec.session) : null].filter((x): x is string => !!x).join("\n;\n") || null;
+  return [spec.js, spec.musicContext, spec.musicLibrary, spec.musicPlay, spec.musicPlaySong, spec.musicQueueView, spec.musicQueueRemove, spec.musicQueueSkip, spec.musicLyrics, spec.musicCmd, spec.musicLookup, spec.musicShuffle, spec.musicTracks, spec.musicQueue, spec.musicQueueAppend, spec.musicRepeat, spec.musicStartOver, spec.videoContext, spec.videoLibrary, spec.videoPlay, spec.videoCmd, spec.videoLookup, spec.videoProfiles, spec.videoLive, spec.videoTune, spec.videoSearch, spec.videoTracks, spec.videoQuality, spec.videoSeek, spec.videoSeekPoint, spec.videoPreview, spec.videoEpisodeNumber, spec.videoListRoute, spec.session && (spec.session.signedIn || spec.session.signedOut) ? sessionWatchJs(spec.session) : null].filter((x): x is string => !!x).join("\n;\n") || null;
 }
 
 export function normalizeCollectionUrl(url: string): string {
@@ -893,6 +898,8 @@ export interface MusicLookupState {
   at: number;
 }
 type MusicResultEvent = Extract<SurfaceEvent, { type: "music-result" }>;
+/** Up next shows this many songs after the one playing (2026-11-16); the screen says so when more are still to play. */
+export const UP_NEXT_ROWS = 50;
 /** One service's share of a cross-service music search (2026-11-04): the rows its own search returned, or why it has none. */
 export interface MusicSearchService { tile: string; app: string | null; status: "searching" | "done" | "unavailable" | "error"; reason?: string; candidates: TrackCandidate[] }
 /** The suggestions as the words are typed (Deezer's public catalog, 2026-11-04): songs with artwork and ISRC, then albums and artists. */
@@ -1298,6 +1305,7 @@ export class Orchestrator {
       // nor is an App's setup window (2026-09-29, a new device: a wall refresh - a music service had just said it was signed out - closed the
       // sign-in window's page 300 ms after it opened; the window stood there with nothing in it)
       if (this.previews.has(id)) continue;
+      if (id === Orchestrator.SCOUT_ID) continue;   // nor is the look-ahead's live page: it follows the big screen, not the scene
       if (this.lookups.has(id)) continue;   // a hidden search / list surface is not the wall's: a scene switch had destroyed one 30 ms into a catalog card's press (Gilmore Girls on Hulu, 2026-09-21), and the press fell back to Hulu's search page
       if (!wanted.has(id) || reshaped(id)) {
         this.refresh.stop(id);
@@ -2064,7 +2072,7 @@ export class Orchestrator {
         // a context with no kind is a lone song, not a collection (2026-11-04, Apple Music says label "song" for a song queued by itself while the
         // page is still a playlist's): its label and id are not taken, and the playlist's own name stays in Recents (rememberRecent)
         const named = !!ctx?.kind;
-        const point = { url, title: info.title, ...(info.artist ? { artist: info.artist } : {}), ...(info.album ? { album: info.album } : {}), ...(named && ctx?.label ? { label: ctx.label } : {}), ...(ctx?.kind ? { kind: ctx.kind } : {}), ...(named && ctx?.id ? { id: ctx.id } : {}), at: Date.now() };
+        const point = { url, title: info.title, ...(info.artist ? { artist: info.artist } : {}), ...(info.album ? { album: info.album } : {}), ...(named && ctx?.label ? { label: ctx.label } : {}), ...(ctx?.kind ? { kind: ctx.kind } : {}), ...(named && ctx?.id ? { id: ctx.id } : {}), ...(typeof info.artwork === "string" && /^https:/.test(info.artwork) ? { artwork: info.artwork } : {}), at: Date.now() };
         try { void this.drivers.store.set(this.resumeKey(this.doc.id, tileId), JSON.stringify(point)); } catch { /* best effort */ }
         this.resumeCache.set(tileId, point);   // B-204: the wall row reads it without a store round-trip
         void this.rememberRecent(tileId, point);
@@ -2287,7 +2295,14 @@ export class Orchestrator {
       if (held && held.kind === kind && held.id === id) item = { id, name: held.label ?? id, kind: kind as LibraryItem["kind"], ...(held.url ? { url: held.url } : {}) };
       else if (standing && standing.kind === kind && standing.id === id) item = { id, name: standing.name, kind: kind as LibraryItem["kind"] };
     }
+    if (!item) {
+      // a collection PRISM keeps a place in was named by the page when it played (2026-11-16)
+      await this.loadMusicPlaces(tileId);
+      const k = this.musicPlaces.get(tileId)?.get(Orchestrator.placeKey(kind, id));
+      if (k) item = { id, name: k.name, kind: kind as LibraryItem["kind"] };
+    }
     if (!item) return "unknown";
+    await this.keepPlayerPlace(tileId, kind, id);
     const gen = this.nextPickGen(tileId);   // 2026-10-29: a Cancel while the track list is read stands this pick down (cancelMusicPick)
     // "auto" is the plain press (a Quick play row, 2026-09-17): a PRISM-ordered play of THIS collection with a saved spot carries
     // on from it; anything else plays in order. An order named outright (the transport's order button) always starts afresh.
@@ -2295,6 +2310,26 @@ export class Orchestrator {
     if (asked === "auto") {
       const o = this.musicOrder.get(tileId);
       if (o && o.kind === kind && o.id === id && o.ids?.length && await this.continueOrder(tileId)) return "ok";
+      // a place kept for this collection while another one played (2026-11-16): it becomes the standing order again and carries on
+      if (!(o && o.kind === kind && o.id === id)) {
+        await this.loadMusicPlaces(tileId);
+        const kept = this.musicPlaces.get(tileId)?.get(Orchestrator.placeKey(kind, id));
+        if (kept?.ids?.length) {
+          await this.setMusicOrder(tileId, { kind, id, name: kept.name, order: kept.order, ...(kept.count !== undefined ? { count: kept.count } : {}), ids: kept.ids, index: kept.index ?? 0 });
+          if (await this.continueOrder(tileId)) return "ok";
+        } else if (kept?.trackId && kept.order === "normal") {
+          // the place of a play in order: the track list is read, and the player gets it from the kept song on
+          const ids = await this.musicTracks(tileId, kind, id, "normal");
+          if (this.pickGen.get(tileId) !== gen) { this.readingFor.delete(tileId); this.musicWork.delete(tileId); return "ok"; }   // cancelled while reading
+          this.readingFor.delete(tileId);
+          const at = ids.indexOf(kept.trackId);
+          if (at >= 0) {
+            await this.setMusicOrder(tileId, { kind, id, name: kept.name, order: "normal", count: ids.length, ids, index: at });
+            if (await this.continueOrder(tileId)) return "ok";
+          }
+          // the song is gone from the playlist, or the queue failed: the playlist starts in order, below
+        }
+      }
     } else {
       if (!isPlayOrder(asked)) return "unsupported";
       order = asked;
@@ -2309,7 +2344,7 @@ export class Orchestrator {
       if (order === "shuffle" && support.shuffle !== true) return "unsupported";
       if ((order === "true-shuffle" || order === "reverse")) return "unsupported";
       this.arm(tileId);
-      if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId);
+      if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId, { kind, id });
       // B-243 (2026-09-19): the page already holds this collection - nothing is sent to its page (a full load that stopped
       // Spotify's player). A plain press carries on with the switch flipped in place; an order named outright STARTS OVER in
       // that order through the page's own start-over, which also stands down a PRISM order's driver on the page.
@@ -2367,7 +2402,7 @@ export class Orchestrator {
       await this.resumeHeld(tileId);
       if (shuffleJs) await this.drivers.surface.inject(tileId, null, shuffleJs);
       await this.applyServiceRepeat(tileId, this.musicRepeatOf(tileId));
-      if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId);
+      if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId, { kind, id });
       return "ok";
     }
     await this.claimAudio(tileId);   // B-137: the quick jump - the other source goes quiet now; this one sounds the moment its queue starts
@@ -2386,7 +2421,7 @@ export class Orchestrator {
       this.musicPlayRetries++;
       void Promise.resolve(this.drivers.surface.inject(tileId, null, playJs)).catch(() => {});
     }, Orchestrator.MUSIC_PLAY_RETRY_MS);
-    if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId);
+    if (order === "shuffle") await this.setMusicOrder(tileId, { kind, id, name: item.name, order }); else await this.clearMusicOrder(tileId, { kind, id });
     return "ok";
   }
   // ---------------------------------------------------------------- cross-service music search (2026-11-04)
@@ -2565,8 +2600,8 @@ export class Orchestrator {
    * position), kept per service for the Quick play's expander to poll. A service without the route says so; a PRISM-ordered play (true
    * shuffle, reverse) is the order PRISM holds, named as such, since the player's queue is PRISM's window into it.
    */
-  private upNext = new Map<string, { status: "working" | "ready" | "unavailable" | "error"; reason?: string; items: Array<{ title: string; artist: string; current?: boolean }>; order?: string; at: number }>();
-  musicUpNextState(tileId: string): { status: string; reason?: string; items: Array<{ title: string; artist: string; current?: boolean }>; order?: string; at: number } {
+  private upNext = new Map<string, { status: "working" | "ready" | "unavailable" | "error"; reason?: string; items: Array<{ title: string; artist: string; current?: boolean; index?: number; id?: string; artwork?: string }>; order?: string; left?: number; at: number }>();
+  musicUpNextState(tileId: string): { status: string; reason?: string; items: Array<{ title: string; artist: string; current?: boolean; index?: number; id?: string; artwork?: string }>; order?: string; left?: number; at: number } {
     return this.upNext.get(tileId) ?? { status: "unavailable", reason: "nothing asked yet", items: [], at: 0 };
   }
   async musicUpNext(tileId: string): Promise<void> {
@@ -2582,9 +2617,133 @@ export class Orchestrator {
     if (!r) { this.upNext.set(tileId, { status: "error", reason: "the page did not answer", items: [], at }); return; }
     if (!r.ok) { this.upNext.set(tileId, { status: "error", reason: r.error || "the player's queue could not be read", items: [], at }); return; }
     const raw = (r as unknown as { items?: unknown }).items;
-    const items = Array.isArray(raw) ? raw.filter((x): x is { title: string; artist?: string; current?: boolean } => !!x && typeof (x as { title?: unknown }).title === "string").map((x) => ({ title: x.title, artist: typeof x.artist === "string" ? x.artist : "", ...(x.current ? { current: true } : {}) })).slice(0, 30) : [];
+    const items = Array.isArray(raw) ? raw.filter((x): x is { title: string; artist?: string; current?: boolean } => !!x && typeof (x as { title?: unknown }).title === "string").map((x) => { const y = x as { index?: unknown; id?: unknown; artwork?: unknown }; return { title: x.title, artist: typeof x.artist === "string" ? x.artist : "", ...(x.current ? { current: true } : {}), ...(typeof y.index === "number" ? { index: y.index } : {}), ...(typeof y.id === "string" ? { id: y.id } : {}), ...(typeof y.artwork === "string" && /^https:/.test(y.artwork) ? { artwork: y.artwork } : {}) }; }).slice(0, UP_NEXT_ROWS + 1) : [];
     const o = this.musicOrder.get(tileId);
-    this.upNext.set(tileId, { status: "ready", items, ...(o?.order && o.order !== "normal" ? { order: o.order } : {}), at });
+    // how many songs are still to play after this one: PRISM's own order knows its count; else what the player's queue holds
+    const own = o?.ids?.length && o.order !== "normal" ? Math.max(0, (o.count ?? o.ids.length) - 1 - (o.index ?? 0)) : undefined;
+    const left = own ?? (typeof r.total === "number" ? r.total : undefined);
+    this.upNext.set(tileId, { status: "ready", items, ...(o?.order && o.order !== "normal" ? { order: o.order } : {}), ...(left !== undefined ? { left } : {}), at });
+  }
+
+  /**
+   * Remove from the queue (2026-11-16, the music panel's Up next): one track that is still to play leaves the player's own queue, by the
+   * adapter's musicQueueRemove route (a page action on the person's press; the page checks the track at that place is the one named). A
+   * PRISM-ordered play drops the track from the order it holds too, so a later window does not bring it back. The queue is read again after.
+   */
+  async musicQueueRemove(tileId: string, index: number, id: string): Promise<{ ok: boolean; error?: string }> {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    if (!tile || !spec?.musicQueueRemove) return { ok: false, error: "this service's queue cannot be changed from PRISM yet" };
+    if (!Number.isInteger(index) || index < 0 || !id) return { ok: false, error: "no such track in the queue" };
+    const token = this.musicToken("qr");
+    const r = await this.askMusic(tileId, token, `window.__prismMusicQueueRemove && window.__prismMusicQueueRemove(${JSON.stringify(token)}, ${JSON.stringify(index)}, ${JSON.stringify(id)})`);
+    if (!r) return { ok: false, error: "the page did not answer" };
+    if (!r.ok) return { ok: false, error: r.error || "the track could not be removed" };
+    const o = this.musicOrder.get(tileId);
+    if (o?.ids?.length) {
+      const at = o.ids.indexOf(id, (o.index ?? 0) + 1);
+      if (at > 0) await this.setMusicOrder(tileId, { kind: o.kind, id: o.id, name: o.name, order: o.order, ids: [...o.ids.slice(0, at), ...o.ids.slice(at + 1)], ...(o.count !== undefined ? { count: Math.max(0, o.count - 1) } : {}), ...(o.index !== undefined ? { index: o.index } : {}) });
+    }
+    await this.musicUpNext(tileId);
+    return { ok: true };
+  }
+  /**
+   * Skip to (2026-11-16, asked for on the music panel's Up next): the player goes to one track that is still to play in its own queue, by the
+   * adapter's musicQueueSkip route (a page action on the person's press; the page checks the track at that place is the one named). The
+   * queue is read again after.
+   */
+  async musicQueueSkip(tileId: string, index: number, id: string): Promise<{ ok: boolean; error?: string }> {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    if (!tile || !spec?.musicQueueSkip) return { ok: false, error: "this service's queue cannot be changed from PRISM yet" };
+    if (!Number.isInteger(index) || index < 0 || !id) return { ok: false, error: "no such track in the queue" };
+    const token = this.musicToken("qs");
+    const r = await this.askMusic(tileId, token, `window.__prismMusicQueueSkip && window.__prismMusicQueueSkip(${JSON.stringify(token)}, ${JSON.stringify(index)}, ${JSON.stringify(id)})`);
+    if (!r) return { ok: false, error: "the page did not answer" };
+    if (!r.ok) return { ok: false, error: r.error || "the player did not go to that track" };
+    await this.musicUpNext(tileId);
+    return { ok: true };
+  }
+  /** The collection the service's player stands in and the song it is on: what its page reports now, else the resume point kept from its last play. */
+  musicHeldPlace(tileId: string): { kind: string; id: string; title?: string } | null {
+    const np = this.nowPlaying.get(tileId);
+    const held = this.heldCollection(tileId);
+    if (held) return { kind: held.kind, id: held.id, ...(np?.title ? { title: np.title } : {}) };
+    const r = this.resumeCache.get(tileId);
+    return r?.kind && r.id ? { kind: r.kind, id: r.id, ...(r.title ? { title: r.title } : {}) } : null;
+  }
+  /** Whether the service's queue can be read and changed, and the collection its player holds now (the music panel's Up next). */
+  musicQueueSupport(tileId: string): { view: boolean; remove: boolean; skip: boolean; held: { kind: string; id: string; label?: string } | null } {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    const held = this.heldCollection(tileId);
+    return { view: !!spec?.musicQueueView, remove: !!spec?.musicQueueRemove, skip: !!spec?.musicQueueSkip, held: held ? { kind: held.kind, id: held.id, ...(held.label ? { label: held.label } : {}) } : null };
+  }
+
+  // ---------------------------------------------------------------- song history (2026-11-16)
+  /**
+   * The songs PRISM played, kept on this device (song-history.ts holds the rules: 30 seconds of play, 500 kept, newest first). The
+   * runtime calls noteSongHistory every few seconds with the music services; the list is saved when it grows. Nothing is sent anywhere.
+   */
+  private songHistory: SongHistory | null = null;
+  private songHistoryReading: Promise<SongHistory> | null = null;
+  private static readonly HISTORY_KEY = "music:history";
+  private historyOf(): Promise<SongHistory> {
+    if (this.songHistory) return Promise.resolve(this.songHistory);
+    this.songHistoryReading ??= (async () => {
+      let raw: string | null = null;
+      try { raw = (await this.drivers.store?.get(Orchestrator.HISTORY_KEY)) ?? null; } catch { raw = null; }
+      this.songHistory = new SongHistory(readHistory(raw));
+      return this.songHistory;
+    })();
+    return this.songHistoryReading;
+  }
+  private async saveSongHistory(h: SongHistory): Promise<void> {
+    try { await this.drivers.store?.set(Orchestrator.HISTORY_KEY, JSON.stringify(h.songs())); } catch { /* best effort */ }
+  }
+  async noteSongHistory(sources: Array<{ tile: string; name: string }>, now = Date.now()): Promise<number> {
+    const h = await this.historyOf();
+    let n = 0;
+    for (const s of sources) {
+      const np = this.nowPlaying.get(s.tile);
+      if (h.note(s.tile, s.name, np ? { playing: np.playing === true, title: np.title, artist: np.artist, album: np.album, artwork: np.artwork, id: np.context?.trackId ?? undefined } : null, now)) n++;
+    }
+    if (n) await this.saveSongHistory(h);
+    return n;
+  }
+  async songHistoryList(): Promise<HistorySong[]> { return (await this.historyOf()).songs(); }
+  songHistoryNow(): HistorySong[] { return this.songHistory?.songs() ?? []; }
+  async clearSongHistory(): Promise<void> { const h = await this.historyOf(); h.clear(); await this.saveSongHistory(h); }
+
+  // ---------------------------------------------------------------- lyrics (2026-11-15)
+  /**
+   * The lyrics as the service's own page draws them, the line being sung marked: the adapter's musicLyrics route opens the page's
+   * lyrics (a page action, the person's press on PRISM's Lyrics) and reads the lines; the shell polls the read on the page itself, as it
+   * reads a video page's captions. Core keeps only whether the person has them on for the service. Nothing is fetched and no line is kept.
+   */
+  private lyricsWanted = new Map<string, { status: "on" | "off" | "unavailable" | "error"; reason?: string; at: number }>();
+  musicLyricsState(tileId: string): { status: string; reason?: string; can: boolean; at: number } {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    const can = !!tile && !!spec?.musicLyrics && !!this.drivers.surface.evaluate;
+    const cur = this.lyricsWanted.get(tileId);
+    return cur ? { ...cur, can } : { status: can ? "off" : "unavailable", ...(can ? {} : { reason: "this service does not show its lyrics to PRISM yet" }), can, at: 0 };
+  }
+  async musicLyrics(tileId: string, on: boolean): Promise<void> {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    const at = Date.now();
+    if (!tile || !spec?.musicLyrics || !this.drivers.surface.evaluate) { this.lyricsWanted.set(tileId, { status: "unavailable", reason: "this service does not show its lyrics to PRISM yet", at }); return; }
+    this.pageTouchedAt.set(tileId, at);
+    let r: { ok?: boolean; open?: boolean; error?: string } | null = null;
+    try {
+      const raw = await this.drivers.surface.evaluate(tileId, `window.__prismMusicLyrics ? window.__prismMusicLyrics(${JSON.stringify(on ? "open" : "close")}) : ""`);
+      const said = raw ? JSON.parse(raw) : "";
+      r = typeof said === "string" && said ? JSON.parse(said) : null;
+    } catch { r = null; }
+    if (!r) { this.lyricsWanted.set(tileId, { status: "error", reason: "the page did not answer", at }); return; }
+    if (!r.ok) { this.lyricsWanted.set(tileId, { status: on ? "error" : "off", ...(on ? { reason: r.error || "the page shows no lyrics for this song" } : {}), at }); return; }
+    this.lyricsWanted.set(tileId, { status: on ? "on" : "off", at });
   }
 
   static readonly MUSIC_PLAY_RETRY_MS = 6_000;
@@ -2663,7 +2822,7 @@ export class Orchestrator {
   /** The words a work line opens with while the list is read for an order: "True shuffle: reading ...". */
   private readingFor = new Map<string, string>();
   private async musicTracks(tileId: string, kind: string, id: string, forOrder?: PlayOrder): Promise<string[]> {
-    if (forOrder) this.readingFor.set(tileId, forOrder === "reverse" ? "Reverse: reading" : "True shuffle: reading");
+    if (forOrder) this.readingFor.set(tileId, forOrder === "reverse" ? "Reverse: reading" : forOrder === "normal" ? "Resume: reading" : "True shuffle: reading");
     const have = this.trackLists.get(tileId);
     if (have && have.kind === kind && have.id === id && Date.now() - have.at < this.tracksFreshMs) return have.ids.slice();
     const key = tileId + "|" + kind + "|" + id;
@@ -2791,14 +2950,102 @@ export class Orchestrator {
   private async setMusicOrder(tileId: string, o: { kind: string; id: string; name: string; order: PlayOrder; count?: number; ids?: string[]; index?: number }): Promise<void> {
     const rec = { ...o, at: Date.now() };
     this.orderAppending.delete(tileId);   // a new order: an append under way for the old one no longer holds the door
+    // the place held in another collection is kept for it (2026-11-16); a place kept for this one is now the standing order
+    const old = this.musicOrder.get(tileId);
+    if (old?.ids?.length && (old.kind !== o.kind || old.id !== o.id)) await this.keepPlace(tileId, old);
+    await this.dropPlace(tileId, o.kind, o.id);
     this.musicOrder.set(tileId, rec);
     if (this.doc && this.drivers.store) { try { await this.drivers.store.set(this.musicOrderKey(this.doc.id, tileId), JSON.stringify(rec)); } catch { /* best effort */ } }
   }
-  private async clearMusicOrder(tileId: string): Promise<void> {
+  /**
+   * A saved place for every playlist (2026-11-16, asked for; before it PRISM held one place a service, and a play of anything else
+   * dropped it). When the standing order gives way to another collection, its place (the order's ids and the spot in them) is kept
+   * here by collection, and a plain press or Resume on that collection carries on from it. A fresh start of the same collection, in
+   * any order, replaces its place. The newest MUSIC_PLACES_MAX are kept for a service, in the store beside the standing order.
+   */
+  static readonly MUSIC_PLACES_MAX = 25;
+  private static placeKey(kind: string, id: string): string { return kind + ":" + id; }
+  private readonly musicPlaces = new Map<string, Map<string, { kind: string; id: string; name: string; order: PlayOrder; count?: number; ids?: string[]; index?: number; pass?: number; trackId?: string; title?: string; at: number }>>();
+  private readonly musicPlacesLoaded = new Set<string>();
+  private musicPlacesKey(dashId: string, tileId: string): string { return `music:places:${dashId}:${tileId}`; }
+  private async loadMusicPlaces(tileId: string): Promise<void> {
+    if (this.musicPlacesLoaded.has(tileId)) return;
+    this.musicPlacesLoaded.add(tileId);
+    const map = this.musicPlaces.get(tileId) ?? new Map();
+    this.musicPlaces.set(tileId, map);
+    if (!this.doc || !this.drivers.store) return;
+    try {
+      const raw = await this.drivers.store.get(this.musicPlacesKey(this.doc.id, tileId));
+      const list = raw ? JSON.parse(raw) as unknown : [];
+      if (!Array.isArray(list)) return;
+      for (const x of list) {
+        const p = x as { kind?: unknown; id?: unknown; name?: unknown; order?: unknown; count?: unknown; ids?: unknown; index?: unknown; at?: unknown };
+        if (typeof p.kind !== "string" || typeof p.id !== "string" || typeof p.name !== "string" || !isPlayOrder(p.order)) continue;
+        const ids = Array.isArray(p.ids) ? p.ids.filter((y): y is string => typeof y === "string") : [];
+        // a play in order's place is the song it stood on (trackId), with no order of PRISM's
+        const q = x as { trackId?: unknown; title?: unknown };
+        if (!ids.length && typeof q.trackId === "string" && q.trackId && p.order === "normal" && !map.has(Orchestrator.placeKey(p.kind, p.id))) {
+          map.set(Orchestrator.placeKey(p.kind, p.id), { kind: p.kind, id: p.id, name: p.name, order: "normal", trackId: q.trackId, ...(typeof q.title === "string" && q.title ? { title: q.title } : {}), at: typeof p.at === "number" ? p.at : 0 });
+          continue;
+        }
+        if (!ids.length || map.has(Orchestrator.placeKey(p.kind, p.id))) continue;
+        map.set(Orchestrator.placeKey(p.kind, p.id), { kind: p.kind, id: p.id, name: p.name, order: p.order, ...(typeof p.count === "number" ? { count: p.count } : {}), ids, index: typeof p.index === "number" && p.index >= 0 && p.index < ids.length ? p.index : 0, at: typeof p.at === "number" ? p.at : 0 });
+      }
+    } catch { /* unreadable: no kept places */ }
+  }
+  private async saveMusicPlaces(tileId: string): Promise<void> {
+    if (!this.doc || !this.drivers.store) return;
+    try { await this.drivers.store.set(this.musicPlacesKey(this.doc.id, tileId), JSON.stringify([...(this.musicPlaces.get(tileId)?.values() ?? [])])); } catch { /* best effort */ }
+  }
+  private async keepPlace(tileId: string, rec: { kind: string; id: string; name: string; order: PlayOrder; count?: number; ids?: string[]; index?: number; pass?: number; trackId?: string; title?: string; at: number }): Promise<void> {
+    if (!rec.ids?.length && !rec.trackId) return;
+    await this.loadMusicPlaces(tileId);
+    const map = this.musicPlaces.get(tileId)!;
+    const key = Orchestrator.placeKey(rec.kind, rec.id);
+    map.delete(key); map.set(key, { ...rec, at: Date.now() });   // newest last
+    while (map.size > Orchestrator.MUSIC_PLACES_MAX) map.delete(map.keys().next().value as string);
+    await this.saveMusicPlaces(tileId);
+  }
+  private async dropPlace(tileId: string, kind: string, id: string): Promise<void> {
+    await this.loadMusicPlaces(tileId);
+    if (this.musicPlaces.get(tileId)?.delete(Orchestrator.placeKey(kind, id))) await this.saveMusicPlaces(tileId);
+  }
+  /** The place PRISM holds in one collection: the standing order when it is this one, else the place kept for it. The shape musicOrderOf gives. */
+  musicPlaceOf(tileId: string, kind: string, id: string): { kind: string; id: string; name: string; order: PlayOrder; label: string; count?: number; spot?: number; song?: string; kept?: true } | null {
+    const s = this.musicOrder.get(tileId);
+    const k = this.musicPlaces.get(tileId)?.get(Orchestrator.placeKey(kind, id));
+    const o = s && s.kind === kind && s.id === id ? s : k;
+    if (!o) return null;
+    const song = o === k && !k.ids?.length && k.trackId ? { kept: true as const, ...(k.title ? { song: k.title } : {}) } : {};
+    return { kind: o.kind, id: o.id, name: o.name, order: o.order, label: playOrderLabel(o.order), ...(o.count !== undefined ? { count: o.count } : {}), ...(o.ids?.length ? { spot: (o.index ?? 0) + 1 } : {}), ...song };
+  }
+  /**
+   * A play in order gives way to another collection (2026-11-16, asked for after the kept place for PRISM's own orders): the
+   * service's player held the place, and the next play takes its queue. The song it stood on is kept as the playlist's place. Resume
+   * reads the playlist's track list, finds that song and hands the player the list from there, in order (the standing order is then
+   * "normal" with its ids, and its spot is kept like any other). Only on a service PRISM can read and queue.
+   */
+  private async keepPlayerPlace(tileId: string, nextKind: string, nextId: string): Promise<void> {
+    const np = this.nowPlaying.get(tileId);
+    const cx = np?.context;
+    if (!cx?.kind || !cx.id || !cx.trackId || (cx.kind !== "playlist" && cx.kind !== "album")) return;
+    if (cx.kind === nextKind && cx.id === nextId) return;
+    if (this.musicOrder.get(tileId)?.ids?.length) return;   // PRISM's own queue plays: its place is the order's, kept by setMusicOrder / clearMusicOrder
+    if (this.musicOrderSupport(tileId).own !== true) return;
+    const lib = await this.musicLibrary(tileId);
+    const name = cx.label ?? lib.playlists.find((x) => x.id === cx.id && x.kind === cx.kind)?.name ?? cx.id;
+    await this.keepPlace(tileId, { kind: cx.kind, id: cx.id, name, order: "normal", trackId: cx.trackId, ...(np?.title ? { title: np.title } : {}), at: Date.now() });
+  }
+  /** <paramref name="next"/> is the collection that starts now: the place held in another one is kept; a place in this very one is replaced by the fresh start. */
+  private async clearMusicOrder(tileId: string, next?: { kind: string; id: string }): Promise<void> {
+    const old = this.musicOrder.get(tileId);
+    if (next) await this.dropPlace(tileId, next.kind, next.id);
+    if (old?.ids?.length && !(next && old.kind === next.kind && old.id === next.id)) await this.keepPlace(tileId, old);
     if (!this.musicOrder.delete(tileId)) return;
     if (this.doc && this.drivers.store) { try { await this.drivers.store.set(this.musicOrderKey(this.doc.id, tileId), ""); } catch { /* best effort */ } }
   }
   private async loadMusicOrder(tileId: string): Promise<void> {
+    await this.loadMusicPlaces(tileId);
     if (!this.doc || !this.drivers.store) return;
     try {
       const raw = await this.drivers.store.get(this.musicOrderKey(this.doc.id, tileId));
@@ -3175,13 +3422,13 @@ export class Orchestrator {
   }
   private readonly recentCache = new Map<string, RecentMusic[]>();
 
-  private async rememberRecent(tileId: string, point: { url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number }): Promise<void> {
+  private async rememberRecent(tileId: string, point: { url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; artwork?: string; at: number }): Promise<void> {
     if (!this.doc || !this.drivers.store) return;
     const said = point.kind && /^(album|playlist|station|artist|video)$/.test(point.kind) ? (point.kind as RecentMusic["kind"]) : null;
     const kind = said ?? collectionKind(point.url);
     if (kind === null) return;                                              // a home / search / library page is not a collection
     const label = point.label ?? (kind === "album" && point.album ? point.album : collectionSlug(point.url) ?? point.album ?? point.title);
-    const entry: RecentMusic = { url: point.url, label, kind, ...(point.id ? { id: point.id } : {}), ...(point.artist ? { artist: point.artist } : {}), ...(point.album ? { album: point.album } : {}), title: point.title, at: point.at };
+    const entry: RecentMusic = { url: point.url, label, kind, ...(point.id ? { id: point.id } : {}), ...(point.artist ? { artist: point.artist } : {}), ...(point.album ? { album: point.album } : {}), ...(point.artwork ? { artwork: point.artwork } : {}), title: point.title, at: point.at };
     // one entry per collection (2026-10-05): the same station named from a search page
     // carried the search page's address and a made-up id, so it stood beside itself. A match is the address, or the kind and the label;
     // a page that is not the collection's own (a search, the home) keeps the address an earlier entry had, and is skipped without one
@@ -3203,6 +3450,61 @@ export class Orchestrator {
     const kept = list.slice(0, Orchestrator.RECENT_MAX);
     this.recentCache.set(tileId, kept);
     try { await this.drivers.store.set(this.recentKey(this.doc.id, tileId), JSON.stringify(kept)); } catch { /* best effort */ }
+  }
+
+  // ---------------------------------------------------------------- covers of recents (2026-11-16)
+  /**
+   * A recent made before covers were kept has none, and one that is not in the service's library gets none from there. The service's own
+   * page asks its own site for the collection's cover (the adapter's musicCover route: the collection page's og:image, or the site's public
+   * embed address) and the address is kept with the entry. One recent at a time, at most two a call, each asked once a run of PRISM; only a
+   * signed-in service, only an address on the service's own site. Returns how many covers were kept.
+   */
+  private readonly coverAsked = new Set<string>();
+  private readonly coverBusy = new Set<string>();
+  async fillRecentCovers(tileId: string): Promise<number> {
+    const tile = this.tile(tileId);
+    const spec = tile?.adapter ? this.adapters.get(tile.adapter) : undefined;
+    const evaluate = this.drivers.surface.evaluate?.bind(this.drivers.surface);
+    if (!tile?.url || !spec?.musicCover || !evaluate || !this.doc || !this.drivers.store || !this.surfaces.has(tileId)) return 0;
+    if (this.sessionOf(tileId) === "signed-out" || this.coverBusy.has(tileId)) return 0;
+    this.coverBusy.add(tileId);
+    let kept = 0;
+    try {
+      const lib = this.musicLibraryNow(tileId);
+      const library = [...lib.playlists, ...lib.stations];
+      const { route, segment } = coverRoute(spec.musicCover);
+      // a cover kept under another size name takes the square one
+      const held = await this.recentMusic(tileId);
+      if (segment && held.some((x) => x.artwork && squareCover(x.artwork, segment) !== x.artwork)) {
+        const squared = held.map((x) => (x.artwork ? { ...x, artwork: squareCover(x.artwork, segment) } : x));
+        this.recentCache.set(tileId, squared);
+        try { await this.drivers.store.set(this.recentKey(this.doc.id, tileId), JSON.stringify(squared)); } catch { /* best effort */ }
+      }
+      const want = (await this.recentMusic(tileId)).filter((e) => !this.coverAsked.has(tileId + "|" + e.url) && /^https:/.test(e.url) && sameRegistrableDomain(e.url, tile.url!)
+        && collectionKind(e.url) !== null && !recentPicture(e, realName(e, library) ?? e.label, library)).slice(0, 2);
+      for (const e of want) {
+        this.coverAsked.add(tileId + "|" + e.url);
+        await evaluate(tileId, coverAskJs(route, e.url));
+        let got: string | null = null;
+        for (let i = 0; i < 6 && got === null; i++) {
+          await new Promise((r) => setTimeout(r, 1500));
+          let raw: string | null = null;
+          try { raw = await evaluate(tileId, `(window.__prismCover||{})[${JSON.stringify(e.url)}]`); } catch { raw = null; }
+          // the answer comes as the page's JSON of the value or, through the app's channel, as the value itself: both are read
+          let said: unknown = raw;
+          try { if (raw) said = JSON.parse(raw); } catch { said = raw; }
+          if (typeof said === "string" && said !== "wait" && said !== "null") got = said;
+        }
+        const found = pictureOf(got);
+        if (!found) continue;
+        const picture = squareCover(found, segment);
+        const list = (await this.recentMusic(tileId)).map((x) => (x.url === e.url && !x.artwork ? { ...x, artwork: picture } : x));
+        this.recentCache.set(tileId, list);
+        try { await this.drivers.store.set(this.recentKey(this.doc.id, tileId), JSON.stringify(list)); } catch { /* best effort */ }
+        kept++;
+      }
+    } catch { /* a page that does not answer keeps its tile */ } finally { this.coverBusy.delete(tileId); }
+    return kept;
   }
 
   /** Quick play: go to one of the remembered collections and press the page's Play (the resume path, at a chosen page). */
@@ -3383,16 +3685,16 @@ export class Orchestrator {
   }
 
   /** What Play would resume for a music tile: the remembered page and track, or null when PRISM never saw it play. */
-  async resumePoint(tileId: string): Promise<{ url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number } | null> {
+  async resumePoint(tileId: string): Promise<{ url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; artwork?: string; at: number } | null> {
     if (!this.doc || !this.drivers.store) return null;
     try {
       const raw = await this.personRead("resume", tileId);
       if (!raw) return null;
-      const p = JSON.parse(raw) as { url?: unknown; title?: unknown; artist?: unknown; album?: unknown; label?: unknown; kind?: unknown; id?: unknown; at?: unknown };
+      const p = JSON.parse(raw) as { url?: unknown; title?: unknown; artist?: unknown; album?: unknown; label?: unknown; kind?: unknown; id?: unknown; artwork?: unknown; at?: unknown };
       if (typeof p.url !== "string" || typeof p.title !== "string") return null;
       const own = this.tile(tileId)?.url;
       if (own && !sameRegistrableDomain(p.url, own)) return null;   // another site's page is not this service's resume point (2026-10-05)
-      return { url: normalizeCollectionUrl(p.url), title: p.title, ...(typeof p.artist === "string" ? { artist: p.artist } : {}), ...(typeof p.album === "string" ? { album: p.album } : {}), ...(typeof p.label === "string" ? { label: p.label } : {}), ...(typeof p.kind === "string" ? { kind: p.kind } : {}), ...(typeof p.id === "string" ? { id: p.id } : {}), at: typeof p.at === "number" ? p.at : 0 };
+      return { url: normalizeCollectionUrl(p.url), title: p.title, ...(typeof p.artist === "string" ? { artist: p.artist } : {}), ...(typeof p.album === "string" ? { album: p.album } : {}), ...(typeof p.label === "string" ? { label: p.label } : {}), ...(typeof p.kind === "string" ? { kind: p.kind } : {}), ...(typeof p.artwork === "string" && /^https:/.test(p.artwork) ? { artwork: p.artwork } : {}), ...(typeof p.id === "string" ? { id: p.id } : {}), at: typeof p.at === "number" ? p.at : 0 };
     } catch { return null; }
   }
 
@@ -4502,7 +4804,7 @@ export class Orchestrator {
         ...(this.musicRepeat.get(t.id) ? { musicRepeat: true } : {}),
         ...(this.musicWork.has(t.id) ? { musicWork: { ...this.musicWork.get(t.id)! } } : {}),
         ...(this.stallNotes.has(t.id) ? { stall: { ...this.stallNotes.get(t.id)! } } : {}),
-        ...((() => { const r = this.resumeCache.get(t.id); return r && !this.nowPlaying.get(t.id)?.title && !this.musicPending.has(t.id) ? { resume: { title: r.title, ...(r.artist ? { artist: r.artist } : {}), ...(r.label ? { label: r.label } : {}), ...(r.kind ? { kind: r.kind } : {}) } } : {}; })()),   // B-204: what Play would resume
+        ...((() => { const r = this.resumeCache.get(t.id); return r && !this.nowPlaying.get(t.id)?.title && !this.musicPending.has(t.id) ? { resume: { title: r.title, ...(r.artist ? { artist: r.artist } : {}), ...(r.label ? { label: r.label } : {}), ...(r.kind ? { kind: r.kind } : {}), ...(r.artwork && /^https:/.test(r.artwork) ? { artwork: r.artwork } : {}) } } : {}; })()),   // B-204: what Play would resume; its cover since 2026-11-16 (the music panel's card drew a placeholder for it)
         ...((() => { const rs = t.adapter ? this.adapters.get(t.adapter) : undefined; const off = this.nowPlaying.get(t.id)?.context?.unavailable ?? []; return rs && (rs.controls?.thumbUp || (rs.musicCmd && rs.capabilities?.includes("rating"))) && !off.includes("thumbUp") ? { rate: true } : {}; })()),   // 2026-09-14: not while the page hides its thumbs (Pandora, during an ad)
         ...(this.sessionState.has(t.id) ? { session: this.sessionState.get(t.id)! } : {}),
         ...(t.url && t.adapter && this.adapters.get(t.adapter)?.login ? { loginUrl: this.adapters.get(t.adapter)!.login } : {}),
@@ -4874,6 +5176,43 @@ export class Orchestrator {
   videoResync(tileId: string): "nudged" | "reopened" | "unavailable" { return this.video.resync(tileId); }
   /** The guide's program on a channel window now (VideoController.programEdges), for the shell's break watch. */
   videoProgramEdges(tileId: string): { channel: string; title: string; start: number; end: number | null } | null { return this.video.programEdges(tileId); }
+  /** May this window be watched behind live (VideoController.lookAhead), for the shell's look-ahead. */
+  videoLookAhead(tileId: string): LookAheadAnswer { return this.video.lookAhead(tileId); }
+  // ---- the look-ahead's live page (docs/features/look-ahead.md, 2026-11-17): a second page on the big screen's channel, never seen and
+  // never heard, kept at the live edge for the shell's break watch. One at a time. It is the wall's own surface in the App's profile:
+  // not a reading page (it plays), not in the scene (a scene switch leaves it), never in audio focus, never revealed.
+  static readonly SCOUT_ID = "scout:big";
+  private scout: { of: string; adapter: string | null; url: string; up: boolean } | null = null;
+  videoScoutState(): { id: string; of: string; url: string; up: boolean } | null { return this.scout ? { id: Orchestrator.SCOUT_ID, ...this.scout } : null; }
+  /** The live page opened on the channel this window plays, or (null) closed. */
+  async videoScout(tileId: string | null): Promise<{ ok: boolean; id?: string; error?: string }> {
+    const id = Orchestrator.SCOUT_ID;
+    if (tileId === null) {
+      if (this.scout || this.surfaces.has(id)) { this.scout = null; this.surfaces.delete(id); this.currentUrl.delete(id); this.nowPlaying.delete(id); await this.drivers.surface.destroy(id); }
+      return { ok: true };
+    }
+    const tile = this.tile(tileId);
+    const url = this.currentUrl.get(tileId) ?? tile?.url ?? null;
+    if (!tile || !url || !/^https:[/][/]/.test(url)) return { ok: false, error: "no page to follow" };
+    if (!this.video.lookAhead(tileId).ok) return { ok: false, error: "not a channel the look-ahead follows" };
+    if (this.scout && this.scout.of === tileId && this.scout.url === url && this.surfaces.has(id)) return { ok: true, id };
+    if (!this.surfaces.has(id)) {
+      await this.drivers.surface.create({ id, profile: tile.profile ?? tile.id, background: this.doc?.theme?.background ?? DEFAULT_BACKGROUND, kind: "hidden", blocking: this.blockingFor(tile) });
+      this.surfaces.add(id);
+      await this.drivers.surface.setRect(id, { x: 0, y: 0, w: 960, h: 540 });
+      await this.drivers.surface.setMuted(id, true);
+    }
+    this.scout = { of: tileId, adapter: tile.adapter ?? null, url, up: false };
+    await this.drivers.surface.navigate(id, url);
+    return { ok: true, id };
+  }
+  private async onScoutEvent(event: SurfaceEvent): Promise<void> {
+    if (!this.scout || event.type !== "load-finished" || !event.ok) return;
+    await this.drivers.surface.inject(event.id, null, FRAME_PRELUDE_JS);
+    const spec = this.scout.adapter ? this.adapters.get(this.scout.adapter) : undefined;
+    if (spec) await this.drivers.surface.inject(event.id, spec.css ?? null, adapterScript(spec));
+    this.scout.up = true;
+  }
   /** The live channel a window is on, null for a window on a title (VideoController.channelOf). */
   videoChannelOf(tileId: string): { id: string; name: string } | null { return this.video.channelOf(tileId); }
   /** The shell's picture watch: a video window's picture stood still for this long while its player plays - healed like a frozen clock
@@ -5285,6 +5624,7 @@ export class Orchestrator {
   /** A Cancel this long after its pick still takes the window back. */
   static readonly PICK_UNDO_MS = 300_000;
   private notePickFrom(tileId: string): void {
+    this.videoResumeEnd(tileId);   // a pick of the person's own: what a start held is not offered any more
     const up = this.videoUp.get(tileId);
     if (up) this.beforePick.set(tileId, { up: { ...up }, at: Date.now() }); else this.beforePick.delete(tileId);
   }
@@ -5765,6 +6105,7 @@ export class Orchestrator {
     const tile = this.tile(tileId);
     if (!this.doc || !tile?.url || !tile.adapter || !isVideoAdapter(this.adapters.get(tile.adapter))) return;
     if (this.bootTitles.has(tileId)) return;   // still coming back: the page has not said anything yet
+    if (this.startHeld?.has(tileId)) return;   // held for Resume: its record stays as the start found it
     const ctx = this.video.state([tileId])[0]?.video ?? null;
     // the episode the player moved on to, when the page's address still names the one before (correctStaleEpisode): what a restart loads
     const url = this.staleEpisode.get(tileId) ?? this.currentUrl.get(tileId) ?? null;
@@ -5833,10 +6174,47 @@ export class Orchestrator {
       if (!boot && (!tile || this.surfaces.has(id))) continue;
       if (!tile?.url || this.surfaces.has(id) || !sameRegistrableDomain(up.url, tile.url)) { this.videoUp.delete(id); if (!tile) stale = true; continue; }
       // (a record whose window is gone was dropped above: the record on the device follows, below)
+      // held for Resume, at a switch of players too: nothing of it starts until the person asks
+      if (!boot && this.startHeld?.has(id)) continue;
       // a channel comes back through its service's tune: the tile loads its home, the tune is asked once it is up
       this.bootTitles.set(id, up.tune && tile.adapter && this.adapters.get(tile.adapter)?.videoTune ? { url: tile.url, name: up.name, tune: up.tune } : { url: up.url, name: up.name, ...(up.pos ? { pos: up.pos } : {}), ...(up.paused ? { paused: true } : {}) });
     }
     if (stale) this.persistVideoUp();
+    // After a start nothing plays by itself (2026-11-17, a restart with nobody in the room brought three live channels back, playing): what
+    // would come back is held, the windows stand in their places at their services' pages, and the big window offers one Resume
+    // (videoResume). The records on the device stay as they are, so a second start offers the same.
+    if (boot && Orchestrator.RESUME_BY_ASK && this.bootTitles.size) { this.startHeld = new Map(this.bootTitles); this.bootTitles.clear(); }
+  }
+  /** After a start, what was up waits for the person's Resume. A test of the restore itself sets this false. */
+  static RESUME_BY_ASK = true;
+  private startHeld: Map<string, { url: string; name: string; pos?: number; tune?: string; paused?: boolean }> | null = null;
+  /** What a start held, for the big window's Resume: the names, the big window's first. Null when nothing is held. */
+  videoResumeOffer(): { names: string[] } | null {
+    if (!this.startHeld?.size) return null;
+    const hero = this.videoMultiviewHero();
+    const ids = [...this.startHeld.keys()].sort((a, b) => (a === hero ? -1 : 0) - (b === hero ? -1 : 0));
+    return { names: ids.map((id) => this.startHeld!.get(id)!.name).filter(Boolean) };
+  }
+  /** Resume: every held window goes back to what it had up, by the path a start used to take (the title's address, or the service's home and its tune). */
+  async videoResume(): Promise<boolean> {
+    const held = this.startHeld;
+    if (!held?.size) return false;
+    for (const [id, up] of held) if (this.tile(id) && this.surfaces.has(id)) this.bootTitles.set(id, up); else if (this.videoUp.delete(id)) this.persistVideoUp();
+    // marked as a start marks them (no window takes the sound yet: the one whose page comes up claims it, as at a start); the hold stands
+    // until every window is marked, so none reads as empty in between
+    await this.videoUpMark(false);
+    this.startHeld = null;
+    for (const [id, up] of [...this.bootTitles]) await this.drivers.surface.navigate(id, up.url);
+    return true;
+  }
+  /** The offer ends: a pick of the person's own (its tile keeps what it gets), or Clear screens (no tile). The other held records are forgotten. */
+  videoResumeEnd(pickedTile?: string): void {
+    const held = this.startHeld;
+    if (!held) return;
+    this.startHeld = null;
+    let changed = false;
+    for (const id of held.keys()) if (id !== pickedTile && this.videoUp.delete(id)) changed = true;
+    if (changed) this.persistVideoUp();
   }
   /** A title brought back after a restart, taken to the spot it had reached (the spot kept with videoUp): once it plays outside an ad, if it
    *  started more than 30 seconds short of the spot, its service's own seek takes it there; a service that resumed by itself, a spot in the
@@ -8347,6 +8725,8 @@ export class Orchestrator {
   /** VP-3: a human's pick on a service's profile gate; `always` makes it the household's standing choice. */
   videoProfile(tileId: string, id: string, always: boolean) { return this.video.pickProfile(tileId, id, always); }
   videoTrack(tileId: string, kind: "subtitles" | "audio", id: string) { return this.video.pickTrack(tileId, kind, id); }
+  /** A human's pick of the service's own picture quality from the stage bar (2026-11-15). */
+  videoQuality(tileId: string, id: string) { this.pageTouchedAt.set(tileId, Date.now()); return this.video.pickQuality(tileId, id); }
   /** Told when a press moves a video tile to another episode (the next one; the runtime raises the wall's cover over the service's pages). */
   episodeMoveHook: ((tileId: string, title: string) => void) | null = null;
   /** The service's own tracks read for the phone's Captions sheet, and the sheet closed (2026-10-05). */
@@ -8986,6 +9366,7 @@ export class Orchestrator {
     if (!this.tile(event.id) && event.id.includes("#popup-")) return;   // a popup surface's own events: engine-covered, nothing to orchestrate
     if (this.previews.has(event.id)) { await this.onPreviewEvent(event); return; }   // B-41 preview surfaces live outside the wall
     if (this.lookups.has(event.id)) { await this.onLookupEvent(event); return; }     // cross-service search surfaces: hidden, never revealed
+    if (event.id === Orchestrator.SCOUT_ID) { await this.onScoutEvent(event); return; }   // the look-ahead's live page: its adapter and nothing else
     if (event.type === "playback" && this.lifecycle.isPeeking(event.id)) {
       // §25: a peeking tile is muted and transient — it never enters the
       // audio-focus machinery, never counts as recency, never holds a
@@ -9762,7 +10143,7 @@ export class Orchestrator {
   }
   private resumeKey(dashId: string, tileId: string): string { return this.personKey("resume", dashId, tileId); }
   /** B-204 (2026-09-15): each music tile's resume point, in memory - the wall row says what Play would resume while nothing is loaded. */
-  private resumeCache = new Map<string, { url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; at: number }>();
+  private resumeCache = new Map<string, { url: string; title: string; artist?: string; album?: string; label?: string; kind?: string; id?: string; artwork?: string; at: number }>();
   /** The profile each tile's page was made in: a report from a page of another profile (one being replaced) is not the tile's person's. */
   private readonly surfaceProfile = new Map<string, string>();
   private async primeResumePoints(doc: DashboardDocument): Promise<void> {
@@ -9770,7 +10151,7 @@ export class Orchestrator {
     this.recentCache.clear();   // a document's tiles may be another person's now (a sign-in switch re-applies the scene)
     if (!this.drivers.store) return;
     await this.legacyMusicLoad(doc);
-    this.musicOrder.clear();
+    this.musicOrder.clear(); this.musicPlaces.clear(); this.musicPlacesLoaded.clear();
     this.musicRepeat.clear();
     for (const t of doc.tiles) {
       if (!t.adapter) continue;

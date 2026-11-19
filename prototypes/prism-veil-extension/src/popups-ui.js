@@ -41,7 +41,13 @@
   var morph = new core.MorphCoalescer({ hold: 5000 });
 
   function pushSnapshot() {
-    try { document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(policy.snapshot()) } })); } catch (e) {}
+    // Only this site's entry goes to the page's world (2026-11-18): the hook judges this page's popups and needs no more, and any
+    // script of the page can listen here, so what other sites were allowed must not be in it
+    try {
+      var all = policy.snapshot(), mine = { global: all.global, sites: {} }, here = location.hostname;
+      if (all.sites && Object.prototype.hasOwnProperty.call(all.sites, here)) mine.sites[here] = all.sites[here];
+      document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(mine) } }));
+    } catch (e) {}
   }
   document.addEventListener("prism-popup-ready", pushSnapshot);
   PV.onReclaimChange = function () { if (panelOpen) renderPanel(); };
@@ -152,7 +158,7 @@ opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);ba
 .pill.off .lbl{color:#A3ABB7}\
 .pill.off{opacity:.6}\
 .acts{display:flex;gap:8px;margin:6px 0 2px}\
-.acts .btn{flex:1;padding:7px 10px}\
+.acts .btn{flex:1}\
 .pill.dissolve .lbl{opacity:0}\
 .pill.collapsed{right:14px;padding:0;width:12px;height:44px;border-radius:7px;justify-content:center;opacity:.7;background:rgba(240,168,60,.9);border-color:rgba(0,0,0,.55);box-shadow:0 0 0 1px rgba(255,255,255,.4),0 2px 6px rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none}\
 .pill.collapsed .lbl,.pill.collapsed .x{display:none}\
@@ -160,30 +166,57 @@ opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);ba
 .pill .x:hover{opacity:1;background:rgba(255,255,255,.14)}\
 .pill.hidden{display:none}\
 .pill .mk{display:none;line-height:0;flex:none;filter:drop-shadow(0 0 1px rgba(255,255,255,.7))}\
-.srcrow{display:flex;align-items:center;gap:8px;padding:5px 0}\
+.srcrow{display:flex;align-items:center;gap:10px;min-height:36px;padding:3px 0;border-top:1px solid rgba(255,255,255,.07);color:#D4DAE3}\
+h3+.srcrow{border-top:0}\
 .srcrow .nm{flex:1;min-width:0}\
 .srcrow .nm .meta{color:#C0C8D2;font-size:11px;display:block}\
 .disk{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.5)}\
 .pill.marked .mk{display:inline-block}\
 .pill.marked{opacity:.8}\
 .pill.collapsed .mk{display:none}\
-.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:14px 16px;border-radius:14px;\
-background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px rgba(0,0,0,.5);font:14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif}\
-.panel h2{margin:0 0 4px;font-size:15px;font-weight:600}\
-.panel .sub{color:#8A93A0;font-size:12px;margin-bottom:10px}\
-.panel h3{margin:14px 0 6px;font:600 11px/1 'IBM Plex Mono',Consolas,monospace;letter-spacing:.1em;text-transform:uppercase;color:#8A93A0}\
-.row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}\
+.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
+background:#14171C;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px rgba(0,0,0,.5);font:13px/1.45 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif}\
+.panel h2{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:18px;line-height:1.2;font-weight:600}\
+.panel h2 span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
+.panel h2 img{flex:none;width:18px;height:18px;border-radius:4px}\
+.panel h2 img[hidden]{display:none}\
+.ptop{display:flex;align-items:center;gap:16px;padding:12px 24px;background:#0A0C0F;border-bottom:1px solid #2C333E;position:sticky;top:0;z-index:1}\
+.ptop .brand{font:700 15px/1 'Segoe UI Variable Display','Segoe UI',-apple-system,Roboto,sans-serif;letter-spacing:.34em;color:#F0A83C}\
+.pbody{padding:0 24px 16px}\
+.pfoot{display:flex;align-items:center;gap:10px;padding:10px 24px;background:#0A0C0F;border-top:1px solid #2C333E;color:#C0C8D2;font-size:12px}\
+.pfoot span{flex:1}\
+.toggle.master input{margin:0}\
+.toggle.master{border:0;min-height:0;padding:0;margin-left:auto;gap:14px;color:#F2F4F7;font:600 18px/1.2 'Segoe UI Variable Display','Segoe UI',-apple-system,Roboto,sans-serif}\
+h2+.row{border-top:0}\
+.toggle input{width:108px;height:28px;border-radius:8px;border:1px solid #2C333E;background:#0A0C0F;box-shadow:inset 0 2px 4px rgba(0,0,0,.7)}\
+.toggle input::before{content:'Off';left:2px;top:2px;width:52px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 11px/1 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7;background:linear-gradient(#4A5362,#2F3642);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 3px rgba(0,0,0,.8)}\
+.toggle input:checked{background:#0A0C0F;border-color:#F0A83C}\
+.toggle input:checked::before{content:'On';transform:translateX(50px);color:#0A0C0F;background:linear-gradient(#F7C469,#E39A2C);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 3px rgba(0,0,0,.8)}\
+.panel .sub{color:#D4DAE3;font-size:12px;margin-bottom:6px}\
+.panel h3{margin:16px 0 2px;font:600 14px/1.3 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7}\
+.row{display:flex;align-items:center;gap:10px;min-height:36px;padding:3px 0;border-top:1px solid rgba(255,255,255,.07);color:#D4DAE3}\
 .row:first-of-type{border-top:0}\
 .row .dest{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
-.row .meta{color:#5A6270;font-size:11px;display:block}\
-.btn{font:600 12px -apple-system,Segoe UI,Roboto,sans-serif;color:#F2F4F7;background:#2A2F38;border:1px solid #2C333E;border-radius:8px;padding:5px 10px;cursor:pointer;white-space:nowrap}\
+.row .meta{color:#C0C8D2;font-size:11px;display:block}\
+.btn{font:600 12px/1 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7;background:#2A2F38;border:1px solid #2C333E;border-radius:8px;height:28px;padding:0 12px;cursor:pointer;white-space:nowrap}\
+.panel .btn{min-width:108px;text-align:center}\
+.panel .nudge .btn{min-width:56px}\
 .btn:hover{border-color:#F0A83C}\
-.btn.primary{background:#F0A83C;color:#0A0C0F;border-color:#F0A83C}\
+.btn{background:linear-gradient(#3A414D,#262B34);border-color:#0A0C0F;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 3px rgba(0,0,0,.7)}\
+.btn.primary{background:linear-gradient(#F7C469,#E39A2C);color:#0A0C0F;border-color:#0A0C0F;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 3px rgba(0,0,0,.8)}\
+.btn:active{box-shadow:inset 0 2px 4px rgba(0,0,0,.6);transform:translateY(1px)}\
 .nudge{display:flex;align-items:center;gap:8px;margin:6px 0 2px;padding:7px 10px;border-radius:9px;background:rgba(240,168,60,.12);border:1px solid rgba(240,168,60,.35);font-size:13px}\
 .nudge span{flex:1}\
-.empty{color:#8A93A0;font-size:13px;padding:6px 0}\
-.toggle{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer}\
-.toggle input{accent-color:#F0A83C}\
+.empty{color:#D4DAE3;font-size:13px;padding:6px 0}\
+.toggle{display:flex;align-items:center;gap:10px;min-height:36px;font-size:13px;padding:3px 0;cursor:pointer;color:#D4DAE3;border-top:1px solid rgba(255,255,255,.07)}\
+.toggle:hover{color:#F2F4F7}\
+.toggle>.btn{margin-left:auto}\
+h3+.row,.sub+.row{border-top:0}\
+h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
+.toggle input{-webkit-appearance:none;appearance:none;order:2;margin:0 0 0 auto;flex:none;position:relative;cursor:pointer}\
+.toggle input::before{position:absolute;transition:transform .15s}\
+.toggle input:disabled{opacity:.45;cursor:default}\
+.toggle input:focus-visible,.btn:focus-visible{outline:2px solid #F0A83C;outline-offset:2px}\
 @media (prefers-reduced-motion:reduce){.pill{transition:none}}\
 ";
 
@@ -382,31 +415,49 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
   function renderPanel() {
     if (!panel) return;
     panel.textContent = "";
-    panel.appendChild(el("h2", null, "PRISM on " + site));
+    // The same build as the settings (2026-11-18): a dark band with the name and the main switch, the site as the heading, every
+    // line with its words at the left and its control at the right, and a dark band at the foot.
+    var top = el("div", "ptop"), body = el("div", "pbody"), foot = el("div", "pfoot");
+    top.appendChild(el("span", "brand", "PRISM"));
+    panel.appendChild(top); panel.appendChild(body); panel.appendChild(foot);
+    // The site's own icon beside its address (2026-11-18): the address this page names as its icon, else /favicon.ico on this site,
+    // the file the browser has already fetched for the tab. A page that forbids it, or has none, shows the address alone.
+    var h2 = el("h2", null), ico = document.createElement("img"), icoUrl = "";
+    try {
+      var links = document.querySelectorAll('link[rel~="icon"][href]');
+      for (var li = 0; li < links.length && !icoUrl; li++) { if (/^(https?:|data:image.)/i.test(links[li].href)) icoUrl = links[li].href; }
+      if (!icoUrl && /^https?:$/.test(location.protocol)) icoUrl = location.origin + "/favicon.ico";
+    } catch (e) {}
+    ico.alt = ""; ico.width = 18; ico.height = 18; ico.referrerPolicy = "no-referrer"; ico.hidden = true;
+    ico.addEventListener("load", function () { ico.hidden = false; });
+    ico.addEventListener("error", function () { ico.remove(); });
+    if (icoUrl) { ico.src = icoUrl; h2.appendChild(ico); }
+    h2.appendChild(el("span", null, site));
+    body.appendChild(h2);
     // The veil: the main switch, a report, a look underneath.
-    var tv = el("label", "toggle"); tv.title = "The main switch. On: ads, video breaks and, if you chose it, AI-labeled content are covered with art. Off: every cover comes down on every page at once. Popups are still intercepted.";
-    var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff();
-    cv.addEventListener("change", function () { if (PV.setUiPref) PV.setUiPref("veilOff", !cv.checked); else if (PV.setVeilOff) PV.setVeilOff(!cv.checked); });
-    tv.appendChild(cv); tv.appendChild(document.createTextNode("Veil on")); panel.appendChild(tv);
-    var acts = el("div", "acts");
-    var rb = btn("⚑ Report an ad", true, function () { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); });
+    var allOff = !!(PV.uiPrefs && PV.uiPrefs.veilOff);
+    var tv = el("label", "toggle master"); tv.title = allOff ? "The veil is off for every site. Turn it on in the settings." : "The veil on this site only. Off: no covers on " + site + "; every other site is as it was. Popups are still intercepted. The switch for every site is in the settings.";
+    var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff(); cv.disabled = allOff;
+    cv.addEventListener("change", function () { if (PV.setVeilOffHere) PV.setVeilOffHere(!cv.checked); else if (PV.setVeilOff) PV.setVeilOff(!cv.checked); });
+    tv.appendChild(cv); tv.appendChild(document.createTextNode(allOff ? "Off everywhere" : "Veil site")); top.appendChild(tv);
+    var lineOf = function (text, b) { var r = el("div", "row"); r.appendChild(el("div", "dest", text)); r.appendChild(b); body.appendChild(r); };
+    var rb = btn("Report", false, function () { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); });
     rb.title = "Then click an ad the veil missed, or a veil that should not be there. The report shows you exactly what it holds; nothing is sent without your click.";
-    acts.appendChild(rb);
+    lineOf("Missed ad", rb);
     var rv = btn("Reveal 15 s", false, function () { closePanel(); if (PV.dismissAll) PV.dismissAll(15000); });
     rv.title = "Lift every veil on this page for 15 seconds. Also: press and hold a veil for 3 seconds, or Esc for 6 seconds.";
-    acts.appendChild(rv);
-    panel.appendChild(acts);
+    lineOf("Covers", rv);
 
-    panel.appendChild(el("h3", null, "Popups"));
+    body.appendChild(el("h3", null, "Popups"));
     var vrows = visitRows(), vtotal = 0; vrows.forEach(function (r) { vtotal += r.count; });
-    panel.appendChild(el("div", "sub", vtotal ? vtotal + (vtotal === 1 ? " popup" : " popups") + " intercepted since you arrived, none loaded." : "Nothing intercepted since you arrived."));
+    body.appendChild(el("div", "sub", vtotal ? vtotal + " blocked on this visit" : "None blocked"));
 
     // since you arrived, by destination (the store's entry carries opens/nudge state)
     var rows = vrows.map(function (v) {
       var e = policy.ledger(site).find(function (x) { return x.dest === v.dest; });
       return Object.assign({}, e || { dest: v.dest, lastUrl: v.url, opens: 0, nudgeDismissed: 0 }, { count: v.count, lastSeen: new Date(v.last).toISOString(), context: v.reason });
     });
-    if (rows.length) panel.appendChild(el("h3", null, "Since you arrived"));
+    if (rows.length) body.appendChild(el("h3", null, "Blocked"));
     rows.forEach(function (r) {
       var row = el("div", "row");
       var d = el("div", "dest"); d.textContent = r.dest;
@@ -419,14 +470,14 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
         nudgeFor = o.nudge ? r.dest : null; renderPanel();
       }));
       row.appendChild(btn("Always allow", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); }));
-      panel.appendChild(row);
+      body.appendChild(row);
       if (nudgeFor === r.dest) {
         var n = el("div", "nudge"); n.setAttribute("role", "status");
-        n.appendChild(el("span", null, "Open these automatically next time?"));
-        n.appendChild(btn("Yes", true, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); }));
+        n.appendChild(el("span", null, "Always allow?"));
+        n.appendChild(btn("Yes", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); }));
         n.appendChild(btn("No", false, function () { policy.dismissNudge(site, r.dest); nudgeFor = null; renderPanel(); }));
         var t = n.querySelector(".btn"); t.title = core.allowSentence(site, r.dest);
-        panel.appendChild(n);
+        body.appendChild(n);
       }
     });
 
@@ -435,30 +486,30 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
     var allowedAll = policy.listAllowed();
     var allowed = allowedAll.filter(function (a) { return a.site === site; });
     var elsewhere = allowedAll.length - allowed.length;
-    panel.appendChild(el("h3", null, "Popups you’ve allowed here"));
-    if (!allowed.length) panel.appendChild(el("div", "empty", "None on this site. Allowing is one tap on a row above, whenever you need it."));
+    body.appendChild(el("h3", null, "Allowed popups"));
+    if (!allowed.length) body.appendChild(el("div", "empty", "None"));
     allowed.forEach(function (a) {
       var row = el("div", "row");
       var d = el("div", "dest", a.sentence); d.title = "since " + a.since.slice(0, 10);
       row.appendChild(d);
       row.appendChild(btn("Remove", false, function () { policy.remove(a.site, a.dest); renderPanel(); }));
-      panel.appendChild(row);
+      body.appendChild(row);
     });
-    if (elsewhere) panel.appendChild(el("div", "empty", elsewhere + (elsewhere === 1 ? " more on another site" : " more on other sites") + ", under Settings below."));
+    if (elsewhere) body.appendChild(el("div", "empty", "+" + elsewhere + " on other sites, in Settings"));
 
     // This site: two switches (tooltips carry the explanations).
-    panel.appendChild(el("h3", null, "This site"));
-    var t1 = el("label", "toggle"); t1.title = "Intercept every popup this site tries to open, except destinations you have allowed above."; var c1 = document.createElement("input"); c1.type = "checkbox"; c1.checked = policy.blockAll(site);
+    body.appendChild(el("h3", null, "This site"));
+    var t1 = el("label", "toggle"); t1.title = "Unknown popups are always blocked. This also blocks the ones PRISM normally lets through: this site's own windows, sign-in windows, and popups that match your click. Destinations you allowed above still open."; var c1 = document.createElement("input"); c1.type = "checkbox"; c1.checked = policy.blockAll(site);
     c1.addEventListener("change", function () { policy.setBlockAll(site, c1.checked); });
-    t1.appendChild(c1); t1.appendChild(document.createTextNode("Block all popups here")); panel.appendChild(t1);
+    t1.appendChild(c1); t1.appendChild(document.createTextNode("Block all popups")); body.appendChild(t1);
     var t2 = el("label", "toggle"); t2.title = "Hide this button on this site. Popups are still intercepted; the toolbar badge shows the count. Bring it back from the toolbar popup."; var c2 = document.createElement("input"); c2.type = "checkbox"; c2.checked = !!prefs.hidden;
     c2.addEventListener("change", function () { policy.setHidden(site, c2.checked); });
-    t2.appendChild(c2); t2.appendChild(document.createTextNode("Hide the PRISM button here")); panel.appendChild(t2);
+    t2.appendChild(c2); t2.appendChild(document.createTextNode("Hide this button")); body.appendChild(t2);
 
     // This site's reliability rating (only while marks are on; the switch and
     // the source credits live in the toolbar popup).
     if (PV.credOn && PV.credOn() && PV.CRED_SOURCES) {
-      panel.appendChild(el("h3", null, "This site\u2019s reliability"));
+      body.appendChild(el("h3", null, "Reliability"));
       var ms = PV.credSite ? PV.credSite() : null;
       var TIP = { rsp: "Wikipedia\u2019s Perennial Sources list (CC BY-SA). Community-adjudicated; every rating links to the discussion that set it.",
                   iffy: "Iffy Index (CC BY 4.0). Sites Media Bias/Fact Check rates low credibility; the colour is MBFC\u2019s factual-reporting grade. Why? opens the MBFC review.",
@@ -468,30 +519,71 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
         (function (text, rowEl) { rowEl.addEventListener("mouseenter", function () { if (PV.showTextTip) PV.showTextTip(rowEl, text); }); rowEl.addEventListener("mouseleave", function () { if (PV.hideCredTip) PV.hideCredTip(rowEl); }); })(TIP[src.id] || src.name, row);
         var disk = el("span", "disk"); disk.style.background = m && !m.off && m.tier ? PV.credColor(m.tier) : (m && m.off ? "transparent" : PV.credColor(null));
         if (m && m.off) disk.style.boxShadow = "inset 0 0 0 1px #7d8590"; row.appendChild(disk);
-        var nm = el("div", "nm"); nm.textContent = src.short + (m && !m.off && m.tier ? ": " + m.label + (m.name && m.name !== site ? " (" + m.name + ")" : "") : (m && m.off ? ": off" : (m && !m.loaded ? ": loading\u2026" : ": no information")));
+        var nm = el("div", "nm"); nm.textContent = src.short + (m && !m.off && m.tier ? ": " + m.label : (m && m.off ? ": off" : (m && !m.loaded ? ": loading\u2026" : ": no rating")));
         row.appendChild(nm);
         if (m && m.why) row.appendChild(btn("Why?", false, function () { try { chrome.runtime.sendMessage({ type: "prism-cred-open", url: m.why }); } catch (e) {} }));
-        panel.appendChild(row);
+        body.appendChild(row);
       });
     }
 
     // Everything PRISM-wide (veil, content, photos, start page, time
     // reclaimed) lives in the toolbar popup - one place, not two.
-    var srow = el("div", "toggle"); srow.style.cssText = "justify-content:flex-end;gap:10px;margin-top:10px;cursor:default";
-    var hint = el("span", null, "Covering ads, content, photos, time reclaimed:"); hint.style.color = "#A3ABB7"; hint.style.fontSize = "12px";
-    srow.appendChild(hint);
-    var sb = btn("Settings", true, function () {
+    var srow = foot;
+    srow.appendChild(el("span", null, ""));
+    var sb = btn("Settings", false, function () {
+      closePanel();   // the panel goes as the settings open (2026-11-18): two things were left open, and one press elsewhere closed both
       try {
         chrome.runtime.sendMessage({ type: "prism-open-settings" }, function (r) {
           if (!(r && r.ok) && PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C");
         });
       } catch (e) { if (PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C"); }
     });
-    sb.title = "Open PRISM\u2019s settings (the toolbar popup): veil behaviour, AI and reliability marks, photos, start page, time reclaimed";
+    sb.title = "Open PRISM\u2019s settings: veil behaviour, AI and reliability marks, photos, start page, time reclaimed";
     srow.appendChild(sb);
-    panel.appendChild(srow);
   }
   function btnLike(text, fn) { var b = el("button", null, text); b.type = "button"; b.style.cssText = "font:600 12px -apple-system,Segoe UI,Roboto,sans-serif;color:#F2F4F7;background:#2A2F38;border:1px solid var(--edge,#2C333E);border-radius:8px;padding:5px 10px;cursor:pointer"; b.addEventListener("click", function (e) { e.stopPropagation(); fn(); }); return b; }
+
+  // ---- the settings, drawn over this page (2026-11-18, asked for: a panel at the top centre that closes on a press beside it, not a
+  // window that can get behind the browser). The settings page itself (popup.html) is in a frame of the extension's own, inside a
+  // closed shadow root: this page cannot read it or press in it. A press on the dimmed page, or Escape, closes it. The frame is as
+  // tall as the settings say they are, so nothing scrolls unless the browser window is too small to hold them.
+  var setHost = null, setFrame = null, setKey = null, setWant = 0;
+  addEventListener("resize", function () { if (setFrame && setWant) settingsSize(setWant); });
+  function settingsClose() {
+    try { if (setKey) removeEventListener("keydown", setKey, true); } catch (e) {}
+    try { if (setHost) setHost.remove(); } catch (e) {}
+    setHost = null; setFrame = null; setKey = null; setWant = 0;
+  }
+  function settingsSize(h) {
+    if (!setFrame) return;
+    setWant = +h || setWant;
+    h = Math.max(240, Math.min(setWant, innerHeight - 32));
+    setFrame.style.height = h + "px"; try { setHost.setAttribute("data-prism-settings-h", String(h)); } catch (e) {}   // read by the checks: the settings said how tall they are
+  }
+  function settingsToggle(tabId, pass) {
+    if (setHost) { settingsClose(); return true; }
+    try {
+      closePanel();
+      setHost = document.createElement("div"); setHost.setAttribute("data-prism-ui", "1");
+      var root = setHost.attachShadow({ mode: "closed" });
+      var st = document.createElement("style");
+      st.textContent = ":host{all:initial}.dim{position:fixed;inset:0;z-index:2147483647;background:rgba(6,8,11,.62)}"
+        + "iframe{position:fixed;z-index:2147483647;top:16px;left:50%;transform:translateX(-50%);width:min(1100px,calc(100vw - 32px));height:620px;"
+        + "border:1px solid #2C333E;border-radius:14px;background:#14171C;box-shadow:0 24px 80px rgba(0,0,0,.6);color-scheme:dark}";
+      var dim = document.createElement("div"); dim.className = "dim";
+      dim.addEventListener("click", function (ev) { ev.stopPropagation(); settingsClose(); });
+      setFrame = document.createElement("iframe");
+      setFrame.setAttribute("title", "PRISM settings");
+      setFrame.setAttribute("allow", "clipboard-write");   // Copy in the settings (the veil log)
+      setFrame.src = chrome.runtime.getURL("popup.html") + "?frame=1" + (tabId != null ? "&tab=" + tabId : "") + "&pass=" + encodeURIComponent(pass || "");
+      root.appendChild(st); root.appendChild(dim); root.appendChild(setFrame);
+      (document.fullscreenElement || document.documentElement).appendChild(setHost);
+      setKey = function (ev) { if (ev.key === "Escape") { ev.stopPropagation(); settingsClose(); } };
+      addEventListener("keydown", setKey, true);
+   // the height never came: shown as it is
+      return true;
+    } catch (e) { settingsClose(); return false; }
+  }
 
   // messages from bg.js: the tab backstop asks us to judge a new tab this
   // page opened (by its final URL, against the human's last click); the
@@ -499,7 +591,10 @@ background:#1E232B;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px
   try {
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
       if (!msg) return;
-      if (msg.type === "prism-popup-open-panel") { if (!host) mount(); if (prefs.hidden) { pill.classList.remove("hidden"); } openPanel(); }
+      if (msg.type === "prism-settings-open") { if (window.top !== window) return; sendResponse({ ok: settingsToggle(msg.tab, msg.pass) }); return; }
+      if (msg.type === "prism-settings-size") { settingsSize(msg.h); return; }
+      if (msg.type === "prism-settings-close") { settingsClose(); return; }
+      if (msg.type === "prism-popup-open-panel") { settingsClose();   /* the settings go as the controls open (2026-11-18): the menu came up dimmed under them */ if (!host) mount(); if (prefs.hidden) { pill.classList.remove("hidden"); } openPanel(); }
       // the toolbar popup has already written the switch to storage; this side reads it back and never writes (2026-11-04: the show
       // handler's own collapse write persisted this page's stale prefs, hidden still true, over the popup's, and the checkbox turned
       // itself back off a moment after it was ticked)

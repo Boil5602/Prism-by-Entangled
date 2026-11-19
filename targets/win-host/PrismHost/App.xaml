@@ -1,7 +1,8 @@
 <Application
     x:Class="PrismHost.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PrismHost">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -73,6 +74,8 @@
             <Style TargetType="ToolTip" BasedOn="{StaticResource DefaultToolTipStyle}">
                 <Setter Property="Placement" Value="Bottom" />
                 <Setter Property="VerticalOffset" Value="12" />
+                <!-- every tooltip stays inside the window (TipClamp.cs, 2026-11-16) -->
+                <Setter Property="local:TipClamp.On" Value="True" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

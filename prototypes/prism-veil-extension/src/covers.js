@@ -86,9 +86,9 @@
   // One size (2026-11-11, asked for: every panel the same, never one large and one small). The panel is 260 px wide and its view is
   // a frame of LOOK_W x LOOK_H; what is under the cover is shrunk to fit the frame, with blank space at the sides of a tall element
   // and above and below a wide one.
-  var LOOK_W = 192, LOOK_H = 108;   // the video peep's size (video.js), asked for the same day
+  var LOOK_W = 320, LOOK_H = 180;   // larger, nearer the app's look (2026-11-18); was 192 x 108
   var LOOK_CSS = ":host{all:initial}" +
-    ".card{display:flex;flex-direction:column;width:260px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.12);color:#D7DCE3;font:500 13px/1.35 -apple-system,'Segoe UI',Roboto,sans-serif;cursor:default}" +
+    ".card{display:flex;flex-direction:column;width:340px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.12);color:#D7DCE3;font:500 13px/1.35 -apple-system,'Segoe UI',Roboto,sans-serif;cursor:default}" +
     ".pre{display:flex;justify-content:center;overflow:hidden;padding:10px 10px 8px;border-radius:12px 12px 0 0}" +
     ".frame{position:relative;flex:none;width:" + LOOK_W + "px;height:" + LOOK_H + "px}" +
     ".win{position:absolute;border-radius:4px;box-shadow:0 0 0 2000px " + LOOK_BG + "}" +
@@ -108,7 +108,8 @@
     reason = String(reason || "");
     var d = reason.replace(/^[a-z0-9-]+:\s*/i, "");
     if (ai) return { kind: "Labeled AI content", source: "The platform's own label" + (d ? ": " + d : "") };
-    if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
+    if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /another post/.test(d) ? "Facebook's own Follow button on another post from this page" : /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
+    if (/^linkedin-suggested/.test(reason)) return { kind: "A suggested post", source: "LinkedIn's own Follow button at the top of the item" };
     if (/^facebook-sponsored/.test(reason)) return { kind: "An ad", source: "Facebook's own Sponsored or Ad label in the post's header" };
     if (/^(badge-label|section-label)/.test(reason)) return { kind: "An ad", source: "The page's own label" + (d ? ": " + d : "") };
     if (/^(slot-selector|ad-stack)/.test(reason)) return { kind: "An ad", source: "An ad slot in the page" };
@@ -117,7 +118,7 @@
   // Where the small view goes: the element's box tr scaled to fit maxW x maxH (never enlarged), placed in the part of the box that is
   // on the screen (vis), `dx`,`dy` in from that part's corner where there is room. Returns { k, x, y, w, h } in viewport px.
   PV.lookHole = function (tr, vis, maxW, maxH, dx, dy) {
-    var k = Math.min(maxW / tr.width, maxH / tr.height, 1), w = tr.width * k, h = tr.height * k;
+    var k = Math.min(maxW / tr.width, maxH / tr.height, 1), w = Math.min(tr.width * k, maxW), h = Math.min(tr.height * k, maxH);   // never a hair over the frame
     var x = Math.max(vis.left, Math.min(vis.left + dx, vis.right - w)), y = Math.max(vis.top, Math.min(vis.top + dy, vis.bottom - h));
     return { k: k, x: x, y: y, w: w, h: h };
   };
@@ -140,7 +141,10 @@
   // screen `screen` long with 6 px to spare, and the view is inside [lo, hi] (the element's part on the screen). The view is in the
   // middle of the frame where that can be, the panel at `pref` where that can be. Returns { p, a }, or null when no place does both.
   PV.lookPlace = function (pref, f, size, F, len, lo, hi, screen) {
-    var pMax = screen - size - 6, aLo = Math.max(0, lo - f - pMax), aHi = Math.min(F - len, hi - len - f - 6);
+    // a view made to fit the frame can come out a hair longer than it (108.00000000000001 in a frame of 108; the 2026-11-12 reports
+    // of a cover with no small view on Facebook posts): it is the frame's length then, never a reason for no place
+    if (len > F && len - F < 0.5) len = F;
+    var pMax = screen - size - 6, aLo =Math.max(0, lo - f - pMax), aHi = Math.min(F - len, hi - len - f - 6);
     if (pMax < 6 || aLo > aHi) return null;
     var a = Math.max(aLo, Math.min((F - len) / 2, aHi));
     var pLo = Math.max(6, lo - f - a), pHi = Math.min(pMax, hi - len - f - a);
@@ -238,6 +242,16 @@
     var reveal = mk("button", "", "Reveal 15 s"); reveal.type = "button"; reveal.title = "Shows what is under the cover for fifteen seconds, then the cover comes back";
     reveal.addEventListener("click", function (ev) { ev.stopPropagation(); lookReveal(cover, 15000); });
     bot.appendChild(reveal);
+    // a post covered because another post of its page had Facebook's Follow button: the person can say they follow the page, and
+    // the cover goes at once and stays away for that page (2026-11-16)
+    if (/^facebook-suggested: .*another post/.test(cover.getAttribute("data-prism-why") || "") && PV.fbPageKey && PV.fbFollowed) {
+      var mine = mk("button", "", "Stop covering this page"); mine.type = "button"; mine.title = "PRISM stops covering this page's posts that have no Follow button";
+      mine.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        try { var po = (target.closest && target.closest("[aria-posinset]")) || target; if (PV.fbFollowed(PV.fbPageKey(po))) { lookClose(); sweep(); } } catch (eF) {}
+      });
+      bot.appendChild(mine);
+    }
     card.appendChild(bot); root.appendChild(card);
     host.addEventListener("mouseenter", lookKeep); host.addEventListener("mouseleave", lookLeave);
     document.documentElement.appendChild(host);
@@ -376,9 +390,61 @@
   // Position an overlay cover over its target. A position:fixed target (Fox's
   // collapsed STICKY masthead ad) needs a FIXED cover glued to the viewport - an
   // absolute one offset by page scroll drifts off it as you scroll.
+  // The walk goes up through shadow roots and further than the six levels it had: Forbes's video player (Connatix) floats to the corner
+  // of the window as the page scrolls, and its fixed box is more than six levels over the unit, some of them shadow hosts. The cover
+  // stayed tied to the page, fell behind on every scroll, and was cut under the site's top bar, so half of the advertisement showed
+  // (report 2026-11-17). Past the six levels only a fixed box smaller than most of the window counts: a site whose whole page is one
+  // fixed shell with its own scrolling is not a floating unit. Asked at most every 300 ms a target.
+  var fixedSeen = new WeakMap();
   function isFixedTarget(el) {
-    try { for (var n = el, d = 0; n && d < 6; d++, n = n.parentElement) { if (getComputedStyle(n).position === "fixed") return true; } } catch (e) {}
-    return false;
+    var now = Date.now(), c = fixedSeen.get(el);
+    if (c && now - c.at < 300) return c.is;
+    var is = false;
+    try {
+      for (var n = el, d = 0; n && n.nodeType === 1 && d < 24; d++, n = (PV.parentAcross ? PV.parentAcross(n) : n.parentElement)) {
+        if (n === document.body || n === document.documentElement) break;
+        if (getComputedStyle(n).position !== "fixed") continue;
+        if (d < 6) { is = true; break; }
+        var r = n.getBoundingClientRect();
+        if (r.width * r.height < innerWidth * innerHeight * 0.6) is = true;
+        break;
+      }
+    } catch (e) {}
+    fixedSeen.set(el, { at: now, is: is });
+    return is;
+  }
+  // A unit in a sticky box (Forbes's video player holds to the top of its column as the article scrolls, read on the page
+  // 2026-11-17: the sticky box is five levels over the unit) stays where it is in the window while the page moves. Its cover is put
+  // back over it on every scroll, in the scroll's own frame (clipOverlays), and is cut under the site's bar only where the bar is
+  // drawn over the unit.
+  var stickySeen = new WeakMap();
+  function isStickyTarget(el) {
+    var now = Date.now(), c = stickySeen.get(el);
+    if (c && now - c.at < 2000) return c.is;
+    var is = false;
+    try {
+      for (var n = el, d = 0; n && n.nodeType === 1 && d < 24; d++, n = (PV.parentAcross ? PV.parentAcross(n) : n.parentElement)) {
+        if (n === document.body || n === document.documentElement) break;
+        if (getComputedStyle(n).position === "sticky") { is = true; break; }
+      }
+    } catch (e) {}
+    stickySeen.set(el, { at: now, is: is });
+    return is;
+  }
+  // Is the site's bar drawn over this unit where the two meet? Asked at a point inside the part of the unit that is above the bar's
+  // lower edge, PRISM's own layers skipped.
+  function barOverUnit(target, r) {
+    try {
+      var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), y = (Math.max(r.top, 0) + Math.min(barTop, r.bottom)) / 2;
+      var stack = document.elementsFromPoint(x, y);
+      for (var i = 0; i < stack.length; i++) {
+        var e = stack[i];
+        if (e.hasAttribute && (e.hasAttribute("data-prism-veil") || e.hasAttribute("data-prism-ui"))) continue;
+        if (e === barEl || PV.deepContains(barEl, e)) return true;
+        if (e === target || PV.deepContains(target, e) || PV.deepContains(e, target)) return false;
+      }
+    } catch (e2) {}
+    return true;
   }
   function positionOverlay(cover, target) {
     // Fullscreen paints only the fullscreen element's subtree: an overlay
@@ -395,6 +461,7 @@
       cover.style.position = "absolute"; cover.style.left = (r.left + scrollX) + "px"; cover.style.top = (r.top + scrollY) + "px"; cover.__fixed = false;
     }
     cover.style.width = r.width + "px"; cover.style.height = r.height + "px";
+    cover.__sticky = !cover.__fixed && isStickyTarget(target);
   }
 
   // Drop a slot cover the moment its element balloons to page size - in the
@@ -890,6 +957,7 @@
   function clipOverlays() {
     veils.forEach(function (cover, target) {
       stepBack(cover, target);
+      if (cover.__sticky && cover.__mode === "overlay" && target.isConnected && !cover.__lookOn) positionOverlay(cover, target);
       if (cover.__fixed) { cover.__under = 0; cover.__over = 0; paintClip(cover); if (!(cover.__fadeUntil > Date.now())) cover.style.opacity = "1"; return; }   // a fixed cover rides the viewport - it IS the sticky bar, never clip it under one
       // "inside" covers (MSN cards) sit at a huge z-index INSIDE the card, so
       // they too paint over a sticky bar (reported 2026-08-28: MSN search bar).
@@ -919,6 +987,12 @@
           } catch (eB) {}
         }
         underBar = cover.__barOver;
+      }
+      // a unit the page itself draws over the bar is not under it, and its cover is left whole (2026-11-17: the sticky player, and the
+      // same for a cover inside such a unit). Asked once per cover and bar, the first time the two meet.
+      if (!underBar && barEl && r.top < barTop && r.bottom > 0) {
+        if (cover.__unitOverEl !== barEl) { cover.__unitOverEl = barEl; cover.__unitOver = !barOverUnit(target, r); }
+        if (cover.__unitOver) underBar = true;
       }
       cover.__under = underBar ? 0 : Math.max(0, Math.min(r.height, barTop - r.top));
       cover.__over = (botEl && !inBot) ? Math.max(0, Math.min(r.height, r.bottom - botTop)) : 0;
@@ -1006,11 +1080,25 @@
   }
 
   /** One pass: detect, cover new ads, drop stale covers, resync the rest. */
+  // True when more than half of box a lies inside box b.
+  PV.underRect = function (a, b) {
+    var w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top), area = a.width * a.height;
+    return w > 0 && h > 0 && area > 0 && w * h > area * 0.5;
+  };
   function sweep() {
     if (veilOff || (PV.suppressed && PV.suppressed())) return;
     PV.videoAdBreak();
     var res = PV.collectTargets(), targets = res.targets;
     why = res.why;
+    // What the video cover holds is the video cover's alone (2026-11-18, Pandora: a display rule put a second cover at the highest
+    // z-index over the video cover of a video advertisement; it hid the card and took every press). An element that lies mostly
+    // inside the video cover gets no display cover while that cover is up, and one it has is taken away below.
+    try {
+      var vv = PV.vidVeil ? PV.vidVeil() : null, vr = (vv && vv.cover && vv.cover.isConnected) ? vv.cover.getBoundingClientRect() : null;
+      if (vr && vr.width > 0 && vr.height > 0) targets.forEach(function (t) {
+        if (PV.underRect(t.getBoundingClientRect(), vr)) targets.delete(t);
+      });
+    } catch (eV) {}
     // A cover the page took out of its tree is made again: MSN's ad SDK
     // redraws its banner container and drops our cover with the old children
     // (report 2026-10-15:, the cover

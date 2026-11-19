@@ -373,6 +373,7 @@ if (args.Length >= 4 && args[0] == "bench")
     if (Environment.GetEnvironmentVariable("INSETANY") == "0") BreakModel.InsetAnywhere = false;
     // BANDLOGO / BANDSTRICT = 1 | 0 name the state outright (the model defaults are off since 10:50; a switch that could only turn the rule off
     // left the first training pass without it, 2026-11-04: the new model scored the control's numbers to the second)
+    if (Environment.GetEnvironmentVariable("STRIPCUT") == "0") BreakModel.StripCut = false;   // a strip channel read as recorded (the comparison of scripts/breakwatch/striptest.py)
     if (Environment.GetEnvironmentVariable("BANDLOGO") is "0" or "1") BreakModel.BandLogo = Environment.GetEnvironmentVariable("BANDLOGO") == "1";
     if (Environment.GetEnvironmentVariable("BANDSTRICT") is "0" or "1") BreakModel.BandStrict = Environment.GetEnvironmentVariable("BANDSTRICT") == "1";
     if (double.TryParse(Environment.GetEnvironmentVariable("CUTWAIT"), out var cw0)) BreakModel.CutSureSeconds = cw0;
@@ -447,6 +448,12 @@ if (args.Length >= 4 && args[0] == "bench")
     var ixBlack = Array.IndexOf(BreakModel.FeatureNames, "since_black"); var ixCut = Array.IndexOf(BreakModel.FeatureNames, "since_cut");
     long costTrees = 0, costNet = 0, costLooks = 0; var costSw = new System.Diagnostics.Stopwatch();   // ms a look, for the report's cost table
     lpar?.WriteLine(lpWide ? "win,t,p,trees,q,since_black,since_cut,minute,up,sure_ad,sure_show,cue_on" : lpSure ? "win,t,p,trees,sure_ad,sure_show" : "win,t,p");
+    // the look-ahead's end finder as the app scores it (ENDMODEL=end-finder.json ENDQCSV=out.csv, 2026-11-17): the parity check against endfinder.py's q
+    var endFinder = Environment.GetEnvironmentVariable("ENDMODEL") is { Length: > 0 } em ? PrismHost.EndFinder.Load(em, BreakModel.FeatureNames) : null;
+    if (Environment.GetEnvironmentVariable("ENDMODEL") is { Length: > 0 } && endFinder is null) throw new Exception("ENDMODEL: not an end finder");
+    using var endQ = endFinder is not null && Environment.GetEnvironmentVariable("ENDQCSV") is { Length: > 0 } eq ? new StreamWriter(eq) : null;
+    endQ?.WriteLine("win,t,q");
+    var endStates = new Dictionary<string, PrismHost.EndFinder.State>();
     feat?.WriteLine("win,t," + string.Join(",", BreakModel.FeatureNames) + ",print_seen" + (Environment.GetEnvironmentVariable("COVERSIGHT") is { Length: > 0 } ? ",cover_up" : ""));
     foreach (var dir in Directory.GetDirectories(bench))
     {
@@ -540,6 +547,7 @@ if (args.Length >= 4 && args[0] == "bench")
             if (half && !m.Active && m.Chance < 0.2 && !lshown && (lst is null || lst.LastP < 0.3) && (skips++ % 2 == 1)) continue;
             if (Environment.GetEnvironmentVariable("BWTITLE") is { Length: > 0 } bt && win.EndsWith(Environment.GetEnvironmentVariable("BWTITLEWIN") ?? "~")) m.ShowTitle = bt;
             var g = File.ReadAllBytes(frame); if (g.Length != BreakModel.W * BreakModel.H) continue;
+            if (BreakModel.StripRow(m.ChannelName) is > 0 and var stripRow) g = BreakModel.AboveStrip(g, stripRow);   // as PRISM reads a strip channel (STRIPCUT=0: as recorded)
             var coveredNow = coverSight is not null && lshown;   // this look is taken through the cover (and says so: cover_up)
             if (coveredNow) g = UnderCover(g, m, coverSight, coverArt, coverRng);
             var seenNow = AdPrints.Of(g, BreakModel.W, BreakModel.H) is { } fp && lib.Seen(fp);
@@ -625,6 +633,11 @@ if (args.Length >= 4 && args[0] == "bench")
                 var shown0 = up2 || m.CueOnAt(t) || (Environment.GetEnvironmentVariable("LINFO") == "1" && m.InfomercialAt(t));
                 if (shown0 != lshown0) { lshown0 = shown0; lcalls0?.WriteLine($"{at[..2]}:{at[2..4]}:{at[4..6]}.000 break watch {win}: {(shown0 ? "break" : "show")} (learned {lp2:0.00})"); }
                 if (shown2 != lshown) { lshown = shown2; lcalls?.WriteLine($"{at[..2]}:{at[2..4]}:{at[4..6]}.000 break watch {win}: {(shown2 ? "break" : "show")} (learned {lp2:0.00})"); }
+            }
+            if (endQ is not null)
+            {
+                if (!endStates.TryGetValue(win, out var es)) endStates[win] = es = endFinder!.NewState();
+                foreach (var (qt, qq) in endFinder!.Look(es, t, m.Features(t))) endQ.WriteLine(win + "," + qt.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + "," + qq.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture));
             }
             if (feat is not null) feat.WriteLine(win + "," + t.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture) + "," + string.Join(",", m.Features(t).Select(x => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))) + "," + (seenNow ? 1 : 0) + (coverSight is not null ? "," + (coveredNow ? 1 : 0) : ""));
             if (stepped) outw.WriteLine($"{at[..2]}:{at[2..4]}:{at[4..6]}.000 break watch {win}: {(m.Active ? "break" : "show")} (bench)");

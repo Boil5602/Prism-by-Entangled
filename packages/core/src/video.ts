@@ -16,6 +16,7 @@
 import type { AdapterSpec } from "./adapters.js";
 import { normalizeTrackText } from "./music-lookup.js";
 import { isUpcomingLine } from "./live-guide.js";
+import { lookAheadFor, type LookAheadAnswer } from "./look-ahead.js";
 import type { NowPlaying, VideoChannel, VideoContext, VideoItem, VideoLibrary, VideoProfiles } from "./types.js";
 import { noteLog, noteSeen, orderMerged, orderByService, orderByWatched, orderContinueByTitle, type RowOrders, type FirstSeen, type MenuCard, type MenuLogEntry, type MenuServiceRow, orderAlphabetical, isAwardBadge, foldSameTitle } from "./menu-order.js";
 
@@ -48,7 +49,7 @@ export interface VideoTileState {
   stage: boolean;
   /** the playback doctor reopened the title (2026-09-23): why, which try, when; or gave up after its tries */
   recovering?: { why: string; attempt: number; at: number; gaveUp?: boolean } | null;
-  can: { play: boolean; cmd: boolean; lookup: boolean; profiles: boolean; tracks: boolean; seek: boolean; preview: boolean; pause: boolean };
+  can: { play: boolean; cmd: boolean; lookup: boolean; profiles: boolean; tracks: boolean; quality: boolean; seek: boolean; preview: boolean; pause: boolean };
 }
 
 /** "Always watch as X" for an App - a standing instruction the wall applies whenever the gate shows (VP-3). */
@@ -97,7 +98,7 @@ export interface VideoHost {
   personActedSince?(tileId: string, since: number): boolean;
 }
 
-export const VIDEO_SCRIPT_FIELDS = ["videoContext", "videoLibrary", "videoPlay", "videoCmd", "videoLookup", "videoProfiles", "videoLive", "videoTune", "videoSearch", "videoTracks", "videoSeek", "videoSeekPoint", "videoPreview", "videoEpisodeNumber"] as const;
+export const VIDEO_SCRIPT_FIELDS = ["videoContext", "videoLibrary", "videoPlay", "videoCmd", "videoLookup", "videoProfiles", "videoLive", "videoTune", "videoSearch", "videoTracks", "videoQuality", "videoSeek", "videoSeekPoint", "videoPreview", "videoEpisodeNumber"] as const;
 export const VIDEO_CMDS = ["play", "pause", "seekforward", "seekbackward", "next", "nextepisode", "skipintro", "captions", "fullscreen"] as const;
 export type VideoCmd = (typeof VIDEO_CMDS)[number];
 /** Verbs only a video adapter's own script can take (no media-element fallback makes sense for them). */
@@ -831,7 +832,7 @@ export class VideoController {
         lookupNote: spec?.videoLookupNote ?? null,
         profiles: this.profiles.get(id) ?? null,
         profileChoice: this.choices.get(this.appKey(id)) ?? null,
-        can: { play: !!spec?.videoPlay, cmd: !!spec?.videoCmd, lookup: !!spec?.videoLookup, profiles: !!spec?.videoProfiles, tracks: !!spec?.videoTracks, seek: !!spec?.videoSeek || !!spec?.videoSeekPoint, preview: !!spec?.videoPreview, pause: !(spec?.livePause === false && this.contexts.get(id)?.kind === "live") },   // pause: a live channel on a service whose live cannot pause says so (2026-10-06)
+        can: { play: !!spec?.videoPlay, cmd: !!spec?.videoCmd, lookup: !!spec?.videoLookup, profiles: !!spec?.videoProfiles, tracks: !!spec?.videoTracks, quality: !!spec?.videoQuality, seek: !!spec?.videoSeek || !!spec?.videoSeekPoint, preview: !!spec?.videoPreview, pause: !(spec?.livePause === false && this.contexts.get(id)?.kind === "live") },   // pause: a live channel on a service whose live cannot pause says so (2026-10-06)
       });
     }
     return out;
@@ -1105,6 +1106,13 @@ export class VideoController {
     if (!this.host.tileExists(tileId)) return "unknown-tile";
     if (!this.host.adapterOf(tileId)?.videoTracks) return "unavailable";
     await this.host.inject(tileId, `window.__prismVideoTrack && window.__prismVideoTrack(${JSON.stringify(kind)}, ${JSON.stringify(id)})`);
+    return "ok";
+  }
+  /** A human's pick of the picture quality from the stage bar (2026-11-15): the adapter's videoQuality script makes it in the service's own menu. */
+  async pickQuality(tileId: string, id: string): Promise<"ok" | "unavailable" | "unknown-tile"> {
+    if (!this.host.tileExists(tileId)) return "unknown-tile";
+    if (!this.host.adapterOf(tileId)?.videoQuality || !id) return "unavailable";
+    await this.host.inject(tileId, `window.__prismVideoQualityPick && window.__prismVideoQualityPick(${JSON.stringify(id)})`);
     return "ok";
   }
   /**
@@ -1576,6 +1584,14 @@ export class VideoController {
     return words.filter((w): w is { id: string; name: string } => !!w);
   }
   channelOf(tileId: string): { id: string; name: string } | null { return this.channelWords(tileId)[0] ?? null; }
+  /** May this window's live channel be watched a few seconds behind live (look-ahead.ts)? By the guide's channel, or the window's own word for it. */
+  lookAhead(tileId: string, at = Date.now()): LookAheadAnswer {
+    const channels = this.live.get(this.appKey(tileId)) ?? [];
+    const words = this.channelWords(tileId);
+    let ch: VideoChannel | undefined;
+    for (const w of words) { const id = w.id.replace(/^live:/i, ""); ch = channels.find((c) => sameChannel(c.id, id) || sameChannel(c.name, w.name)); if (ch) break; }
+    return lookAheadFor(this.host.adapterOf(tileId), ch ?? null, words[0]?.name ?? "", this.programEdges(tileId, at)?.title ?? "");
+  }
   programEdges(tileId: string, at = Date.now()): { channel: string; title: string; start: number; end: number | null } | null {
     // the first of the window's words for its channel that the guide knows (2026-10-11: for a night the big window had no programme, no
     // programme edges and no channel name for the break watch, its first word naming nothing in the guide and its page's word unread)

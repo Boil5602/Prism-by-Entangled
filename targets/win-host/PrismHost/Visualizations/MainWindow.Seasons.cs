@@ -88,7 +88,7 @@ public sealed partial class MainWindow
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) }); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var sw = new ToggleSwitch { IsOn = item.On, OnContent = "", OffContent = "", MinWidth = 0 };
             sw.Toggled += (_, __) => item.On = sw.IsOn;
-            ToolTipService.SetToolTip(sw, "Show " + entry.Name + " in the Seasons visual");
+            ToolTipService.SetToolTip(sw, "Show " + entry.Name + " in Convergence");
             var name = Label(entry.Name); Grid.SetColumn(name, 1);
             var dates = new Button { Content = RangeText(s, entry), Foreground = Tokens.Ink, MinWidth = 190, HorizontalContentAlignment = HorizontalAlignment.Left };
             ToolTipService.SetToolTip(dates, "Set dates of your own for " + entry.Name);
@@ -120,7 +120,7 @@ public sealed partial class MainWindow
 
         var dlg = new ContentDialog
         {
-            Title = "Seasons",
+            Title = "Convergence",
             Content = body,
             PrimaryButtonText = "Save",
             CloseButtonText = "Cancel",
