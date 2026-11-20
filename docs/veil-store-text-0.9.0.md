@@ -368,7 +368,9 @@ PICTURES
 24 photos come with the extension. You can get more from PRISM's own server. They are public domain and CC0 works. Those requests carry no cookie and no identifier.
 
 ON FIREFOX
-One option needs a browser feature that Firefox does not have: reading the picture of a live TV tab to spot commercial breaks. It is shown as unavailable.
+Two options are off until you turn them on. Click the PRISM icon in the toolbar to open the settings.
+- Video ads > Sound: a calm sound in place of the ad's sound while a video ad is covered.
+- Live TV > Picture detection: PRISM reads the picture of a live TV tab to find commercial breaks. The picture stays in your browser. This works in Firefox on a computer, not on Android.
 
 OPEN SOURCE
 PRISM is free and open source under the GPL, version 3 or later.

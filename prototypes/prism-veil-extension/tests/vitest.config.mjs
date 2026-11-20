@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     root: here,
     environment: "happy-dom",
+    // no test reaches the network: a fixture's frame, script or stylesheet address is never loaded (2026-11-19: the frames in the
+    // slot fixtures were being fetched from the sites they name)
+    environmentOptions: { happyDOM: { settings: { disableIframePageLoading: true, disableJavaScriptFileLoading: true, disableCSSFileLoading: true } } },
     include: ["**/*.test.mjs"],
   },
 });

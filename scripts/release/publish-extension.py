@@ -6,7 +6,8 @@ Chrome Web Store and addons.mozilla.org, each for its own review.
 
 In order, stopping at the first thing that fails:
  1. the tree is clean and pushed (the version in prototypes/prism-veil-extension/manifest.json is the release's);
- 2. the packages are built again (node build-firefox.mjs) and the extension's tests pass;
+ 2. the packages are built again (node build-firefox.mjs), the extension's tests pass, and the Firefox build is walked in a hidden
+    Firefox (firefox-check.mjs: the settings panel over a page, and the errors of every part of the extension);
  3. both stores are asked what they have (each script's own dry run): the access works, the version is higher;
  4. the public repository gets its snapshot (public-snapshot.py push: the scrub and quote checks, the evening rule), which is the
     source Mozilla's reviewer builds from;
@@ -55,6 +56,9 @@ run(["node", "build-firefox.mjs"], cwd=EXT)
 run("npx vitest run --config tests/vitest.config.mjs", cwd=EXT, shell=True)
 dirty = out(["git", "status", "--porcelain"])
 if dirty: sys.exit("the build changed tracked files; commit them and run again:\n" + dirty)
+# the Firefox build walked in a hidden Firefox (2026-11-19: 0.9.41's settings panel did not close there, and the tests could not
+# see it): the settings open over a page, say their height, name the site and close, with no error in any part of the extension
+if "firefox" in stores: run(["node", os.path.join(HERE, "firefox-check.mjs")])
 
 # 3. each store's own checks
 py = sys.executable

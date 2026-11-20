@@ -1293,6 +1293,29 @@
     } catch (e) {}
     return false;
   }
+  // A slot whose ad is drawn in a frame of the site's own (Pandora: div.region-adBanner holding a pandora.com frame in which
+  // Google's tag draws the creative; reports 2026-09-12 and 2026-11-18) is covered only while that frame holds something.
+  // Pandora keeps the slot and its frame on the page with nothing in them, and a cover there covers nothing. Read only where
+  // the browser lets a page read its own frame (same origin, a real address, loaded); every other frame is judged as before,
+  // and any doubt reads as filled. An empty slot is looked at again on every sweep, so one that fills is covered then.
+  function emptyOwnFrameSlot(el) {
+    try {
+      var frames = el.tagName === "IFRAME" ? [el] : el.querySelectorAll("iframe");
+      if (frames.length !== 1) return false;
+      var f = frames[0], src = f.getAttribute("src") || "";
+      if (!/^(https?:)?\//i.test(src)) return false;               // a written frame (about:blank, no address) is not judged here
+      if (new URL(src, location.href).origin !== location.origin) return false;
+      var d = f.contentDocument;
+      if (!d || d.readyState !== "complete" || !d.body) return false;
+      var sized = function (n) { var r = n.getBoundingClientRect(); return r.width >= 20 && r.height >= 20; };
+      var MEDIA = "iframe, img, video, canvas, object, embed, svg, a";
+      if ([].some.call(d.body.querySelectorAll(MEDIA), sized)) return false;
+      if (String(d.body.innerText || "").trim()) return false;
+      // nothing of the page's own beside the frame either (PRISM's cover and button are not the page's)
+      if (el !== f && [].some.call(el.querySelectorAll(MEDIA), function (n) { return n !== f && !(n.closest && n.closest("[data-prism-veil], [data-prism-ui]")) && sized(n); })) return false;
+      return true;
+    } catch (e) { return false; }
+  }
   function isSlotWrapper(el, sel) {
     if ((el.getAttribute("role") || "") === "banner") return true;
     var m = /^\[class\*='([^']*)'\]$/i.exec(sel); if (!m) return false;
@@ -1388,6 +1411,8 @@
           if (isSlotWrapper(el, sm)) return;
           // An out-of-page GAM container is a spacer; its ad paints elsewhere.
           if (isOutOfPageSlot(el)) return;
+          // a slot whose own-site frame holds nothing yet is no ad (Pandora, 2026-11-18)
+          if (emptyOwnFrameSlot(el)) return;
           ctx.add(el, "slot-selector: " + sm);
         });
       } catch (e) {}

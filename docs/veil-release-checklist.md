@@ -283,6 +283,13 @@ and the dry run passes for 0.9.41. 0.9.41 was sent for Google's review the same 
 the tests, each store asked what it has, the public snapshot pushed (the source Mozilla builds from), then the Chrome Web Store
 (`publish-chrome.py`) and addons.mozilla.org (`publish-firefox.py`, a listed version with the source archive and the notes in
 `docs/veil-amo-reviewer-notes.md`). `--dry-run` runs the checks and sends nothing; `--only chrome` or `--only firefox` sends one.
+The Firefox listing's own text (2026-11-19): its summary and its ON FIREFOX section were set through the store's interface to
+what `docs/veil-store-text-0.9.0.md` holds. Until then the listing said the sound and the picture reading were not in Firefox, and
+carried an old summary. A release that changes what Firefox can do also changes that section.
+
+Since 2026-11-19 a release to Firefox also walks the built package in a hidden Firefox (`scripts/release/firefox-check.mjs`): the
+settings open over a page, tell their height, name the site, offer Picture detection and close, and no part of the extension
+(the page's scripts, the settings page, the background) reports an error. It fails on 0.9.41, whose panel did not close.
 The packages sent are copied to `dist/<version>-submitted/`. The owner runs it, or says to; on a weekday it waits for the evening.
 
 Firefox's one-time setup, the owner's: a key made on `https://addons.mozilla.org/developers/addon/api/key/` while signed in to the

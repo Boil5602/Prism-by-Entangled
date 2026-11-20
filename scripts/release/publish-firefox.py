@@ -136,12 +136,8 @@ if os.path.exists(REVIEWER):
 print("notes for the reviewer: %s" % ("%d characters" % len(reviewer) if reviewer else "none (no %s)" % os.path.relpath(REVIEWER, ROOT)))
 if a.dry_run: print("dry run: the checks pass; nothing sent"); sys.exit(0)
 if not a.daytime:
-    try:
-        from zoneinfo import ZoneInfo
-        t = datetime.datetime.now(ZoneInfo("America/New_York"))
-    except Exception:
-        t = datetime.datetime.utcnow() - datetime.timedelta(hours=5)
-    if t.weekday() < 5 and 6 <= t.hour < 18: sys.exit("on a weekday an upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to check alone")
+    import eastern   # scripts/release/eastern.py: the Eastern hour, worked out when the PC has no zone data
+    if eastern.daytime(): sys.exit("on a weekday an upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to check alone")
 
 # ---- the upload, Mozilla's own checks, then the version with its source
 with open(path, "rb") as f: body, ctype = multipart({"channel": "listed"}, {"upload": (os.path.basename(path), f.read())})

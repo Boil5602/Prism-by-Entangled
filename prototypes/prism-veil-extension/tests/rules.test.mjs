@@ -915,3 +915,47 @@ describe("YouTube TV Sponsored tray", () => {
     expect(out).toEqual([]);
   });
 });
+
+// A slot drawn in a frame of the site's own (Pandora's display unit, reports 2026-09-12 and 2026-11-18): the slot and its frame
+// stay on the page between ads, and a cover over an empty one covers nothing. The frame's document is a made-up one here
+// (happy-dom loads no frame); its elements take their boxes from data-rect like the page's.
+describe("a slot whose ad is in the site's own frame", () => {
+  const SLOT = (src) => `<div class="DisplayAdController" ${R(0, 0, 1200, 0)}><div id="slot" class="region-adBanner region-adBanner--active" data-qa="display_ad_container_2" ${R(900, 100, 300, 250)}><iframe id="frame" src="${src}" ${R(900, 100, 300, 250)}></iframe></div></div>`;
+  const mount = (PV, src, inner, ready = "complete") => {
+    document.body.innerHTML = SLOT(src);
+    const d = document.implementation.createHTMLDocument("frame");
+    d.body.innerHTML = inner;
+    Object.defineProperty(d, "readyState", { value: ready, configurable: true });
+    Object.defineProperty(document.getElementById("frame"), "contentDocument", { value: d, configurable: true });
+    const { targets } = PV.collectTargets();
+    return Array.from(targets).map((t) => t.id);
+  };
+  const OWN = "https://music.example/ads/frame.html";
+  const EMPTY = `<div id="adContainer" ${R(0, 0, 300, 250)}><div id="gpt-container" ${R(0, 0, 300, 250)}></div></div><iframe ${R(0, 0, 0, 0)}></iframe>`;
+  const FILLED = `<div id="adContainer" ${R(0, 0, 300, 250)}><div id="gpt-container" ${R(0, 0, 300, 250)}><iframe id="google_ads_iframe_/1/x_0" ${R(0, 0, 300, 250)}></iframe></div></div><iframe ${R(0, 0, 0, 0)}></iframe>`;
+
+  it("is covered while the frame holds a creative", () => {
+    const PV = loadVeil({ host: "music.example" });
+    expect(mount(PV, OWN, FILLED)).toEqual(["slot"]);
+  });
+  it("is left alone while the frame holds nothing", () => {
+    const PV = loadVeil({ host: "music.example" });
+    expect(mount(PV, OWN, EMPTY)).toEqual([]);
+  });
+  it("is covered again on the next look once the frame fills", () => {
+    const PV = loadVeil({ host: "music.example" });
+    expect(mount(PV, OWN, EMPTY)).toEqual([]);
+    document.getElementById("frame").contentDocument.getElementById("gpt-container").innerHTML = `<img ${R(0, 0, 300, 250)}>`;
+    expect(Array.from(PV.collectTargets().targets).map((t) => t.id)).toEqual(["slot"]);
+  });
+  it("is covered as before while the frame is still loading, or is another site's, or has no address", () => {
+    const PV = loadVeil({ host: "music.example" });
+    expect(mount(PV, OWN, EMPTY, "loading")).toEqual(["slot"]);
+    expect(mount(PV, "https://ads.example.net/frame.html", EMPTY)).toEqual(["slot"]);
+    expect(mount(PV, "about:blank", EMPTY)).toEqual(["slot"]);
+  });
+  it("is covered when the frame holds only words", () => {
+    const PV = loadVeil({ host: "music.example" });
+    expect(mount(PV, OWN, `<div id="adContainer" ${R(0, 0, 300, 250)}>Advertisement: try the new plan</div>`)).toEqual(["slot"]);
+  });
+});

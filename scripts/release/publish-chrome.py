@@ -88,12 +88,8 @@ if have and ver(version) <= max(ver(v) for v in have): sys.exit("version %s is n
 if sub[0] == "PENDING_REVIEW": print("note: version %s is in review now; a new submission takes its place" % sub[1])
 if a.dry_run: print("dry run: the checks pass; nothing sent"); sys.exit(0)
 if not a.daytime:
-    try:
-        from zoneinfo import ZoneInfo
-        t = datetime.datetime.now(ZoneInfo("America/New_York"))
-    except Exception:
-        t = datetime.datetime.utcnow() - datetime.timedelta(hours=5)
-    if t.weekday() < 5 and 6 <= t.hour < 18: sys.exit("on a weekday an upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to check alone")
+    import eastern   # scripts/release/eastern.py: the Eastern hour, worked out when the PC has no zone data
+    if eastern.daytime(): sys.exit("on a weekday an upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to check alone")
 
 # ---- the upload, then the submission
 with open(path, "rb") as f: body = f.read()
