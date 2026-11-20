@@ -49,7 +49,7 @@ def eastern_now():
 
 if not a.dry_run and not a.daytime:
     t = eastern_now(); h = t.hour
-    if t.weekday() < 5 and 6 <= h < 18: sys.exit("on a weekday a public upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to build alone")
+    if t.weekday() < 5 and 8 <= h < 18: sys.exit("on a weekday a public upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to build alone")
 
 
 def sha(path):

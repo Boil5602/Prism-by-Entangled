@@ -65,9 +65,12 @@ const MIN_FIREFOX_ANDROID = "142.0";   // same key on Android
 const VARIANTS = [
   { name: "firefox", browser: "firefox" },
   { name: "chromium", browser: "chromium" },
+  // Safari (2026-11-19, a first cut that no Safari has run yet; docs/roadmap.md): built only when named, `node build-firefox.mjs safari`,
+  // so a release of the other two never makes or changes it. The zip is what App Store Connect's Safari Web Extension Packager takes.
+  { name: "safari", browser: "safari", named: true },
 ];
 const only = process.argv.slice(2).filter((a) => !a.startsWith("-"));
-const wanted = only.length ? VARIANTS.filter((v) => only.includes(v.name)) : VARIANTS;
+const wanted = only.length ? VARIANTS.filter((v) => only.includes(v.name)) : VARIANTS.filter((v) => !v.named);
 const zip = !process.argv.includes("--no-zip");
 
 function log(...a) { console.log("[build]", ...a); }
@@ -91,6 +94,15 @@ function deriveManifest(v) {
         // structure, and only on that click; that is "websiteContent".
         data_collection_permissions: { required: ["none"], optional: ["websiteContent"] } },
         gecko_android: { strict_min_version: MIN_FIREFOX_ANDROID } });
+  }
+  if (v.browser === "safari") {
+    // Safari has no offscreen pages and no tab stream, and (as far as its documentation says) no snapshot of a tab's rectangle, so
+    // the live TV picture is not read there: the option shows as not available, as in Firefox before 0.9.41. The background is a
+    // page that sleeps (scripts, not persistent), so the soundscape can play from it as it does in Firefox, and it loads the rule
+    // updates' reader itself.
+    const swFile = (m.background && m.background.service_worker) || "bg.js";
+    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", swFile], persistent: false };
+    m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");
   }
   // Both packages are store builds (Chrome Web Store and Edge Add-ons from the Chromium one, addons.mozilla.org from the Firefox
   // one; 2026-11-14, docs/veil-release-checklist.md section 6a). The name is the trademark's, with the short one where space is
@@ -200,7 +212,9 @@ for (const v of wanted) {
     copied++;
   }
   // Firefox has no offscreen pages: the reader (offscreen.js) is a background script there (2026-11-18)
-  if (v.browser === "firefox") rmSync(join(out, "offscreen.html"), { force: true });
+  if (v.browser === "firefox" || v.browser === "safari") rmSync(join(out, "offscreen.html"), { force: true });
+  // Safari reads no picture: the reader and what only it uses stay out of that package
+  if (v.browser === "safari") for (const rel of ["offscreen.js", "vendor/tesseract"]) rmSync(join(out, rel), { recursive: true, force: true });
   storeBuild(out);   // both packages
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";

@@ -29,9 +29,9 @@ def eastern_now():
 
 
 def daytime(now=None):
-    """True in the hours an upload waits: a weekday from 6 AM to 6 PM Eastern. Saturday and Sunday are free at any hour."""
+    """True in the hours an upload waits: a weekday from 8 AM to 6 PM Eastern (from 8 AM since 2026-11-20). Saturday and Sunday are free at any hour."""
     t = now or eastern_now()
-    return t.weekday() < 5 and 6 <= t.hour < 18
+    return t.weekday() < 5 and 8 <= t.hour < 18
 
 
 if __name__ == "__main__":

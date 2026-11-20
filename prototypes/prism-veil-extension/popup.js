@@ -249,6 +249,7 @@
     $("small-view").checked = ui.smallView !== false;   // on unless switched off
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
+    Array.prototype.forEach.call(document.querySelectorAll("#glow-seg label"), function (l) { l.classList.toggle("on", l.dataset.glow === (ui.ringGlow === "strong" ? "strong" : "normal")); });
     Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) { l.classList.toggle("on", l.dataset.look === look); });
     $("ytv-veil").checked = ui.ytvVeil !== false;   // the safe detection (the service's own marks) is on by default (decision 2026-11-07)
     $("pack-updates").checked = !!ui.packUpdates;
@@ -274,6 +275,9 @@
   $("small-view").addEventListener("change", function () { setUi("smallView", $("small-view").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) {
     l.addEventListener("click", function () { setUi("breakSound", l.dataset.snd || undefined); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#glow-seg label"), function (l) {
+    l.addEventListener("click", function () { setUi("ringGlow", l.dataset.glow === "strong" ? "strong" : undefined); });
   });
   Array.prototype.forEach.call(document.querySelectorAll("#look-seg label"), function (l) {
     l.addEventListener("click", function () { setUi("breakLook", l.dataset.look === "veil" ? undefined : l.dataset.look); });

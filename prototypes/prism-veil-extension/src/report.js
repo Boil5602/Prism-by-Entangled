@@ -440,6 +440,7 @@
   function applyUiPrefs() {
     if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff || PV.veilOffHere()); } catch (e0) {} }
     if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} }
+    if (PV.restyleRings) { try { PV.restyleRings(); } catch (e) {} }   // the button glow's choice reaches rings already up
   }
   PV.setUiPref = function (k, v) {
     PV.uiPrefs[k] = v; applyUiPrefs();

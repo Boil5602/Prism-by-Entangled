@@ -179,6 +179,28 @@ decided, and what it would take. The build order itself is in the spec (dashboar
   are down (`SurfaceManager.SetShieldOff`). Open: the service's captions show in the window, the Esc key is not tried, and no
   service other than YouTube TV is tried.
 
+## The PRISM extension in Safari, on a Mac and an iPhone (taken up 2026-11-19; not started in a Safari)
+
+Asked 2026-11-19: what it takes to offer the extension in Safari. *Decision:* it is the next browser for the extension, after
+Edge, Chrome and Firefox. It reverses the deferral of 2026-09-12 (docs/veil-release-checklist.md).
+
+- **What Apple asks:** a membership of the Apple Developer Program as a company (the D-U-N-S record exists; Apple's lookup found it,
+  2026-11-19), the extension inside an app, and App Store review of every version. The app is made by App Store Connect's Safari Web
+  Extension Packager from a zip of the extension (the Xcode Cloud tab; no Mac and no Xcode), and tried through TestFlight.
+- **What is built:** `node build-firefox.mjs safari` makes `dist/safari` and `prism-veil-safari-<version>.zip` from the one source, only
+  when named. Its background is a page that sleeps (the rule updates' reader, the soundscape, bg.js); it has no tab stream, no
+  offscreen page and no picture reader, and asks for storage, alarms and scripting.
+- **What is unknown until a Safari runs it** (nothing here is claimed): the content scripts declared for the page's own world
+  (`world: MAIN`, the popup hook and the IMA hook); the tab mute under a video cover; the popup handling; the settings panel in its
+  frame (Firefox gave that frame no tabs calls, 0.9.42); video covers on an iPhone, where a video plays in the system's own player;
+  and whether the packager is offered to the account (others report the section missing, or a bundle identifier fault that took Xcode).
+- **The live TV picture is not read in Safari:** no call was found there that gives a tab's picture to an extension as a stream or by
+  rectangle. The option shows as not available. Marked ad slots need no picture.
+- **A Mac:** not needed to package. Reading the extension's errors needs Safari's Web Inspector on a Mac; one is rented by the hour
+  when the first fault needs it, not before.
+- **Owed, in order:** the membership (the owner's); an app record and the first upload; a walk of the site matrix in Safari on an
+  iPhone through TestFlight; then the store text for the App Store and a line in docs/network.md if Safari adds or drops a connection.
+
 ## Buying and renting
 
 - **A code for the phone in place of buying on the PC** (talked through 2026-10-11): pressing Rent or Buy under a title's Where to watch shows a card with a

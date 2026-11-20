@@ -150,7 +150,38 @@
   // just outside the hole's edge: it is clipped with the cover, moves with it
   // and goes when it goes, and it never takes a click. boxes are
   // cover-relative {x, y, w, h, r} (r: the hole's corner radius); [] clears.
-  var RING_GAP = 3;
+  // How strong the ring is (pv:ui.ringGlow, 2026-11-20, asked for: the Skip button's opening easy to miss, the default kept and a
+  // stronger ring as a choice for the whole extension). "strong": a thicker line set further out, a wider and brighter glow.
+  var GLOWS = {
+    normal: { gap: 3, border: 2, still: "0 0 12px 3px rgba(240,168,60,.75)", from: "0 0 6px 1px rgba(240,168,60,.45)", to: "0 0 18px 5px rgba(240,168,60,.95)" },
+    strong: { gap: 6, border: 4, still: "0 0 26px 9px rgba(240,168,60,.95)", from: "0 0 16px 5px rgba(240,168,60,.75), 0 0 2px 1px #FFD58A", to: "0 0 40px 14px rgba(240,168,60,1), 0 0 4px 2px #FFD58A" }
+  };
+  function glowNow() { var g = PV.uiPrefs && PV.uiPrefs.ringGlow; return GLOWS[g] ? g : "normal"; }
+  var liveRings = [];   // every ring on a page, so a change of the choice reaches the ones already up
+  function styleRing(el, b) {
+    var name = glowNow(), G = GLOWS[name];
+    if (el.__glow !== name) {
+      el.__glow = name;
+      el.style.borderWidth = G.border + "px"; el.style.boxShadow = G.still;
+      try { if (el.__anim) el.__anim.cancel(); } catch (e) {}
+      el.__anim = null;
+      var still = false;
+      try { still = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+      if (!still && el.animate) {
+        try { el.__anim = el.animate([{ boxShadow: G.from }, { boxShadow: G.to }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e) {}
+      }
+    }
+    if (b) el.__box = b; else b = el.__box;
+    if (!b) return;
+    var gap = G.gap;
+    el.style.left = (b.x - gap) + "px"; el.style.top = (b.y - gap) + "px";
+    el.style.width = (b.w + 2 * gap) + "px"; el.style.height = (b.h + 2 * gap) + "px";
+    el.style.borderRadius = Math.max(4, (b.r || 0) + gap) + "px";
+  }
+  PV.restyleRings = function () {
+    liveRings = liveRings.filter(function (el) { return el.isConnected; });
+    liveRings.forEach(function (el) { styleRing(el, null); });
+  };
   function ringHoles(cover, boxes) {
     if (!cover) return;
     var rings = cover.__rings || (cover.__rings = []);
@@ -160,18 +191,11 @@
       if (!el) {
         el = document.createElement("div");
         el.setAttribute("data-prism-veil", "1"); el.setAttribute("aria-hidden", "true");
-        el.style.cssText = "position:absolute;box-sizing:border-box;pointer-events:none;z-index:2147483647;margin:0;padding:0;border:2px solid #F0A83C;box-shadow:0 0 12px 3px rgba(240,168,60,.75)";
-        var still = false;
-        try { still = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
-        if (!still && el.animate) {
-          try { el.animate([{ boxShadow: "0 0 6px 1px rgba(240,168,60,.45)" }, { boxShadow: "0 0 18px 5px rgba(240,168,60,.95)" }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e) {}
-        }
-        rings[i] = el;
+        el.style.cssText = "position:absolute;box-sizing:border-box;pointer-events:none;z-index:2147483647;margin:0;padding:0;border:2px solid #F0A83C";
+        rings[i] = el; liveRings.push(el);
       }
       if (el.parentNode !== cover) { try { cover.appendChild(el); } catch (e) {} }
-      el.style.left = (b.x - RING_GAP) + "px"; el.style.top = (b.y - RING_GAP) + "px";
-      el.style.width = (b.w + 2 * RING_GAP) + "px"; el.style.height = (b.h + 2 * RING_GAP) + "px";
-      el.style.borderRadius = Math.max(4, (b.r || 0) + RING_GAP) + "px";
+      styleRing(el, b);
     }
   }
 
