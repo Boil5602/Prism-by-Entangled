@@ -213,6 +213,19 @@
     if (lookPointer) return lookPointer !== "mouse";
     try { return matchMedia("(hover: none)").matches; } catch (e) { return false; }
   }
+  // A finger's drag on one of PRISM's clear layers closes what the layer belongs to (2026-11-23, asked for every PRISM panel: with
+  // the small view open on LinkedIn on an iPhone, a drag did not scroll and the view stayed). The layer takes the touch, and a page
+  // that scrolls in an element of its own gets no scroll from it, so a close on the page's scroll never came. The drag itself
+  // closes: past 10 px, by touch events or by a finger's pointer events, and when the browser takes the drag for its own.
+  PV.dragCloses = function (el, close) {
+    var at = null, byFinger = function (e) { return e.pointerType === "touch" || e.pointerType === "pen"; };
+    function move(x, y) { if (at && (Math.abs(x - at.x) > 10 || Math.abs(y - at.y) > 10)) { at = null; try { close(); } catch (e) {} } }
+    el.addEventListener("touchstart", function (e) { var t = e.touches && e.touches[0]; at = t ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+    el.addEventListener("touchmove", function (e) { var t = e.touches && e.touches[0]; if (t) move(t.clientX, t.clientY); }, { passive: true });
+    el.addEventListener("pointerdown", function (e) { if (byFinger(e)) at = { x: e.clientX, y: e.clientY }; }, { passive: true });
+    el.addEventListener("pointermove", function (e) { if (byFinger(e)) move(e.clientX, e.clientY); }, { passive: true });
+    el.addEventListener("pointercancel", function (e) { if (byFinger(e) && at) { at = null; try { close(); } catch (e2) {} } }, { passive: true });
+  };
   function lookScrim() {
     var s = document.createElement("div");
     s.setAttribute("data-prism-ui", "1"); s.setAttribute("aria-hidden", "true");
@@ -226,6 +239,7 @@
     // the tap that opened the panel may send its own click after the panel is up: swallowed, the panel stays
     var born = Date.now();
     s.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); if (Date.now() - born > 400) lookClose(); }, true);
+    PV.dragCloses(s, function () { lookClose(); });
     return s;
   }
   // Reveal 15 s, the video peep's button: the cover is hidden for that long and comes back by itself
@@ -1223,6 +1237,51 @@
     cover.__fadeUntil = now + 300; cover.style.opacity = "0"; cover.style.visibility = "";
     requestAnimationFrame(function () { requestAnimationFrame(function () { if (!cover.__occluded) cover.style.opacity = "1"; }); });
   }
+  // A cover is put UNDER the page's top bar in the page's own stacking, where that can be done (2026-11-23, CBS News on an iPhone:
+  // scrolled fast, a cover rode over the live strip and was cut a moment later; asked for the bar to cut a cover as it passes).
+  // A cut by script comes after the scroll event, and a phone draws the scrolled page before it sends one. The bar has a
+  // z-index of its own; a cover one step below it is drawn under the bar by the browser itself, in the same frame as the scroll,
+  // and needs no cut. Tried once for a cover and a bar, the first time the two meet, and kept only if the page then shows the
+  // bar over the cover and the cover still over its ad; otherwise the cover keeps its place and the cut by script stays.
+  function topAt(x, y) {
+    var st = document.elementsFromPoint(x, y);
+    for (var i = 0; i < st.length; i++) { if (st[i].hasAttribute && st[i].hasAttribute("data-prism-ui")) continue; return st[i]; }
+    return null;
+  }
+  function tuckUnderBar(cover, r) {
+    if (cover.__tuckEl === barEl) {
+      if (cover.__tucked && cover.style.zIndex !== cover.__tuckZ) cover.style.zIndex = cover.__tuckZ;   // a new placing wrote the z-index again
+      return !!cover.__tucked;
+    }
+    if (cover.__lookOn || !(r.top < barTop - 3 && r.bottom > barTop)) return false;
+    var y2 = Math.min(r.bottom, innerHeight) - 3, y1 = Math.max(r.top + 1, barTop - 2);
+    if (y2 <= barTop + 3) return false;   // nothing of the cover shows below the bar yet: asked again at the next scroll
+    if (cover.__tucked) { cover.style.zIndex = cover.__tuckFrom; cover.__tucked = false; }
+    cover.__tuckEl = barEl;
+    try {
+      var from = cover.style.zIndex;
+      if (from === "2147483647") return false;   // a forced overlay is over a floating ad that is itself over everything
+      var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2);
+      var t0 = topAt(x, y2); if (!(t0 === cover || cover.contains(t0))) return false;
+      // each strip of the bar has its own z-index, the one of its outermost ancestor that has a number; the cover goes one below
+      // the lowest, or it would ride over that strip (CBS News: the nav at 9, the live strip at 10)
+      var low = Infinity;
+      barEls.forEach(function (b) {
+        var zb = NaN;
+        for (var n = b, d = 0; n && n.nodeType === 1 && d < 30; n = PV.parentAcross(n), d++) { var z = parseInt(getComputedStyle(n).zIndex, 10); if (isFinite(z)) zb = z; }
+        low = Math.min(low, isFinite(zb) ? zb : 0);
+      });
+      if (isFinite(low) && low >= 1) {
+        cover.style.zIndex = String(low - 1);
+        var st = document.elementsFromPoint(x, y1), barOver = false;
+        for (var k = 0; k < st.length; k++) { if (st[k] === cover || cover.contains(st[k])) break; if (inBar(st[k])) { barOver = true; break; } }
+        var t1 = barOver ? topAt(x, y2) : null;
+        if (barOver && (t1 === cover || cover.contains(t1))) { cover.__tucked = true; cover.__tuckFrom = from; cover.__tuckZ = cover.style.zIndex; return true; }
+      }
+      cover.style.zIndex = from;
+    } catch (e) {}
+    return false;
+  }
   function clipOverlays() {
     veils.forEach(function (cover, target) {
       stepBack(cover, target);
@@ -1243,8 +1302,8 @@
       // an inside cover the bar already paints over needs no clip from here: the page's own stacking hides it under the bar in the same
       // frame as the scroll, and a script clip a frame late would only open a strip of ad below the bar (2026-11-04, Reddit). Asked once
       // per cover, the first time it reaches the bar: is the bar above the cover at a point where both are?
-      var underBar = false;
-      if (cover.__mode === "inside" && barEl && r.top < barTop && r.bottom > barTop) {
+      var underBar = !!barEl && tuckUnderBar(cover, r);
+      if (!underBar && cover.__mode === "inside" && barEl && r.top < barTop && r.bottom > barTop) {
         if (cover.__barOver === undefined || cover.__barOverEl !== barEl) {
           cover.__barOverEl = barEl; cover.__barOver = false;
           try {

@@ -1064,6 +1064,19 @@ describe("Dianomi on a phone (2026-11-23, CNN)", () => {
     expect(detect(W, html)).toEqual([]);
   });
 });
+describe("PRISM clear layers", () => {
+  it("a finger's drag on a clear layer closes its panel, a tap does not (2026-11-23)", () => {
+    const PV = loadVeil({ host: "www.linkedin.com" });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    const el = document.createElement("div"); let closed = 0;
+    PV.dragCloses(el, () => { closed++; });
+    const touch = (type, y) => { const e = new Event(type); e.touches = [{ clientX: 100, clientY: y }]; el.dispatchEvent(e); };
+    touch("touchstart", 300); touch("touchmove", 304);
+    expect(closed).toBe(0);
+    touch("touchmove", 320); touch("touchmove", 360);
+    expect(closed).toBe(1);
+  });
+});
 describe("Dianomi wrapper the height of a column", () => {
   it("is not covered; a widget-sized one is", () => {
     const PV = loadVeil({ host: "apnews.com", width: 1881, height: 900 });

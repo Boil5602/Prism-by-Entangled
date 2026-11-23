@@ -1320,6 +1320,15 @@
           // the rounded mask hole so the human's own click reaches the button.
           var ix = Math.min(rr * 0.3, 6) + 1, cx0 = hx + ix, cy0 = hy + ix, cx1 = hx + hw - ix, cy1 = hy + hh - ix;
           c.style.clipPath = "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 " + cy0 + "px, " + cx0 + "px " + cy0 + "px, " + cx0 + "px " + cy1 + "px, " + cx1 + "px " + cy1 + "px, " + cx1 + "px " + cy0 + "px, 0 " + cy0 + "px)";
+          // The cut that takes a press is the opening's own shape, whole (2026-11-23, YouTube's phone site in iOS Safari: Skip went
+          // grey on the first press and skipped on the second). The rectangle above is cut inside the rounded opening, about 3 px
+          // inside the button on each side, so a finger at the button's edge met the cover; the cover then passed on a click of
+          // its own, which YouTube does not take, and the button only took the focus. Where the browser cuts by a path, the cut
+          // is the rounded opening itself: the button and its margin.
+          try {
+            var pth = "path(evenodd, 'M-9 -9H" + (W + 9) + "V" + (H + 9) + "H-9Z M" + (hx + rr) + " " + hy + "h" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " " + rr + "v" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " " + rr + "h-" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " -" + rr + "v-" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " -" + rr + "z')";
+            if (typeof CSS !== "undefined" && CSS.supports && CSS.supports("clip-path", pth)) c.style.clipPath = pth;
+          } catch (eP) {}
           // and a glowing ring around it, so the opening is seen (2026-10-25)
           if (PV.ringHoles) PV.ringHoles(c, [{ x: hx, y: hy, w: hw, h: hh, r: rr }]);
         }
@@ -1656,6 +1665,7 @@
         sh.addEventListener("mouseleave", function () { if (c.__peepLeave) c.__peepLeave(); });
         veilHost().appendChild(sh);
         c.__peepShield = sh;
+        if (PV.dragCloses) PV.dragCloses(sh, function () { peepStop(c); });   // a drag on the shield closes the small view, as a scroll does
         c.__peepScroll = function () { peepStop(c); };
         addEventListener("scroll", c.__peepScroll, { capture: true, passive: true });
       } catch (eS) {}
