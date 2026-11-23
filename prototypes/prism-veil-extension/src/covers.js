@@ -770,7 +770,7 @@
         var tr0 = target.getBoundingClientRect(), cr0 = cover.getBoundingClientRect();
         var fit = slotted ? 0.97 : 0.5;   // through a slot the containing block may be the shadow tree's, not the host's: only an exact fit stays
         if (tr0.width >= 60 && (cr0.width < tr0.width * fit || cr0.height < tr0.height * fit || (slotted && (Math.abs(cr0.left - tr0.left) > 3 || Math.abs(cr0.top - tr0.top) > 3)))) { cover.remove(); cover.__mode = null; }
-        else { bleed(cover, target); placeGlyph(cover); return cover; }
+        else { bleed(cover, target); placeGlyph(cover); ownLayer(cover); return cover; }
       } catch (e) { /* fall through */ }
     }
     var op = target.__prismForceOverlay ? null : target.offsetParent;
@@ -785,6 +785,7 @@
       op.appendChild(cover);
       cover.__mode = "parent"; cover.__op = op;
       trueUp(cover, target);
+      ownLayer(cover);
       return cover;
     }
     positionOverlay(cover, target);
@@ -793,6 +794,30 @@
     document.documentElement.appendChild(cover);
     cover.__mode = "overlay";
     return cover;
+  }
+
+  // A cover in the page is given a drawing layer of its own while it is on the screen or within a screen of it (2026-11-23, a
+  // recording from Safari on an iPhone, Facebook's feed: a post's video showed whole over its finished cover for about half a
+  // second as it began to play, and the PRISM button, which has a layer of its own, stayed over the video throughout). A browser
+  // draws a playing video on a layer of its own. A cover drawn into the same sheet as the post lies under that layer until the
+  // browser has cut the sheet again and drawn the cover on a sheet above, some frames later; a cover that has its own layer
+  // already is above the video's from the first frame. Read from the recording and from how browsers layer a page, not measured
+  // in Safari. Only near the screen, so a long feed does not hold a layer for every cover in it; nothing of the page is changed.
+  var layerIO = null;
+  function ownLayer(cover) {
+    try {
+      if (typeof IntersectionObserver !== "function") { cover.style.setProperty("will-change", "transform", "important"); return; }
+      if (!layerIO) layerIO = new IntersectionObserver(function (es) {
+        es.forEach(function (en) {
+          var c = en.target;
+          try {
+            if (!c.isConnected) { layerIO.unobserve(c); return; }
+            if (en.isIntersecting) c.style.setProperty("will-change", "transform", "important"); else c.style.removeProperty("will-change");
+          } catch (e) {}
+        });
+      }, { rootMargin: "100% 0px 100% 0px" });
+      layerIO.observe(cover);
+    } catch (e) {}
   }
 
   // ---- overlay-mode covers: clip under a sticky top bar (never fade - a

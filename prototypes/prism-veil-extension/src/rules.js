@@ -637,6 +637,12 @@
       (el.tagName === "LI" && el.parentElement && /^(UL|OL)$/.test(el.parentElement.tagName)) ||
       (role === "listitem" && !!(el.closest && el.closest("[role='list']")));
     if (el.tagName.indexOf("-") <= 0 && !semantic) return false;
+    // A phone (2026-11-23, two reports from LinkedIn's feed in iOS Safari: only the promoted post's header line was covered). The
+    // cap is a share of the window, and on a narrow screen a post is the window's width and a screen or more tall (440 x 655 and
+    // 440 x 765 on a 440 x 747 window), so every promoted post was past it and the cover fell back to the label's small box. An
+    // item of a list on a narrow window may be up to two and a half windows tall.
+    var listItem = (role === "listitem" || el.tagName === "LI") && semantic;
+    if (listItem && innerWidth <= 700) cap = Math.max(cap, innerWidth * innerHeight * 2.5);
     if (r.width < 200 || r.height < 100 || r.width > innerWidth || (r.width * r.height) > cap) return false;
     // A semantic card IS a card; the sibling test below is for custom elements
     // only (a lone wrapper is not a card). LinkedIn nests each listitem in

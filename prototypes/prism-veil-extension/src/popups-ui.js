@@ -399,21 +399,43 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       // on top. A drag still scrolls the page.
       scrim = document.createElement("div"); scrim.className = "scrim";
       scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); closePanel(); });
+      // A drag off the panel scrolls the page, and the panel stayed up over it (2026-11-23, on an iPhone: once the page was moving,
+      // the panel was hard to be rid of, as a tap on a moving page only stops it). The drag itself now closes the panel, as a
+      // scroll closes a cover's small view: a finger that moves more than a few pixels on the clear layer is a scroll, no click
+      // follows it, so nothing under it is pressed. Observe-only: the page scrolls as it would.
+      var dragAt = null;
+      function dragMove(x, y) { if (dragAt && (Math.abs(x - dragAt.x) > 10 || Math.abs(y - dragAt.y) > 10)) { dragAt = null; closePanel(); } }
+      scrim.addEventListener("touchstart", function (e) { var t = e.touches && e.touches[0]; dragAt = t ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+      scrim.addEventListener("touchmove", function (e) { var t = e.touches && e.touches[0]; if (t) dragMove(t.clientX, t.clientY); }, { passive: true });
+      // the same read from pointer events, for a browser that sends no touch events; a browser that takes the drag for its own
+      // scroll says so with a cancel
+      function byFinger(e) { return e.pointerType === "touch" || e.pointerType === "pen"; }
+      scrim.addEventListener("pointerdown", function (e) { if (byFinger(e)) dragAt = { x: e.clientX, y: e.clientY }; }, { passive: true });
+      scrim.addEventListener("pointermove", function (e) { if (byFinger(e)) dragMove(e.clientX, e.clientY); }, { passive: true });
+      scrim.addEventListener("pointercancel", function (e) { if (byFinger(e) && dragAt) { dragAt = null; closePanel(); } }, { passive: true });
       root.appendChild(scrim);
       root.appendChild(panel);
     }
     panelOpen = true; pill.classList.add("on"); renderPanel(); dodge();
-    setTimeout(function () { addEventListener("click", tapAway, true); addEventListener("keydown", escClose, true); }, 0);
+    scrollFrom = { x: scrollX, y: scrollY };
+    setTimeout(function () { addEventListener("click", tapAway, true); addEventListener("keydown", escClose, true); addEventListener("scroll", scrollAway, { capture: true, passive: true }); }, 0);
   }
   function closePanel() {
     if (!panelOpen) return;
     panelOpen = false; if (pill) pill.classList.remove("on"); if (panel) panel.remove(); panel = null; if (scrim) scrim.remove(); scrim = null;
-    removeEventListener("click", tapAway, true); removeEventListener("keydown", escClose, true);
+    removeEventListener("click", tapAway, true); removeEventListener("keydown", escClose, true); removeEventListener("scroll", scrollAway, { capture: true });
   }
   PV.panelIsOpen = function () { return panelOpen; };
   PV.panelClose = closePanel;
   function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; closePanel(); }
   function escClose(e) { if (e.key === "Escape") closePanel(); }
+  // the page itself scrolled some way with the panel open (a wheel, a key, a flick that began elsewhere): closed too. Only the
+  // document's own scroll counts, so a strip that moves by itself inside the page and the panel's own list close nothing.
+  var scrollFrom = { x: 0, y: 0 };
+  function scrollAway(e) {
+    if (e.target !== document && e.target !== document.documentElement && e.target !== document.body) return;
+    if (Math.abs(scrollY - scrollFrom.y) > 40 || Math.abs(scrollX - scrollFrom.x) > 40) closePanel();
+  }
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function btn(text, primary, fn) { var b = el("button", "btn" + (primary ? " primary" : ""), text); b.type = "button"; b.addEventListener("click", function (e) { e.stopPropagation(); fn(b); }); return b; }

@@ -955,6 +955,14 @@ describe("generic 'Promoted' label grows to a role=listitem feed card", () => {
     </div>`);
     expect(out).toEqual([{ tag: "div", id: "promo", why: "badge-label: Promoted" }]);
   });
+  it("on a phone a promoted post as wide as the window and a screen tall is covered whole (2026-11-23)", () => {
+    const PV = loadVeil({ host: "www.linkedin.com", width: 440, height: 747 });
+    const out = detect(PV, `<div role="list" ${R(0, 0, 440, 7070)}>
+      ${post("p1", 0, 500, `<div ${R(0, 0, 440, 66)}><span ${R(68, 10, 80, 20)}>Someone</span></div><div ${R(0, 66, 440, 434)}>text</div>`).replace(/552/g, "440")}
+      ${post("promo", 520, 765, `<div ${R(0, 520, 440, 66)}><div ${R(68, 528, 328, 50)}><span ${R(68, 528, 90, 20)}>Acme</span><span ${R(68, 548, 120, 14)}>5,532,973 followers</span><span ${R(68, 562, 60, 14)}>Promoted</span></div></div><div ${R(0, 682, 440, 550)}><img></div>`).replace(/552/g, "440")}
+    </div>`);
+    expect(out).toEqual([{ tag: "div", id: "promo", why: "badge-label: Promoted" }]);
+  });
 });
 
 // LinkedIn's right-rail 300x250 (report 2026-09-12): a src-less iframe in
