@@ -513,7 +513,7 @@
 
   // Facebook's mobile layout: who posted, as a key. The layout has no link on the name, so the key is the name itself: the first
   // pressable leaf in the post's top band ("m:gizmodo"). "" when there is none.
-  function fbmKey(post) {
+  function fbmKey(post, out) {
     try {
       var pr = post.getBoundingClientRect(), c = post.querySelectorAll("span[data-action-id]");
       for (var i = 0; i < c.length && i < 40; i++) {
@@ -522,6 +522,7 @@
         if (!t || t.length > 80 || /^(Follow|Join|Ad|Sponsored)$/.test(t) || !/[A-Za-z0-9]/.test(t)) continue;
         var r = el.getBoundingClientRect();
         if (r.height <= 0 || r.top - pr.top > 150) return "";
+        if (out) out.el = el;
         return "m:" + t.toLowerCase();
       }
     } catch (e) {}
@@ -916,7 +917,14 @@
         // section cap); past that the class is on a wrapper, not the unit.
         root.querySelectorAll(".bizdev-dianomi,.dianomi_context").forEach(function (el) {
           var r = el.getBoundingClientRect();
-          if (PV.pageSized(r) || r.height > innerHeight * 2.6) return;
+          if (r.height > innerHeight * 2.6) return;
+          // On a phone the widget is most of the screen (2026-11-23, three reports from CNN in Safari on an iPhone: units of
+          // 408 by 630 and 408 by 891 on a 440 by 747 screen read as page-sized and stood bare). There the box is the unit
+          // when Dianomi's own frame fills it; a wrapper around more than the frame is still left.
+          if (PV.pageSized(r)) {
+            var fr = innerWidth <= 700 ? el.querySelector("iframe.dianomi-parent-iframe") : null, fb = fr ? fr.getBoundingClientRect() : null;
+            if (!fb || fb.height < r.height * 0.8 || fb.width < r.width * 0.8) return;
+          }
           ctx.add(el, "dianomi");
         });
       },
@@ -1058,8 +1066,18 @@
           if (r.height <= 0 || r.top - pr.top > 150 || r.top < pr.top - 2) continue;   // the header band alone (the label sits 70 to 115 px down)
           if (pr.height < 120 || pr.height > innerHeight * 2.2) continue;
           if (!fbVisible(el)) continue;
+          // Follow is Facebook's word about the account whose name it stands beside (2026-11-23, a report: a friend's posts were
+          // covered as suggested). When a friend shares a page's post, the friend's name is the post's first and the page's name
+          // and its Follow button come lower, inside the band read here: the post was taken for a suggested one, and the button
+          // was noted under the friend's name, so the friend's other posts were covered for three days. The button counts only
+          // on the line of the post's first name, as in the desktop layout.
+          var nameAt = {}, key = fol ? fbmKey(post, nameAt) : "";
+          if (fol && nameAt.el) {
+            var nr = nameAt.el.getBoundingClientRect(), mid = r.top + r.height / 2;
+            if (mid < nr.top - 12 || mid > nr.bottom + 12) continue;
+          }
           done.add(post);
-          if (fol) fbSeenNote(fbmKey(post), now);
+          if (fol) fbSeenNote(key, now);
           ctx.add(post, ad ? "facebook-sponsored: " + t + " label in the header (mobile layout)" : "facebook-suggested: " + t + " button in the header (mobile layout)", true);
         }
         // The element with data-tracking-image-id is no source for an ad (2026-11-22, three reports: it was taken as one from a
@@ -1137,6 +1155,17 @@
         root.querySelectorAll("ytd-reel-video-renderer[is-ads-overlay]").forEach(function (reel) {
           var box = reel.querySelector("#short-video-container") || reel.querySelector("#player-container") || reel;
           ctx.add(box, "youtube-shorts-ad-reel", true);
+        });
+        // The phone site (2026-11-23, a report from m.youtube.com/shorts in iOS Safari: only the strip with the advertiser's name and
+        // the Sponsored badge was covered, by the label rule, and the ad's video played above it). There an ad Short is an item of
+        // the carousel whose controls layer holds YouTube's own <ad-slot-renderer>, the size of the screen. The item is covered
+        // whole: it is what moves when the person swipes, so the cover goes with it.
+        root.querySelectorAll("shorts-video ad-slot-renderer, .carousel-item ad-slot-renderer").forEach(function (slot) {
+          // an empty or unseen slot left in the layer names nothing: the slot must hold the ad's own overlay and take room
+          var sr = slot.getBoundingClientRect();
+          if (!slot.firstElementChild || sr.width < 100 || sr.height < 100) return;
+          var item = slot.closest(".carousel-item") || slot.closest("shorts-video");
+          if (item) ctx.add(item, "youtube-shorts-ad-reel", true);
         });
       },
     },

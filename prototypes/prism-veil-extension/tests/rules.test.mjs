@@ -291,6 +291,15 @@ describe("Facebook", () => {
   // three reports 2026-11-22: a page's posts with a bare header, Facebook's Follow button on another post of that page
   const mName = (name, follow) => (y) => `<span class="f2 a" data-action-id="1" ${R(60, y, 90, 18)}>${name}</span>` +
     (follow ? `<span class="f2" ${R(166, y, 46, 18)}>Follow</span>` : `<span class="f5" ${R(60, y + 22, 30, 18)}>1h</span>`);
+  it("mobile layout: a friend's share of a page's post is not suggested, and the friend's other posts stay (2026-11-23)", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    PV.uiPrefs = { suggestedVeil: true };
+    const share = (y) => `<span class="f2 a" data-action-id="1" ${R(60, y, 90, 18)}>A friend</span><span class="f5" ${R(60, y + 22, 30, 18)}>1h</span>` +
+      `<span class="f2 a" data-action-id="2" ${R(60, y + 60, 90, 18)}>Gizmodo</span><span class="f2" ${R(166, y + 60, 46, 18)}>Follow</span>`;
+    const html = mFeed(mPost("share", 0, share) + mPost("own", 800, mName("A friend", false)));
+    expect(detect(PV, html)).toEqual([]);
+    expect(PV.fbSeen["m:a friend"]).toBeUndefined();
+  });
   it("mobile layout: covers a page's post with no button once another of its posts carried Follow, and never a followed page's", () => {
     const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
     PV.uiPrefs = { suggestedVeil: true };
@@ -399,6 +408,16 @@ describe("YouTube Shorts", () => {
       <ytd-reel-video-renderer id="r2" is-ads-overlay ${R(0, 843, 1560, 763)}><div id="short-video-container" ${R(668, 843, 429, 763)}><ytd-ad-slot-renderer></ytd-ad-slot-renderer></div></ytd-reel-video-renderer>`);
     expect(out.length).toBe(1);
     expect(out[0].why).toBe("youtube-shorts-ad-reel");
+  });
+  it("the phone site: an ad Short is covered whole by its item of the carousel, and an empty slot names nothing (2026-11-23)", () => {
+    const PV = loadVeil({ host: "m.youtube.com", width: 440, height: 747 });
+    const item = (id, y, slot) => `<div id="${id}" class="carousel-item" ${R(0, y, 440, 747)}><shorts-video ${R(0, y, 440, 747)}><div class="video-wrapper" ${R(0, y, 440, 747)}><div class="layer touch-controls" ${R(0, y, 440, 747)}>${slot}</div></div></shorts-video></div>`;
+    const out = detect(PV, `<div id="carousel-items" ${R(0, 0, 440, 2241)}>
+      ${item("c0", 0, `<ad-slot-renderer ${R(0, 0, 0, 0)}></ad-slot-renderer>`)}
+      ${item("c1", 747, `<ad-slot-renderer ${R(0, 747, 440, 747)}><reels-player-overlay-layout-view-model ${R(0, 747, 440, 747)}><div ${R(0, 1334, 376, 160)}><span ${R(60, 1340, 90, 20)}>Paramount+</span><badge-shape ${R(60, 1364, 70, 16)}><div ${R(60, 1364, 70, 16)}>Sponsored</div></badge-shape></div></reels-player-overlay-layout-view-model></ad-slot-renderer>`)}
+      ${item("c2", 1494, "")}
+    </div>`);
+    expect(out).toEqual([{ tag: "div", id: "c1", why: "youtube-shorts-ad-reel" }]);
   });
 });
 
@@ -1048,6 +1067,17 @@ describe("Primis outstream player", () => {
 
 // AP News wraps a 13042px column in .dianomi_context: a widget class on a
 // wrapper. Never a column-long cover.
+describe("Dianomi on a phone (2026-11-23, CNN)", () => {
+  it("covers a unit that is most of the screen when Dianomi's frame fills it, and not on a wide screen", () => {
+    const html = `<div class="bizdev-dianomi" id="u" ${R(16, 60, 408, 630)}><div class="dianomi_context" id="c" ${R(16, 60, 408, 630)}><iframe class="dianomi-parent-iframe" ${R(16, 60, 408, 624)}></iframe></div></div>` +
+      `<div class="dianomi_context" id="bare" ${R(16, 900, 408, 630)}></div>`;
+    const PV = loadVeil({ host: "www.cnn.com", width: 440, height: 747 });
+    expect(detect(PV, html).map((o) => o.id).some((i) => i === "u" || i === "c")).toBe(true);
+    expect(detect(PV, html).map((o) => o.id)).not.toContain("bare");
+    const W = loadVeil({ host: "www.cnn.com", width: 720, height: 700 });
+    expect(detect(W, html)).toEqual([]);
+  });
+});
 describe("Dianomi wrapper the height of a column", () => {
   it("is not covered; a widget-sized one is", () => {
     const PV = loadVeil({ host: "apnews.com", width: 1881, height: 900 });

@@ -271,6 +271,35 @@ describe("YouTube isAdClip", () => {
     const { row, v } = setup("");
     expect(row.isAdClip(withDuration(v, 150))).toBe(true);
   });
+  // the phone site after a tap on a video in a list: the page's data is the last video's, and the player has no clock
+  function phone(list) {
+    const PV = loadVeil({ host: "m.youtube.com" });
+    try { window.happyDOM.setURL("https://m.youtube.com/watch?v=NEWVIDEO111"); } catch (e) {}
+    document.head.innerHTML = `<meta itemprop="identifier" content="OLDVIDEO111"><meta itemprop="duration" content="PT8M10S">`;
+    document.body.innerHTML = `<div id="movie_player"><video></video></div>` + (list || "");
+    return { PV, row: PV.SSAI_AD_SOURCES.find((r) => r.source === "YouTube player"), v: document.querySelector("video") };
+  }
+  it("the phone site, nothing says the length: a short clip is not an ad clip by its length (2026-11-23)", () => {
+    const { row, v } = phone();
+    expect(row.isAdClip(withDuration(v, 25))).toBe(false);
+    expect(row.isContent(withDuration(v, 25))).toBe(false);
+  });
+  it("the length on the link that was pressed tells a short video from an ad clip (2026-11-23)", () => {
+    const { PV, row, v } = phone(`<a id="t" href="/watch?v=NEWVIDEO111"><img><div class="ytBadgeShapeText">0:25</div></a><a id="n" href="/watch?v=NEWVIDEO111&pp=x"><span>A title</span></a><a href="/watch?v=OTHERVID111"><div>21:13</div></a>`);
+    PV.ytNoteLink({ target: document.querySelector("#n span") });
+    expect(row.isAdClip(withDuration(v, 25.3))).toBe(false);
+    expect(row.isContent(withDuration(v, 25.3))).toBe(true);
+    expect(row.isAdClip(withDuration(v, 15))).toBe(true);
+    expect(row.isContent(withDuration(v, 15))).toBe(false);
+  });
+  it("the opening for Skip is the button's, not its word's (2026-11-23, measured on the phone site)", () => {
+    const PV = loadVeil({ host: "m.youtube.com" });
+    document.body.innerHTML = `<div id="movie_player"><button id="b" class="ytp-ad-skip-button-modern ytp-button"><div id="w" class="ytp-ad-text ytp-ad-skip-button-text-centered">Skip</div></button></div>`;
+    const box = (el, x, y, w, h) => { el.getBoundingClientRect = () => ({ left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, x, y }); };
+    box(document.getElementById("b"), 357, 245, 67, 32); box(document.getElementById("w"), 369, 252, 27, 17);
+    const was = PV.elVisible; PV.elVisible = () => true;
+    try { expect(PV.findSkip().id).toBe("b"); } finally { PV.elVisible = was; }
+  });
   it("a Short is never an ad clip by its length (report 2026-11-23, the phone site)", () => {
     const { row, v } = setup("");
     try { window.happyDOM.setURL("https://m.youtube.com/shorts/laqT6xu5Zrk?ra=m"); } catch (e) {}

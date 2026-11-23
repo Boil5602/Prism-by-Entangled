@@ -102,6 +102,46 @@
       return this.adFrom > 0 && this.adFrom > this.showFrom && now >= this.adFrom;
     }
   };
+  // YouTube: the length of the video the person pressed (2026-11-23, a recording from the phone site in iOS Safari: after an ad a
+  // video of under three minutes kept its cover and a countdown for twelve seconds). Reached from a list, the page's own data
+  // about the video is still the last video's, and the phone site's player has no clock to read, so a short video could not be
+  // told from an ad clip by its length. YouTube writes each video's length on its picture in a list (21:13). When a link to a
+  // video is pressed, that length is read from the link (or another link on the page to the same video) and kept by the video's
+  // id. Observe-only: text the page shows, read at the press.
+  var ytLen = {}, ytLenIds = [];
+  function ytNoteLink(e) {
+    try {
+      if (!/(^|\.)youtube\.com$/i.test(location.hostname)) return;
+      var a = e.target && e.target.closest ? e.target.closest("a[href]") : null; if (!a) return;
+      var id = (/[?&]v=([\w-]{11})/.exec(a.getAttribute("href") || "") || [])[1]; if (!id) return;
+      var links = document.querySelectorAll("a[href*='v=" + id + "']"), secs = -1;
+      for (var i = 0; i < links.length && i < 8 && secs < 0; i++) {
+        var tw = document.createTreeWalker(links[i], 4, null), tn, n = 0;
+        while ((tn = tw.nextNode()) && n++ < 80) {
+          var t = (tn.nodeValue || "").trim();
+          if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(t)) { secs = parseClockLong(t); break; }
+        }
+      }
+      if (!(secs > 0)) return;
+      if (!(id in ytLen)) { ytLenIds.push(id); if (ytLenIds.length > 40) delete ytLen[ytLenIds.shift()]; }
+      ytLen[id] = secs;
+    } catch (x) {}
+  }
+  ["pointerdown", "click"].forEach(function (t) { addEventListener(t, ytNoteLink, { capture: true, passive: true }); });
+  // The content's length where the page says it for THIS video: its own data when that is for the video in the address (a page
+  // loaded afresh), else the length read from the link that was pressed. 0 when neither says.
+  function ytKnownLen() {
+    var cur = (/[?&]v=([\w-]{11})/.exec(location.search) || [])[1] || "", L = 0;
+    if (!cur) return 0;
+    var m = document.querySelector("meta[itemprop='duration']");
+    var mv = document.querySelector("meta[itemprop='identifier'], meta[itemprop='videoId']");
+    if (m && mv && (mv.getAttribute("content") || "") === cur) { var mm = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(m.getAttribute("content") || ""); if (mm) L = (+mm[1] || 0) * 3600 + (+mm[2] || 0) * 60 + (+mm[3] || 0); }
+    if (!(L > 0) && ytLen[cur] > 0) L = ytLen[cur];
+    return L > 0 ? L : 0;
+  }
+  PV.ytNoteLink = ytNoteLink;   // tests
+  PV.findSkip = function () { return findSkip(); };   // tests
+
   var SSAI_AD_SOURCES = [
     {
       // Pluto TV (traceable source: the addresses its web player fetches, read from resource timings; see plutoStream above).
@@ -223,24 +263,32 @@
         if (/^\/shorts(\/|$)/.test(location.pathname)) return false;
         // The page's declared length counts only if its metadata is for THIS
         // video (SPA navigation leaves the previous video's meta for a while:
-        // an 8-minute video was judged an ad clip, 2026-08-29).
-        var m = document.querySelector("meta[itemprop='duration']"), L = 0;
-        var mv = document.querySelector("meta[itemprop='identifier'], meta[itemprop='videoId']");
-        var cur = (/[?&]v=([\w-]{11})/.exec(location.search) || [])[1] || "";
-        var metaOk = !!(mv && cur && (mv.getAttribute("content") || "") === cur);
-        if (m && metaOk) { var mm = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(m.getAttribute("content") || ""); if (mm) L = (+mm[1] || 0) * 3600 + (+mm[2] || 0) * 60 + (+mm[3] || 0); }
+        // an 8-minute video was judged an ad clip, 2026-08-29); the length on
+        // the link that was pressed counts too (ytKnownLen above).
+        var L = ytKnownLen(), lab = null;
         // The meta is stale after SPA navigation, but the player's own clock
         // (.ytp-time-duration, "2:31") names the content's length and is
         // current: a clip as long as the clock says is the content, however
         // short. Report 2026-10-27: a trailer under 3 minutes, reached from the feed, was veiled
         // as an ad clip the moment its preroll ended.
         if (!(L > 0)) {
-          var lab = document.querySelector("#movie_player .ytp-time-duration"), lt = lab ? parseClockLong((lab.textContent || "").trim()) : -1;
+          lab = document.querySelector("#movie_player .ytp-time-duration"); var lt = lab ? parseClockLong((lab.textContent || "").trim()) : -1;
           if (lt > 0 && Math.abs(d - lt) <= 2) return false;
+          // nothing says the content's length and the player has no clock (the phone site): a clip's length alone names no
+          // ad, and a short video is not held as one (2026-11-23). The player's own ad class still covers an ad.
+          if (!lab) return false;
         }
         // Known content length: an ad is anything else that is ad-length.
         // Unknown: only a genuinely ad-length clip (<= 3 min) counts.
         return L > 0 ? (Math.abs(d - L) > 2 && d <= 180) : d <= 180;
+      },
+      // The clip is the video itself, for certain: its length is the one the page gives for this video (never the clock, which
+      // an ad may fill with its own length). With the ad class off, a cover has nothing to wait for (2026-11-23).
+      isContent: function (v) {
+        var d; try { d = v.duration; } catch (e) { return false; }
+        if (!isFinite(d) || d <= 0 || /^\/shorts(\/|$)/.test(location.pathname)) return false;
+        var L = ytKnownLen();
+        return L > 0 && Math.abs(d - L) <= 2;
       },
       authoritative: true,
       displayWins: true,
@@ -1183,7 +1231,20 @@
       var sa = sre.width * sre.height;
       if (sa < bestArea) { bestArea = sa; bestSkip = se; }
     }
-    if (bestSkip) return bestSkip;
+    // The smallest match can be a piece of the button, not the button (2026-11-23, YouTube's phone site in iOS Safari: Skip took
+    // four or five presses; measured on a real ad, the button is 67 by 32 and its text, the match, 27 by 17, so the opening
+    // in the cover was the size of the word and a press beside it reached nothing). The opening is the button's: the nearest
+    // button around the match, when it is one of a control's size.
+    if (bestSkip) {
+      try {
+        var outer = bestSkip.closest ? bestSkip.closest("button,[role='button'],a[href]") : null;
+        if (outer && outer !== bestSkip && !outer.hasAttribute("data-prism-veil") && PV.elVisible(outer) && !outer.disabled && outer.getAttribute("aria-disabled") !== "true") {
+          var orc = outer.getBoundingClientRect();
+          if (orc.width > 0 && orc.width <= 300 && orc.height > 0 && orc.height <= 160) bestSkip = outer;
+        }
+      } catch (eO) {}
+      return bestSkip;
+    }
     var all = document.body.querySelectorAll("button,[role=button],[aria-label]");
     for (var j = 0; j < all.length && j < 3000; j++) {
       var e = all[j];
@@ -1624,7 +1685,8 @@
     if (c.__peepScroll) { try { removeEventListener("scroll", c.__peepScroll, { capture: true }); } catch (e6) {} c.__peepScroll = null; }
     try { (c.__peepHidden || []).forEach(function (h) { if (h[1]) h[0].style.setProperty("visibility", h[1], h[2]); else h[0].style.removeProperty("visibility"); }); } catch (e4) {}
     c.__peepHidden = null;
-    try { c.style.clipPath = ""; } catch (e3) {}
+    // the keyhole wrote over the cut that lets a press reach Skip; forgetting the opening's key has it cut again at the next look
+    try { c.style.clipPath = ""; c.__holeKey = undefined; } catch (e3) {}
   }
 
   // ---------------------------------------------------------------- controls
@@ -2347,7 +2409,10 @@
     // content has played SOFT_CONTENT_S seconds; then it is stale ad chrome.
     if (adRaw && ssai && ssai.__soft && v) {
       var isAd = false; try { isAd = !!(ssai.isAdClip && ssai.isAdClip(v)); } catch (eS) {}
+      var isShow = false; try { isShow = !isAd && !!(ssai.isContent && ssai.isContent(v)) && !v.paused && v.readyState >= 3; } catch (eC) {}
       if (isAd) { softT0 = -1; }
+      // the clip playing is the video itself by its length: what is left of the ad's chrome is stale, at once
+      else if (isShow) { adRaw = false; vidLastAd = 0; }
       // The person paused the SHOW: the content clock above stops with it, so
       // a soft signal (YouTube's ad module, never emptied or filled while
       // paused) held an AD veil over a paused video for good - with "Veil the
@@ -2406,7 +2471,7 @@
     // show reported, Firefox 2026-08-29).
     var pauseNow = false, contentNow = false;
     if (!adRaw && vidVeil && vidVeil.mode === "ad" && v) {
-      try { var isAdNow = !!(srcNow && srcNow.isAdClip && srcNow.isAdClip(v)); contentNow = !isAdNow && isFinite(v.duration) && v.duration > 180 && !v.paused && v.readyState >= 3; } catch (eN) {}
+      try { var isAdNow = !!(srcNow && srcNow.isAdClip && srcNow.isAdClip(v)); contentNow = !isAdNow && isFinite(v.duration) && (v.duration > 180 || !!(srcNow && srcNow.isContent && srcNow.isContent(v))) && !v.paused && v.readyState >= 3; } catch (eN) {}
       if (vidVeil.pauseAfter) pauseNow = contentNow;
     }
     var inGrace = !skipped && !pauseNow && !contentNow && !!(vidVeil && vidVeil.mode === "ad" && vidLastAd && (now - vidLastAd < graceMs) && !(resumedAt && now - resumedAt < RESUME_GRACE_MS));
