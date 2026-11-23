@@ -217,6 +217,10 @@
       isAdClip: function (v) {
         var d; try { d = v.duration; } catch (e) { return false; }
         if (!isFinite(d) || d <= 0) return false;
+        // A Short is a short clip by nature, and the phone site plays each one in #movie_player with no clock and no ?v=: every
+        // Short read as an ad clip and was covered for its first seconds (report 2026-11-23, m.youtube.com). On a Shorts page the
+        // clip's length says nothing; the player's own ad class still does.
+        if (/^\/shorts(\/|$)/.test(location.pathname)) return false;
         // The page's declared length counts only if its metadata is for THIS
         // video (SPA navigation leaves the previous video's meta for a while:
         // an 8-minute video was judged an ad clip, 2026-08-29).

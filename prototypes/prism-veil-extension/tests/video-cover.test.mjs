@@ -271,6 +271,12 @@ describe("YouTube isAdClip", () => {
     const { row, v } = setup("");
     expect(row.isAdClip(withDuration(v, 150))).toBe(true);
   });
+  it("a Short is never an ad clip by its length (report 2026-11-23, the phone site)", () => {
+    const { row, v } = setup("");
+    try { window.happyDOM.setURL("https://m.youtube.com/shorts/laqT6xu5Zrk?ra=m"); } catch (e) {}
+    document.head.innerHTML = "";
+    expect(row.isAdClip(withDuration(v, 22))).toBe(false);
+  });
 });
 
 // The player left the view with its ad veil up (report 2026-10-29, YouTube, 0.7.192): the
