@@ -14,6 +14,10 @@ sales. It is in alpha.
 [Take the tour](https://entangled.world/prism/tour) ·
 [Changelog](CHANGELOG.md)
 
+The ad covering is also a browser extension, the PRISM extension:
+[Chrome and Edge](https://chromewebstore.google.com/detail/prism-by-entangled/dhdlohmmnplaadhpafnbmamjciapcnfj) ·
+[Firefox](https://addons.mozilla.org/firefox/addon/prism-by-entangled/). A Safari version is in testing.
+
 ## Install
 
 Needs Windows 11, 64-bit. Everything else comes inside the download.
@@ -54,8 +58,8 @@ PRISM menu > Updates, and only the files that changed are downloaded.
 ## For developers
 
 Open-source dashboard frames: DIY hardware builds running web-tile dashboards. The
-Windows app is the first. A browser extension (the PRISM extension, which carries the app's ad covering into browsers) is
-in development, and a Linux image for small boxes is planned.
+Windows app is the first. The PRISM extension carries the app's ad covering into browsers; it is released for Chrome,
+Edge and Firefox, and its code is in `prototypes/prism-veil-extension/`. A Linux image for small boxes is planned.
 
 ### Repo shape (spec §23)
 

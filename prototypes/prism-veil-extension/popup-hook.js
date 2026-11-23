@@ -51,7 +51,13 @@
       // each piece of text by itself: two pieces side by side read as one word otherwise, and a name at the end of one is lost
       var tw = document.createTreeWalker(link, 4, null), tn, seen = 0;
       while ((tn = tw.nextNode()) && seen++ < PIECES_MAX && out.length < NAMES_MAX) {
-        if (seenText(tn.parentElement)) out += " " + String(tn.nodeValue || "").slice(0, 200);
+        if (!seenText(tn.parentElement)) continue;
+        var v = String(tn.nodeValue || "").slice(0, 200);
+        out += " " + v;
+        // an address the page wrapped onto two lines inside one piece of text (Facebook's phone layout breaks it after a dot,
+        // B-539 again 2026-11-23): read it once more with the line breaks and the unseen break marks taken out
+        var joined = v.replace(/[\r\n\u200B\u00AD]+/g, "");
+        if (joined !== v) out += " " + joined;
       }
     } catch (x) {}
     return out.replace(/\s+/g, " ").slice(0, NAMES_MAX);

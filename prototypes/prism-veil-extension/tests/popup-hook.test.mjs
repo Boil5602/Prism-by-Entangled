@@ -106,6 +106,19 @@ describe("popup hook (main world)", () => {
     expect(opened.length).toBe(1);
   });
 
+  it("an address the page wrapped onto two lines still names its site (B-539, 2026-11-23)", () => {
+    const { opened } = loadHook();
+    document.body.innerHTML = '<div><span role="link" id="w"></span><span role="link" id="o"></span></div>';
+    document.getElementById("w").textContent = "https://store.example.\ncom/detail/abc";
+    document.getElementById("o").textContent = "Read more\nhere";
+    document.getElementById("w").dispatchEvent(new Event("touchstart", { bubbles: true }));
+    window.open("https://store.example.com/detail/abc");
+    expect(opened.map((o) => o.url)).toEqual(["https://store.example.com/detail/abc"]);
+    document.getElementById("o").dispatchEvent(new Event("touchstart", { bubbles: true }));
+    window.open("https://store.example.com/detail/abc");
+    expect(opened.length).toBe(1);
+  });
+
   it("honors a policy snapshot pushed from the UI: allowed destinations open for real", () => {
     const { opened } = loadHook();
     const state = { global: "intercept", sites: { "shop.com": { allowed: { "checkout.example.com": { since: "2026-08-27T00:00:00Z" } } } } };
