@@ -85,11 +85,18 @@ print("store: published %s (%s); submitted %s (%s)%s%s" % (pub[1], pub[0], sub[1
 if a.status: sys.exit(0)
 have = [v for v in (pub[1], sub[1]) if re.match(r"^\d+(\.\d+)*$", v)]
 if have and ver(version) <= max(ver(v) for v in have): sys.exit("version %s is not higher than the store's %s: raise the version in manifest.json and build again" % (version, max(have, key=ver)))
-if sub[0] == "PENDING_REVIEW": print("note: version %s is in review now; a new submission takes its place" % sub[1])
+if sub[0] == "PENDING_REVIEW": print("note: version %s is in review now; the store refuses an upload over it, so its review is withdrawn first and this version takes its place" % sub[1])
 if a.dry_run: print("dry run: the checks pass; nothing sent"); sys.exit(0)
 if not a.daytime:
     import eastern   # scripts/release/eastern.py: the Eastern hour, worked out when the PC has no zone data
     if eastern.daytime(): sys.exit("on a weekday an upload waits for the evening (after 6 PM Eastern); --daytime to override, --dry-run to check alone")
+
+# ---- a version in review is withdrawn first: the store answers "You may not edit or publish an item that is in review" to an upload
+# over it (2026-11-23, 0.9.74 sent while 0.9.73 waited). The published version stays as it is.
+if sub[0] == "PENDING_REVIEW":
+    call("POST", item + ":cancelSubmission", token, b"{}", "application/json")
+    print("withdrawn from review: version %s" % sub[1])
+    time.sleep(5)
 
 # ---- the upload, then the submission
 with open(path, "rb") as f: body = f.read()

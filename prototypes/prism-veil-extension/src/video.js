@@ -1408,14 +1408,36 @@
     var peepLeave = 0;
     function peepOpen() { if (peepLeave) { clearTimeout(peepLeave); peepLeave = 0; } if (cover.__pop && cover.__pop.style.display !== "none") return; peepStart(cover); }
     function peepClose() { if (peepLeave) clearTimeout(peepLeave); peepLeave = setTimeout(function () { peepLeave = 0; peepStop(cover); }, 250); }
-    chip.addEventListener("mouseenter", peepOpen); chip.addEventListener("mouseleave", peepClose);
-    peep.addEventListener("mouseenter", peepOpen); peep.addEventListener("mouseleave", peepClose);
+    // A touch screen (2026-11-23, a report from iOS Safari on YouTube's phone site: no small view could be had on a video cover). A
+    // phone has no hover; the browser makes one up from a tap, and that opened the peep in one browser and not in another, switched
+    // the label's mode with the same tap, and closed the peep at the next tap anywhere. A tap with a finger or a pen on the glyph
+    // now opens and closes the peep itself (the display covers' way, covers.js), a tap elsewhere on the cover closes it, and the
+    // made-up mouse events that follow a tap are let pass.
+    var touchAt = 0;
+    function touched() { return Date.now() - touchAt < 1000; }
+    function onChip(ev) {
+      if (chip.contains(ev.target)) return true;
+      try { var r = chip.getBoundingClientRect(); return r.width > 0 && ev.clientX >= r.left - 12 && ev.clientX <= r.right + 12 && ev.clientY >= r.top - 12 && ev.clientY <= r.bottom + 12; } catch (e) { return false; }
+    }
+    cover.addEventListener("pointerup", function (ev) {
+      if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
+      touchAt = Date.now();
+      if (peepLeave) { clearTimeout(peepLeave); peepLeave = 0; }
+      if (peep.contains(ev.target)) return;
+      if (cover.__peepOn) { peepStop(cover); return; }
+      if (hudMode() !== "minimal" && cover.__look !== "mute" && onChip(ev)) peepStart(cover);
+    }, true);
+    cover.__peepKeep = function (touch) { if (touch) touchAt = Date.now(); else if (touched()) return; if (peepLeave) { clearTimeout(peepLeave); peepLeave = 0; } };
+    cover.__peepLeave = function () { if (!touched()) peepClose(); };
+    chip.addEventListener("mouseenter", function () { if (!touched()) peepOpen(); }); chip.addEventListener("mouseleave", function () { if (!touched()) peepClose(); });
+    peep.addEventListener("mouseenter", function () { if (!touched()) peepOpen(); }); peep.addEventListener("mouseleave", function () { if (!touched()) peepClose(); });
     peep.addEventListener("click", function (ev) { ev.stopPropagation(); });
     // the pointer resting elsewhere on the veil closes the peep too (a leave event the browser never delivered left it open on the first
     // live try, 2026-11-07), and it closes by itself after twenty seconds: the keyhole is a look, not a window
-    cover.addEventListener("mousemove", function (ev) { if (cover.__peepOn && !chip.contains(ev.target) && !peep.contains(ev.target)) peepClose(); });
+    cover.addEventListener("mousemove", function (ev) { if (touched()) return; if (cover.__peepOn && !chip.contains(ev.target) && !peep.contains(ev.target)) peepClose(); });
     cover.__cardMoon = msg.querySelector(".__prismmoon");
-    chipMoon.addEventListener("click", function (ev) { ev.stopPropagation(); toggleHud(); });
+    // a tap on the glyph is the peep's on a touch screen (above); the label's mode is still switched from the minimal one and in the popup
+    chipMoon.addEventListener("click", function (ev) { ev.stopPropagation(); if (touched() && hudMode() !== "minimal") return; toggleHud(); });
     if (cover.__cardMoon) cover.__cardMoon.addEventListener("click", function (ev) { ev.stopPropagation(); toggleHud(); });
     chip.addEventListener("click", function (ev) { ev.stopPropagation(); if (hudMode() !== "minimal") return; peepStop(cover); pop.style.display = (pop.style.display === "none") ? "flex" : "none"; });
     pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
@@ -1504,12 +1526,23 @@
       }
     } catch (e0) {}
     if (!v) return;
+    var pv = c.__peepVideo, hole = c.__peepHole, note = c.__peepNote;
+    // the panel fits the cover: a phone's player is some 250 px high, and the 180 px picture with its note and button ran off the
+    // cover's lower edge (2026-11-23). The picture takes what height the cover leaves under the glyph, 16:9, and the note is left
+    // out when there is no room for it
+    if (!c.__peepOn) {
+      try {
+        var fr = c.getBoundingClientRect(), room = fr.height - 52 - 20 - 44, ph = Math.max(72, Math.min(180, Math.floor(room))), pw = Math.round(ph * 16 / 9);
+        if (pw > fr.width - 48) { pw = Math.max(96, Math.floor(fr.width - 48)); ph = Math.round(pw * 9 / 16); }
+        pv.style.width = hole.style.width = pw + "px"; pv.style.height = hole.style.height = ph + "px";
+        note.style.maxWidth = pw + "px"; note.style.display = room < 180 ? "none" : "";
+      } catch (eF) {}
+    }
     c.__peep.style.display = "flex";
     if (c.__peepOn) return;
     c.__peepOn = true;
     if (c.__peepTimer) clearTimeout(c.__peepTimer);
     c.__peepTimer = setTimeout(function () { peepStop(c); }, 20000);
-    var pv = c.__peepVideo, hole = c.__peepHole, note = c.__peepNote;
     // the small view switched off in the popup (pv:ui.smallView, 2026-11-11): the panel keeps its Reveal button, the video is not shown small
     if (PV.uiPrefs && PV.uiPrefs.smallView === false) { pv.style.display = "none"; hole.style.display = "none"; note.textContent = ""; return; }
     try {
@@ -1547,6 +1580,24 @@
           el.style.setProperty("visibility", "hidden", "important");
         });
       } catch (e3) {}
+      // The cover is cut away at the keyhole, so a press there went to the page: on YouTube's phone site each tap brought the
+      // player's own buttons up over the small picture and took them away (2026-11-23), and a pointer moving into it left the
+      // panel and closed the peep. A clear layer of PRISM's own sits over the keyhole and takes those; the peep closes when the
+      // page scrolls, as the layer does not move with it.
+      try {
+        var sh = document.createElement("div");
+        sh.setAttribute("data-prism-ui", "1");
+        sh.style.cssText = "position:fixed;z-index:2147483001;background:transparent;pointer-events:auto;left:" + hr.left.toFixed(1) + "px;top:" + hr.top.toFixed(1) + "px;width:" + hr.width.toFixed(1) + "px;height:" + hr.height.toFixed(1) + "px";
+        ["click", "auxclick", "mousedown", "mouseup", "pointerdown", "pointerup", "touchstart", "touchend", "contextmenu"].forEach(function (ty) {
+          sh.addEventListener(ty, function (e) { try { if (c.__peepKeep) c.__peepKeep(e.type !== "contextmenu" && (e.pointerType === "touch" || e.pointerType === "pen" || e.type.indexOf("touch") === 0)); if (e.cancelable) e.preventDefault(); e.stopPropagation(); } catch (x) {} }, true);
+        });
+        sh.addEventListener("mouseenter", function () { if (c.__peepKeep) c.__peepKeep(false); });
+        sh.addEventListener("mouseleave", function () { if (c.__peepLeave) c.__peepLeave(); });
+        veilHost().appendChild(sh);
+        c.__peepShield = sh;
+        c.__peepScroll = function () { peepStop(c); };
+        addEventListener("scroll", c.__peepScroll, { capture: true, passive: true });
+      } catch (eS) {}
       c.__peepKeyhole = v; note.textContent = "A protected video: shown through a keyhole";
     } catch (e2) { hole.style.display = "none"; note.textContent = "No peep here"; }
   }
@@ -1568,6 +1619,9 @@
       } catch (e2) {}
     }
     c.__peepKeyhole = null; c.__peepSaved = null;
+    try { if (c.__peepShield && c.__peepShield.parentNode) c.__peepShield.parentNode.removeChild(c.__peepShield); } catch (e5) {}
+    c.__peepShield = null;
+    if (c.__peepScroll) { try { removeEventListener("scroll", c.__peepScroll, { capture: true }); } catch (e6) {} c.__peepScroll = null; }
     try { (c.__peepHidden || []).forEach(function (h) { if (h[1]) h[0].style.setProperty("visibility", h[1], h[2]); else h[0].style.removeProperty("visibility"); }); } catch (e4) {}
     c.__peepHidden = null;
     try { c.style.clipPath = ""; } catch (e3) {}
