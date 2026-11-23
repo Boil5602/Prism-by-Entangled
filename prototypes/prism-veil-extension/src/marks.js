@@ -157,22 +157,49 @@
     if (hint) { var f = document.createElement("div"); f.textContent = hint; f.style.cssText = "color:#C0C8D2;margin:5px 0 0"; c.appendChild(f); }
     return c;
   }
+  // A card shown by the pointer resting on something has no way to go on a touch screen: the touch that brought it is followed by
+  // no leaving (2026-11-22, an iPhone: the card stayed on the screen over the page). So on a device with no hover no card is
+  // shown for the PRISM button or a mark (the panel holds the same), and on any device the next press or scroll takes a card away.
+  function noHover() { try { return !!(window.matchMedia && matchMedia("(hover: none)").matches); } catch (e) { return false; } }
+  var armed = false;
+  function armAway() {
+    if (armed) return; armed = true;
+    var away = function (e) { if (scrim && e && e.type !== "scroll" && e.type !== "wheel") return; hideCredTip(); };   // on a touch screen the press belongs to the scrim below
+    ["pointerdown", "touchstart", "scroll", "wheel"].forEach(function (t) { try { window.addEventListener(t, away, { capture: true, passive: true }); } catch (e) {} });
+  }
+  // On a touch screen the press that takes a card away must not also press what is under it (2026-11-22, an iPhone: the tap that
+  // cleared the card opened a link of the page). While a card is up there, a clear layer over the whole screen takes that one
+  // press and nothing else gets it; the same way the look under a cover is closed (covers.js, lookScrim). A scroll takes the card
+  // away too and presses nothing.
+  var scrim = null;
+  function scrimOn() {
+    if (scrim || !noHover()) return;
+    scrim = document.createElement("div"); scrim.setAttribute("data-prism-ui", "1");
+    scrim.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483646;background:transparent;pointer-events:auto;-webkit-tap-highlight-color:transparent";
+    var born = Date.now();   // the press that brought the card may still send its own click: that one is taken and the card stays
+    var take = function (e) { try { e.preventDefault(); e.stopPropagation(); } catch (x) {} if (Date.now() - born > 350) hideCredTip(); };
+    scrim.addEventListener("click", take, true);
+    (document.fullscreenElement || document.documentElement).appendChild(scrim);
+  }
+  function scrimOff() { if (scrim) { try { scrim.remove(); } catch (e) {} scrim = null; } }
   function showCredTip(anchor, ms, hint) {
-    hideCredTip(); cardFor = anchor;
+    hideCredTip(); if (noHover()) return; armAway(); cardFor = anchor;
     card = credCard(ms, hint); (document.fullscreenElement || document.documentElement).appendChild(card);
     var r = anchor.getBoundingClientRect(), w = card.offsetWidth, h = card.offsetHeight;
     var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
     var top = r.top - h - 8; if (top < 8) top = r.bottom + 8;
     card.style.left = left + "px"; card.style.top = top + "px";
   }
-  function hideCredTip(anchor) { if (anchor && cardFor !== anchor) return; if (card) { try { card.remove(); } catch (e) {} } card = null; cardFor = null; }
+  function hideCredTip(anchor) { if (anchor && cardFor !== anchor) return; if (card) { try { card.remove(); } catch (e) {} } card = null; cardFor = null; scrimOff(); }
   PV.credCard = credCard; PV.showCredTip = showCredTip; PV.hideCredTip = hideCredTip;
   PV.showTextTip = function (anchor, text) {
-    hideCredTip(); cardFor = anchor;
+    hideCredTip(); armAway(); cardFor = anchor;
+    if (noHover()) { var mine = anchor; setTimeout(function () { hideCredTip(mine); }, 6000); }   // a line of help in the panel is still wanted on a phone: it goes at the next press, or by itself
     card = document.createElement("div"); card.setAttribute("data-prism-ui", "1"); card.textContent = text;
     card.style.cssText = "position:fixed;z-index:2147483647;max-width:320px;background:#0F1216;color:#F2F4F7;border:1px solid #3A4250;border-radius:10px;padding:9px 12px;" +
       "font:12px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.6);pointer-events:none;text-align:left;white-space:normal";
     (document.fullscreenElement || document.documentElement).appendChild(card);
+    scrimOn();
     var r = anchor.getBoundingClientRect(), w = card.offsetWidth, h = card.offsetHeight;
     var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
     var top = r.top - h - 8; if (top < 8) top = r.bottom + 8;

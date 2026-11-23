@@ -78,8 +78,8 @@ run([py, os.path.join(HERE, "public-snapshot.py"), "push", "PRISM extension %s\n
 # 5, 6. the stores
 day = ["--daytime"] if a.daytime else []
 sent = []
-if "chrome" in stores: run(chrome + day); sent.append("prism-veil-chromium-%s.zip" % version)
-if "firefox" in stores: run(firefox + day); sent += ["prism-veil-firefox-%s.zip" % version, "prism-source-%s.zip" % version]
+if "chrome" in stores: run(chrome + day); sent.append("prism-extension-chromium-%s.zip" % version)
+if "firefox" in stores: run(firefox + day); sent += ["prism-extension-firefox-%s.zip" % version, "prism-source-%s.zip" % version]
 
 # 7. the record
 keep = os.path.join(EXT, "dist", "%s-submitted" % version); os.makedirs(keep, exist_ok=True)

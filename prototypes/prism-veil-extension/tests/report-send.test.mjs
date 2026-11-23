@@ -65,3 +65,21 @@ describe("what a report sends", () => {
     for (const w of ["Paper Boats", "Tall Grass", "Evening Beats", "follow me"]) expect(re.test(w)).toBe(false);
   });
 });
+
+// 2026-11-22: three reports from Facebook's Reels pages sent the tab bar and nothing of the reel, the card being the whole screen
+describe("a report from a pager of screens", () => {
+  const fn = src.slice(src.indexOf("PV.reportPagerItem = function"), src.indexOf("function clearLayer("));
+  const box = (top, h) => ({ getBoundingClientRect: () => ({ top, bottom: top + h, height: h }), children: [], querySelectorAll: () => [] });
+  const make = () => { const PV = {}; new Function("PV", "innerHeight", fn)(PV, 800); return PV.reportPagerItem; };
+  it("takes the screen in view as the card", () => {
+    const reels = [box(-750, 750), box(0, 750), box(750, 750), box(1500, 750), box(2250, 750)];
+    const pager = { ...box(0, 750), children: reels };
+    const screen = { ...box(0, 800), children: [box(0, 50), pager], querySelectorAll: () => [pager, ...reels] };
+    expect(make()(screen)).toBe(reels[1]);
+  });
+  it("leaves a feed of short posts alone", () => {
+    const posts = [box(0, 300), box(300, 900), box(1200, 200), box(1400, 300), box(1700, 300)];
+    const feed = { ...box(0, 2000), children: posts, querySelectorAll: () => posts };
+    expect(make()(feed)).toBe(null);
+  });
+});

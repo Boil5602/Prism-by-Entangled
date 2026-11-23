@@ -512,6 +512,25 @@
       }
     },
     {
+      // Akamai Media Player (2026-11-22, a report from Fox News on an iPhone: a video ad in the site's own player stood bare. The
+      // player is in a frame of its own, static.foxnews.com/static/orion/html/video/iframe/, which the manifest now names beside the
+      // other player frames). Read in that frame in headless Firefox as a phone, three videos, none with an ad: the root is
+      // .amp-player, and it keeps .amp-ads, .amp-ad-container, .amp-ad-info, .amp-ad-count and .amp-ad-time in the page at no size
+      // and display none while the show plays; the root's classes then are amp-playing, amp-active, amp-inactive, amp-waiting,
+      // amp-ready and the like, never one that starts amp-ad-. The ad signal is the player's own ad container shown, or a root
+      // class that starts amp-ad-. Not seen with an ad on: if the player marks its ad another way, nothing is covered.
+      family: "Akamai Media Player", fingerprint: ".amp-player", container: ".amp-player",
+      adClassRe: /(^|\s)amp-ad-[a-z-]+(\s|$)/,
+      adSelector: ".amp-ad-container, .amp-ads.amp-overlay",
+      authoritative: false, displayWins: true, resumeVia: "control",
+      adInfo: function (cont) {
+        var rem = -1, count = null;
+        try { var t = cont.querySelector(".amp-ad-time"), tm = t && (t.textContent || "").match(/(\d{1,2}:\d{2})/); if (tm) rem = parseClock(tm[1]); } catch (e) {}
+        try { var c = cont.querySelector(".amp-ad-count"), cm = c && (c.textContent || "").match(/(\d+)\s*of\s*(\d+)/i); if (cm) count = cm[1] + " of " + cm[2]; } catch (e2) {}
+        return { count: count || adCountText(cont), remaining: rem >= 0 ? rem : null };
+      }
+    },
+    {
       // Bitmovin Player UI (traceable source: bitmovin-player-ui CSS on npm,
       // read 2026-08-29): the ads UI variant .bmpui-ui-ads is shown for the
       // break (bmpui-hidden otherwise) with .bmpui-ui-label-ad-counter
@@ -1755,8 +1774,19 @@
     // the collapsed box sent the cover full-screen (reported 2026-08-30).
     // The container is where the player lives - the right size for the veil.
     try { var src = activeAdSource(), cont = src && rowContainer(src); if (cont) { r = cont.getBoundingClientRect(); if (ok(r)) return r; } } catch (e2) {}
+    // On a phone a player is small (2026-11-22, Fox News on an iPhone: a cover over an ad video in the page went to the whole
+    // screen). A video of 256 by 144 is under the sizes above, which were set for a computer's screen. On a narrow screen a
+    // box or video that is really there is covered at its own size; the whole screen is for a player with no size at all.
+    if (innerWidth < 700) {
+      var real = function (q) { return q && q.width >= 60 && q.height >= 34; };
+      try { r = box && box.getBoundingClientRect(); } catch (e3) {}
+      if (real(r)) return r;
+      try { r = video && video.getBoundingClientRect(); } catch (e4) {}
+      if (real(r)) return r;
+    }
     return { left: 0, top: 0, width: innerWidth, height: innerHeight };
   }
+  PV.__coverRect = coverRect;   // for the tests
   /** Size the cover to the player. withSkip cuts the Skip hole (ad mode only). */
   // The FULLSCREEN top layer paints only the fullscreen element's subtree
   // (Hulu fullscreen: veil missing, 2026-08-29). While an element is

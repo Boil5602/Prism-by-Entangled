@@ -6,6 +6,7 @@ Run this after the mark changes; it rewrites every derived icon:
   targets/win-host/PrismHost/Assets/prism-icon.png   128 px, the grip at the top of the wall
   targets/win-host/PrismHost/Assets/prism.ico        16..256 px, the window, the taskbar, the executable
   prototypes/prism-veil-extension/icons/icon-*.png   16 / 32 / 48 / 128, the extension (rebuild its dist after)
+  assets/store/prism-appstore-icon-1024.png          1024 px, opaque, the App Store's icon for the Safari extension's app
 
 A raster with a flat white background (the mark as it was handed over, 2026-09-09) is keyed back to transparency
 by --key: a flood fill from the corners and the mark's hollow centre, with a soft edge, so the near-white
@@ -22,6 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, "assets", "brand", "prism-logo.png")
 HOST = os.path.join(ROOT, "targets", "win-host", "PrismHost", "Assets")
 EXT = os.path.join(ROOT, "prototypes", "prism-veil-extension", "icons")
+STORE = os.path.join(ROOT, "assets", "store")
 
 
 def key_white(path):
@@ -93,7 +95,13 @@ def derive(source):
     inner = sq.resize((400, 400), Image.LANCZOS)
     maskable.paste(inner, (56, 56), inner)
     maskable.save(os.path.join(HOST, "prism-icon-512-maskable.png"))
-    print("derived: host prism-icon.png + prism.ico + prism-icon-180/192/512/512-maskable.png, extension icon-16/32/48/128 from", os.path.relpath(source, ROOT))
+    # the App Store's icon (the Safari extension's app, 2026-11-21): 1024 px with no transparency, because Apple refuses an alpha
+    # channel and cuts the corners itself. The mark on the same dark surface as the maskable icon, inside 80% of the side.
+    store = Image.new("RGBA", (1024, 1024), (0x14, 0x17, 0x1C, 255))
+    inner = sq.resize((820, 820), Image.LANCZOS)
+    store.paste(inner, (102, 102), inner)
+    store.convert("RGB").save(os.path.join(STORE, "prism-appstore-icon-1024.png"))
+    print("derived: host prism-icon.png + prism.ico + prism-icon-180/192/512/512-maskable.png, extension icon-16/32/48/128, App Store icon 1024 from", os.path.relpath(source, ROOT))
 
 
 if __name__ == "__main__":

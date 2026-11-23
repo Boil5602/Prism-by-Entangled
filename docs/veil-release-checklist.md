@@ -44,9 +44,9 @@ is a hotfix on the release branch, then the row is walked again.
 | id | Do | Expect | mark |
 |---|---|---|---|
 | PF-1 | `npx vitest run --config prototypes/prism-veil-extension/tests/vitest.config.mjs` | `Tests  78 passed (78)` or more | AUTO |
-| PF-2 | `node build-firefox.mjs` in the extension folder | `dist/prism-veil-chromium-0.8.0.zip` and `dist/prism-veil-firefox-0.8.0.zip`; `[build] v0.8.0 …` twice | AUTO |
+| PF-2 | `node build-firefox.mjs` in the extension folder | `dist/prism-extension-chromium-0.8.0.zip` and `dist/prism-extension-firefox-0.8.0.zip`; `[build] v0.8.0 …` twice | AUTO |
 | PF-3 | `python -c "print(sum(1 for x in open('src/covers.js','rb').read() if x>127))"` | `0` — the file stays ASCII (the editor once decoded `\u` escapes into raw glyphs) | AUTO |
-| PF-4 | `unzip -l dist/prism-veil-chromium-0.8.0.zip` | no `tests/`, `dist/`, `node_modules/`, `README.md`, `sign.log`, `.env`; `art/` present | AUTO |
+| PF-4 | `unzip -l dist/prism-extension-chromium-0.8.0.zip` | no `tests/`, `dist/`, `node_modules/`, `README.md`, `sign.log`, `.env`; `art/` present | AUTO |
 | PF-5 | `git diff main -- prototypes/prism-veil-extension/manifest.json` | the version, `scripting` and the all-sites host permissions (`http://*/*`, `https://*/*`, B-414/B-416) are the only changes; `tabs` only optional; no new line on the extension's Warnings entry at edge://extensions | AUTO |
 | PF-7 | with two or three pages open and covered, reload the extension at edge://extensions, then switch it off and on again (both stand in for a store update) | within a couple of seconds each open page has its covers and its PRISM button back, no page reload; an embedded player's veil waits for that page's next load | CODE |
 | PF-8 | the temporary capture probe is gone (2026-11-06) | no `src/capture-probe.js`; `manifest.json` has no `capture-probe` content script and no `<all_urls>`; bg.js has no `captureProbe` / `streamProbe` | CODE |
@@ -222,7 +222,7 @@ Draft once, reuse in all three listings.
 
 ## 6a · The store build (2026-11-14)
 
-`dist/chromium` and `prism-veil-chromium-<version>.zip` are the store build for the Chrome Web Store and Edge Add-ons. It is made
+`dist/chromium` and `prism-extension-chromium-<version>.zip` are the store build for the Chrome Web Store and Edge Add-ons. It is made
 by `build-firefox.mjs` from the one source (`STORE` in that file); the folder itself, loaded unpacked, is the development build,
 and the Firefox package has the start page cut the same way (SB-10) and is otherwise as it was. Each difference, and why:
 
@@ -248,9 +248,9 @@ Walk PF-6 and PF-7 on this build before a submission: the popup has no PRISM pag
 
 | id | Do | Expect | mark |
 |---|---|---|---|
-| ST-1 | **Edge Add-ons** (Partner Center, free): upload `prism-veil-chromium-0.8.0.zip`, listing assets, privacy URL, permission notes | review typically days; listing goes live on approval; updates by uploading the next zip | CODE |
+| ST-1 | **Edge Add-ons** (Partner Center, free): upload `prism-extension-chromium-0.8.0.zip`, listing assets, privacy URL, permission notes | review typically days; listing goes live on approval; updates by uploading the next zip | CODE |
 | ST-2 | **Chrome Web Store** (one-time $5 developer registration): same zip, same assets; fill the Privacy practices tab (no data collected; justify each permission) | review days to a week; a "broad host permissions" question is likely — answer with the justification above | CODE |
-| ST-3 | **Firefox AMO, listed**: `web-ext sign` cannot list; submit `prism-veil-firefox-0.8.0.zip` through the developer hub as a **listed** submission with source not required (no minification) | human review; keep submissions spaced — AMO throttles frequent uploads for hours | CODE |
+| ST-3 | **Firefox AMO, listed**: `web-ext sign` cannot list; submit `prism-extension-firefox-0.8.0.zip` through the developer hub as a **listed** submission with source not required (no minification) | human review; keep submissions spaced — AMO throttles frequent uploads for hours | CODE |
 | ST-4 | after approval: install each store build in a fresh profile | version 0.8.0, updates enabled, PV-1..PV-4 hold on the store build | CODE |
 
 ## 7a · Chrome updates by script (2026-11-17)

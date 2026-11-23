@@ -22,7 +22,7 @@ downloading; creds in `~/.prism/reports.env`).
   list exactly what will be sent first. No access log, no IP stored (an in-memory rate limit keyed
   by a salted hash that changes on every restart), no cookies.
 - **Cross-origin:** CORS is answered for the extension's own origin (`chrome-extension://`,
-  `moz-extension://`) and for `https://entangled.world` / `https://www.entangled.world` (a report
+  `moz-extension://`, Safari's `safari-web-extension://` since 2026-11-21) and for `https://entangled.world` / `https://www.entangled.world` (a report
   form later). The Windows app sends no Origin. Other web pages get no CORS answer.
 - **Abuse limits:** 48 KB body, 6 reports a minute per client (burst 20).
 - **Curation page** (`/curate`, the art-pool gallery): **off** unless the `CURATE_ENABLED=1` secret

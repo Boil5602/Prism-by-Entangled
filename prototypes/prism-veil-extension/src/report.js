@@ -58,6 +58,10 @@
         card = c; c = PV.parentAcross(c); lvl++;
       }
       if (!card && !inVeil(el)) { card = PV.parentAcross(el); lvl = 1; }   // the height cap tripped at once: still show the parent
+      // A pager of screens (2026-11-22, three reports from Facebook's Reels pages: the card was the whole screen and its forty
+      // lines were the tab bar, so nothing of the reel was sent). The card is then the one screen in view.
+      var shown = card ? PV.reportPagerItem(card.contains(el) ? card : el) || PV.reportPagerItem(el) : null;
+      if (shown) { card = shown; lvl = -1; }
       if (card) {
         var lines = [], all = card.querySelectorAll("*");
         for (var q = 0; q < all.length && lines.length < 40; q++) {
@@ -162,6 +166,7 @@
                       bg: (ccs.backgroundImage || "").slice(0, 40), atPoint: (function () { var m = document.elementFromPoint(cr.left + cr.width / 2, cr.top + Math.min(cr.height / 2, innerHeight / 2)); return m ? (m.tagName + (m.hasAttribute("data-prism-veil") ? "#veil" : "")) : null; })() };
           d.cover.look = ct2.__lookDiag || null;   // the last small view of this cover: what it scaled and where (covers.js)
         } else d.cover = null;
+        try { if (PV.coverLog) d.coverLog = PV.coverLog(); } catch (eCL) {}
         d.topBar = PV.topBar ? { top: PV.topBar.top, el: PV.topBar.el && (PV.topBar.el.tagName + "." + PV.classStr(PV.topBar.el).slice(0, 40)), containsTarget: !!(PV.topBar.el && PV.deepContains(PV.topBar.el, el)) } : null;
       } catch (e5) { d.coverErr = "" + e5; }
       // iframes on the page (host + path only) and which of them said hello
@@ -169,6 +174,26 @@
         d.iframes = Array.prototype.slice.call(document.querySelectorAll("iframe")).filter(function (f) { return f.getBoundingClientRect().width > 200; }).slice(0, 8).map(function (f) { var u = null; try { u = new URL(f.src); } catch (e) {} return (u ? u.host + u.pathname.slice(0, 40) : "(no src)") + " " + Math.round(f.getBoundingClientRect().width) + "x" + Math.round(f.getBoundingClientRect().height); });
         d.frameHello = (PV.frameHello || []).slice(0, 8);
       } catch (eI) {}
+      // A picked frame with no address of its own (its document written by a script): the domains of what it holds, read where the
+      // browser lets the page read it, so a report names the ad's source (2026-11-22: three Fox News reports from an iPhone showed
+      // only "(no src)"). Domains only, as the card's lines carry them; never text.
+      try {
+        var pf = el.tagName === "IFRAME" ? el : null, ps = pf ? (pf.getAttribute("src") || "").trim() : "x";
+        if (pf && (!ps || /^about:blank/i.test(ps))) {
+          var fd = null; try { fd = pf.contentDocument; } catch (eD) {}
+          if (!fd || !fd.body) d.frameHosts = ["(not readable)"];
+          else {
+            var hs = [], seenH = {};
+            Array.prototype.slice.call(fd.querySelectorAll("iframe[src], img[src], video, a[href], script[src]"), 0, 300).forEach(function (n) {
+              var u = n.tagName === "A" ? n.getAttribute("href") : (n.currentSrc || n.getAttribute("src") || "");
+              var h = ""; try { h = new URL(u, fd.baseURI || location.href).hostname; } catch (eU) {}
+              var key = n.tagName.toLowerCase() + " " + h;
+              if (h && !seenH[key] && hs.length < 16) { seenH[key] = 1; hs.push(key); }
+            });
+            d.frameHosts = hs.length ? hs : ["(none)"];
+          }
+        }
+      } catch (eH) {}
       try { d.family = PV.playerFamily ? PV.playerFamily() : null; } catch (eF) {}
       try { d.adStack = PV.adStackHere ? PV.adStackHere() : null; } catch (eS) {}
       try { d.prefs = PV.uiPrefs ? { srcMarks: !!PV.uiPrefs.srcMarks, aiVeil: !!PV.uiPrefs.aiVeil, veilPaused: PV.uiPrefs.veilPaused !== false, hud: PV.uiPrefs.hud || "interactive", pauseAfter: !!(PV.pauseAfterPref && PV.pauseAfterPref()) } : null; } catch (e9) {}
@@ -216,7 +241,7 @@
   function exitPick() {
     clearToast();
     coversClickThrough(false);
-    if (pick) { try { pick.remove(); } catch (e) {} pick = null; }
+    if (pick) { try { if (PV.releaseOnTop) PV.releaseOnTop(pick); } catch (e0) {} try { if (pick.hidePopover && pick.matches(":popover-open")) pick.hidePopover(); } catch (e2) {} try { pick.remove(); } catch (e) {} pick = null; }
     if (PV.onReportPick) { try { PV.onReportPick(false); } catch (e1) {} }
   }
   function doReport(el, pt) {
@@ -262,7 +287,7 @@
     return "display";
   }
   // The element's own diagnostics that say nothing about the page beyond the ad itself.
-  var DIAG_KEEP = ["isVisible", "inViewport", "slotMatch", "slotQueryOk", "targetsTotal", "inTargets", "ancestorTargetLevels", "ancestorWhy", "cover", "topBar", "family", "vidVeil"];
+  var DIAG_KEEP = ["isVisible", "inViewport", "slotMatch", "slotQueryOk", "targetsTotal", "inTargets", "ancestorTargetLevels", "ancestorWhy", "cover", "topBar", "family", "vidVeil", "frameHosts", "coverLog"];
   function sendable(report, opt, version) {
     var d = (report && report.diag) || {}, diag = {};
     DIAG_KEEP.forEach(function (k) { if (d[k] !== undefined) diag[k] = d[k]; });
@@ -297,7 +322,11 @@
     var ctl = "background:#1c1e27;color:#e8ecf2;border:1px solid #ffffff33;border-radius:6px;padding:4px 6px;font:12px system-ui,sans-serif;";
     var kindRow = document.createElement("label"); kindRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:6px";
     kindRow.appendChild(document.createTextNode("What is it"));
-    var kind = document.createElement("select"); kind.style.cssText = ctl;
+    // On a touch screen the fields are 16 px: Safari on the iPhone zooms the page in on a field with smaller type and does not zoom
+    // back out when the form closes (2026-11-22, the page left zoomed in after a report). A mouse keeps the small type.
+    var touchUi = false; try { touchUi = matchMedia("(pointer: coarse)").matches; } catch (e0) {}
+    var field = ctl + (touchUi ? "font-size:16px;" : "");
+    var kind = document.createElement("select"); kind.style.cssText = field;
     AD_KINDS.forEach(function (g) {
       var into = kind; if (g[0]) { into = document.createElement("optgroup"); into.label = g[0]; kind.appendChild(into); }
       g[1].forEach(function (k) { var o = document.createElement("option"); o.value = k[0]; o.textContent = k[1]; into.appendChild(o); });
@@ -305,7 +334,7 @@
     kind.value = guessKind(report);
     kindRow.appendChild(kind);
     var note = document.createElement("input"); note.type = "text"; note.maxLength = 280; note.placeholder = "A note (optional)";
-    note.style.cssText = ctl + "width:100%;box-sizing:border-box;margin-bottom:6px";
+    note.style.cssText = field + "width:100%;box-sizing:border-box;margin-bottom:6px";
     // typing here is ours, never the page's shortcuts
     ["keydown", "keyup", "keypress"].forEach(function (ev) { note.addEventListener(ev, function (e) { if (e.key !== "Escape") e.stopPropagation(); }, true); });
     var fullRow = document.createElement("label"); fullRow.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px;cursor:pointer";
@@ -389,26 +418,89 @@
   // While picking, a full-viewport transparent catcher receives the click even
   // over a cross-origin iframe; we briefly drop its pointer-events and read
   // elementFromPoint under the click to get the real element.
+  // What a pick at (x, y) is about: the topmost element there that is not PRISM's own and not an invisible layer over the whole
+  // screen (aether.ist puts a clear click-catcher over everything again at every pointer move, 2026-11-22; a report on it would name
+  // the catcher, not the ad under it). Its shadow root is walked as deepElementFromPoint does.
+  // Inside (or at) root: an element with five children or more, three of them most of a screen tall, is a pager of screens; the
+  // child across the middle of the screen is the one in view. null when there is none.
+  PV.reportPagerItem = function (root) {
+    try {
+      var list = [root].concat([].slice.call(root.querySelectorAll("*"), 0, 3000)), mid = innerHeight / 2;
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i]; if (p.children.length < 5) continue;
+        var tall = 0, at = null;
+        for (var k = 0; k < p.children.length && k < 400; k++) {
+          var r = p.children[k].getBoundingClientRect();
+          if (r.height < innerHeight * 0.6) continue;
+          tall++; if (!at && r.top < mid && r.bottom > mid) at = p.children[k];
+        }
+        if (tall >= 3 && at) return at;
+      }
+    } catch (e) {}
+    return null;
+  };
+  function clearLayer(el) {
+    try {
+      var r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+      if (parseFloat(cs.opacity) < 0.05) return true;
+      if (r.width * r.height < innerWidth * innerHeight * 0.9) return false;
+      return el.childElementCount === 0 && cs.backgroundImage === "none" && /^(transparent|rgba\(0, 0, 0, 0\))$/.test(cs.backgroundColor);
+    } catch (e) { return false; }
+  }
+  function pickTarget(x, y) {
+    var list = [];
+    try { list = document.elementsFromPoint(x, y) || []; } catch (e) {}
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (el === document.documentElement || el === document.body) break;
+      if (el.closest && el.closest("[data-prism-ui],[data-prism-veil]")) {
+        if (el.tagName === "PRISM-POPUP-BUTTON" || (el.closest("prism-popup-button"))) return el;   // PRISM's button: a way out
+        continue;
+      }
+      if (clearLayer(el)) continue;
+      var g = 0;
+      while (el.shadowRoot && g++ < 24) { var inner = el.shadowRoot.elementFromPoint(x, y); if (!inner || inner === el) break; el = inner; }
+      return el;
+    }
+    return PV.deepElementFromPoint(x, y);
+  }
+  // A pick, from the catcher's own click or from the guard (src/popups-guard.js), which claims every press while a pick is on,
+  // before any page script sees it.
+  function pickPress(x, y) {
+    if (!pick) return;
+    var c = pick;
+    c.style.pointerEvents = "none";
+    var el = pickTarget(x, y);
+    c.style.pointerEvents = "";
+    exitPick();
+    // A click on PRISM's own UI (pill, chip, panel) is a way OUT, not a pick.
+    if (el && el.closest && el.closest("[data-prism-ui],prism-popup-button")) { toast("Report cancelled", "#A3ABB7"); return; }
+    if (el) doReport(el, { x: x, y: y }); else toast("Couldn't read that spot - try again", "#F0A83C");
+  }
+  PV.reportPickPress = pickPress;
+  // While picking, a full-viewport transparent catcher receives the click even
+  // over a cross-origin iframe; we briefly drop its pointer-events and read
+  // what is under the click to get the real element.
   function enterPick() {
     if (pick) { exitPick(); return; }
     var c = document.createElement("div");
     c.setAttribute("data-prism-ui", "1");
-    c.style.cssText = "position:fixed;inset:0;z-index:2147483646;cursor:crosshair;background:#0b0c1410;";
+    // Above everything the page draws, three ways (2026-11-22): in the browser's top layer as a popover, which no z-index reaches;
+    // where that is missing, the highest z-index, kept last on the page by keepOnTop so a layer added later loses the tie (Fox News on
+    // an iPhone: GumGum's banner at 2147483647 took the tap; aether.ist adds its click-catcher again at every move); and the guard
+    // claims the press by where it lands in any case. A press on PRISM's own pill still cancels.
+    c.style.cssText = "position:fixed;inset:0;z-index:2147483647;cursor:crosshair;background:#0b0c1410;margin:0;padding:0;border:0;" +
+      "width:100vw;height:100vh;max-width:none;max-height:none;overflow:hidden;";
     c.addEventListener("click", function (e) {
       e.preventDefault(); e.stopPropagation();
-      var x = e.clientX, y = e.clientY;
-      c.style.pointerEvents = "none";
-      var el = PV.deepElementFromPoint(x, y);
-      c.style.pointerEvents = "";
-      exitPick();
-      // A click on PRISM's own UI (pill, chip, panel) is a way OUT, not a pick.
-      if (el && el.closest && el.closest("[data-prism-ui]")) { toast("Report cancelled", "#A3ABB7"); return; }
-      if (el) doReport(el, { x: x, y: y }); else toast("Couldn't read that spot - try again", "#F0A83C");
+      pickPress(e.clientX, e.clientY);
     }, true);
     // Right-click cancels (an accidental Report needs a way out that is not a pick).
     c.addEventListener("contextmenu", function (e) { e.preventDefault(); e.stopPropagation(); exitPick(); toast("Report cancelled", "#A3ABB7"); }, true);
     coversClickThrough(true);
     document.documentElement.appendChild(c);
+    try { if (c.showPopover) { c.setAttribute("popover", "manual"); c.showPopover(); } } catch (e2) {}
+    if (PV.keepOnTop) { try { PV.keepOnTop(c); } catch (e3) {} }
     pick = c;
     if (PV.onReportPick) { try { PV.onReportPick(true); } catch (e1) {} }
     toast("Click the ad to report it · Esc to cancel", "#F0A83C");

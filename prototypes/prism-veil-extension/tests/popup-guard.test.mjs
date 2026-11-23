@@ -80,4 +80,54 @@ describe("popup guard (isolated world, document_start)", () => {
     document.getElementById("catcher").dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 10, clientY: 10 }));
     expect(seen).toEqual(["page saw click"]);
   });
+  // on an iPhone (2026-11-22): the tap that closed the PRISM panel also opened the link under it
+  it("while the PRISM panel is open, a press off it closes the panel and never reaches the page or its link", () => {
+    window.__prismVeilNS = {};
+    (0, eval)(read("src/popups-guard.js"));
+    const PV = window.__prismVeilNS;
+    const seen = [];
+    document.addEventListener("pointerdown", () => seen.push("page pointerdown"), true);
+    document.addEventListener("click", () => seen.push("page click"), true);
+    document.body.innerHTML = "<a id='l' href='https://elsewhere.example/'>link</a>";
+    let open = true, closed = 0;
+    PV.panelIsOpen = () => open;
+    PV.panelClose = () => { open = false; closed++; };
+    PV.uiHit = () => false;
+    const l = document.getElementById("l");
+    l.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 100, clientY: 300 }));
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, clientX: 100, clientY: 300 });
+    l.dispatchEvent(click);
+    expect(seen).toEqual([]);
+    expect(click.defaultPrevented).toBe(true);
+    expect(closed).toBe(1);
+    // the panel is closed: the next press is the page's
+    const next = new MouseEvent("click", { bubbles: true, cancelable: true, clientX: 100, clientY: 300 });
+    next.preventDefault = next.preventDefault.bind(next);
+    document.body.dispatchEvent(next);
+    expect(seen).toEqual(["page click"]);
+    expect(next.defaultPrevented).toBe(false);
+  });
+  // aether.ist on an iPhone (2026-11-22): the page's own clear catcher over everything took the report's tap
+  it("while a report pick is on, takes every press for the pick before the page sees it", () => {
+    window.__prismVeilNS = {};
+    (0, eval)(read("src/popups-guard.js"));
+    const PV = window.__prismVeilNS;
+    const seen = [], picks = [];
+    document.addEventListener("pointerdown", () => seen.push("page pointerdown"), true);
+    document.addEventListener("click", () => seen.push("page click"), true);
+    document.body.innerHTML = "<div id='catcher'></div>";
+    let on = true;
+    PV.inReportPick = () => on;
+    PV.reportPickPress = (x, y) => { picks.push([x, y]); on = false; };
+    const c = document.getElementById("catcher");
+    c.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 300, clientY: 760 }));
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, clientX: 300, clientY: 760 });
+    c.dispatchEvent(click);
+    expect(seen).toEqual([]);
+    expect(click.defaultPrevented).toBe(true);
+    expect(picks).toEqual([[300, 760]]);
+    // the pick is over: presses reach the page again
+    c.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 300, clientY: 760 }));
+    expect(seen).toEqual(["page click"]);
+  });
 });

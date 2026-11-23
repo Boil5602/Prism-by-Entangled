@@ -187,7 +187,7 @@ Edge, Chrome and Firefox. It reverses the deferral of 2026-09-12 (docs/veil-rele
 - **What Apple asks:** a membership of the Apple Developer Program as a company (the D-U-N-S record exists; Apple's lookup found it,
   2026-11-19), the extension inside an app, and App Store review of every version. The app is made by App Store Connect's Safari Web
   Extension Packager from a zip of the extension (the Xcode Cloud tab; no Mac and no Xcode), and tried through TestFlight.
-- **What is built:** `node build-firefox.mjs safari` makes `dist/safari` and `prism-veil-safari-<version>.zip` from the one source, only
+- **What is built:** `node build-firefox.mjs safari` makes `dist/safari` and `prism-extension-safari-<version>.zip` from the one source, only
   when named. Its background is a page that sleeps (the rule updates' reader, the soundscape, bg.js); it has no tab stream, no
   offscreen page and no picture reader, and asks for storage, alarms and scripting.
 - **What is unknown until a Safari runs it** (nothing here is claimed): the content scripts declared for the page's own world
@@ -200,6 +200,42 @@ Edge, Chrome and Firefox. It reverses the deferral of 2026-09-12 (docs/veil-rele
   when the first fault needs it, not before.
 - **Owed, in order:** the membership (the owner's); an app record and the first upload; a walk of the site matrix in Safari on an
   iPhone through TestFlight; then the store text for the App Store and a line in docs/network.md if Safari adds or drops a connection.
+- **Drafted 2026-11-21:** the App Store text, the privacy label's two choices and the review notes in `docs/veil-store-text-safari.md`;
+  the 1024 px opaque app icon from `scripts/brand-icons.py` (`assets/store/prism-appstore-icon-1024.png`). Found then: the report
+  server's CORS admitted no Safari origin. *Decision:* Report an ad stays in Safari (the privacy label declares it), and the server
+  admits `safari-web-extension://` since the same day.
+- **First run in Safari, 2026-11-21** (a macOS virtual machine, the zip added as a temporary extension): the button on the page
+  works. A press on the toolbar icon crashed the page's process on msn.com as the settings panel's frame went into the page.
+  *Decision:* in Safari the settings open in a window of their own (0.9.45); the frame over the page stays for the other browsers.
+- **Mac session, 2026-11-21, 0.9.45** (Safari 26 on macOS 26.7.3 in the virtual machine, `dist/safari` added as a temporary extension,
+  allowed on all websites; read by script from Apple Events and screenshots):
+  - **`world: MAIN` works.** On a local test page and on msn.com both page-world scripts run: `window.__prismImaHook` and
+    `window.__prismPopupHook` are set, and `window.open` is the popup hook's wrapper.
+  - **Display covers on msn.com are drawn, each on its ad:** the banner under the search box, the row of sponsored tiles and the
+    sponsored cards. No crash of the page's process. A test page's `google_ads_iframe_…` slot and `ins.adsbygoogle` were covered too.
+    The PRISM pill sits over msn's own Feedback button at the bottom right.
+  - **Facebook and X: not tested.** Neither is signed in on this Mac, and a signed-out page shows no ads.
+  - **YouTube video ad: not settled.** A signed-out watch page showed an ad (`ad-showing` on the player) with 11 covers in the page
+    in the first seconds; the Mac then stopped answering screenshots and scripts (WindowServer at full load), so the tab mute is
+    not read yet. The virtual machine has no sound device, so nothing could be heard either way. The system log puts the freeze in
+    the machine, not yet in PRISM: the screen is drawn in software (no graphics acceleration in the VM), WindowServer logged a
+    25-second stall as the page's players started, and the media stack failed for want of an output device (`Default-Output` not
+    found). A run with the extension switched off would show whether the covers add to it.
+  - **A temporary extension is gone after Safari quits** and has to be added again each time.
+  - **The settings window opens** from the toolbar icon (a window of its own, "PRISM settings"), and its switches reach the page:
+    Veil off took the covers off the test page and the pill read "PRISM off"; Veil on put them back.
+  - **Report an ad works:** the panel's Report, a click on the covered slot, the card, Send to PRISM; the page said "Sent. Thank you.",
+    which it says only on the server's 204. Firefox's consent step does not appear (the Safari build has no `data_collection` key).
+- **First upload to App Store Connect, 2026-11-21** (the hold on registering was lifted that day; the membership is still Individual):
+  the packager is offered to the account. Build 0.9.46 (1) ended in Apple's "Service Error", with a warning that `persistent` and
+  `world` are unsupported. 0.9.47 without `persistent` got the same error, sat at 0%, and warned that iOS takes a background with
+  no `persistent: false` as persistent, which it refuses: the key is back from 0.9.48. Both failures came before the zip was read;
+  the cause is Apple's or the account's. `world: MAIN` stays until a Safari shows whether it runs those scripts in the page.
+- **In TestFlight through Xcode, 2026-11-21:** 0.9.48 (1), built on the Mac (`targets/safari-app/`, iOS only), archived unsigned
+  and signed for distribution on export with an App Store Connect API key. Apple's check refused the first upload over the
+  manifest's `description` (112 characters at most for a Safari extension); the Safari build has a shorter one. Processed as
+  valid; an internal group (all builds) holds the account holder as tester, and the app is installed on the owner's iPhone. How
+  the extension behaves in iOS Safari is not read yet.
 
 ## Buying and renting
 

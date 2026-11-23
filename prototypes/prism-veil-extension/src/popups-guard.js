@@ -29,6 +29,24 @@
       // button. Claim by coordinates instead (the UI knows its own boxes).
       var ours = direct;
       if (!ours) { try { ours = !!(PV.uiHit && PV.uiHit(e)); } catch (x) {} }
+      // A report pick is on: every press is the pick's, wherever it lands, so a page's own catcher over everything (aether.ist adds one
+      // again at every pointer move, 2026-11-22) never takes it. The press is stopped here, its default too, and the pick reads what is
+      // under it on the click. Keys go on (Escape ends the pick).
+      if (!ours && PV.inReportPick && PV.inReportPick() && PV.reportPickPress && !/^key/.test(type)) {
+        e.stopImmediatePropagation();
+        if (e.cancelable && /^(click|auxclick|dblclick|mousedown)$/.test(type)) e.preventDefault();
+        if (type === "click") { try { PV.reportPickPress(e.clientX, e.clientY); } catch (x) {} }
+        return;
+      }
+      // The PRISM panel is open and the press is off it: the press closes the panel and goes no further, so it opens no link under
+      // it (2026-11-22). Stopped here before any page script; the click's default is stopped too, and the click closes the panel.
+      // A drag still scrolls, since only the click is prevented. Keys go on.
+      if (!ours && PV.panelIsOpen && PV.panelIsOpen() && PV.panelClose && !/^key/.test(type)) {
+        e.stopImmediatePropagation();
+        if (e.cancelable && /^(click|auxclick|dblclick)$/.test(type)) e.preventDefault();
+        if (type === "click") { try { PV.panelClose(); } catch (x) {} }
+        return;
+      }
       if (!ours) return;
       e.stopImmediatePropagation();
       var inner = null;

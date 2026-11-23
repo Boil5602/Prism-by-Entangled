@@ -441,3 +441,45 @@ describe("ad break looks", () => {
     expect(PV.vidVeil()).toBe(null);
   });
 });
+
+// 2026-11-22, Fox News on an iPhone: a cover over an ad video in the page went to the whole screen. The sizes a player had to
+// have were a computer's; a phone's player of 256 by 144 is under them.
+describe("the video cover's size on a phone", () => {
+  const box = (w, h) => ({ getBoundingClientRect: () => ({ left: 10, top: 300, width: w, height: h, right: 10 + w, bottom: 300 + h }) });
+  it("is the small player's own size on a narrow screen, and the whole screen only for a player with no size", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 800 }); PV.pickArt = () => "";
+    expect(PV.__coverRect(box(256, 144), null).width).toBe(256);
+    expect(PV.__coverRect(box(0, 0), box(160, 90)).height).toBe(90);
+    expect(PV.__coverRect(box(0, 0), box(0, 0))).toEqual({ left: 0, top: 0, width: innerWidth, height: innerHeight });
+  });
+  it("is unchanged on a computer's screen: a tiny box still gives the whole screen", () => {
+    const PV = loadVeil({ host: "news.example", width: 1600, height: 900 }); PV.pickArt = () => "";
+    expect(PV.__coverRect(box(160, 90), null).width).not.toBe(160);
+    expect(PV.__coverRect(box(640, 360), null).width).toBe(640);
+  });
+});
+
+// 2026-11-22, a report from Fox News on an iPhone: a video ad in the site's own player (Akamai's, in a frame of its own) stood bare.
+describe("Akamai Media Player", () => {
+  it("is not in an ad while its ad parts are kept hidden, and is when the ad container shows or the root takes an amp-ad- class", () => {
+    const PV = loadVeil({ host: "static.foxnews.com", width: 408, height: 230 }); PV.pickArt = () => "";
+    document.body.innerHTML = `<div id="player" class="amp-html5 amp-player amp-iphone amp-vod amp-playing amp-inactive"><video class="amp-media-element"></video>` +
+      `<div class="amp-ads" style="display:none"><div class="amp-ad-container" style="display:none"></div></div></div>`;
+    const root = document.querySelector(".amp-player"), v = document.querySelector("video"), ad = document.querySelector(".amp-ad-container");
+    for (const el of [root, v, ad]) el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 408, height: 230, right: 408, bottom: 230 });
+    expect(PV.playerFamily()).toBe("Akamai Media Player");
+    expect(PV.__adSourceNow()).toBe(null);
+    root.classList.add("amp-ad-mode");
+    expect(PV.__adSourceNow() && PV.__adSourceNow().family).toBe("Akamai Media Player");
+    root.classList.remove("amp-ad-mode");
+    expect(PV.__adSourceNow()).toBe(null);
+    ad.parentNode.style.display = ""; ad.style.display = "block";
+    expect(PV.__adSourceNow() && PV.__adSourceNow().family).toBe("Akamai Media Player");
+  });
+  it("has its frame on Fox News named in the manifest, in the top-frame entries' exclusions and the frame entries' matches", () => {
+    const m = JSON.parse(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "manifest.json"), "utf8"));
+    const F = "*://static.foxnews.com/static/orion/html/video/iframe/*";
+    for (const c of m.content_scripts) if (c.matches.includes("<all_urls>")) expect(c.exclude_matches).toContain(F);
+    expect(m.content_scripts.filter((c) => c.all_frames && c.matches.includes(F)).length).toBe(2);
+  });
+});

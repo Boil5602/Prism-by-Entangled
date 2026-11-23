@@ -15,24 +15,101 @@
   // ---- art
   var BUNDLED = (PV.ART_FILES || []).map(function (p) { return chrome.runtime.getURL(p); });
   var HOSTED = [];   // pv:art - 24 verified photos from the person's server, if they asked for them
-  PV.pickArt = function () { var src = HOSTED.length ? HOSTED : BUNDLED; return src[Math.floor(Math.random() * src.length)] || ""; };
+  // A page whose content security policy refuses the hosted photos gets bundled ones, and no request for a hosted one is made
+  // from it (decision 2026-11-22, spec section 30; measured that day on Facebook in Safari on an iPhone: every cover cost one
+  // refused request and changed its picture about 36 ms after it was up). Known BEFORE the first request three ways: a site
+  // measured to refuse (ART_REFUSERS), the page's own policy where a script can read it (a meta tag; a header cannot be read), and
+  // what this device remembers of the site (pv:artRefused, host -> until when; kept on the device, sent nowhere). Learned when a
+  // request is refused all the same: the browser's own securitypolicyviolation event (remembered 30 days) or, without one, the
+  // photo failing to load while the device is online and no hosted photo has loaded on the page (remembered one day, since that
+  // can also be the server).
+  var ART_REFUSERS = /(^|\.)facebook\.com$/i;
+  var artRefused = false, hostedGood = false, metaDone = false;
+  try { artRefused = ART_REFUSERS.test(location.hostname); } catch (e) {}
+  // Does this policy text refuse a picture from this address? img-src, else default-src; no such directive refuses nothing.
+  PV.cspRefuses = function (policy, url) {
+    try {
+      var u = new URL(url), src = null, def = null;
+      String(policy || "").split(";").forEach(function (d) {
+        var w = d.trim().split(/\s+/), n = (w.shift() || "").toLowerCase();
+        if (n === "img-src" && !src) src = w; else if (n === "default-src" && !def) def = w;
+      });
+      src = src || def; if (!src) return false;
+      return !src.some(function (x) {
+        x = x.toLowerCase();
+        if (x === "*" || x === u.protocol) return true;
+        if (x.charAt(0) === "'" || /^[a-z][a-z0-9+.-]*:$/.test(x)) return false;   // a keyword, or another scheme
+        var m = /^(?:([a-z][a-z0-9+.-]*):\/\/)?([^\/:]+)(?::(\d+|\*))?(\/.*)?$/.exec(x); if (!m) return false;
+        if (m[1] && m[1] + ":" !== u.protocol) return false;
+        var h = m[2], host = u.hostname.toLowerCase();
+        if (!(h === host || (h.slice(0, 2) === "*." && host.slice(-(h.length - 1)) === h.slice(1)))) return false;
+        return !m[4] || u.pathname.indexOf(m[4]) === 0;
+      });
+    } catch (e) { return false; }
+  };
+  function metaRefuses() {
+    if (metaDone || !HOSTED.length) return false;
+    try {
+      if (document.readyState !== "loading") metaDone = true;   // the head is whole: read once more and no further
+      var ms = document.querySelectorAll('meta[http-equiv="Content-Security-Policy" i]');
+      for (var i = 0; i < ms.length; i++) if (PV.cspRefuses(ms[i].getAttribute("content"), HOSTED[0])) return true;
+    } catch (e) {}
+    return false;
+  }
+  function rememberRefused(days) {
+    artRefused = true;
+    try {
+      var host = location.hostname; if (!host) return;
+      chrome.storage.local.get("pv:artRefused", function (r) {
+        try {
+          var m = (r && r["pv:artRefused"]) || {}, now = Date.now(), out = {}, n = 0;
+          Object.keys(m).forEach(function (k) { if (m[k] > now && n < 300) { out[k] = m[k]; n++; } });
+          out[host] = Math.max(out[host] || 0, now + days * 86400000);
+          chrome.storage.local.set({ "pv:artRefused": out });
+        } catch (e2) {}
+      });
+    } catch (e) {}
+  }
+  PV.artRefused = function () { if (!artRefused && metaRefuses()) artRefused = true; return artRefused; };
+  PV.pickArt = function () { var src = (HOSTED.length && !PV.artRefused()) ? HOSTED : BUNDLED; return src[Math.floor(Math.random() * src.length)] || ""; };
   PV.pickBundledArt = function () { return BUNDLED[Math.floor(Math.random() * BUNDLED.length)] || ""; };
-  PV.artInfo = function () { return { hosted: HOSTED.length, at: PV.__artAt || 0 }; };
-  // Put a photo on an element as its background. A hosted photo can be
-  // refused by a strict page CSP (img-src): probe it, and fall back to a
-  // bundled (extension-scheme) photo for that element if it will not load.
+  PV.artInfo = function () { return { hosted: HOSTED.length, at: PV.__artAt || 0, refused: artRefused }; };
+  // Put a photo on an element as its background. A hosted photo is never asked for on a page known to refuse it (a bundled one
+  // goes on instead, and the element's __artUrl names it, for the credit). On any other page it is probed, and a refusal swaps
+  // this element to a bundled photo and is remembered.
   PV.artOnto = function (el, url) {
+    var net = /^https?:/i.test(url);
+    if (net && PV.artRefused()) { url = PV.pickBundledArt(); el.__artUrl = url; net = false; }
     el.style.backgroundImage = "url('" + url + "')";
-    if (!/^https?:/i.test(url)) return;
+    if (!net) return;
     try {
       var im = new Image();
-      im.onerror = function () { if (el.style.backgroundImage.indexOf(url) >= 0) { var b = PV.pickBundledArt(); el.style.backgroundImage = "url('" + b + "')"; el.__artUrl = b; } };
+      im.onload = function () { hostedGood = true; };
+      im.onerror = function () {
+        var on = true; try { on = navigator.onLine !== false; } catch (e0) {}
+        if (!hostedGood && on && !artRefused) rememberRefused(1);
+        if (el.style.backgroundImage.indexOf(url) >= 0) { var b = PV.pickBundledArt(); el.style.backgroundImage = "url('" + b + "')"; el.__artUrl = b; }
+      };
       im.src = url;
     } catch (e) {}
   };
+  // the browser's own word that the page's policy refused one of the hosted photos (nothing is read but the refused address)
+  try {
+    document.addEventListener("securitypolicyviolation", function (e) {
+      try {
+        var b = String(e.blockedURI || ""); if (!b || !HOSTED.length) return;
+        var o = new URL(HOSTED[0]).origin;
+        if (b.indexOf(o) === 0) rememberRefused(30);
+      } catch (e2) {}
+    }, true);
+  } catch (e) {}
   function loadHostedArt(rec) { HOSTED = (rec && rec.urls && rec.urls.length) ? rec.urls.slice() : []; PV.__artAt = (rec && rec.at) || 0; if (PV.onArtChange) PV.onArtChange(); }
   try {
-    chrome.storage.local.get("pv:art", function (r) { loadHostedArt(r && r["pv:art"]); });
+    // one read for both, so no hosted photo is on offer before what the device remembers of this site is known
+    chrome.storage.local.get(["pv:art", "pv:artRefused"], function (r) {
+      try { var m = r && r["pv:artRefused"]; if (m && m[location.hostname] > Date.now()) artRefused = true; } catch (e) {}
+      loadHostedArt(r && r["pv:art"]);
+    });
     chrome.storage.onChanged.addListener(function (ch, area) { if (area === "local" && ch["pv:art"]) loadHostedArt(ch["pv:art"].newValue); });
   } catch (e) {}
 
@@ -100,6 +177,8 @@
 
   // ---- observers
   var mo = new MutationObserver(function () {
+    // a covered element just went out of the page: its replacement is covered in this same turn, before the screen is painted
+    try { if (PV.coverLost && PV.coverLost()) PV.sweep(); } catch (eL) {}
     if (mo.__t) return;
     mo.__t = setTimeout(function () { mo.__t = null; PV.sweep(); }, 400);
   });

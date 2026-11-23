@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PRISM",
-  "version": "0.9.44",
+  "version": "0.9.72",
   "description": "Ads become art. PRISM covers the ads on a page with pictures you chose. It clicks nothing and blocks nothing from loading.",
   "content_scripts": [
     {
@@ -21,7 +21,8 @@
         "*://www.youtube-nocookie.com/embed/*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
-        "*://www.dailymotion.com/embed/*"
+        "*://www.dailymotion.com/embed/*",
+        "*://static.foxnews.com/static/orion/html/video/iframe/*"
       ]
     },
     {
@@ -38,7 +39,8 @@
         "*://www.youtube-nocookie.com/embed/*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
-        "*://www.dailymotion.com/embed/*"
+        "*://www.dailymotion.com/embed/*",
+        "*://static.foxnews.com/static/orion/html/video/iframe/*"
       ]
     },
     {
@@ -60,6 +62,7 @@
         "src/core-reclaimed.js",
         "src/core-popups-iso.js",
         "src/popups-ui.js",
+        "src/inpage-pops.js",
         "src/reclaimed-ui.js",
         "src/main.js"
       ],
@@ -70,7 +73,8 @@
         "*://www.youtube-nocookie.com/embed/*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
-        "*://www.dailymotion.com/embed/*"
+        "*://www.dailymotion.com/embed/*",
+        "*://static.foxnews.com/static/orion/html/video/iframe/*"
       ]
     },
     {
@@ -79,7 +83,8 @@
         "*://www.youtube-nocookie.com/embed/*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
-        "*://www.dailymotion.com/embed/*"
+        "*://www.dailymotion.com/embed/*",
+        "*://static.foxnews.com/static/orion/html/video/iframe/*"
       ],
       "js": [
         "ima-hook.js",
@@ -96,7 +101,8 @@
         "*://www.youtube-nocookie.com/embed/*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
-        "*://www.dailymotion.com/embed/*"
+        "*://www.dailymotion.com/embed/*",
+        "*://static.foxnews.com/static/orion/html/video/iframe/*"
       ],
       "js": [
         "src/art.js",
@@ -112,6 +118,7 @@
         "src/core-reclaimed.js",
         "src/core-popups-iso.js",
         "src/popups-ui.js",
+        "src/inpage-pops.js",
         "src/reclaimed-ui.js",
         "src/main.js"
       ],

@@ -25,13 +25,44 @@
 
   // ---- the human's last gesture: which URL did they visibly activate?
   var gesture = { url: "", at: 0, windows: 0 };
+  // What the pressed link shows (2026-11-23): the text of the link a person can see, so a link card that shows the site it leads to
+  // opens that site. Core reads it only to find the destination's name. The page writes this text, so it is kept to what the person
+  // could read for themselves: a real link (a[href] or role=link), text pieces alone and never an attribute, each piece taken only
+  // when it is drawn (not hidden, not clear, not too small to read), and a bound on the whole.
+  var NAMES_MAX = 600, PIECES_MAX = 40;
+  function seenText(el) {
+    try {
+      if (!el || el.nodeType !== 1) return false;
+      if (typeof el.checkVisibility === "function" && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })) return false;
+      var cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || cs.visibility === "collapse") return false;
+      if (cs.opacity !== "" && parseFloat(cs.opacity) < 0.5) return false;
+      var fs = parseFloat(cs.fontSize);
+      if (fs === fs && fs < 8) return false;
+      if (/rgba\([^)]*,\s*0(\.0+)?\s*\)|^transparent$/.test(cs.color || "")) return false;
+      return true;
+    } catch (x) { return false; }
+  }
+  function namesOf(t) {
+    var out = "";
+    try {
+      var link = t && t.closest ? t.closest("a[href], [role=link]") : null;
+      if (!link) return "";
+      // each piece of text by itself: two pieces side by side read as one word otherwise, and a name at the end of one is lost
+      var tw = document.createTreeWalker(link, 4, null), tn, seen = 0;
+      while ((tn = tw.nextNode()) && seen++ < PIECES_MAX && out.length < NAMES_MAX) {
+        if (seenText(tn.parentElement)) out += " " + String(tn.nodeValue || "").slice(0, 200);
+      }
+    } catch (x) {}
+    return out.replace(/\s+/g, " ").slice(0, NAMES_MAX);
+  }
   function noteGesture(e) {
     var t = e.target, href = "";
     try {
       var a = t && t.closest ? t.closest("a[href]") : null;
       if (a) href = a.href;
     } catch (x) {}
-    gesture = { url: href, at: Date.now(), windows: 0 };
+    gesture = { url: href, names: namesOf(t), at: Date.now(), windows: 0 };
   }
   ["pointerdown", "mousedown", "keydown", "touchstart"].forEach(function (ev) {
     addEventListener(ev, noteGesture, true);
@@ -44,7 +75,7 @@
     try { held = !!(navigator.userActivation && navigator.userActivation.isActive); } catch (x) {}
     if (age > 1000 && !(held && age <= 5500)) return null;
     gesture.windows += 1;
-    return { url: gesture.url, windowsThisGesture: gesture.windows };
+    return { url: gesture.url, names: gesture.names, windowsThisGesture: gesture.windows };
   }
 
   // (Input isolation for the PRISM button lives in src/popups-guard.js - the

@@ -386,11 +386,16 @@ function settingsPassGood(p, sender) {
   delete settingsPasses[p];
   return Date.now() - r.at <= 10000 && !!(sender && sender.tab && sender.tab.id === r.tab) && sender.id === chrome.runtime.id;
 }
+var SAFARI = false;
+try { SAFARI = chrome.runtime.getURL("").indexOf("safari-web-extension:") === 0; } catch (eS) {}
 function openSettings(tab, done) {
   // The panel is drawn over the web page itself (src/popups-ui.js), so it is no window that can get behind another (2026-11-18).
   // A page PRISM does not run on (the browser's own pages, the store, a PDF) cannot draw it: there the window below opens.
   var asked = false, viaWindow = function () { if (asked) return; asked = true; openSettingsWindow(tab, done); };
   try {
+    // Safari (0.9.45, 2026-11-21): the page's process crashed as the panel's frame was put in it (msn.com, Safari on a Mac), so
+    // there the settings open in a window of their own, which never puts an extension page inside a web page.
+    if (SAFARI) { viaWindow(); return; }
     if (!tab || tab.id == null) { viaWindow(); return; }
     var late = setTimeout(viaWindow, 700);
     chrome.tabs.sendMessage(tab.id, { type: "prism-settings-open", tab: tab.id, pass: settingsPass(tab.id) }, { frameId: 0 }, function (r) {
@@ -432,6 +437,17 @@ function openSettingsWindow(tab, done) {
 // A press on the icon while the settings are open closes them: the window closes itself as it loses the focus to that press, and the
 // press that follows within a moment does not open it again.
 var settingsBlurAt = 0;
+// Safari on an iPhone or iPad has no windows (2026-11-21, first run through TestFlight: a tap on the icon opened nothing): there
+// the icon opens the settings as the toolbar's own popup, a sheet on the phone, and the press never comes to onClicked.
+function iosPopup() { try { chrome.action.setPopup({ popup: "popup.html" }); } catch (e) {} }
+if (SAFARI) {
+  try {
+    chrome.runtime.getPlatformInfo(function (info) {
+      void chrome.runtime.lastError;
+      if ((info && info.os === "ios") || /iPhone|iPad|iPod/.test(navigator.userAgent) || !chrome.windows) iosPopup();
+    });
+  } catch (eP) { if (/iPhone|iPad|iPod/.test(navigator.userAgent) || !chrome.windows) iosPopup(); }
+}
 try { chrome.action.onClicked.addListener(function (tab) { if (Date.now() - settingsBlurAt < 800) { settingsBlurAt = 0; return; } openSettings(tab, null); }); } catch (eA) {}
 var DEV = false;
 try {

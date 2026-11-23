@@ -21,6 +21,17 @@
     var hard = { "max-width": "none", "max-height": "none", "min-width": "0", "min-height": "0", "margin": "0", "padding": "0", "border": "0", "box-sizing": "border-box", "transform": "none", "float": "none", "clear": "none", "outline": "0" };   // never the inset shorthands: left/top/right/bottom are set per mode
     for (var k in hard) { try { el.style.setProperty(k, hard[k], "important"); } catch (e) {} }
   }
+  // The symbol a cover carries says what is under it (2026-08-31 for the first two; 2026-11-22, asked for one of its own for
+  // suggested posts, and for the symbols to be shown in the settings: popup.html has each beside its switch). A half moon for an
+  // ad, a four-point star for content the platform labels AI-made, an arrow for a post the platform put in from an account the
+  // person does not follow. One place: change a symbol here and in popup.html.
+  var SYM = { ad: String.fromCharCode(0x25D0), ai: String.fromCharCode(0x2726), suggested: String.fromCharCode(0x279C) };
+  PV.coverSymbols = SYM;
+  PV.coverSymbol = function (reason) {
+    if (/^ai-(lookup|label)/.test(reason)) return SYM.ai;
+    if (/^(facebook|linkedin)-suggested/.test(reason)) return SYM.suggested;
+    return SYM.ad;
+  };
   function styleCover(cover, art, glyph) {
     cover.setAttribute("data-prism-veil", "1");
     hardBox(cover);
@@ -34,8 +45,11 @@
       cover.addEventListener(ty, function (e) { e.preventDefault(); e.stopPropagation(); }, true);
     });
     cover.style.overflow = "hidden";
+    // A new cover fades in. One made where a cover stood a moment ago does not (2026-11-22, measured in Safari on an iPhone,
+    // docs/reports/b-518-safari-findings.md: Facebook replaces posts it has scrolled past with new copies, the cover was made again
+    // in the same turn and the ad showed through its 200 ms fade): it is whole at once.
     cover.style.transition = "opacity .2s";
-    cover.style.opacity = "0";
+    cover.style.opacity = cover.__again ? "1" : "0";
     cover.style.display = "flex";
     cover.style.alignItems = "center";
     cover.style.justifyContent = "center";
@@ -49,7 +63,19 @@
     var lbl = document.createElement("div");
     lbl.setAttribute("data-prism-veil", "1");
     lbl.textContent = glyph || String.fromCharCode(0x25D0);
+    // The four-point star is drawn small in its font, about half the half-moon's size (2026-11-22, a picture from an iPhone: the star
+    // was hard to see in its box). It is drawn larger inside the same box, so the box and the place a finger hits stay as they are.
+    if (glyph === SYM.ai) { lbl.textContent = ""; var star = document.createElement("span"); star.textContent = glyph; star.style.cssText = "display:inline-block;transform:scale(1.7);transform-origin:50% 50%;pointer-events:none"; lbl.appendChild(star); }
     lbl.style.cssText = "position:absolute;top:6px;left:6px;font:600 clamp(9px,4cqi,16px)/1 -apple-system,Segoe UI,Roboto,sans-serif;color:#F0A83C;text-shadow:0 1px 6px #000;background:rgba(10,12,15,.5);padding:.3em .45em;border-radius:6px;white-space:nowrap;backdrop-filter:blur(2px)";
+    // A touch screen (2026-11-22, a report from iOS Safari: the symbol was too small to hit, about 25 px on a full-width cover). Under
+    // a finger the symbol is larger, about 44 px on a cover the width of a phone and never taller than a 50 px banner, and a tap
+    // within 12 px of it counts as a tap on it (symTap below). A mouse keeps the small one.
+    var coarse = false; try { coarse = matchMedia("(pointer: coarse)").matches; } catch (e0) {}
+    if (coarse) { lbl.style.fontSize = "clamp(14px,6cqi,22px)"; lbl.style.padding = ".5em .65em"; lbl.style.borderRadius = "8px"; }
+    function symTap(ev) {
+      if (lbl.contains(ev.target)) return true;
+      try { var r = lbl.getBoundingClientRect(); return r.width > 0 && ev.clientX >= r.left - 12 && ev.clientX <= r.right + 12 && ev.clientY >= r.top - 12 && ev.clientY <= r.bottom + 12; } catch (e) { return false; }
+    }
     // The photo's credit on the symbol, on hover (2026-10-15):
     // read when the pointer arrives, so a photo swapped for a bundled one
     // (a strict page CSP) is credited as the one on screen.
@@ -57,10 +83,22 @@
     // 2026-11-11: the card with the small preview in place of the browser's title bubble (lookOpen below)
     // 2026-11-11: the panel with the small view in place of the browser's title bubble (lookOpen below), opened and closed as the
     // video veil's peep is
-    var isAi = !!(glyph && glyph !== String.fromCharCode(0x25D0));
-    lbl.addEventListener("mouseenter", function () { lookKeep(); if (!(look && look.cover === cover)) { try { lookOpen(cover, lbl, isAi); } catch (e) {} } });
-    lbl.addEventListener("mouseleave", lookLeave);
-    cover.addEventListener("mousemove", function (ev) { if (look && look.cover === cover && ev.target !== lbl) lookLeave(); });
+    var isAi = glyph === SYM.ai; cover.__isAi = isAi;
+    lbl.addEventListener("mouseenter", function () { if (Date.now() - (lbl.__touchAt || 0) < 1000) return; lookKeep(); if (!(look && look.cover === cover)) { try { lookOpen(cover, lbl, isAi); } catch (e) {} } });
+    lbl.addEventListener("mouseleave", function () { if (Date.now() - (lbl.__touchAt || 0) < 1000) return; lookLeave(); });
+    cover.addEventListener("mousemove", function (ev) { if (Date.now() - (lbl.__touchAt || 0) < 1000) return; if (look && look.cover === cover && ev.target !== lbl) lookLeave(); });
+    // A touch screen (2026-11-22, a report from iOS Safari: after a few taps on and off, a tap on the symbol opened nothing). A phone
+    // has no hover: the browser makes one up from a tap, and the symbol keeps it until another element is tapped. Once the panel had
+    // closed another way (a scroll, the twenty seconds), the symbol was still "hovered", so the next tap on it brought no mouseenter
+    // and nothing opened. A tap with a finger or a pen on the symbol now opens the panel itself, and the made-up mouse events that
+    // follow it are let pass. Closing is the clear layer's (lookScrim below, 0.9.49 from the Mac session): while a panel opened by a
+    // touch is up, every tap off the panel lands on that layer and closes it on the click, so nothing here closes on a touch (a close
+    // at the finger's lift took the layer away before the click, which then went on to the link under it). The mouse keeps the hover.
+    cover.addEventListener("pointerup", function (ev) {
+      if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
+      lbl.__touchAt = Date.now();
+      if (symTap(ev) && !(look && look.cover === cover)) { try { lookOpen(cover, lbl, isAi); } catch (e) {} }
+    }, true);
     cover.appendChild(lbl);
     requestAnimationFrame(function () { cover.style.opacity = "1"; });
   }
@@ -113,6 +151,7 @@
     if (/^facebook-sponsored/.test(reason)) return { kind: "An ad", source: "Facebook's own Sponsored or Ad label in the post's header" };
     if (/^(badge-label|section-label)/.test(reason)) return { kind: "An ad", source: "The page's own label" + (d ? ": " + d : "") };
     if (/^(slot-selector|ad-stack)/.test(reason)) return { kind: "An ad", source: "An ad slot in the page" };
+    if (/^taboola-item/.test(reason)) return { kind: "An ad", source: "Taboola's own paid label on the item" };
     return { kind: "An ad", source: d || reason || "The page's own markers" };
   };
   // Where the small view goes: the element's box tr scaled to fit maxW x maxH (never enlarged), placed in the part of the box that is
@@ -161,7 +200,34 @@
   var LOOK_PROPS = ["transform", "transform-origin", "transition", "display"];
   var lookLeaveT = 0;
   function lookKeep() { if (lookLeaveT) { clearTimeout(lookLeaveT); lookLeaveT = 0; } }
-  function lookLeave() { lookKeep(); lookLeaveT = setTimeout(function () { lookLeaveT = 0; lookClose(); }, 250); }
+  // a panel opened by a touch is closed by a tap outside it, never by the leave a tap sends (lookScrim below)
+  function lookLeave() { lookKeep(); if (look && look.scrim) return; lookLeaveT = setTimeout(function () { lookLeaveT = 0; lookClose(); }, 250); }
+  // A phone has no hover (2026-11-21, first run on an iPhone through TestFlight): a tap on the symbol opens the panel, and the tap
+  // that should close it went on to the link under the finger. A panel opened by a touch lies over a clear layer that fills the
+  // screen: a tap anywhere off the panel reaches only that layer, which closes the panel and opens nothing; with the panel gone the
+  // layer goes too and the page takes taps again. The layer closes on the click itself, never sooner, since a phone sends the
+  // click to whatever is under the finger after the touch ends. The pointer's kind is read from the last press (observe-only).
+  var lookPointer = "";
+  addEventListener("pointerdown", function (e) { lookPointer = e.pointerType || ""; }, { capture: true, passive: true });
+  function lookByTouch() {
+    if (lookPointer) return lookPointer !== "mouse";
+    try { return matchMedia("(hover: none)").matches; } catch (e) { return false; }
+  }
+  function lookScrim() {
+    var s = document.createElement("div");
+    s.setAttribute("data-prism-ui", "1"); s.setAttribute("aria-hidden", "true");
+    hardBox(s);
+    var ss = { position: "fixed", left: "0", top: "0", right: "0", bottom: "0", "z-index": "2147483647", "pointer-events": "auto",
+      display: "block", opacity: "1", visibility: "visible", background: "transparent", cursor: "pointer", "-webkit-tap-highlight-color": "transparent" };
+    for (var k in ss) s.style.setProperty(k, ss[k], "important");
+    ["touchstart", "touchend", "pointerdown", "pointerup", "mousedown", "mouseup", "auxclick", "contextmenu"].forEach(function (ty) {
+      s.addEventListener(ty, function (e) { e.stopPropagation(); }, true);
+    });
+    // the tap that opened the panel may send its own click after the panel is up: swallowed, the panel stays
+    var born = Date.now();
+    s.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); if (Date.now() - born > 400) lookClose(); }, true);
+    return s;
+  }
   // Reveal 15 s, the video peep's button: the cover is hidden for that long and comes back by itself
   function lookReveal(cover, ms) {
     lookClose();
@@ -177,10 +243,12 @@
     clearTimeout(l.timer); clearInterval(l.watch);
     try { removeEventListener("scroll", lookClose, true); } catch (e) {}
     try { l.host.remove(); } catch (e2) {}
+    try { if (l.scrim) l.scrim.remove(); } catch (e5) {}
     (l.moved || []).forEach(function (m) {
       LOOK_PROPS.forEach(function (p, i) { try { if (m.saved[i][0]) m.el.style.setProperty(p, m.saved[i][0], m.saved[i][1]); else m.el.style.removeProperty(p); } catch (e3) {} });
     });
     l.cover.__lookOn = false; l.cover.__lookBox = null;
+    if (l.cover.__target && veils.get(l.cover.__target) === l.cover) picsUnder(l.cover.__target, false);   // covered again: the picture off again
     try { paintClip(l.cover); } catch (e4) {}
   }
   // The children of an inside cover's element that are scaled into the small view. A child laid out as display:contents has no box
@@ -254,6 +322,9 @@
     }
     card.appendChild(bot); root.appendChild(card);
     host.addEventListener("mouseenter", lookKeep); host.addEventListener("mouseleave", lookLeave);
+    // by touch: the clear layer first, so the panel (the same z-index, later in the page) lies over it
+    var scrim = lookByTouch() ? lookScrim() : null;
+    if (scrim) document.documentElement.appendChild(scrim);
     document.documentElement.appendChild(host);
 
     var moved = [];
@@ -289,6 +360,7 @@
         hole.x = Math.round(x) + ox; hole.y = Math.round(y) + oy;
         var cr = cover.getBoundingClientRect();
         cover.__lookOn = true;
+        if (cover.__target) picsUnder(cover.__target, true);   // the look shows the element itself, its video too
         cover.__lookBox = { x0: hole.x - cr.left, y0: hole.y - cr.top, x1: hole.x - cr.left + hole.w, y1: hole.y - cr.top + hole.h };
         paintClip(cover);
         movers.forEach(function (el) {
@@ -317,7 +389,7 @@
         }),
       };
     } catch (eDiag) { cover.__lookDiag = { error: String(eDiag).slice(0, 80) }; }
-    look = { host: host, cover: cover, moved: moved, timer: setTimeout(lookClose, 20000), watch: setInterval(function () { if (!cover.isConnected) lookClose(); }, 500) };
+    look = { host: host, scrim: scrim, cover: cover, moved: moved, timer: setTimeout(lookClose, 20000), watch: setInterval(function () { if (!cover.isConnected) lookClose(); }, 500) };
     addEventListener("scroll", lookClose, true);
   }
   PV.lookOpen = lookOpen; PV.lookClose = lookClose;
@@ -346,6 +418,85 @@
     } catch (e) {}
   }
 
+  // An inside cover reaches as far sideways as what is in its element (2026-11-22, a report from Fox News on an iPhone, 0.9.66:
+  // the left edge of the sponsored stories showed beside their cover). The section was 408 px wide and its stories 441: the unit
+  // inside is laid out wider than its box, and a cover the size of the box left a strip of each picture bare. The cover is let
+  // out to the content's own edges, 48 px a side at most and never past the screen's edge; not where the element clips its
+  // content. Measured when the cover is made and again when the element's size or content changes.
+  function bleed(cover, target) {
+    try {
+      var tr = target.getBoundingClientRect(), all = target.getElementsByTagName("*");
+      var key = Math.round(tr.width) + "x" + Math.round(tr.height) + "/" + all.length + "/" + target.scrollWidth;
+      if (cover.__bleedKey === key) return;
+      cover.__bleedKey = key;
+      var l = 0, r = 0;
+      if (tr.width >= 60 && !/hidden|clip|auto|scroll/.test(getComputedStyle(target).overflowX || "")) {
+        var lo = tr.left, hi = tr.right;
+        for (var i = 0; i < all.length && i < 400; i++) {
+          var e = all[i]; if (e === cover || cover.contains(e)) continue;
+          var q = e.getBoundingClientRect();
+          if (q.width < 20 || q.height < 20 || q.bottom <= tr.top || q.top >= tr.bottom) continue;
+          if (q.left < lo) lo = q.left; if (q.right > hi) hi = q.right;
+        }
+        l = Math.max(0, Math.min(48, tr.left - Math.max(lo, 0)));
+        r = Math.max(0, Math.min(48, Math.min(hi, innerWidth) - tr.right));
+        if (l < 2) l = 0; if (r < 2) r = 0;
+      }
+      cover.style.left = (-Math.round(l)) + "px"; cover.style.right = (-Math.round(r)) + "px";
+    } catch (e) {}
+  }
+  // The symbol under something of the page's (2026-11-22, a report from Facebook's Reels on an iPhone, 0.9.66: the cover's symbol
+  // sat behind the page's fixed header, and a tap on it did nothing). Two things of the page's lie over a reel's cover: the header
+  // fixed to the top, and a clear layer over the whole player that takes every press. The cover cannot go above them: it would
+  // take the swipe that leaves the ad. So the symbol alone is helped: it is moved down clear of a fixed bar that lies over it,
+  // and a clear box of PRISM's own, the size of a finger, is put over it at the top of the stack and opens the panel as the symbol
+  // does. One box, for the one cover on the screen whose symbol the page lies over; gone when there is none.
+  var raised = null;   // { el, cover }
+  function raisedBox() {
+    var b = document.createElement("div"); b.setAttribute("data-prism-ui", "1");
+    b.style.cssText = "position:fixed;z-index:2147483646;width:44px;height:44px;background:transparent;pointer-events:auto;cursor:help;-webkit-tap-highlight-color:transparent";
+    var open = function () { var c = raised && raised.cover, l = c && c.firstElementChild; if (!c || !l || (look && look.cover === c)) return; try { lookOpen(c, l, !!c.__isAi); } catch (e) {} };
+    b.addEventListener("pointerup", function (ev) { if (ev.pointerType === "touch" || ev.pointerType === "pen") { var l = raised && raised.cover && raised.cover.firstElementChild; if (l) l.__touchAt = Date.now(); b.__touchAt = Date.now(); open(); } }, true);
+    b.addEventListener("mouseenter", function () { if (Date.now() - (b.__touchAt || 0) < 1000) return; lookKeep(); open(); });
+    b.addEventListener("mouseleave", function () { if (Date.now() - (b.__touchAt || 0) < 1000) return; lookLeave(); });
+    ["click", "auxclick", "mousedown", "mouseup", "pointerdown", "touchstart", "touchend", "contextmenu"].forEach(function (ty) { b.addEventListener(ty, function (e) { try { e.preventDefault(); e.stopPropagation(); } catch (x) {} }, true); });
+    return b;
+  }
+  function raiseOff() { if (raised) { try { raised.el.remove(); } catch (e) {} raised = null; } }
+  function raiseSymbol() {
+    try {
+      if (raised) raised.el.style.display = "none";   // out of the hit test below
+      var pick = null, at = null;
+      veils.forEach(function (cover) {
+        if (pick || cover.__mode === "overlay") return;
+        var lbl = cover.firstElementChild; if (!lbl || !cover.isConnected) return;
+        if (lbl.__lowered) { lbl.__lowered = false; placeGlyph(cover); }   // measured afresh each time: the bar may be gone, or the cover moved under it
+        var r = lbl.getBoundingClientRect();
+        if (r.width < 8 || r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) return;   // wholly on the screen
+        var top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!top || cover.contains(top) || (top.closest && top.closest("[data-prism-ui],[data-prism-veil]"))) return;
+        // a fixed bar of the page's over the symbol: the symbol goes below it
+        var f = top, bar = null;
+        for (var i = 0; f && f.nodeType === 1 && i < 12 && f !== document.body; i++, f = f.parentElement) {
+          var cs = getComputedStyle(f);
+          if (cs.position === "fixed" || cs.position === "sticky") { var fr = f.getBoundingClientRect(); if (fr.height < innerHeight * 0.35 && !f.contains(cover)) bar = fr; break; }
+        }
+        if (bar && bar.top > innerHeight * 0.5) return;   // a bar at the bottom of the screen: the cover is passing under it, nothing to help
+        if (bar) {
+          var cr = cover.getBoundingClientRect(), down = Math.round(bar.bottom - cr.top + 6);
+          if (down > 0 && down < cr.height - 30) { lbl.style.top = down + "px"; lbl.__lowered = true; r = lbl.getBoundingClientRect(); }
+        }
+        pick = cover; at = r;
+      });
+      if (!pick) { raiseOff(); return; }
+      if (!raised) { raised = { el: raisedBox(), cover: pick }; (document.fullscreenElement || document.documentElement).appendChild(raised.el); }
+      raised.cover = pick;
+      raised.el.style.left = Math.max(0, Math.round(at.left + at.width / 2 - 22)) + "px";
+      raised.el.style.top = Math.max(0, Math.round(at.top + at.height / 2 - 22)) + "px";
+      raised.el.style.display = "block";
+    } catch (e) {}
+  }
+  PV.__raised = function () { return raised; };   // for the tests
   function trueUp(cover, target) {
     placeGlyph(cover);
     try {
@@ -440,7 +591,7 @@
       for (var i = 0; i < stack.length; i++) {
         var e = stack[i];
         if (e.hasAttribute && (e.hasAttribute("data-prism-veil") || e.hasAttribute("data-prism-ui"))) continue;
-        if (e === barEl || PV.deepContains(barEl, e)) return true;
+        if (inBar(e)) return true;
         if (e === target || PV.deepContains(target, e) || PV.deepContains(e, target)) return false;
       }
     } catch (e2) {}
@@ -468,17 +619,41 @@
   // same frame, not at the next sweep (MSN's .ad-banner-wrapper: the art
   // "bled out" full page for up to a second, 2026-08-29).
   var growRO = null;
+  // A covered slot that gets smaller is kept at the size it had (2026-11-22, Fox News on an iPhone: the page changed a large ad for
+  // a small one and everything under it jumped while the person read; asked that the larger cover stay). The page does this itself
+  // when it loads a new ad into the slot. While the cover is on, the slot's least height is held at the tallest it has been, so the
+  // page below does not move; what was there is put back when the cover goes. Not for a slot that closed to nothing (the ad is
+  // gone), nor one taller than the screen.
+  function holdHeight(el, r) {
+    try {
+      var h = Math.round(r.height), top = el.__prismTallest || 0;
+      if (h > top) { el.__prismTallest = h; return; }
+      if (h < 30 || top - h < 20 || top > innerHeight * 0.95 || el.__prismHeld) return;
+      el.__prismHeld = [el.style.getPropertyValue("min-height"), el.style.getPropertyPriority("min-height")];
+      el.style.setProperty("min-height", top + "px", "important");
+    } catch (e) {}
+  }
+  function freeHeight(el) {
+    try {
+      var was = el.__prismHeld; el.__prismTallest = 0;
+      if (!was) return;
+      el.__prismHeld = null;
+      if (was[0]) el.style.setProperty("min-height", was[0], was[1]); else el.style.removeProperty("min-height");
+    } catch (e) {}
+  }
+  PV.__slotHeight = { hold: holdHeight, free: freeHeight };   // for the tests
   function watchGrowth(t, cover) {
     if (!/^slot-selector/.test(why.get(t) || "")) return;
     try {
       if (!growRO && typeof ResizeObserver !== "undefined") growRO = new ResizeObserver(function (entries) {
         entries.forEach(function (en) {
-          var el = en.target, cv = veils.get(el); if (!cv) { try { growRO.unobserve(el); } catch (e) {} return; }
+          var el = en.target, cv = veils.get(el); if (!cv) { freeHeight(el); try { growRO.unobserve(el); } catch (e) {} return; }
           var r = el.getBoundingClientRect();
-          if (PV.pageSized(r)) {
+          holdHeight(el, r);
+          if (PV.pageSizedEl(el, r)) {
             el.__prismTooBigAt = Date.now();
             if (PV.recordError && !cv.__prismBigLogged) { cv.__prismBigLogged = true; PV.recordError("cover dropped (grew) " + Math.round(r.width) + "x" + Math.round(r.height) + " " + el.tagName + "." + PV.classStr(el).slice(0, 40)); }
-            lowerPager(cv); cv.remove(); veils.delete(el); unmuteUnder(el);
+            lowerPager(cv); cv.remove(); veils.delete(el); unmuteUnder(el); freeHeight(el);
             try { growRO.unobserve(el); } catch (e) {}
           }
         });
@@ -486,9 +661,82 @@
       if (growRO) growRO.observe(t);
     } catch (e) {}
   }
+  // A cover inside its element is kept there (2026-11-22, Facebook's mobile layout on an iPhone: scrolling the feed, a cover showed,
+  // the ad flashed through, the cover came back). A page that draws a post again takes out every child it did not put there, the
+  // cover with them, and may write the element's style over, taking away the position the cover is laid out against; the next pass
+  // made the cover again, up to half a second later. The element is watched instead: the moment the cover is out of it, or its
+  // position is gone, both are put back, before the screen is painted again. Only while the cover is still this element's own (a
+  // cover PRISM took away is not put back), and eight times in two seconds at most: a page that fights for it is left to the pass.
+  function keepInside(t, cover) {
+    if (cover.__mode !== "inside" || typeof MutationObserver === "undefined") return;
+    var times = [];
+    try {
+      var mo = new MutationObserver(function () {
+        if (veils.get(t) !== cover || !t.isConnected) { mo.disconnect(); return; }
+        if (cover.__lookOn) return;
+        var out = cover.parentNode !== t, flat = false;
+        try { var cp = getComputedStyle(t).position; flat = t.style.position === "" && (cp === "static" || cp === ""); } catch (e) {}
+        if (!out && !flat) return;
+        var now = Date.now(); times = times.filter(function (x) { return now - x < 2000; });
+        if (times.length >= 8) { mo.disconnect(); return; }
+        times.push(now);
+        try {
+          if (flat) { t.style.position = "relative"; t.style.isolation = "isolate"; }
+          if (out) t.appendChild(cover);
+        } catch (e2) {}
+      });
+      mo.observe(t, { childList: true, attributes: true, attributeFilter: ["style"] });
+    } catch (e3) {}
+  }
+  // Which copy of the extension made a cover (its extension id; the same after a reload of the same copy)
+  var OWN_ID = "";
+  try { OWN_ID = String(chrome.runtime.id || ""); } catch (eId) {}
+  // A cover made again where one just was keeps that one's picture (2026-11-22, Facebook's mobile layout on an iPhone: a video ad
+  // showed for a couple of frames and its cover came back with another picture, so the cover had been made anew). Each pass notes
+  // where every cover is and what it shows; a new cover in that place within two seconds takes the same picture.
+  var artSeen = [];
+  function artNote() {
+    var now = Date.now(), next = [];
+    veils.forEach(function (c) {
+      if (!c.isConnected || !c.__artUrl) return;
+      var r = c.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return;
+      next.push({ x: r.left + (window.scrollX || 0), y: r.top + (window.scrollY || 0), w: r.width, h: r.height, art: c.__artUrl, at: now });
+    });
+    artSeen = artSeen.filter(function (e) { return now - e.at < 2000; }).concat(next).slice(-80);
+  }
+  function artFor(target) {
+    try {
+      var r = target.getBoundingClientRect(), x = r.left + (window.scrollX || 0), y = r.top + (window.scrollY || 0), now = Date.now();
+      for (var i = artSeen.length - 1; i >= 0; i--) {
+        var e = artSeen[i];
+        if (now - e.at < 2000 && Math.abs(e.x - x) <= 4 && Math.abs(e.w - r.width) <= 4 && Math.abs(e.y - y) <= 40 && Math.abs(e.h - r.height) <= 60) return e.art;
+      }
+    } catch (e2) {}
+    return "";
+  }
+  // What happened to covers lately, for a report: made or gone, the rule, the cause, how long ago. No page content.
+  var coverLog = [];
+  function logCover(ev, t, cause) {
+    try { coverLog.push({ at: Date.now(), ev: ev, why: String(why.get(t) || "?").slice(0, 48), cause: cause || "" }); if (coverLog.length > 24) coverLog.shift(); } catch (e) {}
+  }
+  PV.coverLog = function () {
+    var now = Date.now();
+    return coverLog.filter(function (e) { return now - e.at < 30000; }).slice(-12).map(function (e) { return e.ev + (e.cause ? " " + e.cause : "") + " " + (now - e.at) + "ms " + e.why; });
+  };
+  // A covered element the page has taken out: the pass is owed now, not after the wait (the page puts its replacement in at the
+  // same moment or just after, and that one is bare until a pass). main.js asks this at every change to the page.
+  var lostAt = 0, fastLeft = 0;
+  PV.coverLost = function () {
+    var lost = false; veils.forEach(function (c, t) { if (!t.isConnected) lost = true; });
+    var now = Date.now();
+    if (lost) { lostAt = now; fastLeft = 12; return true; }
+    if (now - lostAt < 1000 && fastLeft > 0) { fastLeft--; return true; }
+    return false;
+  };
   function makeCover(target, glyph) {
-    var art = PV.pickArt();
+    var kept = artFor(target), art = kept || PV.pickArt();
     var cover = document.createElement("div");
+    cover.__again = !!kept;
     cover.__target = target;   // for the look under the cover (lookOpen)
     // __prismForceOverlay: a deeply-layered ad unit (Fox's masthead stacks a
     // video + click-layer above a normal inside cover). Skip inside/parent modes
@@ -522,7 +770,7 @@
         var tr0 = target.getBoundingClientRect(), cr0 = cover.getBoundingClientRect();
         var fit = slotted ? 0.97 : 0.5;   // through a slot the containing block may be the shadow tree's, not the host's: only an exact fit stays
         if (tr0.width >= 60 && (cr0.width < tr0.width * fit || cr0.height < tr0.height * fit || (slotted && (Math.abs(cr0.left - tr0.left) > 3 || Math.abs(cr0.top - tr0.top) > 3)))) { cover.remove(); cover.__mode = null; }
-        else { placeGlyph(cover); return cover; }
+        else { bleed(cover, target); placeGlyph(cover); return cover; }
       } catch (e) { /* fall through */ }
     }
     var op = target.__prismForceOverlay ? null : target.offsetParent;
@@ -549,7 +797,9 @@
 
   // ---- overlay-mode covers: clip under a sticky top bar (never fade - a
   // translucent cover shows the ad through it).
-  var barTop = 0, barEl = null, anyOverlay = false;
+  var barTop = 0, barEl = null, barEls = [], anyOverlay = false;
+  // is this element one of the bar's strips, or inside one?
+  function inBar(e) { for (var i = 0; i < barEls.length; i++) { if (barEls[i] === e || PV.deepContains(barEls[i], e)) return true; } return false; }
   // ... and a bar fixed to the BOTTOM of the viewport (MSN's article page, report
   // 2026-10-15): covers clip above it as they clip under a top bar.
   var botTop = 0, botEl = null;
@@ -658,22 +908,26 @@
     return el;
   }
   function pickTopBar() {
-    var t = 0, el = null;
-    for (var i = 0; i < barCands.length; i++) {
-      var e = barCands[i];
-      if (!e.isConnected) continue;
-      var r = e.getBoundingClientRect();
+    // Strips held one under another are one bar (B-538, CBS News on a phone: its live strip holds under the nav, at the nav's foot,
+    // and only a strip at the very top was taken, so covers rode over the live strip). Taken from the top down: a strip that starts
+    // at or above the foot of the bar so far carries the bar down to its own foot, to half the window at most.
+    var t = 0, el = null, els = [], meas = [];
+    for (var i0 = 0; i0 < barCands.length; i0++) { if (barCands[i0].isConnected) meas.push({ e: barCands[i0], r: barCands[i0].getBoundingClientRect() }); }
+    meas.sort(function (a, b) { return a.r.top - b.r.top; });
+    for (var i = 0; i < meas.length; i++) {
+      var e = meas[i].e, r = meas[i].r;
       if (r.width < innerWidth * 0.5 || r.height <= 0 || r.height > innerHeight * 0.4) continue;
-      if (r.top > 2 || r.bottom <= t) continue;
+      if (r.top > t + 2 || r.bottom <= t) continue;
+      if (t && r.bottom > innerHeight * 0.5) continue;
       // Anything holding a veiled ad is the ad, not the bar - and so is
       // anything INSIDE one: PCMag's top-anchored Pogo unit is a fixed
       // [aria-label=Advertisement] box whose opaque inner div was taken for
       // the site's bar, and the unit's own cover was then clipped under it to
       // nothing (report 2026-09-13: clipPath inset(345.8px), the ad in full view).
       if (adIsBar(e, r)) continue;
-      t = r.bottom; el = e;
+      t = r.bottom; el = e; els.push(e);
     }
-    barTop = t; barEl = t ? el : null;
+    barTop = t; barEl = t ? el : null; barEls = t ? els : [];
     PV.topBar = { top: barTop, el: barEl };
     // the bottom bar: the highest top among the fixed strips that reach the
     // viewport's bottom edge
@@ -967,7 +1221,7 @@
       // cover entirely (Firefox report 2026-08-28: target in targets, 12 veils,
       // banner still visible). Never clip a cover under a bar containing it.
       var inBot = !!(botEl && (botEl === target || PV.deepContains(botEl, target)));
-      if (barEl && (barEl === target || PV.deepContains(barEl, target))) { cover.__under = 0; cover.__over = 0; paintClip(cover); if (!(cover.__fadeUntil > Date.now())) cover.style.opacity = "1"; return; }
+      if (barEl && inBar(target)) { cover.__under = 0; cover.__over = 0; paintClip(cover); if (!(cover.__fadeUntil > Date.now())) cover.style.opacity = "1"; return; }
       var r = cover.__mode === "overlay" ? target.getBoundingClientRect() : cover.getBoundingClientRect();
       if (r.height <= 0) { cover.style.opacity = "0"; return; }
       if (!(cover.__fadeUntil > Date.now())) cover.style.opacity = "1";
@@ -982,7 +1236,7 @@
             var px = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), stack = document.elementsFromPoint(px, Math.max(1, barTop - 2));
             for (var si = 0; si < stack.length; si++) {
               if (stack[si] === cover || cover.contains(stack[si])) break;
-              if (stack[si] === barEl || PV.deepContains(barEl, stack[si])) { cover.__barOver = true; break; }
+              if (inBar(stack[si])) { cover.__barOver = true; break; }
             }
           } catch (eB) {}
         }
@@ -994,7 +1248,10 @@
         if (cover.__unitOverEl !== barEl) { cover.__unitOverEl = barEl; cover.__unitOver = !barOverUnit(target, r); }
         if (cover.__unitOver) underBar = true;
       }
-      cover.__under = underBar ? 0 : Math.max(0, Math.min(r.height, barTop - r.top));
+      // No bar, no cut (2026-11-22, a report from Safari on an iPhone: the top of a covered ad showed in the status bar's strip as the
+      // cover scrolled up). With no bar the cut was made at the top edge of the viewport, which nobody saw while nothing is drawn above
+      // that edge. iOS Safari draws the page on above it, under the status bar, and the ad lay bare there.
+      cover.__under = (underBar || !barEl) ? 0 : Math.max(0, Math.min(r.height, barTop - r.top));
       cover.__over = (botEl && !inBot) ? Math.max(0, Math.min(r.height, r.bottom - botTop)) : 0;
       paintClip(cover);
     });
@@ -1006,6 +1263,7 @@
   // (reported 2026-08-29). The rAF only swallows further events this frame.
   var raf = false;
   addEventListener("scroll", function () {
+    if (raised) raised.el.style.display = "none";   // the box over a symbol stays nowhere while the page moves; the next pass puts it back
     if (!anyOverlay || raf) return;
     raf = true;
     pickTopBar();   // a sticky nav sticks only once the page has scrolled past what sits above it
@@ -1028,17 +1286,74 @@
 
   // ---- sound under a cover (Reddit/Instagram video ads): mute while covered,
   // restore the prior state on uncover. The veil never forces audio on.
+  // A video under a display cover is silenced, and its picture is drawn as a speck (2026-11-22, Facebook's mobile layout on an
+  // iPhone: scrolling the feed, a video ad that started to play showed through its cover for a moment; the report had the cover in
+  // place, opaque and topmost at that point). A browser draws a playing video on a layer of its own and for a moment puts that
+  // layer above the page's stacking, the cover included. The layer cannot be kept down, so it is made small: a transform draws the
+  // video 6 px at most, at the middle of its own box, under the cover. Decision the same day, as for a held in-page pop (spec 30):
+  // not opacity 0, which a page can read (YouTube took a transparent ad video for a hidden one and loaded the page again, 0.7.40).
+  // A transform leaves opacity, display, visibility and the layout size as they were, and the video stays on the screen, loaded
+  // and playing. Put back the moment the cover goes, and while the look under the cover is open, which shows the element itself.
+  var PIC_PROPS = ["transform", "transform-origin", "transition", "translate", "scale", "rotate"];
+  // The videos made a speck or muted, so one the page moves out of a covered element is put right (2026-11-22, measured in Safari
+  // on an iPhone: Facebook's feed has one video element and moves it from post to post; it left a covered post still a speck and
+  // played as one in a post with no cover). Looked at on each pass and on the video's own events.
+  var held = new Set();
+  function coverOver(v) {
+    for (var n = v.parentElement, d = 0; n && d < 40; n = n.parentElement, d++) { var cv = veils.get(n); if (cv) return cv; }
+    return null;
+  }
+  function freeVideo(v) {
+    if (v.__prismMuted !== undefined) { try { v.muted = v.__prismMuted; } catch (e) {} delete v.__prismMuted; }
+    picOn(v); held.delete(v);
+  }
+  function freeStrays() { held.forEach(function (v) { if (!v.isConnected || !coverOver(v)) freeVideo(v); }); }
+  function picOff(v) {
+    if (v.tagName !== "VIDEO") return;
+    try {
+      var w = v.offsetWidth, h = v.offsetHeight;
+      var k = (w > 0 && h > 0) ? Math.min(6 / w, 6 / h, 1) : 0.01;
+      var tf = "scale(" + k.toFixed(5) + ")";
+      if (v.__prismPic && v.style.getPropertyValue("transform") === tf && v.style.getPropertyPriority("transform") === "important") return;
+      held.add(v);
+      if (!v.__prismPic) v.__prismPic = PIC_PROPS.map(function (p) { return [v.style.getPropertyValue(p), v.style.getPropertyPriority(p)]; });
+      v.style.setProperty("transition", "none", "important");
+      ["translate", "scale", "rotate"].forEach(function (p) { v.style.setProperty(p, "none", "important"); });
+      v.style.setProperty("transform-origin", "50% 50%", "important");
+      v.style.setProperty("transform", tf, "important");
+    } catch (e) {}
+  }
+  function picOn(v) {
+    if (!v.__prismPic) return;
+    try { PIC_PROPS.forEach(function (p, i) { var o = v.__prismPic[i]; if (o[0]) v.style.setProperty(p, o[0], o[1]); else v.style.removeProperty(p); }); } catch (e) {}
+    delete v.__prismPic;
+  }
   function muteUnder(t) {
     try { t.querySelectorAll("video,audio").forEach(function (v) {
       if (v.__prismMuted === undefined) { v.__prismMuted = v.muted; }
       if (!v.muted) v.muted = true;
+      held.add(v);
+      picOff(v);
     }); } catch (e) {}
   }
   function unmuteUnder(t) {
     try { t.querySelectorAll("video,audio").forEach(function (v) {
       if (v.__prismMuted !== undefined) { v.muted = v.__prismMuted; delete v.__prismMuted; }
+      picOn(v); held.delete(v);
     }); } catch (e) {}
   }
+  function picsUnder(t, on) { try { t.querySelectorAll("video").forEach(on ? picOn : picOff); } catch (e) {} }
+  // A video that starts under a cover is dealt with at that moment, not at the next pass: the page may have put it in since.
+  // emptied and loadstart are the first events of a video the page has just moved and given a new source: under a cover it is a
+  // speck before it has a frame, and out from under one it is put right before it plays.
+  ["emptied", "loadstart", "play", "playing", "loadeddata", "loadedmetadata"].forEach(function (ev) {
+    addEventListener(ev, function (e) {
+      var v = e.target; if (!v || v.tagName !== "VIDEO") return;
+      var cv = veils.size ? coverOver(v) : null;
+      if (!cv) { if (held.has(v)) freeVideo(v); return; }
+      if (!cv.__lookOn) { if (v.__prismMuted === undefined) v.__prismMuted = v.muted; if (!v.muted) v.muted = true; held.add(v); picOff(v); }
+    }, true);
+  });
 
   // ---- side-by-side covers at the same top/height share ONE photo across the
   // row (each keeps its own element; the image is sized to the union and
@@ -1088,31 +1403,36 @@
   function sweep() {
     if (veilOff || (PV.suppressed && PV.suppressed())) return;
     PV.videoAdBreak();
-    var res = PV.collectTargets(), targets = res.targets;
+    var res = PV.collectTargets(), targets = res.targets, byVideo = new Set(), oldWhy = why;
     why = res.why;
+    try { veils.forEach(function (c, t) { if (!why.has(t) && oldWhy && oldWhy.has && oldWhy.has(t)) why.set(t, oldWhy.get(t)); }); } catch (eW) {}   // a cover on its way out keeps its rule's name for the log
     // What the video cover holds is the video cover's alone (2026-11-18, Pandora: a display rule put a second cover at the highest
     // z-index over the video cover of a video advertisement; it hid the card and took every press). An element that lies mostly
     // inside the video cover gets no display cover while that cover is up, and one it has is taken away below.
     try {
       var vv = PV.vidVeil ? PV.vidVeil() : null, vr = (vv && vv.cover && vv.cover.isConnected) ? vv.cover.getBoundingClientRect() : null;
       if (vr && vr.width > 0 && vr.height > 0) targets.forEach(function (t) {
-        if (PV.underRect(t.getBoundingClientRect(), vr)) targets.delete(t);
+        if (PV.underRect(t.getBoundingClientRect(), vr)) { targets.delete(t); byVideo.add(t); }
       });
     } catch (eV) {}
+    artNote();
     // A cover the page took out of its tree is made again: MSN's ad SDK
     // redraws its banner container and drops our cover with the old children
     // (report 2026-10-15:, the cover
     // disconnected while the target was still counted as covered).
     veils.forEach(function (cover, t) {
       if (cover.isConnected) return;
-      lowerPager(cover); veils.delete(t);
+      logCover("gone", t, t.isConnected ? "page-removed" : "element-out");
+      lowerPager(cover); veils.delete(t); freeHeight(t);
       if (PV.recordError && !t.__prismReattachLogged) { t.__prismReattachLogged = true; PV.recordError("cover re-made (page removed it) " + t.tagName + "." + PV.classStr(t).slice(0, 40)); }
     });
     // A cover that is on the page and is no target's cover is taken away: a page that takes a cover out and puts the same node
     // back later (CNN's Dianomi strip, seen 2026-11-12) left two covers on one ad, and the look's hole in one showed the other.
+    // Only this extension's own covers: with two copies installed (a store copy and a loaded one, 2026-11-21 on Facebook's right
+    // column) each took the other's cover away as a stray and made its own again, a new picture twice a second without end.
     try {
       var live = new Set(); veils.forEach(function (c) { live.add(c); });
-      document.querySelectorAll("[data-prism-why]").forEach(function (c) { if (!live.has(c)) c.remove(); });
+      document.querySelectorAll("[data-prism-why]").forEach(function (c) { if (!live.has(c) && c.getAttribute("data-prism-own") === OWN_ID) c.remove(); });
     } catch (eO) {}
     // While a look is open its element is shrunk into the cover's hole, so the element's own wrapper can read as an ad with nothing
     // covered in it and get a cover of its own behind the hole (2026-11-12, reported on CNN: a second cover came up behind the one
@@ -1121,8 +1441,8 @@
     targets.forEach(function (t) {
       if (veils.has(t)) return;
       if (lookT && t !== lookT && (PV.deepContains(t, lookT) || PV.deepContains(lookT, t))) return;
-      var cv = makeCover(t, /^ai-(lookup|label)/.test(why.get(t) || "") ? "\u2726" : "\u25D0"); veils.set(t, cv); cv.setAttribute("data-prism-why", String(why.get(t) || "").slice(0, 60)); raisePager(t, cv); muteUnder(t); if (PV.reclaimDisplaySlot) PV.reclaimDisplaySlot(t);
-      watchGrowth(t, cv);
+      var cv = makeCover(t, PV.coverSymbol(why.get(t) || "")); veils.set(t, cv); cv.setAttribute("data-prism-why", String(why.get(t) || "").slice(0, 60)); cv.setAttribute("data-prism-own", OWN_ID); raisePager(t, cv); muteUnder(t); if (PV.reclaimDisplaySlot) PV.reclaimDisplaySlot(t);
+      watchGrowth(t, cv); keepInside(t, cv); logCover("made", t, cv.__mode || "");
       // Trace any cover that takes more than half the viewport (MSN: a full-
       // screen veil for a moment at load, 2026-08-29) - rule + target, once.
       try {
@@ -1136,7 +1456,8 @@
     veils.forEach(function (cover, t) {
       if (cover.__lookOn && t.isConnected) return;   // its look is open: the element is scaled into the cover's hole for now (lookOpen), nothing here is to be judged by its box
       if (!targets.has(t) || !t.isConnected || !PV.isVisible(t)) {
-        lowerPager(cover); cover.remove(); veils.delete(t); unmuteUnder(t); return;
+        logCover("gone", t, !t.isConnected ? "element-out" : (byVideo.has(t) ? "video-cover" : (!targets.has(t) ? "not-target" : "hidden")));
+        lowerPager(cover); cover.remove(); veils.delete(t); unmuteUnder(t); freeHeight(t); return;
       }
       muteUnder(t);
       if (cover.__mode === "parent") {
@@ -1149,13 +1470,15 @@
         trueUp(cover, t);
       } else if (cover.__mode === "overlay") {
         positionOverlay(cover, t);
+      } else if (cover.__mode === "inside") {
+        bleed(cover, t);
       }
       // Trace a cover that has GROWN past half the viewport since creation
       // (an "inside" cover follows its target's size; MSN full-screen flash).
       try {
         if (!cover.__prismBigLogged) {
           var cr2 = cover.getBoundingClientRect();
-          if (PV.pageSized(cr2)) {
+          if (PV.pageSized(cr2) && !(PV.creativeFrame && PV.creativeFrame(t) && cr2.height <= innerHeight * 3)) {
             cover.__prismBigLogged = true;
             var w2 = why.get(t) || "?";
             if (PV.recordError) PV.recordError("cover grew " + Math.round(cr2.width) + "x" + Math.round(cr2.height) + " mode=" + cover.__mode + " why=" + w2 + " " + t.tagName + "#" + (t.id || "") + "." + PV.classStr(t).slice(0, 60));
@@ -1163,7 +1486,7 @@
             // ad: drop it now and keep the element out of the slot pass a while.
             // ... and no cover of ANY rule may run three screens tall: that is a
             // column, never an ad (AP News's .dianomi_context, 980x13042, 2026-09-13).
-            if (/^slot-selector/.test(w2) || cr2.height > innerHeight * 3) { t.__prismTooBigAt = Date.now(); lowerPager(cover); cover.remove(); veils.delete(t); unmuteUnder(t); return; }
+            if (/^slot-selector/.test(w2) || cr2.height > innerHeight * 3) { t.__prismTooBigAt = Date.now(); lowerPager(cover); cover.remove(); veils.delete(t); unmuteUnder(t); freeHeight(t); return; }
           }
         }
       } catch (eG) {}
@@ -1176,8 +1499,8 @@
 
   /** Remove every display cover (Escape / hold-to-reveal). */
   function clearCovers() {
-    veils.forEach(function (c, t) { lowerPager(c); c.remove(); unmuteUnder(t); });
-    veils.clear();
+    veils.forEach(function (c, t) { lowerPager(c); c.remove(); unmuteUnder(t); freeHeight(t); });
+    veils.clear(); raiseOff();
   }
 
   // The main switch (pv:ui.veilOff, 2026-10-27): off drops every cover and the video veil at once and keeps the
@@ -1198,9 +1521,12 @@
   PV.veils = veils;
   PV.closeControl = closeControl;   // tests
   PV.__styleCover = styleCover;     // tests
+  PV.__clipOverlays = clipOverlays; // tests
   PV.closeControls = closeControls; // tests
   PV.paintClip = paintClip;         // tests
+  PV.findTopBar = findTopBar;     // tests
   PV.whyFor = function (target) { return why.get(target); };
-  PV.sweep = sweep;
+  PV.coveredEls = function () { var out = []; veils.forEach(function (c, t) { out.push(t); }); return out; };   // for the pop guard (src/inpage-pops.js)
+  PV.sweep = function () { var out = sweep(); try { freeStrays(); } catch (e) {} raiseSymbol(); return out; };
   PV.clearCovers = clearCovers;
 })();

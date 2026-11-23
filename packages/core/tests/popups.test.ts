@@ -19,6 +19,25 @@ describe("automatic tier", () => {
     const d = p.evaluate({ site: "shop.com", url: "https://tracker.example/land", gesture: { url: "https://shop.com/help", windowsThisGesture: 1 } });
     expect(d).toEqual({ action: "intercept", reason: "unknown destination" });
   });
+  it("opens the site the pressed link names: its own site, a redirect link's destination, a link card's text (2026-11-23)", () => {
+    const p = new PopupPolicy(null);
+    const ok = { action: "allow", reason: "the link you pressed names this site" };
+    // the link's own site, another host of it
+    expect(p.evaluate({ site: "social.example", url: "https://news.example.org/story", gesture: { url: "https://www.example.org/story", windowsThisGesture: 1 } })).toEqual(ok);
+    // a redirect link that carries the destination
+    expect(p.evaluate({ site: "social.example", url: "https://www.paper.co.uk/a/1", gesture: { url: "https://l.social.example/l.php?u=https%3A%2F%2Fwww.paper.co.uk%2Fa%2F1&h=x", windowsThisGesture: 1 } })).toEqual(ok);
+    // a link card with no address of its own that shows the site's name
+    expect(p.evaluate({ site: "social.example", url: "https://www.paper.co.uk/a/1", gesture: { url: "", names: " PAPER.CO.UK A headline here", windowsThisGesture: 1 } })).toEqual(ok);
+    // a name that is only part of another host proves nothing
+    expect(p.evaluate({ site: "social.example", url: "https://paper.co.uk/x", gesture: { names: "notpaper.co.uk and paper.co.uk.evil.io", windowsThisGesture: 1 } }).action).toBe("intercept");
+    // a site's name lying in the link's address as text, not as a parameter that is a web address, proves nothing
+    expect(p.evaluate({ site: "social.example", url: "https://ads.example.net/land", gesture: { url: "https://social.example/story?ref=ads.example.net&x=//ads.example.net/", windowsThisGesture: 1 } }).action).toBe("intercept");
+    // a press that names nothing of the destination is as before, and so is an open with no press
+    expect(p.evaluate({ site: "social.example", url: "https://ads.example.net/land", gesture: { url: "https://l.social.example/l.php?u=https%3A%2F%2Fwww.paper.co.uk%2F", names: "paper.co.uk", windowsThisGesture: 1 } })).toEqual({ action: "intercept", reason: "unknown destination" });
+    expect(p.evaluate({ site: "social.example", url: "https://www.paper.co.uk/a/1" })).toEqual({ action: "intercept", reason: "opened without a click" });
+    // the second window of the same press is still a burst
+    expect(p.evaluate({ site: "social.example", url: "https://www.paper.co.uk/a/1", gesture: { names: "paper.co.uk", windowsThisGesture: 2 } }).action).toBe("intercept");
+  });
   it("intercepts every window after the first from one gesture", () => {
     const p = new PopupPolicy(null);
     const g = { url: "https://shop.com/x", windowsThisGesture: 2 };

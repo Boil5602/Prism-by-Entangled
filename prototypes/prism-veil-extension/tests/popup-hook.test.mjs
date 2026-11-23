@@ -85,6 +85,27 @@ describe("popup hook (main world)", () => {
     expect(reports[1].attempt.url).toBe("https://shop.com/local");
   });
 
+  it("a press on a link card that shows the site's name opens that site, and no other (2026-11-23)", () => {
+    const { opened, reports } = loadHook();
+    document.body.innerHTML = '<div role="link" id="card"><img alt=""><span id="dom">PAPER.CO.UK</span><span>A headline</span></div>';
+    document.getElementById("dom").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    window.open("https://www.paper.co.uk/a/1");
+    expect(opened.map((o) => o.url)).toEqual(["https://www.paper.co.uk/a/1"]);
+    document.getElementById("dom").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    window.open("https://ads.example.net/land");
+    expect(opened.length).toBe(1);
+    expect(reports[0].decision.reason).toBe("unknown destination");
+    // a name the person cannot see is no name: in an attribute, in a hidden piece, in a clear one
+    document.body.innerHTML = '<a href="https://shop.com/next" id="trick" title="ads.example.net" data-go="https://ads.example.net/"><span id="shown">Next page</span><span style="display:none">ads.example.net</span><span style="opacity:0">ads.example.net</span><span style="font-size:1px">ads.example.net</span></a><div id="big">' + "x".repeat(400) + " paper.co.uk</div>";
+    document.getElementById("shown").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    window.open("https://ads.example.net/land");
+    expect(opened.length).toBe(1);
+    // a press on something that is no link says nothing, whatever names lie in it
+    document.getElementById("big").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    window.open("https://www.paper.co.uk/a/2");
+    expect(opened.length).toBe(1);
+  });
+
   it("honors a policy snapshot pushed from the UI: allowed destinations open for real", () => {
     const { opened } = loadHook();
     const state = { global: "intercept", sites: { "shop.com": { allowed: { "checkout.example.com": { since: "2026-08-27T00:00:00Z" } } } } };

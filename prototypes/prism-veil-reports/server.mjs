@@ -104,12 +104,13 @@ async function appReport(req, res) {
   reply(res, 204);
 }
 
-// Cross-origin (2026-09-26): the extension posts from its own background page (a chrome-extension:// or moz-extension:// origin), a report
+// Cross-origin (2026-09-26): the extension posts from its own background page (a chrome-extension://, moz-extension:// or, since
+// 2026-11-21, Safari's safari-web-extension:// origin), a report
 // form may come later on https://entangled.world, and the Windows app sends no Origin at all (not a browser). Any other web page gets no
 // CORS answer, so a browser won't let it post here. (CORS is not authentication: the abuse limits below apply to every request.)
 const WEB_ORIGINS = new Set(["https://entangled.world", "https://www.entangled.world"]);
 function corsFor(origin) {
-  const ok = typeof origin === "string" && (WEB_ORIGINS.has(origin) || /^(chrome|moz)-extension:\/\/[a-z0-9-]+$/i.test(origin));
+  const ok = typeof origin === "string" && (WEB_ORIGINS.has(origin) || /^(chrome|moz|safari-web)-extension:\/\/[a-z0-9-]+$/i.test(origin));
   return ok ? { "Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type", "Access-Control-Max-Age": "86400" } : { "Vary": "Origin" };
 }

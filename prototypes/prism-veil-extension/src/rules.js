@@ -24,6 +24,18 @@
   PV.pageSized = function (r) {
     return r.width * r.height >= innerWidth * innerHeight * 0.5 && r.height >= innerHeight * 0.7;
   };
+  // The ad server's own frame is the creative, never a wrapper or the page, whatever share of the screen it takes (2026-11-22, two
+  // reports from Fox News on an iPhone: google_ads_iframe frames of 440x618 and 398x796 on a 440x760 screen read as page-sized
+  // and were left bare; on a phone an ad is often most of the screen). A frame in a fixed layer is left to the page-size rule: a
+  // full-screen interstitial has its own close and its own handling.
+  PV.creativeFrame = function (el) {
+    try { return !!el && el.tagName === "IFRAME" && el.matches(SLOT_QUERY) && !fixedLayer(el); } catch (e) { return false; }
+  };
+  PV.pageSizedEl = function (el, r) {
+    r = r || el.getBoundingClientRect();
+    if (!PV.pageSized(r)) return false;
+    return !(PV.creativeFrame(el) && r.height <= innerHeight * 3);
+  };
   // The outermost ancestor still (about) the element's own box - within 15%
   // (or 12px) in both dimensions, up to `levels` up, never <body>. An ad unit
   // is often a stack of same-size wrappers with the ad's overlays as SIBLINGS
@@ -49,6 +61,9 @@
     // iframe with a srcdoc and no src (Fox's right rail, 2026-11-04: an OutKick ad with an AdChoices badge sat bare over a covered slot,
     // found by the release gate walked by machine)
     "iframe[id^='MagniteApex-iframe']",
+    // GumGum's creative frame (traceable source: GumGum's own markup - its frame carries data-gg-moat-ifr, beside c.gumgum.com pixels
+    // and an AdChoices link; Fox News on an iPhone, 2026-11-22: the in-screen banner at the foot of the page, 440x120, bare)
+    "iframe[data-gg-moat-ifr]",
     "div[id^='div-gpt-ad']",
     "iframe[src*='doubleclick.net']",
     "iframe[src*='googlesyndication.com']",
@@ -68,6 +83,9 @@
     "[class*='trc_rbox']",
     "[class*='trc_related']",
     "[data-widget-id*='taboola']",
+    // Infolinks units (2026-11-23, a report from CBS News on an iPhone: a strip fixed to the foot of the screen, #IL_INSEARCH,
+    // class IL_BASE, its picture from an ad server). The class is on each unit's own container.
+    "div.IL_BASE",
     // more ad-serving iframe origins (incl. video/outstream networks)
     "iframe[src*='2mdn.net']",
     "iframe[src*='imasdk.googleapis']",
@@ -391,7 +409,7 @@
   function fbPageKey(post) {
     try {
       var name = post.querySelector('[data-ad-rendering-role="profile_name"], h2, h3, h4');
-      if (!name) return "";
+      if (!name) return (post.closest && post.closest("#screen-root")) ? fbmKey(post) : "";   // the mobile layout: the name is the key
       var a = name.querySelector("a[href]") || (name.closest && name.closest("a[href]"));
       if (!a) return "";
       var u = new URL(a.getAttribute("href"), location.href);
@@ -446,6 +464,69 @@
     } catch (e) {}
     return true;
   };
+
+  // Facebook's mobile layout: the feed item around an element, the ancestor whose parent holds many items and is several screens
+  // tall (the feed itself). null when there is no such parent within 14 levels.
+  var fbmFeed = null;   // the feed found last, so the walk below measures nothing for a post inside it
+  // Facebook's home feed, the one place Facebook chooses what comes next (2026-11-22, a report on 0.9.64: a news page the person
+  // opened was covered, its header and its posts). A page, a group or a search the person opened is theirs to read.
+  function fbHome() { var p = location.pathname; return p === "/" || p === "/home.php"; }
+  function fbmPost(el) {
+    if (fbmFeed && fbmFeed.isConnected && fbmFeed.contains(el) && fbmFeed !== el) {
+      var m = el; while (m.parentElement && m.parentElement !== fbmFeed) m = m.parentElement;
+      return m.parentElement === fbmFeed ? m : null;
+    }
+    var n = el;
+    for (var d = 0; d < 14 && n && n.parentElement; d++) {
+      var p = n.parentElement;
+      if (p.id === "screen-root" || p === document.body) return null;
+      if (p.children.length >= 5 && p.getBoundingClientRect().height >= innerHeight * 2) { fbmFeed = p; return n; }
+      n = p;
+    }
+    return null;
+  }
+
+  // Facebook's mobile layout, the Reels pages: the reel an element is in, the child of the pager that snaps a screen at a time
+  // (class vscroller-snap, read from the reports of 2026-11-22: the pager is one screen tall and held 40 to 81 reels, each as
+  // tall as the pager). null anywhere else, so a tall post of the feed is never taken for one.
+  function fbmReel(el) {
+    var sc = null;
+    try { sc = el.closest(".vscroller-snap"); } catch (e) {}
+    if (!sc || !sc.closest("#screen-root")) return null;
+    var n = el; while (n.parentElement && n.parentElement !== sc) n = n.parentElement;
+    if (n.parentElement !== sc || n === el) return null;
+    var r = n.getBoundingClientRect(), s = sc.getBoundingClientRect();
+    if (s.height > innerHeight * 1.1) return null;
+    return r.height >= innerHeight * 0.6 && r.height <= innerHeight * 1.1 && r.width >= innerWidth * 0.8 ? n : null;
+  }
+
+  // Facebook's mobile layout: inside a row that scrolls sideways (the story bar, a row of reels), the tile an element is in, the
+  // child of the row; the post itself when the element is in no such row; null when the row holds it some other way.
+  function fbmTile(el, post) {
+    var sc = null;
+    try { sc = el.closest('[data-is-h-scrollable="true"], .hscroller'); } catch (e) {}
+    if (!sc || !post.contains(sc)) return post;
+    var n = el; while (n.parentElement && n.parentElement !== sc) n = n.parentElement;
+    return n.parentElement === sc && n !== el ? n : null;
+  }
+  function fbmTileOk(tile) { var r = tile.getBoundingClientRect(); return r.width >= 60 && r.height >= 60 && r.width <= innerWidth * 0.9; }
+
+  // Facebook's mobile layout: who posted, as a key. The layout has no link on the name, so the key is the name itself: the first
+  // pressable leaf in the post's top band ("m:gizmodo"). "" when there is none.
+  function fbmKey(post) {
+    try {
+      var pr = post.getBoundingClientRect(), c = post.querySelectorAll("span[data-action-id]");
+      for (var i = 0; i < c.length && i < 40; i++) {
+        var el = c[i]; if (el.children.length) continue;
+        var t = (el.textContent || "").replace(FB_INVIS, "").replace(/[\u200E\u200F\u202A-\u202E]/g, "").replace(/\s+/g, " ").trim();
+        if (!t || t.length > 80 || /^(Follow|Join|Ad|Sponsored)$/.test(t) || !/[A-Za-z0-9]/.test(t)) continue;
+        var r = el.getBoundingClientRect();
+        if (r.height <= 0 || r.top - pr.top > 150) return "";
+        return "m:" + t.toLowerCase();
+      }
+    } catch (e) {}
+    return "";
+  }
 
   // The pair of buttons Facebook puts on a group it suggests: one element that reads exactly "Interested" and one that reads
   // exactly "Not interested", on one line (report 2026-11-12: such a post has no Join button, so it came through). Both must
@@ -631,6 +712,73 @@
     // video (AP News's outstream ad came from cdn.flashtalking.com, 2026-09-13)
     return /(^|\.)(jetpackdigital|doubleclick|googlesyndication|2mdn|adnxs|adsafeprotected|moatads|springserve|spotx|teads|innovid|yieldmo|adform|smartadserver|serverbid|adtelligent|adtng|flashtalking|sizmek|celtra|extremereach)\.[a-z]+$/.test(h);
   }
+  // What a written frame holds that names an ad server (the written-ad-frame rule): "" when nothing does, or when the browser does
+  // not let the page read the frame. The hosts are ad servers and ad-verification services (their own domains, as in the slot
+  // selectors); AdChoices is the industry's ad marker. One nested written frame is read too. The answer is kept three seconds.
+  var AD_SERVER_HOST = /(^|\.)(doubleclick\.net|googlesyndication\.com|googleadservices\.com|2mdn\.net|adnxs\.com|amazon-adsystem\.com|criteo\.(com|net)|rubiconproject\.com|pubmatic\.com|openx\.net|gumgum\.com|moatads\.com|adsafeprotected\.com|doubleverify\.com|flashtalking\.com|sizmek\.com|celtra\.com|teads\.tv|yieldmo\.com|3lift\.com|casalemedia\.com|smartadserver\.com|adform\.net|innovid\.com|springserve\.com|jetpackdigital\.com|taboola\.com|outbrain\.com)$/i;
+  var ADCHOICES_HOST = /(^|\.)(youradchoices\.com|aboutads\.info|youronlinechoices\.(com|eu))$/i;
+  function hostOf(u, base) { try { return new URL(u, base).hostname.toLowerCase(); } catch (e) { return ""; } }
+  function writtenFrameAd(f, depth) {
+    var c = f.__prismWfa; if (c && Date.now() - c.at < 3000) return c.v;
+    var v = "";
+    try {
+      var d = f.contentDocument;
+      if (d && d.body) {
+        var sized = function (n) { var r = n.getBoundingClientRect(); return r.width >= 20 && r.height >= 20; };
+        var base = d.baseURI || location.href;
+        var s = d.querySelector(SLOT_QUERY);
+        if (s && sized(s)) v = "slot " + slotMatch(s);
+        var list = v ? [] : d.querySelectorAll("iframe[src], img[src], video, a[href]");
+        for (var i = 0; i < list.length && i < 300 && !v; i++) {
+          var n = list[i], tag = n.tagName;
+          var h = hostOf(tag === "A" ? n.getAttribute("href") : (n.currentSrc || n.getAttribute("src") || ""), base);
+          if (!h) continue;
+          if (tag === "A" && ADCHOICES_HOST.test(h)) v = "AdChoices link";
+          else if (AD_SERVER_HOST.test(h) && sized(n)) v = tag.toLowerCase() + " from " + h;
+        }
+        if (!v && !(depth > 0)) {
+          var inner = d.querySelectorAll("iframe");
+          for (var j = 0; j < inner.length && j < 10 && !v; j++) {
+            var is = (inner[j].getAttribute("src") || "").trim();
+            if (!is || /^about:blank/i.test(is)) v = writtenFrameAd(inner[j], 1);
+          }
+        }
+      }
+    } catch (e) { v = ""; }
+    f.__prismWfa = { at: Date.now(), v: v };
+    return v;
+  }
+  // The display rules' named ad signal in an element (for src/inpage-pops.js, 2026-11-22): the element or something in it matches
+  // a slot selector, or holds a visible frame, picture, video or link from an ad server's host, or an AdChoices link, or a written
+  // frame that holds one of those (writtenFrameAd). "" when none.
+  PV.adSignalIn = function (el) {
+    try {
+      var sized = function (n) { var r = n.getBoundingClientRect(); return r.width >= 20 && r.height >= 20; };
+      if (el.matches(SLOT_QUERY)) return "slot " + slotMatch(el);
+      var s = el.querySelector(SLOT_QUERY);
+      if (s && sized(s)) return "slot " + slotMatch(s);
+      var list = el.querySelectorAll("iframe, img[src], video, a[href]");
+      for (var i = 0; i < list.length && i < 300; i++) {
+        var n = list[i], tag = n.tagName;
+        if (tag === "IFRAME") {
+          var fs = (n.getAttribute("src") || "").trim();
+          if (!fs || /^about:blank/i.test(fs)) { var w = writtenFrameAd(n); if (w) return w; continue; }
+        }
+        var h = hostOf(tag === "A" ? n.getAttribute("href") : (n.currentSrc || n.getAttribute("src") || ""), location.href);
+        if (!h) continue;
+        if (tag === "A" && ADCHOICES_HOST.test(h)) return "AdChoices link";
+        if (AD_SERVER_HOST.test(h) && sized(n)) return tag.toLowerCase() + " from " + h;
+      }
+    } catch (e) {}
+    return "";
+  };
+  // the element or one of its ancestors is laid out fixed or sticky: a layer over the page, not a part of it
+  function fixedLayer(el) {
+    for (var n = el, d = 0; n && n !== document.documentElement && d < 12; n = n.parentElement, d++) {
+      try { var p = getComputedStyle(n).position; if (p === "fixed" || p === "sticky") return true; } catch (e) {}
+    }
+    return false;
+  }
   // The small, corner-anchored, fixed/sticky player a video sits in - a
   // "floating video". Returns that player box, else null. The video itself is
   // fine (content); the caller decides whether it's an AD right now.
@@ -698,6 +846,34 @@
           ctx.add(box, "floating-video-ad", true);
         });
       }
+    },
+    {
+      // An ad drawn in a WRITTEN frame (no address of its own, or about:blank): the ad's script writes the frame's document, so the
+      // frame has no host to match and the slot pass never saw it (Fox News on an iPhone, 2026-11-22: a 440x796 frame over the whole
+      // screen, in a body-level div, uncovered). Traceable source: what the frame holds, read where the browser lets the page read
+      // its own frame - an element of an ad server's (one of the slot selectors, or a visible frame, picture, video or link from an
+      // ad server's host) or an AdChoices link; the reason names it. Pixels alone never count (a written frame holding only a
+      // tracking pixel is no ad). A frame the size of the screen is taken only when it sits in a fixed layer (an interstitial over
+      // the page); the cover is then the layer, and the ad's own close control is cut out of it (covers.js, the close holes).
+      id: "written-ad-frame",
+      run: function (root, ctx) {
+        root.querySelectorAll("iframe").forEach(function (f) {
+          var src = (f.getAttribute("src") || "").trim();
+          if (src && !/^about:blank/i.test(src)) return;
+          if (f.closest && f.closest("[data-prism-veil], [data-prism-ui]")) return;
+          try { if (f.matches(SLOT_QUERY) || (f.parentElement && f.parentElement.closest(SLOT_QUERY))) return; } catch (eQ) {}   // the slot pass has it
+          var r = f.getBoundingClientRect();
+          if (r.width < 100 || r.height < 40) return;
+          var src2 = writtenFrameAd(f);
+          if (!src2) return;
+          var unit = PV.unitAround(f, 4), ur = unit.getBoundingClientRect();
+          if (PV.pageSized(ur) || PV.pageSized(r)) {
+            if (!fixedLayer(unit)) return;
+          }
+          unit.__prismForceOverlay = true;
+          ctx.add(unit, "written-ad-frame: " + src2, true);
+        });
+      },
     },
     {
       // MSN / Microsoft Start feed (traceable source: Microsoft Start feed). The
@@ -803,7 +979,7 @@
       id: "facebook-suggested",
       host: /(^|\.)facebook\.com$/i,
       run: function (root, ctx) {
-        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil)) return;
+        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil) || !fbHome()) return;
         var seen = new Set(), now = Date.now(), posts = [];
         root.querySelectorAll("[aria-posinset]").forEach(function (post) {
           if (seen.has(post) || post.querySelector("[aria-posinset]")) return;   // innermost posts only
@@ -833,6 +1009,86 @@
           if (pr.width > innerWidth * 0.7 || pr.height > innerHeight * 1.6 || pr.height < 120) return;
           ctx.add(target, "facebook-suggested: " + (pair ? "Interested and Not interested buttons" : ((el.textContent || "").indexOf("Join") >= 0 ? "Join" : "Follow") + " button in the header"), true);
         });
+      },
+    },
+    {
+      // Facebook's mobile layout (2026-11-22, six reports from Safari on an iPhone, none covered): the page Facebook serves a phone
+      // draws the feed as #screen-root with data-mcomponent blocks, no [aria-posinset] and posts as wide as the screen, so the two
+      // rules above find nothing there. The same sources, read in that layout: the header's own label, a leaf that reads exactly
+      // "Ad" or "Sponsored" (Facebook's label; always on), and Facebook's Follow or Join button in the header (a suggested post;
+      // the opt-in pv:ui.suggestedVeil). The post is the block the label sits in that is one item of the feed (its parent holds
+      // many and is several screens tall); the label counts only in the post's top band, so a word in a caption or a friend's
+      // share of a page lower down never does.
+      id: "facebook-mobile",
+      host: /(^|\.)facebook\.com$/i,
+      run: function (root, ctx) {
+        if (!document.getElementById("screen-root")) return;
+        var home = fbHome(), sug = home && !!(PV.uiPrefs && PV.uiPrefs.suggestedVeil), done = new Set(), now = Date.now();
+        var leaves = root.querySelectorAll("#screen-root span");
+        // every leaf is read: a feed scrolled far holds well over 6000 spans, and a count stopped there left the posts below it
+        // bare (the reports' feeds ran to 115 posts); the test on each is its text alone
+        for (var i = 0; i < leaves.length && i < 80000; i++) {
+          var el = leaves[i];
+          if (el.children.length) continue;
+          var t = (el.textContent || "").replace(FB_INVIS, "").replace(/[\u200E\u200F\u202A-\u202E]/g, "").trim();   // direction marks off too: this layout wraps some labels in U+200E
+          var ad = t === "Ad" || t === "Sponsored", fol = t === "Follow" || t === "Join";
+          if (!ad && !(fol && sug)) continue;
+          var post = fbmPost(el);
+          if (!post) {
+            // 2026-11-22, two reports from the Reels pages (0.9.61): an ad among the reels stood bare, because a reel is in no
+            // feed. The unit there is the one reel, and its label sits low on it, so no header band is asked for.
+            var reel = ad ? fbmReel(el) : null;
+            if (reel && !done.has(reel) && fbVisible(el)) { done.add(reel); ctx.add(reel, "facebook-sponsored: " + t + " label on a reel (mobile layout)", true); }
+            continue;
+          }
+          if (done.has(post)) continue;
+          // in a row that scrolls sideways (the story bar, a row of reels) the unit is the one tile, never the row
+          var tile = fbmTile(el, post);
+          if (tile !== post) {
+            if (ad && tile && !done.has(tile) && fbmTileOk(tile) && fbVisible(el)) { done.add(tile); ctx.add(tile, "facebook-sponsored: " + t + " label on a tile (mobile layout)", true); }
+            continue;
+          }
+          var pr = post.getBoundingClientRect(), r = el.getBoundingClientRect();
+          if (r.height <= 0 || r.top - pr.top > 150 || r.top < pr.top - 2) continue;   // the header band alone (the label sits 70 to 115 px down)
+          if (pr.height < 120 || pr.height > innerHeight * 2.2) continue;
+          if (!fbVisible(el)) continue;
+          done.add(post);
+          if (fol) fbSeenNote(fbmKey(post), now);
+          ctx.add(post, ad ? "facebook-sponsored: " + t + " label in the header (mobile layout)" : "facebook-suggested: " + t + " button in the header (mobile layout)", true);
+        }
+        // The element with data-tracking-image-id is no source for an ad (2026-11-22, three reports: it was taken as one from a
+        // reading of twelve reports, and then covered the story bar, a page the person opened, and in the home feed a link post
+        // from a page the person follows, its header carrying the time and no label). Facebook puts it on pictures it counts
+        // views of, paid or not. An ad is known by its Ad or Sponsored label alone.
+        // A post Facebook asks about: the pair Interested and Not interested under it (2026-11-22, a report of a group's post; the
+        // desktop rule of 2026-11-12). Both must be there; in this layout they are labels on the buttons, not text.
+        if (sug) {
+          var yes = root.querySelectorAll('#screen-root [aria-label="Interested"]');
+          for (var q = 0; q < yes.length && q < 200; q++) {
+            var pq = fbmPost(yes[q]);
+            if (pq && fbmTile(yes[q], pq) !== pq) continue;   // a tile of a row is not a post
+            if (!pq || done.has(pq) || !pq.querySelector('[aria-label="Not interested"]')) continue;
+            var rq = pq.getBoundingClientRect();
+            if (rq.height < 120 || rq.height > innerHeight * 2.2) continue;
+            done.add(pq);
+            ctx.add(pq, "facebook-suggested: Interested and Not interested buttons", true);
+          }
+        }
+        // A post with no button, of a page whose other post carried Facebook's Follow button within the last days (the rule above
+        // for the desktop layout, 2026-11-16; here from three reports of 2026-11-22, a page's posts with a bare header)
+        if (!sug) return;
+        var names = root.querySelectorAll("#screen-root span[data-action-id]"), looked = new Set();
+        for (var j = 0; j < names.length && j < 80000; j++) {
+          if (names[j].children.length) continue;
+          var p2 = fbmPost(names[j]);
+          if (!p2 || looked.has(p2)) continue;
+          looked.add(p2);
+          if (p2.querySelector('[data-is-h-scrollable="true"], .hscroller')) continue;   // a row of tiles is not a page's post
+          if (done.has(p2) || !fbSeenHas(fbmKey(p2), now)) continue;
+          var r2 = p2.getBoundingClientRect();
+          if (r2.height < 120 || r2.height > innerHeight * 2.2) continue;
+          ctx.add(p2, "facebook-suggested: Follow button on another post from this page", true);
+        }
       },
     },
     {
@@ -981,6 +1237,21 @@
       },
     },
     {
+      // Twitch's stream display ad, the PUSHDOWN banner (traceable source: Twitch's own markup - an iframe of class
+      // stream-display-ad__iframe_pushdown, marked --visible while it shows, beside Twitch's Ad label and its button for feedback
+      // on the ad; a report 2026-11-21, a 728x90 banner from a cloudfront.net frame under the stream's title, bare). The
+      // squeezeback around the player is the video veil's business and is left to it; only the visible pushdown frame is covered.
+      id: "twitch-pushdown",
+      host: /(^|\.)twitch\.tv$/i,
+      run: function (root, ctx) {
+        root.querySelectorAll("iframe.stream-display-ad__iframe_pushdown--visible").forEach(function (f) {
+          var r = f.getBoundingClientRect();
+          if (r.width < 100 || r.height < 40 || r.height > 400) return;
+          ctx.add(f, "twitch-pushdown");
+        });
+      },
+    },
+    {
       // AI-labelled content (OPT-IN, pv:ui.aiVeil, off by default). Traceable
       // source: the PLATFORM's own disclosure label - Meta "AI info" / "Made
       // with AI", TikTok/Threads "AI-generated", YouTube "Altered or synthetic
@@ -991,7 +1262,7 @@
       id: "ai-label",
       run: function (root, ctx) {
         if (!(PV.uiPrefs && PV.uiPrefs.aiVeil)) return;
-        var AI = /^(ai info|made with ai|ai[- ]generated|ai[- ]generated content|generated with ai|created with ai|altered or synthetic content|contains ai[- ]generated content|synthetic content)$/i;
+        var AI = /^(ai info|made with ai|ai[- ]generated|ai[- ]generated content|generated with ai|created with ai|altered or synthetic content|contains ai[- ]generated content|synthetic content|ai content)$/i;
         var base = (root === document) ? document.body : root;
         // YouTube watch page (observed 2026-08-29, /watch?v=IYKFXmQBLy0): the
         // disclosure is a "How this was made" section in the STRUCTURED
@@ -1009,7 +1280,9 @@
         if (/(^|\.)youtube\.com$/i.test(location.hostname) && document.querySelector("#movie_player") && !location.pathname.startsWith("/shorts")) return;
         var tw = document.createTreeWalker(base, NodeFilter.SHOW_TEXT), tn, seen = 0;
         while ((tn = tw.nextNode()) && seen++ < 40000) {
-          var tt = tn.nodeValue && tn.nodeValue.trim();
+          // direction marks taken off first: Facebook's mobile layout writes its label "AI content" between two U+200E (2026-11-22,
+          // a report pointed at the label)
+          var tt = tn.nodeValue && tn.nodeValue.replace(/[\u200E\u200F\u202A-\u202E]/g, "").trim();
           if (!tt || tt.length > 34 || !AI.test(tt)) continue;
           var host = tn.parentElement; if (!host) continue;
           var hr = host.getBoundingClientRect();
@@ -1024,6 +1297,14 @@
               if (box) ctx.add(box, "ai-label: " + tt, true);
               continue;
             }
+          }
+          // Facebook's mobile layout: the label is in the post's header, and the post is the feed item around it
+          if (/(^|\.)facebook\.com$/i.test(location.hostname) && host.closest && host.closest("#screen-root")) {
+            var mp = fbmPost(host), mr = mp ? mp.getBoundingClientRect() : null;
+            if (mp && mr.height >= 120 && mr.height <= innerHeight * 2.2 && hr.top - mr.top <= 150) ctx.add(mp, "ai-label: " + tt, true);
+            // on the Reels pages the unit is the one reel (2026-11-22, a report of a reel that carried the label and stood bare)
+            else if (!mp) { var rl = fbmReel(host); if (rl) ctx.add(rl, "ai-label: " + tt, true); }
+            continue;
           }
           var unit = badgeUnit(host, false, false);
           if (unit) ctx.add(unit, "ai-label: " + tt);
@@ -1357,6 +1638,8 @@
         // an update's (or the person's) "never cover this here": the element, or anything inside one that matches
         if (neverQuery) { try { if (el.closest && el.closest(neverQuery)) return; } catch (eN) {} }
         if (el.closest && el.closest("[data-prism-ui]")) return;   // PRISM's own cards: the look under a cover holds a copy of the covered element (covers.js)
+        // an in-page pop held clear (src/inpage-pops.js, spec section 30): nothing in it is covered, so a cover made before it was held goes
+        if (el.closest && el.closest("[data-prism-held='clear']")) return;
         if (el.__prismTooBigAt && Date.now() - el.__prismTooBigAt < 15000) return;   // a cover the sweep just dropped for growing to page/column size (any rule)
         targets.add(el); why.set(el, reason);
         if (whole) {
@@ -1404,7 +1687,7 @@
               return;
             }
           } catch (eI) {}
-          try { if (PV.pageSized(el.getBoundingClientRect())) return; } catch (eS) {}
+          try { if (PV.pageSizedEl(el)) return; } catch (eS) {}
           if (el.__prismTooBigAt && Date.now() - el.__prismTooBigAt < 15000) return;
           // A WRAPPER around a slot is not the slot (MSN .ad-banner-wrapper,
           // role=banner, holds display-ads which are covered on their own).
@@ -1426,6 +1709,24 @@
           ctx.add(el, "ad-stack: " + stackMatch(el));
         });
       } catch (e2) {}
+      // A Taboola widget taller than the screen is skipped above as page-sized (2026-11-23, four reports from CBS News on an
+      // iPhone: a column of paid items 400x1233 on a 440x796 screen stood bare). There the unit is each paid item: a .videoCube
+      // that carries Taboola's own disclosure link. An item of a widget small enough to be covered whole is left to that cover.
+      try {
+        root.querySelectorAll(".videoCube").forEach(function (it) {
+          if (!it.querySelector("[class*='disclosure_link']")) return;
+          var w = it.parentElement, inWidget = false;
+          for (var d = 0; w && w !== document.body && d < 14; d++, w = w.parentElement) {
+            if (!w.matches("[id^='taboola-'], [class*='trc_rbox'], [class*='trc_related'], [data-widget-id*='taboola']")) continue;
+            inWidget = true;
+            if (!PV.pageSizedEl(w)) return;
+          }
+          if (!inWidget) return;
+          var tr = it.getBoundingClientRect();
+          if (tr.width < 100 || tr.height < 50 || PV.pageSized(tr)) return;
+          ctx.add(it, "taboola-item: Taboola's paid label on the item", true);
+        });
+      } catch (eT) {}
       for (var si = 0; si < active.length; si++) {
         try { active[si].run(root, ctx); } catch (e) {}
       }
@@ -1482,6 +1783,13 @@
         if (unit) ctx.add(unit, (isSection ? "section-label: " : "badge-label: ") + t, isSection);
       }
     }
+    // In-page pops held by a cover (src/inpage-pops.js): a unit over a page that stopped scrolling is covered whole, with its close
+    // cut out, since a clear one would leave the page looking frozen
+    if (PV.inpageCovers) PV.inpageCovers.forEach(function (rec, el) {
+      if (!el.isConnected) { PV.inpageCovers.delete(el); return; }
+      el.__prismForceOverlay = true;
+      ctx.add(el, "in-page pop: " + rec.reason, true);
+    });
     // Innermost-only dedupe, whole-covers winning.
     var arr = Array.from(targets);
     arr.forEach(function (a) {

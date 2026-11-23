@@ -24,6 +24,8 @@ export type PopupAction = "allow" | "intercept";
 export interface PopupGesture {
   /** URL the human visibly activated (an anchor's href), if any. */
   url?: string;
+  /** The text of the pressed link that the person can see, bounded by the caller. Read only to find a site's name in it. */
+  names?: string;
   /** How many windows this same gesture has tried to open so far (1 = first). */
   windowsThisGesture: number;
 }
@@ -160,6 +162,31 @@ function sameSite(site: string, dest: string): boolean {
   return !!a && a === b;
 }
 
+/**
+ * Does what the person pressed name the site the window goes to (2026-11-23)? Three ways, each a plain reading of the press: the
+ * link's own address is on that site (www.example.com for example.com: the origin differs, the site does not); the link's address
+ * carries the destination as one of its parameters, a whole web address (a site's redirect link, Facebook's l.php?u=...); or the
+ * link shows the site's name in the text the person can see (a link card that reads EXAMPLE.COM). A press that names nothing of
+ * the destination proves nothing. All three are written by the page, so each is kept to what a person can check: an address is
+ * parsed, never searched as text, and `names` is the caller's reading of visible text alone (no attributes, nothing hidden).
+ */
+export function pressNames(g: PopupGesture, dest: string): boolean {
+  if (!dest) return false;
+  const rd = registrableDomain(dest.toLowerCase());
+  if (!rd || rd.indexOf(".") < 0) return false;
+  if (g.url) {
+    if (sameSite(popupHost(g.url), dest)) return true;
+    try {
+      for (const v of new URL(g.url).searchParams.values()) {
+        if (/^https?:\/\//i.test(v) && sameSite(popupHost(v), dest)) return true;
+      }
+    } catch { /* not an address */ }
+  }
+  // the name as a whole host: not the tail of a longer word (notexample.com) and not the head of a longer host (example.com.evil.io)
+  const esc = rd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("(^|[^a-z0-9-])" + esc + "(?![a-z0-9-]|\\.[a-z0-9])").test((g.names ?? "").toLowerCase());
+}
+
 /** "Always open checkout.example.com popups from shop.com" */
 export function allowSentence(site: string, dest: string): string {
   return `Always open ${dest} popups from ${site}`;
@@ -234,6 +261,7 @@ export class PopupPolicy {
     }
     const list = this.listMatch(dest);
     if (list) return { action: "intercept", reason: `list: ${list}`, list };
+    if (a.gesture && pressNames(a.gesture, dest)) return { action: "allow", reason: "the link you pressed names this site" };
     // Self-referred: a site opening its OWN registrable domain is almost always
     // a deliberate navigation (MSN opening an MSN article), not the third-party
     // ad-popup pattern. Allow it - but only AFTER the ad-list check above, so a

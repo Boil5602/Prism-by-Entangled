@@ -4,6 +4,31 @@ import { loadVeil, detect } from "./harness.mjs";
 // Rects are the measured sizes from the live sites (see the rule comments).
 const R = (x, y, w, h) => `data-rect="${x},${y},${w},${h}"`;
 
+// four reports from CBS News on an iPhone (0.9.69): a Taboola column taller than the screen stood bare, and a strip fixed to the foot
+describe("a recommendation widget taller than the screen", () => {
+  const cube = (id, y, h, paid) => `<div class="videoCube trc_spotlight_item" id="${id}" ${R(20, y, 400, h)}><a class="item-thumbnail-href" href="https://ads.example/x" ${R(20, y, 400, 225)}></a>` +
+    (paid ? `<a class="trc_mobile_disclosure_link trc_attribution_position_after_branding" ${R(300, y + 280, 40, 16)}><span>PAID</span></a>` : "") + `</div>`;
+  const widget = (h, items) => `<div class="trc_related_container" id="w" ${R(20, 100, 400, h)}><div class="trc_rbox thumbnails-h" id="w2" ${R(20, 100, 400, h)}>` +
+    `<div class="trc_rbox_div" id="w3" ${R(20, 100, 400, h)}><div id="internal_trc_1" ${R(20, 100, 400, 0)}>${items}</div></div></div></div>`;
+  it("on a phone covers each paid item, never the column and never an item with no paid label", () => {
+    const PV = loadVeil({ host: "www.cbsnews.com", width: 440, height: 796 });
+    const out = detect(PV, widget(1233, cube("a", 100, 308, true) + cube("own", 410, 308, false) + cube("b", 720, 296, true)));
+    expect(out.map((o) => [o.id, o.why])).toEqual([["a", "taboola-item: Taboola's paid label on the item"], ["b", "taboola-item: Taboola's paid label on the item"]]);
+  });
+  it("leaves the items of a widget small enough to be covered whole to that cover", () => {
+    const PV = loadVeil({ host: "www.cbsnews.com", width: 1600, height: 900 });
+    const out = detect(PV, widget(320, cube("a", 100, 308, true)));
+    expect(out.map((o) => o.id)).not.toContain("a");
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.every((o) => /^slot-selector/.test(o.why))).toBe(true);
+  });
+  it("covers an Infolinks unit", () => {
+    const PV = loadVeil({ host: "www.cbsnews.com", width: 440, height: 796 });
+    const out = detect(PV, `<div id="IL_INSEARCH" class="IL_BASE IL_SW" ${R(0, 717, 441, 79)}><div id="IL_SR_AD_CONTAINER" ${R(0, 717, 440, 79)}></div></div>`);
+    expect(out).toEqual([{ tag: "div", id: "IL_INSEARCH", why: "slot-selector: div.IL_BASE" }]);
+  });
+});
+
 describe("slot selectors (ad-tech markup)", () => {
   it("covers a Google ad slot and names the selector", () => {
     const PV = loadVeil();
@@ -103,6 +128,23 @@ describe("CNN fave player", () => {
   });
 });
 
+describe("an ad server's own frame on a phone", () => {
+  // Fox News on an iPhone, two reports 2026-11-22: frames of 440x618 and 398x796 on a 440x760 screen read as page-sized
+  const slot = (w, h, pos = "") => `<div class="ad-container mobile" ${R(0, 60, 440, h)}><div class="ad gam" style="${pos}" ${R(0, 60, w, h)}>` +
+    `<iframe id="google_ads_iframe_/1/x_0" ${R(0, 60, w, h)}></iframe></div></div>`;
+  it("is covered though it takes most of the screen, and a wrapper of that size is not", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 760 });
+    expect(detect(PV, slot(440, 618)).map((o) => o.tag)).toEqual(["iframe"]);
+    expect(detect(PV, slot(398, 796)).map((o) => o.tag)).toEqual(["iframe"]);
+    expect(detect(PV, `<div class="ad-banner-wrapper" id="w" ${R(0, 0, 440, 700)}></div>`)).toEqual([]);
+  });
+  it("is left to the page-size rule in a fixed layer, and when it runs three screens tall", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 760 });
+    expect(detect(PV, slot(440, 700, "position:fixed"))).toEqual([]);
+    expect(detect(PV, slot(440, 2400))).toEqual([]);
+  });
+});
+
 describe("substring ad selectors", () => {
   it("does not treat Hulu's Masthead__container as an ad__container (ad must start a word)", () => {
     const PV = loadVeil({ host: "www.hulu.com" });
@@ -146,6 +188,118 @@ describe("Facebook", () => {
     expect(out.map((o) => o.id)).toEqual(["s"]);
     expect(out[0].why).toMatch(/^facebook-suggested: /);
     expect(detect(PV, post("g", sug("Join"))).map((o) => o.why)).toEqual(["facebook-suggested: Join button in the header"]);
+  });
+  // the layout Facebook serves a phone (2026-11-22, six reports from Safari on an iPhone): #screen-root, data-mcomponent blocks,
+  // no aria-posinset, posts the width of the screen
+  const mPost = (id, y, head, body = "") => `<div class="m displayed" id="${id}" ${R(0, y, 440, 755)}><div class="m" ${R(0, y, 440, 65)}></div>` +
+    `<div class="m" data-mcomponent="MContainer" ${R(0, y + 65, 440, 48)}>${head(y + 70)}</div><div class="m" ${R(0, y + 120, 440, 550)}>${body}</div></div>`;
+  const mFeed = (posts) => `<div id="screen-root" ${R(0, 0, 440, 18000)}><div class="m bg-s17" ${R(0, 0, 440, 18000)}><div class="m" ${R(0, 0, 440, 18000)}>` +
+    posts + `<div ${R(0, 9000, 440, 10)}></div>`.repeat(4) + `</div></div></div>`;
+  const adHead = (y) => `<span class="f2" ${R(60, y, 80, 18)}>OpenAI</span><span class="f5" ${R(145, y, 20, 18)}>Ad</span>`;
+  const sugHead = (y) => `<span class="f2" ${R(60, y, 90, 18)}>ESPN FC</span><span class="f2" ${R(155, y, 8, 18)}>•</span><span class="f2" ${R(166, y, 46, 18)}>Follow</span>`;
+  const orgHead = (y) => `<span class="f2" ${R(60, y, 90, 18)}>A friend</span><span class="f5" ${R(155, y, 30, 18)}>8h</span>`;
+  it("covers an Ad-labelled post in Facebook's mobile layout, the whole post and nothing more", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    const out = detect(PV, mFeed(mPost("ad", 0, adHead) + mPost("org", 800, orgHead, `<span ${R(10, 1000, 30, 18)}>Ad</span>`)));
+    expect(out.map((o) => o.id)).toEqual(["ad"]);
+    expect(out[0].why).toBe("facebook-sponsored: Ad label in the header (mobile layout)");
+  });
+  it("covers a suggested post in the mobile layout only when the switch is on", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    const html = mFeed(mPost("s", 0, sugHead) + mPost("org", 800, orgHead));
+    expect(detect(PV, html)).toEqual([]);
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, html).map((o) => [o.id, o.why])).toEqual([["s", "facebook-suggested: Follow button in the header (mobile layout)"]]);
+  });
+  it("leaves a Follow button lower in a post (a friend's share of a page) and a page without the mobile layout", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, mFeed(mPost("share", 0, orgHead, `<span ${R(60, 400, 46, 18)}>Follow</span>`)))).toEqual([]);
+    expect(detect(PV, `<div ${R(0, 0, 440, 18000)}>` + mPost("x", 0, adHead) + `</div>`)).toEqual([]);
+  });
+  it("mobile layout: covers a post Facebook labels AI content, only with the AI switch on", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    const ai = (y) => `<span class="f2 a" data-action-id="1" ${R(60, y, 90, 18)}>Some Gym</span><span class="f6 a" ${R(60, y + 22, 70, 16)}>\u200EAI content\u200E</span>`;
+    const html = mFeed(mPost("ai", 0, ai) + mPost("org", 800, orgHead));
+    expect(detect(PV, html)).toEqual([]);
+    PV.uiPrefs = { aiVeil: true };
+    expect(detect(PV, html).map((o) => [o.id, o.why])).toEqual([["ai", "ai-label: AI content"]]);
+  });
+  // a report on 0.9.68: a link post from a page the person follows carried the tracking element and was covered as an ad
+  it("mobile layout: the tracking element proves no ad; a post with the Interested pair is covered under the switch", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    const track = `<div class="m intersection-observer" data-tracking-image-id="1" ${R(0, 0, 440, 2)}></div>`;
+    const pair = (both) => `<div aria-label="Interested" ${R(20, 1500, 150, 36)}></div>` + (both ? `<div aria-label="Not interested" ${R(200, 1500, 150, 36)}></div>` : "");
+    const html = mFeed(mPost("ad", 0, orgHead, track) + mPost("grp", 800, orgHead, pair(true)) + mPost("one", 1600, orgHead, pair(false)));
+    expect(detect(PV, html)).toEqual([]);
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, html).map((o) => o.id).sort()).toEqual(["grp"]);
+  });
+  // a report on 0.9.64: a news page the person opened was covered, its header (the cover and profile photos carry the tracking
+  // element) and its posts. Only the home feed is Facebook's choice; an Ad label is an ad anywhere.
+  it("mobile layout: on a page the person opened, covers nothing but a post labelled Ad", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    PV.uiPrefs = { suggestedVeil: true };
+    const track = `<div class="m intersection-observer" data-tracking-image-id="1" ${R(0, 0, 440, 2)}></div>`;
+    const html = mFeed(mPost("head", 0, orgHead, track) + mPost("fol", 800, sugHead) + mPost("ad", 1600, adHead));
+    window.happyDOM.setURL("https://www.facebook.com/SomeNewsPage/");
+    expect(detect(PV, html).map((o) => o.id)).toEqual(["ad"]);
+    window.happyDOM.setURL("https://www.facebook.com/");
+    expect(detect(PV, html).map((o) => o.id).sort()).toEqual(["ad", "fol"]);
+  });
+  it("desktop layout: a suggested post is covered in the home feed alone", () => {
+    const PV = loadVeil({ host: "www.facebook.com" });
+    PV.uiPrefs = { suggestedVeil: true };
+    expect(detect(PV, post("g", sug("Join"))).length).toBe(1);
+    window.happyDOM.setURL("https://www.facebook.com/groups/123/");
+    expect(detect(PV, post("g", sug("Join")))).toEqual([]);
+    window.happyDOM.setURL("https://www.facebook.com/");
+  });
+  // three reports on 0.9.61 from the Reels pages: an ad among the reels, and a reel labelled AI content, stood bare
+  const reels = (items) => `<div id="screen-root" ${R(0, 0, 440, 796)}><div class="m bg-s43" ${R(0, 0, 440, 796)}>` +
+    `<div class="m vscroller vscroller-snap vscroller-snap-start" ${R(0, 0, 440, 746)}>` + items + `</div></div></div>`;
+  const reel = (id, y, inner) => `<div class="m bg-s32 vertically-snappable displayed" id="${id}" ${R(0, y, 440, 746)}><div class="m" ${R(0, y, 440, 746)}>` +
+    `<div class="inline-video-container" ${R(0, y, 440, 746)}></div><span class="f2" ${R(12, y + 640, 90, 18)}>Someone</span>${inner}</div></div>`;
+  it("mobile layout, Reels: covers the one reel labelled Ad, and no other", () => {
+    const PV = loadVeil({ host: "m.facebook.com", width: 440, height: 796 });
+    PV.uiPrefs = { suggestedVeil: true };
+    const out = detect(PV, reels(reel("r1", -746, `<span ${R(110, -106, 46, 18)}>Follow</span>`) + reel("r2", 0, `<span class="f5" ${R(12, 664, 20, 16)}>‎Ad‎</span>`) +
+      reel("r3", 746, "") + reel("r4", 1492, `<span class="f5" ${R(12, 2156, 60, 16)}>Sponsored</span>`))).map((o) => o.id).sort();
+    expect(out).toEqual(["r2", "r4"]);
+  });
+  it("mobile layout, Reels: covers a reel labelled AI content when that switch is on", () => {
+    const PV = loadVeil({ host: "m.facebook.com", width: 440, height: 796 });
+    const page = reels(reel("r1", 0, `<span class="f5" ${R(12, 664, 70, 16)}>‎AI content‎</span>`) + reel("r2", 746, "") + reel("r3", 1492, ""));
+    expect(detect(PV, page)).toEqual([]);
+    PV.uiPrefs = { aiVeil: true };
+    expect(detect(PV, page).map((o) => [o.id, o.why])).toEqual([["r1", "ai-label: AI content"]]);
+  });
+  // a report on 0.9.61: one story carried the ad's tracking element and the whole story bar was covered
+  it("mobile layout: in the story bar covers the one story labelled Sponsored, never the bar", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    PV.uiPrefs = { suggestedVeil: true };
+    const story = (id, x, inner) => `<div class="m bg-s3" id="${id}" ${R(x, 2, 128, 230)}><div class="m" ${R(x, 2, 122, 216)}><div role="button" ${R(x, 2, 122, 216)}>${inner}</div></div></div>`;
+    const bar = `<div class="m displayed" id="bar" ${R(0, 0, 440, 233)}><div class="m hscroller" data-is-h-scrollable="true" ${R(0, 0, 440, 230)}>` +
+      story("mine", 0, `<span class="f6" ${R(4, 190, 80, 16)}>Create story</span>`) +
+      story("friend", 128, `<span class="f6" data-action-id="1" ${R(132, 190, 80, 16)}>A friend</span><span ${R(132, 170, 40, 16)}>Follow</span>`) +
+      story("paid", 256, `<div data-tracking-image-id="9" ${R(256, 2, 2, 2)}></div><span class="f6" ${R(260, 190, 80, 16)}>Some Brand</span>`) +
+      story("paid2", 384, `<span class="f6" ${R(388, 170, 60, 16)}>Sponsored</span>`) + `</div></div>`;
+    const out = detect(PV, mFeed(bar + mPost("org", 800, orgHead))).map((o) => [o.id, o.why]).sort();
+    expect(out.map((o) => o[0])).toEqual(["paid2"]);                         // the labelled story, not the bar, not the one with the tracking element
+    expect(out[0][1]).toMatch(/Sponsored/);                                  // the label, by this rule or the general badge rule
+  });
+  // three reports 2026-11-22: a page's posts with a bare header, Facebook's Follow button on another post of that page
+  const mName = (name, follow) => (y) => `<span class="f2 a" data-action-id="1" ${R(60, y, 90, 18)}>${name}</span>` +
+    (follow ? `<span class="f2" ${R(166, y, 46, 18)}>Follow</span>` : `<span class="f5" ${R(60, y + 22, 30, 18)}>1h</span>`);
+  it("mobile layout: covers a page's post with no button once another of its posts carried Follow, and never a followed page's", () => {
+    const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
+    PV.uiPrefs = { suggestedVeil: true };
+    const html = mFeed(mPost("a", 0, mName("Gizmodo", false)) + mPost("b", 800, mName("Gizmodo", true)) + mPost("c", 1600, mName("A friend", false)));
+    const out = detect(PV, html).map((o) => [o.id, o.why]).sort();
+    expect(out).toEqual([["a", "facebook-suggested: Follow button on another post from this page"], ["b", "facebook-suggested: Follow button in the header (mobile layout)"]]);
+    expect(PV.fbPageKey(document.getElementById("a"))).toBe("m:gizmodo");
+    PV.fbFollowed("m:gizmodo");   // the cover's own button: the person follows this page
+    expect(detect(PV, html).map((o) => o.id)).toEqual(["b"]);
   });
   it("covers a LinkedIn feed item with a Follow button at its top, and leaves a repost and a followed account", () => {
     const PV = loadVeil({ host: "www.linkedin.com" }); window.history.pushState({}, "", "/feed/");
@@ -441,6 +595,21 @@ describe("close control through the cover", () => {
     PV.paintClip(c);
     expect(c.style.clipPath).toBe("");
   });
+  it("strips held one under another are one bar (B-538, CBS News on a phone: the live strip under the nav)", () => {
+    const PV = loadCovers(loadVeil());
+    const bar = (id, y, h, more = "") => `<div id="${id}" style="position:sticky;background-color:rgb(255,255,255);${more}" ${R(0, y, innerWidth, h)}></div>`;
+    document.body.innerHTML = bar("nav", 0, 48) + bar("live", 48, 89);
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(137);
+    expect(PV.topBar.el.id).toBe("live");
+    document.body.innerHTML = bar("nav", 0, 48) + bar("live", 93, 125);   // the live strip not yet held: it is page content still
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(48);
+    const h3 = Math.round(innerHeight * 0.3);
+    document.body.innerHTML = bar("nav", 0, 48) + bar("mid", 48, h3) + bar("low", 48 + h3, h3);   // a third strip would carry the bar past half the window: it is left out
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(48 + h3);
+  });
 });
 
 // CNN's Wunderkind (bx-*) header ad holding a Celtra banner, 1897x475 on a
@@ -483,6 +652,151 @@ describe("what the video cover holds gets no display cover", () => {
     veil = null; PV.sweep(); expect(whys()).toBe(2);
     veil = { cover: vc, mode: "ad" }; PV.sweep(); expect(whys()).toBe(1);
     vc.remove();
+  });
+});
+
+// Facebook's mobile layout on an iPhone (2026-11-22): the page drew a post again and the cover in it was gone until the next pass
+describe("a cover inside its element", () => {
+  it("is put back at once when the page takes it out, and not when PRISM took it away", async () => {
+    const PV = loadVeil({ host: "www.example.com", width: 1600, height: 900 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    document.body.innerHTML = `<div class="ad-unit" id="u" ${R(300, 100, 300, 250)}><p id="k">x</p></div>`;
+    PV.videoAdBreak = () => {}; PV.vidVeil = () => null; PV.pickArt = () => "data:,"; PV.artOnto = undefined;
+    const u = document.getElementById("u");
+    // the cover takes its element's box (the harness lays nothing out)
+    const real = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () { return this.hasAttribute && this.hasAttribute("data-prism-why") || (this.parentNode === u && !this.id) ? real.call(u) : real.call(this); };
+    try {
+      PV.sweep();
+      const cover = u.querySelector("[data-prism-veil]");
+      expect(cover && cover.parentNode).toBe(u);
+      u.innerHTML = "<p>drawn again</p>";                    // the page's redraw
+      await Promise.resolve(); await new Promise((r) => setTimeout(r, 0));
+      expect(cover.parentNode).toBe(u);
+      u.setAttribute("style", "height:250px"); await Promise.resolve();   // the page writes the style over await new Promise((r) => setTimeout(r, 0));
+      expect(u.style.position).toBe("relative");
+      u.className = ""; PV.sweep();                          // no longer an ad: PRISM takes the cover away
+      await Promise.resolve(); await new Promise((r) => setTimeout(r, 0));
+      expect(u.querySelector("[data-prism-veil]")).toBe(null);
+    } finally { Element.prototype.getBoundingClientRect = real; }
+  });
+});
+
+// Facebook's mobile layout on an iPhone (2026-11-22): a video ad that began to play showed through its cover for a moment
+describe("a video under a display cover", () => {
+  it("is drawn as a speck while covered, at once when one starts to play, and back when the cover goes; opacity untouched", () => {
+    const PV = loadVeil({ host: "www.example.com", width: 1600, height: 900 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    document.body.innerHTML = `<div class="ad-unit" id="u" ${R(300, 100, 300, 250)}><video id="v" style="opacity:0.8;transform:rotate(1deg)"></video></div><video id="free"></video>`;
+    PV.videoAdBreak = () => {}; PV.vidVeil = () => null; PV.pickArt = () => "data:,"; PV.artOnto = undefined;
+    const u = document.getElementById("u"), v = document.getElementById("v"), free = document.getElementById("free");
+    Object.defineProperty(v, "offsetWidth", { value: 300 }); Object.defineProperty(v, "offsetHeight", { value: 250 });
+    const real = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () { return this.hasAttribute && this.hasAttribute("data-prism-why") ? real.call(u) : real.call(this); };
+    const speck = (x) => /^scale\(0\.\d+\)$/.test(x.style.getPropertyValue("transform")) && x.style.getPropertyPriority("transform") === "important";
+    try {
+      PV.sweep();
+      expect(v.style.getPropertyValue("transform")).toBe("scale(0.02000)");   // 6 px of 300
+      expect(v.style.getPropertyPriority("transform")).toBe("important");
+      expect(v.style.getPropertyValue("opacity")).toBe("0.8");                // never the opacity
+      const late = document.createElement("video"); u.appendChild(late);      // the page puts another in and plays it
+      late.dispatchEvent(new Event("playing"));
+      expect(speck(late)).toBe(true);
+      free.dispatchEvent(new Event("playing"));
+      expect(free.style.cssText).toBe("");                                    // not under a cover
+      // the page moves a covered video into an element with no cover (Facebook's feed has one video for every post): it is put
+      // right at the video's first event there, and its sound setting with it
+      const other = document.createElement("div"); document.body.appendChild(other);
+      expect(late.muted).toBe(true);
+      other.appendChild(late); late.dispatchEvent(new Event("emptied"));
+      expect(late.style.cssText).not.toMatch(/transform/);
+      expect(late.muted).toBe(false);
+      // and at the next pass when the page fires nothing
+      const third = document.createElement("video"); u.appendChild(third); third.dispatchEvent(new Event("loadstart"));
+      expect(speck(third)).toBe(true);                                        // a speck before it has a frame
+      other.appendChild(third); PV.sweep();
+      expect(third.style.cssText).not.toMatch(/transform/);
+      expect(speck(v)).toBe(true);                                            // the one still under the cover stays a speck
+      u.className = ""; PV.sweep();
+      expect(v.style.getPropertyValue("transform")).toBe("rotate(1deg)");
+    } finally { Element.prototype.getBoundingClientRect = real; }
+  });
+});
+
+// Facebook's mobile layout on an iPhone (2026-11-22): a video ad showed for a couple of frames, its cover back with another picture
+describe("a covered element the page swaps for a new copy", () => {
+  it("is known as lost at once, covered again in the same pass with the same picture, and the report gets the history", () => {
+    const PV = loadVeil({ host: "www.example.com", width: 1600, height: 900 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    const unit = (id) => `<div class="ad-unit" id="${id}" ${R(300, 100, 300, 250)}></div>`;
+    document.body.innerHTML = unit("one");
+    let n = 0;
+    PV.videoAdBreak = () => {}; PV.vidVeil = () => null; PV.pickArt = () => "data:,pic" + (++n); PV.artOnto = undefined;
+    const real = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () { const u = this.hasAttribute && this.hasAttribute("data-prism-veil") && this.parentNode; return u && u.getAttribute ? real.call(u) : real.call(this); };
+    try {
+      PV.sweep();
+      const first = document.querySelector("#one [data-prism-why]");
+      expect(first.__artUrl).toBe("data:,pic1");
+      expect(first.__again).toBe(false);                      // a new cover fades in (the harness runs the fade's frame at once)
+      expect(PV.coverLost()).toBe(false);
+      PV.sweep();                                             // a pass notes where the cover is
+      document.body.innerHTML = unit("two");                  // the page's new copy of the post, in the same place
+      expect(PV.coverLost()).toBe(true);
+      PV.sweep();
+      const second = document.querySelector("#two [data-prism-why]");
+      expect(second).not.toBeNull();
+      expect(second.__artUrl).toBe("data:,pic1");             // the same picture, not a new one
+      expect(second.__again).toBe(true); expect(second.style.opacity).toBe("1");   // and whole at once: nothing shows through a fade (measured on the iPhone)
+      const log = PV.coverLog().join(" | ");
+      expect(log).toMatch(/gone element-out \d+ms slot-selector|gone element-out \d+ms /);
+      expect(log).toMatch(/made inside \d+ms /);
+      // elsewhere on the page a new cover takes a new picture
+      document.body.insertAdjacentHTML("beforeend", `<div class="ad-unit" id="far" ${R(300, 900, 300, 250)}></div>`);
+      PV.sweep();
+      expect(document.querySelector("#far [data-prism-why]").__artUrl).toBe("data:,pic2");
+      expect(document.querySelector("#far [data-prism-why]").__again).toBe(false);
+    } finally { Element.prototype.getBoundingClientRect = real; }
+  });
+});
+
+// asked 2026-11-22: a symbol of its own for a suggested post, as the AI-labelled cover has
+describe("the symbol on a cover", () => {
+  it("is the half moon for an ad, the star for labelled AI content and the arrow for a suggested post", () => {
+    const PV = loadVeil({ host: "www.example.com", width: 1600, height: 900 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    const S = PV.coverSymbols;
+    expect([S.ad.codePointAt(0), S.ai.codePointAt(0), S.suggested.codePointAt(0)]).toEqual([0x25D0, 0x2726, 0x279C]);
+    expect(PV.coverSymbol("slot-selector: .ad-unit")).toBe(S.ad);
+    expect(PV.coverSymbol("facebook-sponsored: Ad label in the header (mobile layout)")).toBe(S.ad);
+    expect(PV.coverSymbol("ai-label: AI content")).toBe(S.ai);
+    expect(PV.coverSymbol("facebook-suggested: Follow button in the header")).toBe(S.suggested);
+    expect(PV.coverSymbol("linkedin-suggested: Follow button at the top of the item")).toBe(S.suggested);
+    // the settings show the same three
+    const html = require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "popup.html"), "utf8");
+    ["&#x25D0;", "&#x2726;", "&#x279C;"].forEach((e) => expect(html).toContain(`<span class="sym" aria-hidden="true">${e}</span>`));
+  });
+});
+
+// Two copies of the extension on one page (2026-11-21, Facebook's right column): each took the other's cover away as a stray.
+describe("a cover made by another copy of the extension", () => {
+  it("is left alone, while a stray of this copy's own is taken away", () => {
+    const PV = loadVeil({ host: "www.example.com", width: 1600, height: 900 });
+    window.chrome.runtime.id = "thiscopy";
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    document.body.innerHTML = `<div class="ad-unit" id="ad" ${R(100, 100, 300, 250)}></div>`;
+    PV.videoAdBreak = () => {}; PV.vidVeil = () => null; PV.pickArt = () => "data:,"; PV.artOnto = undefined;
+    const other = document.createElement("div"); other.setAttribute("data-prism-why", "badge-label: Sponsored"); other.setAttribute("data-prism-own", "othercopy");
+    document.getElementById("ad").appendChild(other);
+    const mine = document.createElement("div"); mine.setAttribute("data-prism-why", "badge-label: Sponsored"); mine.setAttribute("data-prism-own", "thiscopy");
+    document.body.appendChild(mine);
+    PV.sweep();
+    expect(other.isConnected).toBe(true);
+    expect(mine.isConnected).toBe(false);
+    expect(document.querySelectorAll('[data-prism-own="thiscopy"]').length).toBe(1);
+    PV.sweep();
+    expect(other.isConnected).toBe(true);
+    delete window.chrome.runtime.id;
   });
 });
 
@@ -769,6 +1083,7 @@ describe("the look under a display cover", () => {
     expect(PV.coverWhy("facebook-suggested: Follow button on another post from this page", false).source).toContain("another post");
     expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labeled AI content");
     expect(PV.coverWhy("slot-selector: .ad-slot", false).source).toBe("An ad slot in the page");
+    expect(PV.coverWhy("taboola-item: Taboola's paid label on the item", false).source).toMatch(/Taboola/);
   });
   it("keeps the panel on the screen and the view inside the element, in a frame of one size, or says there is no such place", () => {
     const PV = load();
@@ -841,6 +1156,90 @@ describe("the look under a display cover", () => {
     expect(document.getElementById("ad").style.getPropertyValue("transform")).toBe("");
     expect(c.__lookOn).toBeFalsy();
     PV.lookClose();
+  });
+  // iOS Safari (a report 2026-11-22): after the panel closed by itself, the symbol kept the made-up hover and the next tap opened
+  // nothing. A finger's tap on the symbol now opens the panel on its own; closing is the clear layer's (0.9.49, the Mac session):
+  // a tap off the panel lands on it and closes the panel on the click, so the click never reaches the page.
+  it("opens on a tap, also when the symbol still counts as hovered, and closes by the clear layer", () => {
+    const PV = load();
+    document.body.innerHTML = `<div id="unit" ${R(0, 0, 680, 400)}><a id="ad" href="#" ${R(0, 0, 680, 400)}>x</a></div>`;
+    const unit = document.getElementById("unit");
+    const c = document.createElement("div"); unit.appendChild(c);
+    PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+    const sym = c.lastElementChild;
+    const touch = (type, el) => {
+      const ev = new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch" });
+      if (ev.pointerType !== "touch") Object.defineProperty(ev, "pointerType", { value: "touch" });
+      el.dispatchEvent(ev);
+    };
+    const tap = (el) => { touch("pointerdown", el); touch("pointerup", el); el.dispatchEvent(new MouseEvent("mouseenter")); };
+    const panel = () => document.querySelector("[data-prism-look]");
+    const realNow = Date.now; let now = realNow();
+    Date.now = () => now;
+    try {
+      tap(sym); expect(panel()).not.toBeNull();
+      const scrim = panel().previousElementSibling;
+      expect(scrim && scrim.getAttribute("data-prism-ui")).toBe("1");
+      scrim.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      expect(panel()).not.toBeNull();                    // the opening tap's own click: the panel stays
+      now += 500;
+      scrim.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      expect(panel()).toBeNull();                        // a later tap off the panel closes it
+      expect(scrim.isConnected).toBe(false);
+      now += 2000;
+      tap(sym); expect(panel()).not.toBeNull();
+      PV.lookClose(); expect(panel()).toBeNull();        // closed another way (a scroll, the twenty seconds)
+      now += 2000;
+      sym.dispatchEvent(new MouseEvent("mouseenter")); PV.lookClose();
+      touch("pointerdown", sym); touch("pointerup", sym); // still "hovered": no mouseenter comes with this tap
+      expect(panel()).not.toBeNull();                    // it opens all the same
+      PV.lookClose();
+    } finally { Date.now = realNow; }
+  });
+  it("is larger under a finger, and a tap just beside the symbol opens the panel", () => {
+    const realMM = window.matchMedia;
+    window.matchMedia = (q) => ({ matches: /pointer:\s*coarse/.test(q), media: q, addEventListener() {}, removeEventListener() {} });
+    try {
+      const PV = load();
+      document.body.innerHTML = `<div id="unit" ${R(0, 0, 390, 400)}><a id="ad" href="#" ${R(0, 0, 390, 400)}>x</a></div>`;
+      const unit = document.getElementById("unit");
+      const c = document.createElement("div"); unit.appendChild(c);
+      PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+      const sym = c.lastElementChild;
+      expect(sym.style.cssText).toContain("padding: 0.5em 0.65em");
+      sym.getBoundingClientRect = () => ({ left: 6, top: 6, right: 56, bottom: 50, width: 50, height: 44 });
+      const touchAt = (type, x, y) => {
+        const ev = new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch", clientX: x, clientY: y });
+        if (ev.pointerType !== "touch") Object.defineProperty(ev, "pointerType", { value: "touch" });
+        c.dispatchEvent(ev);
+      };
+      const panel = () => document.querySelector("[data-prism-look]");
+      touchAt("pointerdown", 120, 200); touchAt("pointerup", 120, 200);
+      expect(panel()).toBeNull();                        // a tap elsewhere on the cover opens nothing
+      touchAt("pointerdown", 64, 58); touchAt("pointerup", 64, 58);
+      expect(panel()).not.toBeNull();                    // 8 px off the symbol's corner: taken as a tap on it
+      PV.lookClose();
+    } finally { window.matchMedia = realMM; }
+  });
+  it("is not cut at the top edge of the viewport when the page has no bar", () => {
+    const PV = load();
+    document.body.innerHTML = `<div id="unit" ${R(0, -120, 390, 400)}>x</div>`;
+    const unit = document.getElementById("unit");
+    const c = document.createElement("div"); unit.appendChild(c);
+    PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+    c.getBoundingClientRect = () => ({ left: 0, top: -120, right: 390, bottom: 280, width: 390, height: 400 });
+    PV.veils.set(unit, c);
+    try {
+      PV.__clipOverlays();
+      expect(c.__under).toBe(0);                         // iOS Safari draws the page above the edge, under the status bar
+      expect(c.style.clipPath || "").toBe("");
+    } finally { PV.veils.delete(unit); }
+  });
+  it("keeps the small symbol for a mouse", () => {
+    const PV = load();
+    const c = document.createElement("div"); document.body.appendChild(c);
+    PV.__styleCover(c, "", null);
+    expect(c.lastElementChild.style.cssText).toContain("padding: 0.3em 0.45em");   // happy-dom keeps no font shorthand: the padding tells the two apart
   });
   it("gives a line of text and scales nothing for an element with a shadow tree of its own", () => {
     const PV = load();
@@ -957,5 +1356,203 @@ describe("a slot whose ad is in the site's own frame", () => {
   it("is covered when the frame holds only words", () => {
     const PV = loadVeil({ host: "music.example" });
     expect(mount(PV, OWN, `<div id="adContainer" ${R(0, 0, 300, 250)}>Advertisement: try the new plan</div>`)).toEqual(["slot"]);
+  });
+});
+
+// Fox News on an iPhone (three reports 2026-11-22): GumGum's in-screen banner at the foot of the page, and a frame over the whole
+// screen whose document a script wrote (no address), both bare. Twitch's pushdown banner (a report 2026-11-21) beside them.
+describe("ads drawn in frames with no address", () => {
+  const PHONE = { host: "www.foxnews.com", width: 440, height: 796 };
+  const mountFrame = (PV, html, frameId, inner) => {
+    document.body.innerHTML = html;
+    const d = document.implementation.createHTMLDocument("frame");
+    d.body.innerHTML = inner;
+    Object.defineProperty(document.getElementById(frameId), "contentDocument", { value: d, configurable: true });
+    const { targets, why } = PV.collectTargets();
+    return Array.from(targets).map((t) => ({ id: t.id || t.className, why: why.get(t) }));
+  };
+  const OVERLAY = `<div id="layer" class="notranslate" style="position:fixed" ${R(0, 0, 440, 796)}><iframe id="f" ${R(0, 0, 440, 796)}></iframe></div>`;
+  it("GumGum's creative frame is covered by its own attribute", () => {
+    const PV = loadVeil(PHONE);
+    const out = detect(PV, `<div id="k1" ${R(0, 0, 0, 0)}><div id="ad_is_1" ${R(0, 676, 440, 120)}><iframe id="ad_is_1_ifr" data-gg-moat-ifr="" ${R(0, 676, 440, 120)}></iframe></div></div>`);
+    expect(out).toEqual([{ tag: "iframe", id: "ad_is_1_ifr", why: "slot-selector: iframe[data-gg-moat-ifr]" }]);
+  });
+  it("a full-screen fixed layer whose written frame holds an ad server's picture is covered whole", () => {
+    const PV = loadVeil(PHONE);
+    expect(mountFrame(PV, OVERLAY, "f", `<a href="https://adclick.g.doubleclick.net/x"><img src="https://tpc.googlesyndication.com/a.jpg" ${R(0, 0, 440, 700)}></a>`))
+      .toEqual([{ id: "layer", why: "written-ad-frame: img from tpc.googlesyndication.com" }]);
+  });
+  it("an AdChoices link in the frame is enough", () => {
+    const PV = loadVeil(PHONE);
+    expect(mountFrame(PV, OVERLAY, "f", `<div ${R(0, 0, 440, 700)}>Big offer</div><a href="https://youradchoices.com/"><img ${R(420, 0, 15, 15)}></a>`))
+      .toEqual([{ id: "layer", why: "written-ad-frame: AdChoices link" }]);
+  });
+  it("a tracking pixel alone, or a frame of the page's own, is no ad", () => {
+    const PV = loadVeil(PHONE);
+    expect(mountFrame(PV, OVERLAY, "f", `<img src="https://ad.doubleclick.net/p.gif" ${R(0, 0, 1, 1)}><div ${R(0, 0, 440, 700)}>Sign up for our newsletter</div>`)).toEqual([]);
+    expect(mountFrame(PV, OVERLAY, "f", `<img src="https://static.foxnews.com/a.jpg" ${R(0, 0, 440, 700)}>`)).toEqual([]);
+  });
+  it("a screen-sized written frame that is not in a fixed layer is left alone", () => {
+    const PV = loadVeil(PHONE);
+    expect(mountFrame(PV, `<div id="layer" ${R(0, 0, 440, 796)}><iframe id="f" ${R(0, 0, 440, 796)}></iframe></div>`, "f",
+      `<img src="https://tpc.googlesyndication.com/a.jpg" ${R(0, 0, 440, 700)}>`)).toEqual([]);
+  });
+  it("a written frame inside an ad slot is left to the slot pass", () => {
+    const PV = loadVeil(PHONE);
+    const out = mountFrame(PV, `<div id="slot" data-google-query-id="q" ${R(0, 100, 300, 250)}><iframe id="f" ${R(0, 100, 300, 250)}></iframe></div>`, "f",
+      `<img src="https://tpc.googlesyndication.com/a.jpg" ${R(0, 0, 300, 250)}>`);
+    expect(out).toEqual([{ id: "slot", why: "slot-selector: [data-google-query-id]" }]);
+  });
+  it("Twitch: the visible pushdown banner is covered, the hidden one is not", () => {
+    const PV = loadVeil({ host: "www.twitch.tv" });
+    const out = detect(PV, `<section ${R(0, 0, 1523, 196)}><iframe id="hid" class="stream-display-ad__iframe_pushdown" ${R(0, 0, 728, 90)}></iframe><iframe id="vis" class="stream-display-ad__iframe_pushdown stream-display-ad__iframe_pushdown--visible" src="https://d3qpnbd0lnus53.cloudfront.net/x" ${R(0, 0, 728, 90)}></iframe></section>`);
+    expect(out).toEqual([{ tag: "iframe", id: "vis", why: "twitch-pushdown" }]);
+  });
+});
+
+// In-page pops (src/inpage-pops.js, spec section 30, 2026-11-22): a unit held clear is not covered (its cover goes), a unit held by a
+// cover (over a page that stopped scrolling) is covered whole, and the display rules' signal is what names an ad in a unit.
+describe("in-page pops and the covers", () => {
+  it("covers nothing inside a unit held clear", () => {
+    const PV = loadVeil();
+    expect(detect(PV, `<div data-prism-held="clear" ${R(0, 0, 390, 800)}><ins class="adsbygoogle" id="s1" ${R(0, 0, 300, 250)}></ins></div>`)).toEqual([]);
+  });
+  it("covers a unit held by a cover whole, with its reason", () => {
+    const PV = loadVeil();
+    document.body.innerHTML = `<div id="u" data-prism-held="cover" ${R(0, 0, 390, 800)}><a href="https://ads.example/x" ${R(0, 0, 390, 800)}>x</a></div>`;
+    const u = document.getElementById("u");
+    PV.inpageCovers = new Map([[u, { reason: "at the top of the stack" }]]);
+    const { targets, why } = PV.collectTargets();
+    expect(Array.from(targets).map((t) => [t.id, why.get(t)])).toEqual([["u", "in-page pop: at the top of the stack"]]);
+    expect(u.__prismForceOverlay).toBe(true);
+  });
+  it("names an ad server's element, an AdChoices link or a slot selector in a unit, and nothing in a plain box", () => {
+    const PV = loadVeil();
+    document.body.innerHTML = `
+      <div id="a" ${R(0, 0, 300, 300)}><img src="https://tpc.googlesyndication.com/x.jpg" ${R(0, 0, 300, 250)}></div>
+      <div id="b" ${R(0, 0, 300, 300)}><a href="https://youradchoices.com/"><img ${R(0, 0, 15, 15)}></a></div>
+      <div id="c" ${R(0, 0, 300, 300)}><ins class="adsbygoogle" ${R(0, 0, 300, 250)}></ins></div>
+      <div id="d" ${R(0, 0, 300, 300)}><a href="https://userway.org/"><img src="https://cdn.userway.org/i.png" ${R(0, 0, 50, 50)}></a></div>`;
+    const sig = (id) => PV.adSignalIn(document.getElementById(id));
+    expect(sig("a")).toBe("img from tpc.googlesyndication.com");
+    expect(sig("b")).toBe("AdChoices link");
+    expect(sig("c")).toBe("slot ins.adsbygoogle");
+    expect(sig("d")).toBe("");
+  });
+});
+
+// 2026-11-22, Fox News on an iPhone: the page changed a large ad for a small one in a covered slot and the page under it jumped.
+describe("a covered slot that gets smaller", () => {
+  it("is held at the tallest it has been while covered, and put back as it was when the cover goes", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 800 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    const el = document.createElement("div"); el.style.minHeight = "50px"; document.body.appendChild(el);
+    const H = PV.__slotHeight, r = (h) => ({ height: h });
+    H.hold(el, r(250)); H.hold(el, r(600));
+    expect(el.style.minHeight).toBe("50px");                     // growing is the page's own; nothing is set
+    H.hold(el, r(250));
+    expect(el.style.getPropertyValue("min-height")).toBe("600px");
+    H.free(el);
+    expect(el.style.minHeight).toBe("50px");
+    H.hold(el, r(600)); H.hold(el, r(0));                        // closed to nothing: the ad is gone, the slot is let go
+    expect(el.style.minHeight).toBe("50px");
+    H.free(el); H.hold(el, r(1200)); H.hold(el, r(300));         // taller than the screen: never held
+    expect(el.style.minHeight).toBe("50px");
+  });
+});
+
+// 2026-11-22, a report from Fox News on an iPhone (0.9.66): the sponsored stories' left edge showed beside their cover. The
+// section is 408 px wide and the unit inside it 441.
+describe("a cover whose element holds wider content", () => {
+  it("reaches the content's edges, never past the screen's, and stays its element's size where nothing sticks out", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 800 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    PV.pickArt = () => ""; PV.videoAdBreak = () => {}; PV.vidVeil = () => null;
+    document.body.innerHTML = `<div class="ad-unit" id="wide" data-rect="16,100,408,300"><div data-rect="4,110,441,115"></div></div>` +
+      `<div class="ad-unit" id="snug" data-rect="16,500,408,250"><div data-rect="16,500,408,250"></div></div>`;
+    const real = Element.prototype.getBoundingClientRect;   // the test DOM lays nothing out: a cover takes its element's box
+    Element.prototype.getBoundingClientRect = function () { const u = this.hasAttribute && this.hasAttribute("data-prism-veil") && this.parentNode; return u && u.getAttribute ? real.call(u) : real.call(this); };
+    try {
+      PV.sweep();
+      const c = (id) => document.querySelector("#" + id + " > [data-prism-why]");
+      expect([c("wide").style.left, c("wide").style.right]).toEqual(["-12px", "-16px"]);   // 441 wide from 4 ends at 445: cut at the screen's 440
+      expect([c("snug").style.left, c("snug").style.right]).toEqual(["0px", "0px"]);
+    } finally { Element.prototype.getBoundingClientRect = real; }
+  });
+});
+
+// 2026-11-22, an iPhone: the source reliability card stayed on the screen with no way to take it away. A touch brings the card
+// as a pointer resting would, and nothing follows to take it off.
+describe("a card shown by the pointer resting on something", () => {
+  const withMarks = (hover) => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 800 });
+    window.matchMedia = (q) => ({ matches: /hover: none/.test(q) ? !hover : false, addEventListener() {}, addListener() {} });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "marks.js"), "utf8"));
+    return PV;
+  };
+  const cards = () => Array.from(document.documentElement.querySelectorAll("[data-prism-ui]")).filter((e) => /Source reliability/.test(e.textContent)).length;
+  const ms = [{ src: { short: "Iffy Index" }, loaded: true, tier: "", label: "" }];
+  // 2026-11-22, an iPhone: the tap that cleared a card also opened a link of the page under it
+  it("on a touch screen has a clear layer under it that takes the one press, so nothing of the page is pressed", async () => {
+    const PV = withMarks(false);
+    const a = document.createElement("div"); document.body.appendChild(a);
+    const tips = () => Array.from(document.documentElement.querySelectorAll("[data-prism-ui]")).filter((e) => e.textContent === "A line of help").length;
+    const layer = () => Array.from(document.documentElement.querySelectorAll("[data-prism-ui]")).find((e) => e.style.zIndex === "2147483646" && !e.textContent);
+    PV.showTextTip(a, "A line of help");
+    expect(tips()).toBe(1);
+    expect(layer()).toBeTruthy();
+    const first = new Event("click", { bubbles: true, cancelable: true }); layer().dispatchEvent(first);
+    expect(first.defaultPrevented).toBe(true);
+    expect(tips()).toBe(1);                                   // the click of the press that brought the card
+    await new Promise((r) => setTimeout(r, 400));
+    window.dispatchEvent(new Event("touchstart"));           // the press itself takes nothing away: the layer's click does
+    expect(tips()).toBe(1);
+    const tap = new Event("click", { bubbles: true, cancelable: true }); layer().dispatchEvent(tap);
+    expect(tap.defaultPrevented).toBe(true);
+    expect(tips()).toBe(0);
+    expect(layer()).toBeFalsy();
+    PV.showTextTip(a, "A line of help");
+    window.dispatchEvent(new Event("scroll"));
+    expect(tips()).toBe(0);
+    expect(layer()).toBeFalsy();
+  });
+  it("is not shown on a touch screen, and elsewhere goes at the next press", () => {
+    let PV = withMarks(false);
+    const a = document.createElement("div"); document.body.appendChild(a);
+    PV.showCredTip(a, ms, "");
+    expect(cards()).toBe(0);
+    PV = withMarks(true);
+    PV.showCredTip(a, ms, "");
+    expect(cards()).toBe(1);
+    window.dispatchEvent(new Event("pointerdown"));
+    expect(cards()).toBe(0);
+  });
+});
+
+// 2026-11-22, a report from Facebook's Reels on an iPhone (0.9.66): the cover's symbol sat behind the page's fixed header and
+// under a clear layer over the player, and a tap on it did nothing.
+describe("a cover's symbol under something of the page's", () => {
+  it("is moved clear of a fixed bar and given a box of PRISM's own on top that opens the panel; none when the symbol is free", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 800 });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    PV.pickArt = () => ""; PV.videoAdBreak = () => {}; PV.vidVeil = () => null;
+    document.body.innerHTML = `<div id="bar" style="position:fixed" data-rect="0,0,428,60"><h2 id="h">Reels</h2></div><div class="ad-unit" id="u" data-rect="0,0,300,250"></div>`;
+    const real = Element.prototype.getBoundingClientRect, realHit = document.elementFromPoint;
+    Element.prototype.getBoundingClientRect = function () {
+      if (this.parentNode && this.parentNode.hasAttribute && this.parentNode.hasAttribute("data-prism-veil") && this === this.parentNode.firstElementChild) { const y = parseInt(this.style.top, 10) || 6; return { left: 6, top: y, width: 28, height: 28, right: 34, bottom: y + 28 }; }
+      const u = this.hasAttribute && this.hasAttribute("data-prism-veil") && this.parentNode; return u && u.getAttribute ? real.call(u) : real.call(this);
+    };
+    let over = "h";
+    document.elementFromPoint = (x, y) => (over === "h" && y < 60 ? document.getElementById("h") : over ? document.getElementById("u").querySelector("[data-prism-why]") : null);
+    try {
+      PV.sweep();
+      const cover = document.querySelector("#u [data-prism-why]"), lbl = cover.firstElementChild, box = PV.__raised();
+      expect(lbl.style.top).toBe("66px");                       // below the bar's 60
+      expect(box && box.cover).toBe(cover);
+      expect([box.el.style.left, box.el.style.top, box.el.style.display]).toEqual(["0px", "58px", "block"]);   // 44 px, centred on the symbol
+      over = "free";
+      PV.sweep();
+      expect(PV.__raised()).toBe(null);
+    } finally { Element.prototype.getBoundingClientRect = real; document.elementFromPoint = realHit; }
   });
 });

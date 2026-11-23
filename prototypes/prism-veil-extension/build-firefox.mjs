@@ -1,7 +1,7 @@
 /*
   Build the shippable packages of the PRISM Veil extension from the ONE source
   in this folder. Run: `node build-firefox.mjs` -> ./dist/<browser>/ and
-  ./dist/prism-veil-<browser>-<version>.zip for `firefox` and `chromium`
+  ./dist/prism-extension-<browser>-<version>.zip for `firefox` and `chromium`
   (both are store builds since 2026-11-14: this folder with the start page cut
   out, see STORE below; chromium also takes the store's name and description;
   the folder itself loaded unpacked is the development build).
@@ -101,7 +101,7 @@ function deriveManifest(v) {
     // page that sleeps (scripts, not persistent), so the soundscape can play from it as it does in Firefox, and it loads the rule
     // updates' reader itself.
     const swFile = (m.background && m.background.service_worker) || "bg.js";
-    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", swFile], persistent: false };
+    m.background = { scripts: ["src/rules-pack.js", "src/ambient.js", swFile], persistent: false };   // `persistent: false` stays: without it the packager reads the page as persistent, which iOS refuses (2026-11-21); on macOS it only warns the key unsupported
     m.permissions = (m.permissions || []).filter((p) => p !== "tabCapture" && p !== "offscreen");
   }
   // Both packages are store builds (Chrome Web Store and Edge Add-ons from the Chromium one, addons.mozilla.org from the Firefox
@@ -118,6 +118,10 @@ function deriveManifest(v) {
   }
   out.description = STORE.description;
   if (out.description.length > 132) throw new Error("the store description is " + out.description.length + " characters (132 at most)");
+  // App Store Connect refuses a Safari web extension whose description is over 112 characters (2026-11-21, the first upload
+  // through Xcode): the Safari build has a shorter one.
+  if (v.browser === "safari") out.description = STORE.safariDescription;
+  if (out.description.length > 112 && v.browser === "safari") throw new Error("the Safari description is " + out.description.length + " characters (112 at most)");
   return out;
 }
 
@@ -130,6 +134,7 @@ const STORE = {
   name: "PRISM by Entangled",
   shortName: "PRISM",
   description: "Ads become art. PRISM covers the ads on a page with pictures you chose and closes popups you did not ask for. Ads still load.",
+  safariDescription: "Ads become art. PRISM covers ads with pictures you chose and closes popups you did not ask for. Ads still load.",
   drop: ["ntp.html", "ntp.css", "ntp.js"],
   strip: ["bg.js", "popup.js", "popup.html"],
   reword: [   // [file, find, replace, how many times it must be there]
@@ -181,7 +186,7 @@ function storeBuild(out) {
 if (existsSync(DIST)) {
   // only what this run builds again: `node build-firefox.mjs firefox` leaves the Chromium folder and zip as they are (2026-11-14,
   // a package already uploaded to a store must stay byte for byte while the other one is built again)
-  const mine = (f) => wanted.some((v) => f === v.name || f === "prism-veil-" + v.name + "-" + base.version + ".zip");   // never another version's zip
+  const mine = (f) => wanted.some((v) => f === v.name || f === "prism-extension-" + v.name + "-" + base.version + ".zip");   // never another version's zip
   // a built folder is never removed: a browser that runs it unpacked drops the extension when its folder or manifest is gone for a
   // moment (2026-11-18, Edge lost the unpacked build during a rebuild). The folder is brought up to date in place, below.
   for (const f of readdirSync(DIST)) { if (!/\.xpi$/i.test(f) && mine(f) && /\.zip$/i.test(f)) rmSync(join(DIST, f), { recursive: true, force: true }); }
@@ -219,7 +224,9 @@ for (const v of wanted) {
   writeFileSync(join(out, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   let zipped = "";
   if (zip && process.platform === "win32") {
-    const zipPath = join(DIST, `prism-veil-${v.name}-${manifest.version}.zip`);
+    // named prism-extension-* since 2026-11-21 (prism-veil-* before; the product is the PRISM extension). The Firefox add-on id
+    // GECKO_ID keeps its old spelling: it is the add-on's identity at Mozilla and never changes.
+    const zipPath = join(DIST, `prism-extension-${v.name}-${manifest.version}.zip`);
     const r = spawnSync("powershell", ["-NoProfile", "-Command",
       `Compress-Archive -Path '${join(out, "*")}' -DestinationPath '${zipPath}' -Force`], { stdio: "inherit" });
     zipped = r.status === 0 ? ` + ${zipPath}` : " (zip failed)";

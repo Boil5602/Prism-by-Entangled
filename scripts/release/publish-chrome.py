@@ -3,7 +3,7 @@
 
     python scripts/release/publish-chrome.py [--zip <package.zip>] [--dry-run] [--status] [--upload-only] [--daytime]
 
-- The package is prototypes/prism-veil-extension/dist/prism-veil-chromium-<version>.zip for the version in the source's manifest
+- The package is prototypes/prism-veil-extension/dist/prism-extension-chromium-<version>.zip for the version in the source's manifest
   (node build-firefox.mjs chromium makes it), or the one --zip names.
 - The owner's access is in ~/.prism/chrome-webstore.json, outside the repository:
     { "client_id": "...", "client_secret": "...", "refresh_token": "...", "publisher_id": "..." }
@@ -49,7 +49,7 @@ def call(method, url, token, body=None, ctype=None):
 
 # ---- the package
 with io.open(os.path.join(EXT, "manifest.json"), encoding="utf-8") as f: src_version = json.load(f)["version"]
-path = a.zip or os.path.join(EXT, "dist", "prism-veil-chromium-%s.zip" % src_version)
+path = a.zip or os.path.join(EXT, "dist", "prism-extension-chromium-%s.zip" % src_version)
 version = None
 if not a.status:
     if not os.path.exists(path): sys.exit("no package at %s (node build-firefox.mjs chromium makes it)" % path)

@@ -3,7 +3,7 @@
 
     python scripts/release/publish-firefox.py --notes "<what is new>" [--zip <package.zip>] [--dry-run] [--status] [--daytime]
 
-- The package is prototypes/prism-veil-extension/dist/prism-veil-firefox-<version>.zip for the version in the source's manifest
+- The package is prototypes/prism-veil-extension/dist/prism-extension-firefox-<version>.zip for the version in the source's manifest
   (node build-firefox.mjs firefox makes it), or the one --zip names.
 - The owner's access is in ~/.prism/amo.env, outside the repository: AMO_JWT_ISSUER and AMO_JWT_SECRET, made on
   https://addons.mozilla.org/developers/addon/api/key/ while signed in to the account that owns the add-on. The script signs a
@@ -44,7 +44,7 @@ def ver(s): return tuple(int(x) for x in s.split("."))
 
 # ---- the package
 with io.open(os.path.join(EXT, "manifest.json"), encoding="utf-8") as f: src_version = json.load(f)["version"]
-path = a.zip or os.path.join(EXT, "dist", "prism-veil-firefox-%s.zip" % src_version)
+path = a.zip or os.path.join(EXT, "dist", "prism-extension-firefox-%s.zip" % src_version)
 version = None
 if not a.status:
     if not (a.notes or "").strip(): sys.exit("--notes: say what is new in this version (the listing shows it)")

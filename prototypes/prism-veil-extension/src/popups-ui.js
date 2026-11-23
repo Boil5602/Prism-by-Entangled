@@ -38,6 +38,7 @@
     set: function (k, v) { cache[k] = v; try { var o = {}; o["pv:" + k] = v; chrome.storage.local.set(o); } catch (e) {} },
   };
   var policy = new core.PopupPolicy(store);
+  PV.popupPolicy = policy;   // the in-page pops (src/inpage-pops.js) are judged and counted by the same policy
   var morph = new core.MorphCoalescer({ hold: 5000 });
 
   function pushSnapshot() {
@@ -127,7 +128,7 @@
   }
 
   // ---- the pill -------------------------------------------------------------
-  var host, root, pill, label, mk, panel, panelOpen = false, prefs = {};
+  var host, root, pill, label, mk, panel, scrim = null, panelOpen = false, prefs = {};
   // Source reliability of THIS site (spec section 5) on the pill: the
   // three-disk cylinder (one disk per source) + a border tinted by the worst
   // disk. Purely informative; the panel carries the words and Why? buttons.
@@ -174,7 +175,8 @@ h3+.srcrow{border-top:0}\
 .pill.marked .mk{display:inline-block}\
 .pill.marked{opacity:.8}\
 .pill.collapsed .mk{display:none}\
-.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
+@media (pointer:coarse){.pill{height:44px;padding:0 16px;border-radius:22px;font-size:15px;opacity:.9;background:rgba(20,23,28,.82);border-color:rgba(255,255,255,.3);box-shadow:0 2px 8px rgba(0,0,0,.45)}.pill.off{opacity:.8}.pill .x{width:46px;margin:0 -16px 0 -6px;border-radius:0 22px 22px 0}.pill.collapsed{width:44px;height:44px;border-radius:50%;opacity:.9}.panel{bottom:66px}}\
+.scrim{position:fixed;inset:0;z-index:2147483646;background:transparent}.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
 background:#14171C;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px rgba(0,0,0,.5);font:13px/1.45 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif}\
 .panel h2{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:18px;line-height:1.2;font-weight:600}\
 .panel h2 span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
@@ -391,6 +393,13 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (!panel) {
       panel = document.createElement("div"); panel.className = "panel"; panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", "Popup control center");
       panel.addEventListener("click", function (e) { e.stopPropagation(); });
+      // A press off the open panel closes it and goes no further (2026-11-22, on an iPhone: the tap that closed the panel also
+      // opened the link under it; the cover's panel had the same fault, B-498). A clear layer under the panel, over the whole
+      // page and its frames, takes that press; the guard (popups-guard.js) takes it too where a page has put a layer of its own
+      // on top. A drag still scrolls the page.
+      scrim = document.createElement("div"); scrim.className = "scrim";
+      scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); closePanel(); });
+      root.appendChild(scrim);
       root.appendChild(panel);
     }
     panelOpen = true; pill.classList.add("on"); renderPanel(); dodge();
@@ -398,9 +407,11 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   function closePanel() {
     if (!panelOpen) return;
-    panelOpen = false; if (pill) pill.classList.remove("on"); if (panel) panel.remove(); panel = null;
+    panelOpen = false; if (pill) pill.classList.remove("on"); if (panel) panel.remove(); panel = null; if (scrim) scrim.remove(); scrim = null;
     removeEventListener("click", tapAway, true); removeEventListener("keydown", escClose, true);
   }
+  PV.panelIsOpen = function () { return panelOpen; };
+  PV.panelClose = closePanel;
   function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; closePanel(); }
   function escClose(e) { if (e.key === "Escape") closePanel(); }
 

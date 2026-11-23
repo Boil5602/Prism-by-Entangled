@@ -34,3 +34,7 @@ scripts/doctor/out/
 # the bundled break watch pack is generated at publish time (scripts/release/publish-pack.py --bundle), never committed
 targets/win-host/PrismHost/Assets/breakwatch/pack/
 scripts/release/out/
+
+# App Store Connect API keys (Safari app upload, 2026-11-21): never in the tree
+*.p8
+AuthKey_*

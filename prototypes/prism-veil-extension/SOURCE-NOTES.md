@@ -56,12 +56,12 @@ node build-firefox.mjs firefox --no-zip
 ```
 
 The result is the folder `prototypes/prism-veil-extension/dist/firefox`. Its contents are the contents of the submitted
-package. On Windows, leave out `--no-zip` and the build also writes `dist/prism-veil-firefox-<version>.zip`. On Linux or
+package. On Windows, leave out `--no-zip` and the build also writes `dist/prism-extension-firefox-<version>.zip`. On Linux or
 macOS, make the zip by hand:
 
 ```
 cd dist/firefox
-zip -r -X ../prism-veil-firefox.zip .
+zip -r -X ../prism-extension-firefox.zip .
 ```
 
 `npm run build:veil` is optional, because its three output files are checked in. `build-firefox.mjs` copies the files,

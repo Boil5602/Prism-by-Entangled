@@ -30,7 +30,8 @@ var PrismPopups = (() => {
     aggregateLedger: () => aggregateLedger,
     allowSentence: () => allowSentence,
     allowedSentence: () => allowedSentence,
-    popupHost: () => popupHost
+    popupHost: () => popupHost,
+    pressNames: () => pressNames
   });
   function aggregateLedger(bySite) {
     var _a;
@@ -92,6 +93,23 @@ var PrismPopups = (() => {
     if (!site || !dest) return false;
     const a = registrableDomain(site.toLowerCase()), b = registrableDomain(dest.toLowerCase());
     return !!a && a === b;
+  }
+  function pressNames(g, dest) {
+    var _a;
+    if (!dest) return false;
+    const rd = registrableDomain(dest.toLowerCase());
+    if (!rd || rd.indexOf(".") < 0) return false;
+    if (g.url) {
+      if (sameSite(popupHost(g.url), dest)) return true;
+      try {
+        for (const v of new URL(g.url).searchParams.values()) {
+          if (/^https?:\/\//i.test(v) && sameSite(popupHost(v), dest)) return true;
+        }
+      } catch (e) {
+      }
+    }
+    const esc = rd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^a-z0-9-])" + esc + "(?![a-z0-9-]|\\.[a-z0-9])").test(((_a = g.names) != null ? _a : "").toLowerCase());
   }
   function allowSentence(site, dest) {
     return `Always open ${dest} popups from ${site}`;
@@ -182,6 +200,7 @@ var PrismPopups = (() => {
       }
       const list = this.listMatch(dest);
       if (list) return { action: "intercept", reason: `list: ${list}`, list };
+      if (a.gesture && pressNames(a.gesture, dest)) return { action: "allow", reason: "the link you pressed names this site" };
       if (sameSite(a.site, dest)) return { action: "allow", reason: "same site as this page" };
       if (this.state.global === "allow" && a.gesture) return { action: "allow", reason: "your default: allow" };
       return { action: "intercept", reason: a.gesture ? "unknown destination" : "opened without a click" };
