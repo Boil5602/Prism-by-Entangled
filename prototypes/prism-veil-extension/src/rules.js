@@ -422,48 +422,11 @@
     } catch (e) { return ""; }
   }
   PV.fbPageKey = fbPageKey;
-  // The pages Facebook itself said the person does not follow (2026-11-16, from a report and a walk of the feed: four posts of
-  // one page in one feed, the Follow button on one of them and the other three with headers the same to the last attribute).
-  // A Follow or Join button on one post of a page is Facebook's own word that the person does not follow that page; it is kept
-  // by the page's key for FB_SEEN_MS, in this browser only, and a post of that page with no button is a suggested post too.
-  // The time is short on purpose: a person who follows the page afterwards gets its posts back when the entry runs out, and
-  // Facebook shows the button again often enough to keep an entry fresh while it is true.
-  var FB_SEEN_MS = 3 * 24 * 3600 * 1000, FB_SEEN_MAX = 300, FB_SEEN_KEY = "pv:fb:follow-seen";
-  PV.fbSeen = PV.fbSeen || {};
-  try { chrome.storage.local.get(FB_SEEN_KEY, function (r) { try { var m = r && r[FB_SEEN_KEY]; if (m && typeof m === "object") for (var k in m) if (typeof m[k] === "number" && !(PV.fbSeen[k] > m[k])) PV.fbSeen[k] = m[k]; } catch (e) {} }); } catch (e0) {}
-  var fbSeenT = 0;
-  function fbSeenNote(key, now) {
-    if (!key) return;
-    var had = PV.fbSeen[key];
-    PV.fbSeen[key] = now;
-    if (had && now - had < 3600 * 1000) return;   // written at most once an hour for a page
-    clearTimeout(fbSeenT);
-    fbSeenT = setTimeout(function () {
-      try {
-        var keys = Object.keys(PV.fbSeen).filter(function (k2) { return now - PV.fbSeen[k2] < FB_SEEN_MS; }).sort(function (x, y) { return PV.fbSeen[y] - PV.fbSeen[x]; }).slice(0, FB_SEEN_MAX), out = {};
-        keys.forEach(function (k2) { out[k2] = PV.fbSeen[k2]; });
-        var o = {}; o[FB_SEEN_KEY] = out; chrome.storage.local.set(o);
-      } catch (e) {}
-    }, 1500);
-  }
-  function fbSeenHas(key, now) { var t = key ? PV.fbSeen[key] : 0; return !!t && now - t < FB_SEEN_MS && !PV.fbMine[key]; }
-  // The pages the person said they follow (2026-11-16, the cover's own button `Stop covering this page`): a post of such a page with
-  // no button is never covered by the rule above, whatever was noted. Kept in this browser only, 300 at most, the oldest dropped.
-  // A post that carries Facebook's Follow button itself is still covered: the button is Facebook's word about that post.
-  var FB_MINE_KEY = "pv:fb:followed";
-  PV.fbMine = PV.fbMine || {};
-  try { chrome.storage.local.get(FB_MINE_KEY, function (r) { try { var m = r && r[FB_MINE_KEY]; if (m && typeof m === "object") for (var k in m) if (typeof m[k] === "number" && !PV.fbMine[k]) PV.fbMine[k] = m[k]; } catch (e) {} }); } catch (e1) {}
-  PV.fbFollowed = function (key) {
-    if (!key) return false;
-    PV.fbMine[key] = Date.now();
-    try {
-      var keys = Object.keys(PV.fbMine).sort(function (x, y) { return PV.fbMine[y] - PV.fbMine[x]; }).slice(0, FB_SEEN_MAX), out = {};
-      keys.forEach(function (k2) { out[k2] = PV.fbMine[k2]; });
-      PV.fbMine = out;
-      var o = {}; o[FB_MINE_KEY] = out; chrome.storage.local.set(o);
-    } catch (e) {}
-    return true;
-  };
+  // A post with no button is never covered because another post of the same name carried Follow (2026-11-23, decided by the owner;
+  // the rule of 2026-11-16 is removed in both layouts). It covered posts that showed no reason, a friend's among them. A suggested
+  // post is one that carries Facebook's Follow or Join itself, or the pair Interested and Not interested. The two lists the
+  // rule kept in this browser are removed.
+  try { chrome.storage.local.remove(["pv:fb:follow-seen", "pv:fb:follow-seen:2", "pv:fb:followed"]); } catch (eOld) {}
 
   // Facebook's mobile layout: the feed item around an element, the ancestor whose parent holds many items and is several screens
   // tall (the feed itself). null when there is no such parent within 14 levels.
@@ -999,24 +962,13 @@
           if (seen.has(post) || post.querySelector("[aria-posinset]")) return;   // innermost posts only
           seen.add(post);
           var b = fbFollowButton(post);
-          if (b) fbSeenNote(fbPageKey(post), now);   // first, every button on the page is noted: a post above it is then covered in this same pass
           posts.push([post, b]);
         });
         posts.forEach(function (pb) {
           var post = pb[0];
           var el = pb[1], pair = el ? null : fbInterestPair(post);
           el = el || pair;
-          if (!el) {
-            // no button on this post, and Facebook put one on another post of the same page within the last days
-            if (!fbSeenHas(fbPageKey(post), now)) return;
-            var nm = post.querySelector('[data-ad-rendering-role="profile_name"], h2, h3, h4');
-            var t2 = nm ? fbSinglePost(post, nm) : null;
-            if (!t2) return;
-            var r2 = t2.getBoundingClientRect();
-            if (r2.width > innerWidth * 0.7 || r2.height > innerHeight * 1.6 || r2.height < 120) return;
-            ctx.add(t2, "facebook-suggested: Follow button on another post from this page", true);
-            return;
-          }
+          if (!el) return;
           var target = fbSinglePost(post, el);
           if (!target) return;
           var pr = target.getBoundingClientRect();
@@ -1071,13 +1023,12 @@
           // and its Follow button come lower, inside the band read here: the post was taken for a suggested one, and the button
           // was noted under the friend's name, so the friend's other posts were covered for three days. The button counts only
           // on the line of the post's first name, as in the desktop layout.
-          var nameAt = {}, key = fol ? fbmKey(post, nameAt) : "";
+          var nameAt = {}; if (fol) fbmKey(post, nameAt);
           if (fol && nameAt.el) {
             var nr = nameAt.el.getBoundingClientRect(), mid = r.top + r.height / 2;
             if (mid < nr.top - 12 || mid > nr.bottom + 12) continue;
           }
           done.add(post);
-          if (fol) fbSeenNote(key, now);
           ctx.add(post, ad ? "facebook-sponsored: " + t + " label in the header (mobile layout)" : "facebook-suggested: " + t + " button in the header (mobile layout)", true);
         }
         // The element with data-tracking-image-id is no source for an ad (2026-11-22, three reports: it was taken as one from a
@@ -1097,21 +1048,6 @@
             done.add(pq);
             ctx.add(pq, "facebook-suggested: Interested and Not interested buttons", true);
           }
-        }
-        // A post with no button, of a page whose other post carried Facebook's Follow button within the last days (the rule above
-        // for the desktop layout, 2026-11-16; here from three reports of 2026-11-22, a page's posts with a bare header)
-        if (!sug) return;
-        var names = root.querySelectorAll("#screen-root span[data-action-id]"), looked = new Set();
-        for (var j = 0; j < names.length && j < 80000; j++) {
-          if (names[j].children.length) continue;
-          var p2 = fbmPost(names[j]);
-          if (!p2 || looked.has(p2)) continue;
-          looked.add(p2);
-          if (p2.querySelector('[data-is-h-scrollable="true"], .hscroller')) continue;   // a row of tiles is not a page's post
-          if (done.has(p2) || !fbSeenHas(fbmKey(p2), now)) continue;
-          var r2 = p2.getBoundingClientRect();
-          if (r2.height < 120 || r2.height > innerHeight * 2.2) continue;
-          ctx.add(p2, "facebook-suggested: Follow button on another post from this page", true);
         }
       },
     },

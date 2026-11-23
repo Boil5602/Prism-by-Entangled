@@ -298,17 +298,13 @@ describe("Facebook", () => {
       `<span class="f2 a" data-action-id="2" ${R(60, y + 60, 90, 18)}>Gizmodo</span><span class="f2" ${R(166, y + 60, 46, 18)}>Follow</span>`;
     const html = mFeed(mPost("share", 0, share) + mPost("own", 800, mName("A friend", false)));
     expect(detect(PV, html)).toEqual([]);
-    expect(PV.fbSeen["m:a friend"]).toBeUndefined();
   });
-  it("mobile layout: covers a page's post with no button once another of its posts carried Follow, and never a followed page's", () => {
+  it("mobile layout: a post with no button is left, whatever another post of the same name carries (2026-11-23)", () => {
     const PV = loadVeil({ host: "www.facebook.com", width: 440, height: 830 });
     PV.uiPrefs = { suggestedVeil: true };
     const html = mFeed(mPost("a", 0, mName("Gizmodo", false)) + mPost("b", 800, mName("Gizmodo", true)) + mPost("c", 1600, mName("A friend", false)));
-    const out = detect(PV, html).map((o) => [o.id, o.why]).sort();
-    expect(out).toEqual([["a", "facebook-suggested: Follow button on another post from this page"], ["b", "facebook-suggested: Follow button in the header (mobile layout)"]]);
-    expect(PV.fbPageKey(document.getElementById("a"))).toBe("m:gizmodo");
-    PV.fbFollowed("m:gizmodo");   // the cover's own button: the person follows this page
-    expect(detect(PV, html).map((o) => o.id)).toEqual(["b"]);
+    expect(detect(PV, html).map((o) => [o.id, o.why])).toEqual([["b", "facebook-suggested: Follow button in the header (mobile layout)"]]);
+    expect(detect(PV, html).map((o) => o.id)).toEqual(["b"]);   // and nothing is kept for a later pass
   });
   it("covers a LinkedIn feed item with a Follow button at its top, and leaves a repost and a followed account", () => {
     const PV = loadVeil({ host: "www.linkedin.com" }); window.history.pushState({}, "", "/feed/");
@@ -327,27 +323,17 @@ describe("Facebook", () => {
     expect(detect(PV, post("org", sug("Following")))).toEqual([]);
     expect(detect(PV, post("share", sug("Follow", 140)))).toEqual([]);
   });
-  it("covers a post with no Follow button when Facebook put the button on another post of the same page (2026-11-16)", () => {
+  it("leaves a post with no Follow button when Facebook put the button on another post of the same page (2026-11-23)", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
     PV.uiPrefs = { suggestedVeil: true };
     const by = (path, follow) => `<div ${R(0, 0, 680, 60)}><h3 ${R(0, 0, 200, 20)}><a href="https://www.facebook.com${path}?__cft__[0]=x"><strong>Paper Boats</strong></a></h3>${follow ? `<span ${R(210, 2, 50, 18)}>Follow</span>` : ""}<div ${R(0, 30, 200, 20)}><span>13h</span></div></div><div data-ad-rendering-role="story_message" ${R(0, 60, 680, 600)}></div>`;
     // the page's post with no button, alone: nothing says the person does not follow it
     expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
-    // the same feed holds a post of the page with the button: both are covered, the one above it too
-    const out = detect(PV, post("a", by("/paperboats", false)) + post("b", by("/paperboats", true)) + post("c", by("/tallgrass", false)));
-    expect(out.map((o) => o.id)).toEqual(["a", "b"]);
-    expect(out[0].why).toBe("facebook-suggested: Follow button on another post from this page");
-    // it is remembered for a later pass, and forgotten after three days
-    expect(detect(PV, post("a", by("/paperboats/", false))).map((o) => o.id)).toEqual(["a"]);
-    // the person says they follow the page: its posts with no button are left alone, a post with the button is still covered
-    expect(PV.fbFollowed("/paperboats")).toBe(true);
-    expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
-    expect(detect(PV, post("b", by("/paperboats", true))).map((o) => o.id)).toEqual(["b"]);
-    expect(PV.fbFollowed("")).toBe(false);
-    PV.fbMine = {};
-    expect(detect(PV, post("a", by("/paperboats", false))).map((o) => o.id)).toEqual(["a"]);
-    PV.fbSeen["/paperboats"] = Date.now() - 4 * 24 * 3600 * 1000;
-    expect(detect(PV, post("a", by("/paperboats", false)))).toEqual([]);
+    // the same feed holds a post of the page with the button: that one alone is covered, in this pass and the next
+    const feed = post("a", by("/paperboats", false)) + post("b", by("/paperboats", true)) + post("c", by("/tallgrass", false));
+    expect(detect(PV, feed).map((o) => o.id)).toEqual(["b"]);
+    expect(detect(PV, feed).map((o) => o.id)).toEqual(["b"]);
+    expect(detect(PV, post("a", by("/paperboats/", false)))).toEqual([]);
   });
   it("covers a suggested group by its Interested and Not interested buttons, never by one word alone", () => {
     const PV = loadVeil({ host: "www.facebook.com" });
@@ -1118,7 +1104,6 @@ describe("the look under a display cover", () => {
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).kind).toBe("A suggested post");
     expect(PV.coverWhy("facebook-suggested: Join button in the header", false).source).toContain("Join");
     expect(PV.coverWhy("facebook-suggested: Interested and Not interested buttons", false).source).toContain("Interested");
-    expect(PV.coverWhy("facebook-suggested: Follow button on another post from this page", false).source).toContain("another post");
     expect(PV.coverWhy("ai-label: AI info", true).kind).toBe("Labeled AI content");
     expect(PV.coverWhy("slot-selector: .ad-slot", false).source).toBe("An ad slot in the page");
     expect(PV.coverWhy("taboola-item: Taboola's paid label on the item", false).source).toMatch(/Taboola/);

@@ -159,7 +159,7 @@ The look is the same for all page items: photo and symbol. The differences are w
 | Block of sponsored stories | The whole block | `◐` | `An ad` | `The page's own label: {label}` |
 | Social post marked sponsored (Facebook) | The whole post | `◐` | `An ad` | `Facebook's own Sponsored or Ad label in the post's header` |
 | Social post on other sites | The post | `◐` | `An ad` | The rule's own short reason, for example `Promoted label` |
-| Suggested post (Facebook only, switch on) | The whole post | `◐` | `A suggested post` | `Facebook's own Follow button in the post's header` (or `Join`), or `Facebook's own Interested and Not interested buttons on the post`, or `Facebook's own Follow button on another post from this page` |
+| Suggested post (Facebook only, switch on) | The whole post | `◐` | `A suggested post` | `Facebook's own Follow button in the post's header` (or `Join`), or `Facebook's own Interested and Not interested buttons on the post` |
 | AI-labeled content (switch on) | The post, card, tile or reel | `✦` | `Labeled AI content` | `The platform's own label: {label}` |
 | Pause-screen ad (Paramount+, CBS, Pluto TV only) | The ad unit in the pause panel only. The player stays usable. | `◐` | `An ad` | The label's text, for example `Advertisement` |
 | Video ad break | The whole player, with the intermission card or chip. Tab muted. See section 3. | `◐` in a corner chip | (no panel of this kind) | (none) |
@@ -180,7 +180,7 @@ Top to bottom:
 3. Row `WHY` and the text from the table above. Row keys are 10.5 px capitals in `#9AA4B2`.
 4. If the photo has a credit: a thin rule, then rows `PICTURE`, `PHOTO`, `LICENSE`, `SOURCE`.
 5. Button `Reveal 15 s` (amber `#F0A83C`, text `#0A0C0F`, radius 9 px, padding `7px 14px`). Tooltip: `Shows what is under the cover for fifteen seconds, then the cover comes back`.
-6. Only on one kind of Facebook suggested post: button `Stop covering this page`. Tooltip: `PRISM stops covering this page's posts that have no Follow button`.
+6. (Removed 2026-11-23 with the rule it belonged to: the button `Stop covering this page`.)
 
 When no view is possible the frame is replaced by the line `No small view for this one.` With the setting off, the panel has only items 2 to 6.
 

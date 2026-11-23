@@ -146,7 +146,7 @@
     reason = String(reason || "");
     var d = reason.replace(/^[a-z0-9-]+:\s*/i, "");
     if (ai) return { kind: "Labeled AI content", source: "The platform's own label" + (d ? ": " + d : "") };
-    if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /another post/.test(d) ? "Facebook's own Follow button on another post from this page" : /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
+    if (/^facebook-suggested/.test(reason)) return { kind: "A suggested post", source: /Interested/.test(d) ? "Facebook's own Interested and Not interested buttons on the post" : "Facebook's own " + (/Join/.test(d) ? "Join" : "Follow") + " button in the post's header" };
     if (/^linkedin-suggested/.test(reason)) return { kind: "A suggested post", source: "LinkedIn's own Follow button at the top of the item" };
     if (/^facebook-sponsored/.test(reason)) return { kind: "An ad", source: "Facebook's own Sponsored or Ad label in the post's header" };
     if (/^(badge-label|section-label)/.test(reason)) return { kind: "An ad", source: "The page's own label" + (d ? ": " + d : "") };
@@ -310,16 +310,6 @@
     var reveal = mk("button", "", "Reveal 15 s"); reveal.type = "button"; reveal.title = "Shows what is under the cover for fifteen seconds, then the cover comes back";
     reveal.addEventListener("click", function (ev) { ev.stopPropagation(); lookReveal(cover, 15000); });
     bot.appendChild(reveal);
-    // a post covered because another post of its page had Facebook's Follow button: the person can say they follow the page, and
-    // the cover goes at once and stays away for that page (2026-11-16)
-    if (/^facebook-suggested: .*another post/.test(cover.getAttribute("data-prism-why") || "") && PV.fbPageKey && PV.fbFollowed) {
-      var mine = mk("button", "", "Stop covering this page"); mine.type = "button"; mine.title = "PRISM stops covering this page's posts that have no Follow button";
-      mine.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        try { var po = (target.closest && target.closest("[aria-posinset]")) || target; if (PV.fbFollowed(PV.fbPageKey(po))) { lookClose(); sweep(); } } catch (eF) {}
-      });
-      bot.appendChild(mine);
-    }
     card.appendChild(bot); root.appendChild(card);
     host.addEventListener("mouseenter", lookKeep); host.addEventListener("mouseleave", lookLeave);
     // by touch: the clear layer first, so the panel (the same z-index, later in the page) lies over it
