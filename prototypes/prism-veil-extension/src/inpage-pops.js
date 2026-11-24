@@ -503,8 +503,9 @@
     pv.props.forEach(function (x) { try { if (x[1]) pv.rec.el.style.setProperty(x[0], x[1], x[2]); else pv.rec.el.style.removeProperty(x[0]); } catch (e) {} });
     pv.rec.previewing = false;
     if (pv.rec.held && pv.rec.mode === "clear" && pv.rec.el.isConnected) clearOn(pv.rec);   // back to the speck
+    if (pv.onEnd) { try { pv.onEnd(); } catch (e) {} }
   }
-  PV.inpagePreview = function (dest) {
+  PV.inpagePreview = function (dest, onEnd) {
     var was = preview && hostOf(preview.rec.url) === dest;
     previewOff();
     if (was) return false;   // a second press on the same row ends it
@@ -522,7 +523,7 @@
     el.style.setProperty("outline", Math.max(2, Math.round(2 / k)) + "px solid #F2B14C", "important");
     el.style.setProperty("box-shadow", "0 0 0 " + Math.round(8 / k) + "px rgba(8,10,14,.72)", "important");
     var end = function () { previewOff(); };
-    preview = { rec: rec, props: props, end: end, timer: setTimeout(end, PREVIEW_MS) };
+    preview = { rec: rec, props: props, end: end, onEnd: onEnd, timer: setTimeout(end, PREVIEW_MS) };
     // the press that asked for the preview is over before these listen
     setTimeout(function () { if (preview && preview.rec === rec) { addEventListener("pointerdown", end, true); addEventListener("scroll", end, true); addEventListener("keydown", end, true); } }, 0);
     return true;

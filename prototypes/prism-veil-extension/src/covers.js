@@ -1281,6 +1281,49 @@
     }
     return el;
   }
+  // each strip of the bar has its own z-index, the one of its outermost ancestor that has a number; the cover goes one below
+  // the lowest, or it would ride over that strip (CBS News: the nav at 9, the live strip at 10)
+  function barLowZ() {
+    var low = Infinity;
+    barEls.forEach(function (b) {
+      var zb = NaN;
+      for (var n = b, d = 0; n && n.nodeType === 1 && d < 30; n = PV.parentAcross(n), d++) { var z = parseInt(getComputedStyle(n).zIndex, 10); if (isFinite(z)) zb = z; }
+      low = Math.min(low, isFinite(zb) ? zb : 0);
+    });
+    return low;
+  }
+  // Before the two meet (2026-11-24, MSN on an iPhone: scrolled fast, a cover stood over the header for a moment the first time it
+  // reached it, because the place under the bar was only tried once the cover was already over it). A cover in view below the bar
+  // takes the lower z-index ahead of time, kept only while it is still over its ad at every point asked; when it reaches the bar
+  // the try below proves the bar is over it, or puts the first z-index back.
+  function preTuck(cover, r) {
+    var pre = cover.__pre;
+    if (pre && pre.el !== barEl) { cover.style.zIndex = pre.from; cover.__pre = pre = null; }
+    if (pre) { if (cover.style.zIndex !== pre.z) cover.style.zIndex = pre.z; return; }
+    if (cover.__tucked || cover.__preNo === barEl && Date.now() < (cover.__preRetry || 0)) return;
+    var ya = Math.max(r.top, barTop) + 3, yb = Math.min(r.bottom, botEl ? botTop : innerHeight) - 3;   // above a strip fixed to the foot of the window
+    if (!(r.top >= barTop - 3 && yb - ya >= 12 && r.width > 0)) return;   // not in view below the bar
+    cover.__preNo = barEl; cover.__preRetry = Date.now() + 250;
+    try {
+      var from = cover.style.zIndex;
+      if (from === "2147483647") { cover.__preRetry = Date.now() + 60000; return; }
+      var low = barLowZ();
+      if (!(isFinite(low) && low >= 1)) { cover.__preRetry = Date.now() + 5000; return; }
+      var at = function () {
+        var ok = true;
+        [0.2, 0.5, 0.8].forEach(function (fx) { [ya, (ya + yb) / 2, yb].forEach(function (yy) {
+          if (!ok) return;
+          var xx = Math.min(Math.max(r.left + r.width * fx, 1), innerWidth - 2), tp = topAt(xx, yy);
+          if (!(tp === cover || cover.contains(tp))) ok = false;
+        }); });
+        return ok;
+      };
+      if (!at()) return;   // something is over the cover as it is: nothing is learned from a lower place
+      cover.style.zIndex = String(low - 1);
+      if (at()) { cover.__pre = { el: barEl, from: from, z: cover.style.zIndex }; cover.__preNo = null; }
+      else cover.style.zIndex = from;
+    } catch (e) {}
+  }
   function tuckUnderBar(cover, r) {
     // a try that failed is made again (2026-11-23, CBS News at desktop width: of two covers alike, one failed
     // its one try as the page was still settling and kept the cut by script); a try changes nothing a person sees
@@ -1288,28 +1331,26 @@
       if (cover.__tucked && cover.style.zIndex !== cover.__tuckZ) cover.style.zIndex = cover.__tuckZ;   // a new placing wrote the z-index again
       return !!cover.__tucked;
     }
-    if (cover.__lookOn || !(r.top < barTop - 3 && r.bottom > barTop)) return false;
+    if (cover.__lookOn) return false;
+    if (!(r.top < barTop - 3 && r.bottom > barTop)) { if (!cover.__tucked) preTuck(cover, r); return false; }
     var y2 = Math.min(r.bottom, innerHeight) - 3, y1 = Math.max(r.top + 1, barTop - 2);
     if (y2 <= barTop + 3) return false;   // nothing of the cover shows below the bar yet: asked again at the next scroll
     if (cover.__tucked) { cover.style.zIndex = cover.__tuckFrom; cover.__tucked = false; }
+    var pre = cover.__pre && cover.__pre.el === barEl ? cover.__pre : null;   // the place taken ahead of time: proved here, or given up
+    if (cover.__pre && !pre) cover.style.zIndex = cover.__pre.from;
+    cover.__pre = null;
+    if (pre) { cover.__preNo = barEl; cover.__preRetry = Date.now() + 60000; }
     cover.__tuckEl = barEl;
     // a failed try is made again soon: 0.3 s (2026-11-23, MSN on a phone: the first try met the card's heading at the cover's foot
     // while the card was still taking its size, and the cover kept the cut by script for two seconds). A try is a few hit tests
     // and is made only while the cover is at the bar. A bar with no z-index of its own can never take a cover under it: 2 s.
     cover.__tuckRetry = Date.now() + 300;
     try {
-      var from = cover.style.zIndex;
+      var from = pre ? pre.from : cover.style.zIndex;
       if (from === "2147483647") return false;   // a forced overlay is over a floating ad that is itself over everything
       var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2);
-      var t0 = topAt(x, y2); if (!(t0 === cover || cover.contains(t0))) return false;
-      // each strip of the bar has its own z-index, the one of its outermost ancestor that has a number; the cover goes one below
-      // the lowest, or it would ride over that strip (CBS News: the nav at 9, the live strip at 10)
-      var low = Infinity;
-      barEls.forEach(function (b) {
-        var zb = NaN;
-        for (var n = b, d = 0; n && n.nodeType === 1 && d < 30; n = PV.parentAcross(n), d++) { var z = parseInt(getComputedStyle(n).zIndex, 10); if (isFinite(z)) zb = z; }
-        low = Math.min(low, isFinite(zb) ? zb : 0);
-      });
+      var t0 = topAt(x, y2); if (!(t0 === cover || cover.contains(t0))) { if (pre) cover.style.zIndex = from; return false; }
+      var low = barLowZ();
       if (!(isFinite(low) && low >= 1)) cover.__tuckRetry = Date.now() + 2000;
       if (isFinite(low) && low >= 1) {
         cover.style.zIndex = String(low - 1);

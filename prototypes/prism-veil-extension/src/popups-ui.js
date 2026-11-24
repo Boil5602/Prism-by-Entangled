@@ -398,7 +398,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       // page and its frames, takes that press; the guard (popups-guard.js) takes it too where a page has put a layer of its own
       // on top. A drag still scrolls the page.
       scrim = document.createElement("div"); scrim.className = "scrim";
-      scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); closePanel(); });
+      scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); if (Date.now() < keepUntil) return; closePanel(); });
       // A drag off the panel scrolls the page, and the panel stayed up over it (2026-11-23, on an iPhone: once the page was moving,
       // the panel was hard to be rid of, as a tap on a moving page only stops it). The drag itself now closes the panel, as a
       // scroll closes a cover's small view: a finger that moves more than a few pixels on the clear layer is a scroll, no click
@@ -427,7 +427,8 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   PV.panelIsOpen = function () { return panelOpen; };
   PV.panelClose = closePanel;
-  function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; closePanel(); }
+  var keepUntil = 0;   // the tap that ended a preview is not a tap off the panel
+  function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; if (Date.now() < keepUntil) return; closePanel(); }
   function escClose(e) { if (e.key === "Escape") closePanel(); }
   // the page itself scrolled some way with the panel open (a wheel, a key, a flick that began elsewhere): closed too. Only the
   // document's own scroll counts, so a strip that moves by itself inside the page and the panel's own list close nothing.
@@ -503,7 +504,15 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       // for this visit. Open, a tab on its address, is for a popup that has a real address.
       var inPage = !!(PV.inpageHeld && PV.inpageHeld(r.dest)), noAddress = /\.invalid$/.test(r.dest);
       if (inPage) {
-        var pb = btn("Preview", false, function () { if (PV.inpagePreview) PV.inpagePreview(r.dest); });
+        // the panel steps aside for the preview and comes back when it ends (2026-11-24, on an iPhone the preview was drawn
+        // behind the panel, which takes most of a phone's screen)
+        var pb = btn("Preview", false, function () {
+          if (!PV.inpagePreview) return;
+          // the clear layer stays, so the tap that ends the preview presses nothing in the page; that tap brings the panel back
+          var p0 = panel;
+          var on = PV.inpagePreview(r.dest, function () { keepUntil = Date.now() + 600; if (p0 && p0 === panel) p0.style.display = ""; });
+          if (on && p0) p0.style.display = "none";
+        });
         pb.title = "Look at it for a few seconds, small, without letting it through";
         row.appendChild(pb);
         var sb2 = btn("Show", false, function () { if (PV.inpageShow) PV.inpageShow(r.dest); renderPanel(); });
