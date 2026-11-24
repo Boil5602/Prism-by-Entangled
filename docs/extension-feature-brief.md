@@ -489,6 +489,7 @@ Popup part of the panel:
 - Heading `Popups`.
 - Summary: `1 popup intercepted since you arrived, none loaded.` / `N popups intercepted since you arrived, none loaded.` / `Nothing intercepted since you arrived.`
 - Heading `Since you arrived`, then one row per destination: the host name, and under it `N× · {ago} · {reason}`. Row buttons: `Open` and `Always allow`.
+- A row for a unit held in the page (an in-page pop, the site's own offer, a floating video) has `Preview`, `Show` and `Always allow`, and no `Open` (2026-11-24). `Preview` draws the held unit small in the upper part of the window for 6 seconds, with an amber outline; it takes no press, and a press, a scroll or a key ends it. `Show` puts the unit back on this page for this visit and remembers nothing. A unit with no address of its own is named in plain words in place of a host: `This site's own offer`, `Floating video`, `Ad drawn in the page`.
 - After `Open`, one line: `Open these automatically next time?` with `Yes` and `No`.
 - Heading `Popups you’ve allowed here`: rows `{site} may open {dest}` with `Remove`. Empty: `None on this site. Allowing is one tap on a row above, whenever you need it.` If other sites have some: `N more on other sites, under Settings below.`
 - `{ago}` is `just now`, `N min ago`, `N h ago` or `N d ago`.

@@ -129,9 +129,134 @@
     // creative. It is listed under the host its picture, video or script comes from, read where the browser lets the page read the
     // frame, else under a reserved name that never resolves, so Always allow has an address to keep.
     var cr = creativeFrame(el);
-    if (!cr) return null;
-    return { dest: cr, reason: (signal || "at the top of the stack") + ", a frame with no link" };
+    if (cr) return { dest: cr, reason: (signal || "at the top of the stack") + ", a frame with no link" };
+    if (!asked(el) && ownOffer(el)) return { dest: OFFER, reason: "the site's own offer over the page, with a close control", kind: "offer" };
+    return null;
   };
+  // What the person opened themselves is theirs (a press on Subscribe, on Share): a box first seen within 2.5 s of a click is never
+  // held as an offer or a dialog. A drag to scroll makes no click, so a box that comes up as the page scrolls is not excused.
+  var lastClick = -1e9, firstSeen = new WeakMap(), askedFor = new WeakSet();
+  try { addEventListener("click", function (e) { if (e.isTrusted !== false) lastClick = Date.now(); }, true); } catch (eC) {}
+  function asked(el) {
+    if (askedFor.has(el)) return true;
+    if (!firstSeen.has(el)) { firstSeen.set(el, Date.now()); if (Date.now() - lastClick < 2500) { askedFor.add(el); return true; } }
+    return false;
+  }
+  // A dialog over the page below the top of the stack (2026-11-24, a report from AP News on an iPhone: a marketing dialog with an
+  // ad frame in it and a close control, not held). The same judgement as at the top of the stack, for a box the page itself marks
+  // as a dialog: held when it leads to another site or is the site's own offer, and the person did not open it.
+  function dialogBoxes() {
+    var out = [], ds = [];
+    try { ds = document.querySelectorAll("[role='dialog'],[role='alertdialog'],[aria-modal='true']"); } catch (e) {}
+    var fixedBox = function (n) { try { return getComputedStyle(n).position === "fixed" && onScreen(n); } catch (e) { return false; } };
+    for (var i = 0; i < ds.length && i < 10; i++) {
+      var d = ds[i], box = null;
+      try {
+        if (d.hasAttribute("data-prism-ui") || d.closest("[data-prism-ui],[data-prism-veil],[data-prism-held]")) continue;
+        if (fixedBox(d)) box = d;
+        if (!box) { var q = [[d, 0]]; while (q.length && !box) { var it = q.shift(), kids = it[0].children || []; for (var k = 0; k < kids.length && k < 12 && !box; k++) { if (fixedBox(kids[k])) box = kids[k]; else if (it[1] < 2) q.push([kids[k], it[1] + 1]); } } }
+        if (!box) { for (var n = d.parentElement, u = 0; n && u < 3 && n !== document.body && n !== document.documentElement; n = n.parentElement, u++) { if (fixedBox(n)) { box = n; break; } } }
+        if (!box || box.getAttribute("data-prism-held")) continue;
+        var r = box.getBoundingClientRect();
+        if (r.width * r.height < innerWidth * innerHeight * 0.25) continue;
+        if (out.indexOf(box) < 0) out.push(box);
+      } catch (e2) {}
+    }
+    return out;
+  }
+  function dialogPop(el) {
+    try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e) {}
+    if (asked(el)) return null;
+    if (anyMark(el, LEAVE_HARD) || anyMark(el, WALL_WORDS)) return null;
+    var signal = PV.adSignalIn ? PV.adSignalIn(el) : "";
+    if (!signal && anyMark(el, LEAVE_SOFT)) return null;
+    if (!closeControl(el)) return null;
+    var dest = destOf(el);
+    if (dest) return { dest: dest, reason: signal || "a dialog over the page that leads to another site", kind: "offer" };
+    if (ownOffer(el)) return { dest: OFFER, reason: "the site's own offer over the page, with a close control", kind: "offer" };
+    return null;
+  }
+  // The site's own offer (2026-11-24, USA Today: a subscribe offer in a dialog over the whole page, the page's scroll stopped
+  // under it; asked that it go the way a pop goes). It links nowhere else, so the rules above pass it. It counts when it is a
+  // dialog or takes most of the window, names an offer in its own marks, and carries a close control: a thing the page lets a
+  // person close. A wall in front of what is read (a paywall, a sign-in wall) has no close control or names itself, and is left.
+  var OFFER = "https://site-offer.invalid/", PLAYER = "https://floating-video.invalid/";
+  var OFFER_WORDS = /offer|subscri|newsletter|sign[\s-]?up|promo|discount|membership|\bsale\b|\bdeal/i, WALL_WORDS = /paywall|regwall|reg-wall|pay-wall|metered|\bgate\b|gateway/i;
+  var CLOSE_WORDS = /^\s*(close|dismiss|no,? thanks|not now|maybe later|skip)\b|^\s*[x\u00d7\u2715\u2716]\s*$/i;
+  function closeControl(el) {
+    try {
+      var list = el.querySelectorAll("button,[role='button'],a[aria-label],[aria-label^='Close'],[aria-label^='close']");
+      for (var i = 0; i < list.length && i < 60; i++) {
+        var n = list[i], t = (n.getAttribute("aria-label") || n.getAttribute("title") || n.textContent || "").slice(0, 60);
+        if (CLOSE_WORDS.test(t)) return n;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function ownOffer(el) {
+    try {
+      var r = el.getBoundingClientRect();
+      var dialog = /dialog/.test(el.getAttribute("role") || "") || el.getAttribute("aria-modal") === "true" || !!el.querySelector("[role='dialog'],[role='alertdialog'],[aria-modal='true']");
+      if (!dialog && r.width * r.height < innerWidth * innerHeight * 0.6) return false;
+      if (anyMark(el, WALL_WORDS)) return false;
+      if (!closeControl(el)) return false;
+      return anyMark(el, OFFER_WORDS);
+    } catch (e) { return false; }
+  }
+  // A video the page floats in a corner (2026-11-24, USA Today: its player leaves the article and docks at the bottom right as the
+  // page scrolls, playing without sound). Held when it is a fixed box of a third of the window or less, with a close control, and
+  // its video is one the person did not start: without sound, or paused. A video that sounds is the person's own and is left; so is
+  // a camera or a call (a stream, not a file), a page in full screen and picture in picture.
+  function floatingPlayers() {
+    var out = [], vs = [];
+    try { vs = document.querySelectorAll("video"); } catch (e) {}
+    for (var i = 0; i < vs.length && i < 12; i++) {
+      var v = vs[i];
+      try {
+        if (v.srcObject || !(v.muted || v.paused || v.volume === 0)) continue;
+        if (document.pictureInPictureElement === v) continue;
+        var vr = v.getBoundingClientRect(); if (vr.width < 120 || vr.height < 60) continue;
+        for (var n = v.parentElement, d = 0; n && d < 12 && n !== document.body && n !== document.documentElement; n = n.parentElement, d++) {
+          if (getComputedStyle(n).position !== "fixed") continue;
+          var r = n.getBoundingClientRect();
+          if (onScreen(n) && r.width * r.height <= innerWidth * innerHeight * 0.34 && vr.width * vr.height >= r.width * r.height * 0.4 && closeControl(n) && out.indexOf(n) < 0) out.push(n);
+          break;
+        }
+      } catch (e2) {}
+    }
+    return out;
+  }
+  function playerPop(el) {
+    try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e) {}
+    if (anyMark(el, LEAVE_HARD)) return null;
+    return { dest: PLAYER, reason: "a video the page floats in a corner, without sound", kind: "player" };
+  }
+  // The scroll the offer stopped is put back while the offer is tucked away (overflow on <html> and <body>, as an inline style
+  // that is taken off again when the offer goes or is allowed). A body pinned in place is not undone: such an offer is covered.
+  var unlock = null;
+  function unlockOn(rec) {
+    if (unlock) return true;
+    try {
+      var b = document.body, bs = b ? getComputedStyle(b) : null;
+      if (bs && bs.position === "fixed") return false;
+      var saved = [];
+      [document.documentElement, b].forEach(function (n) {
+        if (!n) return;
+        var cs = getComputedStyle(n), y = cs.overflowY || String(cs.overflow || "").split(" ").pop();
+        if (!/hidden|clip/.test(y)) return;
+        saved.push([n, n.style.getPropertyValue("overflow-y"), n.style.getPropertyPriority("overflow-y")]);
+        n.style.setProperty("overflow-y", "auto", "important");
+      });
+      unlock = { saved: saved, rec: rec };
+      return true;
+    } catch (e) { return false; }
+  }
+  function unlockOff() {
+    if (!unlock) return;
+    unlock.saved.forEach(function (x) { try { if (x[1]) x[0].style.setProperty("overflow-y", x[1], x[2]); else x[0].style.removeProperty("overflow-y"); } catch (e) {} });
+    unlock = null;
+  }
+  function shown(el) { try { var cs = getComputedStyle(el); return el.isConnected && cs.display !== "none" && cs.visibility !== "hidden"; } catch (e) { return false; } }
   var NO_LINK = "https://in-page-ad.invalid/";
   function creativeFrame(el) {
     var r = el.getBoundingClientRect(), area = r.width * r.height, frames = [];
@@ -188,8 +313,9 @@
     if (!rec.saved) rec.saved = new Map();
     var keep = function (n, p) { if (!rec.saved.has(n)) rec.saved.set(n, {}); var s = rec.saved.get(n); if (!(p in s)) s[p] = [n.style.getPropertyValue(p), n.style.getPropertyPriority(p)]; };
     try {
-      var tf = tuck(el);
-      if (tf) {
+      var tf = rec.previewing ? "" : tuck(el);
+      // written only when it changes: a box that is watched for changes would be looked at again for each write, without end
+      if (tf && el.style.getPropertyValue("transform") !== tf) {
         ["transform", "transform-origin", "transition", "translate", "scale", "rotate"].forEach(function (p) { keep(el, p); });
         el.style.setProperty("transition", "none", "important");
         ["translate", "scale", "rotate"].forEach(function (p) { el.style.setProperty(p, "none", "important"); });
@@ -210,14 +336,33 @@
       rec.el.removeAttribute("data-prism-held");
     } catch (e2) {}
   }
-  function coverOn(rec) { clearOff(rec); rec.mode = "cover"; rec.el.setAttribute("data-prism-held", "cover"); PV.inpageCovers.set(rec.el, { reason: rec.reason }); }
+  function coverOn(rec) { clearOff(rec); rec.lockCover = scrollLocked() && !soundingVideo(rec.el); rec.mode = "cover"; rec.el.setAttribute("data-prism-held", "cover"); PV.inpageCovers.set(rec.el, { reason: rec.reason }); }
   function coverOff(rec) { PV.inpageCovers.delete(rec.el); try { rec.el.removeAttribute("data-prism-held"); } catch (e) {} }
   function hold(rec) {
+    if (rec.kind === "offer") {
+      // tucked away with the page's scroll put back; covered where the scroll cannot be put back
+      if (!scrollLocked() || unlockOn(rec)) { rec.mode = "clear"; clearOn(rec); } else coverOn(rec);
+      return;
+    }
+    if (rec.kind === "player") { rec.mode = "clear"; rec.parked = false; clearOn(rec); return; }
     if (scrollLocked() || soundingVideo(rec.el)) coverOn(rec);
     else { rec.mode = "clear"; clearOn(rec); }
   }
   // a held unit, looked at again: its inside may have grown (a new frame that takes presses), the page may have locked its scroll
   function keepHeld(rec) {
+    if (rec.kind === "player") {
+      // back in the article (no longer fixed) or given sound by the person: it is theirs again, and is tucked away once more only
+      // when it docks without sound
+      var docked = false; try { docked = getComputedStyle(rec.el).position === "fixed"; } catch (e) {}
+      var mine = !docked || soundingVideo(rec.el);
+      if (mine && !rec.parked) { clearOff(rec); rec.parked = true; }
+      else if (!mine && rec.parked) { rec.parked = false; clearOn(rec); }
+      else if (!mine) clearOn(rec);
+      return;
+    }
+    if (rec.kind === "offer") { if (rec.mode === "clear") clearOn(rec); return; }
+    // covered only because the page had stopped scrolling, and it scrolls again (an offer that stopped it has gone): tucked away
+    if (rec.mode === "cover" && rec.lockCover && !scrollLocked() && !soundingVideo(rec.el)) { coverOff(rec); rec.mode = "clear"; clearOn(rec); return; }
     if (rec.mode === "clear") {
       if (scrollLocked() || soundingVideo(rec.el)) { coverOn(rec); return; }
       clearOn(rec);
@@ -247,14 +392,14 @@
     if (anyMark(el, LEAVE_HARD)) return null;
     return { dest: destOf(el) || creativeFrame(el) || NO_LINK, reason: "fixed over the page, " + String(why || "an ad").split(":")[0] };
   }
-  function judge(el, adWhy) {
+  function judge(el, adWhy, popIn) {
     var policy = PV.popupPolicy; if (!policy) return;
     var rec = seen.get(el);
     if (rec) { if (rec.held) keepHeld(rec); return; }
-    var pop = PV.inpagePopOf(el) || (adWhy ? adPop(el, adWhy) : null); if (!pop) return;
+    var pop = popIn || PV.inpagePopOf(el) || (adWhy ? adPop(el, adWhy) : null); if (!pop) return;
     var attempt = { site: site, url: pop.dest }, d;
     try { d = policy.evaluate(attempt); } catch (e) { return; }
-    rec = { el: el, url: pop.dest, reason: pop.reason, held: d.action === "intercept", mode: "", ad: !!adWhy };
+    rec = { el: el, url: pop.dest, reason: pop.reason, held: d.action === "intercept", mode: "", ad: !!adWhy, kind: pop.kind || "" };
     seen.set(el, rec);
     if (!rec.held) return;
     hold(rec); held.push(rec);
@@ -280,6 +425,12 @@
       });
       held.forEach(function (rec) { if (rec.ad && rec.el.isConnected) keepHeld(rec); });
     } catch (e4) {}
+    try {
+      floatingPlayers().forEach(function (f) { if (!seen.has(f)) { var pp = playerPop(f); if (pp) judge(f, "", pp); } });
+      dialogBoxes().forEach(function (b) { if (!seen.has(b)) { var dp = dialogPop(b); if (dp) judge(b, "", dp); } });
+      held.forEach(function (rec) { if ((rec.kind === "player" || rec.kind === "offer") && rec.el.isConnected) keepHeld(rec); });
+      if (unlock && !(unlock.rec.held && shown(unlock.rec.el))) unlockOff();   // the offer has gone, by the page or by the person's Always allow
+    } catch (e5) {}
     held = held.filter(function (rec) { if (rec.el.isConnected) return true; coverOff(rec); return false; });
     tidyWatch();
   }
@@ -323,10 +474,59 @@
     held = held.filter(function (rec) {
       if (!rec.el.isConnected) { coverOff(rec); return false; }
       var d; try { d = policy.evaluate({ site: site, url: rec.url }); } catch (e) { return true; }
-      if (d.action !== "intercept") { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); return false; }
+      if (d.action !== "intercept") { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); if (unlock && unlock.rec === rec) unlockOff(); return false; }
       return true;
     });
   }
+
+  // ---- for the panel (popups-ui.js, 2026-11-24, asked that a held unit can be let through and looked at before that). A row of
+  // the panel names a destination; the units held under it are found by that name.
+  function heldFor(dest) { return held.filter(function (rec) { return rec.held && rec.el.isConnected && hostOf(rec.url) === dest; }); }
+  PV.inpageHeld = function (dest) { return heldFor(dest).length > 0; };
+  // Show: the unit is put back for this visit and is not held again on this page; nothing is remembered (Always allow remembers)
+  PV.inpageShow = function (dest) {
+    previewOff();
+    var list = heldFor(dest);
+    list.forEach(function (rec) { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); if (unlock && unlock.rec === rec) unlockOff(); });
+    held = held.filter(function (rec) { return rec.held; });
+    return list.length;
+  };
+  // Preview: the keyhole's way. The unit is tucked away by a transform that draws it as a speck; for a preview the same transform
+  // draws it small but readable, in the upper part of the window, over the page, for a few seconds. It takes no press, and the first
+  // press or scroll anywhere ends it. Only a unit that is tucked away has one (a covered unit is on the screen already).
+  var preview = null, PREVIEW_MS = 6000;
+  function previewOff() {
+    if (!preview) return;
+    var pv = preview; preview = null;
+    clearTimeout(pv.timer);
+    try { removeEventListener("pointerdown", pv.end, true); removeEventListener("scroll", pv.end, true); removeEventListener("keydown", pv.end, true); } catch (e) {}
+    pv.props.forEach(function (x) { try { if (x[1]) pv.rec.el.style.setProperty(x[0], x[1], x[2]); else pv.rec.el.style.removeProperty(x[0]); } catch (e) {} });
+    pv.rec.previewing = false;
+    if (pv.rec.held && pv.rec.mode === "clear" && pv.rec.el.isConnected) clearOn(pv.rec);   // back to the speck
+  }
+  PV.inpagePreview = function (dest) {
+    var was = preview && hostOf(preview.rec.url) === dest;
+    previewOff();
+    if (was) return false;   // a second press on the same row ends it
+    var rec = heldFor(dest).filter(function (r) { return r.mode === "clear" && !r.parked; })[0];
+    if (!rec) return false;
+    var el = rec.el, w = el.offsetWidth, h = el.offsetHeight;
+    if (!(w > 0 && h > 0)) return false;
+    var maxW = Math.min(innerWidth - 28, 360), maxH = Math.min(innerHeight * 0.4, 280);
+    var k = Math.min(maxW / w, maxH / h, 1);
+    var tx = (innerWidth - w * k) / 2 - el.offsetLeft, ty = Math.max(14, Math.round(innerHeight * 0.18)) - el.offsetTop;   // below a page's own top bar, which a unit low in the page's stack would be drawn under
+    var props = ["transform", "z-index", "outline", "outline-offset", "box-shadow"].map(function (n) { return [n, el.style.getPropertyValue(n), el.style.getPropertyPriority(n)]; });
+    rec.previewing = true;
+    el.style.setProperty("transform", "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")", "important");
+    el.style.setProperty("z-index", "2147483646", "important");
+    el.style.setProperty("outline", Math.max(2, Math.round(2 / k)) + "px solid #F2B14C", "important");
+    el.style.setProperty("box-shadow", "0 0 0 " + Math.round(8 / k) + "px rgba(8,10,14,.72)", "important");
+    var end = function () { previewOff(); };
+    preview = { rec: rec, props: props, end: end, timer: setTimeout(end, PREVIEW_MS) };
+    // the press that asked for the preview is over before these listen
+    setTimeout(function () { if (preview && preview.rec === rec) { addEventListener("pointerdown", end, true); addEventListener("scroll", end, true); addEventListener("keydown", end, true); } }, 0);
+    return true;
+  };
 
   var queued = false;
   function soon() { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; scan(); }); }

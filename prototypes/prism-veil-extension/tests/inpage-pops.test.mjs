@@ -254,4 +254,142 @@ describe("in-page pops", () => {
     expect(f.style.getPropertyValue("pointer-events")).toBe("auto");
     expect(u.style.getPropertyValue("pointer-events")).toBe("");
   });
+
+  // The site's own offer (2026-11-24, USA Today: a subscribe offer in a dialog over the whole page, the page's scroll stopped under
+  // it): tucked away like a pop, and the scroll it stopped is put back for as long as it is held.
+  function offer({ close = true, cls = "site-modal" } = {}) {
+    const d = document.createElement("div");
+    d.className = cls; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("data-box", "0,0,390,800");
+    d.style.cssText = "position:fixed;top:0;left:0;z-index:2147483647";
+    if (close) { const b = document.createElement("button"); b.setAttribute("aria-label", "Close Special Offer"); d.appendChild(b); }
+    const f = document.createElement("iframe"); f.title = "Special offer"; f.src = "https://cm.watch.example/overlay/entrance"; f.setAttribute("data-box", "45,150,300,400"); d.appendChild(f);
+    document.body.appendChild(d);
+    return d;
+  }
+  it("tucks the site's own offer away and puts the page's scroll back while it is held", async () => {
+    const p = load(); await p.pass(0);
+    document.documentElement.style.overflow = "hidden";
+    const u = offer(); await p.pass(1100);
+    expect(held(u)).toBe("clear");
+    expect(isClear(u)).toBe(true);
+    expect(document.documentElement.style.getPropertyValue("overflow-y")).toBe("auto");
+    expect(document.documentElement.style.getPropertyPriority("overflow-y")).toBe("important");
+    expect(p.PV.popupPolicy.ledger("watch.example")[0].dest).toBe("site-offer.invalid");
+    u.remove(); await p.pass(1100);                                   // the page closes it: the page's own style is back
+    expect(document.documentElement.style.getPropertyPriority("overflow-y")).toBe("");
+  });
+  it("leaves a dialog with no close control, and one that names itself a paywall", async () => {
+    const p = load(); await p.pass(0);
+    const a = offer({ close: false }), b = offer({ cls: "site-paywall" });
+    await p.pass(1100);
+    expect(held(a)).toBe(null);
+    expect(held(b)).toBe(null);
+    expect(p.label()).not.toBe("1 popup blocked");
+  });
+  it("puts an offer back when the person allows it, with the page's own scroll style", async () => {
+    const p = load(); await p.pass(0);
+    document.documentElement.style.overflow = "hidden";
+    const u = offer(); await p.pass(1100);
+    p.PV.popupPolicy.allow("watch.example", "site-offer.invalid"); await p.pass(0);
+    expect(held(u)).toBe(null);
+    expect(u.style.cssText).not.toMatch(/transform/);
+    expect(document.documentElement.style.getPropertyPriority("overflow-y")).toBe("");
+  });
+
+  // A video the page floats in a corner without sound (2026-11-24, USA Today's docked player): tucked away; with sound it is the
+  // person's own and is put back.
+  function player() {
+    const d = document.createElement("div");
+    d.setAttribute("data-box", "190,600,200,140"); d.style.cssText = "position:fixed;right:0;bottom:60px;z-index:5";
+    const b = document.createElement("button"); b.setAttribute("aria-label", "Close docked video player"); d.appendChild(b);
+    const w = document.createElement("div"); d.appendChild(w);
+    const v = document.createElement("video"); v.setAttribute("data-box", "190,628,200,112"); w.appendChild(v);
+    const state = { muted: true, paused: false };
+    Object.defineProperty(v, "muted", { get: () => state.muted, configurable: true });
+    Object.defineProperty(v, "paused", { get: () => state.paused, configurable: true });
+    Object.defineProperty(v, "volume", { get: () => 1, configurable: true });
+    document.body.appendChild(d);
+    return { d, state };
+  }
+  it("tucks a docked video without sound away, and puts it back when it sounds or leaves its corner", async () => {
+    const p = load(); await p.pass(0);
+    const { d, state } = player(); await p.pass(1100);
+    expect(held(d)).toBe("clear");
+    expect(isClear(d)).toBe(true);
+    expect(p.PV.popupPolicy.ledger("watch.example")[0].dest).toBe("floating-video.invalid");
+    state.muted = false; await p.pass(1100);                          // the person gave it sound
+    expect(d.style.cssText).not.toMatch(/transform/);
+    state.muted = true; await p.pass(1100);                           // without sound again: tucked away again, counted once
+    expect(isClear(d)).toBe(true);
+    d.style.position = "static"; await p.pass(1100);                  // back in the article
+    expect(d.style.cssText).not.toMatch(/transform/);
+    expect(p.PV.popupPolicy.ledger("watch.example").length).toBe(1);
+  });
+  it("leaves a docked video that sounds, and a fixed video with no close control", async () => {
+    const p = load(); await p.pass(0);
+    const a = player(); a.state.muted = false;
+    const b = player(); b.d.querySelector("button").remove();
+    await p.pass(1100);
+    expect(held(a.d)).toBe(null);
+    expect(held(b.d)).toBe(null);
+  });
+
+  // A dialog below the top of the stack (2026-11-24, AP News: a marketing dialog with an ad link in it), and what the person opened
+  function dialog({ href = "https://ads.example/x", z = "9000" } = {}) {
+    const d = document.createElement("div");
+    d.setAttribute("role", "dialog"); d.setAttribute("data-box", "0,0,390,0");
+    const slab = document.createElement("div"); slab.setAttribute("data-box", "0,0,390,800"); slab.style.cssText = "position:fixed;top:0;left:0;z-index:" + z;
+    const b = document.createElement("button"); b.innerHTML = "<span>close dialog</span>"; slab.appendChild(b);
+    const a = document.createElement("a"); a.href = href; a.textContent = "See more"; slab.appendChild(a);
+    d.appendChild(slab); document.body.appendChild(d);
+    return slab;
+  }
+  it("holds a dialog over the page that leads to another site, at any z-index", async () => {
+    const p = load(); await p.pass(0);
+    const u = dialog(); await p.pass(1100);
+    expect(held(u)).toBe("clear");
+    expect(p.PV.popupPolicy.ledger("watch.example")[0].dest).toBe("ads.example");
+  });
+  it("leaves a dialog and an offer the person opened by a click", async () => {
+    const p = load(); await p.pass(0);
+    document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const u = dialog(), o = offer(); await p.pass(1100);
+    expect(held(u)).toBe(null);
+    expect(held(o)).toBe(null);
+    await p.pass(5000);                                               // and it stays theirs
+    expect(held(u)).toBe(null);
+    expect(held(o)).toBe(null);
+  });
+
+  // The panel's Preview and Show for a unit held in the page (2026-11-24)
+  it("previews a tucked unit small and readable for a few seconds, then tucks it away again", async () => {
+    const p = load(); await p.pass(0);
+    const u = offer(); await p.pass(1100);
+    const speck = u.style.getPropertyValue("transform");
+    expect(p.PV.inpageHeld("site-offer.invalid")).toBe(true);
+    expect(p.PV.inpagePreview("site-offer.invalid")).toBe(true);
+    const m = /scale\(([\d.]+)\)/.exec(u.style.getPropertyValue("transform"));
+    expect(390 * Number(m[1])).toBeGreaterThan(100);                  // readable, not a speck
+    expect(u.style.getPropertyValue("outline")).toMatch(/solid/);
+    expect(u.style.getPropertyValue("pointer-events")).toBe("none");  // it takes no press
+    await p.pass(1100);                                               // the look once a second leaves the preview alone
+    expect(u.style.getPropertyValue("outline")).toMatch(/solid/);
+    await p.pass(6000);
+    expect(u.style.getPropertyValue("transform")).toBe(speck);
+    expect(u.style.getPropertyValue("outline")).toBe("");
+    expect(held(u)).toBe("clear");
+  });
+  it("shows a held unit for this visit without remembering it", async () => {
+    const p = load(); await p.pass(0);
+    document.documentElement.style.overflow = "hidden";
+    const u = offer(); await p.pass(1100);
+    expect(p.PV.inpageShow("site-offer.invalid")).toBe(1);
+    expect(held(u)).toBe(null);
+    expect(u.style.cssText).not.toMatch(/transform/);
+    expect(document.documentElement.style.getPropertyPriority("overflow-y")).toBe("");   // the page's own scroll style is back
+    await p.pass(3000);
+    expect(held(u)).toBe(null);                                       // not held again on this page
+    expect(p.PV.popupPolicy.listAllowed().length).toBe(0);            // and nothing was allowed for later
+    expect(p.PV.inpageHeld("site-offer.invalid")).toBe(false);
+  });
 });

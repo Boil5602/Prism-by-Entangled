@@ -443,6 +443,9 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     var s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
     if (s < 60) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago"; if (s < 86400) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago";
   }
+  // a unit held in the page with no address of its own is listed under a reserved name (inpage-pops.js); the panel says what it is
+  var PLAIN = { "site-offer.invalid": "This site\u2019s own offer", "floating-video.invalid": "Floating video", "in-page-ad.invalid": "Ad drawn in the page" };
+  function plainDest(dest) { return PLAIN[dest] || dest; }
   var nudgeFor = null;   // dest awaiting "Open these automatically next time?"
 
   function renderPanel() {
@@ -493,16 +496,29 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (rows.length) body.appendChild(el("h3", null, "Blocked"));
     rows.forEach(function (r) {
       var row = el("div", "row");
-      var d = el("div", "dest"); d.textContent = r.dest;
+      var d = el("div", "dest"); d.textContent = plainDest(r.dest);
       var meta = el("span", "meta", r.count + "× · " + ago(r.lastSeen) + " · " + r.context);
       d.appendChild(meta); row.appendChild(d);
-      row.appendChild(btn("Open", false, function () {
+      // a unit held in the page (2026-11-24): Preview draws it small at the top of the window for a few seconds, Show puts it back
+      // for this visit. Open, a tab on its address, is for a popup that has a real address.
+      var inPage = !!(PV.inpageHeld && PV.inpageHeld(r.dest)), noAddress = /\.invalid$/.test(r.dest);
+      if (inPage) {
+        var pb = btn("Preview", false, function () { if (PV.inpagePreview) PV.inpagePreview(r.dest); });
+        pb.title = "Look at it for a few seconds, small, without letting it through";
+        row.appendChild(pb);
+        var sb2 = btn("Show", false, function () { if (PV.inpageShow) PV.inpageShow(r.dest); renderPanel(); });
+        sb2.title = "Put it back on this page for now. PRISM holds it again on your next visit.";
+        row.appendChild(sb2);
+      }
+      if (!noAddress && !inPage) row.appendChild(btn("Open", false, function () {
         var o = policy.open(site, r.dest); if (!o) return;
         var go = function () { try { window.open(o.url, "_blank", "noopener"); } catch (e) {} };   // now, visibly, by the human's choice
         try { chrome.runtime.sendMessage({ type: "prism-popup-deliberate", url: o.url }, function () { go(); }); } catch (e) { go(); }
         nudgeFor = o.nudge ? r.dest : null; renderPanel();
       }));
-      row.appendChild(btn("Always allow", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); }));
+      var ab = btn("Always allow", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); });
+      if (noAddress) ab.title = "Always show " + plainDest(r.dest).toLowerCase() + " on " + site;
+      row.appendChild(ab);
       body.appendChild(row);
       if (nudgeFor === r.dest) {
         var n = el("div", "nudge"); n.setAttribute("role", "status");
@@ -523,7 +539,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (!allowed.length) body.appendChild(el("div", "empty", "None"));
     allowed.forEach(function (a) {
       var row = el("div", "row");
-      var d = el("div", "dest", a.sentence); d.title = "since " + a.since.slice(0, 10);
+      var d = el("div", "dest", PLAIN[a.dest] ? site + " may show: " + PLAIN[a.dest].toLowerCase() : a.sentence); d.title = "since " + a.since.slice(0, 10);
       row.appendChild(d);
       row.appendChild(btn("Remove", false, function () { policy.remove(a.site, a.dest); renderPanel(); }));
       body.appendChild(row);

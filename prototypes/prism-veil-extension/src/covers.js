@@ -591,15 +591,39 @@
   function barOverUnit(target, r) {
     try {
       var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), y = (Math.max(r.top, 0) + Math.min(barTop, r.bottom)) / 2;
-      var stack = document.elementsFromPoint(x, y);
+      // The unit's own cover is taken out of the hit test (2026-11-23, MSN on a phone: a cover rode over the header with no cut).
+      // A cover inside a shadow root is not in this list, its host is, and the cover put that host first in the list, over the
+      // bar: the unit was read as drawn over the bar and its cover was left whole.
+      var cv = veils.get(target), pe = cv ? cv.style.pointerEvents : "", stack;
+      if (cv) cv.style.pointerEvents = "none";
+      try { stack = deepStack(x, y); } finally { if (cv) cv.style.pointerEvents = pe; }
       for (var i = 0; i < stack.length; i++) {
         var e = stack[i];
         if (e.hasAttribute && (e.hasAttribute("data-prism-veil") || e.hasAttribute("data-prism-ui"))) continue;
         if (inBar(e)) return true;
-        if (e === target || PV.deepContains(target, e) || PV.deepContains(e, target)) return false;
+        if (e === target || PV.deepContains(target, e) || (PV.deepContains(e, target) && !holdsBar(e))) return false;
       }
     } catch (e2) {}
     return true;
+  }
+  // does this element hold a strip of the bar (a host of the whole page holds the bar and every ad: it says nothing of the two)
+  function holdsBar(e) { for (var i = 0; i < barEls.length; i++) { if (PV.deepContains(e, barEls[i])) return true; } return false; }
+  // What is drawn at a point, top first, through open shadow roots: what is inside a host comes before the host. The document's
+  // own list stops at a host, and on MSN one host holds the header and the whole feed.
+  function deepStack(x, y) {
+    var out = [], seen = [];
+    var walk = function (root, depth) {
+      var st; try { st = root.elementsFromPoint(x, y); } catch (e) { return; }
+      for (var i = 0; i < st.length && out.length < 80; i++) {
+        var e = st[i];
+        if (seen.indexOf(e) >= 0) continue;
+        seen.push(e);
+        if (e.shadowRoot && depth < 12) walk(e.shadowRoot, depth + 1);
+        out.push(e);
+      }
+    };
+    walk(document, 0);
+    return out;
   }
   function positionOverlay(cover, target) {
     // Fullscreen paints only the fullscreen element's subtree: an overlay
@@ -850,15 +874,18 @@
     // <header> inside it, across its shadow root, is the white; the bar went unseen and covers scrolled over the search box)
     try {
       var r = e.getBoundingClientRect(), kids = [];
-      var add = function (n) { [].slice.call(n.children || []).forEach(function (c) { kids.push(c); }); if (n.shadowRoot) [].slice.call(n.shadowRoot.children || []).forEach(function (c) { kids.push(c); }); };
-      add(e);
-      for (var i = 0; i < kids.length && i < 24; i++) {
-        var k = kids[i], kr = k.getBoundingClientRect();
-        if (getComputedStyle(k).display === "contents") { add(k); continue; }   // a wrapper with no box of its own (Reddit's action-items)
+      // ... down to four levels, through boxes of its own size (2026-11-23, MSN at desktop width: the fixed banner over the header
+      // is clear, and the white is three levels down, across a shadow root; no bar was seen and covers rode over the header)
+      var add = function (n, d) { [].slice.call(n.children || []).forEach(function (c) { kids.push([c, d]); }); if (n.shadowRoot) [].slice.call(n.shadowRoot.children || []).forEach(function (c) { kids.push([c, d]); }); };
+      add(e, 1);
+      for (var i = 0; i < kids.length && i < 40; i++) {
+        var k = kids[i][0], kd = kids[i][1], kr = k.getBoundingClientRect();
+        if (getComputedStyle(k).display === "contents") { add(k, kd); continue; }   // a wrapper with no box of its own (Reddit's action-items)
         if (kr.width < r.width * 0.9 || kr.height < r.height * 0.8) continue;
         var kc = getComputedStyle(k), km = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)/.exec(kc.backgroundColor || "");
         if (km && (km[1] === undefined || parseFloat(km[1]) >= 0.5)) return true;
         if (kc.backgroundImage && kc.backgroundImage !== "none") return true;
+        if (kd < 4) add(k, kd + 1);
       }
     } catch (x) {}
     return false;
@@ -1244,12 +1271,18 @@
   // and needs no cut. Tried once for a cover and a bar, the first time the two meet, and kept only if the page then shows the
   // bar over the cover and the cover still over its ad; otherwise the cover keeps its place and the cut by script stays.
   function topAt(x, y) {
-    var st = document.elementsFromPoint(x, y);
-    for (var i = 0; i < st.length; i++) { if (st[i].hasAttribute && st[i].hasAttribute("data-prism-ui")) continue; return st[i]; }
-    return null;
+    // through open shadow roots: a cover inside one (MSN's cards) is not in the document's own list, its host is
+    var pick = function (st) { for (var i = 0; i < st.length; i++) { if (st[i].hasAttribute && st[i].hasAttribute("data-prism-ui")) continue; return st[i]; } return null; };
+    var el = pick(document.elementsFromPoint(x, y)), guard = 0;
+    while (el && el.shadowRoot && guard++ < 30) {
+      var inner = pick(el.shadowRoot.elementsFromPoint(x, y));
+      if (!inner || inner === el) break;
+      el = inner;
+    }
+    return el;
   }
   function tuckUnderBar(cover, r) {
-    // a try that failed is made again after two seconds (2026-11-23, CBS News at desktop width: of two covers alike, one failed
+    // a try that failed is made again (2026-11-23, CBS News at desktop width: of two covers alike, one failed
     // its one try as the page was still settling and kept the cut by script); a try changes nothing a person sees
     if (cover.__tuckEl === barEl && (cover.__tucked || Date.now() < (cover.__tuckRetry || 0))) {
       if (cover.__tucked && cover.style.zIndex !== cover.__tuckZ) cover.style.zIndex = cover.__tuckZ;   // a new placing wrote the z-index again
@@ -1260,7 +1293,10 @@
     if (y2 <= barTop + 3) return false;   // nothing of the cover shows below the bar yet: asked again at the next scroll
     if (cover.__tucked) { cover.style.zIndex = cover.__tuckFrom; cover.__tucked = false; }
     cover.__tuckEl = barEl;
-    cover.__tuckRetry = Date.now() + 2000;
+    // a failed try is made again soon: 0.3 s (2026-11-23, MSN on a phone: the first try met the card's heading at the cover's foot
+    // while the card was still taking its size, and the cover kept the cut by script for two seconds). A try is a few hit tests
+    // and is made only while the cover is at the bar. A bar with no z-index of its own can never take a cover under it: 2 s.
+    cover.__tuckRetry = Date.now() + 300;
     try {
       var from = cover.style.zIndex;
       if (from === "2147483647") return false;   // a forced overlay is over a floating ad that is itself over everything
@@ -1274,12 +1310,20 @@
         for (var n = b, d = 0; n && n.nodeType === 1 && d < 30; n = PV.parentAcross(n), d++) { var z = parseInt(getComputedStyle(n).zIndex, 10); if (isFinite(z)) zb = z; }
         low = Math.min(low, isFinite(zb) ? zb : 0);
       });
+      if (!(isFinite(low) && low >= 1)) cover.__tuckRetry = Date.now() + 2000;
       if (isFinite(low) && low >= 1) {
         cover.style.zIndex = String(low - 1);
-        var st = document.elementsFromPoint(x, y1), barOver = false;
+        var st = deepStack(x, y1), barOver = false;
         for (var k = 0; k < st.length; k++) { if (st[k] === cover || cover.contains(st[k])) break; if (inBar(st[k])) { barOver = true; break; } }
-        var t1 = barOver ? topAt(x, y2) : null;
-        if (barOver && (t1 === cover || cover.contains(t1))) { cover.__tucked = true; cover.__tuckFrom = from; cover.__tuckZ = cover.style.zIndex; return true; }
+        // the cover must still be over its ad everywhere it shows, not at one point: a part of the ad with a z-index above the
+        // cover's new one would stand out of it. Six points of the cover below the bar are asked.
+        var whole = barOver, ym = (Math.max(r.top, barTop) + 3 + y2) / 2;
+        [0.2, 0.5, 0.8].forEach(function (fx) { [ym, y2].forEach(function (yy) {
+          if (!whole) return;
+          var xx = Math.min(Math.max(r.left + r.width * fx, 1), innerWidth - 2), tp = topAt(xx, yy);
+          if (!(tp === cover || cover.contains(tp))) whole = false;
+        }); });
+        if (whole) { cover.__tucked = true; cover.__tuckFrom = from; cover.__tuckZ = cover.style.zIndex; return true; }
       }
       cover.style.zIndex = from;
     } catch (e) {}
@@ -1310,7 +1354,7 @@
         if (cover.__barOver === undefined || cover.__barOverEl !== barEl) {
           cover.__barOverEl = barEl; cover.__barOver = false;
           try {
-            var px = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), stack = document.elementsFromPoint(px, Math.max(1, barTop - 2));
+            var px = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), stack = deepStack(px, Math.max(1, barTop - 2));
             for (var si = 0; si < stack.length; si++) {
               if (stack[si] === cover || cover.contains(stack[si])) break;
               if (inBar(stack[si])) { cover.__barOver = true; break; }
