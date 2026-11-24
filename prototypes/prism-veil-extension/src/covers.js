@@ -1249,7 +1249,9 @@
     return null;
   }
   function tuckUnderBar(cover, r) {
-    if (cover.__tuckEl === barEl) {
+    // a try that failed is made again after two seconds (2026-11-23, CBS News at desktop width: of two covers alike, one failed
+    // its one try as the page was still settling and kept the cut by script); a try changes nothing a person sees
+    if (cover.__tuckEl === barEl && (cover.__tucked || Date.now() < (cover.__tuckRetry || 0))) {
       if (cover.__tucked && cover.style.zIndex !== cover.__tuckZ) cover.style.zIndex = cover.__tuckZ;   // a new placing wrote the z-index again
       return !!cover.__tucked;
     }
@@ -1258,6 +1260,7 @@
     if (y2 <= barTop + 3) return false;   // nothing of the cover shows below the bar yet: asked again at the next scroll
     if (cover.__tucked) { cover.style.zIndex = cover.__tuckFrom; cover.__tucked = false; }
     cover.__tuckEl = barEl;
+    cover.__tuckRetry = Date.now() + 2000;
     try {
       var from = cover.style.zIndex;
       if (from === "2147483647") return false;   // a forced overlay is over a floating ad that is itself over everything
