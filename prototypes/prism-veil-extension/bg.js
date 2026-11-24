@@ -410,7 +410,14 @@ function openSettings(tab, done) {
 function openSettingsWindow(tab, done) {
   var base = chrome.runtime.getURL("popup.html"), tid = tab ? tab.id : null;
   var url = base + "?window=1" + (tid != null ? "&tab=" + tid : ""), W = 1116, H = 660;
-  var inTab = function () { try { chrome.tabs.create({ url: url }, function () { var bad = !!chrome.runtime.lastError; done && done(!bad); }); } catch (e) { done && done(false); } };
+  var went = false, late = 0, fin = done;
+  var inTab = function () { if (went) return; went = true; clearTimeout(late); try { chrome.tabs.create({ url: url }, function () { var bad = !!chrome.runtime.lastError; fin && fin(!bad); }); } catch (e) { fin && fin(false); } };
+  // An iPhone or iPad has no windows (2026-11-24, Safari on an iPhone: the Settings button of the panel in the page opened nothing;
+  // the toolbar icon opens the settings as its own sheet, which a press in the page cannot ask for). There the settings open in a
+  // tab. Anywhere else, a window that has not come after 1.5 s is given up for a tab too, so the button is never without an answer.
+  if (IOS || !chrome.windows) { inTab(); return; }
+  done = function (ok) { if (went) return; went = true; clearTimeout(late); fin && fin(ok); };
+  late = setTimeout(inTab, 1500);
   try {
     chrome.windows.getAll({ populate: true, windowTypes: ["popup"] }, function (ws) {
       void chrome.runtime.lastError;
@@ -439,7 +446,8 @@ function openSettingsWindow(tab, done) {
 var settingsBlurAt = 0;
 // Safari on an iPhone or iPad has no windows (2026-11-21, first run through TestFlight: a tap on the icon opened nothing): there
 // the icon opens the settings as the toolbar's own popup, a sheet on the phone, and the press never comes to onClicked.
-function iosPopup() { try { chrome.action.setPopup({ popup: "popup.html" }); } catch (e) {} }
+var IOS = false; try { IOS = /iPhone|iPad|iPod/.test(navigator.userAgent); } catch (eI) {}
+function iosPopup() { IOS = true; try { chrome.action.setPopup({ popup: "popup.html" }); } catch (e) {} }
 if (SAFARI) {
   try {
     chrome.runtime.getPlatformInfo(function (info) {
