@@ -13,6 +13,8 @@
   html, body { margin:0; }
   html.framed { overflow:hidden; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
   html.framed body { min-width:0; }
+  html.paged { overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  html.paged body { min-width:0; padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)); }
   body { min-width:1000px; background:var(--wall); color:var(--ink); font:13px/1.45 "Segoe UI Variable Text","Segoe UI",-apple-system,Roboto,sans-serif; }
   .top { display:flex; align-items:center; gap:24px; padding:14px 24px; background:var(--bezel); border-bottom:1px solid var(--edge); }
   .brand { font:700 15px/1 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; letter-spacing:.34em; color:var(--accent); }

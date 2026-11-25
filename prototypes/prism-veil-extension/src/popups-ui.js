@@ -176,7 +176,7 @@ h3+.srcrow{border-top:0}\
 .pill.marked{opacity:.8}\
 .pill.collapsed .mk{display:none}\
 @media (pointer:coarse){.pill{height:44px;padding:0 16px;border-radius:22px;font-size:15px;opacity:.9;background:rgba(20,23,28,.82);border-color:rgba(255,255,255,.3);box-shadow:0 2px 8px rgba(0,0,0,.45)}.pill.off{opacity:.8}.pill .x{width:46px;margin:0 -16px 0 -6px;border-radius:0 22px 22px 0}.pill.collapsed{width:44px;height:44px;border-radius:50%;opacity:.9}.panel{bottom:66px}}\
-.scrim{position:fixed;inset:0;z-index:2147483646;background:transparent}.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
+.scrim{position:fixed;inset:0;z-index:2147483646;background:transparent}.pvbar{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483647;width:min(360px,92vw);box-sizing:border-box;padding:10px 12px;border-radius:14px;background:#14171C;border:1px solid #2C333E;box-shadow:0 12px 40px rgba(0,0,0,.7)}.pvname{font:600 13px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#E8ECF2;margin:0 0 8px;text-align:center}.pvacts{display:flex;gap:8px}.pvacts .btn{flex:1;padding:0 6px;height:34px}.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
 background:#14171C;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px rgba(0,0,0,.5);font:13px/1.45 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif}\
 .panel h2{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:18px;line-height:1.2;font-weight:600}\
 .panel h2 span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
@@ -398,7 +398,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       // page and its frames, takes that press; the guard (popups-guard.js) takes it too where a page has put a layer of its own
       // on top. A drag still scrolls the page.
       scrim = document.createElement("div"); scrim.className = "scrim";
-      scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); if (Date.now() < keepUntil) return; closePanel(); });
+      scrim.addEventListener("click", function (e) { e.stopPropagation(); e.preventDefault(); closePanel(); });
       // A drag off the panel scrolls the page, and the panel stayed up over it (2026-11-23, on an iPhone: once the page was moving,
       // the panel was hard to be rid of, as a tap on a moving page only stops it). The drag itself now closes the panel, as a
       // scroll closes a cover's small view: a finger that moves more than a few pixels on the clear layer is a scroll, no click
@@ -422,13 +422,39 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   function closePanel() {
     if (!panelOpen) return;
-    panelOpen = false; if (pill) pill.classList.remove("on"); if (panel) panel.remove(); panel = null; if (scrim) scrim.remove(); scrim = null;
+    panelOpen = false; if (pill) pill.classList.remove("on");
+    if (pvBar) { previewBarOff(); try { PV.inpagePreviewEnd(); } catch (e) {} } if (panel) panel.remove(); panel = null; if (scrim) scrim.remove(); scrim = null;
     removeEventListener("click", tapAway, true); removeEventListener("keydown", escClose, true); removeEventListener("scroll", scrollAway, { capture: true });
   }
   PV.panelIsOpen = function () { return panelOpen; };
   PV.panelClose = closePanel;
-  var keepUntil = 0;   // the tap that ended a preview is not a tap off the panel
-  function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; if (Date.now() < keepUntil) return; closePanel(); }
+  function tapAway(e) { if (e.composedPath && e.composedPath().indexOf(host) >= 0) return; closePanel(); }
+  // The preview with its own buttons (2026-11-24, asked for after the first preview on an iPhone: Show and Always allow right under
+  // the unit, and a way back to the panel). The panel steps aside; Back brings it back; Show and Always allow act and everything
+  // goes; a press anywhere else, a scroll, a key or half a minute ends the preview and closes the panel with it.
+  var pvBar = null;
+  function previewBarOff() { if (pvBar) { try { pvBar.remove(); } catch (e) {} pvBar = null; } }
+  function previewWith(site, dest) {
+    if (!PV.inpagePreview || !panel) return;
+    var p0 = panel, back = false;
+    var at = PV.inpagePreview(dest, function () {
+      previewBarOff();
+      if (back && p0 === panel && panelOpen) { p0.style.display = ""; renderPanel(); } else closePanel();
+    }, 30000);
+    if (!at) return;
+    p0.style.display = "none";
+    pvBar = el("div", "pvbar");
+    pvBar.addEventListener("click", function (e) { e.stopPropagation(); });
+    var name = el("div", "pvname", plainDest(dest)); pvBar.appendChild(name);
+    var acts = el("div", "pvacts");
+    acts.appendChild(btn("Show", false, function () { if (PV.inpageShow) PV.inpageShow(dest); else PV.inpagePreviewEnd(); }));
+    acts.appendChild(btn("Always allow", false, function () { PV.inpagePreviewEnd(); policy.allow(site, dest); }));
+    acts.appendChild(btn("Back", true, function () { back = true; PV.inpagePreviewEnd(); }));
+    pvBar.appendChild(acts);
+    var top = (at === true || !(at.bottom > 0)) ? Math.round(innerHeight * 0.6) : Math.min(Math.round(at.bottom) + 14, innerHeight - 110);
+    pvBar.style.top = top + "px";
+    root.appendChild(pvBar);
+  }
   function escClose(e) { if (e.key === "Escape") closePanel(); }
   // the page itself scrolled some way with the panel open (a wheel, a key, a flick that began elsewhere): closed too. Only the
   // document's own scroll counts, so a strip that moves by itself inside the page and the panel's own list close nothing.
@@ -506,13 +532,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       if (inPage) {
         // the panel steps aside for the preview and comes back when it ends (2026-11-24, on an iPhone the preview was drawn
         // behind the panel, which takes most of a phone's screen)
-        var pb = btn("Preview", false, function () {
-          if (!PV.inpagePreview) return;
-          // the clear layer stays, so the tap that ends the preview presses nothing in the page; that tap brings the panel back
-          var p0 = panel;
-          var on = PV.inpagePreview(r.dest, function () { keepUntil = Date.now() + 600; if (p0 && p0 === panel) p0.style.display = ""; });
-          if (on && p0) p0.style.display = "none";
-        });
+        var pb = btn("Preview", false, function () { previewWith(site, r.dest); });
         pb.title = "Look at it for a few seconds, small, without letting it through";
         row.appendChild(pb);
         var sb2 = btn("Show", false, function () { if (PV.inpageShow) PV.inpageShow(r.dest); renderPanel(); });

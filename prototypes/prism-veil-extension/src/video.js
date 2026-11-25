@@ -2335,6 +2335,25 @@
   }
   // Trace: every raise and drop of the video veil, with the reason and the
   // veil's age, into the report diagnostics (dom.js data-prism-errors ring).
+  // What a press at the Skip opening reached (2026-11-24, on an iPhone Skip still took two presses after B-551, and the cause is
+  // not known: the press may land on the cover, or reach the button and bring no click). Observe-only: each press and each click
+  // near the opening is written to the trace a report carries, with what it landed on. At most twelve lines a cover.
+  ["touchstart", "pointerdown", "click"].forEach(function (t) {
+    try {
+      addEventListener(t, function (ev) {
+        try {
+          var c = vidVeil && vidVeil.mode === "ad" ? vidVeil.cover : null, h = c && c.__hole;
+          if (!h || !c.__holeEl) return;
+          var pt = ev.touches && ev.touches[0] ? ev.touches[0] : ev, x = pt.clientX, y = pt.clientY;
+          if (!(x >= h.left - 24 && x <= h.left + h.width + 24 && y >= h.top - 24 && y <= h.top + h.height + 24)) return;
+          c.__tapN = (c.__tapN || 0) + 1; if (c.__tapN > 12) return;
+          var tg = ev.target, on = !tg || !tg.tagName ? "?" : (tg === c || (c.contains && c.contains(tg))) ? "cover" : (tg === c.__holeEl || c.__holeEl.contains(tg)) ? "skip" : tg.tagName + "." + PV.classStr(tg).slice(0, 24);
+          var inside = x >= h.left && x <= h.left + h.width && y >= h.top && y <= h.top + h.height;
+          trace("tap " + t + " on " + on + (inside ? " in" : " near") + " the opening dx=" + Math.round(x - h.left) + " dy=" + Math.round(y - h.top) + " of " + Math.round(h.width) + "x" + Math.round(h.height) + (ev.isTrusted === false ? " untrusted" : ""));
+        } catch (e) {}
+      }, { capture: true, passive: true });
+    } catch (e0) {}
+  });
   function trace(msg) { try { if (PV.recordError) PV.recordError("veil " + msg + (vidVeilStart ? " @" + (Date.now() - vidVeilStart) + "ms" : "")); } catch (e) {} }
   // The veil log (2026-11-07): every video veil over an ad break, as it goes up and as it comes down, kept in the extension's storage
   // (bg.js, pv:veil-log) the way the PRISM app keeps its calls.log: when, on which site and channel, marked or spotted, the break

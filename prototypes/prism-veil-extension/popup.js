@@ -70,6 +70,11 @@
   // In the panel over the web page (popup.html?frame=1&tab=<id>, 2026-11-18): the page under it holds the frame, closes it on a press
   // beside it, and is told this page's height so that nothing scrolls.
   var IN_FRAME = new URLSearchParams(location.search).get("frame") === "1";
+  // In a tab of its own (popup.html?page=1&tab=<id>, 2026-11-24: an iPhone has no windows, and the window's rules, no scroll and
+  // closed when the focus goes, made a tab that could not be scrolled). A plain page: it scrolls as any page does, room is left
+  // under it for the browser's own bar, and Close closes the tab and goes back to the page it was opened from.
+  var OWN_TAB = new URLSearchParams(location.search).get("page") === "1";
+  if (OWN_TAB) { try { document.title = "PRISM settings"; document.documentElement.classList.add("paged"); } catch (e) {} }
   // In any frame this page is hidden, and so takes no press and no key, until the background says the frame is one PRISM made
   // (bg.js settingsPass). A web page that frames the settings itself gets an empty frame.
   if (window.top !== window) {
@@ -83,10 +88,19 @@
   }
   var FOR_TAB = parseInt(new URLSearchParams(location.search).get("tab"), 10);
   function tellPage(msg) { try { if (isFinite(FOR_TAB)) TABS.sendMessage(FOR_TAB, msg, function () { void chrome.runtime.lastError; }); } catch (e) {} }
-  function closeSettings() { if (IN_FRAME) tellPage({ type: "prism-settings-close" }); else window.close(); }
+  function closeTab() {
+    try {
+      if (isFinite(FOR_TAB)) chrome.tabs.update(FOR_TAB, { active: true }, function () { void chrome.runtime.lastError; });
+      chrome.tabs.getCurrent(function (t) {
+        if (chrome.runtime.lastError || !t) { window.close(); return; }
+        chrome.tabs.remove(t.id, function () { if (chrome.runtime.lastError) window.close(); });
+      });
+    } catch (e) { window.close(); }
+  }
+  function closeSettings() { if (IN_FRAME) tellPage({ type: "prism-settings-close" }); else if (OWN_TAB) closeTab(); else window.close(); }
   try {
     var cb = document.getElementById("settings-close");
-    if (cb) { cb.hidden = !(IN_FRAME || OWN_WINDOW); cb.addEventListener("click", closeSettings); }
+    if (cb) { cb.hidden = !(IN_FRAME || OWN_WINDOW || OWN_TAB); cb.addEventListener("click", closeSettings); }
   } catch (e) {}
   if (IN_FRAME) {
     // No scroll bar of the frame's own while the settings fit (2026-11-18: a bar came up with room to spare, took its width from
@@ -550,7 +564,7 @@
       // In a window of its own (popup.html?window=1&tab=<id>, 2026-11-18) the page is told which tab it is for: the active tab of
       // its own window is the settings page itself.
       var forTab = FOR_TAB;
-      if (OWN_WINDOW || IN_FRAME) { tabId = isFinite(forTab) ? forTab : null; refresh(); askPicture(); }
+      if (OWN_WINDOW || IN_FRAME || OWN_TAB) { tabId = isFinite(forTab) ? forTab : null; refresh(); askPicture(); }
       else chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         tabId = (tabs && tabs[0] && tabs[0].id != null) ? tabs[0].id : null;
         refresh();

@@ -411,7 +411,9 @@ function openSettingsWindow(tab, done) {
   var base = chrome.runtime.getURL("popup.html"), tid = tab ? tab.id : null;
   var url = base + "?window=1" + (tid != null ? "&tab=" + tid : ""), W = 1116, H = 660;
   var went = false, late = 0, fin = done;
-  var inTab = function () { if (went) return; went = true; clearTimeout(late); try { chrome.tabs.create({ url: url }, function () { var bad = !!chrome.runtime.lastError; fin && fin(!bad); }); } catch (e) { fin && fin(false); } };
+  // in a tab the settings are a page like any other: it scrolls, and its Close closes the tab (popup.js, page=1)
+  var tabUrl = base + "?page=1" + (tid != null ? "&tab=" + tid : "");
+  var inTab = function () { if (went) return; went = true; clearTimeout(late); try { chrome.tabs.create({ url: tabUrl }, function () { var bad = !!chrome.runtime.lastError; fin && fin(!bad); }); } catch (e) { fin && fin(false); } };
   // An iPhone or iPad has no windows (2026-11-24, Safari on an iPhone: the Settings button of the panel in the page opened nothing;
   // the toolbar icon opens the settings as its own sheet, which a press in the page cannot ask for). There the settings open in a
   // tab. Anywhere else, a window that has not come after 1.5 s is given up for a tab too, so the button is never without an answer.

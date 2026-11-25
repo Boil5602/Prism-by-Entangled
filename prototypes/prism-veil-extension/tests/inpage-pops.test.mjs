@@ -367,7 +367,7 @@ describe("in-page pops", () => {
     const u = offer(); await p.pass(1100);
     const speck = u.style.getPropertyValue("transform");
     expect(p.PV.inpageHeld("site-offer.invalid")).toBe(true);
-    expect(p.PV.inpagePreview("site-offer.invalid")).toBe(true);
+    expect(p.PV.inpagePreview("site-offer.invalid")).toBeTruthy();
     const m = /scale\(([\d.]+)\)/.exec(u.style.getPropertyValue("transform"));
     expect(390 * Number(m[1])).toBeGreaterThan(100);                  // readable, not a speck
     expect(u.style.getPropertyValue("outline")).toMatch(/solid/);

@@ -251,6 +251,16 @@
       return true;
     } catch (e) { return false; }
   }
+  // An offer let through (Show, Always allow) gets the page's own stop on the scroll back only when it is there to be seen and
+  // closed (2026-11-24, on an iPhone: after Always allow the page could not be scrolled until it was loaded again; not reproduced,
+  // and which unit it was is not known). An offer that is not on the screen then, or has no close control left, would leave a
+  // page that cannot move and nothing to press: there the scroll stays free for the rest of the visit.
+  function handBack(rec) {
+    if (!unlock || unlock.rec !== rec) return;
+    var there = false;
+    try { var cs = getComputedStyle(rec.el); there = shown(rec.el) && onScreen(rec.el) && !(parseFloat(cs.opacity) < 0.1) && !!closeControl(rec.el); } catch (e) {}
+    if (there) unlockOff(); else unlock.keep = true;
+  }
   function unlockOff() {
     if (!unlock) return;
     unlock.saved.forEach(function (x) { try { if (x[1]) x[0].style.setProperty("overflow-y", x[1], x[2]); else x[0].style.removeProperty("overflow-y"); } catch (e) {} });
@@ -429,7 +439,7 @@
       floatingPlayers().forEach(function (f) { if (!seen.has(f)) { var pp = playerPop(f); if (pp) judge(f, "", pp); } });
       dialogBoxes().forEach(function (b) { if (!seen.has(b)) { var dp = dialogPop(b); if (dp) judge(b, "", dp); } });
       held.forEach(function (rec) { if ((rec.kind === "player" || rec.kind === "offer") && rec.el.isConnected) keepHeld(rec); });
-      if (unlock && !(unlock.rec.held && shown(unlock.rec.el))) unlockOff();   // the offer has gone, by the page or by the person's Always allow
+      if (unlock && !unlock.keep && !(unlock.rec.held && shown(unlock.rec.el))) unlockOff();   // the offer has gone, by the page or by the person's Always allow
     } catch (e5) {}
     held = held.filter(function (rec) { if (rec.el.isConnected) return true; coverOff(rec); return false; });
     tidyWatch();
@@ -474,7 +484,7 @@
     held = held.filter(function (rec) {
       if (!rec.el.isConnected) { coverOff(rec); return false; }
       var d; try { d = policy.evaluate({ site: site, url: rec.url }); } catch (e) { return true; }
-      if (d.action !== "intercept") { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); if (unlock && unlock.rec === rec) unlockOff(); return false; }
+      if (d.action !== "intercept") { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); handBack(rec); return false; }
       return true;
     });
   }
@@ -487,7 +497,7 @@
   PV.inpageShow = function (dest) {
     previewOff();
     var list = heldFor(dest);
-    list.forEach(function (rec) { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); if (unlock && unlock.rec === rec) unlockOff(); });
+    list.forEach(function (rec) { rec.held = false; if (rec.mode === "cover") coverOff(rec); else clearOff(rec); handBack(rec); });
     held = held.filter(function (rec) { return rec.held; });
     return list.length;
   };
@@ -505,7 +515,10 @@
     if (pv.rec.held && pv.rec.mode === "clear" && pv.rec.el.isConnected) clearOn(pv.rec);   // back to the speck
     if (pv.onEnd) { try { pv.onEnd(); } catch (e) {} }
   }
-  PV.inpagePreview = function (dest, onEnd) {
+  PV.inpagePreviewEnd = function () { previewOff(); };
+  // onEnd: told when the preview ends, however it ends. ms: how long it stays (the panel's own, with buttons under it, stays longer).
+  // The answer is the place the unit is drawn at, or false.
+  PV.inpagePreview = function (dest, onEnd, ms) {
     var was = preview && hostOf(preview.rec.url) === dest;
     previewOff();
     if (was) return false;   // a second press on the same row ends it
@@ -522,11 +535,16 @@
     el.style.setProperty("z-index", "2147483646", "important");
     el.style.setProperty("outline", Math.max(2, Math.round(2 / k)) + "px solid #F2B14C", "important");
     el.style.setProperty("box-shadow", "0 0 0 " + Math.round(8 / k) + "px rgba(8,10,14,.72)", "important");
-    var end = function () { previewOff(); };
-    preview = { rec: rec, props: props, end: end, onEnd: onEnd, timer: setTimeout(end, PREVIEW_MS) };
+    // a press on PRISM's own controls (the buttons under the preview) is theirs to answer and does not end it here
+    var end = function (e) {
+      try { if (e && e.type === "pointerdown" && e.composedPath && e.composedPath().some(function (n) { return n && n.tagName === "PRISM-POPUP-BUTTON"; })) return; } catch (e2) {}
+      previewOff();
+    };
+    preview = { rec: rec, props: props, end: end, onEnd: onEnd, timer: setTimeout(function () { previewOff(); }, ms > 0 ? ms : PREVIEW_MS) };
     // the press that asked for the preview is over before these listen
     setTimeout(function () { if (preview && preview.rec === rec) { addEventListener("pointerdown", end, true); addEventListener("scroll", end, true); addEventListener("keydown", end, true); } }, 0);
-    return true;
+    var at = null; try { var br = el.getBoundingClientRect(); at = { top: br.top, bottom: br.bottom, left: br.left, width: br.width }; } catch (e3) {}
+    return at || true;
   };
 
   var queued = false;
