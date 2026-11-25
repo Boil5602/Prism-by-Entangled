@@ -1541,7 +1541,7 @@
     groups.forEach(function (g) {
       if (g.items.length < 2) {
         var c1 = g.items[0].c;
-        if (c1.__rowArt) { c1.__rowArt = null; c1.style.backgroundImage = "url('" + c1.__artUrl + "')"; c1.style.backgroundSize = "cover"; c1.style.backgroundPosition = "center"; }
+        if (c1.__rowArt) { c1.__rowArt = null; c1.style.backgroundImage = "url('" + (PV.artCss ? PV.artCss(c1.__artUrl) : c1.__artUrl) + "')"; c1.style.backgroundSize = "cover"; c1.style.backgroundPosition = "center"; }
         return;
       }
       var shared = g.items[0].c.__rowArt || g.items[0].c.__artUrl;
@@ -1549,7 +1549,7 @@
       g.items.forEach(function (it) {
         var c = it.c;
         c.__rowArt = shared;
-        c.style.backgroundImage = "url('" + shared + "')";
+        c.style.backgroundImage = "url('" + (PV.artCss ? PV.artCss(shared) : shared) + "')";
         c.style.backgroundSize = uw + "px " + uh + "px";
         c.style.backgroundPosition = (-(it.r.left - g.left)) + "px " + (-(it.r.top - g.top)) + "px";
       });

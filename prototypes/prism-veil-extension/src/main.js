@@ -77,9 +77,62 @@
   // Put a photo on an element as its background. A hosted photo is never asked for on a page known to refuse it (a bundled one
   // goes on instead, and the element's __artUrl names it, for the credit). On any other page it is probed, and a refusal swaps
   // this element to a bundled photo and is remembered.
+  // A picture kept on the device (bg.js, 2026-11-24): its bytes are asked of the background once a page, made into an address of
+  // this page's own (a blob), and drawn with no request to the network. LOCAL holds what is ready; a picture that is not stored,
+  // or a page whose policy refuses such an address, is drawn from its own address as before.
+  var LOCAL = {}, localWait = {}, HOSTED_LOCAL = false, blobBad = false;
+  function localArt(url, cb) {
+    if (LOCAL[url] !== undefined) { cb(blobBad ? "" : LOCAL[url]); return; }
+    if (localWait[url]) { localWait[url].push(cb); return; }
+    localWait[url] = [cb];
+    var over = false, done = function (b) { if (over) return; over = true; clearTimeout(late); LOCAL[url] = b; var l = localWait[url] || []; delete localWait[url]; l.forEach(function (f) { try { f(blobBad ? "" : b); } catch (e) {} }); };
+    var late = setTimeout(function () { done(""); }, 1500);
+    try {
+      chrome.runtime.sendMessage({ type: "prism-art-bytes", url: url }, function (r) {
+        void chrome.runtime.lastError;
+        if (!(r && r.ok && r.b64)) { done(""); return; }
+        try {
+          var bin = atob(r.b64), n = bin.length, a = new Uint8Array(n);
+          for (var i = 0; i < n; i++) a[i] = bin.charCodeAt(i);
+          done(URL.createObjectURL(new Blob([a], { type: "image/jpeg" })));
+        } catch (e) { done(""); }
+      });
+    } catch (e) { done(""); }
+  }
+  // the address to draw a picture from: the page's own copy when it is ready
+  PV.artCss = function (url) { return (!blobBad && LOCAL[url]) || url; };
+  function fromNet(el, url) {
+    el.style.backgroundImage = "url('" + url + "')";
+    try {
+      var im = new Image();
+      im.onload = function () { hostedGood = true; };
+      im.onerror = function () {
+        var on = true; try { on = navigator.onLine !== false; } catch (e0) {}
+        if (!hostedGood && on && !artRefused) rememberRefused(1);
+        if (el.style.backgroundImage.indexOf(url) >= 0) { var b = PV.pickBundledArt(); el.style.backgroundImage = "url('" + b + "')"; el.__artUrl = b; }
+      };
+      im.src = url;
+    } catch (e) {}
+  }
+  function fromLocal(el, url, blob) {
+    el.style.backgroundImage = "url('" + blob + "')";
+    try {
+      var im = new Image();
+      // refused by the page's policy (or the copy is gone): this page draws from the pictures' addresses from here on
+      im.onerror = function () { blobBad = true; if (el.__artWant === url && el.style.backgroundImage.indexOf(blob) >= 0) fromNet(el, url); };
+      im.src = blob;
+    } catch (e) {}
+  }
   PV.artOnto = function (el, url) {
     var net = /^https?:/i.test(url);
     if (net && PV.artRefused()) { url = PV.pickBundledArt(); el.__artUrl = url; net = false; }
+    el.__artWant = url;
+    if (net && HOSTED_LOCAL && !blobBad) {
+      if (LOCAL[url]) { fromLocal(el, url, LOCAL[url]); return; }
+      // a few tens of milliseconds, with the cover's own ground until then
+      localArt(url, function (blob) { if (el.__artWant !== url) return; if (blob) fromLocal(el, url, blob); else fromNet(el, url); });
+      return;
+    }
     el.style.backgroundImage = "url('" + url + "')";
     if (!net) return;
     try {
@@ -100,10 +153,11 @@
         var b = String(e.blockedURI || ""); if (!b || !HOSTED.length) return;
         var o = new URL(HOSTED[0]).origin;
         if (b.indexOf(o) === 0) rememberRefused(30);
+        if (/^blob/i.test(b) && /img-src|default-src/i.test(String(e.effectiveDirective || e.violatedDirective || ""))) blobBad = true;
       } catch (e2) {}
     }, true);
   } catch (e) {}
-  function loadHostedArt(rec) { HOSTED = (rec && rec.urls && rec.urls.length) ? rec.urls.slice() : []; PV.__artAt = (rec && rec.at) || 0; if (PV.onArtChange) PV.onArtChange(); }
+  function loadHostedArt(rec) { HOSTED = (rec && rec.urls && rec.urls.length) ? rec.urls.slice() : []; HOSTED_LOCAL = !!(rec && rec.local); PV.__artAt = (rec && rec.at) || 0; if (PV.onArtChange) PV.onArtChange(); }
   try {
     // one read for both, so no hosted photo is on offer before what the device remembers of this site is known
     chrome.storage.local.get(["pv:art", "pv:artRefused"], function (r) {

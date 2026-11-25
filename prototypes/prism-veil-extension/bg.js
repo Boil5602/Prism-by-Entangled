@@ -249,6 +249,81 @@ function fetchSignedArt(base) {
   });
 }
 function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return (b < 16 ? "0" : "") + b.toString(16); }).join(""); }
+// The pictures themselves are kept on the device (2026-11-24, asked for: covers filled in late on a slow connection, because only
+// the pictures' addresses were kept and each page asked the server for them, and a browser keeps a cache apart for each site).
+// Each picture that passed its hash check is put in a database of the extension's own; a page asks this script for the bytes
+// (prism-art-bytes) and draws them with no request to the network. pv:art.local says the set is stored. A picture that is not
+// there is drawn from its address as before.
+var ART_DB = "prism-art", ART_STORE = "img";
+function artDb() {
+  return new Promise(function (res, rej) {
+    try {
+      var q = indexedDB.open(ART_DB, 1);
+      q.onupgradeneeded = function () { try { q.result.createObjectStore(ART_STORE); } catch (e) {} };
+      q.onsuccess = function () { res(q.result); };
+      q.onerror = function () { rej(q.error || new Error("no database")); };
+    } catch (e) { rej(e); }
+  });
+}
+function artTx(mode, work) {
+  return artDb().then(function (db) {
+    return new Promise(function (res, rej) {
+      try {
+        var tx = db.transaction(ART_STORE, mode), out;
+        tx.oncomplete = function () { try { db.close(); } catch (e) {} res(out); };
+        tx.onerror = tx.onabort = function () { try { db.close(); } catch (e) {} rej(tx.error || new Error("database")); };
+        work(tx.objectStore(ART_STORE), function (v) { out = v; });
+      } catch (e) { try { db.close(); } catch (e2) {} rej(e); }
+    });
+  });
+}
+function artPut(url, buf) { return artTx("readwrite", function (st) { st.put(buf, url); }); }
+function artGet(url) { return artTx("readonly", function (st, give) { var q = st.get(url); q.onsuccess = function () { give(q.result || null); }; }); }
+// only the set in use is kept: the pictures of a set that was replaced go
+function artKeep(urls) {
+  return artTx("readwrite", function (st) {
+    var q = st.getAllKeys();
+    q.onsuccess = function () { (q.result || []).forEach(function (k) { if (urls.indexOf(k) < 0) st.delete(k); }); };
+  });
+}
+function artClear() { return artTx("readwrite", function (st) { st.clear(); }).catch(function () {}); }
+function bufToB64(buf) {
+  var u = new Uint8Array(buf), s = "", step = 0x8000;
+  for (var i = 0; i < u.length; i += step) s += String.fromCharCode.apply(null, u.subarray(i, i + step));
+  return btoa(s);
+}
+// A set got before the pictures were kept (pv:art with no `local`): its own pictures are fetched once more, checked against the
+// signed lists and stored, so the person keeps the pictures they have. Tried once a day at most until it is done.
+function artBackfill() {
+  try {
+    chrome.storage.local.get(["pv:art", "pv:art:backfillAt"], function (r) {
+      var rec = r && r["pv:art"];
+      if (!rec || rec.local || !rec.urls || !rec.urls.length) return;
+      if (Date.now() - (r["pv:art:backfillAt"] || 0) < 24 * 3600 * 1000) return;
+      chrome.storage.local.set({ "pv:art:backfillAt": Date.now() });
+      Promise.all(Object.keys(ART_SETS).map(function (k) { return fetchSignedArt(ART_HOST + ART_SETS[k]).catch(function () { return []; }); })).then(function (lists) {
+        var sha = {}; [].concat.apply([], lists).forEach(function (e) { sha[e.url] = e.sha256; });
+        var stored = 0;
+        return rec.urls.reduce(function (chain, url) {
+          return chain.then(function () {
+            if (!sha[url]) return;
+            return fetch(url, { referrerPolicy: "no-referrer", credentials: "omit" })
+              .then(function (x) { if (!x.ok) throw new Error(x.status); return x.arrayBuffer(); })
+              .then(function (buf) { return crypto.subtle.digest("SHA-256", buf).then(function (d) { if (hex(d) === sha[url]) return artPut(url, buf).then(function () { stored++; }); }); })
+              .catch(function () {});
+          });
+        }, Promise.resolve()).then(function () {
+          if (stored < rec.urls.length) return;
+          chrome.storage.local.get("pv:art", function (r2) {
+            var now = r2 && r2["pv:art"];
+            if (!now || now.at !== rec.at) return;   // the person got a new set meanwhile
+            chrome.storage.local.set({ "pv:art": { at: now.at, urls: now.urls, local: true } });
+          });
+        });
+      }).catch(function () {});
+    });
+  } catch (e) {}
+}
 function artRefresh(cb) {
   if (artInflight) { artInflight.then(cb); return; }
   // every picture of every set switched on is one candidate, so each has the same chance whatever its set's size
@@ -257,18 +332,25 @@ function artRefresh(cb) {
       .then(function (lists) { var all = [].concat.apply([], lists); if (!all.length) throw new Error("no verified list"); return all; });
   }).then(function (files) {
     var pool = files.slice(); for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
-    var pick = pool.slice(0, ART_N), good = [];
+    var pick = pool.slice(0, ART_N), good = [], stored = 0;
     return pick.reduce(function (chain, e) {
       return chain.then(function () {
         return fetch(e.url, { referrerPolicy: "no-referrer", credentials: "omit" })
           .then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
-          .then(function (buf) { return crypto.subtle.digest("SHA-256", buf); })
-          .then(function (d) { if (hex(d) === e.sha256) good.push(e.url); })
+          .then(function (buf) {
+            return crypto.subtle.digest("SHA-256", buf).then(function (d) {
+              if (hex(d) !== e.sha256) return;
+              good.push(e.url);
+              return artPut(e.url, buf).then(function () { stored++; }).catch(function () {});
+            });
+          })
           .catch(function () {});
       });
     }, Promise.resolve()).then(function () {
       if (good.length < 6) throw new Error("too few verified photos (" + good.length + ")");
       var rec = { at: Date.now(), urls: good };
+      if (stored === good.length) rec.local = true;
+      artKeep(good).catch(function () {});
       return new Promise(function (res) { chrome.storage.local.set({ "pv:art": rec }, function () { res({ ok: true, count: good.length, at: rec.at }); }); });
     });
   }).catch(function (e) { return { ok: false, error: String(e && (e.stack || e.message) || e).slice(0, 300) }; }).then(function (r) { artInflight = null; try { chrome.storage.local.set({ "pv:art:last": { at: Date.now(), ok: !!r.ok, error: r.error || "", count: r.count || 0 } }); } catch (e2) {} return r; });
@@ -288,6 +370,7 @@ try {
     var on = !!(r && r["pv:ui"] && r["pv:ui"].artWeekly); artWeeklyApply(on);
     var at = r && r["pv:art"] && r["pv:art"].at || 0;
     if (on && Date.now() - at > 7 * 24 * 3600 * 1000) artRefresh(function () {});
+    else artBackfill();
   });
 } catch (e) {}
 function credGet(file, cb) {
@@ -662,7 +745,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   }
   if (msg && msg.type === "prism-open-settings") { openSettings(sender && sender.tab, function (ok) { sendResponse({ ok: ok }); }); return true; }
   if (msg && msg.type === "prism-art-refresh") { try { artRefresh(sendResponse); } catch (eA) { sendResponse({ ok: false, error: "threw: " + eA }); } return true; }
-  if (msg && msg.type === "prism-art-reset") { chrome.storage.local.remove("pv:art", function () { sendResponse({ ok: true }); }); return true; }
+  if (msg && msg.type === "prism-art-reset") { artClear(); chrome.storage.local.remove("pv:art", function () { sendResponse({ ok: true }); }); return true; }
+  // a page asks for a stored picture's bytes; only an address of the pictures' own server is looked up
+  if (msg && msg.type === "prism-art-bytes") {
+    var au = String(msg.url || "");
+    if (au.indexOf(ART_HOST) !== 0) { sendResponse({ ok: false }); return; }
+    artGet(au).then(function (buf) { sendResponse(buf ? { ok: true, b64: bufToB64(buf) } : { ok: false }); }).catch(function () { sendResponse({ ok: false }); });
+    return true;
+  }
   // Embed frames' trace rings: kept in storage, not memory - Firefox's event
   // page (and Chrome's service worker) is unloaded after idle and an in-memory
   // map vanished before the report asked (2026-08-29).
