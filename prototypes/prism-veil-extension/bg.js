@@ -500,7 +500,28 @@ function openSettingsWindow(tab, done) {
   // An iPhone or iPad has no windows (2026-11-24, Safari on an iPhone: the Settings button of the panel in the page opened nothing;
   // the toolbar icon opens the settings as its own sheet, which a press in the page cannot ask for). There the settings open in a
   // tab. Anywhere else, a window that has not come after 1.5 s is given up for a tab too, so the button is never without an answer.
-  if (IOS || !chrome.windows) { inTab(); return; }
+  if (IOS || !chrome.windows) {
+    // The same sheet the toolbar icon opens, where the browser will open it for a press in the page (2026-11-24, asked that the
+    // settings open one way on an iPhone). Whether Safari does is not known ahead: the sheet is asked for, and it says so itself
+    // as it loads (popup.js, prism-popup-up). A refusal, or no word from the sheet in 1.2 s, and the settings open in a tab.
+    var asked = false;
+    try {
+      if (IOS && chrome.action && typeof chrome.action.openPopup === "function") {
+        var from = Date.now(), judged = false;
+        var judge = function (ok) {
+          if (judged) return; judged = true; clearTimeout(wait);
+          if (ok) { if (!went) { went = true; fin && fin(true); } } else inTab();
+        };
+        var wait = setTimeout(function () { judge(popupUpAt >= from); }, 1200);
+        popupUpTold = function () { judge(true); };
+        asked = true;
+        var pr = chrome.action.openPopup();
+        if (pr && typeof pr.catch === "function") pr.catch(function () { judge(false); });
+      }
+    } catch (eP) { asked = false; }
+    if (!asked) inTab();
+    return;
+  }
   done = function (ok) { if (went) return; went = true; clearTimeout(late); fin && fin(ok); };
   late = setTimeout(inTab, 1500);
   try {
@@ -531,6 +552,7 @@ function openSettingsWindow(tab, done) {
 var settingsBlurAt = 0;
 // Safari on an iPhone or iPad has no windows (2026-11-21, first run through TestFlight: a tap on the icon opened nothing): there
 // the icon opens the settings as the toolbar's own popup, a sheet on the phone, and the press never comes to onClicked.
+var popupUpAt = 0, popupUpTold = null;   // the toolbar's own sheet said it is up (popup.js)
 var IOS = false; try { IOS = /iPhone|iPad|iPod/.test(navigator.userAgent); } catch (eI) {}
 function iosPopup() { IOS = true; try { chrome.action.setPopup({ popup: "popup.html" }); } catch (e) {} }
 if (SAFARI) {
@@ -743,6 +765,7 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     } catch (eR) { sendResponse({}); }
     return true;
   }
+  if (msg && msg.type === "prism-popup-up") { popupUpAt = Date.now(); if (popupUpTold) { var told = popupUpTold; popupUpTold = null; try { told(); } catch (eT) {} } return; }
   if (msg && msg.type === "prism-open-settings") { openSettings(sender && sender.tab, function (ok) { sendResponse({ ok: ok }); }); return true; }
   if (msg && msg.type === "prism-art-refresh") { try { artRefresh(sendResponse); } catch (eA) { sendResponse({ ok: false, error: "threw: " + eA }); } return true; }
   if (msg && msg.type === "prism-art-reset") { artClear(); chrome.storage.local.remove("pv:art", function () { sendResponse({ ok: true }); }); return true; }

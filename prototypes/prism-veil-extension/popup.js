@@ -75,6 +75,9 @@
   // under it for the browser's own bar, and Close closes the tab and goes back to the page it was opened from.
   var OWN_TAB = new URLSearchParams(location.search).get("page") === "1";
   if (OWN_TAB) { try { document.title = "PRISM settings"; document.documentElement.classList.add("paged"); } catch (e) {} }
+  // the toolbar's own sheet says it is up: the background, asked for the settings by a press in a page, waits for this word
+  // before it opens a tab in the sheet's place (bg.js, openSettingsWindow)
+  if (!OWN_TAB && !OWN_WINDOW && !IN_FRAME && window.top === window) { try { chrome.runtime.sendMessage({ type: "prism-popup-up" }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
   // In any frame this page is hidden, and so takes no press and no key, until the background says the frame is one PRISM made
   // (bg.js settingsPass). A web page that frames the settings itself gets an empty frame.
   if (window.top !== window) {
