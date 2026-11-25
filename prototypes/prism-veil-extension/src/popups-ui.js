@@ -41,13 +41,15 @@
   PV.popupPolicy = policy;   // the in-page pops (src/inpage-pops.js) are judged and counted by the same policy
   var morph = new core.MorphCoalescer({ hold: 5000 });
 
+  var toldStopped = false;
   function pushSnapshot() {
     // Only this site's entry goes to the page's world (2026-11-18): the hook judges this page's popups and needs no more, and any
     // script of the page can listen here, so what other sites were allowed must not be in it
     try {
       var all = policy.snapshot(), mine = { global: all.global, sites: {} }, here = location.hostname;
       if (all.sites && Object.prototype.hasOwnProperty.call(all.sites, here)) mine.sites[here] = all.sites[here];
-      document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(mine) } }));
+      // stoppedHere: a pop was stopped on this page in this visit, one of the signs the hook needs to stop a redirect of the tab
+      document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(mine), stoppedHere: toldStopped } }));
     } catch (e) {}
   }
   document.addEventListener("prism-popup-ready", pushSnapshot);
@@ -118,6 +120,7 @@
       var v = visit[ev.dest] || (visit[ev.dest] = { dest: ev.dest, count: 0, url: ev.url, reason: ev.reason, last: 0 });
       v.count += 1; v.url = ev.url || v.url; v.reason = ev.reason; v.last = Date.now();
       morph.add(1); scheduleMorph(); badge(); if (panelOpen) renderPanel();
+      if (!toldStopped) { toldStopped = true; pushSnapshot(); }
     }
     if (ev.type === "policy") { pushSnapshot(); if (panelOpen) renderPanel(); }
     if (ev.type === "prefs" && (ev.site === site || ev.site === "*")) applyPrefs(effectivePrefs());
@@ -232,14 +235,14 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     host.style.setProperty("display", "inline", "important");
     host.style.setProperty("opacity", "1", "important");
     root = host.attachShadow({ mode: "closed" });
-    var style = document.createElement("style"); style.textContent = CSS; root.appendChild(style);
+    var style = document.createElement("style"); style.textContent = CSS + QCSS; root.appendChild(style);
     pill = document.createElement("div"); pill.className = "pill"; pill.setAttribute("role", "button"); pill.setAttribute("tabindex", "0");
     pill.setAttribute("aria-label", "PRISM popup control center"); pill.setAttribute("aria-live", "polite");
     label = document.createElement("span"); label.className = "lbl"; label.textContent = "PRISM";
     mk = document.createElement("span"); mk.className = "mk"; pill.appendChild(mk);
     var x = document.createElement("span"); x.className = "x"; x.textContent = "›"; x.title = "Collapse";
     pill.appendChild(label); pill.appendChild(x);
-    pill.addEventListener("click", function (e) { e.stopPropagation(); if (PV.cancelReportPick && PV.cancelReportPick()) return; if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
+    pill.addEventListener("click", function (e) { e.stopPropagation(); if (PV.cancelReportPick && PV.cancelReportPick()) return; if (autoSmall && !prefs.collapsed) { autoSmall = false; applyPrefs(prefs); togglePanel(); return; } if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
     // this site's reliability: the styled card above the pill (same card as
     // the link marks), not a browser title bubble
     pill.addEventListener("mouseenter", function () { if (pill.__credMs && PV.showCredTip && !panelOpen) PV.showCredTip(pill, pill.__credMs, "Open the panel for the Why? links"); });
@@ -284,10 +287,27 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   // oval on every site until a press opens it again; opening it clears both. The per-site hidden switch is untouched.
   function setCollapsed(c) { policy.setCollapsed("*", c); policy.setCollapsed(site, c); }
   function effectivePrefs() { var p = policy.prefs(site); try { if (policy.prefs("*").collapsed) p.collapsed = true; } catch (e) {} return p; }
+  // On a phone the button rests small (2026-11-25, asked for): a notice holds its 5 s and goes back to the name as before, and
+  // the name, left alone for SMALL_MS, goes down to the circle. This is the button's own and is not kept: a new page starts at
+  // the name, a notice brings the words back, and one press on the circle opens the panel (a circle the person made with the
+  // arrow opens to the name first, as it did). Not while the panel is open, a report is being picked, or PRISM is off (those
+  // words stay to be read).
+  var SMALL_MS = 5000, autoSmall = false, smallTimer = 0, touchy = false;
+  try { touchy = matchMedia("(pointer:coarse)").matches; } catch (e) {}
+  function armSmall() {
+    if (smallTimer) { clearTimeout(smallTimer); smallTimer = 0; }
+    if (!touchy || autoSmall || !pill) return;
+    smallTimer = setTimeout(function () {
+      smallTimer = 0;
+      if (!pill || panelOpen || picking || veilIsOff() || prefs.hidden || prefs.collapsed || pill.classList.contains("glow")) return;
+      autoSmall = true; pill.classList.add("collapsed");
+    }, SMALL_MS);
+  }
   function applyPrefs(p) {
     prefs = p || {};
     if (!pill) return;
-    pill.classList.toggle("collapsed", !!prefs.collapsed);
+    pill.classList.toggle("collapsed", !!prefs.collapsed || autoSmall);
+    armSmall();
     pill.classList.toggle("hidden", !!prefs.hidden || fullscreenNow());
     if (prefs.collapsed || prefs.hidden) closePanel();
     scheduleMorph();   // a notice that waited for the button (made, shown again, out of fullscreen) is due now
@@ -317,7 +337,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       }
     } catch (e) {}
     pill.style.bottom = (14 + lift) + "px";
-    if (panel) panel.style.bottom = (52 + lift) + "px";
+    lastLift = lift; placePanel();
   }
   addEventListener("resize", dodge, { passive: true });
   setInterval(dodge, 4000);
@@ -363,6 +383,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (!pill) return;
     if (glowAnim) { try { glowAnim.cancel(); } catch (e0) {} glowAnim = null; }
     if (on) {
+      autoSmall = false; if (smallTimer) { clearTimeout(smallTimer); smallTimer = 0; }
       pill.classList.remove("collapsed");
       pill.classList.add("glow");
       if (!reduced) { try { glowAnim = pill.animate([{ boxShadow: "0 0 6px 1px rgba(240,168,60,.45)" }, { boxShadow: "0 0 18px 5px rgba(240,168,60,.95)" }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e1) {} }
@@ -383,15 +404,16 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   var picking = false;
   function veilIsOff() { return !!(PV.veilOff && PV.veilOff()); }
   function baseLabel() { return picking ? "✕ Cancel report" : veilIsOff() ? "PRISM off" : "PRISM"; }
-  function restLabel() { if (!pill) return; pill.classList.toggle("off", veilIsOff() && !picking); setLabel(baseLabel(), picking); }
+  function restLabel() { if (!pill) return; pill.classList.toggle("off", veilIsOff() && !picking); setLabel(baseLabel(), picking); if (autoSmall && (picking || veilIsOff())) { autoSmall = false; applyPrefs(prefs); } else armSmall(); }
   PV.onReportPick = function (on) { picking = !!on; if (on) closePanel(); restLabel(); if (!on) scheduleMorph(); };
   PV.onVeilToggle = function () { restLabel(); if (panelOpen) renderPanel(); };
 
   // ---- the panel ------------------------------------------------------------
   function togglePanel() { if (panelOpen) closePanel(); else openPanel(); }
-  function openPanel() {
+  function openPanel(which) {
+    view = which === "menu" ? "menu" : "bar"; sub = ""; popsUp = false; if (view === "menu") tab = "site";
     if (!panel) {
-      panel = document.createElement("div"); panel.className = "panel"; panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", "Popup control center");
+      panel = document.createElement("div"); panel.className = "panel"; panel.setAttribute("role", "dialog");
       panel.addEventListener("click", function (e) { e.stopPropagation(); });
       // A press off the open panel closes it and goes no further (2026-11-22, on an iPhone: the tap that closed the panel also
       // opened the link under it; the cover's panel had the same fault, B-498). A clear layer under the panel, over the whole
@@ -422,7 +444,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   function closePanel() {
     if (!panelOpen) return;
-    panelOpen = false; if (pill) pill.classList.remove("on");
+    panelOpen = false; if (pill) pill.classList.remove("on"); armSmall();
     if (pvBar) { previewBarOff(); try { PV.inpagePreviewEnd(); } catch (e) {} } if (panel) panel.remove(); panel = null; if (scrim) scrim.remove(); scrim = null;
     removeEventListener("click", tapAway, true); removeEventListener("keydown", escClose, true); removeEventListener("scroll", scrollAway, { capture: true });
   }
@@ -475,150 +497,415 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   function plainDest(dest) { return PLAIN[dest] || dest; }
   var nudgeFor = null;   // dest awaiting "Open these automatically next time?"
 
+  // ---- the quick bar and the menu (2026-11-25, decided from pictures: option C) --------------------------------------------
+  // One press on the button opens a small bar: Popups (only when something was stopped on this visit), Reveal 15 s, Report, the
+  // PRISM switch for this site, More. Where the site has feed switches (suggested posts, AI-made posts) they sit over the bar.
+  // More opens the menu: two tabs, This site and All sites, rows of a symbol, one or two words and a control, and one page a tap
+  // in for each group. Every setting is on one of these pages, so nothing needs the settings page; that page is still what the
+  // toolbar opens. A site's own answer (pv:ui.siteChoice): the globe lit means the site follows the setting for all sites and
+  // the eye beside it is greyed and shows that setting; a press on the eye gives the site its own answer and the globe goes out;
+  // a press on the globe takes the answer away.
+  var view = "bar", tab = "site", sub = "", popsUp = false, artRec = null, artBusy = false, artErr = "", logNote = "", lastLift = 0;
+  var HAS_SUG = /(^|\.)(facebook|linkedin)\.com$/i.test(site), HAS_AI = /(^|\.)(youtube|facebook|instagram|threads|tiktok)\.com$/i.test(site);
+  var QCSS = [
+    ".qbarwrap,.qsheet{font:15px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7}",
+    ".panel.qbarwrap{background:none;border:0;box-shadow:none;overflow:visible;max-height:none;width:auto;max-width:calc(100vw - 28px);border-radius:0}",
+    ".panel.qsheet{width:min(390px,calc(100vw - 28px));max-height:80vh;border-radius:16px}",
+    ".qbody{padding:14px 14px 4px}",
+    "button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:left}",
+    "button:focus-visible{outline:2px solid #F0A83C;outline-offset:2px}",
+    ".qi{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}",
+    ".qbar{display:flex;align-items:stretch;height:64px;border-radius:20px;background:rgba(20,23,28,.97);border:1px solid #F0A83C;box-shadow:0 6px 24px rgba(0,0,0,.6);overflow:hidden}",
+    ".qc{flex:1;min-width:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:600 11.5px/1 'Segoe UI',-apple-system,Roboto,sans-serif;color:#D4DAE3;white-space:nowrap;border-left:1px solid rgba(255,255,255,.08);position:relative;padding:0 6px}",
+    ".qc:first-child{border-left:0}.qc .qi{color:#F0A83C;width:24px;height:24px}.qc.on{background:rgba(240,168,60,.2);color:#F2F4F7}",
+    ".qc:hover{color:#F2F4F7}",
+    ".qbd{position:absolute;top:7px;left:50%;margin-left:6px;min-width:18px;height:18px;border-radius:9px;background:#F0A83C;color:#0A0C0F;font:700 11px/18px 'Segoe UI',-apple-system,Roboto,sans-serif;text-align:center;padding:0 4px}",
+    ".qstrip{display:flex;gap:8px;margin-bottom:8px}",
+    ".qchip{flex:1;height:44px;border-radius:14px;background:rgba(20,23,28,.97);border:1px solid #2C333E;display:flex;align-items:center;justify-content:center;gap:8px;font:600 14px/1 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7;box-shadow:0 6px 24px rgba(0,0,0,.6);padding:0 12px;white-space:nowrap}",
+    ".qchip.on{border-color:#F0A83C;background:rgba(58,44,22,.98)}.qchip.on .qi{color:#F0A83C}",
+    ".qover{margin-bottom:8px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.6);max-height:50vh;overflow:auto}.qover .qlist{margin:0}",
+    ".qsw{flex:none;display:inline-block;width:60px;height:30px;border-radius:9px;border:1px solid #2C333E;background:#0A0C0F;position:relative}",
+    ".qsw span{position:absolute;left:2px;top:2px;width:30px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 11px/1 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7;background:linear-gradient(#4A5362,#2F3642)}",
+    ".qsw.on{border-color:#F0A83C}.qsw.on span{left:26px;color:#0A0C0F;background:linear-gradient(#F7C469,#E39A2C)}",
+    ".qsw:disabled{opacity:.45;cursor:default}",
+    ".qc .qsw{transform:scale(.8);margin:-3px 0}",
+    ".qtabs{display:flex;padding:3px;border-radius:11px;background:#0A0C0F;border:1px solid #2C333E;margin-bottom:14px}",
+    ".qtabs button{flex:1;text-align:center;font:600 14px/34px 'Segoe UI',-apple-system,Roboto,sans-serif;color:#8F99A6;border-radius:8px}.qtabs button.on{background:#2A303A;color:#F2F4F7}",
+    ".qhead{display:flex;align-items:center;gap:10px;margin:0 4px 12px;min-height:32px}",
+    ".qhead b{flex:1;min-width:0;font:600 19px/1.2 'Segoe UI',-apple-system,Roboto,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".qback{color:#F0A83C;display:flex;margin-left:-6px;padding:4px}",
+    ".qstat{margin:-6px 4px 12px;color:#8F99A6;font-size:14px}.qstat b{color:#F0A83C;font-weight:600}",
+    ".qacts{display:flex;gap:10px;margin-bottom:12px}",
+    ".qact{flex:1;height:48px;border-radius:12px;background:linear-gradient(#333A45,#262B34);border:1px solid #0A0C0F;display:flex;align-items:center;justify-content:center;gap:9px;font:600 15px/1 'Segoe UI',-apple-system,Roboto,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.14);white-space:nowrap}.qact .qi{color:#F0A83C}",
+    ".qlist{background:#1D222A;border:1px solid #2C333E;border-radius:14px;overflow:hidden;margin-bottom:12px}",
+    ".qrow{display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px;border-top:1px solid rgba(255,255,255,.07);width:100%;box-sizing:border-box}",
+    ".qrow:first-child{border-top:0}.qrow>.qi:first-child{color:#F0A83C;margin-right:2px}",
+    ".qrow .l{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".qrow .v{color:#8F99A6;font-size:14px;white-space:nowrap}.qrow .v.n{color:#F0A83C;font-weight:600}",
+    ".qrow.go>.qi:last-child{color:#5B6572;width:18px;height:18px;margin-left:-4px}.qrow.go:hover{background:rgba(255,255,255,.04)}",
+    ".qlbl{margin:12px 6px 7px;color:#8F99A6;font:600 12px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;letter-spacing:.06em;text-transform:uppercase}.qlbl.dn{text-transform:none;letter-spacing:0;font-size:14px}",
+    ".qhead+.qlbl{margin-top:0}",
+    ".qseg{display:flex;padding:3px;border-radius:11px;background:#0A0C0F;border:1px solid #2C333E;margin-bottom:4px}",
+    ".qseg button{flex:1;text-align:center;font:600 14px/36px 'Segoe UI',-apple-system,Roboto,sans-serif;color:#D4DAE3;border-radius:8px;white-space:nowrap}",
+    ".qseg button.on{background:linear-gradient(#F7C469,#E39A2C);color:#0A0C0F}",
+    ".qseg.sm{flex:none;margin:0}.qseg.sm button{flex:none;padding:0 9px;font-size:13px;line-height:26px}",
+    ".qmini{flex:none;font:600 13px/30px 'Segoe UI',-apple-system,Roboto,sans-serif;padding:0 12px;border-radius:8px;background:#2A303A;border:1px solid #0A0C0F;color:#F2F4F7;white-space:nowrap}.qmini:disabled{opacity:.5}",
+    ".qeye{flex:none;width:60px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0A0C0F;border:1px solid #2C333E;color:#F2F4F7}",
+    ".qeye .qi{width:24px;height:24px}.qeye.on{background:linear-gradient(#F7C469,#E39A2C);border-color:#F0A83C;color:#0A0C0F}",
+    ".qeye.dim{opacity:.4;border-style:dashed}.qeye.own{border-color:#F0A83C;box-shadow:0 0 0 1px #F0A83C}",
+    ".qglb{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0A0C0F;border:1px solid #2C333E;color:#5B6572}",
+    ".qglb .qi{width:21px;height:21px}.qglb.on{border-color:#F0A83C;color:#F0A83C;background:rgba(240,168,60,.16)}",
+    ".qdots{display:flex;gap:5px;margin-right:2px}.qdot{width:12px;height:12px;border-radius:50%;flex:none;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.5)}",
+    ".qchips{display:flex;gap:8px;margin-bottom:12px}.qchips button{flex:1;text-align:center;font:600 14px/40px 'Segoe UI',-apple-system,Roboto,sans-serif;border-radius:11px;background:#1D222A;border:1px solid #2C333E;color:#D4DAE3}",
+    ".qchips button.on{background:rgba(240,168,60,.16);border-color:#F0A83C;color:#F2F4F7}",
+    ".qinp{flex:1;min-width:0;height:34px;border-radius:8px;background:#0A0C0F;border:1px solid #2C333E;color:#F2F4F7;font:15px/32px 'Segoe UI',-apple-system,Roboto,sans-serif;padding:0 10px}",
+    ".qnote{color:#8F99A6;font-size:13px;margin:-4px 6px 10px}",
+    "@media (pointer:coarse){.pill.on{visibility:hidden}.panel.qbarwrap{left:14px;right:14px;width:auto;max-width:none}.panel.qsheet{left:0;right:0;width:auto;max-height:82vh;border-radius:22px 22px 0 0;border-bottom:0}.qbody{padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px))}}"
+  ].join("");
+  var IC = {
+    eye: "p:M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z|c:12,12,3",
+    eyeoff: "p:M3 9c2.2 3.3 5.3 5 9 5s6.8-1.7 9-5M12 14v3.5M6.5 12.5L4.5 15.5M17.5 12.5l2 3",
+    flag: "p:M5 21V4h12l-2.5 4 2.5 4H5", peel: "p:M4 4h16v9l-7 7H4z|p:M20 13h-7v7",
+    win: "r:3,4,14,12,2|p:M8 20h11a2 2 0 002-2V9", more: "c:5,12,1.3|c:12,12,1.3|c:19,12,1.3",
+    ch: "p:M9 6l6 6-6 6", back: "p:M15 5l-7 7 7 7",
+    globe: "c:12,12,8.5|p:M3.5 12h17M12 3.5c2.5 2.5 3.5 5.3 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.3-3.5-8.5s1-6 3.5-8.5z",
+    sug: "c:9,8,3.5|p:M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M19 7v6M16 10h6",
+    ai: "p:M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z",
+    star: "p:M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z",
+    btn: "c:12,12,8.5|c:12,12,3", video: "r:3,5,18,14,3|p:M10 9l5 3-5 3z", tv: "r:3,7,18,12,2|p:M9 3l3 4 3-4",
+    feed: "p:M4 6h16M4 12h16M4 18h10", shield: "p:M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z|p:M9 12l2 2 4-4",
+    pic: "r:3,5,18,14,2|p:M3 17l5-5 4 4 3-3 6 5|c:16,9.5,1.5",
+    sync: "p:M20 12a8 8 0 01-14 5.3M4 12a8 8 0 0114-5.3|p:M18 3v4h-4M6 21v-4h4",
+    sun: "c:12,12,4|p:M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3L7 7M17 17l1.7 1.7M5.3 18.7L7 17M17 7l1.7-1.7",
+    zoom: "r:3,5,18,14,2|r:12,11,7,6,1", clock: "c:12,12,8.5|p:M12 7.5V12l3 2", doc: "p:M7 3h7l4 4v14H7z|p:M10 12h5M10 16h5",
+    x: "p:M6 6l12 12M18 6L6 18", scan: "p:M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3|c:12,12,3", undo: "p:M4 9h10a5 5 0 010 10H9|p:M8 5L4 9l4 4"
+  };
+  function ico(name) {
+    var NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "qi"); s.setAttribute("aria-hidden", "true");
+    String(IC[name] || "").split("|").forEach(function (part) {
+      var k = part.slice(0, 1), a = part.slice(2).split(","), n = null;
+      if (k === "p") { n = document.createElementNS(NS, "path"); n.setAttribute("d", part.slice(2)); }
+      else if (k === "c") { n = document.createElementNS(NS, "circle"); n.setAttribute("cx", a[0]); n.setAttribute("cy", a[1]); n.setAttribute("r", a[2]); }
+      else if (k === "r") { n = document.createElementNS(NS, "rect"); ["x", "y", "width", "height", "rx"].forEach(function (nm, i) { if (a[i] != null) n.setAttribute(nm, a[i]); }); }
+      if (n) s.appendChild(n);
+    });
+    return s;
+  }
+  function add(parent) { for (var i = 1; i < arguments.length; i++) { var k = arguments[i]; if (k != null && k !== false) parent.appendChild(typeof k === "string" ? document.createTextNode(k) : k); } return parent; }
+  function tapBtn(cls, kids, fn, name) {
+    var b = el("button", cls || null); b.type = "button"; if (name) b.setAttribute("aria-label", name);
+    (kids || []).forEach(function (k) { add(b, k); });
+    b.addEventListener("click", function (e) { e.stopPropagation(); fn(b); });
+    return b;
+  }
+  function ui(k) { return PV.uiPrefs ? PV.uiPrefs[k] : undefined; }
+  function setUi(k, v) { if (PV.setUiPref) PV.setUiPref(k, v); }
+  function swLook(on) { return add(el("span", "qsw" + (on ? " on" : "")), el("span", null, on ? "On" : "Off")); }
+  function qsw(name, on, fn, disabled) {
+    var b = tapBtn("qsw" + (on ? " on" : ""), [el("span", null, on ? "On" : "Off")], function () { fn(!on); renderPanel(); }, name);
+    b.setAttribute("role", "switch"); b.setAttribute("aria-checked", on ? "true" : "false"); if (disabled) b.disabled = true;
+    return b;
+  }
+  function qeye(name, hidden, st, fn) {
+    var b = tapBtn("qeye" + (hidden && st !== "dim" ? " on" : "") + (st ? " " + st : ""), [ico(hidden ? "eyeoff" : "eye")], function () { fn(); renderPanel(); }, name + (hidden ? ": hidden" : ": shown"));
+    b.setAttribute("data-hidden", hidden ? "1" : "0");
+    return b;
+  }
+  function qseg(items, cur, fn, small) {
+    var s = el("div", "qseg" + (small ? " sm" : ""));
+    items.forEach(function (it) { s.appendChild(tapBtn(it[1] === cur ? "on" : "", [it[0]], function () { fn(it[1]); renderPanel(); })); });
+    return s;
+  }
+  function qmini(text, fn) { return tapBtn("qmini", [text], function (b) { fn(b); renderPanel(); }); }
+  function qrow(icon, label, right, go) {
+    var r = go ? tapBtn("qrow go", [], go) : el("div", "qrow");
+    if (icon) r.appendChild(typeof icon === "string" ? ico(icon) : icon);
+    r.appendChild(el("span", "l", label));
+    (right || []).forEach(function (k) { if (k) r.appendChild(typeof k === "string" ? el("span", "v", k) : k); });
+    if (go) r.appendChild(ico("ch"));
+    return r;
+  }
+  function qlist(rows) { var l = el("div", "qlist"), n = 0; (rows || []).forEach(function (r) { if (r) { l.appendChild(r); n++; } }); return n ? l : null; }
+  function qlbl(t, c) { return el("div", "qlbl" + (c ? " " + c : ""), t); }
+  function goTo(name) {
+    sub = name; logNote = "";
+    if (name === "pics") { try { chrome.storage.local.get("pv:art", function (x) { void chrome.runtime.lastError; artRec = (x && x["pv:art"]) || null; if (panelOpen && sub === "pics") renderPanel(); }); } catch (e) {} }
+    renderPanel();
+  }
+  function placePanel() { if (panel) panel.style.bottom = (touchy ? (view === "menu" ? 0 : 14 + lastLift) : 52 + lastLift) + "px"; }
+  function reveal15() { closePanel(); if (PV.dismissAll) PV.dismissAll(15000); }
+  function reportPick() { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); }
+  function allOff() { return !!ui("veilOff"); }
+  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : !!ui(k); }
+  function covered() {
+    var s = 0; try { s = (PV.reclaimWindows && PV.reclaimWindows().all) || 0; } catch (e) {}
+    var m = Math.round(s / 60), h = Math.floor(m / 60);
+    return h ? h + " h " + (m % 60) + " min" : m + " min";
+  }
+  // what was stopped on this visit, one row each: a window opens by Open, a unit held in the page is looked at by Preview
+  function blockedRows() {
+    return visitRows().map(function (v) {
+      var dest = v.dest, inPage = !!(PV.inpageHeld && PV.inpageHeld(dest)), noAddress = /\.invalid$/.test(dest), right = [];
+      if (inPage) right.push(qmini("Preview", function () { previewWith(site, dest); }));
+      else if (!noAddress) right.push(qmini("Open", function () {
+        var o = policy.open(site, dest); if (!o) return;
+        var go = function () { try { window.open(o.url, "_blank", "noopener"); } catch (e) {} };   // now, visibly, by the person's choice
+        try { chrome.runtime.sendMessage({ type: "prism-popup-deliberate", url: o.url }, function () { go(); }); } catch (e) { go(); }
+      }));
+      right.push(qmini("Allow", function () { policy.allow(site, dest); }));
+      var r = qrow("", plainDest(dest), right); r.title = v.count + " stopped: " + v.reason;
+      return r;
+    });
+  }
   function renderPanel() {
     if (!panel) return;
     panel.textContent = "";
-    // The same build as the settings (2026-11-18): a dark band with the name and the main switch, the site as the heading, every
-    // line with its words at the left and its control at the right, and a dark band at the foot.
-    var top = el("div", "ptop"), body = el("div", "pbody"), foot = el("div", "pfoot");
-    top.appendChild(el("span", "brand", "PRISM"));
-    panel.appendChild(top); panel.appendChild(body); panel.appendChild(foot);
-    // The site's own icon beside its address (2026-11-18): the address this page names as its icon, else /favicon.ico on this site,
-    // the file the browser has already fetched for the tab. A page that forbids it, or has none, shows the address alone.
-    var h2 = el("h2", null), ico = document.createElement("img"), icoUrl = "";
-    try {
-      var links = document.querySelectorAll('link[rel~="icon"][href]');
-      for (var li = 0; li < links.length && !icoUrl; li++) { if (/^(https?:|data:image.)/i.test(links[li].href)) icoUrl = links[li].href; }
-      if (!icoUrl && /^https?:$/.test(location.protocol)) icoUrl = location.origin + "/favicon.ico";
-    } catch (e) {}
-    ico.alt = ""; ico.width = 18; ico.height = 18; ico.referrerPolicy = "no-referrer"; ico.hidden = true;
-    ico.addEventListener("load", function () { ico.hidden = false; });
-    ico.addEventListener("error", function () { ico.remove(); });
-    if (icoUrl) { ico.src = icoUrl; h2.appendChild(ico); }
-    h2.appendChild(el("span", null, site));
-    body.appendChild(h2);
-    // The veil: the main switch, a report, a look underneath.
-    var allOff = !!(PV.uiPrefs && PV.uiPrefs.veilOff);
-    var tv = el("label", "toggle master"); tv.title = allOff ? "The veil is off for every site. Turn it on in the settings." : "The veil on this site only. Off: no covers on " + site + "; every other site is as it was. Popups are still intercepted. The switch for every site is in the settings.";
-    var cv = document.createElement("input"); cv.type = "checkbox"; cv.checked = !veilIsOff(); cv.disabled = allOff;
-    cv.addEventListener("change", function () { if (PV.setVeilOffHere) PV.setVeilOffHere(!cv.checked); else if (PV.setVeilOff) PV.setVeilOff(!cv.checked); });
-    tv.appendChild(cv); tv.appendChild(document.createTextNode(allOff ? "Off everywhere" : "Veil site")); top.appendChild(tv);
-    var lineOf = function (text, b) { var r = el("div", "row"); r.appendChild(el("div", "dest", text)); r.appendChild(b); body.appendChild(r); };
-    var rb = btn("Report", false, function () { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); });
-    rb.title = "Then click an ad the veil missed, or a veil that should not be there. The report shows you exactly what it holds; nothing is sent without your click.";
-    lineOf("Missed ad", rb);
-    var rv = btn("Reveal 15 s", false, function () { closePanel(); if (PV.dismissAll) PV.dismissAll(15000); });
-    rv.title = "Lift every veil on this page for 15 seconds. Also: press and hold a veil for 3 seconds, or Esc for 6 seconds.";
-    lineOf("Covers", rv);
-
-    body.appendChild(el("h3", null, "Popups"));
-    var vrows = visitRows(), vtotal = 0; vrows.forEach(function (r) { vtotal += r.count; });
-    body.appendChild(el("div", "sub", vtotal ? vtotal + " blocked on this visit" : "None blocked"));
-
-    // since you arrived, by destination (the store's entry carries opens/nudge state)
-    var rows = vrows.map(function (v) {
-      var e = policy.ledger(site).find(function (x) { return x.dest === v.dest; });
-      return Object.assign({}, e || { dest: v.dest, lastUrl: v.url, opens: 0, nudgeDismissed: 0 }, { count: v.count, lastSeen: new Date(v.last).toISOString(), context: v.reason });
-    });
-    if (rows.length) body.appendChild(el("h3", null, "Blocked"));
-    rows.forEach(function (r) {
-      var row = el("div", "row");
-      var d = el("div", "dest"); d.textContent = plainDest(r.dest);
-      var meta = el("span", "meta", r.count + "× · " + ago(r.lastSeen) + " · " + r.context);
-      d.appendChild(meta); row.appendChild(d);
-      // a unit held in the page (2026-11-24): Preview draws it small at the top of the window for a few seconds, Show puts it back
-      // for this visit. Open, a tab on its address, is for a popup that has a real address.
-      var inPage = !!(PV.inpageHeld && PV.inpageHeld(r.dest)), noAddress = /\.invalid$/.test(r.dest);
-      if (inPage) {
-        // the panel steps aside for the preview and comes back when it ends (2026-11-24, on an iPhone the preview was drawn
-        // behind the panel, which takes most of a phone's screen)
-        var pb = btn("Preview", false, function () { previewWith(site, r.dest); });
-        pb.title = "Look at it for a few seconds, small, without letting it through";
-        row.appendChild(pb);
-        var sb2 = btn("Show", false, function () { if (PV.inpageShow) PV.inpageShow(r.dest); renderPanel(); });
-        sb2.title = "Put it back on this page for now. PRISM holds it again on your next visit.";
-        row.appendChild(sb2);
-      }
-      if (!noAddress && !inPage) row.appendChild(btn("Open", false, function () {
-        var o = policy.open(site, r.dest); if (!o) return;
-        var go = function () { try { window.open(o.url, "_blank", "noopener"); } catch (e) {} };   // now, visibly, by the human's choice
-        try { chrome.runtime.sendMessage({ type: "prism-popup-deliberate", url: o.url }, function () { go(); }); } catch (e) { go(); }
-        nudgeFor = o.nudge ? r.dest : null; renderPanel();
-      }));
-      var ab = btn("Always allow", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); });
-      if (noAddress) ab.title = "Always show " + plainDest(r.dest).toLowerCase() + " on " + site;
-      row.appendChild(ab);
-      body.appendChild(row);
-      if (nudgeFor === r.dest) {
-        var n = el("div", "nudge"); n.setAttribute("role", "status");
-        n.appendChild(el("span", null, "Always allow?"));
-        n.appendChild(btn("Yes", false, function () { policy.allow(site, r.dest); nudgeFor = null; renderPanel(); }));
-        n.appendChild(btn("No", false, function () { policy.dismissNudge(site, r.dest); nudgeFor = null; renderPanel(); }));
-        var t = n.querySelector(".btn"); t.title = core.allowSentence(site, r.dest);
-        body.appendChild(n);
-      }
-    });
-
-    // allowed list, THIS site only - plain sentences, one Remove each. The
-    // list across every site grows for years (2026-10-27): that one lives in the toolbar popup, with a filter.
-    var allowedAll = policy.listAllowed();
-    var allowed = allowedAll.filter(function (a) { return a.site === site; });
-    var elsewhere = allowedAll.length - allowed.length;
-    body.appendChild(el("h3", null, "Allowed popups"));
-    if (!allowed.length) body.appendChild(el("div", "empty", "None"));
-    allowed.forEach(function (a) {
-      var row = el("div", "row");
-      var d = el("div", "dest", PLAIN[a.dest] ? site + " may show: " + PLAIN[a.dest].toLowerCase() : a.sentence); d.title = "since " + a.since.slice(0, 10);
-      row.appendChild(d);
-      row.appendChild(btn("Remove", false, function () { policy.remove(a.site, a.dest); renderPanel(); }));
-      body.appendChild(row);
-    });
-    if (elsewhere) body.appendChild(el("div", "empty", "+" + elsewhere + " on other sites, in Settings"));
-
-    // This site: two switches (tooltips carry the explanations).
-    body.appendChild(el("h3", null, "This site"));
-    var t1 = el("label", "toggle"); t1.title = "Unknown popups are always blocked. This also blocks the ones PRISM normally lets through: this site's own windows, sign-in windows, and popups that match your click. Destinations you allowed above still open."; var c1 = document.createElement("input"); c1.type = "checkbox"; c1.checked = policy.blockAll(site);
-    c1.addEventListener("change", function () { policy.setBlockAll(site, c1.checked); });
-    t1.appendChild(c1); t1.appendChild(document.createTextNode("Block all popups")); body.appendChild(t1);
-    var t2 = el("label", "toggle"); t2.title = "Hide this button on this site. Popups are still intercepted; the toolbar badge shows the count. Bring it back from the toolbar popup."; var c2 = document.createElement("input"); c2.type = "checkbox"; c2.checked = !!prefs.hidden;
-    c2.addEventListener("change", function () { policy.setHidden(site, c2.checked); });
-    t2.appendChild(c2); t2.appendChild(document.createTextNode("Hide this button")); body.appendChild(t2);
-
-    // This site's reliability rating (only while marks are on; the switch and
-    // the source credits live in the toolbar popup).
-    if (PV.credOn && PV.credOn() && PV.CRED_SOURCES) {
-      body.appendChild(el("h3", null, "Reliability"));
-      var ms = PV.credSite ? PV.credSite() : null;
-      var TIP = { rsp: "Wikipedia\u2019s Perennial Sources list (CC BY-SA). Community-adjudicated; every rating links to the discussion that set it.",
-                  iffy: "Iffy Index (CC BY 4.0). Sites Media Bias/Fact Check rates low credibility; the colour is MBFC\u2019s factual-reporting grade. Why? opens the MBFC review.",
-                  sb: "Steven Black hosts, fakenews list (MIT). A plain domain list: red if listed, grey if not. No per-site rationale exists." };
-      PV.CRED_SOURCES.forEach(function (src, i) {
-        var m = ms ? ms[i] : null, row = el("div", "srcrow");
-        (function (text, rowEl) { rowEl.addEventListener("mouseenter", function () { if (PV.showTextTip) PV.showTextTip(rowEl, text); }); rowEl.addEventListener("mouseleave", function () { if (PV.hideCredTip) PV.hideCredTip(rowEl); }); })(TIP[src.id] || src.name, row);
-        var disk = el("span", "disk"); disk.style.background = m && !m.off && m.tier ? PV.credColor(m.tier) : (m && m.off ? "transparent" : PV.credColor(null));
-        if (m && m.off) disk.style.boxShadow = "inset 0 0 0 1px #7d8590"; row.appendChild(disk);
-        var nm = el("div", "nm"); nm.textContent = src.short + (m && !m.off && m.tier ? ": " + m.label : (m && m.off ? ": off" : (m && !m.loaded ? ": loading\u2026" : ": no rating")));
-        row.appendChild(nm);
-        if (m && m.why) row.appendChild(btn("Why?", false, function () { try { chrome.runtime.sendMessage({ type: "prism-cred-open", url: m.why }); } catch (e) {} }));
-        body.appendChild(row);
-      });
-    }
-
-    // Everything PRISM-wide (veil, content, photos, start page, time
-    // reclaimed) lives in the toolbar popup - one place, not two.
-    var srow = foot;
-    srow.appendChild(el("span", null, ""));
-    var sb = btn("Settings", false, function () {
-      closePanel();   // the panel goes as the settings open (2026-11-18): two things were left open, and one press elsewhere closed both
-      try {
-        chrome.runtime.sendMessage({ type: "prism-open-settings" }, function (r) {
-          if (!(r && r.ok) && PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C");
-        });
-      } catch (e) { if (PV.toast) PV.toast("Click the PRISM icon in the browser toolbar for settings.", "#F0A83C"); }
-    });
-    sb.title = "Open PRISM\u2019s settings: veil behaviour, AI and reliability marks, photos, start page, time reclaimed";
-    srow.appendChild(sb);
+    panel.className = "panel " + (view === "menu" ? "qsheet" : "qbarwrap");
+    panel.setAttribute("aria-label", view === "menu" ? "PRISM menu" : "PRISM quick bar");
+    if (view === "menu") renderMenu(); else renderBar();
+    placePanel();
   }
+  // ---- the bar
+  function renderBar() {
+    var vtotal = 0; visitRows().forEach(function (r) { vtotal += r.count; });
+    if (!vtotal) popsUp = false;
+    var off = veilIsOff();
+    if (popsUp) add(panel, add(el("div", "qover"), qlist(blockedRows())));
+    else if ((HAS_SUG || HAS_AI) && !off) {
+      var chip = function (label, k) {
+        var hidden = prefHere(k);
+        var c = tapBtn("qchip" + (hidden ? " on" : ""), [ico(hidden ? "eyeoff" : "eye"), label], function () {
+          var nv = !hidden; if (PV.setSiteChoice) PV.setSiteChoice(k, nv === !!ui(k) ? null : nv);
+          renderPanel();
+        }, label + (hidden ? ": hidden" : ": shown"));
+        c.setAttribute("data-k", k);
+        return c;
+      };
+      add(panel, add(el("div", "qstrip"), HAS_SUG && chip("Suggested", "suggestedVeil"), HAS_AI && chip("AI-made", "aiVeil")));
+    }
+    var bar = el("div", "qbar");
+    var cell = function (id, kids, fn, cls) { var c = tapBtn("qc" + (cls ? " " + cls : ""), kids, fn); c.setAttribute("data-q", id); return c; };
+    if (vtotal) bar.appendChild(cell("popups", [ico("win"), el("span", "qbd", String(vtotal)), el("span", null, "Popups")], function () { popsUp = !popsUp; renderPanel(); }, popsUp ? "on" : ""));
+    bar.appendChild(cell("reveal", [ico("peel"), el("span", null, "Reveal 15 s")], reveal15));
+    bar.appendChild(cell("report", [ico("flag"), el("span", null, "Report")], reportPick));
+    var pc = cell("prism", [swLook(!off), el("span", null, "PRISM")], function () {
+      if (allOff()) { view = "menu"; tab = "all"; sub = ""; renderPanel(); return; }   // off for every site: that switch is on the All sites tab
+      if (PV.setVeilOffHere) PV.setVeilOffHere(!off);
+      renderPanel();
+    });
+    pc.setAttribute("role", "switch"); pc.setAttribute("aria-checked", off ? "false" : "true"); pc.setAttribute("aria-label", "PRISM on this site");
+    bar.appendChild(pc);
+    bar.appendChild(cell("more", [ico("more"), el("span", null, "More")], function () { view = "menu"; tab = "site"; sub = ""; popsUp = false; renderPanel(); }));
+    panel.appendChild(bar);
+  }
+  // ---- the menu
+  function head(title, right, back) {
+    var h = el("div", "qhead");
+    if (back) h.appendChild(tapBtn("qback", [ico("back")], function () { sub = ""; renderPanel(); }, "Back"));
+    h.appendChild(el("b", null, title));
+    if (right) h.appendChild(right);
+    return h;
+  }
+  function renderMenu() {
+    var b = el("div", "qbody"); panel.appendChild(b);
+    if (sub && PAGES[sub]) { PAGES[sub](b); return; }
+    var tabs = el("div", "qtabs");
+    tabs.appendChild(tapBtn(tab === "site" ? "on" : "", ["This site"], function () { tab = "site"; renderPanel(); }));
+    tabs.appendChild(tapBtn(tab === "all" ? "on" : "", ["All sites"], function () { tab = "all"; renderPanel(); }));
+    b.appendChild(tabs);
+    if (tab === "all") allTab(b); else siteTab(b);
+  }
+  function hereRow(icon, label, k) {
+    var own = PV.siteChoice ? PV.siteChoice(k) : null, val = own === null ? !!ui(k) : own;
+    var g = tapBtn("qglb" + (own === null ? " on" : ""), [ico("globe")], function () { if (own !== null && PV.setSiteChoice) PV.setSiteChoice(k, null); renderPanel(); },
+      own === null ? label + ": follows the setting for all sites" : label + ": use the setting for all sites");
+    g.setAttribute("data-k", k);
+    var e = qeye(label, val, own === null ? "dim" : "own", function () { if (PV.setSiteChoice) PV.setSiteChoice(k, !val); });
+    e.setAttribute("data-k", k);
+    return qrow(icon, label, [g, e]);
+  }
+  function ratingDots() {
+    var ms = PV.credSite ? PV.credSite() : null, d = el("span", "qdots");
+    (PV.CRED_SOURCES || []).forEach(function (src, i) { var m = ms ? ms[i] : null, x = el("span", "qdot"); x.style.background = PV.credColor(m && !m.off && m.tier ? m.tier : null); d.appendChild(x); });
+    return d;
+  }
+  function siteTab(b) {
+    var off = veilIsOff(), vtotal = 0; visitRows().forEach(function (r) { vtotal += r.count; });
+    add(b, head(site, qsw("PRISM on this site", !off, function (on) { if (PV.setVeilOffHere) PV.setVeilOffHere(!on); }, allOff())));
+    var acts = el("div", "qacts");
+    add(acts, tapBtn("qact", [ico("peel"), "Reveal 15 s"], reveal15), tapBtn("qact", [ico("flag"), "Report"], reportPick));
+    b.appendChild(acts);
+    var chan = ""; try { chan = (ui("livePicture") && PV.liveChannelName && PV.liveChannelName()) || ""; } catch (e) {}
+    if (chan) {
+      add(b, qlbl("This channel: " + chan), qseg([["All breaks", "all"], ["Sure only", "sure"], ["None", "off"]], (ui("liveChannels") || {})[chan] || "all", function (mode) {
+        var n = {}, cur = ui("liveChannels") || {}; for (var k in cur) n[k] = cur[k]; n[chan] = mode; setUi("liveChannels", n);
+      }));
+      b.lastChild.style.marginBottom = "12px";
+    }
+    add(b, qlist([
+      HAS_SUG && hereRow("sug", "Suggested", "suggestedVeil"),
+      HAS_AI && hereRow("ai", "AI-made", "aiVeil"),
+      qrow("win", "Popups", [vtotal ? add(el("span", "v n"), String(vtotal)) : null], function () { goTo("pops"); }),
+      (PV.credOn && PV.credOn() && PV.CRED_SOURCES) ? qrow("star", "Rating", [ratingDots()], function () { goTo("rating"); }) : null,
+      qrow("btn", "PRISM button", [qsw("PRISM button on this site", true, function () { policy.setHidden(site, true); })])
+    ]));
+  }
+  function allTab(b) {
+    add(b, head("PRISM", qsw("PRISM on all sites", !allOff(), function (on) { setUi("veilOff", !on); })));
+    add(b, add(el("div", "qstat"), el("b", null, covered()), " of ads covered"));
+    var go = function (icon, label, name) { return qrow(icon, label, [], function () { goTo(name); }); };
+    add(b, qlist([go("video", "Video ads", "video"), go("tv", "Live TV", "livetv"), go("feed", "Feeds", "feeds"), go("shield", "Source ratings", "ratings"),
+      go("pic", "Pictures", "pics"), go("win", "Popups", "popsall"), go("more", "More", "more")]));
+  }
+  var PAGES = {
+    pops: function (b) {
+      add(b, head("Popups", null, true));
+      var rows = blockedRows();
+      if (rows.length) add(b, qlbl("Blocked"), qlist(rows));
+      var allowed = policy.listAllowed().filter(function (a) { return a.site === site; });
+      if (allowed.length) add(b, qlbl("Allowed"), qlist(allowed.map(function (a) { return qrow("", plainDest(a.dest), [qmini("Remove", function () { policy.remove(a.site, a.dest); })]); })));
+      add(b, qlist([qrow("x", "Block all", [qsw("Block all popups on this site", !!policy.blockAll(site), function (on) { policy.setBlockAll(site, on); })])]));
+    },
+    rating: function (b) {
+      add(b, head("Rating", null, true));
+      var ms = PV.credSite ? PV.credSite() : null;
+      add(b, qlist((PV.CRED_SOURCES || []).map(function (src, i) {
+        var m = ms ? ms[i] : null, d = el("span", "qdot"); d.style.background = PV.credColor(m && !m.off && m.tier ? m.tier : null);
+        var word = m && !m.off && m.tier ? m.label : (m && m.off ? "Off" : (m && !m.loaded ? "Loading" : "No rating"));
+        return qrow(d, src.short, [word, m && m.why ? qmini("Why", function () { try { chrome.runtime.sendMessage({ type: "prism-cred-open", url: m.why }); } catch (e) {} }) : null]);
+      })));
+    },
+    video: function (b) {
+      var look = ui("breakLook") === "mute" || ui("breakLook") === "show" ? ui("breakLook") : "veil";
+      add(b, head("Video ads", null, true),
+        qlbl("During ads"), qseg([["Veil", "veil"], ["Mute", "mute"], ["Show", "show"]], look, function (v) { setUi("breakLook", v === "veil" ? undefined : v); }),
+        qlbl("Card"), qseg([["Full", "interactive"], ["Corner", "minimal"]], ui("hud") || "interactive", function (v) { setUi("hud", v); }),
+        qlbl("Sound"), qseg([["Off", ""], ["River", "river"], ["Chimes", "chimes"], ["Stars", "stars"]], ui("breakSound") || "", function (v) { setUi("breakSound", v || undefined); }));
+      b.lastChild.style.marginBottom = "12px";
+    },
+    livetv: function (b) {
+      var sites = Array.isArray(ui("liveTvSites")) ? ui("liveTvSites") : ["tv.youtube.com"], canPicture = !touchy;
+      add(b, head("Live TV", null, true), qlist([
+        qrow("flag", "Marked ad slots", [qsw("Marked ad slots", ui("ytvVeil") !== false, function (on) { setUi("ytvVeil", on); })]),
+        canPicture && qrow("scan", "Picture detection", [qsw("Picture detection", !!ui("livePicture"), function (on) {
+          setUi("livePicture", on);
+          if (on && PV.toast) PV.toast("On the live TV tab, press the PRISM icon in the toolbar once to start.", "#F0A83C");
+        })])
+      ]));
+      if (canPicture && ui("livePicture")) {
+        var inp = el("input", "qinp"); inp.type = "text"; inp.placeholder = "example.com"; inp.spellcheck = false; inp.setAttribute("aria-label", "A live TV site to add");
+        inp.addEventListener("click", function (e) { e.stopPropagation(); }); inp.addEventListener("keydown", function (e) { e.stopPropagation(); });
+        var addSite = function () {
+          var h = String(inp.value || "").trim().toLowerCase().replace(/^[a-z]+:\/\//, "").split(/[\/?#:]/)[0].replace(/^www\./, "");
+          if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h) && sites.indexOf(h) < 0) setUi("liveTvSites", sites.concat([h]));
+        };
+        add(b, qlbl("Sites"), qlist(sites.map(function (h) { return qrow("", h, [qmini("Remove", function () { setUi("liveTvSites", sites.filter(function (y) { return y !== h; })); })]); })
+          .concat([add(el("div", "qrow"), inp, qmini("Add", addSite))])));
+      }
+    },
+    feeds: function (b) {
+      add(b, head("Feeds", null, true), qlbl("All sites"), qlist([
+        qrow("ai", "AI-made", [qeye("AI-made on all sites", !!ui("aiVeil"), "", function () { setUi("aiVeil", !ui("aiVeil")); })]),
+        qrow("sug", "Suggested", [qeye("Suggested on all sites", !!ui("suggestedVeil"), "", function () { setUi("suggestedVeil", !ui("suggestedVeil")); })])
+      ]));
+      var sc = ui("siteChoice") || {}, rows = [], NAME = { aiVeil: "AI-made", suggestedVeil: "Suggested" };
+      Object.keys(sc).sort().forEach(function (h) {
+        Object.keys(NAME).forEach(function (k) {
+          if (!sc[h] || typeof sc[h][k] !== "boolean") return;
+          rows.push(qrow("", h, [NAME[k] + (sc[h][k] ? " hidden" : " shown"), qmini("Reset", function () {
+            var m = {}; Object.keys(sc).forEach(function (x) { var c = {}; Object.keys(sc[x] || {}).forEach(function (kk) { if (!(x === h && kk === k)) c[kk] = sc[x][kk]; }); if (Object.keys(c).length) m[x] = c; });
+            setUi("siteChoice", m);
+          })]));
+        });
+      });
+      if (rows.length) add(b, qlbl("Different on"), qlist(rows));
+    },
+    ratings: function (b) {
+      var on = !!ui("srcMarks"), cs = ui("credSrc") || {}, ids = (PV.CRED_SOURCES || []).map(function (s) { return s.id; });
+      var lit = function (id) { return on && cs[id] !== false; };
+      add(b, head("Source ratings", qsw("Source ratings", on, function (v) {
+        if (v) { var n = {}; ids.forEach(function (id) { n[id] = true; }); setUi("credSrc", n); }
+        setUi("srcMarks", v);
+      }), true));
+      add(b, qlist((PV.CRED_SOURCES || []).map(function (src) {
+        return qrow("", src.short, [qsw(src.short, lit(src.id), function (v) {
+          var n = {}, any = false; ids.forEach(function (id) { n[id] = id === src.id ? v : lit(id); if (n[id]) any = true; });
+          setUi("credSrc", n); setUi("srcMarks", any);   // the marks are on while any source is lit
+        })]);
+      })));
+    },
+    pics: function (b) {
+      var n = artRec && artRec.urls ? artRec.urls.length : 0, sets = ui("artSets") || ["nature"];
+      var get = function (btn) {
+        if (artBusy) return; artBusy = true; artErr = "";
+        try {
+          chrome.runtime.sendMessage({ type: "prism-art-refresh" }, function (r) {
+            artBusy = false;
+            if (!(r && r.ok)) { artErr = "Could not fetch: " + ((r && r.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || "no answer"); if (panelOpen && sub === "pics") renderPanel(); return; }
+            chrome.storage.local.get("pv:art", function (x) { artRec = (x && x["pv:art"]) || null; if (panelOpen && sub === "pics") renderPanel(); });
+          });
+        } catch (e) { artBusy = false; artErr = "Could not fetch"; }
+      };
+      var gb = qmini(artBusy ? "Fetching" : (n ? "Get new" : "Get 24"), get); gb.disabled = artBusy;
+      add(b, head("Pictures", null, true), qlist([
+        qrow("pic", "Photos", [n ? String(n) : "Built-in", gb]),
+        qrow("sync", "Weekly refresh", [qsw("Weekly refresh", !!ui("artWeekly"), function (on) { setUi("artWeekly", on); })]),
+        n ? qrow("undo", "Defaults", [qmini("Restore", function () { try { chrome.runtime.sendMessage({ type: "prism-art-reset" }, function () { void chrome.runtime.lastError; artRec = null; if (panelOpen && sub === "pics") renderPanel(); }); } catch (e) {} })]) : null
+      ]));
+      if (artErr) add(b, el("div", "qnote", artErr));
+      var chips = el("div", "qchips");
+      [["Nature", "nature"], ["Cosmos", "cosmos"], ["Museum art", "gallery"]].forEach(function (s) {
+        var isOn = sets.indexOf(s[1]) >= 0;
+        chips.appendChild(tapBtn(isOn ? "on" : "", [s[0]], function (btn) {
+          var next = isOn ? sets.filter(function (x) { return x !== s[1]; }) : sets.concat([s[1]]);
+          if (!next.length) return;   // never none
+          setUi("artSets", next); if (n) get(btn);
+          renderPanel();
+        }));
+      });
+      add(b, qlbl("Sets"), chips);
+    },
+    popsall: function (b) {
+      add(b, head("Popups", null, true));
+      var by = {}, all = policy.listAllowed();
+      all.forEach(function (a) { (by[a.site] = by[a.site] || []).push(a); });
+      Object.keys(by).sort().forEach(function (s) {
+        add(b, qlbl(s, "dn"), qlist(by[s].map(function (a) { return qrow("", plainDest(a.dest), [qmini("Remove", function () { policy.remove(a.site, a.dest); })]); })));
+      });
+      if (!all.length) add(b, el("div", "qnote", "Nothing allowed yet"));
+    },
+    more: function (b) {
+      var copy = function () {
+        try {
+          chrome.runtime.sendMessage({ type: "pv:veil-log-get" }, function (a) {
+            void chrome.runtime.lastError; a = Array.isArray(a) ? a : [];
+            var two = function (x) { return (x < 10 ? "0" : "") + x; };
+            var text = a.map(function (r) {
+              var d = new Date(r.at || 0), s = d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes()) + ":" + two(d.getSeconds());
+              s += " " + (r.ev || "?") + " " + (r.src || "?") + (r.chan ? " " + r.chan : "") + " " + (r.site || "");
+              if (r.ev === "up") s += (typeof r.p === "number" ? " " + r.p.toFixed(2) : "") + (r.why ? " " + r.why : "");
+              else s += (typeof r.s === "number" ? " " + r.s + " s" : "") + (r.why ? " (" + r.why + ")" : "");
+              return s;
+            }).join("\n") + (a.length ? "\n" : "");
+            var done = function (ok) { logNote = ok ? (a.length ? a.length + " lines copied" : "Nothing logged yet") : "Could not copy"; if (panelOpen && sub === "more") renderPanel(); };
+            try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+          });
+        } catch (e) {}
+      };
+      add(b, head("More", null, true), qlist([
+        !touchy && qrow("zoom", "Small view", [qsw("Small view", ui("smallView") !== false, function (on) { setUi("smallView", on); })]),
+        qrow("sun", "Button glow", [qseg([["Normal", "normal"], ["Strong", "strong"]], ui("ringGlow") === "strong" ? "strong" : "normal", function (v) { setUi("ringGlow", v === "strong" ? "strong" : undefined); }, true)]),
+        qrow("sync", "Rule updates", [qsw("Rule updates", !!ui("packUpdates"), function (on) {
+          setUi("packUpdates", on);
+          if (on) { try { chrome.runtime.sendMessage({ type: "pv:pack-check" }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
+        })]),
+        qrow("clock", "Ads covered", [covered(), qmini("Reset", function () { if (PV.reclaimReset) PV.reclaimReset(); })]),
+        qrow("doc", "Log", [qmini("Copy", copy), qmini("Clear", function () { try { chrome.runtime.sendMessage({ type: "pv:veil-log-clear" }, function () { void chrome.runtime.lastError; }); } catch (e) {} logNote = "Cleared"; })])
+      ]));
+      if (logNote) add(b, el("div", "qnote", logNote));
+    }
+  };
   function btnLike(text, fn) { var b = el("button", null, text); b.type = "button"; b.style.cssText = "font:600 12px -apple-system,Segoe UI,Roboto,sans-serif;color:#F2F4F7;background:#2A2F38;border:1px solid var(--edge,#2C333E);border-radius:8px;padding:5px 10px;cursor:pointer"; b.addEventListener("click", function (e) { e.stopPropagation(); fn(); }); return b; }
 
   // ---- the settings, drawn over this page (2026-11-18, asked for: a panel at the top centre that closes on a press beside it, not a
@@ -672,7 +959,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       if (msg.type === "prism-settings-open") { if (window.top !== window) return; sendResponse({ ok: settingsToggle(msg.tab, msg.pass) }); return; }
       if (msg.type === "prism-settings-size") { settingsSize(msg.h); return; }
       if (msg.type === "prism-settings-close") { settingsClose(); return; }
-      if (msg.type === "prism-popup-open-panel") { settingsClose();   /* the settings go as the controls open (2026-11-18): the menu came up dimmed under them */ if (!host) mount(); if (prefs.hidden) { pill.classList.remove("hidden"); } openPanel(); }
+      if (msg.type === "prism-popup-open-panel") { settingsClose();   /* the settings go as the controls open (2026-11-18): the menu came up dimmed under them */ if (!host) mount(); if (prefs.hidden) { pill.classList.remove("hidden"); } openPanel("menu"); }
       // the toolbar popup has already written the switch to storage; this side reads it back and never writes (2026-11-04: the show
       // handler's own collapse write persisted this page's stale prefs, hidden still true, over the popup's, and the checkbox turned
       // itself back off a moment after it was ticked)

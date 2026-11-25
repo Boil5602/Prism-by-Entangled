@@ -85,6 +85,30 @@
     look(el, 0);
     return found;
   }
+  // The site's own message that asks the person to allow ads (2026-11-25, a report from allrecipes.com on an iPhone with another
+  // ad blocker installed: the message filled the screen, linked to its vendor's help pages, and was covered as an ad). It is the
+  // site's word to the person, not an ad, and the page does not go on until it is answered: never held and never covered. Read
+  // from the words the box shows, in its own tree, its shadow trees and the frames the page may read, and from the vendors' marks.
+  var ASK_WORDS = /allow(ing)? ads|(disable|turn off|pause|deactivate|switch off)[^.]{0,40}ad[\s-]?block|(using|use|detected)[^.]{0,30}ad[\s-]?block|ad[\s-]?block(er)?[^.]{0,20}detected|whitelist (us|this site|our site)/i;
+  var ASK_MARKS = /fc-ab-root|fundingchoices|getadmiral|blockthrough|anti-?adblock|adblock-?(wall|detect|notice|modal|message|warning)/i;
+  function adsAsk(el) {
+    try {
+      if (anyMark(el, ASK_MARKS)) return true;
+      var text = "", add = function (root, depth) {
+        if (!root || depth > 2 || text.length > 6000) return;
+        try { text += " " + String(root.textContent || "").slice(0, 3000); } catch (e) {}
+        var all = [];
+        try { all = Array.prototype.slice.call(root.querySelectorAll ? root.querySelectorAll("*") : [], 0, 300); } catch (e1) {}
+        if (root.shadowRoot) add(root.shadowRoot, depth + 1);
+        all.forEach(function (n) {
+          try { if (n.shadowRoot) add(n.shadowRoot, depth + 1); } catch (e2) {}
+          try { if (n.tagName === "IFRAME" && n.contentDocument && n.contentDocument.body) add(n.contentDocument.body, depth + 1); } catch (e3) {}
+        });
+      };
+      add(el, 0);
+      return ASK_WORDS.test(text.replace(/\s+/g, " "));
+    } catch (e4) { return false; }
+  }
   function zOf(cs) { var z = parseInt(cs.zIndex, 10); return isNaN(z) ? -Infinity : z; }
   function onScreen(el) {
     var r = el.getBoundingClientRect();
@@ -119,7 +143,7 @@
     if (cs.display === "none" || cs.visibility === "hidden" || (parseFloat(cs.opacity) < 0.05 && el.getAttribute("data-prism-held") !== "clear")) return null;
     if (!onScreen(el)) return null;
     try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e5) {}
-    if (anyMark(el, LEAVE_HARD)) return null;
+    if (anyMark(el, LEAVE_HARD) || adsAsk(el)) return null;
     var signal = PV.adSignalIn ? PV.adSignalIn(el) : "";
     if (!signal && anyMark(el, LEAVE_SOFT)) return null;
     var dest = destOf(el);
@@ -167,7 +191,7 @@
   function dialogPop(el) {
     try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e) {}
     if (asked(el)) return null;
-    if (anyMark(el, LEAVE_HARD) || anyMark(el, WALL_WORDS)) return null;
+    if (anyMark(el, LEAVE_HARD) || anyMark(el, WALL_WORDS) || adsAsk(el)) return null;
     var signal = PV.adSignalIn ? PV.adSignalIn(el) : "";
     if (!signal && anyMark(el, LEAVE_SOFT)) return null;
     if (!closeControl(el)) return null;
@@ -399,7 +423,7 @@
   }
   function adPop(el, why) {
     try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e) {}
-    if (anyMark(el, LEAVE_HARD)) return null;
+    if (anyMark(el, LEAVE_HARD) || adsAsk(el)) return null;
     return { dest: destOf(el) || creativeFrame(el) || NO_LINK, reason: "fixed over the page, " + String(why || "an ad").split(":")[0] };
   }
   function judge(el, adWhy, popIn) {

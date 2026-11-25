@@ -187,7 +187,9 @@
     document.querySelectorAll("[data-prism-ai]").forEach(function (t) { t.removeAttribute("data-prism-ai"); });
   }
   function apply(prefs) {
+    // the site's own answer wins over the setting for all sites (report.js, pv:ui.siteChoice)
     var next = !!(prefs && prefs.aiVeil);
+    try { var sc = prefs && prefs.siteChoice && prefs.siteChoice[PV.veilSite ? PV.veilSite() : location.hostname]; if (sc && typeof sc.aiVeil === "boolean") next = sc.aiVeil; } catch (eS) {}
     if (next === on) return;
     on = next;
     if (on) start(); else stop();

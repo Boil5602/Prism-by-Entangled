@@ -138,7 +138,6 @@ const STORE = {
   drop: ["ntp.html", "ntp.css", "ntp.js"],
   strip: ["bg.js", "popup.js", "popup.html"],
   reword: [   // [file, find, replace, how many times it must be there]
-    ["src/popups-ui.js", "photos, start page, time", "photos, time", 2],
     ["bg.js", "list = Wikipedia RSP (kept for the start page)", "list = Wikipedia RSP", 1],
   ],
   refuse: [/ntp\.(html|js|css)/i, /ntpEnabled|startEnabled/, /start page|new-tab page/i, /open-meteo/i, /chrome_url_overrides/, /cdn\.jsdelivr\.net/i, /@store-strip/],

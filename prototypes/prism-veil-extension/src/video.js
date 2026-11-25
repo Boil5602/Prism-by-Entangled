@@ -2176,7 +2176,7 @@
     return m ? m[1] : "";
   }
   function aiLabeled(v) {
-    if (!(PV.uiPrefs && PV.uiPrefs.aiVeil)) return null;
+    if (!(PV.prefHere ? PV.prefHere("aiVeil") : (PV.uiPrefs && PV.uiPrefs.aiVeil))) return null;
     if (!/(^|\.)youtube\.com$/i.test(location.hostname)) return null;
     var vid = ""; try { var vm = /[?&]v=([\w-]{11})/.exec(location.search); vid = vm ? vm[1] : ""; } catch (e) {}
     if (!vid) {

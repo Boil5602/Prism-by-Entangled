@@ -14,6 +14,9 @@
 (function () {
   "use strict";
   var PV = window.__prismVeilNS || (window.__prismVeilNS = {});
+  // a setting as it holds on this page: the site's own answer where there is one (report.js, PV.prefHere), else the setting for
+  // all sites; read straight from the settings where report.js is not loaded
+  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : !!(PV.uiPrefs && PV.uiPrefs[k]); }
 
   // "Page-sized": an element that is (about) the page, never an ad - MSN's
   // .ad-banner-wrapper spanning the viewport for a moment at load. It was
@@ -956,7 +959,7 @@
       id: "facebook-suggested",
       host: /(^|\.)facebook\.com$/i,
       run: function (root, ctx) {
-        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil) || !fbHome()) return;
+        if (!prefHere("suggestedVeil") || !fbHome()) return;
         var seen = new Set(), now = Date.now(), posts = [];
         root.querySelectorAll("[aria-posinset]").forEach(function (post) {
           if (seen.has(post) || post.querySelector("[aria-posinset]")) return;   // innermost posts only
@@ -989,7 +992,7 @@
       host: /(^|\.)facebook\.com$/i,
       run: function (root, ctx) {
         if (!document.getElementById("screen-root")) return;
-        var home = fbHome(), sug = home && !!(PV.uiPrefs && PV.uiPrefs.suggestedVeil), done = new Set(), now = Date.now();
+        var home = fbHome(), sug = home && prefHere("suggestedVeil"), done = new Set(), now = Date.now();
         var leaves = root.querySelectorAll("#screen-root span");
         // every leaf is read: a feed scrolled far holds well over 6000 spans, and a count stopped there left the posts below it
         // bare (the reports' feeds ran to 115 posts); the test on each is its text alone
@@ -1063,7 +1066,7 @@
       id: "linkedin-suggested",
       host: /(^|\.)linkedin\.com$/i,
       run: function (root, ctx) {
-        if (!(PV.uiPrefs && PV.uiPrefs.suggestedVeil)) return;
+        if (!prefHere("suggestedVeil")) return;
         if (!/^\/feed(\/|$)/.test(location.pathname)) return;
         root.querySelectorAll('[role="listitem"]').forEach(function (item) {
           if (item.parentElement && item.parentElement.closest('[role="listitem"]')) return;   // the feed's own items only, not a list inside one
@@ -1232,7 +1235,7 @@
       // no label, no veil.
       id: "ai-label",
       run: function (root, ctx) {
-        if (!(PV.uiPrefs && PV.uiPrefs.aiVeil)) return;
+        if (!prefHere("aiVeil")) return;
         var AI = /^(ai info|made with ai|ai[- ]generated|ai[- ]generated content|generated with ai|created with ai|altered or synthetic content|contains ai[- ]generated content|synthetic content|ai content)$/i;
         var base = (root === document) ? document.body : root;
         // YouTube watch page (observed 2026-08-29, /watch?v=IYKFXmQBLy0): the

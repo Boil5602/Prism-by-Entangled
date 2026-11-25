@@ -196,7 +196,7 @@
       } catch (eH) {}
       try { d.family = PV.playerFamily ? PV.playerFamily() : null; } catch (eF) {}
       try { d.adStack = PV.adStackHere ? PV.adStackHere() : null; } catch (eS) {}
-      try { d.prefs = PV.uiPrefs ? { srcMarks: !!PV.uiPrefs.srcMarks, aiVeil: !!PV.uiPrefs.aiVeil, veilPaused: PV.uiPrefs.veilPaused !== false, hud: PV.uiPrefs.hud || "interactive", pauseAfter: !!(PV.pauseAfterPref && PV.pauseAfterPref()) } : null; } catch (e9) {}
+      try { d.prefs = PV.uiPrefs ? { srcMarks: !!PV.uiPrefs.srcMarks, aiVeil: !!PV.prefHere("aiVeil"), veilPaused: PV.uiPrefs.veilPaused !== false, hud: PV.uiPrefs.hud || "interactive", pauseAfter: !!(PV.pauseAfterPref && PV.pauseAfterPref()) } : null; } catch (e9) {}
       // The video veil's state at the pick (a Paramount+ show sat "Paused"
       // under the veil with nothing in the report saying why, 2026-09-12).
       try {
@@ -528,6 +528,30 @@
     Object.keys(old).forEach(function (k) { if (old[k] === true) m[k] = true; });
     if (off) m[PV.veilSite()] = true; else delete m[PV.veilSite()];
     PV.setUiPref("veilOffSites", m);
+  };
+  // A setting for every site that one site may answer for itself (pv:ui.siteChoice, 2026-11-25, decided: the setting for all
+  // sites comes first, and a site's own choice, where the person made one, wins on that site). Kept as
+  // { "<site>": { aiVeil: true|false, suggestedVeil: true|false } }, the site named as the per-site switch names it
+  // (PV.veilSite). Only the settings listed in SITE_CHOICES can be answered by a site. PV.prefHere is what holds on this page;
+  // PV.siteChoice is the site's own answer (true, false, or null for none); PV.setSiteChoice(k, null) takes the answer away, so
+  // the site follows the setting for all sites again.
+  var SITE_CHOICES = { aiVeil: 1, suggestedVeil: 1 };
+  PV.siteChoice = function (k) {
+    try {
+      var m = PV.uiPrefs && PV.uiPrefs.siteChoice, s = m && m[PV.veilSite()];
+      if (SITE_CHOICES[k] === 1 && s && typeof s[k] === "boolean") return s[k];
+    } catch (e) {}
+    return null;
+  };
+  PV.prefHere = function (k) { var c = PV.siteChoice(k); return c === null ? !!(PV.uiPrefs && PV.uiPrefs[k]) : c; };
+  PV.setSiteChoice = function (k, v) {
+    if (SITE_CHOICES[k] !== 1) return;
+    var old = (PV.uiPrefs && PV.uiPrefs.siteChoice) || {}, m = {}, site = PV.veilSite();
+    Object.keys(old).forEach(function (h) { var o = old[h], c = {}; if (!o) return; Object.keys(o).forEach(function (kk) { if (SITE_CHOICES[kk] === 1 && typeof o[kk] === "boolean") c[kk] = o[kk]; }); if (Object.keys(c).length) m[h] = c; });
+    var mine = m[site] || {};
+    if (typeof v === "boolean") mine[k] = v; else delete mine[k];
+    if (Object.keys(mine).length) m[site] = mine; else delete m[site];
+    PV.setUiPref("siteChoice", m);
   };
   function applyUiPrefs() {
     if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff || PV.veilOffHere()); } catch (e0) {} }

@@ -178,6 +178,20 @@ describe("in-page pops", () => {
     expect(p.PV.popupPolicy.ledger("watch.example").length).toBe(0);
   });
 
+  it("leaves the site's own message that asks to allow ads, by its words, in a shadow tree too, and by a vendor's mark", async () => {
+    const p = load(); await p.pass(0);
+    const say = (u, t) => { const d = document.createElement("div"); d.textContent = t; u.appendChild(d); return u; };
+    const plain = say(unit({ href: "https://help.vendor.example/not-using" }), "Please allow ads on this site. Our site is supported by ads.");
+    const blocker = say(unit(), "It looks like you are using an ad blocker.");
+    const shadow = unit(); const host = document.createElement("div"); shadow.appendChild(host);
+    host.attachShadow({ mode: "open" }).innerHTML = "<p>Please disable your ad-blocker to continue</p>";
+    const marked = unit({ id: "fc-ab-root" });
+    const ad = say(unit({ href: "https://getblock.example/install" }), "Block ads everywhere. Install now.");   // an ad for a blocker is still an ad
+    await p.pass(1100);
+    [plain, blocker, shadow, marked].forEach((u) => { expect(held(u)).toBe(null); expect(u.style.cssText).not.toMatch(/transform/); });
+    expect(held(ad)).not.toBe(null);
+    expect(p.PV.popupPolicy.ledger("watch.example").map((r) => r.dest)).toEqual(["getblock.example"]);
+  });
   it("holds a widget-marked unit when an ad server's element is in it, and names the signal", async () => {
     const p = load(); await p.pass(0);
     p.PV.adSignalIn = (el) => (el.querySelector("a[href*='doubleclick.net']") ? "a from ad.doubleclick.net" : "");
