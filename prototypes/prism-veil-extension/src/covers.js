@@ -1539,6 +1539,7 @@
       else groups.push({ top: it.r.top, height: it.r.height, left: it.r.left, right: it.r.right, items: [it] });
     });
     groups.forEach(function (g) {
+      if (PV.coverLook && PV.coverLook()) return;   // black or frosted: no picture to share along a row
       if (g.items.length < 2) {
         var c1 = g.items[0].c;
         if (c1.__rowArt) { c1.__rowArt = null; c1.style.backgroundImage = "url('" + (PV.artCss ? PV.artCss(c1.__artUrl) : c1.__artUrl) + "')"; c1.style.backgroundSize = "cover"; c1.style.backgroundPosition = "center"; }

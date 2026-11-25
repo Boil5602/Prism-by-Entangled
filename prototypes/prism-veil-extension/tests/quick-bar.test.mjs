@@ -94,6 +94,20 @@ describe("the quick bar and the menu", () => {
     expect(p.rows().length).toBe(7);
     p.press(p.all(".qrow.go")[6]);
     expect(p.rows()).toEqual(["Small view", "Button glow", "Rule updates", "Ads covered", "Log"]);
+    // the glow's sample is the control: a press changes it in place
+    expect(p.$(".qglow").getAttribute("data-glow")).toBe("normal");
+    p.press(".qglow");
+    expect(p.PV.uiPrefs.ringGlow).toBe("strong");
+    expect(p.$(".qglow").getAttribute("data-glow")).toBe("strong");
+    p.press(".qglow");
+    expect(p.PV.uiPrefs.ringGlow).toBe(undefined);
+    // what a cover shows: photos, black or frosted
+    p.press(".qback"); p.press(p.all(".qrow.go")[4]);
+    expect([...p.all(".qseg")[0].querySelectorAll("button")].map((x) => x.textContent)).toEqual(["Photos", "Black", "Frosted"]);
+    p.press(p.all(".qseg")[0].querySelectorAll("button")[2]);
+    expect(p.PV.uiPrefs.coverLook).toBe("frosted");
+    p.press(p.all(".qseg")[0].querySelectorAll("button")[0]);
+    expect(p.PV.uiPrefs.coverLook).toBe(undefined);
   });
 
   it("shows a site's own answer: the globe lit and the eye greyed while the site follows all sites, the globe out and the eye lit once the site answers", async () => {

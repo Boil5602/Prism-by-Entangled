@@ -164,7 +164,9 @@ opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);ba
 .acts{display:flex;gap:8px;margin:6px 0 2px}\
 .acts .btn{flex:1}\
 .pill.dissolve .lbl{opacity:0}\
-.pill.collapsed{right:14px;padding:0;width:12px;height:44px;border-radius:7px;justify-content:center;opacity:.7;background:rgba(240,168,60,.9);border-color:rgba(0,0,0,.55);box-shadow:0 0 0 1px rgba(255,255,255,.4),0 2px 6px rgba(0,0,0,.45);-webkit-backdrop-filter:none;backdrop-filter:none}\
+.pill.collapsed{right:14px;padding:0;width:34px;height:34px;border-radius:50%;justify-content:center;opacity:.6;background:rgba(20,23,28,.5);border-color:rgba(255,255,255,.3);box-shadow:0 2px 6px rgba(0,0,0,.4)}\
+.pill.collapsed:hover{opacity:1}\
+.pill .tri{display:none;line-height:0}.pill.collapsed .tri{display:block}.pill .tri svg{display:block;width:20px;height:20px}\
 .pill.collapsed .lbl,.pill.collapsed .x{display:none}\
 .pill .x{opacity:.7;font-size:33px;line-height:1;display:inline-flex;align-items:center;justify-content:center;align-self:stretch;width:36px;margin:0 -12px 0 -6px;padding-bottom:7px;border-radius:0 14px 14px 0}\
 .pill .x:hover{opacity:1;background:rgba(255,255,255,.14)}\
@@ -178,7 +180,7 @@ h3+.srcrow{border-top:0}\
 .pill.marked .mk{display:inline-block}\
 .pill.marked{opacity:.8}\
 .pill.collapsed .mk{display:none}\
-@media (pointer:coarse){.pill{height:44px;padding:0 16px;border-radius:22px;font-size:15px;opacity:.9;background:rgba(20,23,28,.82);border-color:rgba(255,255,255,.3);box-shadow:0 2px 8px rgba(0,0,0,.45)}.pill.off{opacity:.8}.pill .x{width:46px;margin:0 -16px 0 -6px;border-radius:0 22px 22px 0}.pill.collapsed{width:44px;height:44px;border-radius:50%;opacity:.9}.panel{bottom:66px}}\
+@media (pointer:coarse){.pill{height:44px;padding:0 16px;border-radius:22px;font-size:15px;opacity:.9;background:rgba(20,23,28,.82);border-color:rgba(255,255,255,.3);box-shadow:0 2px 8px rgba(0,0,0,.45)}.pill.off{opacity:.8}.pill .x{width:46px;margin:0 -16px 0 -6px;border-radius:0 22px 22px 0}.pill.collapsed{width:44px;height:44px;border-radius:50%;opacity:.75}.pill .tri svg{width:26px;height:26px}.panel{bottom:66px}}\
 .scrim{position:fixed;inset:0;z-index:2147483646;background:transparent}.pvbar{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483647;width:min(360px,92vw);box-sizing:border-box;padding:10px 12px;border-radius:14px;background:#14171C;border:1px solid #2C333E;box-shadow:0 12px 40px rgba(0,0,0,.7)}.pvname{font:600 13px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#E8ECF2;margin:0 0 8px;text-align:center}.pvacts{display:flex;gap:8px}.pvacts .btn{flex:1;padding:0 6px;height:34px}.panel{position:fixed;right:14px;bottom:52px;z-index:2147483647;width:min(400px,92vw);max-height:70vh;overflow:auto;padding:0;border-radius:14px;\
 background:#14171C;color:#F2F4F7;border:1px solid #2C333E;box-shadow:0 18px 60px rgba(0,0,0,.5);font:13px/1.45 'Segoe UI Variable Text','Segoe UI',-apple-system,Roboto,sans-serif}\
 .panel h2{display:flex;align-items:center;gap:8px;margin:16px 0 4px;font-size:18px;line-height:1.2;font-weight:600}\
@@ -242,6 +244,13 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     mk = document.createElement("span"); mk.className = "mk"; pill.appendChild(mk);
     var x = document.createElement("span"); x.className = "x"; x.textContent = "›"; x.title = "Collapse";
     pill.appendChild(label); pill.appendChild(x);
+    // small, the button is the prism of the icon in grey (2026-11-25, asked for in place of the amber disc)
+    try {
+      var NS = "http://www.w3.org/2000/svg", tri = document.createElement("span"), sv = document.createElementNS(NS, "svg"), mkp = function (d, fill, op) { var p = document.createElementNS(NS, "path"); p.setAttribute("d", d); p.setAttribute("fill", fill); if (op) p.setAttribute("opacity", op); sv.appendChild(p); };
+      tri.className = "tri"; sv.setAttribute("viewBox", "0 0 24 24"); sv.setAttribute("aria-hidden", "true");
+      mkp("M12 3.5L21.5 20.5H2.5Z", "#C9CFD8"); mkp("M12 3.5L21.5 20.5H12Z", "#7E8794"); mkp("M12 3.5L2.5 20.5H12Z", "#FFFFFF", ".18");
+      tri.appendChild(sv); pill.appendChild(tri);
+    } catch (eT) {}
     pill.addEventListener("click", function (e) { e.stopPropagation(); if (PV.cancelReportPick && PV.cancelReportPick()) return; if (autoSmall && !prefs.collapsed) { autoSmall = false; applyPrefs(prefs); togglePanel(); return; } if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
     // this site's reliability: the styled card above the pill (same card as
     // the link marks), not a browser title bubble
@@ -510,7 +519,9 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   var QCSS = [
     ".qbarwrap,.qsheet{font:15px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7}",
     ".panel.qbarwrap{background:none;border:0;box-shadow:none;overflow:visible;max-height:none;width:auto;max-width:calc(100vw - 28px);border-radius:0}",
-    ".panel.qsheet{width:min(390px,calc(100vw - 28px));max-height:80vh;border-radius:16px}",
+    // one height for every page of the menu (2026-11-25, asked for: the sheet changed its height with each page). It is the
+    // height of the All sites tab; a longer page scrolls inside it.
+    ".panel.qsheet{width:min(390px,calc(100vw - 28px));height:510px;max-height:80vh;border-radius:16px}",
     ".qbody{padding:14px 14px 4px}",
     "button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:left}",
     "button:focus-visible{outline:2px solid #F0A83C;outline-offset:2px}",
@@ -560,7 +571,9 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     ".qchips button.on{background:rgba(240,168,60,.16);border-color:#F0A83C;color:#F2F4F7}",
     ".qinp{flex:1;min-width:0;height:34px;border-radius:8px;background:#0A0C0F;border:1px solid #2C333E;color:#F2F4F7;font:15px/32px 'Segoe UI',-apple-system,Roboto,sans-serif;padding:0 10px}",
     ".qnote{color:#8F99A6;font-size:13px;margin:-4px 6px 10px}",
-    "@media (pointer:coarse){.pill.on{visibility:hidden}.panel.qbarwrap{left:14px;right:14px;width:auto;max-width:none}.panel.qsheet{left:0;right:0;width:auto;max-height:82vh;border-radius:22px 22px 0 0;border-bottom:0}.qbody{padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px))}}"
+    ".qrow.tall{min-height:76px}.qglow{flex:none;display:flex;align-items:center;gap:22px;padding:14px 16px 14px 8px;color:#8F99A6;font-size:14px}",
+    ".qring{display:block;width:54px;height:26px;border-radius:8px;border:2px solid #F0A83C;box-sizing:content-box}",
+    "@media (pointer:coarse){.pill.on{visibility:hidden}.panel.qbarwrap{left:14px;right:14px;width:auto;max-width:none}.panel.qsheet{left:0;right:0;width:auto;height:calc(524px + env(safe-area-inset-bottom,0px));max-height:82vh;border-radius:22px 22px 0 0;border-bottom:0}.qbody{padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px))}}"
   ].join("");
   var IC = {
     eye: "p:M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z|c:12,12,3",
@@ -748,7 +761,10 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       HAS_AI && hereRow("ai", "AI-made", "aiVeil"),
       qrow("win", "Popups", [vtotal ? add(el("span", "v n"), String(vtotal)) : null], function () { goTo("pops"); }),
       (PV.credOn && PV.credOn() && PV.CRED_SOURCES) ? qrow("star", "Rating", [ratingDots()], function () { goTo("rating"); }) : null,
-      qrow("btn", "PRISM button", [qsw("PRISM button on this site", true, function () { policy.setHidden(site, true); })])
+      qrow("btn", "PRISM button", [qsw("PRISM button on this site", !policy.prefs(site).hidden, function (on) {
+        policy.setHidden(site, !on); if (on) policy.setCollapsed(site, false);
+        applyPrefs(effectivePrefs());   // off: the button and this menu go now; the toolbar brings them back
+      })])
     ]));
   }
   function allTab(b) {
@@ -757,6 +773,20 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     var go = function (icon, label, name) { return qrow(icon, label, [], function () { goTo(name); }); };
     add(b, qlist([go("video", "Video ads", "video"), go("tv", "Live TV", "livetv"), go("feed", "Feeds", "feeds"), go("shield", "Source ratings", "ratings"),
       go("pic", "Pictures", "pics"), go("win", "Popups", "popsall"), go("more", "More", "more")]));
+  }
+  // Button glow: the ring itself as the sample, and a press on it changes it (2026-11-25, asked for in place of two buttons)
+  function glowRow() {
+    var strong = ui("ringGlow") === "strong", G = (PV.ringGlows || {})[strong ? "strong" : "normal"];
+    var ring = el("span", "qring");
+    if (G) {
+      ring.style.borderWidth = G.border + "px"; ring.style.boxShadow = G.still;
+      var still = false; try { still = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+      if (!still && ring.animate) { try { ring.animate([{ boxShadow: G.from }, { boxShadow: G.to }], { duration: 1100, iterations: Infinity, direction: "alternate", easing: "ease-in-out" }); } catch (e) {} }
+    }
+    var b = tapBtn("qglow", [el("span", "v", strong ? "Strong" : "Normal"), ring], function () { setUi("ringGlow", strong ? undefined : "strong"); renderPanel(); }, "Button glow: " + (strong ? "strong" : "normal"));
+    b.setAttribute("data-glow", strong ? "strong" : "normal");
+    var r = qrow("sun", "Button glow", [b]); r.classList.add("tall");
+    return r;
   }
   var PAGES = {
     pops: function (b) {
@@ -848,7 +878,10 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
         } catch (e) { artBusy = false; artErr = "Could not fetch"; }
       };
       var gb = qmini(artBusy ? "Fetching" : (n ? "Get new" : "Get 24"), get); gb.disabled = artBusy;
-      add(b, head("Pictures", null, true), qlist([
+      var look = ui("coverLook") === "black" || ui("coverLook") === "frosted" ? ui("coverLook") : "";
+      add(b, head("Pictures", null, true), qlbl("Covers show"), qseg([["Photos", ""], ["Black", "black"], ["Frosted", "frosted"]], look, function (v) { setUi("coverLook", v || undefined); }));
+      b.lastChild.style.marginBottom = "12px";
+      add(b, qlist([
         qrow("pic", "Photos", [n ? String(n) : "Built-in", gb]),
         qrow("sync", "Weekly refresh", [qsw("Weekly refresh", !!ui("artWeekly"), function (on) { setUi("artWeekly", on); })]),
         n ? qrow("undo", "Defaults", [qmini("Restore", function () { try { chrome.runtime.sendMessage({ type: "prism-art-reset" }, function () { void chrome.runtime.lastError; artRec = null; if (panelOpen && sub === "pics") renderPanel(); }); } catch (e) {} })]) : null
@@ -895,7 +928,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       };
       add(b, head("More", null, true), qlist([
         !touchy && qrow("zoom", "Small view", [qsw("Small view", ui("smallView") !== false, function (on) { setUi("smallView", on); })]),
-        qrow("sun", "Button glow", [qseg([["Normal", "normal"], ["Strong", "strong"]], ui("ringGlow") === "strong" ? "strong" : "normal", function (v) { setUi("ringGlow", v === "strong" ? "strong" : undefined); }, true)]),
+        glowRow(),
         qrow("sync", "Rule updates", [qsw("Rule updates", !!ui("packUpdates"), function (on) {
           setUi("packUpdates", on);
           if (on) { try { chrome.runtime.sendMessage({ type: "pv:pack-check" }, function () { void chrome.runtime.lastError; }); } catch (e) {} }
@@ -933,7 +966,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       var root = setHost.attachShadow({ mode: "closed" });
       var st = document.createElement("style");
       st.textContent = ":host{all:initial}.dim{position:fixed;inset:0;z-index:2147483647;background:rgba(6,8,11,.62)}"
-        + "iframe{position:fixed;z-index:2147483647;top:16px;left:50%;transform:translateX(-50%);width:min(1100px,calc(100vw - 32px));height:620px;"
+        + "iframe{position:fixed;z-index:2147483647;top:16px;left:50%;transform:translateX(-50%);width:min(380px,calc(100vw - 32px));height:300px;"
         + "border:1px solid #2C333E;border-radius:14px;background:#14171C;box-shadow:0 24px 80px rgba(0,0,0,.6);color-scheme:dark}";
       var dim = document.createElement("div"); dim.className = "dim";
       dim.addEventListener("click", function (ev) { ev.stopPropagation(); settingsClose(); });

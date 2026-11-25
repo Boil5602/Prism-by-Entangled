@@ -74,6 +74,10 @@
   // closed when the focus goes, made a tab that could not be scrolled). A plain page: it scrolls as any page does, room is left
   // under it for the browser's own bar, and Close closes the tab and goes back to the page it was opened from.
   var OWN_TAB = new URLSearchParams(location.search).get("page") === "1";
+  // The small page (2026-11-25): the menu on the page has every setting, so this page shows the site, its two switches and the
+  // way to the menu. A link that names rows to show (highlight: the live TV switches, the permission to send reports) draws it whole.
+  var SMALL = !new URLSearchParams(location.search).get("highlight");
+  if (SMALL) { try { document.documentElement.classList.add("small"); } catch (e) {} }
   if (OWN_TAB) { try { document.title = "PRISM settings"; document.documentElement.classList.add("paged"); } catch (e) {} }
   // the toolbar's own sheet says it is up: the background, asked for the settings by a press in a page, waits for this word
   // before it opens a tab in the sheet's place (bg.js, openSettingsWindow)
@@ -181,7 +185,7 @@
     var view = $("view"); view.textContent = "";
     if (!v) { $("site").textContent = ""; view.appendChild(el("div", "empty", "PRISM isn't running on this page (browser pages, the store, PDFs).")); $("open-here").disabled = true; return; }
     $("site").textContent = v.site; siteIcon(); curSite = v.site; try { paintLiveSites(); } catch (e) {}
-    var pf0 = policy.prefs(v.site); $("pill-on").checked = !pf0.hidden;
+    var pf0 = policy.prefs(v.site); $("pill-on").checked = !pf0.hidden; paintSiteOn();
     var total = 0; v.rows.forEach(function (r) { total += r.count; });
     view.appendChild(el("div", "sum", total
       ? total + (total === 1 ? " popup blocked" : " popups blocked")
@@ -260,6 +264,7 @@
     paintUi();
   }
   function paintUi() {
+    paintSiteOn();
     $("veil-on").checked = !ui.veilOff;
     $("ai-veil").checked = !!ui.aiVeil;
     $("suggested-veil").checked = !!ui.suggestedVeil;
@@ -515,6 +520,19 @@
   }
 
   // ---- veil: pill visibility + reveal + open the on-page controls -----------
+  // PRISM on this site (pv:ui.veilOffSites, the same record the menu on the page writes)
+  function paintSiteOn() {
+    var c = $("site-on"); if (!c) return;
+    c.checked = !!curSite && !ui.veilOff && !(ui.veilOffSites && ui.veilOffSites[curSite] === true);
+    c.disabled = !curSite || !!ui.veilOff;
+  }
+  $("site-on").addEventListener("change", function () {
+    if (!curSite) return;
+    var m = {}, old = ui.veilOffSites || {};
+    Object.keys(old).forEach(function (k) { if (old[k] === true) m[k] = true; });
+    if ($("site-on").checked) delete m[curSite]; else m[curSite] = true;
+    setUi("veilOffSites", m);
+  });
   $("pill-on").addEventListener("change", function () {
     if (!curSite) return;
     var show = $("pill-on").checked;

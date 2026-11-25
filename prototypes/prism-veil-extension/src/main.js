@@ -123,7 +123,37 @@
       im.src = blob;
     } catch (e) {}
   }
+  // What a cover shows (pv:ui.coverLook, 2026-11-25, asked for): a photo as before, plain black, or frosted: the page under the
+  // cover blurred past reading, with a dark tint. A plain cover asks for no picture at all.
+  PV.coverLook = function () { var v = PV.uiPrefs && PV.uiPrefs.coverLook; return v === "black" || v === "frosted" ? v : ""; };
+  function plainOnto(el, look) {
+    el.__artWant = ""; el.__artUrl = "";
+    el.style.backgroundImage = "none";
+    if (look === "frosted") {
+      // frosted glass: light, the colours under it kept and spread wide, a sheen from the top corner and a bright edge
+      el.style.backgroundColor = "rgba(255,255,255,.22)";
+      el.style.backgroundImage = "linear-gradient(135deg, rgba(255,255,255,.42) 0%, rgba(255,255,255,.10) 38%, rgba(255,255,255,.04) 62%, rgba(255,255,255,.20) 100%)";
+      el.style.backgroundSize = "100% 100%"; el.style.backgroundPosition = "0 0";
+      el.style.setProperty("-webkit-backdrop-filter", "blur(40px) saturate(1.7) brightness(1.08)"); el.style.setProperty("backdrop-filter", "blur(40px) saturate(1.7) brightness(1.08)");
+      el.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,.45), inset 0 1px 0 rgba(255,255,255,.7)";
+    } else { el.style.backgroundColor = "#0A0C0F"; el.style.boxShadow = ""; el.style.removeProperty("-webkit-backdrop-filter"); el.style.removeProperty("backdrop-filter"); }
+  }
+  // the covers already up follow a change of the choice, and the settings when they load after the first covers
+  PV.relookCovers = function () {
+    var look = PV.coverLook(), list = [];
+    try { list = document.querySelectorAll("[data-prism-veil]"); } catch (e) {}
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (typeof c.__artUrl !== "string") continue;   // not a cover that carries a picture
+      if (look && (c.__artUrl || c.__look !== look)) { plainOnto(c, look); c.__look = look; }
+      else if (!look && c.__look) {
+        c.__look = ""; c.style.removeProperty("-webkit-backdrop-filter"); c.style.removeProperty("backdrop-filter"); c.style.backgroundColor = "#0A0C0F"; c.style.boxShadow = ""; c.style.backgroundSize = "cover"; c.style.backgroundPosition = "center";
+        var u = PV.pickArt(); c.__artUrl = u; PV.artOnto(c, u);
+      }
+    }
+  };
   PV.artOnto = function (el, url) {
+    var look = PV.coverLook(); if (look) { plainOnto(el, look); el.__look = look; return; }
     var net = /^https?:/i.test(url);
     if (net && PV.artRefused()) { url = PV.pickBundledArt(); el.__artUrl = url; net = false; }
     el.__artWant = url;

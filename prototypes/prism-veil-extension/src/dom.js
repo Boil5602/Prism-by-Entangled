@@ -156,6 +156,7 @@
     normal: { gap: 3, border: 2, still: "0 0 12px 3px rgba(240,168,60,.75)", from: "0 0 6px 1px rgba(240,168,60,.45)", to: "0 0 18px 5px rgba(240,168,60,.95)" },
     strong: { gap: 6, border: 4, still: "0 0 26px 9px rgba(240,168,60,.95)", from: "0 0 16px 5px rgba(240,168,60,.75), 0 0 2px 1px #FFD58A", to: "0 0 40px 14px rgba(240,168,60,1), 0 0 4px 2px #FFD58A" }
   };
+  PV.ringGlows = GLOWS;   // the menu shows the ring itself as its sample
   function glowNow() { var g = PV.uiPrefs && PV.uiPrefs.ringGlow; return GLOWS[g] ? g : "normal"; }
   var liveRings = [];   // every ring on a page, so a change of the choice reaches the ones already up
   function styleRing(el, b) {

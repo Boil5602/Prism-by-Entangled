@@ -492,7 +492,7 @@ function openSettings(tab, done) {
 }
 function openSettingsWindow(tab, done) {
   var base = chrome.runtime.getURL("popup.html"), tid = tab ? tab.id : null;
-  var url = base + "?window=1" + (tid != null ? "&tab=" + tid : ""), W = 1116, H = 660;
+  var url = base + "?window=1" + (tid != null ? "&tab=" + tid : ""), W = 400, H = 330;
   var went = false, late = 0, fin = done;
   // in a tab the settings are a page like any other: it scrolls, and its Close closes the tab (popup.js, page=1)
   var tabUrl = base + "?page=1" + (tid != null ? "&tab=" + tid : "");

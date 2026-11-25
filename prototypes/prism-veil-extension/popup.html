@@ -127,6 +127,15 @@
   #tip b { color:#FFFFFF; font-weight:600; }
   #tip p { margin:0 0 5px; }
   #tip p:last-child { margin-bottom:0; }
+  /* the small page (2026-11-25): every setting is in the menu on the page, so the toolbar keeps the site, the two switches for it, the
+     way to the menu and what only the toolbar can do. The whole page is drawn only where a link names rows to show (highlight). */
+  html.small body { min-width:0; }
+  html.small:not(.framed):not(.paged) body { min-width:320px; }
+  html.small .desk { grid-template-columns:1fr; }
+  html.small .rail { border-right:0; padding:4px 20px 16px; }
+  html.small .sheet, html.small footer, html.small .top .master, html.small .top .saved, html.small #reveal-row, html.small #view .sum, html.small #view .row, html.small .rail h3 { display:none; }
+  html.small .top { padding:12px 20px; }
+  html.small #settings-close { margin-left:auto; }
   #tip .d { display:inline-block; width:8px; height:8px; border-radius:50%; margin:0 4px 0 0; vertical-align:-1px; box-shadow:0 0 0 1px rgba(0,0,0,.5); }
 </style>
 </head>
@@ -139,12 +148,13 @@
   </div>
   <main class="desk">
   <aside class="rail">
-    <div class="sitehead"><img id="site-ico" alt="" width="18" height="18" referrerpolicy="no-referrer" hidden><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open the PRISM button's menu for this site">Menu</button></div>
+    <div class="sitehead"><img id="site-ico" alt="" width="18" height="18" referrerpolicy="no-referrer" hidden><span class="site" id="site">…</span><button class="btn" id="open-here" data-tip="Open the PRISM menu on this page">Open menu</button></div>
   <section id="view"></section>
     <section>
       <h3>This page</h3>
+    <label class="row" id="site-on-row" data-tip="Off: no covers on this site."><input type="checkbox" id="site-on"><span class="dest">PRISM</span></label>
     <label class="row" data-tip="The PRISM button at the bottom right of pages. Off hides it on this site."><input type="checkbox" id="pill-on"><span class="dest">PRISM button</span></label>
-    <div class="row" data-tip="Lift every cover on this page for 15 s. Or hold a cover for 3 s."><span class="dest">Covers</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
+    <div class="row" id="reveal-row" data-tip="Lift every cover on this page for 15 s. Or hold a cover for 3 s."><span class="dest">Covers</span><button class="btn" id="reveal-15" type="button">Reveal 15 s</button></div>
     <div class="livesites" id="live-now" hidden>Reading this tab's picture now.</div>
     <div class="livesites" id="live-chan" hidden data-tip="What to cover on this channel. Sure only: the service's marked slots and paid programming."><span id="live-chan-name"></span>
       <span class="seg" id="live-chan-seg"><label data-mode="all">All breaks</label><label data-mode="sure">Sure only</label><label data-mode="off">None</label></span></div>
