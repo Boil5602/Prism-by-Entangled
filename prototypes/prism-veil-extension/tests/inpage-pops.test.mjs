@@ -437,6 +437,22 @@ describe("in-page pops", () => {
     expect(r.top).toBeGreaterThanOrEqual(14); expect(r.bottom).toBeLessThan(800);    // the preview in the window
     expect(r.width).toBeGreaterThan(100);
   });
+  // 2026-11-25, CNN on an iPhone: the held ad lies in the page's sticky header, and the stories painted over its preview.
+  it("lifts the layers a held unit lies in for the time of its preview, and tells a report how the unit lies", async () => {
+    const p = load(); await p.pass(0);
+    const head = document.createElement("div"); head.setAttribute("data-box", "0,0,390,300"); head.style.cssText = "position:sticky;top:0;z-index:3"; document.body.appendChild(head);
+    const f = document.createElement("div"); f.setAttribute("data-box", "0,0,390,60"); f.style.cssText = "position:fixed;top:0"; head.appendChild(f);
+    const ad = document.createElement("a"); ad.href = "https://ads.example/x"; ad.setAttribute("data-box", "0,0,390,60"); f.appendChild(ad);
+    p.PV.coveredEls = () => [ad]; p.PV.whyFor = () => "slot-selector: [class*='ad-slot']";
+    await p.pass(1100);
+    expect(held(f)).toBe("clear");
+    const diag = p.PV.inpageDiag();
+    expect(diag.length).toBe(1); expect(diag[0].mode).toBe("clear"); expect(diag[0].up[0]).toMatch(/sticky/);
+    expect(p.PV.inpagePreview("ads.example")).toBeTruthy();
+    expect(head.style.getPropertyValue("z-index")).toBe("2147483646");
+    p.PV.inpagePreviewEnd();
+    expect(head.style.getPropertyValue("z-index")).toBe("3");
+  });
   it("shows a held unit for this visit without remembering it", async () => {
     const p = load(); await p.pass(0);
     document.documentElement.style.overflow = "hidden";

@@ -576,6 +576,7 @@
     clearTimeout(pv.timer);
     try { removeEventListener("pointerdown", pv.end, true); removeEventListener("scroll", pv.end, true); removeEventListener("keydown", pv.end, true); } catch (e) {}
     pv.props.forEach(function (x) { try { if (x[1]) pv.rec.el.style.setProperty(x[0], x[1], x[2]); else pv.rec.el.style.removeProperty(x[0]); } catch (e) {} });
+    (pv.raised || []).forEach(function (x) { try { if (x[1]) x[0].style.setProperty("z-index", x[1], x[2]); else x[0].style.removeProperty("z-index"); } catch (e) {} });
     pv.rec.previewing = false;
     if (pv.rec.held && pv.rec.mode === "clear" && pv.rec.el.isConnected) clearOn(pv.rec);   // back to the speck
     if (pv.onEnd) { try { pv.onEnd(); } catch (e) {} }
@@ -599,6 +600,17 @@
     rec.previewing = true;
     settle(el, tx, ty, k, w, h, left, top);
     el.style.setProperty("z-index", "2147483646", "important");
+    // The unit's own z-index counts only inside the layer it lies in (2026-11-25, CNN in Safari on an iPhone: the preview's buttons
+    // came and no preview; the head ad lies in the page's sticky header, a layer the stories paint over). Every layer on the way
+    // up is lifted for the time of the preview and put back after.
+    var raised = [];
+    try {
+      for (var up = el.parentElement, lv = 0; up && lv < 12 && up !== document.documentElement; up = up.parentElement, lv++) {
+        if (getComputedStyle(up).position === "static") continue;
+        raised.push([up, up.style.getPropertyValue("z-index"), up.style.getPropertyPriority("z-index")]);
+        up.style.setProperty("z-index", "2147483646", "important");
+      }
+    } catch (eR) {}
     el.style.setProperty("outline", Math.max(2, Math.round(2 / k)) + "px solid #F2B14C", "important");
     el.style.setProperty("box-shadow", "0 0 0 " + Math.round(8 / k) + "px rgba(8,10,14,.72)", "important");
     // a press on PRISM's own controls (the buttons under the preview) is theirs to answer and does not end it here
@@ -606,11 +618,29 @@
       try { if (e && e.type === "pointerdown" && e.composedPath && e.composedPath().some(function (n) { return n && n.tagName === "PRISM-POPUP-BUTTON"; })) return; } catch (e2) {}
       previewOff();
     };
-    preview = { rec: rec, props: props, end: end, onEnd: onEnd, timer: setTimeout(function () { previewOff(); }, ms > 0 ? ms : PREVIEW_MS) };
+    preview = { rec: rec, props: props, raised: raised, end: end, onEnd: onEnd, timer: setTimeout(function () { previewOff(); }, ms > 0 ? ms : PREVIEW_MS) };
     // the press that asked for the preview is over before these listen
     setTimeout(function () { if (preview && preview.rec === rec) { addEventListener("pointerdown", end, true); addEventListener("scroll", end, true); addEventListener("keydown", end, true); } }, 0);
     var at = null; try { var br = el.getBoundingClientRect(); at = { top: br.top, bottom: br.bottom, left: br.left, width: br.width }; } catch (e3) {}
     return at || true;
+  };
+
+  // For a report (2026-11-25): what is held in the page and how it lies, so a preview that shows nothing can be read from one
+  // report. Tags, class names, boxes and styles only.
+  PV.inpageDiag = function () {
+    var d = function (n) {
+      try {
+        var r = n.getBoundingClientRect(), g = getComputedStyle(n);
+        return n.tagName + "." + String(n.className && n.className.baseVal !== undefined ? n.className.baseVal : n.className || "").slice(0, 40) + " " + Math.round(r.left) + "," + Math.round(r.top) + " " + Math.round(r.width) + "x" + Math.round(r.height) + " lay " + n.offsetLeft + "," + n.offsetTop + " " + n.offsetWidth + "x" + n.offsetHeight +
+          " " + g.position + " z" + g.zIndex + " o" + g.opacity + " " + g.visibility + " " + g.display + (g.transform !== "none" ? " tf" + String(g.transform).slice(0, 48) : "") + (/hidden|clip/.test(g.overflow) ? " ov" : "") + (g.clipPath && g.clipPath !== "none" ? " clip" : "");
+      } catch (e) { return "?"; }
+    };
+    return held.slice(0, 4).map(function (rec) {
+      var o = { mode: rec.mode, parked: !!rec.parked, previewing: !!rec.previewing, why: String(rec.reason || "").slice(0, 60), win: innerWidth + "x" + innerHeight + " y" + Math.round(scrollY), el: d(rec.el), inside: [], up: [] };
+      try { Array.prototype.slice.call(rec.el.children, 0, 3).forEach(function (c) { o.inside.push(d(c)); if (c.firstElementChild) o.inside.push(d(c.firstElementChild)); }); } catch (e) {}
+      try { for (var n = rec.el.parentElement, i = 0; n && i < 5 && n !== document.documentElement; n = n.parentElement, i++) o.up.push(d(n)); } catch (e2) {}
+      return o;
+    });
   };
 
   var queued = false;
