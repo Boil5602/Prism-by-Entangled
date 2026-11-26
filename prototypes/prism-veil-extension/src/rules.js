@@ -859,6 +859,10 @@
         var addCard = function (card) { if (card) ctx.add(card, "msn-card", true); };
         root.querySelectorAll("[data-t*='NativeAd']").forEach(function (el) { addCard(msnAdWrap(el) || enclosingCard(el) || el); });
         root.querySelectorAll("display-ads,[class*='displayAdContainer'],[class*='displayAdWCContainer']").forEach(function (el) { addCard(enclosingCard(el)); });
+        // On a phone the top carousel keeps each slide's picture apart from its text (2026-11-26, three reports from MSN in Safari
+        // on an iPhone: the ad's text was covered and its picture stood bare). The ad slide's picture is MSN's own
+        // img#nativead-infopane-<n>-img; each is covered where it lies, so the cover rides with its slide.
+        root.querySelectorAll("img[id^='nativead-infopane-'][id$='-img']").forEach(function (im) { ctx.add(im, "msn-card", true); });
         // Top "me-stripe" quick-link tiles mix ads with the user's own sites;
         // both carry meStripe.* markers. MSN's own disclosure - an "Ad" /
         // "Sponsored" SUBTITLE under the tile name - is the discriminator.
@@ -1701,6 +1705,20 @@
           ctx.add(it, "taboola-item: Taboola's paid label on the item", true);
         });
       } catch (eT) {}
+      // A label the page draws from an attribute, with no text of its own in the page (B-584, CBS News, 2026-11-26: the picture of a
+      // paid item carries `data-asset-label="Sponsored"` and the style sheet draws the word from it, so the search of the page's text
+      // below never met it). The unit is the item's article, or what the label's own search finds around it.
+      try {
+        root.querySelectorAll("[data-asset-label]").forEach(function (lb) {
+          var v = (lb.getAttribute("data-asset-label") || "").trim();
+          if (!v || v.length > 28 || !BADGE.test(v) || /^(ad|ads)$/i.test(v)) return;
+          var lr = lb.getBoundingClientRect(); if (lr.width <= 0 || lr.height <= 0) return;
+          var unit = lb.closest ? lb.closest("article") : null;
+          if (unit) { var ur = unit.getBoundingClientRect(); if (ur.width < 100 || ur.height < 50 || PV.pageSized(ur)) unit = null; }
+          if (!unit) unit = badgeUnit(lb, false, false);
+          if (unit) ctx.add(unit, "badge-label: " + v, true);
+        });
+      } catch (eA) {}
       for (var si = 0; si < active.length; si++) {
         try { active[si].run(root, ctx); } catch (e) {}
       }

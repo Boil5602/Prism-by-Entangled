@@ -169,7 +169,7 @@
         try { if (PV.coverLog) d.coverLog = PV.coverLog(); } catch (eCL) {}
         try { if (PV.perfDiag) d.perf = PV.perfDiag(); } catch (ePf) {}
         try { if (PV.inpageDiag) { var pops = PV.inpageDiag(); if (pops.length) d.pops = pops; } } catch (ePD) {}
-        d.topBar = PV.topBar ? { top: PV.topBar.top, el: PV.topBar.el && (PV.topBar.el.tagName + "." + PV.classStr(PV.topBar.el).slice(0, 40)), containsTarget: !!(PV.topBar.el && PV.deepContains(PV.topBar.el, el)) } : null;
+        d.topBar = PV.topBar ? { top: PV.topBar.top, from: PV.topBar.from || 0, el: PV.topBar.el && (PV.topBar.el.tagName + "." + PV.classStr(PV.topBar.el).slice(0, 40)), containsTarget: !!(PV.topBar.el && PV.deepContains(PV.topBar.el, el)) } : null;
       } catch (e5) { d.coverErr = "" + e5; }
       // iframes on the page (host + path only) and which of them said hello
       try {

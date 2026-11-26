@@ -29,6 +29,16 @@ describe("a recommendation widget taller than the screen", () => {
   });
 });
 
+// 2026-11-26, three reports from MSN in Safari on an iPhone: the top carousel's ad slide kept its picture bare
+describe("MSN's carousel on a phone", () => {
+  it("covers the ad slide's own picture and leaves the story slides' pictures", () => {
+    const PV = loadVeil({ host: "www.msn.com", width: 440, height: 796 });
+    const out = detect(PV, `<div class="slides" ${R(16, 210, 408, 218)}><div class="infopane-image-container" ${R(-392, 210, 408, 214)}><img class="media" id="story" ${R(-392, 210, 408, 214)}></div>` +
+      `<img class="media" id="nativead-infopane-3-img" ${R(16, 210, 408, 214)}><img class="media" id="nativead-infopane-7-img" ${R(1648, 210, 408, 214)}></div>`);
+    expect(out.map((o) => [o.id, o.why])).toEqual([["nativead-infopane-3-img", "msn-card"], ["nativead-infopane-7-img", "msn-card"]]);
+  });
+});
+
 describe("slot selectors (ad-tech markup)", () => {
   it("covers a Google ad slot and names the selector", () => {
     const PV = loadVeil();
@@ -615,6 +625,31 @@ describe("close control through the cover", () => {
     PV.findTopBar();
     expect(PV.topBar.top).toBe(48 + h3);
   });
+  it("a bar that holds below the top of the window is the bar (B-581, CBS News: the header at the foot of a fixed ad strip)", () => {
+    const PV = loadCovers(loadVeil());
+    const bar = (id, y, h, more = "") => `<div id="${id}" style="position:sticky;background-color:rgb(255,255,255);${more}" ${R(0, y, innerWidth, h)}></div>`;
+    document.body.innerHTML = bar("nav", 43, 48, "top:43px;") + bar("live", 90, 89, "top:90px;");
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(179);
+    expect(PV.topBar.from).toBe(43);
+    document.body.innerHTML = bar("nav", 43, 48, "top:0px;");   // a strip still in the flow of the page, not yet held: no bar
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(0);
+    document.body.innerHTML = bar("nav", 0, 48, "top:0px;");   // a bar at the very top starts at 0, as before
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(48);
+    expect(PV.topBar.from).toBe(0);
+  });
+  it("a clear sticky header whose ground is six levels down is the bar (B-582, United)", () => {
+    const PV = loadCovers(loadVeil());
+    const box = (inner, more = "") => `<div style="${more}" ${R(0, 0, innerWidth, 72)}>${inner}</div>`;
+    let inner = box("", "background-color:rgb(0,0,0);");
+    for (let i = 0; i < 5; i++) inner = box(inner);
+    document.body.innerHTML = `<header id="hd" style="position:sticky;top:0px;" ${R(0, 0, innerWidth, 72)}>${inner}</header>`;
+    PV.findTopBar();
+    expect(PV.topBar.top).toBe(72);
+    expect(PV.topBar.el.id).toBe("hd");
+  });
 });
 
 // CNN's Wunderkind (bx-*) header ad holding a Celtra banner, 1897x475 on a
@@ -832,6 +867,20 @@ describe("carousel controls through the cover", () => {
     document.elementsFromPoint = () => [host];
     sr.elementsFromPoint = (x) => [x > 620 ? $("next") : x > 570 ? $("prev") : x < 100 ? $("more") : $("dots")];
     expect(PV.closeControls($("slide"))).toEqual([$("dots"), $("prev"), $("next")]);
+  });
+  it("a dots strip in the card around the slide, known by its dots, is a hole (B-583, MSN on a phone)", () => {
+    const PV = withCovers(loadVeil({ host: "www.msn.com" }));
+    document.body.innerHTML = `<div id="card" ${R(16, 214, 408, 341)}></div>`;
+    const host = document.getElementById("card"), sr = host.attachShadow({ mode: "open" });
+    const dot = (i, sel) => `<div id="d${i}" class="${sel ? "dot-selected" : "dot"} visuallyhidden" ${R(168 + i * 8, 407, 4, 4)}></div>`;
+    sr.innerHTML = `<div id="pane" ${R(16, 214, 408, 214)}><div class="slides" ${R(16, 214, 408, 218)}><img id="pic" ${R(16, 214, 408, 214)}></div></div>` +
+      `<div id="nav" class="navigation" ${R(160, 402, 120, 14)}>${[0, 1, 2, 3, 4].map((i) => dot(i, i === 2)).join("")}</div>` +
+      `<div id="low" class="navigation" ${R(160, 502, 120, 14)}>${[5, 6, 7].map((i) => dot(i, false)).join("")}</div>` +
+      `<button id="x" aria-label="Close" ${R(380, 220, 24, 24)}></button>`;
+    const $ = (id) => sr.getElementById(id);
+    document.elementsFromPoint = () => [host];
+    sr.elementsFromPoint = (x, y) => [y > 480 ? $("low") : y > 395 ? $("nav") : y < 250 && x > 370 ? $("x") : $("pic")];
+    expect(PV.closeControls($("pic"))).toEqual([$("nav")]);   // not the strip below the picture, not the card's own button
   });
   it("a control the ad's own layer sits over is not a hole", () => {
     const PV = withCovers(loadVeil({ host: "www.msn.com" }));
@@ -1105,6 +1154,17 @@ describe("Pogo close button through the cover", () => {
 
 // The photo credit on the cover's symbol (2026-10-15): read on hover from
 // the photo on screen, bundled or hosted alike (same file name).
+// CBS News, 2026-11-26 (B-584): the word Sponsored is drawn by the style sheet from an attribute on the item's picture
+describe("a label drawn from an attribute", () => {
+  it("covers the item whose picture carries the Sponsored label, and no other", () => {
+    const PV = loadVeil({ host: "www.cbsnews.com", width: 440, height: 796 });
+    const item = (id, y, label) => `<article class="item" id="${id}" ${R(20, y, 400, 399)}><a class="item__anchor" ${R(20, y, 400, 283)}>` +
+      `<span class="img item__thumb" ${label ? `data-asset-label="${label}"` : ""} ${R(20, y, 400, 225)}><img ${R(20, y, 400, 225)}></span><h2 ${R(20, y + 230, 400, 50)}>A headline of the item</h2></a></article>`;
+    const out = detect(PV, `<section id="sec" ${R(0, 0, 440, 1268)}>` + item("a", 20, "Sponsored") + item("b", 430, "Exclusive") + item("c", 840, "") + `</section>`);
+    expect(out.map((o) => [o.id, o.why])).toEqual([["a", "badge-label: Sponsored"]]);
+  });
+});
+
 describe("the look under a display cover", () => {
   const load = () => {
     const PV = loadVeil();
@@ -1256,6 +1316,29 @@ describe("the look under a display cover", () => {
       expect(panel()).not.toBeNull();                    // 8 px off the symbol's corner: taken as a tap on it
       PV.lookClose();
     } finally { window.matchMedia = realMM; }
+  });
+  it("the self-check: a strip the page draws over the ad is the bar, whatever its structure (B-585)", () => {
+    const PV = load();
+    const W = innerWidth, half = Math.round(W / 2);
+    // a sticky header with no ground of its own and no child of its own size: two halves, each with a ground
+    document.body.innerHTML = `<div id="hd" style="position:sticky" ${R(0, 0, W, 60)}><div id="l" style="background-color:rgb(0,0,0)" ${R(0, 0, half, 60)}></div>` +
+      `<div id="r" style="background-color:rgb(0,0,0)" ${R(half, 0, W - half, 60)}></div></div><div id="unit" ${R(0, -20, W, 400)}>x</div>`;
+    const $ = (id) => document.getElementById(id), unit = $("unit");
+    const c = document.createElement("div"); unit.appendChild(c);
+    PV.__styleCover(c, "", null); c.__target = unit; c.__mode = "inside";
+    c.getBoundingClientRect = () => ({ left: 0, top: -20, right: W, bottom: 380, width: W, height: 400 });
+    PV.veils.set(unit, c);
+    const real = document.elementsFromPoint;
+    document.elementsFromPoint = (x, y) => (y < 60 ? [c, x < half ? $("l") : $("r"), $("hd"), unit] : [c, unit]);
+    try {
+      PV.findTopBar();
+      expect(PV.topBar.top).toBe(0);                     // not found by its structure
+      PV.__clipOverlays();
+      expect(PV.topBar.top).toBe(60);                    // found by what the page draws
+      expect(PV.topBar.el.id).toBe("hd");
+      expect(c.__under).toBe(80);                        // the cover is cut at the bar's foot
+      expect(PV.selfCheckStat.found).toBe(1);
+    } finally { PV.veils.delete(unit); document.elementsFromPoint = real; }
   });
   it("is not cut at the top edge of the viewport when the page has no bar", () => {
     const PV = load();

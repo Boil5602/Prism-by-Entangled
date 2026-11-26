@@ -590,7 +590,7 @@
   // lower edge, PRISM's own layers skipped.
   function barOverUnit(target, r) {
     try {
-      var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), y = (Math.max(r.top, 0) + Math.min(barTop, r.bottom)) / 2;
+      var x = Math.min(Math.max(r.left + r.width / 2, 1), innerWidth - 2), y = (Math.max(r.top, barFrom) + Math.min(barTop, r.bottom)) / 2;
       // The unit's own cover is taken out of the hit test (2026-11-23, MSN on a phone: a cover rode over the header with no cut).
       // A cover inside a shadow root is not in this list, its host is, and the cover put that host first in the list, over the
       // bar: the unit was read as drawn over the bar and its cover was left whole.
@@ -851,7 +851,7 @@
 
   // ---- overlay-mode covers: clip under a sticky top bar (never fade - a
   // translucent cover shows the ad through it).
-  var barTop = 0, barEl = null, barEls = [], anyOverlay = false;
+  var barTop = 0, barFrom = 0, barEl = null, barEls = [], anyOverlay = false;
   // is this element one of the bar's strips, or inside one?
   function inBar(e) { for (var i = 0; i < barEls.length; i++) { if (barEls[i] === e || PV.deepContains(barEls[i], e)) return true; } return false; }
   // ... and a bar fixed to the BOTTOM of the viewport (MSN's article page, report
@@ -879,14 +879,16 @@
       // is clear, and the white is three levels down, across a shadow root; no bar was seen and covers rode over the header)
       var add = function (n, d) { [].slice.call(n.children || []).forEach(function (c) { kids.push([c, d]); }); if (n.shadowRoot) [].slice.call(n.shadowRoot.children || []).forEach(function (c) { kids.push([c, d]); }); };
       add(e, 1);
-      for (var i = 0; i < kids.length && i < 40; i++) {
+      // ... and to eight levels (B-582, United on a phone, 2026-11-26: the sticky header is clear and its black ground is six
+      // levels down, each level a box of the header's own size; no bar was seen and a cover rode over the header)
+      for (var i = 0; i < kids.length && i < 80; i++) {
         var k = kids[i][0], kd = kids[i][1], kr = k.getBoundingClientRect();
         if (getComputedStyle(k).display === "contents") { add(k, kd); continue; }   // a wrapper with no box of its own (Reddit's action-items)
         if (kr.width < r.width * 0.9 || kr.height < r.height * 0.8) continue;
         var kc = getComputedStyle(k), km = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)/.exec(kc.backgroundColor || "");
         if (km && (km[1] === undefined || parseFloat(km[1]) >= 0.5)) return true;
         if (kc.backgroundImage && kc.backgroundImage !== "none") return true;
-        if (kd < 4) add(k, kd + 1);
+        if (kd < 8) add(k, kd + 1);
       }
     } catch (x) {}
     return false;
@@ -899,9 +901,10 @@
   // walk at sweep time that also required top <= 2, so CBS News's nav - sticky
   // only once you scroll past the masthead - was never the bar, and covers
   // rode over it as the page scrolled (report 2026-09-13, topBar empty).
-  var barCands = [];
+  var barCands = [], learned = new Set();
   function scanBarCandidates() {
     barCands = [];
+    learned.forEach(function (e) { if (e.isConnected) barCands.push(e); else learned.delete(e); });   // strips the self-check found (B-585)
     if (!document.body) return;
     // Walk the light tree AND every open shadow root: MSN's sticky search bar
     // lives inside a shadow root, so a body-only walk never found it and the
@@ -968,13 +971,22 @@
     // Strips held one under another are one bar (B-538, CBS News on a phone: its live strip holds under the nav, at the nav's foot,
     // and only a strip at the very top was taken, so covers rode over the live strip). Taken from the top down: a strip that starts
     // at or above the foot of the bar so far carries the bar down to its own foot, to half the window at most.
-    var t = 0, el = null, els = [], meas = [];
+    var t = 0, from = 0, el = null, els = [], meas = [];
     for (var i0 = 0; i0 < barCands.length; i0++) { if (barCands[i0].isConnected) meas.push({ e: barCands[i0], r: barCands[i0].getBoundingClientRect() }); }
     meas.sort(function (a, b) { return a.r.top - b.r.top; });
     for (var i = 0; i < meas.length; i++) {
       var e = meas[i].e, r = meas[i].r;
       if (r.width < innerWidth * 0.5 || r.height <= 0 || r.height > innerHeight * 0.4) continue;
-      if (r.top > t + 2 || r.bottom <= t) continue;
+      // A bar that holds below the top of the window (B-581, CBS News on a phone, 2026-11-26: a fixed ad strip lies over the top of
+      // the window and the header holds at its foot, 43 to 130 px down; the strip is put away by the pop guard, or is the ad and
+      // so not a bar, and no bar was found at all). With nothing at the very top, a strip that sits at its own top offset starts the bar.
+      var low = false;
+      if (!t && r.top > 2) {
+        if (r.top > innerHeight * 0.3 || r.bottom <= 0) continue;
+        var tp = NaN; try { tp = parseFloat(getComputedStyle(e).top); } catch (eT) {}
+        if (!(Math.abs(tp - r.top) <= 2) && !learned.has(e)) continue;
+        low = true;
+      } else if (r.top > t + 2 || r.bottom <= t) continue;
       if (t && r.bottom > innerHeight * 0.5) continue;
       // Anything holding a veiled ad is the ad, not the bar - and so is
       // anything INSIDE one: PCMag's top-anchored Pogo unit is a fixed
@@ -982,10 +994,11 @@
       // the site's bar, and the unit's own cover was then clipped under it to
       // nothing (report 2026-09-13: clipPath inset(345.8px), the ad in full view).
       if (adIsBar(e, r)) continue;
+      if (low) from = r.top;
       t = r.bottom; el = e; els.push(e);
     }
-    barTop = t; barEl = t ? el : null; barEls = t ? els : [];
-    PV.topBar = { top: barTop, el: barEl };
+    barTop = t; barEl = t ? el : null; barEls = t ? els : []; barFrom = t ? from : 0;
+    PV.topBar = { top: barTop, el: barEl, from: barFrom };
     // the bottom bar: the highest top among the fixed strips that reach the
     // viewport's bottom edge
     var b = innerHeight, bel = null;
@@ -1066,8 +1079,16 @@
   var NAV_LABEL = /^(previous|next|prev)( (slide|item|page|story|stories|card|set|image|photo))?$/i;
   var NAV_TOK = /(^|[\s_-])(nav-button|flipper|carousel-(prev|next)|slick-(prev|next)|swiper-button-(prev|next)|(prev|next)-button|button-(prev|next))([\s_-]|$)/i;
   var DOTS_TOK = /(^|[\s_-])(pagination-dots|sequence-dots|slick-dots|swiper-pagination|carousel-indicators|carousel-dots|slider-dots|pager-dots|dots)([\s_-]|$)/i;
+  var DOT_TOK = /(^|[\s_-])dot(-(selected|active|current))?([\s_-]|$)/i;
   function navKind(e) {
     if (e.tagName === "CS-SEQUENCE-DOTS" || DOTS_TOK.test(PV.classStr(e))) return "dots";
+    // ... or a strip by what it holds: three children or more, nearly all of them named a dot (B-583, MSN on a phone: the
+    // strip is `div.navigation` holding `div.dot` and one `div.dot-selected`)
+    var kids = e.children, nk = kids ? kids.length : 0;
+    if (nk >= 3 && nk <= 40) {
+      var dn = 0; for (var i = 0; i < nk; i++) { if (DOT_TOK.test(PV.classStr(kids[i]))) dn++; }
+      if (dn >= 3 && dn >= nk * 0.8) return "dots";
+    }
     var lab = ((e.getAttribute("aria-label") || e.getAttribute("title") || "") + "").trim();
     if (NAV_LABEL.test(lab) || NAV_TOK.test(PV.classStr(e))) return "nav";
     return "";
@@ -1118,7 +1139,7 @@
     return { left: r.left + dx, top: r.top + dy, right: r.right + dx, bottom: r.bottom + dy, width: r.width, height: r.height };
   }
   function closeControls(target) {
-    var out = [], all, unit = target;
+    var out = [], all, unit = target, outer = new Set();
     try { unit = unitAround(target); } catch (eU) {}
     try { all = [].slice.call(unit.querySelectorAll("*")); } catch (e) { return out; }
     try {
@@ -1134,6 +1155,11 @@
       var ud = unitDeep(target);
       var seen = new Set(all);
       deepAll(ud, 1600).forEach(function (x) { if (!seen.has(x)) all.push(x); });
+      // A slider's dots can lie over the slide from the card around it (B-583, MSN on a phone: the strip is a child of the card's
+      // shadow tree, beside the slides). The children of the tree that holds the unit are looked at for a dots strip only, and
+      // only one that lies on the covered box.
+      var rt = ud.getRootNode && ud.getRootNode();
+      if (rt && rt.host) [].slice.call(rt.children || [], 0, 60).forEach(function (x) { if (!seen.has(x) && x !== ud && !PV.deepContains(x, ud)) { all.push(x); outer.add(x); } });
     } catch (eS) {}
     var jetpack = false;
     try { jetpack = unit.id === "jpmasthead" || !!(unit.closest && unit.closest("#jpmasthead")) || !!unit.querySelector("#jpmasthead, .jpstage"); } catch (eJ) {}
@@ -1143,6 +1169,11 @@
       var r = e.getBoundingClientRect();
       var nk = "";
       try { nk = navKind(e); } catch (eN) {}
+      if (outer.has(e)) {
+        if (nk !== "dots") continue;
+        var tr = target.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        if (!(cx > tr.left && cx < tr.right && cy > tr.top && cy < tr.bottom)) continue;
+      }
       if (nk) {
         // a dots strip is long and thin (MSN's is 318 x 8); a nav button an X's size
         if (nk === "dots" ? (r.width < 16 || r.width > 420 || r.height < 4 || r.height > 40) : (r.width < 14 || r.width > 72 || r.height < 14 || r.height > 72)) continue;
@@ -1192,11 +1223,22 @@
   function paintClip(cover) {
     var u = cover.__under || 0, o = cover.__over || 0, lo = o > 0 ? (cover.offsetHeight || cover.getBoundingClientRect().height) - o : Infinity;
     var holes = (cover.__holeBoxes || []).concat(cover.__lookBox ? [cover.__lookBox] : []).filter(function (h) { return h.y1 > u + 2 && h.y0 < lo - 2; })
-      .map(function (h) { return { x0: h.x0, y0: Math.max(h.y0, u), x1: h.x1, y1: Math.min(h.y1, lo) }; })
+      .map(function (h) { return { x0: h.x0, y0: Math.max(h.y0, u), x1: h.x1, y1: Math.min(h.y1, lo), rad: h.y0 > u && h.y1 < lo ? (h.rad || 0) : 0 }; })
       .sort(function (a, b) { return a.x0 - b.x0; });
     if (!holes.length) { cover.style.clipPath = (u > 0 || o > 0) ? "inset(" + u.toFixed(1) + "px 0 " + (o > 0 ? o.toFixed(1) + "px" : "0") + " 0)" : ""; return; }
     var pts = ["0 " + u + "px"];
     holes.forEach(function (h) {
+      if (h.rad >= 2) {
+        var R = h.rad, pt = function (x, y) { pts.push(Math.round(x * 10) / 10 + "px " + Math.round(y * 10) / 10 + "px"); };
+        var arc = function (f) { for (var k = 0; k <= 4; k++) { var a = k / 4 * Math.PI / 2; f(R * Math.cos(a), R * Math.sin(a)); } };
+        pts.push(h.x0 + "px " + u + "px");
+        arc(function (c, sn) { pt(h.x0 + R - c, h.y1 - R + sn); });   // down the left side, round the lower left corner
+        arc(function (c, sn) { pt(h.x1 - R + sn, h.y1 - R + c); });   // along the foot, round the lower right
+        arc(function (c, sn) { pt(h.x1 - R + c, h.y0 + R - sn); });   // up the right side, round the upper right
+        arc(function (c, sn) { pt(h.x0 + R - sn, h.y0 + R - c); });   // back along the top, round the upper left
+        pts.push(h.x0 + "px " + u + "px");
+        return;
+      }
       pts.push(h.x0 + "px " + u + "px", h.x0 + "px " + h.y1 + "px", h.x1 + "px " + h.y1 + "px", h.x1 + "px " + h.y0 + "px", h.x0 + "px " + h.y0 + "px", h.x0 + "px " + u + "px");
     });
     pts.push("100% " + u + "px", o > 0 ? "100% " + lo.toFixed(1) + "px" : "100% 100%", o > 0 ? "0 " + lo.toFixed(1) + "px" : "0 100%");
@@ -1210,9 +1252,18 @@
       ctrls.forEach(function (x) {
         var r = pageRect(x);
         // clamp to the cover (Jetpack's stage runs a few px past its masthead)
-        var py = x.__prismNav === "dots" ? 10 : pad;
+        // a dots strip takes the margin of any control, and more only while it is thinner than 20 px with it (MSN at desktop
+        // width: 8 px high). It took 10 px above and below always, and on a strip 14 px high over a picture the ad showed
+        // in the opening (B-583, 2026-11-26).
+        var py = x.__prismNav === "dots" ? Math.max(pad, Math.min(10, Math.ceil((20 - r.height) / 2))) : pad;
         var x0 = Math.max(0, r.left - pad - cr.left), y0 = Math.max(0, r.top - py - cr.top), x1 = Math.min(cr.width, r.right + pad - cr.left), y1 = Math.min(cr.height, r.bottom + py - cr.top);
-        if (x1 - x0 >= 6 && y1 - y0 >= 6) boxes.push({ x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1), el: x, py: py });
+        if (x1 - x0 >= 6 && y1 - y0 >= 6) {
+          // the opening's corners follow the control's own, plus the margin (B-583: a square opening around a round-ended strip
+          // showed the ad at its four corners)
+          var rad = 0;
+          try { var csx = getComputedStyle(x), brx = parseFloat(csx.borderTopLeftRadius); if (isFinite(brx) && brx > 0) rad = /%$/.test(csx.borderTopLeftRadius) ? brx / 100 * Math.min(x1 - x0, y1 - y0) : brx + pad; } catch (eR) {}
+          boxes.push({ x0: Math.round(x0), y0: Math.round(y0), x1: Math.round(x1), y1: Math.round(y1), el: x, py: py, rad: Math.min((x1 - x0) / 2, (y1 - y0) / 2, rad) });
+        }
       });
     }
     var key = boxes.map(function (b) { return [b.x0, b.y0, b.x1, b.y1].join(","); }).join(";");
@@ -1379,7 +1430,78 @@
     } catch (e) {}
     return false;
   }
+  // The self-check (B-585, 2026-11-26; asked for a way to end the faults of a cover over a header one site at a time). The bar
+  // is found by its structure (fixed or sticky, wide, with a ground, at the top), and each site that builds its header another way
+  // was a new fault: MSN (shadow trees), CBS News (a header held below the top), United (a ground six levels down). Here the
+  // page is asked instead. For a cover in view near the top of the window, at a few points of its upper part: is the cover drawn
+  // over something of the page that belongs to a fixed or sticky strip, which neither holds the ad nor is the ad? Then the page
+  // draws that strip over the ad, and the cover is in the wrong place. The strip is kept as a bar whatever its structure, and a
+  // cover that was read as lying over the bar by the page's own doing is read again. A cover is asked at most every 400 ms and
+  // only while its top is in the upper 45 percent of the window; a cover already under the bar or cut at it is not hit there
+  // and costs the questions only.
+  var selfStat = { n: 0, ms: 0, found: 0 };
+  PV.selfCheckStat = selfStat;
+  function opaqueUpTo(p, strip) {
+    for (var n = p, d = 0; n && n.nodeType === 1 && d < 30; n = PV.parentAcross(n), d++) {
+      if (/^(IMG|SVG|CANVAS|VIDEO|PICTURE)$/i.test(n.tagName)) return true;
+      var cs = getComputedStyle(n), m = /rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+))?\s*\)/.exec(cs.backgroundColor || "");
+      if (m && (m[1] === undefined || parseFloat(m[1]) >= 0.5)) return true;
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return true;
+      if (cs.backdropFilter && cs.backdropFilter !== "none") return true;
+      if (n === strip) break;
+    }
+    return false;
+  }
+  function selfCheck(cover, target, r) {
+    var now = Date.now();
+    if (now < (cover.__scAt || 0) || cover.__fixed || cover.__lookOn || cover.style.zIndex === "2147483647") return false;
+    if (r.bottom <= 2 || r.top > innerHeight * 0.45 || r.width < 40 || r.height < 20) return false;
+    cover.__scAt = now + 400;
+    var t0 = performance.now(), got = false;
+    try {
+      var y0 = Math.max(r.top, 0) + 4, ys = [y0, y0 + 26], xs = [0.2, 0.5, 0.8];
+      for (var yi = 0; yi < ys.length && !got; yi++) {
+        if (ys[yi] > Math.min(r.bottom, innerHeight) - 3) continue;
+        for (var xi = 0; xi < xs.length && !got; xi++) {
+          var x = Math.min(Math.max(r.left + r.width * xs[xi], 1), innerWidth - 2), st = deepStack(x, ys[yi]);
+          var ci = -1, p = null;
+          for (var k = 0; k < st.length; k++) {
+            var e = st[k];
+            if (e === cover || cover.contains(e)) { ci = k; continue; }
+            if (e.hasAttribute && (e.hasAttribute("data-prism-veil") || e.hasAttribute("data-prism-ui"))) continue;
+            if (e.closest && e.closest("[data-prism-veil],[data-prism-ui]")) continue;
+            if (ci < 0) break;   // the page is over the cover here already
+            p = e; break;
+          }
+          if (!p) continue;
+          if (p === target || PV.deepContains(target, p) || PV.deepContains(p, target)) continue;   // the ad, or what holds it
+          var strip = null;
+          for (var n = p, d = 0; n && n.nodeType === 1 && d < 40; n = PV.parentAcross(n), d++) {
+            if (n === document.body || n === document.documentElement) break;
+            var pos = getComputedStyle(n).position;
+            if (pos === "fixed" || pos === "sticky") { strip = n; break; }
+          }
+          if (!strip || PV.deepContains(strip, target) || PV.deepContains(target, strip)) continue;
+          var sr = strip.getBoundingClientRect();
+          if (sr.width < innerWidth * 0.5 || sr.height <= 0 || sr.height > innerHeight * 0.4 || sr.top > innerHeight * 0.3) continue;
+          if (AD_BAND_CLS.test(PV.classStr(strip) + " " + (strip.id || "")) || adIsBar(strip, sr)) continue;
+          if (!opaqueUpTo(p, strip)) continue;   // a clear layer hides nothing
+          got = true;
+          if (!learned.has(strip)) { learned.add(strip); if (barCands.indexOf(strip) < 0) barCands.push(strip); }
+          // what was read before about this cover and the bar is read again
+          cover.__unitOverEl = null; cover.__barOverEl = null; cover.__barOver = undefined; cover.__tuckRetry = 0; cover.__preRetry = 0; cover.__seenUnder = strip;
+        }
+      }
+    } catch (eS) {}
+    selfStat.n++; selfStat.ms += performance.now() - t0; if (got) selfStat.found++;
+    return got;
+  }
   function clipOverlays() {
+    var found = false;
+    veils.forEach(function (cover, target) {
+      try { var r0 = cover.__mode === "overlay" ? target.getBoundingClientRect() : cover.getBoundingClientRect(); if (selfCheck(cover, target, r0)) found = true; } catch (e0) {}
+    });
+    if (found) pickTopBar();
     veils.forEach(function (cover, target) {
       stepBack(cover, target);
       if (cover.__sticky && cover.__mode === "overlay" && target.isConnected && !cover.__lookOn) positionOverlay(cover, target);
@@ -1416,12 +1538,15 @@
       // a unit the page itself draws over the bar is not under it, and its cover is left whole (2026-11-17: the sticky player, and the
       // same for a cover inside such a unit). Asked once per cover and bar, the first time the two meet.
       if (!underBar && barEl && r.top < barTop && r.bottom > 0) {
-        if (cover.__unitOverEl !== barEl) { cover.__unitOverEl = barEl; cover.__unitOver = !barOverUnit(target, r); }
+        if (cover.__unitOverEl !== barEl) { cover.__unitOverEl = barEl; cover.__unitOver = cover.__seenUnder && inBar(cover.__seenUnder) ? false : !barOverUnit(target, r); }
         if (cover.__unitOver) underBar = true;
       }
       // No bar, no cut (2026-11-22, a report from Safari on an iPhone: the top of a covered ad showed in the status bar's strip as the
       // cover scrolled up). With no bar the cut was made at the top edge of the viewport, which nobody saw while nothing is drawn above
       // that edge. iOS Safari draws the page on above it, under the status bar, and the ad lay bare there.
+      // Over a bar that holds below the top of the window the page shows again, and a cut at the bar's foot would bare the ad there:
+      // a cover that reaches into that space is left whole (B-581).
+      if (!underBar && barEl && barFrom > 2 && r.top < barFrom - 1) underBar = true;
       cover.__under = (underBar || !barEl) ? 0 : Math.max(0, Math.min(r.height, barTop - r.top));
       cover.__over = (botEl && !inBot) ? Math.max(0, Math.min(r.height, r.bottom - botTop)) : 0;
       paintClip(cover);

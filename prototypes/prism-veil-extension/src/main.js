@@ -275,9 +275,28 @@
   })();
   // For a report (2026-11-26, B-567: a page that loads in 6 s without PRISM took a minute with it in Safari on an iPhone, and the
   // cost can be measured here only on a computer): how many looks this page has had and what they cost, in numbers alone.
+  // How late a timer of 250 ms comes says how long the page's one thread was held, by anything (2026-11-26: the looks took a second
+  // of a page that was slow for a minute, so the report also has to say whether the page was held at all, or was waiting).
+  var held = { ms: 0, max: 0, ms10: 0, n: 0 }, heldAt = nowMs();
+  setInterval(function () {
+    var n = nowMs(), late = n - heldAt - 250; heldAt = n; held.n++;
+    if (late > 50) { held.ms += late; if (late > held.max) held.max = late; if (n < 10000) held.ms10 += late; }
+  }, 250);
   PV.perfDiag = function () {
     var els = 0; try { els = document.getElementsByTagName("*").length; } catch (e) {}
-    return { age: Math.round(nowMs()), looks: perf.n, ms: Math.round(perf.ms), max: Math.round(perf.max), looks10: perf.n10, ms10: Math.round(perf.ms10), video: perf.vn, videoMs: Math.round(perf.vms), last: Math.round(swCost), els: els };
+    var o = { age: Math.round(nowMs()), looks: perf.n, ms: Math.round(perf.ms), max: Math.round(perf.max), looks10: perf.n10, ms10: Math.round(perf.ms10), video: perf.vn, videoMs: Math.round(perf.vms), last: Math.round(swCost), els: els,
+      heldMs: Math.round(held.ms), heldMax: Math.round(held.max), heldMs10: Math.round(held.ms10), ticks: held.n };
+    // the self-check of covers against the page's fixed strips (B-585): times asked, their cost, strips found
+    try { var sc = PV.selfCheckStat; if (sc) { o.self = sc.n; o.selfMs = Math.round(sc.ms); o.selfFound = sc.found; } } catch (eS) {}
+    // the page's own load times, from the browser, and how many files it has asked for
+    try {
+      var nv = performance.getEntriesByType("navigation")[0];
+      if (nv) o.nav = { type: nv.type, start: Math.round(nv.requestStart), first: Math.round(nv.responseStart), end: Math.round(nv.responseEnd), ready: Math.round(nv.domInteractive), dcl: Math.round(nv.domContentLoadedEventEnd), load: Math.round(nv.loadEventEnd) };
+      var rs = performance.getEntriesByType("resource"), slow = 0, longest = 0;
+      for (var i = 0; i < rs.length; i++) { var du = rs[i].duration; if (du > 3000) slow++; if (du > longest) longest = du; }
+      o.files = rs.length; o.filesSlow = slow; o.fileLongest = Math.round(longest);
+    } catch (e2) {}
+    return o;
   };
   PV.sweepSoon = function (share) {
     var wait = swEnd + Math.min(SW_MAX, swCost * (share > 0 ? share : SW_SHARE)) - nowMs();
