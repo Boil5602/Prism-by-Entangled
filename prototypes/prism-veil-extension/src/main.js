@@ -259,12 +259,39 @@
   ["mouseup", "mouseleave", "dragstart", "blur"].forEach(function (t) { addEventListener(t, clearHold, true); });
   addEventListener("mousemove", function (e) { if (holdTimer && !overVeil(e.clientX, e.clientY)) clearHold(); }, true);
 
+  // ---- the look's share of the time (2026-11-26, B-567: a news page was slow with PRISM on; on AP News the look ran 52 times in
+  // 20 s at 170 ms a time). A look that costs much is run less often: after a look, the next routine one (a change in the page,
+  // a scroll, the clock) waits eight times what the last one cost, two seconds at most, so the looks take about a ninth of the
+  // time however large the page. A cheap look waits for nothing. What cannot wait is not held: a cover the page took away, a
+  // video that starts, the tab coming back, the person's own press; those call PV.sweep itself.
+  var swEnd = 0, swCost = 0, swT = 0, SW_SHARE = 8, SW_MAX = 2000, perf = { n: 0, ms: 0, max: 0, n10: 0, ms10: 0, vn: 0, vms: 0 };
+  var nowMs = function () { try { return performance.now(); } catch (e) { return Date.now(); } };
+  (function () {
+    var raw = PV.sweep;
+    PV.sweep = function () { var t = nowMs(); try { return raw.apply(this, arguments); } finally { swEnd = nowMs(); swCost = swEnd - t; perf.n++; perf.ms += swCost; if (swCost > perf.max) perf.max = swCost; if (swEnd < 10000) { perf.n10++; perf.ms10 += swCost; } } };
+    // the video check, timed the same way
+    var rawV = PV.videoAdBreak;
+    if (rawV) PV.videoAdBreak = function () { var t = nowMs(); try { return rawV.apply(this, arguments); } finally { var c = nowMs() - t; perf.vn++; perf.vms += c; } };
+  })();
+  // For a report (2026-11-26, B-567: a page that loads in 6 s without PRISM took a minute with it in Safari on an iPhone, and the
+  // cost can be measured here only on a computer): how many looks this page has had and what they cost, in numbers alone.
+  PV.perfDiag = function () {
+    var els = 0; try { els = document.getElementsByTagName("*").length; } catch (e) {}
+    return { age: Math.round(nowMs()), looks: perf.n, ms: Math.round(perf.ms), max: Math.round(perf.max), looks10: perf.n10, ms10: Math.round(perf.ms10), video: perf.vn, videoMs: Math.round(perf.vms), last: Math.round(swCost), els: els };
+  };
+  PV.sweepSoon = function (share) {
+    var wait = swEnd + Math.min(SW_MAX, swCost * (share > 0 ? share : SW_SHARE)) - nowMs();
+    if (!(wait > 4)) { PV.sweep(); return; }
+    if (!swT) swT = setTimeout(function () { swT = 0; PV.sweep(); }, wait);
+  };
+
   // ---- observers
   var mo = new MutationObserver(function () {
     // a covered element just went out of the page: its replacement is covered in this same turn, before the screen is painted
-    try { if (PV.coverLost && PV.coverLost()) PV.sweep(); } catch (eL) {}
+    // (the looks that follow in the next second, for what comes in its place, wait twice the last look's cost)
+    try { if (PV.coverLost && PV.coverLost()) { if (PV.coverLostFresh) PV.sweep(); else PV.sweepSoon(2); } } catch (eL) {}
     if (mo.__t) return;
-    mo.__t = setTimeout(function () { mo.__t = null; PV.sweep(); }, 400);
+    mo.__t = setTimeout(function () { mo.__t = null; PV.sweepSoon(); }, 400);
   });
   PV.observeRoot = function (root) { mo.observe(root, { childList: true, subtree: true }); };
 
@@ -286,8 +313,10 @@
   var fastAdT = 0;
   new MutationObserver(function () {
     if (fastAdT) return;
-    fastAdT = setTimeout(function () { fastAdT = 0; }, 60);
+    // at most one in 60 ms, and no more than about a sixth of the time when the check itself costs (2026-11-26, B-567)
+    var tA = nowMs();
     if (!PV.suppressed()) PV.videoAdBreak();
+    fastAdT = setTimeout(function () { fastAdT = 0; }, Math.max(60, Math.min(600, (nowMs() - tA) * 6)));
   }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
 
   // A background tab's timers are throttled to ~once a minute and its rAF is
@@ -360,7 +389,7 @@
     PV.loadUiPrefs();
     if (PV.ensurePill) PV.ensurePill();
     PV.sweep();
-    setInterval(function () { PV.sweep(); if (!orphaned() && PV.ensurePill) PV.ensurePill(); }, 1200);
+    setInterval(function () { PV.sweepSoon(); if (!orphaned() && PV.ensurePill) PV.ensurePill(); }, 1200);
     findInfopanes();
     setInterval(findInfopanes, 2000);   // (re)cache infopanes as they load
     setInterval(pollInfopanes, 60);      // catch a slide swap within ~60ms
@@ -369,7 +398,7 @@
     var scrollT = 0;
     var onMove = function () {
       if (scrollT) return;
-      scrollT = setTimeout(function () { scrollT = 0; PV.sweep(); }, 200);
+      scrollT = setTimeout(function () { scrollT = 0; PV.sweepSoon(); }, 200);
     };
     addEventListener("scroll", onMove, { passive: true, capture: true });
     addEventListener("resize", onMove, { passive: true });

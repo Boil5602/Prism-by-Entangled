@@ -634,7 +634,14 @@
     return best;
   }
   function srcHere(s) {
-    if (s.family) { try { return !!document.querySelector(s.fingerprint); } catch (e) { return false; } }
+    // a family's mark is looked for in the whole page; the answer is kept for 700 ms (2026-11-26, B-567: asked 14,000 times in
+    // 20 s on a large news page, 1.7 s of the page's time). A player that has just come is seen that much later, once.
+    if (s.family) {
+      var n = Date.now();
+      if (s.__hereAt && n - s.__hereAt < 700 && !PV.noMemo) return s.__here;
+      var here = false; try { here = !!document.querySelector(s.fingerprint); } catch (e) {}
+      s.__hereAt = n; s.__here = here; return here;
+    }
     return !s.host || s.host.test(location.hostname);
   }
   // The player's on-screen countdown, found by POSITION: among visible short

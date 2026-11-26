@@ -757,6 +757,7 @@
   PV.coverLost = function () {
     var lost = false; veils.forEach(function (c, t) { if (!t.isConnected) lost = true; });
     var now = Date.now();
+    PV.coverLostFresh = lost;   // a cover went in this very change; the answers that follow for a second are for what comes in its place
     if (lost) { lostAt = now; fastLeft = 12; return true; }
     if (now - lostAt < 1000 && fastLeft > 0) { fastLeft--; return true; }
     return false;
@@ -1016,7 +1017,15 @@
     });
     return is;
   }
-  function findTopBar() { scanBarCandidates(); pickTopBar(); }
+  // The search for bars reads the style of every element, up to 6000 (200 ms a time on AP News, 2026-11-26, B-567). It is run
+  // again only after forty times what it last cost, so about a fortieth of the time at most; between runs the bars it found
+  // are used as they are. A change of the window's size always searches.
+  var barAt = 0, barCost = 0;
+  function findTopBar(force) {
+    var n = Date.now();
+    if (force || !barAt || barCost < 20 || n - barAt >= barCost * 40) { scanBarCandidates(); barAt = Date.now(); barCost = barAt - n; }
+    pickTopBar();
+  }
   // ---- the ad's own close control stays reachable THROUGH the cover.
   // Many units carry an X (Jetpack's masthead strip, sticky footers, AdChoices
   // closes). PRISM clicks nothing (spec section 26) - but the person's own
@@ -1432,7 +1441,7 @@
     clipOverlays();
     requestAnimationFrame(function () { raf = false; clipOverlays(); });
   }, { passive: true, capture: true });
-  addEventListener("resize", function () { findTopBar(); }, { passive: true });
+  addEventListener("resize", function () { findTopBar(true); }, { passive: true });
   // a modal opens on a click or a key and without a scroll: look again just after, and once a second while any cover sits outside its ad
   // every frame for a second and a half after the click (2026-11-04: checked at 250 and 900 ms, the cover stood over Reddit's lightbox
   // until its image had loaded); the frames cost one elementsFromPoint per cover outside its ad, and only after a click or a key

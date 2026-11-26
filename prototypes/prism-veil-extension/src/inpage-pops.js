@@ -528,9 +528,21 @@
   function watch(el) {
     if (watching.has(el) || watching.size >= WATCH_MAX || watchedOnce.has(el)) return;
     var mo = null;
-    try { mo = new MutationObserver(function () { scan(); }); mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "src", "hidden"] }); } catch (e) {}
+    try { mo = new MutationObserver(function () { scanWatched(); }); mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "src", "hidden"] }); } catch (e) {}
     watching.set(el, { mo: mo, until: Date.now() + WATCH_MS }); watchedOnce.add(el);
-    if (!fast) fast = setInterval(scan, 100);
+    if (!fast) fast = setInterval(scanWatched, 100);
+  }
+  // The close watch looks at the watched boxes alone (2026-11-26, B-567: it ran the whole look, every page-level box, the dialogs
+  // and the players, ten times a second and on every change in a watched box, 1.6 s of a large news page's first 20 s). The whole
+  // look stays once a second and on a change to the page's own children.
+  function scanWatched() {
+    if (window.__prismVeilNS !== PV) return;
+    watching.forEach(function (w, el) {
+      if (!el.isConnected) return;
+      var u = null; try { u = unitIn(el); } catch (e) {}
+      if (u) judge(u);
+    });
+    tidyWatch();
   }
   var watchedOnce = new WeakSet();   // a box that was watched its time and never became a pop is not watched again
   function tidyWatch() {

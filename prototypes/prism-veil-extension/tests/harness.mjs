@@ -22,7 +22,7 @@ afterAll(() => { for (const id of intervals.splice(0)) clearInterval(id); });
 
 export function loadVeil({ host = "example.com", width = 1881, height = 859 } = {}) {
   // fresh namespace per load
-  window.__prismVeilNS = undefined;
+  window.__prismVeilNS = { noMemo: true };   // the short-lived answers (the main video, a family's mark) are asked afresh each time in a test
   window.__prismVeil = undefined;
   window.chrome = { runtime: { getURL: (p) => "chrome-extension://test/" + p, getManifest: () => ({ version: "test" }) } };
   Object.defineProperty(window, "innerWidth", { value: width, configurable: true });

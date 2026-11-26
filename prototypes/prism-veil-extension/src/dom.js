@@ -137,7 +137,15 @@
     return (e && e.className && e.className.toString) ? e.className.toString() : "";
   }
   /** Largest <video> on the page - the main player, not a preview clip. */
+  // The answer is kept for 120 ms while that video is in the page (2026-11-26, B-567: one look at the page asked four times and
+  // each measure of a large page costs; 580 asks in 20 s took 1.5 s).
+  var mvAt = 0, mvBest = null;
   function mainVideo() {
+    var n = Date.now();
+    if (mvBest && n - mvAt < 120 && mvBest.isConnected && !PV.noMemo) return mvBest;
+    mvBest = mainVideoNow(); mvAt = n; return mvBest;
+  }
+  function mainVideoNow() {
     var vs = document.querySelectorAll("video"), best = null, bestA = 0;
     for (var i = 0; i < vs.length; i++) {
       var r = vs[i].getBoundingClientRect(), a = r.width * r.height;
