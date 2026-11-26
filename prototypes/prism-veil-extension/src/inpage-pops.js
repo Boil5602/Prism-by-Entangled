@@ -340,21 +340,37 @@
     var k = Math.min(SPECK / w, SPECK / h, 1);
     var cx = innerWidth - 34, cy = innerHeight - 29;   // the middle of the PRISM button (popups-ui.js: 14 px from the corner, 30 px tall; 44 px on a touch screen, and the point is inside both)
     var tx = cx - (w * k) / 2 - x, ty = cy - (h * k) / 2 - y;
-    return "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")";
+    return { tx: tx, ty: ty, k: k, w: w, h: h, left: cx - (w * k) / 2, top: cy - (h * k) / 2, text: "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")" };
+  }
+  // Drawn where it was meant to be (2026-11-25, a preview that showed only with the page at its top, in Safari on an iPhone): the
+  // move is worked out from the unit's layout place, and browsers do not agree on that place for a fixed box once the page has
+  // scrolled, nor does it hold under an ancestor that is itself moved. So the move is written, the unit is measured, and what is
+  // off is added. Only a measure that shows the unit at the size asked for is believed.
+  function settle(el, tx, ty, k, w, h, left, top) {
+    var text = function () { return "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")"; };
+    el.style.setProperty("transform", text(), "important");
+    try {
+      var br = el.getBoundingClientRect();
+      if (Math.abs(br.width - w * k) <= Math.max(1, w * k * 0.05) && (Math.abs(br.left - left) > 1 || Math.abs(br.top - top) > 1)) {
+        tx += left - br.left; ty += top - br.top;
+        el.style.setProperty("transform", text(), "important");
+      }
+    } catch (e) {}
+    return el.style.getPropertyValue("transform");
   }
   function clearOn(rec) {
     var el = rec.el;
     if (!rec.saved) rec.saved = new Map();
     var keep = function (n, p) { if (!rec.saved.has(n)) rec.saved.set(n, {}); var s = rec.saved.get(n); if (!(p in s)) s[p] = [n.style.getPropertyValue(p), n.style.getPropertyPriority(p)]; };
     try {
-      var tf = rec.previewing ? "" : tuck(el);
+      var tk = rec.previewing ? "" : tuck(el);
       // written only when it changes: a box that is watched for changes would be looked at again for each write, without end
-      if (tf && el.style.getPropertyValue("transform") !== tf) {
+      if (tk && !(rec.tfFrom === tk.text && el.style.getPropertyValue("transform") === rec.tfDone)) {
         ["transform", "transform-origin", "transition", "translate", "scale", "rotate"].forEach(function (p) { keep(el, p); });
         el.style.setProperty("transition", "none", "important");
         ["translate", "scale", "rotate"].forEach(function (p) { el.style.setProperty(p, "none", "important"); });
         el.style.setProperty("transform-origin", "0 0", "important");
-        el.style.setProperty("transform", tf, "important");
+        rec.tfDone = settle(el, tk.tx, tk.ty, tk.k, tk.w, tk.h, tk.left, tk.top); rec.tfFrom = tk.text;
       }
       var all = [el].concat(Array.prototype.slice.call(el.querySelectorAll("*"), 0, MAX_INNER));
       all.forEach(function (n) { if (n.style && n.style.getPropertyValue("pointer-events") !== "none") { keep(n, "pointer-events"); n.style.setProperty("pointer-events", "none", "important"); } });
@@ -399,6 +415,12 @@
     if (rec.mode === "cover" && rec.lockCover && !scrollLocked() && !soundingVideo(rec.el)) { coverOff(rec); rec.mode = "clear"; clearOn(rec); return; }
     if (rec.mode === "clear") {
       if (scrollLocked() || soundingVideo(rec.el)) { coverOn(rec); return; }
+      // an ad that grew or scrolled back into the place the page keeps for it: put back there, for the display cover
+      if (rec.ad && !rec.previewing) {
+        var home = inOwnPlace(rec.el, !rec.parked);
+        if (home && !rec.parked) { clearOff(rec); rec.parked = true; return; }
+        if (rec.parked) { if (home) return; rec.parked = false; }
+      }
       clearOn(rec);
     }
   }
@@ -408,6 +430,24 @@
   // guard looked only at the top of the stack. A box the display rules have already covered as an ad, when it sits in a fixed
   // layer that is mostly that ad and takes half the screen or less, is a pop too: tucked away, counted and listed, and its cover
   // goes with it. The source is the display rule that named the ad; the same things are left alone as for any pop.
+  // In its own place (2026-11-25, a report from CNN on an iPhone: a black space where the ad at the head of the page is). CNN's
+  // head ad is a fixed box, and the page keeps a box of the same size for it in the flow, black, right under it. Tucked away, the
+  // ad left that black box bare. A fixed ad whose parent keeps its place, at its size and on the screen, lies in the page and not
+  // over it: it is covered like any ad in the page, and tucked away only while that place is off the screen and the ad is not.
+  function inOwnPlace(el, tucked) {
+    try {
+      var p = el.parentElement;
+      if (!p || p === document.body || p === document.documentElement) return false;
+      if (getComputedStyle(p).position === "fixed") return false;
+      var w = el.offsetWidth, h = el.offsetHeight, pr = p.getBoundingClientRect();
+      if (!(w >= MIN_SIDE && h >= MIN_SIDE)) return false;
+      if (pr.width < w * 0.9 || pr.height < h * 0.9 || pr.width > w * 1.3 + 20 || pr.height > h * 1.3 + 20) return false;
+      var over = function (a, b) { return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); };
+      var win = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+      if (over(pr, win) < w * h * 0.7) return false;                    // the place is off the screen: the ad floats over the page
+      return tucked ? true : over(pr, el.getBoundingClientRect()) >= w * h * 0.7;
+    } catch (e) { return false; }
+  }
   function fixedOver(t) {
     var n = t;
     for (var i = 0; n && n.nodeType === 1 && i < 8 && n !== document.body && n !== document.documentElement; i++, n = n.parentElement) {
@@ -417,6 +457,7 @@
       if (!onScreen(n)) return null;
       var r = n.getBoundingClientRect(), tr = t.getBoundingClientRect(), a = r.width * r.height;
       if (a > innerWidth * innerHeight * 0.5 || tr.width * tr.height < a * 0.3) return null;
+      if (inOwnPlace(n, false)) return null;
       return n;
     }
     return null;
@@ -552,10 +593,11 @@
     if (!(w > 0 && h > 0)) return false;
     var maxW = Math.min(innerWidth - 28, 360), maxH = Math.min(innerHeight * 0.4, 280);
     var k = Math.min(maxW / w, maxH / h, 1);
-    var tx = (innerWidth - w * k) / 2 - el.offsetLeft, ty = Math.max(14, Math.round(innerHeight * 0.18)) - el.offsetTop;   // below a page's own top bar, which a unit low in the page's stack would be drawn under
+    var left = (innerWidth - w * k) / 2, top = Math.max(14, Math.round(innerHeight * 0.18));
+    var tx = left - el.offsetLeft, ty = top - el.offsetTop;   // below a page's own top bar, which a unit low in the page's stack would be drawn under
     var props = ["transform", "z-index", "outline", "outline-offset", "box-shadow"].map(function (n) { return [n, el.style.getPropertyValue(n), el.style.getPropertyPriority(n)]; });
     rec.previewing = true;
-    el.style.setProperty("transform", "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")", "important");
+    settle(el, tx, ty, k, w, h, left, top);
     el.style.setProperty("z-index", "2147483646", "important");
     el.style.setProperty("outline", Math.max(2, Math.round(2 / k)) + "px solid #F2B14C", "important");
     el.style.setProperty("box-shadow", "0 0 0 " + Math.round(8 / k) + "px rgba(8,10,14,.72)", "important");

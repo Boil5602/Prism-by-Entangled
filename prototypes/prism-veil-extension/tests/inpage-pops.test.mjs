@@ -254,6 +254,26 @@ describe("in-page pops", () => {
     expect(held(shell)).toBe(null);
     expect(p.PV.popupPolicy.ledger("watch.example")[0].context).toMatch(/fixed over the page, slot-selector/);
   });
+  // 2026-11-25, CNN on an iPhone: the head ad is a fixed box over a box the page keeps for it; tucked away it left a black space.
+  it("leaves a fixed ad that lies in the place the page keeps for it, and puts a tucked one back when it is there again", async () => {
+    const p = load(); await p.pass(0);
+    const place = document.createElement("div"); place.setAttribute("data-box", "0,0,390,100"); document.body.appendChild(place);
+    const f = document.createElement("div"); f.setAttribute("data-box", "0,0,390,100"); f.style.cssText = "position:fixed;top:0;z-index:5"; place.appendChild(f);
+    const ad = document.createElement("div"); ad.setAttribute("data-box", "0,0,390,100"); f.appendChild(ad);
+    p.PV.coveredEls = () => [ad]; p.PV.whyFor = () => "slot-selector: [class*='ad-slot']";
+    await p.pass(1100);
+    expect(held(f)).toBe(null);                                     // in its place: the display cover's
+    place.setAttribute("data-box", "0,-900,390,100");               // the page scrolled: the place is gone, the ad stays over the page
+    await p.pass(1100);
+    expect(held(f)).toBe("clear");
+    place.setAttribute("data-box", "0,0,390,100");                  // back at the top
+    await p.pass(1100);
+    expect(held(f)).toBe(null);
+    expect(f.style.getPropertyValue("transform")).toBe("");
+    place.setAttribute("data-box", "0,-900,390,100");
+    await p.pass(1100);
+    expect(held(f)).toBe("clear");
+  });
   it("puts everything back as it was when the person always allows its destination", async () => {
     const p = load(); await p.pass(0);
     const u = unit(); u.style.setProperty("opacity", "0.9");
@@ -392,6 +412,30 @@ describe("in-page pops", () => {
     expect(u.style.getPropertyValue("transform")).toBe(speck);
     expect(u.style.getPropertyValue("outline")).toBe("");
     expect(held(u)).toBe("clear");
+  });
+  // 2026-11-25: with the page scrolled, a browser may place a fixed box's layout origin by the document, so the worked-out move
+  // drew the preview off the screen. The unit is measured after the move and put where it was meant to be.
+  it("draws the preview and the speck on the screen where the browser's layout place is off by the scroll", async () => {
+    const p = load(); await p.pass(0);
+    const u = offer();
+    const OFF = 1500;                                                  // how far the page has scrolled
+    Object.defineProperty(u, "offsetTop", { configurable: true, get: () => OFF });
+    u.getBoundingClientRect = function () {                            // a real measure: the fixed box at 0,0, moved by its transform
+      const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\) scale\(([\d.]+)\)/.exec(u.style.getPropertyValue("transform"));
+      const tx = m ? Number(m[1]) : 0, ty = m ? Number(m[2]) : 0, k = m ? Number(m[3]) : 1;
+      return { left: tx, top: ty, width: 390 * k, height: 800 * k, right: tx + 390 * k, bottom: ty + 800 * k, x: tx, y: ty };
+    };
+    await p.pass(1100);
+    let r = u.getBoundingClientRect();
+    expect(r.top).toBeGreaterThan(700); expect(r.bottom).toBeLessThanOrEqual(800);   // the speck under the button, on the screen
+    const speck = u.style.getPropertyValue("transform");
+    await p.pass(2200);
+    expect(u.style.getPropertyValue("transform")).toBe(speck);         // and it is not written again
+    const at = p.PV.inpagePreview("site-offer.invalid");
+    expect(at).toBeTruthy();
+    r = u.getBoundingClientRect();
+    expect(r.top).toBeGreaterThanOrEqual(14); expect(r.bottom).toBeLessThan(800);    // the preview in the window
+    expect(r.width).toBeGreaterThan(100);
   });
   it("shows a held unit for this visit without remembering it", async () => {
     const p = load(); await p.pass(0);
