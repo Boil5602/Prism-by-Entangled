@@ -130,26 +130,27 @@ describe("the quick bar and the menu", () => {
     expect(p.PV.uiPrefs.coverLook).toBe(undefined);
   });
 
-  it("gives a site with promoted items its switch: hidden until the person shows them, on this site or on all sites", async () => {
+  it("gives a site with promoted items its row under This site, and puts nothing over the quick bar for it", async () => {
     const p = load("www.walmart.com", true); await p.pass(0);
     p.press(".pill"); await p.pass(0);
-    expect(p.all(".qchip").map((c) => c.getAttribute("aria-label"))).toEqual(["Paid promotions: hidden"]);
-    p.press(".qchip");
-    expect(p.PV.uiPrefs.siteChoice).toEqual({ "www.walmart.com": { promotedVeil: false } });
-    expect(p.all(".qchip").map((c) => c.getAttribute("aria-label"))).toEqual(["Paid promotions: shown"]);
-    p.press(".qchip");
-    expect(p.PV.uiPrefs.siteChoice).toEqual({});                       // back to the setting for all sites: no answer is kept
+    expect(p.all(".qchip").length).toBe(0);                            // the quick bar is as it was: nothing is added to it
     p.press('[data-q="more"]');
     expect(p.rows()).toEqual(["Paid promotions", "Popups", "PRISM button"]);
     const e = () => p.$('.qeye[data-k="promotedVeil"]');
     expect(e().getAttribute("data-hidden")).toBe("1");
+    p.press(e());
+    expect(p.PV.uiPrefs.siteChoice).toEqual({ "www.walmart.com": { promotedVeil: false } });
+    expect(e().getAttribute("data-hidden")).toBe("0");
+    p.press('.qglb[data-k="promotedVeil"]');
+    expect(p.PV.uiPrefs.siteChoice).toEqual({});                       // back to the setting for all sites: no answer is kept
     p.PV.uiPrefs.promotedVeil = false; p.press('.qglb[data-k="promotedVeil"]');
     expect(e().getAttribute("data-hidden")).toBe("0");                 // the setting for all sites, switched off, shows through
   });
-  it("has no promoted switch on a site with no rule for promoted items", async () => {
+  it("has no row for promoted items on a site with no rule for them", async () => {
     const p = load("www.example.com"); await p.pass(0);
     p.press(".pill"); await p.pass(0);
-    expect(p.all(".qchip").length).toBe(0);
+    p.press('[data-q="more"]');
+    expect(p.rows()).toEqual(["Popups", "PRISM button"]);
   });
 
   it("shows a site's own answer: the globe lit and the eye greyed while the site follows all sites, the globe out and the eye lit once the site answers", async () => {

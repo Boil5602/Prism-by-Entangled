@@ -750,7 +750,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (!vtotal) popsUp = false;
     var off = veilIsOff();
     if (popsUp) add(panel, add(el("div", "qover"), qlist(blockedRows())));
-    else if ((HAS_SUG || HAS_AI || HAS_PROMO) && !off) {
+    else if ((HAS_SUG || HAS_AI) && !off) {
       var chip = function (label, k) {
         var hidden = prefHere(k);
         var c = tapBtn("qchip" + (hidden ? " on" : ""), [ico(hidden ? "eyeoff" : "eye"), label], function () {
@@ -760,7 +760,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
         c.setAttribute("data-k", k);
         return c;
       };
-      add(panel, add(el("div", "qstrip"), HAS_SUG && chip("Suggested", "suggestedVeil"), HAS_AI && chip("AI-made", "aiVeil"), HAS_PROMO && chip("Paid promotions", "promotedVeil")));
+      add(panel, add(el("div", "qstrip"), HAS_SUG && chip("Suggested", "suggestedVeil"), HAS_AI && chip("AI-made", "aiVeil")));
     }
     var bar = el("div", "qbar");
     var cell = function (id, kids, fn, cls) { var c = tapBtn("qc" + (cls ? " " + cls : ""), kids, fn); c.setAttribute("data-q", id); return c; };

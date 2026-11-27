@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PRISM",
-  "version": "0.9.96",
+  "version": "0.9.97",
   "description": "Ads become art. PRISM covers the ads on a page with pictures you chose. It clicks nothing and blocks nothing from loading.",
   "content_scripts": [
     {
