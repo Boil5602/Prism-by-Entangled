@@ -1353,6 +1353,7 @@
   }
   // each strip of the bar has its own z-index, the one of its outermost ancestor that has a number; the cover goes one below
   // the lowest, or it would ride over that strip (CBS News: the nav at 9, the live strip at 10)
+  PV.barLowZ = function () { return barLowZ(); }; PV.inBar = function (e) { return inBar(e); };   // the video cover takes its place under the bar the same way (video.js)
   function barLowZ() {
     var low = Infinity;
     barEls.forEach(function (b) {

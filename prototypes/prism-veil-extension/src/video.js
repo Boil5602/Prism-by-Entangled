@@ -625,7 +625,9 @@
       // cover lay on it (rules.js, `player-ad-state`), with no countdown and none of the video cover's controls (2026-11-27,
       // asked for the cover a video ad has elsewhere). On a phone the player is 400 px wide, under the size the other rows need,
       // so the row says it may be small.
-      family: "PBS", fingerprint: "[data-pbs-root]", container: "[data-pbs-root]", veilTarget: PBS_AD_SEL, small: true,
+      // exact: the state is the player's own word, held for the whole run of ads, so when it goes the break is over and the cover
+      // goes at once, with no wait for a next ad (B-622, 2026-11-27: the cover stayed a few seconds over the story's video).
+      family: "PBS", fingerprint: "[data-pbs-root]", container: "[data-pbs-root]", veilTarget: PBS_AD_SEL, small: true, exact: true,
       adNow: function () { return !!document.querySelector(PBS_AD_SEL); },
       authoritative: false, displayWins: true,
       adInfo: function (cont) {
@@ -2072,6 +2074,38 @@
         if (br0.height > 0 && br0.top <= (tb.from || 0) + 4 && br0.bottom > vr.top) bar = Math.min(vr.height, Math.round((br0.bottom - vr.top) * 10) / 10);
       }
     } catch (eB) {}
+    // UNDER THE BAR BY THE PAGE'S OWN STACKING, where that can be had (B-622, 2026-11-27, a recording from usatoday.com on an iPhone:
+    // on a fast scroll the top of the ad showed for a few pictures; asked for what the picture covers have). A cut made by script
+    // comes a picture or more after the scroll that called for it. The picture covers take a z-index one under the bar's, so the
+    // browser itself draws the bar over them in the same picture as the scroll (covers.js, tuckUnderBar). The video cover does the
+    // same while it is placed in the page: one under the bar's lowest z-index, kept only if the cover is still the top thing at six
+    // points of its own box below the bar, and, where it reaches under the bar, the bar is the top thing there. Then no cut is
+    // made. Where the bar has no z-index of its own, or the proof fails, the cut by script above stays, and the try is made again.
+    try {
+      var tb2 = PV.topBar, be2 = tb2 && tb2.el, okBar = inPage && be2 && be2.isConnected && PV.barLowZ && !(vidVeil.box && be2.contains(vidVeil.box)) && !(vidVeil.video && be2.contains(vidVeil.video));
+      if (!okBar) { if (c.__tuckBar) { c.style.zIndex = "2147483000"; c.__tuckBar = null; c.__tuckOk = false; } }
+      else {
+        var nowT2 = Date.now(), bb = be2.getBoundingClientRect().bottom, yTop = Math.max(vr.top, bb) + 3, yBot = Math.min(vr.top + vr.height, innerHeight) - 3;
+        var hitCover = function (x, y) { var e = document.elementFromPoint(Math.min(Math.max(x, 1), innerWidth - 2), y); return !!e && (e === c || c.contains(e) || (!!c.__holeEl && (e === c.__holeEl || c.__holeEl.contains(e)))); };
+        if ((c.__tuckBar !== be2 || (!c.__tuckOk && nowT2 >= (c.__tuckRetry || 0))) && yBot - yTop > 12) {
+          c.__tuckBar = be2; c.__tuckOk = false; c.__tuckRetry = nowT2 + 1000;
+          var low = PV.barLowZ();
+          if (isFinite(low) && low >= 2) {
+            c.style.zIndex = String(low - 1);
+            var whole = true;
+            [0.2, 0.5, 0.8].forEach(function (fx) { [(yTop + yBot) / 2, yBot].forEach(function (yy) { if (whole && !hitCover(vr.left + vr.width * fx, yy)) whole = false; }); });
+            if (whole) { c.__tuckOk = true; c.__tuckZ = c.style.zIndex; trace("under the bar by z " + c.__tuckZ); }
+            else c.style.zIndex = "2147483000";
+          } else c.__tuckRetry = nowT2 + 4000;
+        }
+        if (c.__tuckOk) {
+          if (c.style.zIndex !== c.__tuckZ) c.style.zIndex = c.__tuckZ;
+          // where the cover reaches under the bar, the bar must be what is drawn there
+          if (vr.top < bb - 6 && bb > 6) { var eb = document.elementFromPoint(Math.min(Math.max(vr.left + vr.width / 2, 1), innerWidth - 2), Math.max(1, bb - 4)); if (eb && (eb === c || c.contains(eb))) { c.__tuckOk = false; c.__tuckRetry = nowT2 + 4000; c.style.zIndex = "2147483000"; } }
+        }
+        if (c.__tuckOk) bar = 0;
+      }
+    } catch (eT) {}
     var barWas = c.__bar || 0; c.__bar = bar;
     if (vidVeil.mode === "ad") { if (withSkip) applySkipHole(c, vr, findSkip()); else if (bar !== barWas && c.__holeKey !== undefined && c.__holeEl) applySkipHole(c, vr, c.__holeEl); }
     else clearHole(c);
@@ -2638,6 +2672,7 @@
     var pauseNow = false, contentNow = false;
     if (!adRaw && vidVeil && vidVeil.mode === "ad" && v) {
       try { var isAdNow = !!(srcNow && srcNow.isAdClip && srcNow.isAdClip(v)); contentNow = !isAdNow && isFinite(v.duration) && (v.duration > 180 || !!(srcNow && srcNow.isContent && srcNow.isContent(v))) && !v.paused && v.readyState >= 3; } catch (eN) {}
+      if (!contentNow && srcNow && srcNow.exact && srcHere(srcNow) && document.documentElement.getAttribute("data-prism-ad") !== "active") contentNow = true;
       if (vidVeil.pauseAfter) pauseNow = contentNow;
     }
     var inGrace = !skipped && !pauseNow && !contentNow && !!(vidVeil && vidVeil.mode === "ad" && vidLastAd && (now - vidLastAd < graceMs) && !(resumedAt && now - resumedAt < RESUME_GRACE_MS));

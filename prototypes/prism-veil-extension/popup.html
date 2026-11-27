@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- The page is dark, and says so (2026-11-27, Safari on an iPhone: the title Safari draws over the sheet was black on the dark sheet, not readable). -->
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0A0C0F">
+<!-- Saying it was not enough (B-623, 2026-11-27, Safari on an iPhone on 0.9.102: the title still black on the dark strip). Safari
+     draws its title in the phone's own light or dark, whatever the page says, over a strip in the page's colour. So on a phone set
+     to light the strip is given a light colour, by the theme colour and by the root's ground; the page under it stays dark. -->
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0C0F">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#E8ECF2">
 <title>PRISM</title>
 <style>
   :root { --bezel:#0A0C0F; --rail:#101317; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; --off:#3A4250; --card:#1D222A; }
@@ -16,6 +20,8 @@
      everything that holds for every site on a sheet of two columns. One sheet, no scroll area, nothing deeper than a list that
      opens in place. Switches sit at the right of their rows; the picture sets and the sources are chips. */
   html, body { margin:0; }
+  /* iOS Safari alone (the touch-callout property is its own), with the phone set to light: a light ground behind Safari's black title */
+  @supports (-webkit-touch-callout: none) { @media (prefers-color-scheme: light) { html { background:#E8ECF2; } body { min-height:100vh; } } }
   html.framed { overflow:hidden; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
   html.framed body { min-width:0; }
   html.paged { overflow-y:auto; -webkit-overflow-scrolling:touch; }
