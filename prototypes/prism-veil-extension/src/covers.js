@@ -393,6 +393,14 @@
         }),
       };
     } catch (eDiag) { cover.__lookDiag = { error: String(eDiag).slice(0, 80) }; }
+    // the page's last small view, for a report that is not made on the cover itself (B-617: a report of a small view that showed
+    // only part of the ad came with no record of it, because the cover had been remade by then). Shapes and numbers, and the
+    // inside of the moved element as tags, sizes and how each is laid out; never the page's text or an address.
+    try {
+      var inside = [], walkIn = function (el, d) { Array.prototype.slice.call(el.children, 0, 6).forEach(function (k) { if (inside.length >= 24) return; var kr = k.getBoundingClientRect(), ks = getComputedStyle(k); inside.push({ d: d, tag: k.tagName, box: [Math.round(kr.left), Math.round(kr.top), Math.round(kr.width), Math.round(kr.height)], lay: [k.offsetWidth || 0, k.offsetHeight || 0], position: ks.position, overflow: ks.overflow, transform: ks.transform === "none" ? 0 : 1, bgFixed: ks.backgroundAttachment === "fixed" ? 1 : 0, clip: ks.clipPath !== "none" || ks.clip !== "auto" ? 1 : 0 }); if (d < 6) walkIn(k, d + 1); }); };
+      (movers || []).slice(0, 2).forEach(function (el) { walkIn(el, 1); });
+      PV.__lastLook = { at: Date.now(), why: String(cover.getAttribute("data-prism-why") || "").slice(0, 60), mode: cover.__mode, look: cover.__lookDiag, inside: inside };
+    } catch (eLL) {}
     look = { host: host, scrim: scrim, cover: cover, moved: moved, timer: setTimeout(lookClose, 20000), watch: setInterval(function () { if (!cover.isConnected) lookClose(); }, 500) };
     addEventListener("scroll", lookClose, true);
   }
@@ -1126,7 +1134,9 @@
   // A control that SAYS it in its own text: IMDb's premium-slot collapser
   // draws a "Collapse" button (report 2026-09-23). A word button runs wider
   // than an X, so it may be up to 160px across.
-  var CLOSE_TEXT = /^(close|collapse|dismiss|hide)( (the )?ad)?$/i;
+  // A player's own Skip button is a control of the same kind (B-618, 2026-11-27, usatoday.com on an iPhone: the cover on the
+  // article's video ad lay over the player's "Skip Ad" and the press did not reach it).
+  var CLOSE_TEXT = /^((close|collapse|dismiss|hide)( (the )?ad)?|skip( (the )?ads?)?)$/i;
   // The control may live INSIDE the unit's creative frame: IMDb's expandable
   // slot is a srcless (same-origin) iframe whose template draws the Collapse
   // button in its own document. Such a frame is searched too; a cross-origin

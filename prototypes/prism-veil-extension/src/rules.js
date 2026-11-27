@@ -33,7 +33,10 @@
   // full-screen interstitial has its own close and its own handling.
   PV.creativeFrame = function (el) {
     try {
-      if (!el || fixedLayer(el)) return false;
+      // A frame in a sticky box is not in a layer over the page: the box holds for a stretch of the scroll and then goes with the
+      // page (B-619, 2026-11-27, a report from a video page on usatoday.com on an iPhone: the ad server's frame of 300x600 in a
+      // sticky box, on a screen of 440x796, read as page-sized and stood bare). Only a fixed layer is left to the page-size rule.
+      if (!el || fixedLayer(el, true)) return false;
       if (el.tagName === "IFRAME") return el.matches(SLOT_QUERY);
       // The ad server's own container round its frame is the creative's box too (B-598, 2026-11-26, three reports from
       // reuters.com on an iPhone: an ad the height of the screen was drawn by the ad's own elements beside the server's frame,
@@ -938,9 +941,9 @@
     return "";
   };
   // the element or one of its ancestors is laid out fixed or sticky: a layer over the page, not a part of it
-  function fixedLayer(el) {
+  function fixedLayer(el, fixedOnly) {
     for (var n = el, d = 0; n && n !== document.documentElement && d < 12; n = n.parentElement, d++) {
-      try { var p = getComputedStyle(n).position; if (p === "fixed" || p === "sticky") return true; } catch (e) {}
+      try { var p = getComputedStyle(n).position; if (p === "fixed" || (p === "sticky" && !fixedOnly)) return true; } catch (e) {}
     }
     return false;
   }
@@ -981,6 +984,7 @@
           root.querySelectorAll(PBS_AD).forEach(function (pb) {
             var pr = pb.getBoundingClientRect();
             if (pr.width < 80 || pr.height < 60 || pr.height > innerHeight * 0.95) return;
+            if (PV.videoTakesPlayer && PV.videoTakesPlayer(pb)) return;   // the video cover has it, with its countdown and controls (B-618)
             pb.__prismForceOverlay = true;
             ctx.add(pb, "player-ad-state: the player's own ad state (data-pbs-ads)", true);
           });
@@ -1872,6 +1876,10 @@
               // 2026-09-13): cover its box like a display ad, whole. The IMA
               // iframe is the traceable signal (Google IMA SDK = an ad is
               // playing there); it goes when the ad does, and so does the cover.
+              // A player that says itself what it plays keeps this frame in place, shown, while the story's own video plays
+              // (B-618, 2026-11-27, usatoday.com as a phone: a cover of 300 by 158 lay on the story's video for all of its
+              // 46 s, the player's state "content"). There the player's state is the signal, and it has its own rule.
+              try { if (el.closest("[data-pbs-root]")) return; } catch (ePb) {}
               var ir = el.getBoundingClientRect();
               if (ir.width >= 120 && ir.height >= 60 && (ir.width < 400 || ir.height < 200)) {
                 var ou = PV.unitAround(el, 8);

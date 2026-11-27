@@ -577,6 +577,8 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   // a press on the globe takes the answer away.
   var view = "bar", tab = "site", sub = "", popsUp = false, artRec = null, artBusy = false, artErr = "", logNote = "", lastLift = 0;
   var HAS_SUG = /(^|\.)(facebook|linkedin)\.com$/i.test(site), HAS_AI = /(^|\.)(youtube|facebook|instagram|threads|tiktok)\.com$/i.test(site), HAS_PROMO = !!(PV.promotedHost && PV.promotedHost(site));
+  // Safari on an iPhone or iPad: the one browser that draws an app banner from the page's tag (the App banners trial, B-615)
+  var APPLE_TOUCH = false; try { APPLE_TOUCH = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1); } catch (eT) {}
   var QCSS = [
     ".qbarwrap,.qsheet{font:15px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7}",
     ".panel.qbarwrap{background:none;border:0;box-shadow:none;overflow:visible;max-height:none;width:auto;max-width:calc(100vw - 28px);border-radius:0}",
@@ -825,6 +827,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       HAS_SUG && hereRow("sug", "Suggested", "suggestedVeil"),
       HAS_AI && hereRow("ai", "AI-made", "aiVeil"),
       HAS_PROMO && hereRow("tag", "Paid promotions", "promotedVeil"),
+      (PV.appBannerSeen && PV.appBannerSeen()) && hereRow("win", "App banners", "appBannerHide"),   // a trial (B-615): where the page carries Safari's app banner tag
       qrow("win", "Popups", [vtotal ? add(el("span", "v n"), String(vtotal)) : null], function () { goTo("pops"); }),
       (PV.credOn && PV.credOn() && PV.CRED_SOURCES) ? qrow("star", "Rating", [ratingDots()], function () { goTo("rating"); }) : null,
       qrow("btn", "PRISM button", [qsw("PRISM button on this site", !policy.prefs(site).hidden, function (on) {
@@ -904,9 +907,10 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       add(b, head("Feeds", null, true), qlbl("All sites"), qlist([
         qrow("ai", "AI-made", [qeye("AI-made on all sites", !!ui("aiVeil"), "", function () { setUi("aiVeil", !ui("aiVeil")); })]),
         qrow("sug", "Suggested", [qeye("Suggested on all sites", !!ui("suggestedVeil"), "", function () { setUi("suggestedVeil", !ui("suggestedVeil")); })]),
-        qrow("tag", "Paid promotions", [qeye("Paid promotions on all sites", prefAll("promotedVeil"), "", function () { setUi("promotedVeil", !prefAll("promotedVeil")); })])
+        qrow("tag", "Paid promotions", [qeye("Paid promotions on all sites", prefAll("promotedVeil"), "", function () { setUi("promotedVeil", !prefAll("promotedVeil")); })]),
+        APPLE_TOUCH && qrow("win", "App banners", [qeye("App banners on all sites", !!ui("appBannerHide"), "", function () { setUi("appBannerHide", !ui("appBannerHide")); })])
       ]));
-      var sc = ui("siteChoice") || {}, rows = [], NAME = { aiVeil: "AI-made", suggestedVeil: "Suggested", promotedVeil: "Paid promotions" };
+      var sc = ui("siteChoice") || {}, rows = [], NAME = { aiVeil: "AI-made", suggestedVeil: "Suggested", promotedVeil: "Paid promotions", appBannerHide: "App banners" };
       Object.keys(sc).sort().forEach(function (h) {
         Object.keys(NAME).forEach(function (k) {
           if (!sc[h] || typeof sc[h][k] !== "boolean") return;

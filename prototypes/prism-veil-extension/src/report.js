@@ -166,6 +166,7 @@
                       bg: (ccs.backgroundImage || "").slice(0, 40), atPoint: (function () { var m = document.elementFromPoint(cr.left + cr.width / 2, cr.top + Math.min(cr.height / 2, innerHeight / 2)); return m ? (m.tagName + (m.hasAttribute("data-prism-veil") ? "#veil" : "")) : null; })() };
           d.cover.look = ct2.__lookDiag || null;   // the last small view of this cover: what it scaled and where (covers.js)
         } else d.cover = null;
+        try { if (PV.__lastLook) d.lastLook = PV.__lastLook; } catch (eLk) {}   // the page's last small view (covers.js)
         try { if (PV.coverLog) d.coverLog = PV.coverLog(); } catch (eCL) {}
         try { if (PV.perfDiag) d.perf = PV.perfDiag(); } catch (ePf) {}
         try { if (PV.inpageDiag) { var pops = PV.inpageDiag(); if (pops.length) d.pops = pops; } } catch (ePD) {}
@@ -542,7 +543,7 @@
   // the site follows the setting for all sites again.
   // promotedVeil (a shop's paid products, rules.js) is the one that is on until switched off: PV.prefAll is the setting for all sites
   // with that read in.
-  var SITE_CHOICES = { aiVeil: 1, suggestedVeil: 1, promotedVeil: 1 }, ON_UNLESS_OFF = { promotedVeil: 1 };
+  var SITE_CHOICES = { aiVeil: 1, suggestedVeil: 1, promotedVeil: 1, appBannerHide: 1 }, ON_UNLESS_OFF = { promotedVeil: 1 };
   PV.prefAll = function (k) { var v = PV.uiPrefs ? PV.uiPrefs[k] : undefined; return ON_UNLESS_OFF[k] === 1 ? v !== false : !!v; };
   PV.siteChoice = function (k) {
     try {
@@ -561,7 +562,49 @@
     if (Object.keys(mine).length) m[site] = mine; else delete m[site];
     PV.setUiPref("siteChoice", m);
   };
+  // APP BANNERS, A TRIAL (B-615, 2026-11-27, asked for: a way to keep off, site by site, the banner Safari puts over a page to
+  // open or get the site's app). Safari on an iPhone draws that banner itself, from a tag the site puts in its page
+  // (`<meta name="apple-itunes-app">`, Apple's Smart App Banner); nothing of it is in the page to cover. With the setting on
+  // (pv:ui.appBannerHide, off unless switched on, and one a site may answer for itself) the tag is taken out of the page as the
+  // page loads, and put back when the setting goes off. Top frame only; never while PRISM is off for the site. NOT KNOWN: whether
+  // Safari has read the tag before the settings are read (they come a moment after the page starts), and whether it takes its
+  // banner down when the tag goes. Only the phone can tell. The banner an App Clip brings is another tag and is not touched.
+  var BANNER_TAG = "meta[name='apple-itunes-app' i]", bannerHeld = [], bannerObs = null, bannerSeen = false;
+  function bannerWanted(prefs) {
+    try {
+      if (window !== window.top || !prefs) return false;
+      var site = PV.veilSite();
+      if (prefs.veilOff || (prefs.veilOffSites && prefs.veilOffSites[site] === true)) return false;
+      var sc = prefs.siteChoice && prefs.siteChoice[site];
+      return (sc && typeof sc.appBannerHide === "boolean") ? sc.appBannerHide : !!prefs.appBannerHide;
+    } catch (e) { return false; }
+  }
+  function bannerTake() {
+    try {
+      document.querySelectorAll(BANNER_TAG).forEach(function (m) { bannerSeen = true; bannerHeld.push({ el: m, parent: m.parentNode }); m.remove(); });
+    } catch (e) {}
+  }
+  function applyAppBanner(prefs) {
+    try { if (!bannerSeen && document.querySelector(BANNER_TAG)) bannerSeen = true; } catch (e0) {}
+    if (bannerWanted(prefs)) {
+      bannerTake();
+      if (!bannerObs && typeof MutationObserver === "function") {
+        bannerObs = new MutationObserver(function () { bannerTake(); });
+        try { bannerObs.observe(document.documentElement, { childList: true, subtree: true }); } catch (e1) { bannerObs = null; }
+        // the tag is in the page's head: once the page has loaded, only the head is watched
+        addEventListener("load", function () { if (!bannerObs) return; try { bannerObs.disconnect(); if (document.head) bannerObs.observe(document.head, { childList: true }); } catch (e2) {} }, { once: true });
+      }
+    } else {
+      if (bannerObs) { try { bannerObs.disconnect(); } catch (e3) {} bannerObs = null; }
+      bannerHeld.splice(0).forEach(function (h) { try { (h.parent && h.parent.isConnected ? h.parent : document.head || document.documentElement).appendChild(h.el); } catch (e4) {} });
+    }
+  }
+  PV.applyAppBanner = applyAppBanner;   // tests
+  PV.appBannerSeen = function () { return bannerSeen; };   // the menu shows the row where the page carries the tag
+  // read at once, as the page starts: the rest of the settings are read later (main.js, start)
+  try { if (window === window.top) chrome.storage.local.get("pv:ui", function (r) { if (chrome.runtime.lastError || !r) return; applyAppBanner(r["pv:ui"] || {}); }); } catch (eB) {}
   function applyUiPrefs() {
+    try { applyAppBanner(PV.uiPrefs); } catch (eA) {}
     if (PV.setVeilOff) { try { PV.setVeilOff(!!PV.uiPrefs.veilOff || PV.veilOffHere()); } catch (e0) {} }
     if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} }
     if (PV.restyleRings) { try { PV.restyleRings(); } catch (e) {} }   // the button glow's choice reaches rings already up

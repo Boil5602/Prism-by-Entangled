@@ -16,6 +16,14 @@ describe("video veil cover", () => {
     expect(cover.style.opacity).toBe("1");
     cover.remove();
   });
+  it("takes a cover of a phone's player for a small one, which gets the short card, and a large one not (B-620)", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 796 }); PV.pickArt = () => "";
+    const box = (w, h) => ({ getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h, right: w, bottom: h }) });
+    expect(PV.__miniCover(box(400, 225))).toBe(true);
+    expect(PV.__miniCover(box(440, 248))).toBe(true);
+    expect(PV.__miniCover(box(960, 540))).toBe(false);
+    expect(PV.__miniCover(box(0, 0))).toBe(false);
+  });
   it("builds (pause, fading)", () => {
     const PV = loadVeil(); PV.pickArt = () => "";
     const cover = PV.__buildCover(false);

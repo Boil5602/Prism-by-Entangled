@@ -83,6 +83,25 @@ describe("in-page pops", () => {
     expect(row.dest).toBe("ads.example");
   });
 
+  it("puts the unit's dark sheet away with it and brings it back with it (B-616, Wunderkind on reuters.com), and leaves a sheet that holds something", async () => {
+    const p = load(); await p.pass(0);
+    const camp = document.createElement("div"); camp.className = "bxc"; camp.setAttribute("data-box", "0,0,390,0"); document.body.appendChild(camp);
+    const sheet = document.createElement("div"); sheet.className = "bx-shroud bx-matte"; sheet.setAttribute("data-box", "0,0,390,800");
+    sheet.style.cssText = "position:fixed;top:0;left:0;width:390px;height:800px;background:rgba(0,0,0,.6);z-index:2147483000"; camp.appendChild(sheet);
+    const page = document.createElement("div"); page.setAttribute("data-box", "0,0,390,800"); page.style.cssText = "position:fixed;top:0;left:0;width:390px;height:800px";
+    page.appendChild(document.createElement("p")); camp.appendChild(page);
+    const u = unit({ z: "2147483645" }); camp.appendChild(u);
+    await p.pass(1100);
+    expect(held(u)).toBe("clear");
+    expect(sheet.style.getPropertyValue("transform")).toBe("scale(0.004)");
+    expect(noPress(sheet)).toBe(true);
+    expect(sheet.style.getPropertyValue("display")).toBe("");
+    expect(page.style.getPropertyValue("transform")).toBe("");          // a fixed box of the window's size that holds something is no sheet
+    p.PV.popupPolicy.allow("watch.example", "ads.example"); await p.pass(50);
+    expect(sheet.style.getPropertyValue("transform")).toBe("");
+    expect(noPress(sheet)).toBe(false);
+  });
+
   it("draws the unit as a speck of 6 px under the PRISM button, its layout size and place untouched", async () => {
     const p = load(); await p.pass(0);
     const u = unit({ box: "0,680,390,120" }); await p.pass(1100);

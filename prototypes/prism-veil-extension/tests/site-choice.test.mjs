@@ -118,3 +118,34 @@ describe("a site's own answer to a setting for all sites", () => {
     expect(detect(PV, post).map((o) => o.id)).toEqual(["s"]);
   });
 });
+
+// B-615, a trial: the tag Safari draws its app banner from is taken out of the page while the setting is on, and put back when it goes off
+describe("app banners", () => {
+  const TAG = `<meta name="apple-itunes-app" content="app-id=123456789">`;
+  const has = () => !!document.querySelector("meta[name='apple-itunes-app']");
+  it("leaves the tag alone unless the person switched app banners off, for all sites or for this site", () => {
+    const PV = load("www.newegg.com");
+    document.head.innerHTML = TAG;
+    PV.applyAppBanner({});
+    expect(has()).toBe(true);
+    expect(PV.appBannerSeen()).toBe(true);
+    PV.applyAppBanner({ appBannerHide: true, siteChoice: { "www.newegg.com": { appBannerHide: false } } });
+    expect(has()).toBe(true);
+    PV.applyAppBanner({ appBannerHide: false, siteChoice: { "www.newegg.com": { appBannerHide: true } } });
+    expect(has()).toBe(false);
+    PV.applyAppBanner({});   // back on: the tag is put back
+    expect(has()).toBe(true);
+    PV.applyAppBanner({ appBannerHide: true });
+    expect(has()).toBe(false);
+    PV.applyAppBanner({}); document.head.innerHTML = "";
+  });
+  it("is not done while PRISM is off for the site", () => {
+    const PV = load("www.newegg.com");
+    document.head.innerHTML = TAG;
+    PV.applyAppBanner({ appBannerHide: true, veilOffSites: { "www.newegg.com": true } });
+    expect(has()).toBe(true);
+    PV.applyAppBanner({ appBannerHide: true, veilOff: true });
+    expect(has()).toBe(true);
+    document.head.innerHTML = "";
+  });
+});

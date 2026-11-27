@@ -77,15 +77,27 @@ describe("MGID's paid items", () => {
 
 // B-592, 2026-11-26, a report and a recording from usatoday.com on an iPhone: the cover on the article's video came and went with each ad
 describe("a player that says itself that it plays an ad", () => {
-  const player = (state, src) => `<div class="pbs" id="pl" data-pbs-root="true" ${state} ${R(20, 300, 400, 225)}><div class="pbs__player" id="in" ${R(20, 300, 400, 225)}>` +
-    `<video id="v" src="${src}" ${R(20, 300, 400, 225)}></video></div></div>`;
-  it("covers the player while its own state is ads, whatever the address of the video, and once", () => {
+  // a small player (a corner one) keeps the display cover; one of a player's size goes to the video cover (B-618)
+  const player = (state, src, w = 240, h = 135) => `<div class="pbs" id="pl" data-pbs-root="true" ${state} ${R(20, 300, w, h)}><div class="pbs__player" id="in" ${R(20, 300, w, h)}>` +
+    `<video id="v" src="${src}" ${R(20, 300, w, h)}></video></div></div>`;
+  it("leaves a player of full size to the video cover, with its countdown and controls (B-618)", () => {
+    const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
+    expect(detect(PV, player('data-pbs-player="ads" data-pbs-ads="playing"', "https://redirector.example/videoplayback/1", 400, 225))).toEqual([]);
+    expect(PV.videoTakesPlayer(document.getElementById("pl"))).toBe(true);
+  });
+  it("covers a small player while its own state is ads, whatever the address of the video, and once", () => {
     const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
     const other = detect(PV, player('data-pbs-player="ads" data-pbs-ads="playing"', "https://redirector.example/videoplayback/1"));
     expect(other.map((o) => [o.id, o.why])).toEqual([["pl", "player-ad-state: the player's own ad state (data-pbs-ads)"]]);
     const PV2 = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
     const known = detect(PV2, player('data-pbs-player="ads" data-pbs-ads="playing"', "https://gcdn.2mdn.net/videoplayback/id/1"));
     expect(known.map((o) => [o.id, o.why])).toEqual([["pl", "player-ad-state: the player's own ad state (data-pbs-ads)"]]);
+  });
+  it("leaves the ad company's frame the player keeps shown over the story's own video (B-618)", () => {
+    const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
+    const html = `<div class="pbs" id="pl" data-pbs-root="true" data-pbs-player="content" ${R(20, 300, 400, 225)}><video id="v" src="https://videos.usatoday.example/story.mp4" ${R(20, 300, 400, 225)}></video>` +
+      `<div id="adbox" ${R(20, 300, 300, 150)}><iframe id="ima" src="https://imasdk.googleapis.com/js/core/bridge3.html" ${R(20, 300, 300, 150)}></iframe></div></div>`;
+    expect(detect(PV, html)).toEqual([]);
   });
   it("leaves the player while it plays the story's own video", () => {
     const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
@@ -216,6 +228,10 @@ describe("an ad server's own frame on a phone", () => {
     const PV = loadVeil({ host: "news.example", width: 440, height: 760 });
     expect(detect(PV, slot(440, 700, "position:fixed"))).toEqual([]);
     expect(detect(PV, slot(440, 2400))).toEqual([]);
+  });
+  it("is covered in a sticky box, which goes with the page (B-619, USA Today: 300x600 on a 440x796 screen)", () => {
+    const PV = loadVeil({ host: "news.example", width: 440, height: 796 });
+    expect(detect(PV, slot(300, 600, "position:sticky;top:60px")).map((o) => o.tag)).toEqual(["iframe"]);
   });
 });
 
@@ -650,6 +666,13 @@ describe("close control through the cover", () => {
     const col = document.getElementById("col"), cls = document.getElementById("cls");
     document.elementsFromPoint = (x) => [x < 1870 ? col : cls];
     expect(PV.closeControls(unit)).toEqual([col, cls]);
+  });
+  it("a player's own Skip Ad button is a hole in the cover (B-618, USA Today), and a wide box with those words in a sentence is not", () => {
+    const PV = loadCovers(loadVeil({ host: "www.usatoday.com" }));
+    const unit = mount(`<div id="unit" data-pbs-root ${R(0, 0, 400, 225)}><video ${R(0, 0, 400, 225)}></video><button id="sk" ${R(290, 170, 72, 26)}>Skip Ad <svg></svg></button><div id="t" ${R(10, 10, 150, 20)}>You can skip ads soon</div></div>`);
+    const sk = document.getElementById("sk");
+    document.elementsFromPoint = (x) => [x > 250 ? sk : document.getElementById("t")];
+    expect(PV.closeControls(unit)).toEqual([sk]);
   });
   it("a nameless pointer control at a top corner is NOT a hole (YouTube's hover buttons, 2026-09-12)", () => {
     const PV = loadCovers(loadVeil());

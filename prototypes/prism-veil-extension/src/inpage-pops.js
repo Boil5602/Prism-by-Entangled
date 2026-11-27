@@ -435,7 +435,40 @@
       var all = [el].concat(Array.prototype.slice.call(el.querySelectorAll("*"), 0, MAX_INNER));
       all.forEach(function (n) { if (n.style && n.style.getPropertyValue("pointer-events") !== "none") { keep(n, "pointer-events"); n.style.setProperty("pointer-events", "none", "important"); } });
       el.setAttribute("data-prism-held", "clear");
+      // the unit's dark sheet goes with it (B-616)
+      mattesOf(el).forEach(function (m) {
+        if (m.style.getPropertyValue("transform") === MATTE_TF && m.style.getPropertyValue("pointer-events") === "none") return;
+        ["transform", "transform-origin", "transition", "pointer-events"].forEach(function (p) { keep(m, p); });
+        m.style.setProperty("transition", "none", "important"); m.style.setProperty("transform-origin", "100% 100%", "important");
+        m.style.setProperty("transform", MATTE_TF, "important"); m.style.setProperty("pointer-events", "none", "important");
+      });
     } catch (e) {}
+  }
+  // THE DARK SHEET UNDER A HELD UNIT (B-616, 2026-11-27, a report from reuters.com in Safari on an iPhone: the page dark and no
+  // press taken). The unit was Wunderkind's (Bounce Exchange): its box `.bx-slab` was held and tucked away, and its sheet
+  // `.bx-shroud.bx-matte`, a fixed box of the window's size with nothing in it, beside the slab in the campaign's element, stayed
+  // over the page and took every press. A sheet is found by its shape, never by a vendor's name: next to the held unit or next
+  // to one of the two boxes around it, fixed, the size of the window, and empty (no element in it, no text). It is drawn as a
+  // speck in the bottom right corner and takes no press, the way the unit is; it comes back with the unit (clearOff).
+  var MATTE_TF = "scale(0.004)";
+  function mattesOf(el) {
+    var out = [], n = el;
+    try {
+      for (var up = 0; n && n.parentElement && up < 3; up++, n = n.parentElement) {
+        var sibs = n.parentElement.children;
+        for (var i = 0; i < sibs.length && i < 40; i++) {
+          var m = sibs[i];
+          if (m === n || m.children.length || !m.style || (m.hasAttribute && (m.hasAttribute("data-prism-veil") || m.hasAttribute("data-prism-ui")))) continue;
+          if (/^(SCRIPT|STYLE|LINK|META|IFRAME|IMG|VIDEO|CANVAS)$/.test(m.tagName) || (m.textContent || "").trim()) continue;
+          if (m.style.getPropertyValue("transform") === MATTE_TF) { out.push(m); continue; }   // one already put away
+          if (getComputedStyle(m).position !== "fixed") continue;
+          var r = m.getBoundingClientRect();
+          if (r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) out.push(m);
+        }
+        if (n.parentElement === document.body || n.parentElement === document.documentElement) break;
+      }
+    } catch (e) {}
+    return out;
   }
   function clearOff(rec) {
     try {

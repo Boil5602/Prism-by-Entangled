@@ -526,6 +526,13 @@
   // Each family's markers are the framework's documented UI classes
   // (traceable source: the framework); a site row exists only for what the
   // family default can't see.
+  var PBS_AD_SEL = "[data-pbs-root][data-pbs-player='ads'], [data-pbs-root][data-pbs-ads='playing']", SMALL_W = 280, SMALL_H = 150;
+  // THE SMALLEST PLAYER THE VIDEO COVER TAKES (B-618, 2026-11-27: a video player gets the video cover, on a phone too). The
+  // sizes were a desktop's: wider than 400 px (480 for a player with no row of its own), and a phone's window is 390 to 440 px
+  // wide, so a player there with a margin each side was never taken. In a window narrower than 572 px the least width is 70%
+  // of the window (308 px in a window of 440) and the least height half of that; in a wider window nothing changes.
+  function minPlayerW(base) { var w = base || 400; try { return Math.min(w, Math.round(innerWidth * 0.7)); } catch (e) { return w; } }
+  function minPlayerH(base) { var h = base || 200; return Math.min(h, Math.round(minPlayerW() / 2)); }
   var PLAYER_FAMILIES = [
     {
       // THEOplayer (traceable source: cdn.theoplayer.com/dash/theoplayer/ui.css,
@@ -611,8 +618,24 @@
         if (rem < 0) rem = regionClock(cont, { top: 0, left: 0, width: 1, height: 1 });
         return { count: count || adCountText(cont), remaining: rem >= 0 ? rem : null };
       }
+    },
+    {
+      // The player that marks itself with data-pbs-* (USA Today's article video, B-592 and B-618). Its own state is the source:
+      // `data-pbs-player="ads"` and `data-pbs-ads="playing"` on its root for the whole run of ads. Until 2026-11-27 a display
+      // cover lay on it (rules.js, `player-ad-state`), with no countdown and none of the video cover's controls (2026-11-27,
+      // asked for the cover a video ad has elsewhere). On a phone the player is 400 px wide, under the size the other rows need,
+      // so the row says it may be small.
+      family: "PBS", fingerprint: "[data-pbs-root]", container: "[data-pbs-root]", veilTarget: PBS_AD_SEL, small: true,
+      adNow: function () { return !!document.querySelector(PBS_AD_SEL); },
+      authoritative: false, displayWins: true,
+      adInfo: function (cont) {
+        var rem = regionClock(cont, { top: 0, left: 0, width: 1, height: 1 });
+        return { count: adCountText(cont), remaining: rem >= 0 ? rem : null };
+      }
     }
   ];
+  // true when the video cover takes this player's ads, so the display rule leaves it (rules.js)
+  PV.videoTakesPlayer = function (el) { try { var r = el.getBoundingClientRect(); return el.matches("[data-pbs-root]") && r.width > SMALL_W && r.height > SMALL_H; } catch (e) { return false; } };
   for (var fi = 0; fi < PLAYER_FAMILIES.length; fi++) { PLAYER_FAMILIES[fi].source = PLAYER_FAMILIES[fi].family + " player"; SSAI_AD_SOURCES.push(PLAYER_FAMILIES[fi]); }
   SSAI_AD_SOURCES.push(GENERIC_ROW);
   // The family whose fingerprint is on the page (first in order), for reports
@@ -776,7 +799,7 @@
       var cont = rowContainer(s);
       if (!cont) continue;
       var r = cont.getBoundingClientRect();
-      if (r.width <= 400 || r.height <= 200) continue;
+      if (s.small ? (r.width <= SMALL_W || r.height <= SMALL_H) : (r.width <= minPlayerW() || r.height <= minPlayerH())) continue;
       if ((s.adClass && cont.classList.contains(s.adClass)) || (s.adClassRe && s.adClassRe.test(cont.className + ""))) { s.__soft = false; s.__early = false; s.__via = "class"; return s; }
       if (s.adPage && pageAdMark(s.adPage)) { s.__soft = false; s.__early = false; s.__via = "page:" + s.adPage.sel; return s; }
       // a source that reads its signal elsewhere than the player's DOM (Pluto TV: the stream's addresses), asked each look
@@ -1008,10 +1031,15 @@
   }
 
   // ---------------------------------------------------------------- the card
+  function miniCover(c) {
+    try { if (inFullscreen()) return false; var r = c.getBoundingClientRect(); return r.width > 0 && (r.width < 480 || r.height < 270); } catch (e) { return false; }
+  }
+  PV.__miniCover = miniCover;   // tests
   function updateCard() {
     if (!vidVeil || !vidVeil.cover.__info) return;
     var c = vidVeil.cover;
     try { paintFullscreen(c); } catch (eF) {}
+    if (c.__sub) c.__sub.style.display = "";
     if (vidVeil.mode === "pause") {
       // Paused intermission: the show's own position + a Resume button.
       if (c.__sub) c.__sub.textContent = "Paused";
@@ -1072,13 +1100,26 @@
     var info = adInfoLine();
     // A live stream with no usable countdown: say LIVE, never "0:00 left".
     if (isLive(vidVeil.video) && (!info.time || /^0:00\b/.test(info.time))) info.time = "LIVE";
-    if (c.__time.textContent !== info.time) c.__time.textContent = info.time;
-    if (c.__count.textContent !== info.count) c.__count.textContent = info.count;
-    c.__time.style.display = info.time ? "block" : "none";
-    c.__count.style.display = info.count ? "block" : "none";
-    c.__info.style.display = (info.time || info.count) ? "block" : "none";
+    // THE SHORT CARD ON A SMALL PLAYER (B-620, 2026-11-27, decided: on a small player the card is the countdown and the count of
+    // ads on one line, and the Skip opening and the symbol stay; no Play and Pause for after the break, no Full screen, no first
+    // line). Small is a cover narrower than 480 px or lower than 270 px, out of full screen: a player in a phone's page. Such a
+    // player starts on its own without sound, and the full card is taller than it. The first line stays where it says something
+    // the person has to know: a pause after the break already chosen, or a break that was spotted and not marked.
+    var mini = miniCover(c);
+    var timeLine = mini && info.time && info.count ? info.time + " · " + info.count : info.time, countLine = mini && info.time ? "" : info.count;
+    if (c.__time.textContent !== timeLine) c.__time.textContent = timeLine;
+    if (c.__count.textContent !== countLine) c.__count.textContent = countLine;
+    c.__time.style.display = timeLine ? "block" : "none";
+    c.__count.style.display = countLine ? "block" : "none";
+    c.__info.style.display = (timeLine || countLine) ? "block" : "none";
+    c.__info.style.marginTop = mini ? "0" : "10px";
+    if (mini) {
+      if (c.__sub && !vidVeil.pauseAfter && !c.__spotted && (timeLine || countLine)) c.__sub.style.display = "none";
+      if (c.__fs) c.__fs.style.display = "none";
+      if (c.__pauseAfter) c.__pauseAfter.style.display = "none";
+    }
     // "Pause after break" only makes sense while a break with a countdown runs.
-    if (c.__pauseAfter) { c.__pauseAfter.style.display = "flex"; paintPauseAfter(); }   // every ad veil, countdown or not (Peacock had none for 30s)
+    else if (c.__pauseAfter) { c.__pauseAfter.style.display = "flex"; paintPauseAfter(); }   // every ad veil, countdown or not (Peacock had none for 30s)
     // The glyph names WHAT is veiled (user ask 2026-08-31): ◐ = an ad
     // break, ✦ = platform-labelled AI content ("Watch anyway" applies).
     var aiMode = vidVeil.mode === "ai";
@@ -2005,6 +2046,11 @@
         if (got.width > 0 && (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)) { c.style.left = (vr.left + ox + dx) + "px"; c.style.top = (vr.top + oy + dy) + "px"; }
       } catch (eO) {}
     }
+    // the card is made smaller where the player is lower or narrower than it (B-618: 258 px of card in a player of 225 on a phone)
+    try {
+      var cd = c.__card, chh = cd ? cd.offsetHeight : 0, cww = cd ? cd.offsetWidth : 0;
+      if (chh > 0 && cww > 0) { var fit = Math.min(1, (vr.height - 8) / chh, (vr.width - 8) / cww); cd.style.transform = fit < 0.995 && fit > 0.3 ? "scale(" + fit.toFixed(3) + ")" : ""; }
+    } catch (eFit) {}
     // Only ad veils get a cutout (Skip). The pause veil's own Resume is the
     // way back; a cut-out "Click to return to the video" did nothing when
     // clicked through the hole (Paramount+, 2026-08-29), so it is gone.
@@ -2186,7 +2232,7 @@
     try {
       if (!v) return false;
       var r = v.getBoundingClientRect();
-      if (r.width < 480 || r.height < 240) return false;
+      if (r.width < minPlayerW(480) || r.height < minPlayerH(240)) return false;
       if (r.width * r.height < innerWidth * innerHeight * 0.18) return false;
       var vis = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) * Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0));
       return vis >= r.width * r.height * 0.6;
@@ -2604,7 +2650,8 @@
     }
 
     // 1) An ad is on: cover it - opaque and muted - whatever element it plays in.
-    if (adActive && v && v.getBoundingClientRect().width > 400) {
+    if (adActive && v && v.getBoundingClientRect().width > ((ssai && ssai.small) || (vidVeil && vidVeil.small) ? SMALL_W : minPlayerW())) {
+      if (ssai && ssai.small && vidVeil) vidVeil.small = true;
       enterAd(v, ssai);
       return true;
     }
