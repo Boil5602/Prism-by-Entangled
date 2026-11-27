@@ -40,6 +40,28 @@ describe("a recommendation widget taller than the screen", () => {
   });
 });
 
+// B-598, 2026-11-26, three reports from reuters.com on an iPhone: an ad the height of the screen, drawn by the ad's own elements
+// beside the ad server's frame in the server's container, stood bare
+describe("a screen-high creative beside the ad server's frame", () => {
+  const SLOT = (gh) => `<div class="ad-slot-module__slot" name="reuters_mobile_mpu_2" id="slot" ${R(19, 100, 402, 836)}>` +
+    `<div id="google_ads_iframe_/4735792/reuters.com/home_6__container__" ${R(19, 100, 402, 836)}>` +
+    `<iframe id="google_ads_iframe_/4735792/reuters.com/home_6" aria-label="Advertisement" ${R(19, 100, gh ? 402 : 0, gh)}></iframe>` +
+    `<mbk-container id="mbk" ${R(0, 100, 440, 836)}><mbk-block ${R(0, 100, 440, 836)}><mbk-frame ${R(0, 100, 440, 796)}><iframe id="creative" ${R(0, 100, 440, 796)}></iframe></mbk-frame></mbk-block></mbk-container>` +
+    `</div></div>`;
+  it("covers the ad's own element, the whole width of the screen, though it is the height of the screen", () => {
+    for (const gh of [0, 1]) {
+      const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 796 });
+      const out = detect(PV, SLOT(gh));
+      expect(out.map((o) => [o.id, o.why])).toEqual([["mbk", "mobkoi-creative: the ad's own element in the ad server's container"]]);
+    }
+  });
+  it("covers the ad server's own container when a screen-high creative in it is no known element", () => {
+    const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 796 });
+    const out = detect(PV, SLOT(0).replace(/mbk-/g, "xyz-"));
+    expect(out.map((o) => o.id)).toEqual(["google_ads_iframe_/4735792/reuters.com/home_6__container__"]);
+  });
+});
+
 // B-594, 2026-11-26, four reports from futurism.com on an iPhone: MGID's paid items stood with no cover
 describe("MGID's paid items", () => {
   const item = (id, y, href) => `<div class="mgline teaser-1 type-w" id="${id}" ${R(16, y, 408, 340)}><div class="image-with-text" ${R(16, y, 408, 340)}>` +

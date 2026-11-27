@@ -32,7 +32,14 @@
   // and were left bare; on a phone an ad is often most of the screen). A frame in a fixed layer is left to the page-size rule: a
   // full-screen interstitial has its own close and its own handling.
   PV.creativeFrame = function (el) {
-    try { return !!el && el.tagName === "IFRAME" && el.matches(SLOT_QUERY) && !fixedLayer(el); } catch (e) { return false; }
+    try {
+      if (!el || fixedLayer(el)) return false;
+      if (el.tagName === "IFRAME") return el.matches(SLOT_QUERY);
+      // The ad server's own container round its frame is the creative's box too (B-598, 2026-11-26, three reports from
+      // reuters.com on an iPhone: an ad the height of the screen was drawn by the ad's own elements beside the server's frame,
+      // in the server's container, 402x836 on a 440x796 screen, and stood bare). Its id is the server's, never a page's wrapper.
+      return el.tagName === "DIV" && /^google_ads_iframe_.+__container__$/.test(el.id || "");
+    } catch (e) { return false; }
   };
   PV.pageSizedEl = function (el, r) {
     r = r || el.getBoundingClientRect();
@@ -1729,6 +1736,17 @@
           ctx.add(it, "taboola-item: Taboola's paid label on the item", true);
         });
       } catch (eT) {}
+      // Mobkoi's screen-high creative (B-598, 2026-11-26, reuters.com on an iPhone): the ad's own element `mbk-container` stands in
+      // the ad server's container beside the server's frame and is wider than it, the whole width of the screen where the
+      // container keeps the page's margins. The unit is that element, so no edge of the ad shows beside the cover.
+      try {
+        root.querySelectorAll("div[id^='google_ads_iframe'] > mbk-container").forEach(function (mb) {
+          if (fixedLayer(mb)) return;
+          var br = mb.getBoundingClientRect();
+          if (br.width < 100 || br.height < 50 || br.height > innerHeight * 3) return;
+          ctx.add(mb, "mobkoi-creative: the ad's own element in the ad server's container", true);
+        });
+      } catch (eK) {}
       // MGID's paid items (B-594, 2026-11-26, four reports from an article on futurism.com on an iPhone: a column of items with a
       // picture and a headline, none covered). The widget is `.mgbox`, 408x2887 on a 440x836 screen, so no cover takes it whole;
       // each item is a `.mgline` whose links go through MGID's own click address (clck.mgid.com). That address is the source:

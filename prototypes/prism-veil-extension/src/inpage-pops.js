@@ -397,7 +397,8 @@
     var w = el.offsetWidth, h = el.offsetHeight, x = el.offsetLeft, y = el.offsetTop;   // its layout box, before any transform
     if (!(w > 0 && h > 0)) return "";
     var k = Math.min(SPECK / w, SPECK / h, 1), at = SLOTS[slot || 0] || SLOTS[0];
-    var cx = innerWidth - 34 + at[0], cy = innerHeight - 29 + at[1];   // the middle of the PRISM button (popups-ui.js: 14 px from the corner, 30 px tall; 44 px on a touch screen, and the point is inside both)
+    var spot = PV.pillSpot ? PV.pillSpot() : null;   // where the button is now, if it was moved
+    var cx = (spot ? spot.x : innerWidth - 34) + at[0], cy = (spot ? spot.y : innerHeight - 29) + at[1];   // the middle of the PRISM button (popups-ui.js: 14 px from the corner, 30 px tall; 44 px on a touch screen, and the point is inside both)
     var tx = cx - (w * k) / 2 - x, ty = cy - (h * k) / 2 - y;
     return { tx: tx, ty: ty, k: k, w: w, h: h, left: cx - (w * k) / 2, top: cy - (h * k) / 2, text: "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")" };
   }

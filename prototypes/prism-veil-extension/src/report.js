@@ -563,6 +563,7 @@
     if (PV.applyHud) { try { PV.applyHud(); } catch (e) {} }
     if (PV.restyleRings) { try { PV.restyleRings(); } catch (e) {} }   // the button glow's choice reaches rings already up
     if (PV.relookCovers) { try { PV.relookCovers(); } catch (e) {} }   // black or frosted reaches covers already up
+    if (PV.applyPillPos) { try { PV.applyPillPos(); } catch (e) {} }   // the place the button was moved to
   }
   PV.setUiPref = function (k, v) {
     PV.uiPrefs[k] = v; applyUiPrefs();

@@ -130,6 +130,7 @@
   ["pointerdown", "click"].forEach(function (t) { addEventListener(t, ytNoteLink, { capture: true, passive: true }); });
   // The content's length where the page says it for THIS video: its own data when that is for the video in the address (a page
   // loaded afresh), else the length read from the link that was pressed. 0 when neither says.
+  var lastAdDur = 0;   // the length of the last clip seen under a player's ad signal
   function ytKnownLen() {
     var cur = (/[?&]v=([\w-]{11})/.exec(location.search) || [])[1] || "", L = 0;
     if (!cur) return 0;
@@ -288,7 +289,19 @@
         var d; try { d = v.duration; } catch (e) { return false; }
         if (!isFinite(d) || d <= 0 || /^\/shorts(\/|$)/.test(location.pathname)) return false;
         var L = ytKnownLen();
-        return L > 0 && Math.abs(d - L) <= 2;
+        if (L > 0) return Math.abs(d - L) <= 2;
+        // An embed frame has no page to give the video's length (B-597, 2026-11-26, the video box of a Google search on an iPhone:
+        // the cover stayed 3 to 4 s into a trailer of 2:22 after its ad, the wait meant for the gap between two ads). There the
+        // clip is the video when the player's ad module is empty again, the player draws its own seek bar (measured: none while
+        // an ad plays, there from the video's first 0.2 s) or its clock shows this clip's length, and the clip's length is not
+        // the length of the ad clip that was just covered.
+        if (!/^\/embed/.test(location.pathname)) return false;
+        var mod = document.querySelector("#movie_player .video-ads.ytp-ad-module");
+        if (mod && mod.children.length) return false;
+        if (lastAdDur > 0 && Math.abs(d - lastAdDur) <= 1) return false;
+        if (document.querySelector("[class*='ProgressBarDragContainer'], #movie_player .ytp-progress-bar[aria-valuemax]")) return true;
+        var lab = document.querySelector("#movie_player .ytp-time-duration"), lt = lab ? parseClockLong((lab.textContent || "").trim()) : -1;
+        return lt > 0 && Math.abs(d - lt) <= 2;
       },
       authoritative: true,
       displayWins: true,
@@ -2492,6 +2505,7 @@
     // into the end-grace or the gap hold (8s over a short content video).
     if (vidVeil && vidVeil.mode === "ad" && vidVeil.early && adRaw && ssai && !ssai.__early) vidVeil.early = false;
     if (vidVeil && vidVeil.mode === "ad" && vidVeil.early && !adRaw) { uncover("early-unconfirmed"); return false; }
+    try { if (adRaw && v && isFinite(v.duration) && v.duration > 0) lastAdDur = v.duration; } catch (eD) {}   // the length of the ad clip on now
     var skipped = !!(skipAt && now - skipAt < 6000);
     // After a human skip, leftover ad chrome (a SOFT signal) is not an ad; only
     // a hard signal (class / SDK) means a new ad of the pod - normal rules again.

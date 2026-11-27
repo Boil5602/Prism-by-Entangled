@@ -168,6 +168,7 @@
 background:rgba(20,23,28,.55);color:#F2F4F7;border:1px solid rgba(255,255,255,.12);font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.04em;\
 opacity:.45;cursor:pointer;user-select:none;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:opacity .25s,transform .25s,right .25s,width .25s}\
 .pill:hover,.pill.on{opacity:1}\
+.pill{-webkit-touch-callout:none;-webkit-user-select:none;touch-action:manipulation}.pill.moving,.pill.collapsed.moving{opacity:1;transform:scale(1.18);transition:opacity .15s,transform .15s;cursor:grabbing;box-shadow:0 0 0 2px #F0A83C,0 6px 18px rgba(0,0,0,.55)}\
 .pill .lbl{white-space:nowrap;transition:opacity .35s}\
 .pill.morph .lbl{color:#F0A83C}\
 .pill.glow{opacity:1;border-color:#F0A83C;box-shadow:0 0 12px 3px rgba(240,168,60,.75)}\
@@ -263,7 +264,53 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
       mkp("M12 3.5L21.5 20.5H2.5Z", "#C9CFD8"); mkp("M12 3.5L21.5 20.5H12Z", "#7E8794"); mkp("M12 3.5L2.5 20.5H12Z", "#FFFFFF", ".18");
       tri.appendChild(sv); pill.appendChild(tri);
     } catch (eT) {}
-    pill.addEventListener("click", function (e) { e.stopPropagation(); if (PV.cancelReportPick && PV.cancelReportPick()) return; if (autoSmall && !prefs.collapsed) { autoSmall = false; applyPrefs(prefs); togglePanel(); return; } if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
+    // The button can be moved (2026-11-26, asked for: a long press, then drag and place). A press held still for 450 ms lifts it;
+    // it then follows the finger or the mouse and stays where it is let go. The place is kept for all sites as its distance
+    // from the right and the bottom (pv:ui.pillPos), and held inside the window at any size. A short press is the press it
+    // always was; the click that ends a move opens nothing. A page cannot scroll under a move (touchmove is stopped then).
+    var mv = null, movedAt = 0;
+    function pillPlace(pos) {
+      if (!pill) return;
+      var p = pos || (PV.uiPrefs && PV.uiPrefs.pillPos);
+      if (!p || typeof p.r !== "number" || typeof p.b !== "number") { pill.style.removeProperty("right"); pill.style.removeProperty("bottom"); return; }
+      var w = pill.offsetWidth || 44, h = pill.offsetHeight || 44;
+      var r = Math.max(4, Math.min(p.r, innerWidth - w - 4)), b = Math.max(4, Math.min(p.b, innerHeight - h - 4));
+      pill.style.setProperty("right", r + "px", "important"); pill.style.setProperty("bottom", b + "px", "important");
+    }
+    PV.applyPillPos = function () { if (!mv) pillPlace(); };
+    PV.pillPlaced = function () { var p = PV.uiPrefs && PV.uiPrefs.pillPos; return !!mv || !!(p && typeof p.r === "number"); };
+    PV.pillSpot = function () { try { if (!pill || prefs.hidden) return null; var r = pill.getBoundingClientRect(); return r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null; } catch (e) { return null; } };
+    function mvEnd(keep) {
+      if (!mv) return;
+      clearTimeout(mv.t);
+      if (mv.on) {
+        pill.classList.remove("moving"); movedAt = Date.now();
+        if (keep) { var r = pill.getBoundingClientRect(); setUi("pillPos", { r: Math.round(innerWidth - r.right), b: Math.round(innerHeight - r.bottom) }); }
+        mv = null; pillPlace();
+      } else mv = null;
+    }
+    pill.addEventListener("pointerdown", function (e) {
+      if (panelOpen || (typeof e.button === "number" && e.button > 0)) return;
+      var r = pill.getBoundingClientRect();
+      mv = { x: e.clientX, y: e.clientY, dx: r.right - e.clientX, dy: r.bottom - e.clientY, on: false, t: 0 };
+      mv.t = setTimeout(function () { if (mv) { mv.on = true; pill.classList.add("moving"); if (PV.hideCredTip) PV.hideCredTip(pill); } }, 450);
+    });
+    function mvMove(x, y) {
+      if (!mv) return false;
+      if (!mv.on) { if (Math.abs(x - mv.x) > 8 || Math.abs(y - mv.y) > 8) mvEnd(false); return false; }
+      pillPlace({ r: innerWidth - (x + mv.dx), b: innerHeight - (y + mv.dy) });
+      return true;
+    }
+    addEventListener("pointermove", function (e) { mvMove(e.clientX, e.clientY); }, true);
+    addEventListener("touchmove", function (e) { var t = e.touches && e.touches[0]; if (t && mvMove(t.clientX, t.clientY) && e.cancelable) e.preventDefault(); }, { capture: true, passive: false });
+    ["pointerup", "pointercancel", "touchend", "touchcancel", "mouseup"].forEach(function (ty) {
+      addEventListener(ty, function () { mvEnd(true); }, true);
+      pill.addEventListener(ty, function () { mvEnd(true); });
+    });
+    addEventListener("resize", function () { if (!mv) pillPlace(); });
+    pill.addEventListener("contextmenu", function (e) { if (mv || Date.now() - movedAt < 600) e.preventDefault(); });
+    pillPlace();
+    pill.addEventListener("click", function (e) { e.stopPropagation(); if (Date.now() - movedAt < 600) return; if (PV.cancelReportPick && PV.cancelReportPick()) return; if (autoSmall && !prefs.collapsed) { autoSmall = false; applyPrefs(prefs); togglePanel(); return; } if (pill.classList.contains("collapsed")) { setCollapsed(false); return; } togglePanel(); });
     // this site's reliability: the styled card above the pill (same card as
     // the link marks), not a browser title bubble
     pill.addEventListener("mouseenter", function () { if (pill.__credMs && PV.showCredTip && !panelOpen) PV.showCredTip(pill, pill.__credMs, "Open the panel for the Why? links"); });
@@ -357,6 +404,8 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
         if (r.bottom >= innerHeight - 2 && innerHeight - r.top > lift) lift = innerHeight - r.top;
       }
     } catch (e) {}
+    // a button the person placed, or is moving now, stays where it is: only one in its first place steps up over a bottom bar
+    if (PV.pillPlaced && PV.pillPlaced()) { lastLift = lift; placePanel(); return; }
     pill.style.bottom = (14 + lift) + "px";
     lastLift = lift; placePanel();
   }
