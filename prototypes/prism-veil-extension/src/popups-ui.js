@@ -1117,6 +1117,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   // Boot once <body> exists (the bundle runs at document_start). main.js also
   // calls PV.ensurePill() from its start() and its 1.2s sweep as a backstop,
   // so a missed DOMContentLoaded or a page that rebuilt <body> still gets one.
+  PV.removePill = function () { try { closePanel(); } catch (e0) {} try { if (host) host.remove(); } catch (e) {} };   // a copy of the scripts that a newer copy replaced (main.js)
   PV.ensurePill = function () { if (!host && document.body) boot(); else if (host && !host.isConnected) { try { (document.body || document.documentElement).appendChild(host); } catch (e) {} } };
   if (document.body) boot(); else addEventListener("DOMContentLoaded", boot, { once: true });
 

@@ -7,6 +7,45 @@
   if (window.__prismVeil) return;
   window.__prismVeil = true;
   var PV = window.__prismVeilNS || (window.__prismVeilNS = {});
+  // ONE COPY A PAGE (B-614, 2026-11-27, a picture from aether.ist in Safari on an iPhone: three PRISM buttons on one page, each
+  // working). Safari starts the scripts of an updated extension in the pages already open and leaves the old copy running with
+  // its link to the extension intact, so the old copy never saw itself as orphaned (the tab had stayed open over the day's
+  // updates). Each copy writes a mark of its own on the page's root as it starts (a random word made on this page, which says
+  // nothing of the person). A copy that reads another mark there may have been replaced, and stands down: it takes down what it
+  // put up, its button too, and idles (orphaned, below).
+  // THE PAGE CANNOT SWITCH PRISM OFF WITH THIS. The page can write that attribute too, so the mark alone decides nothing. A copy
+  // that starts and finds another copy's mark records its own mark with the time in the extension's store (pv:copies), which no
+  // page can read or write; a copy stands down only for a mark that is in that store with a time after its own start. A mark the
+  // page made up is not in the store; an older copy's mark put back by the page is older than the copy that reads it.
+  var COPY = Math.random().toString(36).slice(2, 10), COPY_START = Date.now(), newerCopy = false, copyCheckAt = 0, copyChecks = 0;
+  try {
+    var prevCopy = document.documentElement.getAttribute("data-prism-copy");
+    document.documentElement.setAttribute("data-prism-copy", COPY);
+    if (prevCopy && prevCopy !== COPY) {
+      chrome.storage.local.get("pv:copies", function (r) {
+        if (chrome.runtime.lastError) return;
+        var old = (r && r["pv:copies"]) || {}, m = {}, now = Date.now();
+        Object.keys(old).forEach(function (k) { if (typeof old[k] === "number" && now - old[k] < 86400000) m[k] = old[k]; });   // a day is kept
+        m[COPY] = now;
+        try { chrome.storage.local.set({ "pv:copies": m }); } catch (eW) {}
+      });
+    }
+  } catch (eC) {}
+  // has a newer copy replaced this one? The store is asked at most once in two seconds, and twenty times for a page in all.
+  function replaced() {
+    if (newerCopy) return true;
+    try {
+      var m = document.documentElement.getAttribute("data-prism-copy"), now = Date.now();
+      if (!m || m === COPY || now - copyCheckAt < 2000 || copyChecks >= 20) return false;
+      copyCheckAt = now; copyChecks++;
+      chrome.storage.local.get("pv:copies", function (r) {
+        if (chrome.runtime.lastError) return;
+        var t = r && r["pv:copies"] && r["pv:copies"][m];
+        if (typeof t === "number" && t >= COPY_START) newerCopy = true;
+      });
+    } catch (e) {}
+    return false;
+  }
   PV.VERSION = (function () { try { return chrome.runtime.getManifest().version; } catch (e) { return ""; } })();
   // On a page of the developer's own (127.0.0.1 or localhost, the hosts the prism-dev-reload hook answers), the version in view: after
   // a reload asked for from there, the page says which build is running (2026-11-07). Never on any other site.
@@ -210,11 +249,14 @@
   function orphaned() {
     if (dead) return true;
     var alive = true; try { alive = !!(chrome.runtime && chrome.runtime.id); } catch (e) { alive = false; }
-    if (alive) return false;
+    var newer = alive && replaced();
+    if (alive && !newer) return false;
     dead = true;
     PV.__dead = true; window.__prismVeil = false;   // the next copy (bg.js probeTab, reinjection) may start
     try { PV.clearCovers(); } catch (e1) {}
     try { if (PV.uncoverVideo) PV.uncoverVideo(); } catch (e2) {}
+    // replaced by a newer copy: only this copy's own button goes, for the rest in the page is the newer copy's
+    if (newer) { try { if (PV.removePill) PV.removePill(); } catch (e4) {} return true; }
     try { document.querySelectorAll("[data-prism-ui],prism-popup-button").forEach(function (n) { n.remove(); }); } catch (e3) {}
     return true;
   }

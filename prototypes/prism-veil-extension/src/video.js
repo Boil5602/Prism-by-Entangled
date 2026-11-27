@@ -1953,6 +1953,32 @@
   ["fullscreenchange", "webkitfullscreenchange"].forEach(function (t) {
     document.addEventListener(t, function () { if (vidVeil) { rehost(vidVeil.cover); positionCover(false); } rehost(restoreChip); }, true);
   });
+  // Does the player move with the page? Not in full screen, not where the cover is the whole window, and not where the player
+  // or a box around it is pinned (fixed or sticky). The look up the tree is kept for a second.
+  function coverInPage(vr) {
+    if (!vidVeil) return false;
+    if (veilHost() !== document.documentElement) return false;
+    if (vr.left === 0 && vr.top === 0 && vr.width === innerWidth && vr.height === innerHeight) return false;
+    var now = Date.now(), k = vidVeil.__pin;
+    if (k && now - k.at < 1000) return !k.pinned;
+    var pinned = false, n = vidVeil.video || vidVeil.box, d = 0;
+    try {
+      while (n && n !== document.documentElement && d++ < 40) {
+        if (n.nodeType === 1) { var ps = getComputedStyle(n).position; if (ps === "fixed" || ps === "sticky") { pinned = true; break; } }
+        n = PV.parentAcross ? PV.parentAcross(n) : n.parentElement;
+      }
+    } catch (e) { pinned = true; }
+    vidVeil.__pin = { at: now, pinned: pinned };
+    return !pinned;
+  }
+  // a scroll moves a cover that is fixed to the window (a pinned player in a box that scrolls) at the next frame, not the next look
+  var scrollRaf = 0;
+  try {
+    addEventListener("scroll", function () {
+      if (!vidVeil || scrollRaf) return;
+      scrollRaf = requestAnimationFrame(function () { scrollRaf = 0; try { if (vidVeil) positionCover(false); } catch (e) {} });
+    }, { capture: true, passive: true });
+  } catch (eS) {}
   function positionCover(withSkip) {
     if (!vidVeil) return null;
     rehost(vidVeil.cover);
@@ -1961,8 +1987,24 @@
     // 2026-08-30 showed a fullscreen SOOP veil with no sizing history at all)
     if (c.__pw && (Math.abs(vr.width - c.__pw) > c.__pw * 0.3 || Math.abs(vr.height - c.__ph) > c.__ph * 0.3)) trace("cover resize " + c.__pw + "x" + c.__ph + " -> " + Math.round(vr.width) + "x" + Math.round(vr.height));
     c.__pw = Math.round(vr.width); c.__ph = Math.round(vr.height);
-    c.style.left = vr.left + "px"; c.style.top = vr.top + "px";
+    // THE COVER SCROLLS WITH THE PAGE (B-613, 2026-11-27, a screen recording from reuters.com in Safari on an iPhone: while the
+    // page was scrolled the cover of a video ad stood still and then jumped after the player, a few times a second). The cover
+    // was fixed to the window and moved only when PRISM next looked. Now, where the player moves with the page, the cover is
+    // placed in the page (absolute, at the player's place in the document), so the browser itself moves it with the scroll and
+    // no script has to. It stays fixed to the window where the player does: full screen, a player pinned by the page (fixed or
+    // sticky, or inside such a box), and the cover of the whole window.
+    var inPage = coverInPage(vr);
+    if (c.__inPage !== inPage) { c.__inPage = inPage; c.style.position = inPage ? "absolute" : "fixed"; }
+    var ox = inPage ? (window.scrollX || 0) : 0, oy = inPage ? (window.scrollY || 0) : 0;
+    c.style.left = (vr.left + ox) + "px"; c.style.top = (vr.top + oy) + "px";
     c.style.width = vr.width + "px"; c.style.height = vr.height + "px";
+    if (inPage) {
+      // where the page's root is not the origin of an absolute box (a margin, a transform), the cover is put right by what it missed
+      try {
+        var got = c.getBoundingClientRect(), dx = vr.left - got.left, dy = vr.top - got.top;
+        if (got.width > 0 && (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)) { c.style.left = (vr.left + ox + dx) + "px"; c.style.top = (vr.top + oy + dy) + "px"; }
+      } catch (eO) {}
+    }
     // Only ad veils get a cutout (Skip). The pause veil's own Resume is the
     // way back; a cut-out "Click to return to the video" did nothing when
     // clicked through the hole (Paramount+, 2026-08-29), so it is gone.
@@ -2727,6 +2769,7 @@
   PV.videoAdBreak = videoAdBreak;
   PV.__rowContainer = rowContainer; PV.__adSourceNow = ssaiActiveSource;   // tests: player families
   PV.__buildCover = buildCover;   // tests: the cover must construct (0.7.47 shipped one that threw)
+  PV.__placeCoverFor = function (veil) { var keep = vidVeil; vidVeil = veil; try { return positionCover(false); } finally { vidVeil = keep; } };   // tests: where the cover is put
   PV.__paintCardFor = function (veil) { var keep = vidVeil; vidVeil = veil; try { updateCard(); } finally { vidVeil = keep; } };   // tests: the card for a veil state
 
   // Event-driven detection (2026-08-29, YouTube: a ~300ms flash of the ad's

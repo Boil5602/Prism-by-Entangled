@@ -532,3 +532,39 @@ describe("the video cover of a player PRISM has put away", () => {
     expect(PV.__coverRect(v2, v2).width).toBe(innerWidth);
   });
 });
+
+// B-613: the cover of a player that moves with the page is placed in the page, so the browser moves it with the scroll; the cover
+// of a pinned player stays fixed to the window.
+describe("the video cover scrolls with the page", () => {
+  const mount = (style) => {
+    document.body.innerHTML = `<div id="wrap" style="${style}"><div id="box"><video></video></div></div>`;
+    const v = document.querySelector("video"), box = document.getElementById("box");
+    const rect = { left: 0, top: 300, width: 440, height: 248, right: 440, bottom: 548 };
+    v.getBoundingClientRect = () => rect; box.getBoundingClientRect = () => rect;
+    return { v, box };
+  };
+  it("is placed in the page, at the player's place in the document", () => {
+    const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 750 }); PV.pickArt = () => "";
+    const { v, box } = mount("");
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => 1200 });
+    const cover = PV.__buildCover(true);
+    cover.getBoundingClientRect = () => ({ left: parseFloat(cover.style.left), top: parseFloat(cover.style.top) - 1200, width: 440, height: 248 });
+    PV.__placeCoverFor({ cover, video: v, box, mode: "pause" });
+    expect(cover.style.position).toBe("absolute");
+    expect(cover.style.top).toBe("1500px");
+    expect(cover.style.left).toBe("0px");
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => 0 });
+    cover.remove();
+  });
+  it("stays fixed to the window where the player is pinned by the page", () => {
+    const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 750 }); PV.pickArt = () => "";
+    const { v, box } = mount("position:fixed");
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => 1200 });
+    const cover = PV.__buildCover(true);
+    PV.__placeCoverFor({ cover, video: v, box, mode: "pause" });
+    expect(cover.style.position).toBe("fixed");
+    expect(cover.style.top).toBe("300px");
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => 0 });
+    cover.remove();
+  });
+});
