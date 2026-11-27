@@ -13,39 +13,26 @@
   // updates). Each copy writes a mark of its own on the page's root as it starts (a random word made on this page, which says
   // nothing of the person). A copy that reads another mark there may have been replaced, and stands down: it takes down what it
   // put up, its button too, and idles (orphaned, below).
-  // THE PAGE CANNOT SWITCH PRISM OFF WITH THIS. The page can write that attribute too, so the mark alone decides nothing. A copy
-  // that starts and finds another copy's mark records its own mark with the time in the extension's store (pv:copies), which no
-  // page can read or write; a copy stands down only for a mark that is in that store with a time after its own start. A mark the
-  // page made up is not in the store; an older copy's mark put back by the page is older than the copy that reads it.
-  var COPY = Math.random().toString(36).slice(2, 10), COPY_START = Date.now(), newerCopy = false, copyCheckAt = 0, copyChecks = 0;
+  // THE PAGE CANNOT SWITCH PRISM OFF WITH THIS. The page can write that attribute too, so the mark decides nothing: it is read
+  // once, as this copy starts and before any script of the page has run, and only to learn that another copy is there. Then
+  // this copy tells the background, and the background tells the copies in this one frame of this one tab, over the extension's
+  // own messages, which no page can send or read. A copy stands down only on that message, from a copy that started after it.
+  // (0.9.99 asked the extension's store for the mark it read from the page; a mark recorded for one page could have been put on
+  // another page of the same site that was open at the same update. Found by the commit's security review; gone here.)
+  var COPY = "", COPY_START = Date.now(), newerCopy = false;
+  try { var rnd = new Uint32Array(2); crypto.getRandomValues(rnd); COPY = rnd[0].toString(36) + rnd[1].toString(36); } catch (eR) { COPY = Math.random().toString(36).slice(2, 12); }
   try {
     var prevCopy = document.documentElement.getAttribute("data-prism-copy");
     document.documentElement.setAttribute("data-prism-copy", COPY);
-    if (prevCopy && prevCopy !== COPY) {
-      chrome.storage.local.get("pv:copies", function (r) {
-        if (chrome.runtime.lastError) return;
-        var old = (r && r["pv:copies"]) || {}, m = {}, now = Date.now();
-        Object.keys(old).forEach(function (k) { if (typeof old[k] === "number" && now - old[k] < 86400000) m[k] = old[k]; });   // a day is kept
-        m[COPY] = now;
-        try { chrome.storage.local.set({ "pv:copies": m }); } catch (eW) {}
-      });
-    }
+    if (prevCopy && prevCopy !== COPY) chrome.runtime.sendMessage({ type: "pv:copy-hello", copy: COPY, start: COPY_START }, function () { void chrome.runtime.lastError; });
   } catch (eC) {}
-  // has a newer copy replaced this one? The store is asked at most once in two seconds, and twenty times for a page in all.
-  function replaced() {
-    if (newerCopy) return true;
-    try {
-      var m = document.documentElement.getAttribute("data-prism-copy"), now = Date.now();
-      if (!m || m === COPY || now - copyCheckAt < 2000 || copyChecks >= 20) return false;
-      copyCheckAt = now; copyChecks++;
-      chrome.storage.local.get("pv:copies", function (r) {
-        if (chrome.runtime.lastError) return;
-        var t = r && r["pv:copies"] && r["pv:copies"][m];
-        if (typeof t === "number" && t >= COPY_START) newerCopy = true;
-      });
-    } catch (e) {}
-    return false;
-  }
+  try {
+    chrome.runtime.onMessage.addListener(function (msg, sender) {
+      // from the extension itself (the background has no tab), about another copy, started after this one
+      if (msg && msg.type === "pv:copy-newer" && sender && !sender.tab && typeof msg.copy === "string" && msg.copy !== COPY && typeof msg.at === "number" && msg.at >= COPY_START) newerCopy = true;
+    });
+  } catch (eL) {}
+  function replaced() { return newerCopy; }
   PV.VERSION = (function () { try { return chrome.runtime.getManifest().version; } catch (e) { return ""; } })();
   // On a page of the developer's own (127.0.0.1 or localhost, the hosts the prism-dev-reload hook answers), the version in view: after
   // a reload asked for from there, the page says which build is running (2026-11-07). Never on any other site.

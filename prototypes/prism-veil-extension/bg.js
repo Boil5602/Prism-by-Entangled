@@ -724,6 +724,17 @@ function veilLogAppend(rec) {
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (msg && msg.type === "pv:live-stream") { liveStreamId(sender, sendResponse); return true; }
   if (msg && msg.type === "pv:offscreen-idle") { closeOffscreen(); return; }
+  // One copy of the page scripts a page (B-614, src/main.js): a copy that started in a frame where another copy already ran says so,
+  // and the copies in that one frame of that one tab are told, with the time that copy started. Nothing is kept.
+  if (msg && msg.type === "pv:copy-hello") {
+    try {
+      if (sender && sender.tab && typeof sender.tab.id === "number" && typeof msg.copy === "string" && msg.copy.length <= 40 && typeof msg.start === "number") {
+        var to = sender.documentId ? { documentId: sender.documentId } : { frameId: sender.frameId || 0 };
+        chrome.tabs.sendMessage(sender.tab.id, { type: "pv:copy-newer", copy: msg.copy, at: msg.start }, to, function () { void chrome.runtime.lastError; });
+      }
+    } catch (eH) {}
+    return;
+  }
   // the share route (the page reads its own picture): the offscreen page judges its frames, and the toolbar line says it is reading
   if (msg && msg.type === "pv:live-model") { if (!chrome.offscreen) { sendResponse({ error: "no offscreen" }); return; } ensureOffscreen().then(function () { sendResponse({ ok: true }); }, function (e) { sendResponse({ error: String(e && e.message || e) }); }); return true; }
   // a channel's learned logo for the live TV picture, kept in the extension's storage (the offscreen page has no storage of its own)
