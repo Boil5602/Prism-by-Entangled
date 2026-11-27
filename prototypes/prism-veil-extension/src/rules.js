@@ -767,7 +767,32 @@
     var semantic = el.tagName === "ARTICLE" || role === "article" ||
       (el.tagName === "LI" && el.parentElement && /^(UL|OL)$/.test(el.parentElement.tagName)) ||
       (role === "listitem" && !!(el.closest && el.closest("[role='list']")));
-    if (el.tagName.indexOf("-") <= 0 && !semantic) return false;
+    // A cell of a grid on a phone (B-611, 2026-11-27, a report from newegg.com's search in iOS Safari: the cover took a sponsored
+    // product's text and left its photo). The product is a plain `div.grid-col` in `div.product-list` (display: grid), 440 x 351
+    // on a 440-wide window: no tag or role names it a card, and it is past the label's area cap for a narrow window, so the cover
+    // fell back to the text column beside the photo (`.goods-info`). On a narrow window, a plain element whose parent lays its
+    // children out as a grid or a row, and that has two or more siblings of its own tag and class and about its size, is the card.
+    // Amazon's search on a phone (B-612, the same day, a report on 0.9.97: the photo of a sponsored product stood bare beside the
+    // cover): the item is `div.s-result-item[role=listitem]` 432 x 357 in `div.s-main-slot`, which has no role of a list, and
+    // the items' classes differ (the paid one carries `AdHolder`); siblings that share the role of a list item count as like.
+    var cell = false;
+    if (el.tagName.indexOf("-") <= 0 && !semantic) {
+      if (innerWidth > 700 || r.width < 200 || r.height < 100 || r.width > innerWidth || (r.width * r.height) > cap) return false;
+      var gp = el.parentElement, cls = PV.classStr(el);
+      if (!gp || (!cls && role !== "listitem") || gp.children.length < 3) return false;
+      var gd = ""; try { gd = getComputedStyle(gp).display; } catch (eG) {}
+      if (!/grid|flex/.test(gd)) return false;
+      var like = 0, ga = r.width * r.height;
+      for (var gi = 0; gi < gp.children.length && gi < 60 && like < 2; gi++) {
+        var gc = gp.children[gi];
+        if (gc === el || gc.tagName !== el.tagName) continue;
+        if (!(cls && PV.classStr(gc) === cls) && !(role === "listitem" && gc.getAttribute("role") === "listitem")) continue;
+        var gr = gc.getBoundingClientRect(), gs = gr.width * gr.height;
+        if (gs >= ga * 0.4 && gs <= ga * 2.5) like++;
+      }
+      if (like < 2) return false;
+      cell = true;
+    }
     // A phone (2026-11-23, two reports from LinkedIn's feed in iOS Safari: only the promoted post's header line was covered). The
     // cap is a share of the window, and on a narrow screen a post is the window's width and a screen or more tall (440 x 655 and
     // 440 x 765 on a 440 x 747 window), so every promoted post was past it and the cover fell back to the label's small box. An
@@ -781,7 +806,7 @@
     // listitem's parent has one child and the siblings measure 0x0 - the
     // 1025px promoted document post fell back to the size caps and got a
     // partial cover (report 2026-09-12).
-    if (semantic) return true;
+    if (semantic || cell) return true;
     var parent = el.parentNode;
     if (!parent || !parent.children || parent.children.length < 2) return false;
     var ca = r.width * r.height; if (ca <= 0) return false;
@@ -822,7 +847,10 @@
     // reported: the cover over the rail's Sponsored block took the Birthdays block with it on a large screen, where both fit the caps).
     var head = null, hn = badge, hd = 0;
     while (hn && hd < 4) { if (/^H[1-6]$/.test(hn.tagName || "")) { head = hn; break; } hn = hn.parentElement; hd++; }
-    while (el && el !== document.body && el !== document.documentElement && depth < 18) {
+    // how far the climb goes: 18 levels, and 26 on a narrow window (B-612: on Amazon's search on a phone the item of the list is 21
+    // levels over its `Sponsored` label, so the climb stopped inside the text column and never met the item)
+    var maxDepth = innerWidth <= 700 ? 26 : 18;
+    while (el && el !== document.body && el !== document.documentElement && depth < maxDepth) {
       if (head && el !== head && el.contains(head)) {
         var hs = el.querySelectorAll(head.tagName), other = false;
         for (var hi = 0; hi < hs.length && hi < 40; hi++) if (hs[hi] !== head) { var hb = hs[hi].getBoundingClientRect(); if (hb.width > 0 && hb.height > 0) { other = true; break; } }

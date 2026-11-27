@@ -1050,6 +1050,39 @@ describe("X promoted content", () => {
 // posts are div[role=listitem] in a div[role=list], hashed classes, and the
 // post is taller than the window - the generic walker must grow the label to
 // the list item, no site rule.
+describe("a Sponsored label in a cell of a grid on a phone (B-611, newegg.com search in iOS Safari)", () => {
+  const cell = (id, y, h, label) => `<div id="${id}" class="grid-col radius-m bg-white" ${R(0, y, 440, h)}><div class="goods-container" ${R(12, y + 8, 416, h - 16)}>` +
+    `<a class="goods-img" href="/p/1" ${R(12, y + 8, 126, 135)}><img ${R(12, y + 8, 126, 89)}></a>` +
+    `<div class="goods-info" ${R(150, y + 8, 278, h - 16)}><a class="goods-title" href="/p/1" ${R(150, y + 8, 278, 60)}>A small computer</a>` +
+    (label ? `<div ${R(150, y + h - 50, 60, 33)}><div class="menu" ${R(150, y + h - 50, 60, 33)}><span class="font-s text-gray" ${R(150, y + h - 50, 60, 15)}>Sponsored</span></div></div>` : "") +
+    `</div></div></div>`;
+  const list = (display) => `<div class="product-list grid goods-list" style="display:${display}" ${R(0, 0, 440, 9713)}>` + cell("c1", 0, 351, true) + cell("c2", 351, 340, false) + cell("c3", 691, 360, false) + cell("c4", 1051, 351, false) + `</div>`;
+  it("covers the whole product, photo and text, where the cells are laid out as a grid", () => {
+    const PV = loadVeil({ host: "www.newegg.com", width: 440, height: 750 });
+    expect(detect(PV, list("grid"))).toEqual([{ tag: "div", id: "c1", why: "badge-label: Sponsored" }]);
+  });
+  it("is left to the size caps on a wide window, and where the parent is no grid", () => {
+    let PV = loadVeil({ host: "www.newegg.com", width: 1366, height: 860 });
+    expect(detect(PV, list("grid")).map((o) => o.id)).not.toEqual([""]);
+    PV = loadVeil({ host: "www.newegg.com", width: 440, height: 750 });
+    expect(detect(PV, list("block")).map((o) => o.id)).toEqual([""]);
+  });
+});
+
+describe("a Sponsored label deep in an item of a list on a phone (B-612, Amazon's search in iOS Safari)", () => {
+  // the item is div[role=listitem] in a grid with no role of a list; its classes differ from its siblings' (AdHolder); the label is
+  // 21 levels under it, in the text column beside the photo
+  const wrap = (n, box, inner) => { let h = inner; for (let i = 0; i < n; i++) h = `<div ${box}>${h}</div>`; return h; };
+  const item = (id, y, h, label) => `<div id="${id}" role="listitem" class="s-result-item s-asin sg-col${label ? " AdHolder" : ""}" ${R(4, y, 432, h)}>` +
+    wrap(6, R(4, y, 432, h), `<div class="puisg-row" ${R(4, y, 432, h)}><div class="puisg-col" ${R(4, y, 180, h)}><img class="s-image" ${R(20, y, 137, 213)}></div>` +
+      `<div class="puisg-col" id="${id}-text" ${R(185, y, 252, h)}>` + wrap(12, R(189, y + 8, 236, 24), label ? `<span ${R(189, y + 8, 53, 12)}><span class="a-color-secondary" ${R(189, y + 8, 53, 12)}>Sponsored</span></span>` : `<span>A title</span>`) + `</div></div>`) + `</div>`;
+  const list = `<div class="s-main-slot s-result-list sg-row" style="display:grid" ${R(0, 0, 436, 10115)}>` + item("a1", 0, 357, true) + item("a2", 357, 312, false) + item("a3", 669, 323, false) + `</div>`;
+  it("covers the whole item on a narrow window", () => {
+    const PV = loadVeil({ host: "www.amazon.com", width: 440, height: 750 });
+    expect(detect(PV, list)).toEqual([{ tag: "div", id: "a1", why: "badge-label: Sponsored" }]);
+  });
+});
+
 describe("generic 'Promoted' label grows to a role=listitem feed card", () => {
   // LinkedIn's real nesting (report 2026-09-12): role=list > 0x0 display-
   // contents wrappers > single-child wrappers > div[role=listitem]. The
