@@ -777,9 +777,26 @@
       // Ad served AS the video (not an ad break inside a player you chose).
       id: "ad-video-src",
       run: function (root, ctx) {
+        // A player that says itself that it plays an ad (B-592, 2026-11-26, a report and a recording from an article on
+        // usatoday.com on an iPhone: the cover on the video at the head of the article came and went several times in six
+        // seconds, the ad bare in between). The player there (`[data-pbs-root]`) plays one ad after another, each from a new
+        // address, some from hosts the list below does not hold (redirector.gvt1.com in the test browser), with a moment of
+        // no address between them, so a cover that follows the address goes each time. The player keeps its own state in
+        // `data-pbs-player="ads"` and `data-pbs-ads="playing"` for the whole run of ads: that state is the source, and the
+        // player's box is covered while it holds. The address rule below leaves such a player to this one.
+        var PBS_AD = "[data-pbs-root][data-pbs-player='ads'], [data-pbs-root][data-pbs-ads='playing']";
+        try {
+          root.querySelectorAll(PBS_AD).forEach(function (pb) {
+            var pr = pb.getBoundingClientRect();
+            if (pr.width < 80 || pr.height < 60 || pr.height > innerHeight * 0.95) return;
+            pb.__prismForceOverlay = true;
+            ctx.add(pb, "player-ad-state: the player's own ad state (data-pbs-ads)", true);
+          });
+        } catch (eP) {}
         root.querySelectorAll("video").forEach(function (v) {
           var s = v.currentSrc || v.src || "";
           if (!s || !isAdVideoSrc(s)) return;
+          try { if (v.closest(PBS_AD)) return; } catch (eP2) {}
           // Cover the player WRAPPER (a div), never the <video> itself: a cover
           // can't be a child of <video>, and covering the wrapper lets the sweep
           // mute the video under it. The immediate parent is the player box.
@@ -1689,7 +1706,9 @@
       } catch (e2) {}
       // A Taboola widget taller than the screen is skipped above as page-sized (2026-11-23, four reports from CBS News on an
       // iPhone: a column of paid items 400x1233 on a 440x796 screen stood bare). There the unit is each paid item: a .videoCube
-      // that carries Taboola's own disclosure link. An item of a widget small enough to be covered whole is left to that cover.
+      // that carries Taboola's own disclosure link. An item of a smaller widget was left to the widget's cover until B-591
+      // (2026-11-26, cnbc.com): there the widgets of one paid item each got no cover at any size, so the paid item of a
+      // one-item widget is named whatever the widget's size. A smaller widget of several items is still left to its own cover.
       try {
         root.querySelectorAll(".videoCube").forEach(function (it) {
           if (!it.querySelector("[class*='disclosure_link']")) return;
@@ -1697,14 +1716,33 @@
           for (var d = 0; w && w !== document.body && d < 14; d++, w = w.parentElement) {
             if (!w.matches("[id^='taboola-'], [class*='trc_rbox'], [class*='trc_related'], [data-widget-id*='taboola']")) continue;
             inWidget = true;
-            if (!PV.pageSizedEl(w)) return;
+            // a smaller widget of several items keeps its own cover; a widget of this one item is the item
+            if (!PV.pageSizedEl(w) && w.querySelectorAll(".videoCube").length > 1) return;
           }
           if (!inWidget) return;
           var tr = it.getBoundingClientRect();
-          if (tr.width < 100 || tr.height < 50 || PV.pageSized(tr)) return;
+          // One paid item may itself be most of a phone's screen (B-591, 2026-11-26, four reports from an article on cnbc.com on an
+          // iPhone: items with an upright picture, 400x824 on a 440x796 screen, kept the picture bare and had a cover on the text
+          // alone, from the label's own search). The item carries Taboola's own label, so it is no wrapper and not the page: it is
+          // covered whole up to 2.2 screens tall.
+          if (tr.width < 100 || tr.height < 50 || tr.height > innerHeight * 2.2) return;
           ctx.add(it, "taboola-item: Taboola's paid label on the item", true);
         });
       } catch (eT) {}
+      // MGID's paid items (B-594, 2026-11-26, four reports from an article on futurism.com on an iPhone: a column of items with a
+      // picture and a headline, none covered). The widget is `.mgbox`, 408x2887 on a 440x836 screen, so no cover takes it whole;
+      // each item is a `.mgline` whose links go through MGID's own click address (clck.mgid.com). That address is the source:
+      // every item that links through it is paid, and each is covered as one unit.
+      try {
+        root.querySelectorAll(".mgline").forEach(function (it) {
+          var a = it.querySelector("a[href*='.mgid.com/'], a[href*='//mgid.com/']");
+          if (!a) return;
+          try { if (!/(^|\.)mgid\.com$/.test(new URL(a.href, location.href).hostname)) return; } catch (eU) { return; }
+          var mr = it.getBoundingClientRect();
+          if (mr.width < 100 || mr.height < 50 || mr.height > innerHeight * 2.2) return;
+          ctx.add(it, "mgid-item: MGID's own click address on the item", true);
+        });
+      } catch (eM) {}
       // A label the page draws from an attribute, with no text of its own in the page (B-584, CBS News, 2026-11-26: the picture of a
       // paid item carries `data-asset-label="Sponsored"` and the style sheet draws the word from it, so the search of the page's text
       // below never met it). The unit is the item's article, or what the label's own search finds around it.

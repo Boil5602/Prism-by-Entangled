@@ -49,7 +49,11 @@
       var all = policy.snapshot(), mine = { global: all.global, sites: {} }, here = location.hostname;
       if (all.sites && Object.prototype.hasOwnProperty.call(all.sites, here)) mine.sites[here] = all.sites[here];
       // stoppedHere: a pop was stopped on this page in this visit, one of the signs the hook needs to stop a redirect of the tab
-      document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: { state: JSON.stringify(mine), stoppedHere: toldStopped } }));
+      // Firefox: an object made here cannot be read by the page's world unless it is cloned into it (2026-11-26: the hook there
+      // never got the record or the sign, found while a redirect on aether.ist was traced)
+      var det = { state: JSON.stringify(mine), stoppedHere: toldStopped };
+      try { if (typeof cloneInto === "function") det = cloneInto(det, document.defaultView); } catch (eC) {}
+      document.dispatchEvent(new CustomEvent("prism-popup-policy", { detail: det }));
     } catch (e) {}
   }
   document.addEventListener("prism-popup-ready", pushSnapshot);

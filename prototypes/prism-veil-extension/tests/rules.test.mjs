@@ -15,17 +15,57 @@ describe("a recommendation widget taller than the screen", () => {
     const out = detect(PV, widget(1233, cube("a", 100, 308, true) + cube("own", 410, 308, false) + cube("b", 720, 296, true)));
     expect(out.map((o) => [o.id, o.why])).toEqual([["a", "taboola-item: Taboola's paid label on the item"], ["b", "taboola-item: Taboola's paid label on the item"]]);
   });
-  it("leaves the items of a widget small enough to be covered whole to that cover", () => {
+  // B-591, 2026-11-26, cnbc.com on an iPhone: widgets of one paid item each got no cover of their own at any size, and the items
+  // stood with a cover on their text alone. The paid item is named whatever the widget's size; one cover is kept for the two.
+  it("names the paid item of a small widget that holds this one item, and leaves a small widget of several items to its own cover", () => {
     const PV = loadVeil({ host: "www.cbsnews.com", width: 1600, height: 900 });
-    const out = detect(PV, widget(320, cube("a", 100, 308, true)));
-    expect(out.map((o) => o.id)).not.toContain("a");
-    expect(out.length).toBeGreaterThan(0);
-    expect(out.every((o) => /^slot-selector/.test(o.why))).toBe(true);
+    const one = detect(PV, widget(320, cube("a", 100, 308, true)));
+    expect(one.map((o) => [o.id, o.why])).toEqual([["a", "taboola-item: Taboola's paid label on the item"]]);
+    const PV2 = loadVeil({ host: "www.cbsnews.com", width: 1600, height: 900 });
+    const two = detect(PV2, widget(320, cube("a", 100, 150, true) + cube("b", 260, 150, true)));
+    expect(two.map((o) => o.id)).not.toContain("a");
+    expect(two.length).toBeGreaterThan(0);
+    expect(two.every((o) => /^slot-selector/.test(o.why))).toBe(true);
+  });
+  it("names a paid item that is itself most of a phone's screen, and not one over two screens tall", () => {
+    const PV = loadVeil({ host: "www.cnbc.com", width: 440, height: 796 });
+    const out = detect(PV, widget(2700, cube("tall", 100, 824, true) + cube("huge", 950, 1800, true)));
+    expect(out.map((o) => o.id)).toContain("tall");
+    expect(out.map((o) => o.id)).not.toContain("huge");
   });
   it("covers an Infolinks unit", () => {
     const PV = loadVeil({ host: "www.cbsnews.com", width: 440, height: 796 });
     const out = detect(PV, `<div id="IL_INSEARCH" class="IL_BASE IL_SW" ${R(0, 717, 441, 79)}><div id="IL_SR_AD_CONTAINER" ${R(0, 717, 440, 79)}></div></div>`);
     expect(out).toEqual([{ tag: "div", id: "IL_INSEARCH", why: "slot-selector: div.IL_BASE" }]);
+  });
+});
+
+// B-594, 2026-11-26, four reports from futurism.com on an iPhone: MGID's paid items stood with no cover
+describe("MGID's paid items", () => {
+  const item = (id, y, href) => `<div class="mgline teaser-1 type-w" id="${id}" ${R(16, y, 408, 340)}><div class="image-with-text" ${R(16, y, 408, 340)}>` +
+    `<a href="${href}" ${R(16, y, 408, 272)}><img class="mcimg" ${R(16, y, 408, 272)}></a><a href="${href}" ${R(16, y + 280, 408, 50)}>A headline</a></div></div>`;
+  it("covers each item that links through MGID's click address, never the column, and leaves an item that links elsewhere", () => {
+    const PV = loadVeil({ host: "futurism.com", width: 440, height: 836 });
+    const out = detect(PV, `<div class="mgbox" id="box" ${R(16, 100, 408, 2887)}>` + item("a", 100, "https://clck.mgid.com/ghits/1/i/2/0/pp/1/1") + item("own", 450, "https://futurism.com/a-story") + item("b", 800, "https://clck.mgid.com/ghits/3/i/2/0/pp/2/1") + `</div>`);
+    expect(out.map((o) => [o.id, o.why])).toEqual([["a", "mgid-item: MGID's own click address on the item"], ["b", "mgid-item: MGID's own click address on the item"]]);
+  });
+});
+
+// B-592, 2026-11-26, a report and a recording from usatoday.com on an iPhone: the cover on the article's video came and went with each ad
+describe("a player that says itself that it plays an ad", () => {
+  const player = (state, src) => `<div class="pbs" id="pl" data-pbs-root="true" ${state} ${R(20, 300, 400, 225)}><div class="pbs__player" id="in" ${R(20, 300, 400, 225)}>` +
+    `<video id="v" src="${src}" ${R(20, 300, 400, 225)}></video></div></div>`;
+  it("covers the player while its own state is ads, whatever the address of the video, and once", () => {
+    const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
+    const other = detect(PV, player('data-pbs-player="ads" data-pbs-ads="playing"', "https://redirector.example/videoplayback/1"));
+    expect(other.map((o) => [o.id, o.why])).toEqual([["pl", "player-ad-state: the player's own ad state (data-pbs-ads)"]]);
+    const PV2 = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
+    const known = detect(PV2, player('data-pbs-player="ads" data-pbs-ads="playing"', "https://gcdn.2mdn.net/videoplayback/id/1"));
+    expect(known.map((o) => [o.id, o.why])).toEqual([["pl", "player-ad-state: the player's own ad state (data-pbs-ads)"]]);
+  });
+  it("leaves the player while it plays the story's own video", () => {
+    const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 796 });
+    expect(detect(PV, player('data-pbs-player="content"', "https://videos.usatoday.example/story.mp4"))).toEqual([]);
   });
 });
 

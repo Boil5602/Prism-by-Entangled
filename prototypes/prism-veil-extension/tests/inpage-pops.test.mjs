@@ -254,6 +254,23 @@ describe("in-page pops", () => {
     expect(held(shell)).toBe(null);
     expect(p.PV.popupPolicy.ledger("watch.example")[0].context).toMatch(/fixed over the page, slot-selector/);
   });
+  // B-593, 2026-11-26, futurism.com on an iPhone: a video ad floating in a corner jumped up and down without end.
+  it("reads no leave-alone word from what follows ? or # in a frame's address, and gives each tucked unit a place of its own", async () => {
+    const p = load(); await p.pass(0);
+    const mk = (box, adBox, src) => { const f = document.createElement("div"); f.setAttribute("data-box", box); f.style.cssText = "position:fixed;bottom:0;z-index:999";
+      const ad = document.createElement("div"); ad.setAttribute("data-box", adBox); f.appendChild(ad);
+      if (src) { const fr = document.createElement("iframe"); fr.setAttribute("src", src); fr.setAttribute("data-box", "0,0,0,0"); ad.appendChild(fr); }
+      document.body.appendChild(f); return [f, ad]; };
+    const [corner, ad1] = mk("212,600,178,100", "212,600,178,100", "https://sdk.ads.example/bridge.html#settings=1&accessibility=0&privacy=1");
+    const [banner, ad2] = mk("0,732,390,68", "35,741,320,50", "");
+    p.PV.coveredEls = () => [ad1, ad2]; p.PV.whyFor = () => "floating-video-ad";
+    await p.pass(1100);
+    expect(held(corner)).toBe("clear");                             // the words in the address's data did not excuse it
+    expect(held(banner)).toBe("clear");
+    const at = (u) => { const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\) scale\(([\d.]+)\)/.exec(u.style.getPropertyValue("transform")); const b = u.getAttribute("data-box").split(",").map(Number); return [b[0] + Number(m[1]), b[1] + Number(m[2])]; };
+    const a = at(corner), b = at(banner);
+    expect(Math.abs(a[0] - b[0]) >= 8 || Math.abs(a[1] - b[1]) >= 8).toBe(true);   // 6 px specks that do not meet
+  });
   // 2026-11-25, CNN on an iPhone: the head ad is a fixed box over a box the page keeps for it; tucked away it left a black space.
   it("leaves a fixed ad that lies in the place the page keeps for it, and puts a tucked one back when it is there again", async () => {
     const p = load(); await p.pass(0);
@@ -266,9 +283,11 @@ describe("in-page pops", () => {
     place.setAttribute("data-box", "0,-900,390,100");               // the page scrolled: the place is gone, the ad stays over the page
     await p.pass(1100);
     expect(held(f)).toBe("clear");
+    expect(p.PV.inpageHeld("in-page-ad.invalid")).toBe(true);
     place.setAttribute("data-box", "0,0,390,100");                  // back at the top
     await p.pass(1100);
     expect(held(f)).toBe(null);
+    expect(p.PV.inpageHeld("in-page-ad.invalid")).toBe(false);      // B-589: in its place again, it is not in the list
     expect(f.style.getPropertyValue("transform")).toBe("");
     place.setAttribute("data-box", "0,-900,390,100");
     await p.pass(1100);
@@ -343,6 +362,21 @@ describe("in-page pops", () => {
     expect(root.style.getPropertyValue("pointer-events")).toBe("none");
     expect(root.style.getPropertyPriority("pointer-events")).toBe("");
     root.style.pointerEvents = "";
+  });
+  // B-590, 2026-11-26, cnbc.com on an iPhone: the site's offer for its paid plan in a fixed frame over the whole window.
+  it("tucks away the site's own offer in a frame over the window, and leaves a frame of another site, a wall, and one with no name", async () => {
+    const p = load(); await p.pass(0);
+    const frame = (src, cls) => { const f = document.createElement("iframe"); f.setAttribute("src", src); f.className = cls || ""; f.setAttribute("data-box", "0,0,390,800"); f.style.cssText = "position:fixed;top:0;left:0;z-index:9999"; document.body.appendChild(f); return f; };
+    const own = frame("https://templates.watch.example/components/Overlay?outcome=overlay-PlanOffer2026", "overlayOutcome");
+    const other = frame("https://templates.elsewhere.example/components/Overlay?outcome=PlanOffer", "overlayOutcome");
+    const wall = frame("https://templates.watch.example/components/Paywall?outcome=offer", "overlayOutcome");
+    const plain = frame("https://templates.watch.example/components/Overlay", "overlayOutcome");
+    await p.pass(1100);
+    expect(held(own)).toBe("clear");
+    expect(held(other)).toBe(null);
+    expect(held(wall)).toBe(null);
+    expect(held(plain)).toBe(null);
+    expect(p.PV.popupPolicy.ledger("watch.example")[0].dest).toBe("site-offer.invalid");
   });
   it("leaves a dialog with no close control, and one that names itself a paywall", async () => {
     const p = load(); await p.pass(0);

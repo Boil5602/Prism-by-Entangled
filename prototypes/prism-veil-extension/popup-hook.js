@@ -142,9 +142,14 @@
   // of the trick. The signs: the host is on a named list; a window was asked for within the last 3 s; a window or a redirect to
   // the same host was stopped on this page; another redirect was stopped within the last 5 s; the press before it was on no link
   // and no button (measured on aether.bar: a press on the heading, 555 ms, the tab sent away, and no window asked for); or the
-  // press was on a button and PRISM has stopped a pop on this page in this visit (popups-ui.js says so). A redirect with no
-  // press before it and none of the other signs goes as it always did (a page that moves to its new address, a sign-in that
-  // sends the person on). A browser without the event: nothing is done.
+  // PRISM has stopped a pop on this page in this visit (popups-ui.js says so), with a press or with none (2026-11-26, aether.ist
+  // on an iPhone: about 10 s after the load, with no press at all, the page's ad script sent the tab to an advertiser; two of its
+  // pops were held by then). A redirect with no press before it and none of the other signs goes as it always did (a page that
+  // moves to its new address, a sign-in that sends the person on). A browser without the event: nothing is done.
+  // Decision 2026-11-26: with no press at all, a script's move of the tab to another site is stopped on any site, sign or no sign,
+  // once the page is more than 3 s old. In its first 3 s a page may still pass the person on (a short link, a page that moved, a
+  // sign-in that starts by itself); there the other signs alone decide.
+  function sincePageStart() { try { return performance.now(); } catch (x) { return 0; } }
   var lastOpenAt = 0, lastStopAt = 0, stoppedHosts = {}, stoppedHere = false;
   function hostOf(u) { try { return new URL(u, location.href).hostname; } catch (x) { return ""; } }
   try {
@@ -167,7 +172,7 @@
         var now = Date.now();
         var sign = decision.list ? "on a named list" : (now - lastOpenAt < 3000) ? "a window was asked for with it" : stoppedHosts[h] ? "it was stopped here before"
           : (now - lastStopAt < 5000) ? "another was stopped just before" : (pressed && gesture.plain) ? "your press was not on a link or a button"
-          : (pressed && stoppedHere) ? "pops were stopped on this page" : "";
+          : stoppedHere ? "pops were stopped on this page" : (!pressed && sincePageStart() > 3000) ? "nothing was pressed" : "";
         if (!sign) return;
         e.preventDefault();
         stoppedHosts[h] = 1; lastStopAt = now;

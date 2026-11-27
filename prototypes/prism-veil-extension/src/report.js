@@ -304,6 +304,9 @@
     if (report.fb && (report.fb.shape || report.fb.shapeErr)) p.fb = { shape: report.fb.shape, near: report.fb.near, shapeErr: report.fb.shapeErr, posinset: report.fb.posinset, postH: report.fb.postH };
     if (report.fbErr) p.fbErr = String(report.fbErr).slice(0, 120);
     if (opt.note) p.note = opt.note.slice(0, 280);
+    // which of the page's frames PRISM runs in (B-595, 2026-11-26: a report of a video ad in a YouTube frame on a search page could
+    // not say whether PRISM was in that frame at all). The frames' origins only; their addresses stay with the ticked box.
+    try { diag.framesWithPrism = (d.frameHello || []).map(function (x) { return String(x).split(" ")[0].replace(/^https?:\/\//, ""); }).slice(0, 8); diag.framesOnPage = document.querySelectorAll("iframe").length; } catch (eFH) {}
     if (opt.full) {
       p.url = location.href.slice(0, 200);
       if (d.iframes) diag.iframes = d.iframes;   // the embedded players' addresses (host + path)

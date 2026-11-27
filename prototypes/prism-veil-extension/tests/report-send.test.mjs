@@ -30,7 +30,7 @@ describe("what a report sends", () => {
     expect(p.target).toEqual({ tag: "IMG" });
     expect(p.chain.length).toBe(1);
     expect(p.note.length).toBe(280);
-    expect(Object.keys(p.diag).sort()).toEqual(["inViewport", "isVisible"]);
+    expect(Object.keys(p.diag).sort()).toEqual(["framesOnPage", "framesWithPrism", "inViewport", "isVisible"]);
   });
   it("sends the page address and the players' addresses only when asked", () => {
     expect(sendable(base(), { kind: "display", full: false }, "1").url).toBeUndefined();

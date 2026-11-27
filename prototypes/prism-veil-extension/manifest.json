@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PRISM",
-  "version": "0.9.93",
+  "version": "0.9.94",
   "description": "Ads become art. PRISM covers the ads on a page with pictures you chose. It clicks nothing and blocks nothing from loading.",
   "content_scripts": [
     {
@@ -17,8 +17,8 @@
       "world": "MAIN",
       "all_frames": false,
       "exclude_matches": [
-        "*://www.youtube.com/embed/*",
-        "*://www.youtube-nocookie.com/embed/*",
+        "*://www.youtube.com/embed*",
+        "*://www.youtube-nocookie.com/embed*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
         "*://www.dailymotion.com/embed/*",
@@ -35,8 +35,8 @@
       "run_at": "document_start",
       "all_frames": false,
       "exclude_matches": [
-        "*://www.youtube.com/embed/*",
-        "*://www.youtube-nocookie.com/embed/*",
+        "*://www.youtube.com/embed*",
+        "*://www.youtube-nocookie.com/embed*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
         "*://www.dailymotion.com/embed/*",
@@ -69,8 +69,8 @@
       "run_at": "document_start",
       "all_frames": false,
       "exclude_matches": [
-        "*://www.youtube.com/embed/*",
-        "*://www.youtube-nocookie.com/embed/*",
+        "*://www.youtube.com/embed*",
+        "*://www.youtube-nocookie.com/embed*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
         "*://www.dailymotion.com/embed/*",
@@ -79,8 +79,8 @@
     },
     {
       "matches": [
-        "*://www.youtube.com/embed/*",
-        "*://www.youtube-nocookie.com/embed/*",
+        "*://www.youtube.com/embed*",
+        "*://www.youtube-nocookie.com/embed*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
         "*://www.dailymotion.com/embed/*",
@@ -97,8 +97,8 @@
     },
     {
       "matches": [
-        "*://www.youtube.com/embed/*",
-        "*://www.youtube-nocookie.com/embed/*",
+        "*://www.youtube.com/embed*",
+        "*://www.youtube-nocookie.com/embed*",
         "*://player.twitch.tv/*",
         "*://player.vimeo.com/video/*",
         "*://www.dailymotion.com/embed/*",

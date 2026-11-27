@@ -51,9 +51,13 @@
     return cut(a) === cut(b);
   }
   function hostOf(u) { try { return new URL(u, location.href).hostname; } catch (e) { return ""; } }
+  // The marks of a box: its names, and of an address only the host and the path. What comes after ? or # is data the page hands
+  // a frame, not a name (B-593, 2026-11-26, futurism.com on an iPhone: the ad player's frame carries a long list of settings in
+  // its address, one of them held the letters of a word in the leave-alone list, and a video ad floating in a corner was left as
+  // a pop and covered in place of being tucked away).
   function marks(el) {
     var s = "";
-    try { s = (el.id || "") + " " + (typeof el.className === "string" ? el.className : "") + " " + (el.getAttribute("aria-label") || "") + " " + (el.getAttribute("title") || "") + " " + (el.getAttribute("name") || "") + " " + (el.getAttribute("src") || ""); } catch (e) {}
+    try { s = (el.id || "") + " " + (typeof el.className === "string" ? el.className : "") + " " + (el.getAttribute("aria-label") || "") + " " + (el.getAttribute("title") || "") + " " + (el.getAttribute("name") || "") + " " + String(el.getAttribute("src") || "").split(/[?#]/)[0]; } catch (e) {}
     return s;
   }
   function anyMark(el, re) {
@@ -187,6 +191,35 @@
       } catch (e2) {}
     }
     return out;
+  }
+  // The site's own offer in a frame (B-590, 2026-11-26, a report from an article on cnbc.com on an iPhone: an offer for the
+  // site's paid plan over the whole window). It was a fixed frame at z-index 9999, a child of <body>, from a host of the site's
+  // own, so the page cannot read a close control in it and no rule above saw it. Such a frame counts when it is fixed, takes
+  // most of the window, comes from the site's own hosts, and its own class or address names an offer and no wall; the name in
+  // the address is the source. The person did not open it (asked). It is tucked away like any offer, listed, and shown on Show.
+  function offerFrames() {
+    var out = [], fs = [];
+    try { fs = document.querySelectorAll("iframe[src]"); } catch (e) {}
+    for (var i = 0; i < fs.length && i < 40 && out.length < 3; i++) {
+      var f = fs[i];
+      try {
+        if (f.getAttribute("data-prism-held") || f.closest("[data-prism-ui],[data-prism-veil],[data-prism-held]")) continue;
+        var cs = getComputedStyle(f);
+        if (cs.position !== "fixed" || cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) < 0.05) continue;
+        var r = f.getBoundingClientRect();
+        if (Math.max(0, Math.min(r.right, innerWidth) - Math.max(r.left, 0)) * Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)) < innerWidth * innerHeight * 0.7) continue;
+        out.push(f);
+      } catch (e2) {}
+    }
+    return out;
+  }
+  function framePop(f) {
+    try { var fse = document.fullscreenElement || document.webkitFullscreenElement; if (fse && (fse === f || fse.contains(f))) return null; } catch (e) {}
+    if (asked(f)) return null;
+    var h = hostOf(f.getAttribute("src") || ""), m = marks(f) + " " + String(f.getAttribute("src") || "").slice(0, 600);   // the whole address here: the offer is named in it
+    if (!h || !sameSite(h, site)) return null;
+    if (LEAVE_HARD.test(m) || WALL_WORDS.test(m) || !/offer|promo|discount/i.test(m)) return null;   // narrower than a dialog's words: nothing in the frame can be read
+    return { dest: OFFER, reason: "the site's own offer in a frame over the page", kind: "offer" };
   }
   function dialogPop(el) {
     try { var fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs && (fs === el || el.contains(fs) || fs.contains(el))) return null; } catch (e) {}
@@ -349,11 +382,22 @@
   // tucked: the unit drawn as a speck under the PRISM button (a transform from its own layout box), presses off on the unit and
   // everything inside it; what was there is kept to be put back. The numbers are worked out again at each look (a turned phone).
   var SPECK = 6;
-  function tuck(el) {
+  // Each tucked unit has a place of its own behind the button (B-593, 2026-11-26, futurism.com on an iPhone: a video ad in the
+  // corner jumped up and down without end). That page keeps its corner video clear of its bottom banner by measuring the two;
+  // with both tucked to the same point they always met, the page moved the video away, they no longer met, it moved it back, and
+  // so on twice a second. Nine places 10 px apart, each speck 6 px, so no two tucked units meet.
+  var SLOTS = [[0, 0], [0, -10], [0, 10], [-10, 0], [10, 0], [-10, -10], [10, -10], [-10, 10], [10, 10]];
+  function slotOf(rec) {
+    if (typeof rec.slot === "number") return rec.slot;
+    var used = {}; held.forEach(function (r) { if (r !== rec && typeof r.slot === "number" && r.held && r.el.isConnected) used[r.slot] = 1; });
+    var i = 0; while (used[i] && i < SLOTS.length - 1) i++;
+    return (rec.slot = i);
+  }
+  function tuck(el, slot) {
     var w = el.offsetWidth, h = el.offsetHeight, x = el.offsetLeft, y = el.offsetTop;   // its layout box, before any transform
     if (!(w > 0 && h > 0)) return "";
-    var k = Math.min(SPECK / w, SPECK / h, 1);
-    var cx = innerWidth - 34, cy = innerHeight - 29;   // the middle of the PRISM button (popups-ui.js: 14 px from the corner, 30 px tall; 44 px on a touch screen, and the point is inside both)
+    var k = Math.min(SPECK / w, SPECK / h, 1), at = SLOTS[slot || 0] || SLOTS[0];
+    var cx = innerWidth - 34 + at[0], cy = innerHeight - 29 + at[1];   // the middle of the PRISM button (popups-ui.js: 14 px from the corner, 30 px tall; 44 px on a touch screen, and the point is inside both)
     var tx = cx - (w * k) / 2 - x, ty = cy - (h * k) / 2 - y;
     return { tx: tx, ty: ty, k: k, w: w, h: h, left: cx - (w * k) / 2, top: cy - (h * k) / 2, text: "translate(" + tx.toFixed(1) + "px," + ty.toFixed(1) + "px) scale(" + k.toFixed(5) + ")" };
   }
@@ -378,7 +422,7 @@
     if (!rec.saved) rec.saved = new Map();
     var keep = function (n, p) { if (!rec.saved.has(n)) rec.saved.set(n, {}); var s = rec.saved.get(n); if (!(p in s)) s[p] = [n.style.getPropertyValue(p), n.style.getPropertyPriority(p)]; };
     try {
-      var tk = rec.previewing ? "" : tuck(el);
+      var tk = rec.previewing ? "" : tuck(el, slotOf(rec));
       // written only when it changes: a box that is watched for changes would be looked at again for each write, without end
       if (tk && !(rec.tfFrom === tk.text && el.style.getPropertyValue("transform") === rec.tfDone)) {
         ["transform", "transform-origin", "transition", "translate", "scale", "rotate"].forEach(function (p) { keep(el, p); });
@@ -535,6 +579,7 @@
     try {
       floatingPlayers().forEach(function (f) { if (!seen.has(f)) { var pp = playerPop(f); if (pp) judge(f, "", pp); } });
       dialogBoxes().forEach(function (b) { if (!seen.has(b)) { var dp = dialogPop(b); if (dp) judge(b, "", dp); } });
+      offerFrames().forEach(function (f) { if (!seen.has(f)) { var op = framePop(f); if (op) judge(f, "", op); } });
       held.forEach(function (rec) { if ((rec.kind === "player" || rec.kind === "offer") && rec.el.isConnected) keepHeld(rec); });
       if (unlock && !unlock.keep && !(unlock.rec.held && shown(unlock.rec.el))) unlockOff();   // the offer has gone, by the page or by the person's Always allow
     } catch (e5) {}
@@ -601,7 +646,10 @@
   // ---- for the panel (popups-ui.js, 2026-11-24, asked that a held unit can be let through and looked at before that). A row of
   // the panel names a destination; the units held under it are found by that name.
   function heldFor(dest) { return held.filter(function (rec) { return rec.held && rec.el.isConnected && hostOf(rec.url) === dest; }); }
-  PV.inpageHeld = function (dest) { return heldFor(dest).length > 0; };
+  // Held and out of the page now. An ad put back in its own place (parked) is in the page under a display cover: there is nothing
+  // to preview, and its row leaves the list until it is tucked away again (B-589, 2026-11-26, CNN on an iPhone: Preview on such
+  // a row did nothing).
+  PV.inpageHeld = function (dest) { return heldFor(dest).some(function (r) { return !r.parked; }); };
   // Show: the unit is put back for this visit and is not held again on this page; nothing is remembered (Always allow remembers)
   PV.inpageShow = function (dest) {
     previewOff();
