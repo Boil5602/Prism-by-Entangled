@@ -518,3 +518,17 @@ describe("Akamai Media Player", () => {
     expect(m.content_scripts.filter((c) => c.all_frames && c.matches.includes(F)).length).toBe(2);
   });
 });
+
+// 2026-11-27, the survey, salon.com on a computer: the site's floating video was tucked to a speck behind the PRISM button, an ad
+// played in it, and the cover took the whole window for the length of the ad.
+describe("the video cover of a player PRISM has put away", () => {
+  it("is the speck, never the whole window; a tiny player PRISM did not put away is as before", () => {
+    const PV = loadVeil({ host: "news.example", width: 1366, height: 860 }); PV.pickArt = () => "";
+    document.body.innerHTML = `<div id="held" data-prism-held="clear"><video id="v1"></video></div><div><video id="v2"></video></div>`;
+    const tiny = () => ({ left: 1304, top: 839, width: 6, height: 3, right: 1310, bottom: 842 });
+    const v1 = document.getElementById("v1"), v2 = document.getElementById("v2");
+    v1.getBoundingClientRect = tiny; v2.getBoundingClientRect = tiny;
+    expect(PV.__coverRect(v1, v1).width).toBe(6);
+    expect(PV.__coverRect(v2, v2).width).toBe(innerWidth);
+  });
+});

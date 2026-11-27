@@ -9,9 +9,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const read = (f) => readFileSync(join(here, "..", "src", f), "utf8");
 const realAttach = Element.prototype.attachShadow;
 
-function load(host) {
+function load(host, shop) {
   try { window.happyDOM.setURL("https://" + host + "/"); } catch (e) {}
-  window.__prismVeilNS = undefined;
+  window.__prismVeilNS = shop ? { promotedHost: () => true } : undefined;   // what src/rules.js says of a site with promoted items
   window.PrismPopups = undefined;
   Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
   Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => null });
@@ -29,7 +29,8 @@ function load(host) {
   PV.setUiPref = (k, v) => { PV.uiPrefs[k] = v; };
   PV.veilSite = () => host;
   PV.siteChoice = (k) => { const s = (PV.uiPrefs.siteChoice || {})[host]; return s && typeof s[k] === "boolean" ? s[k] : null; };
-  PV.prefHere = (k) => { const c = PV.siteChoice(k); return c === null ? !!PV.uiPrefs[k] : c; };
+  PV.prefAll = (k) => (k === "promotedVeil" ? PV.uiPrefs[k] !== false : !!PV.uiPrefs[k]);
+  PV.prefHere = (k) => { const c = PV.siteChoice(k); return c === null ? PV.prefAll(k) : c; };
   PV.setSiteChoice = (k, v) => { const m = Object.assign({}, PV.uiPrefs.siteChoice), mine = Object.assign({}, m[host]); if (typeof v === "boolean") mine[k] = v; else delete mine[k]; if (Object.keys(mine).length) m[host] = mine; else delete m[host]; PV.uiPrefs.siteChoice = m; };
   let off = false;
   PV.veilOff = () => off;
@@ -127,6 +128,28 @@ describe("the quick bar and the menu", () => {
     expect(p.PV.uiPrefs.coverLook).toBe("frosted");
     p.press(p.all(".qseg")[0].querySelectorAll("button")[0]);
     expect(p.PV.uiPrefs.coverLook).toBe(undefined);
+  });
+
+  it("gives a site with promoted items its switch: hidden until the person shows them, on this site or on all sites", async () => {
+    const p = load("www.walmart.com", true); await p.pass(0);
+    p.press(".pill"); await p.pass(0);
+    expect(p.all(".qchip").map((c) => c.getAttribute("aria-label"))).toEqual(["Paid promotions: hidden"]);
+    p.press(".qchip");
+    expect(p.PV.uiPrefs.siteChoice).toEqual({ "www.walmart.com": { promotedVeil: false } });
+    expect(p.all(".qchip").map((c) => c.getAttribute("aria-label"))).toEqual(["Paid promotions: shown"]);
+    p.press(".qchip");
+    expect(p.PV.uiPrefs.siteChoice).toEqual({});                       // back to the setting for all sites: no answer is kept
+    p.press('[data-q="more"]');
+    expect(p.rows()).toEqual(["Paid promotions", "Popups", "PRISM button"]);
+    const e = () => p.$('.qeye[data-k="promotedVeil"]');
+    expect(e().getAttribute("data-hidden")).toBe("1");
+    p.PV.uiPrefs.promotedVeil = false; p.press('.qglb[data-k="promotedVeil"]');
+    expect(e().getAttribute("data-hidden")).toBe("0");                 // the setting for all sites, switched off, shows through
+  });
+  it("has no promoted switch on a site with no rule for promoted items", async () => {
+    const p = load("www.example.com"); await p.pass(0);
+    p.press(".pill"); await p.pass(0);
+    expect(p.all(".qchip").length).toBe(0);
   });
 
   it("shows a site's own answer: the globe lit and the eye greyed while the site follows all sites, the globe out and the eye lit once the site answers", async () => {

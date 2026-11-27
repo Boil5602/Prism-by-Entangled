@@ -198,7 +198,7 @@
       } catch (eH) {}
       try { d.family = PV.playerFamily ? PV.playerFamily() : null; } catch (eF) {}
       try { d.adStack = PV.adStackHere ? PV.adStackHere() : null; } catch (eS) {}
-      try { d.prefs = PV.uiPrefs ? { srcMarks: !!PV.uiPrefs.srcMarks, aiVeil: !!PV.prefHere("aiVeil"), veilPaused: PV.uiPrefs.veilPaused !== false, hud: PV.uiPrefs.hud || "interactive", pauseAfter: !!(PV.pauseAfterPref && PV.pauseAfterPref()) } : null; } catch (e9) {}
+      try { d.prefs = PV.uiPrefs ? { srcMarks: !!PV.uiPrefs.srcMarks, aiVeil: !!PV.prefHere("aiVeil"), promotedVeil: !!PV.prefHere("promotedVeil"), veilPaused: PV.uiPrefs.veilPaused !== false, hud: PV.uiPrefs.hud || "interactive", pauseAfter: !!(PV.pauseAfterPref && PV.pauseAfterPref()) } : null; } catch (e9) {}
       // The video veil's state at the pick (a Paramount+ show sat "Paused"
       // under the veil with nothing in the report saying why, 2026-09-12).
       try {
@@ -540,7 +540,10 @@
   // (PV.veilSite). Only the settings listed in SITE_CHOICES can be answered by a site. PV.prefHere is what holds on this page;
   // PV.siteChoice is the site's own answer (true, false, or null for none); PV.setSiteChoice(k, null) takes the answer away, so
   // the site follows the setting for all sites again.
-  var SITE_CHOICES = { aiVeil: 1, suggestedVeil: 1 };
+  // promotedVeil (a shop's paid products, rules.js) is the one that is on until switched off: PV.prefAll is the setting for all sites
+  // with that read in.
+  var SITE_CHOICES = { aiVeil: 1, suggestedVeil: 1, promotedVeil: 1 }, ON_UNLESS_OFF = { promotedVeil: 1 };
+  PV.prefAll = function (k) { var v = PV.uiPrefs ? PV.uiPrefs[k] : undefined; return ON_UNLESS_OFF[k] === 1 ? v !== false : !!v; };
   PV.siteChoice = function (k) {
     try {
       var m = PV.uiPrefs && PV.uiPrefs.siteChoice, s = m && m[PV.veilSite()];
@@ -548,7 +551,7 @@
     } catch (e) {}
     return null;
   };
-  PV.prefHere = function (k) { var c = PV.siteChoice(k); return c === null ? !!(PV.uiPrefs && PV.uiPrefs[k]) : c; };
+  PV.prefHere = function (k) { var c = PV.siteChoice(k); return c === null ? PV.prefAll(k) : c; };
   PV.setSiteChoice = function (k, v) {
     if (SITE_CHOICES[k] !== 1) return;
     var old = (PV.uiPrefs && PV.uiPrefs.siteChoice) || {}, m = {}, site = PV.veilSite();

@@ -53,6 +53,8 @@ describe("a screen-high creative beside the ad server's frame", () => {
       const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 796 });
       const out = detect(PV, SLOT(gh));
       expect(out.map((o) => [o.id, o.why])).toEqual([["mbk", "mobkoi-creative: the ad's own element in the ad server's container"]]);
+      // its cover is laid over the page, never put into the ad's own tree (2026-11-27: the ad drew over a cover inside it)
+      expect(document.getElementById("mbk").__prismForceOverlay).toBe(true);
     }
   });
   it("covers the ad server's own container when a screen-high creative in it is no known element", () => {
@@ -676,29 +678,29 @@ describe("close control through the cover", () => {
     const PV = loadCovers(loadVeil());
     const bar = (id, y, h, more = "") => `<div id="${id}" style="position:sticky;background-color:rgb(255,255,255);${more}" ${R(0, y, innerWidth, h)}></div>`;
     document.body.innerHTML = bar("nav", 0, 48) + bar("live", 48, 89);
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(137);
     expect(PV.topBar.el.id).toBe("live");
     document.body.innerHTML = bar("nav", 0, 48) + bar("live", 93, 125);   // the live strip not yet held: it is page content still
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(48);
     const h3 = Math.round(innerHeight * 0.3);
     document.body.innerHTML = bar("nav", 0, 48) + bar("mid", 48, h3) + bar("low", 48 + h3, h3);   // a third strip would carry the bar past half the window: it is left out
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(48 + h3);
   });
   it("a bar that holds below the top of the window is the bar (B-581, CBS News: the header at the foot of a fixed ad strip)", () => {
     const PV = loadCovers(loadVeil());
     const bar = (id, y, h, more = "") => `<div id="${id}" style="position:sticky;background-color:rgb(255,255,255);${more}" ${R(0, y, innerWidth, h)}></div>`;
     document.body.innerHTML = bar("nav", 43, 48, "top:43px;") + bar("live", 90, 89, "top:90px;");
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(179);
     expect(PV.topBar.from).toBe(43);
     document.body.innerHTML = bar("nav", 43, 48, "top:0px;");   // a strip still in the flow of the page, not yet held: no bar
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(0);
     document.body.innerHTML = bar("nav", 0, 48, "top:0px;");   // a bar at the very top starts at 0, as before
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(48);
     expect(PV.topBar.from).toBe(0);
   });
@@ -708,7 +710,7 @@ describe("close control through the cover", () => {
     let inner = box("", "background-color:rgb(0,0,0);");
     for (let i = 0; i < 5; i++) inner = box(inner);
     document.body.innerHTML = `<header id="hd" style="position:sticky;top:0px;" ${R(0, 0, innerWidth, 72)}>${inner}</header>`;
-    PV.findTopBar();
+    PV.findTopBar(true);
     expect(PV.topBar.top).toBe(72);
     expect(PV.topBar.el.id).toBe("hd");
   });
@@ -1393,7 +1395,7 @@ describe("the look under a display cover", () => {
     const real = document.elementsFromPoint;
     document.elementsFromPoint = (x, y) => (y < 60 ? [c, x < half ? $("l") : $("r"), $("hd"), unit] : [c, unit]);
     try {
-      PV.findTopBar();
+      PV.findTopBar(true);
       expect(PV.topBar.top).toBe(0);                     // not found by its structure
       PV.__clipOverlays();
       expect(PV.topBar.top).toBe(60);                    // found by what the page draws

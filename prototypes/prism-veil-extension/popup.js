@@ -7,6 +7,8 @@
   core owns policy, bg.js owns fetching.
 */
 (function () {
+  // The version, beside the name (2026-11-27, asked for the version in the menu).
+  try { document.getElementById("ver").textContent = chrome.runtime.getManifest().version; } catch (eV) {}
   // Tooltip panel: hover or keyboard-focus a [data-tip] row and its text
   // (our own HTML) shows in one styled panel below or above the row.
   (function tips() {
@@ -268,6 +270,7 @@
     $("veil-on").checked = !ui.veilOff;
     $("ai-veil").checked = !!ui.aiVeil;
     $("suggested-veil").checked = !!ui.suggestedVeil;
+    $("promoted-veil").checked = ui.promotedVeil !== false;   // on unless switched off (decision 2026-11-27)
     $("small-view").checked = ui.smallView !== false;   // on unless switched off
     var look = ui.breakLook === "mute" || ui.breakLook === "show" ? ui.breakLook : "veil";
     Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) { l.classList.toggle("on", l.dataset.snd === (ui.breakSound || "")); });
@@ -294,6 +297,7 @@
   $("veil-on").addEventListener("change", function () { setUi("veilOff", !$("veil-on").checked); });
   $("ai-veil").addEventListener("change", function () { setUi("aiVeil", $("ai-veil").checked); });
   $("suggested-veil").addEventListener("change", function () { setUi("suggestedVeil", $("suggested-veil").checked); });
+  $("promoted-veil").addEventListener("change", function () { setUi("promotedVeil", $("promoted-veil").checked); });
   $("small-view").addEventListener("change", function () { setUi("smallView", $("small-view").checked); });
   Array.prototype.forEach.call(document.querySelectorAll("#sound-seg label"), function (l) {
     l.addEventListener("click", function () { setUi("breakSound", l.dataset.snd || undefined); });

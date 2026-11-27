@@ -16,7 +16,7 @@
   var PV = window.__prismVeilNS || (window.__prismVeilNS = {});
   // a setting as it holds on this page: the site's own answer where there is one (report.js, PV.prefHere), else the setting for
   // all sites; read straight from the settings where report.js is not loaded
-  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : !!(PV.uiPrefs && PV.uiPrefs[k]); }
+  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : (k === "promotedVeil" ? !(PV.uiPrefs && PV.uiPrefs[k] === false) : !!(PV.uiPrefs && PV.uiPrefs[k])); }
 
   // "Page-sized": an element that is (about) the page, never an ad - MSN's
   // .ad-banner-wrapper spanning the viewport for a moment at load. It was
@@ -84,6 +84,69 @@
     "iframe[src*='pubmatic.com']",
     "iframe[src*='openx.net']",
     "iframe[src*='taboola.com']",
+    // Taboola's display frame (survey 2026-11-27: nbcnews.com, foxnews.com, independent.co.uk on a phone, and three reports from
+    // usatoday.com the day before): a video or display ad in a frame of cdn.taboola-display.com, class taboola-connect-iframe, the
+    // one item of its widget, often with no paid label beside it for the item rule to read.
+    "iframe[src*='taboola-display.com']", "iframe.taboola-connect-iframe",
+    // Media.net (survey 2026-11-27: forbes.com, businessinsider.com on a phone): its frames have an id that starts _mN_
+    // (_mN_main_<n>, title "MediaNetIframe" or "Media.net Bytes"), with no address to read a host from.
+    "iframe[id^='_mN_']",
+    // Big Happy (survey 2026-11-27: independent.co.uk and foodnetwork.com on a phone): a strip of 375x150 whose creative is a
+    // frame of cdn.bighappy.co (iframe#bh-div in div#bh-wrapper-iframe, a child of the body).
+    "iframe[src*='bighappy.co']",
+    // A list item the site itself marks as paid (survey 2026-11-27, dailymail.com on a phone: `li[data-is-sponsored="true"]`
+    // 436x115 in the story lists, with the site's own "Ad Feature" tag on it).
+    "li[data-is-sponsored='true']",
+    // Ad servers and ad platforms whose creative is a frame from their own serving host (survey pass 2, 2026-11-27). Each host
+    // is the platform's own; the first three were in the walk, the others are named by the platform's public serving domain
+    // and wait to be seen:
+    "iframe[src*='flashtalking.com']",        // Flashtalking (polygon.com: iframe#ftframe<n> from cdn.flashtalking.com, 440x836)
+    "iframe[src*='postrelease.com']",         // Nativo (thehill.com: its links go through jadserve.postrelease.com)
+    "iframe[id^='gfp_ad_']",                  // Naver's ad platform (m.naver.com: div#gfp_ad_m_naver_home_feed_1 holds a frame with that id and _tgt)
+    "iframe[src*='serving-sys.com']",         // Sizmek (Amazon Ad Server)
+    "iframe[src*='celtra.com']",              // Celtra
+    "iframe[src*='adform.net']",              // Adform
+    "iframe[src*='gumgum.com']",              // GumGum
+    "iframe[src*='jivox.com']",               // Jivox
+    "iframe[src*='sharethrough.com']",        // Sharethrough
+    "iframe[src*='undertone.com']",           // Undertone
+    "iframe[src*='kargo.com']",               // Kargo
+    "iframe[src*='seedtag.com']",             // Seedtag
+    "iframe[src*='contextual.media.net']",    // Media.net, where its frame has an address
+    "iframe[src*='adfox.ru']", "iframe[src*='an.yandex.ru']", "iframe[src*='yandexadexchange.net']",   // Yandex's ad network and AdFox
+    "iframe[src*='syndicatedsearch.goog']",   // Google's search ads on a site (snopes.com: iframe#master-1 from syndicatedsearch.goog/afs/ads, 410x688)
+    "iframe[src*='ssp.im.cz']",               // Seznam's ad system (seznam.cz: a frame from ssp.im.cz in div.ssp-advert, 440x440)
+    // Survey pass 3 (2026-11-27): the networks a site places itself, each by its own published markup or serving host.
+    "iframe[id$='_tgtLREC']",                 // Naver on a computer (naver.com home: nine frames, most with no address, ids <slot>_tgtLREC, title "AD", 830x130 to 420x240)
+    "iframe[src*='veta.naver.com']",          // Naver's ad server (naver.com: siape.veta.naver.com/fxshow)
+    "ins[data-revive-zoneid]",                // Revive Adserver's own tag (its async tag: ins data-revive-zoneid data-revive-id); from the tag's published form, not seen on a walk
+    "iframe[src*='servedbyadbutler.com']",    // AdButler's serving host; from the host, not seen on a walk
+    "iframe[data-aa]",                        // A-ADS's own tag (iframe data-aa=<unit> from ad.a-ads.com); from the tag's published form
+    "iframe[src*='a-ads.com']",
+    "ins.kakao_ad_area",                      // Kakao AdFit's own tag; from the tag's published form
+    "ins.mrg-tag",                            // VK's myTarget tag (rbc.ru: one unit)
+    "iframe[src*='pos.baidu.com']",           // Baidu's ad serving host; from the host
+    // Survey pass 4 (2026-11-27): portals of other countries at a computer's size.
+    "iframe[src*='mradx.net']",               // VK's myTarget serving host (mail.ru: a floating strip 1366x150 from r.mradx.net)
+    "iframe[src*='newpolong.detik.com']",     // detik's own ad server (detik.com home: six frames)
+    // Survey pass 5 (2026-11-27): each from the network's own serving host or published tag; none seen on a walk (the pages walked
+    // had every unit covered already).  A frame is covered only at a size a person can see.
+    "iframe[src*='exosrv.com']",                // ExoClick
+    "iframe[src*='exoclick.com']",              // ExoClick
+    "iframe[src*='juicyads.com']",              // JuicyAds
+    "iframe[src*='trafficjunky.net']",          // TrafficJunky
+    "iframe[src*='highperformanceformat.com']", // Adsterra's banner frames
+    "iframe[src*='coinzilla.io']",              // Coinzilla
+    "iframe[src*='bitmedia.io']",               // Bitmedia
+    "iframe[src*='i-mobile.co.jp']",            // i-mobile (Japan)
+    "iframe[src*='microad.jp']",                // MicroAd (Japan)
+    "iframe[src*='lijit.com']",                 // Sovrn
+    "iframe[src*='creativecdn.com']",           // RTB House
+    "iframe[src*='omnitagjs.com']",             // Adyoulike
+    "iframe[src*='sonobi.com']",                // Sonobi
+    "iframe[src*='33across.com']",              // 33Across
+    "ins[class^='eas6a97888e']",             // ExoClick's own tag
+    "div.coinzilla",                         // Coinzilla's own tag (div class coinzilla data-zone)
     "iframe[src*='outbrain.com']",
     // native "Sponsored Stories" / recommendation widgets (cover the WHOLE
     // widget, not the nested header/text - so use the widget-level container).
@@ -154,7 +217,65 @@
     "[class*='bx-vpaid']",
     "[class*='bx-creative']",
   ];
-  var SLOT_QUERY = SLOT_SELECTORS.join(",");
+  // ONE QUERY FOR MANY SELECTORS, GROUPED (2026-11-27, the survey's profile, B-601). A list of 90 selectors joined by commas is
+  // tried in full against every element of the page: 15 to 20 ms a look on a page of 6000 elements in Firefox. Most of them
+  // share a first test that most elements fail, so they are grouped under it with :is(): the 48 frame selectors under `iframe`
+  // (one tag test for an element that is no frame), the class selectors with "ad" in their text under `[class*='ad' i]`, the
+  // other class selectors under `[class]`, the id selectors under `[id]`. The grouped query matches exactly the elements the
+  // plain list matches, in the same order (tests/platforms.test.mjs holds the two to each other); measured, 4 to 6 ms in place
+  // of 11 to 15 on cbssports.com and 9 to 11 in place of 16 to 18 on yahoo.com. A browser that does not know :is() or the `i`
+  // flag throws on the first try and gets the plain list. The names in SLOT_SELECTORS and the rule names made from them do not
+  // change: only the search is grouped.
+  function splitSelectors(sel) {
+    var out = [], depth = 0, quote = "", cur = "";
+    for (var i = 0; i < sel.length; i++) {
+      var ch = sel.charAt(i);
+      if (quote) { if (ch === quote) quote = ""; cur += ch; continue; }
+      if (ch === "'" || ch === '"') { quote = ch; cur += ch; continue; }
+      if (ch === "(" || ch === "[") depth++; else if (ch === ")" || ch === "]") depth--;
+      if (ch === "," && depth === 0) { if (cur.trim()) out.push(cur.trim()); cur = ""; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  var RX_CLASS_HAS = /^\[class\*='([^']+)'\]$/, RX_ID_HAS = /^\[id[*^]='[^']+'\]$/, RX_TAGGED = /^(iframe|div)((?:\[[^\]]+\]|\.[A-Za-z0-9_-]+)+)$/;
+  function groupedQuery(list) {
+    var plain = list.join(",");
+    try {
+      var parts = [];
+      list.forEach(function (x) { splitSelectors(x).forEach(function (y) { parts.push(y); }); });
+      var ad = [], cls = [], ids = [], rest = [], tags = {}, tagOrder = [];
+      parts.forEach(function (x) {
+        var m = RX_CLASS_HAS.exec(x);
+        if (m) { (/ad/i.test(m[1]) ? ad : cls).push(x); return; }
+        if (RX_ID_HAS.test(x)) { ids.push(x); return; }
+        m = RX_TAGGED.exec(x);
+        if (m) { if (!tags[m[1]]) { tags[m[1]] = []; tagOrder.push(m[1]); } tags[m[1]].push(m[2]); return; }
+        rest.push(x);
+      });
+      var out = rest.slice();
+      tagOrder.forEach(function (t) { out.push(tags[t].length > 1 ? t + ":is(" + tags[t].join(",") + ")" : t + tags[t][0]); });
+      if (ad.length > 1) out.push("[class*='ad' i]:is(" + ad.join(",") + ")"); else out = out.concat(ad);
+      if (cls.length > 1) out.push("[class]:is(" + cls.join(",") + ")"); else out = out.concat(cls);
+      if (ids.length > 1) out.push("[id]:is(" + ids.join(",") + ")"); else out = out.concat(ids);
+      var q = out.join(",");
+      document.querySelector(plain);   // a list with a selector the browser refuses stays the plain list, and fails as it did
+      document.querySelector(q);
+      return q;
+    } catch (e) { return plain; }
+  }
+  PV.groupedQuery = groupedQuery;   // tests
+  var SLOT_QUERY = groupedQuery(SLOT_SELECTORS);
+  // The paid items of recommendation feeds (collectTargets): the item's own class, and the host its paid links go through.
+  var PAID_ITEMS = [
+    { item: ".mgline", host: "mgid.com", why: "mgid-item: MGID's own click address on the item" },
+    { item: ".rc-item", host: "revcontent.com", why: "revcontent-item: Revcontent's own click address on the item" },
+    // `box` names the network's widget where it has a cover of its own (an ad-stack entry): its items are named only when the
+    // widget is page-sized and so gets none.
+    { item: ".zergentity", host: "zergnet.com", box: "[id^='zergnet-widget']", why: "zergnet-item: ZergNet's own click address on the item" },
+  ];
+  var PAID_ITEM_QUERY = PAID_ITEMS.map(function (x) { return x.item; }).join(",");
 
   // AD STACKS - the banner analogue of the video player families: mid-size
   // publishers don't call GPT themselves, they run an ad-management wrapper
@@ -179,8 +300,31 @@
     { stack: "Carbon", sel: "#carbonads" },
     { stack: "BuySellAds", sel: "[id^='bsa-zone_'], .bsa-cpc, .bsa_it_ad" },
     { stack: "EthicalAds", sel: "[data-ea-publisher]" },
+    // The ad platform survey of 2026-11-27 (headless Firefox as a phone and as a computer over some 170 sites: each entry names
+    // the site its markers were read on).
+    { stack: "Polar (MediaVoice)", sel: ".mediavoice-native-ad, [data-mediavoice-render-injection-id]" },   // cnbc.com: a paid post in the home page's river, its own "Paid Post For" line under it
+    { stack: "Future (Bordeaux)", sel: ".bordeaux-filled-slot" },   // pcgamer.com: Future's own ad system; a sponsored card is a Google ad drawn into the page beside its frame, 424x297
+    { stack: "ZergNet", sel: "[id^='zergnet-widget']" },   // tmz.com: a box of paid links 408x604 under the story, its own "Powered by ZergNet" line, every link to zergnet.com
+    { stack: "OpenWeb", sel: "[data-openweb-ad]" },   // nypost.com: OpenWeb's (Spot.IM's) ad unit in the story, 420x300, its frames with no address
+    { stack: "Nativo", sel: "[data-ntv-id]" },   // thehill.com (div.ntv-rr 400x139 in the story, links through jadserve.postrelease.com) and chicagotribune.com (article.ntv-rail 300x355 in the side column, links that open through Nativo's script): Nativo's own attribute on its paid unit, each with its "Sponsored Content" line
+    { stack: "Seznam SSP", sel: ".ssp-advert" },   // seznam.cz: the slot of Seznam's own ad system, links to ssp.seznam.cz
+    { stack: "VDO.AI", sel: "vdo.vdo_video_unit, [id^='_vdo_ads_player']" },   // news18.com: VDO.AI's floating ad player (its own element `vdo`, id _vdo_ads_player_ai_<n>), 256x192 fixed
+    { stack: "Dable", sel: "[id^='dablewidget_']" },   // Dable's widget (its published code: div id dablewidget_<id> data-widget_id); not seen on a walk
+    { stack: "popIn", sel: "._popIn_recommend" },   // popIn's widget (its published code); not seen on a walk
+    { stack: "Engageya", sel: "[id^='ENGAGEYA_WIDGET']" },   // Engageya's widget (its published code); not seen on a walk
+    { stack: "Begun", sel: "[id^='begun_block_']" },   // rambler.ru: Rambler's ad system (Begun), eight blocks 970x240 and 300x600, each a frame from imgredirect.rambler.ru
+    { stack: "AdFox", sel: "[id^='adfox_']" },   // ria.ru: AdFox's container (its published code: div id adfox_<n>), 300x600, a picture that links through yandex.ru/adfox
+    { stack: "NetEase", sel: ".mod_js_ad" },   // 163.com: NetEase's own ad module (data-adid, its own ad label beside it), 1200x125, 860x125, 300x250
+    { stack: "Tencent", sel: ".gdt-ad-container, .banner_ad-item, .ad-cell-common" },   // Tencent's ad network container (163.com: div.gdt-ad-container data-placementid) and the paid cells of qq.com (1229x79 and 389x60, each with its own ad label)
+    { stack: "Stroeer", sel: ".sdgSlotContainer" },   // t-online.de: Stroeer's slot container; seen empty behind the consent wall, not seen filled
+    { stack: "Sina", sel: "ins.sinaads" },   // sina.com.cn: Sina's own ad tag (ins.sinaads data-ad-pdps), 25 units on the home page from 1000x97 to 340x26 text lines
+    { stack: "Yandex", sel: "[id^='yandex_rtb_']" },   // Yandex's ad block container (its published code: div id yandex_rtb_R-A-<n>-<m>); not seen on a walk
+    { stack: "Kevel", sel: "div[id^='azk']" },   // Kevel (Adzerk): its ad div (id azk<n>); from its published code
+    { stack: "Venatus", sel: ".vm-placement" },   // Venatus: its placement div; from its published code
+    { stack: "AdPushup", sel: "._ap_apex_ad" },   // AdPushup: its ad div; from its published code
+    { stack: "Monumetric", sel: "div[id^='mmt-']" },   // Monumetric: its ad div (id mmt-<uuid>); from its published code
   ];
-  var STACK_QUERY = AD_STACKS.map(function (a) { return a.sel; }).join(",");
+  var STACK_QUERY = groupedQuery(AD_STACKS.map(function (a) { return a.sel; }));
 
   // RULE UPDATES (0.9.0, src/rules-pack.js): with "Get ad cover updates" on, a signed rule file the background has verified and
   // stored joins the packaged rules here, and so do the person's own rules (pv:rules:mine), which an update never writes and which
@@ -199,7 +343,7 @@
     var live = function (sel) { if (selLive(sel)) return true; dropped.push(sel); return false; };
     SLOT_SELECTORS.length = 0; eff.slots.forEach(function (x) { if (live(x)) SLOT_SELECTORS.push(x); });
     AD_STACKS.length = 0; eff.stacks.forEach(function (x) { if (live(x.sel)) AD_STACKS.push(x); });
-    SLOT_QUERY = SLOT_SELECTORS.join(","); STACK_QUERY = AD_STACKS.map(function (a) { return a.sel; }).join(",");
+    SLOT_QUERY = groupedQuery(SLOT_SELECTORS); STACK_QUERY = groupedQuery(AD_STACKS.map(function (a) { return a.sel; }));
     eff.sites.forEach(function (st) {
       st.cover = st.cover.filter(live); st.never = st.never.filter(live);
       if (st.closest && !live(st.closest)) { st.cover = []; }
@@ -538,6 +682,19 @@
   // not an ad unit, and covering it buries the products the user is browsing.
   // The true ad-network slot selectors (amazon-adsystem iframes, etc.) still run,
   // so real ad banners are still veiled - just not sponsored product tiles.
+  // PROMOTED ITEMS (pv:ui.promotedVeil, 2026-11-27, decided: they stay covered, and the person can leave them in view for all
+  // sites or for one site, as with suggested posts and AI-made items). A promoted item is an item of the site's own list or
+  // feed that the site itself labels as promoted or sponsored: a product a seller paid a shop to place, a promoted post in a
+  // feed. The sites named are the ones where a rule reads that label: the shops where the survey of 2026-11-27 saw it read and
+  // the product covered (B-606), and the feeds with a rule of their own or a label the label search reads. The setting holds
+  // for the covers whose reason is in PROMOTED_WHY and for no other: the site's ad frames, its sections of paid content and its
+  // video ads are not this setting's and stay covered. On unless switched off.
+  var PROMOTED_HOSTS = /(^|\.)((walmart|bestbuy|newegg|linkedin|facebook|instagram|reddit|x|twitter)\.com|amazon\.[a-z]{2,3}(\.[a-z]{2})?)$/i;
+  var PROMOTED_WHY = /^(facebook-sponsored|x-promoted|instagram-label|reddit:shreddit-ad-post|badge-label: (sponsored|promoted)$)/i;
+  PV.promotedHost = function (h) { return PROMOTED_HOSTS.test(h || location.hostname); };
+  // Amazon (2026-11-27, decided: the setting for paid promotions holds there too). Until then the label search was off on Amazon
+  // whole, so its sponsored products stood in view. Now the search runs there for the one word "Sponsored" and nothing else,
+  // and the setting decides; with the setting off the search does not run there at all, as before.
   var LABEL_WALKER_OFF = /(^|\.)amazon\.[a-z]{2,3}(\.[a-z]{2})?$/i;
 
   // Hosts with no ad inventory, where no display cover is ever drawn. The
@@ -1432,6 +1589,10 @@
       run: function (root, ctx) {
         var AD_MENU = /^(ad options|report (this )?ad|why (am i seeing )?this ad\??|hide (this )?ad|stop seeing this ad|about this ad|this ad is not relevant)$/i;
         var base = (root === document) ? document.body : root;
+        // First ask the page's whole text, in one call, whether any of these words is in it at all: a text node that reads one
+        // of them is part of that text, so a page without them has nothing for the walk to find and the walk is not made
+        // (2026-11-27, the survey's profile, B-601: on cbssports.com this walk took 14 ms of each look and found nothing).
+        try { if (!/ad options|report (this )?ad|why (am i seeing )?this ad|hide (this )?ad|stop seeing this ad|about this ad|this ad is not relevant/i.test(base.textContent || "")) return; } catch (eT) {}
         var tw = document.createTreeWalker(base, NodeFilter.SHOW_TEXT), tn, seen = 0, done = new Set();
         while ((tn = tw.nextNode()) && seen++ < 40000) {
           var tt = tn.nodeValue && tn.nodeValue.trim();
@@ -1634,9 +1795,11 @@
     var mySites = UPD.sites.length ? updSites() : [], never = [];
     mySites.forEach(function (st) { never = never.concat(st.never); });
     var neverQuery = never.join(",");
+    var promotedShown = PROMOTED_HOSTS.test(location.hostname) && !prefHere("promotedVeil");   // promoted items left in view by the person
     var ctx = {
       add: function (el, reason, whole) {
         if (!el || !PV.isVisible(el)) return;
+        if (promotedShown && PROMOTED_WHY.test(reason)) return;
         // an update's (or the person's) "never cover this here": the element, or anything inside one that matches
         if (neverQuery) { try { if (el.closest && el.closest(neverQuery)) return; } catch (eN) {} }
         if (el.closest && el.closest("[data-prism-ui]")) return;   // PRISM's own cards: the look under a cover holds a copy of the covered element (covers.js)
@@ -1718,7 +1881,10 @@
       // one-item widget is named whatever the widget's size. A smaller widget of several items is still left to its own cover.
       try {
         root.querySelectorAll(".videoCube").forEach(function (it) {
-          if (!it.querySelector("[class*='disclosure_link']")) return;
+          // The label may stand outside the item, at the foot of its widget (survey 2026-11-27, cbssports.com on a phone: cards of
+          // one paid item 414x866 to 414x999 on a 440x836 screen stood bare). Taboola's own class trc-content-sponsored on the
+          // widget says every item in it is paid; a widget of mixed items has trc-content-hybrid and is not read this way.
+          if (!it.querySelector("[class*='disclosure_link']") && !it.closest(".trc_rbox.trc-content-sponsored")) return;
           var w = it.parentElement, inWidget = false;
           for (var d = 0; w && w !== document.body && d < 14; d++, w = w.parentElement) {
             if (!w.matches("[id^='taboola-'], [class*='trc_rbox'], [class*='trc_related'], [data-widget-id*='taboola']")) continue;
@@ -1744,21 +1910,36 @@
           if (fixedLayer(mb)) return;
           var br = mb.getBoundingClientRect();
           if (br.width < 100 || br.height < 50 || br.height > innerHeight * 3) return;
+          // Its cover is laid over the page, never put into the ad (2026-11-27, reuters.com in Safari on an iPhone on 0.9.95: the ad
+          // stood bare all the same, with only the cover of the server's small frame at its top, and the page failed again and
+          // again). The element is a shadow host with no slot, so its cover went into the ad server's container at a layer under
+          // the ad's own, which draws at the top layer number; and a new element in that container is a change the ad's script
+          // can answer. Over the page the cover is above every layer and nothing in the ad's tree is touched.
+          mb.__prismForceOverlay = true;
           ctx.add(mb, "mobkoi-creative: the ad's own element in the ad server's container", true);
         });
       } catch (eK) {}
-      // MGID's paid items (B-594, 2026-11-26, four reports from an article on futurism.com on an iPhone: a column of items with a
-      // picture and a headline, none covered). The widget is `.mgbox`, 408x2887 on a 440x836 screen, so no cover takes it whole;
-      // each item is a `.mgline` whose links go through MGID's own click address (clck.mgid.com). That address is the source:
-      // every item that links through it is paid, and each is covered as one unit.
+      // Paid items of a recommendation feed that is taller than the screen, so no cover takes the feed whole. Each network marks
+      // an item with a class of its own and sends its paid links through its own click address; that address is the source, so an
+      // item that links elsewhere (the site's own story in the same feed) is never covered. One search of the page for all of them.
+      //   MGID (B-594, 2026-11-26, four reports from futurism.com on an iPhone: `.mgbox` 408x2887, items `.mgline`, links to
+      //     clck.mgid.com)
+      //   ZergNet (survey 2026-11-27, tmz.com on a phone: `#zergnet-widget-<id>` 408x604 on a 440x836 screen reads as page-sized,
+      //     items `.zergentity` 196x259, links to www.zergnet.com)
+      //   Revcontent (survey 2026-11-27, tasteofhome.com on a phone: `#rc-widget-<id>` 398x3605, items `.rc-item`, links to
+      //     smeagol.revcontent.com and trends.revcontent.com)
       try {
-        root.querySelectorAll(".mgline").forEach(function (it) {
-          var a = it.querySelector("a[href*='.mgid.com/'], a[href*='//mgid.com/']");
+        root.querySelectorAll(PAID_ITEM_QUERY).forEach(function (it) {
+          var net = null;
+          for (var k = 0; k < PAID_ITEMS.length && !net; k++) { if (it.matches(PAID_ITEMS[k].item)) net = PAID_ITEMS[k]; }
+          if (!net) return;
+          var a = it.querySelector("a[href*='" + net.host + "']");
           if (!a) return;
-          try { if (!/(^|\.)mgid\.com$/.test(new URL(a.href, location.href).hostname)) return; } catch (eU) { return; }
+          try { var ah = new URL(a.href, location.href).hostname; if (ah !== net.host && ah.slice(-net.host.length - 1) !== "." + net.host) return; } catch (eU) { return; }
+          if (net.box) { var bx = it.closest(net.box); if (bx && !PV.pageSized(bx.getBoundingClientRect())) return; }
           var mr = it.getBoundingClientRect();
           if (mr.width < 100 || mr.height < 50 || mr.height > innerHeight * 2.2) return;
-          ctx.add(it, "mgid-item: MGID's own click address on the item", true);
+          ctx.add(it, net.why, true);
         });
       } catch (eM) {}
       // A label the page draws from an attribute, with no text of its own in the page (B-584, CBS News, 2026-11-26: the picture of a
@@ -1806,12 +1987,14 @@
       // Skipped on LABEL_WALKER_OFF hosts (Amazon), where "Sponsored" tags
       // shopping results rather than ad units.
       var base = (root === document) ? document.body : root;
-      var walker = (LABEL_WALKER_OFF.test(location.hostname) || updHost(UPD.labelOff)) ? null : document.createTreeWalker(base, NodeFilter.SHOW_TEXT), n;
+      var sponsoredOnly = LABEL_WALKER_OFF.test(location.hostname);
+      var walker = ((sponsoredOnly && promotedShown) || updHost(UPD.labelOff)) ? null : document.createTreeWalker(base, NodeFilter.SHOW_TEXT), n;
       while (walker && (n = walker.nextNode()) && budget > 0) {
         budget--;
         var t = n.nodeValue && n.nodeValue.trim();
         if (!t || t.length > 28) continue;
         var tl = t.toLowerCase(), isSection = SECTION_AD.test(t) || UPD.section[tl] === true;
+        if (sponsoredOnly) { if (tl !== "sponsored") continue; isSection = false; }
         if (!BADGE.test(t) && UPD.badge[tl] !== true && !isSection) continue;
         var host = n.parentElement;
         if (!host) continue;
@@ -1839,10 +2022,14 @@
       ctx.add(el, "in-page pop: " + rec.reason, true);
     });
     // Innermost-only dedupe, whole-covers winning.
-    var arr = Array.from(targets);
+    // Every pair is asked, so the question is kept to one call of the browser's own contains() where it can be: a target that is
+    // in no shadow tree is inside another only if that one contains it (2026-11-27, the survey's profile).
+    var arr = Array.from(targets), inShadow = new Map();
+    arr.forEach(function (t) { var sh = true; try { var rt = t.getRootNode ? t.getRootNode() : null; sh = !rt || rt.nodeType === 11; } catch (eR) {} inShadow.set(t, sh); });
     arr.forEach(function (a) {
       arr.forEach(function (b) {
-        if (a === b || !targets.has(a) || !targets.has(b) || !PV.deepContains(a, b)) return;
+        if (a === b || !targets.has(a) || !targets.has(b)) return;
+        if (inShadow.get(b) || typeof a.contains !== "function" ? !PV.deepContains(a, b) : !a.contains(b)) return;
         if (wholeCovers.has(a)) targets.delete(b); else targets.delete(a);
       });
     });

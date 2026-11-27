@@ -47,6 +47,54 @@ describe("a site's own answer to a setting for all sites", () => {
     expect(PV.prefHere("aiVeil")).toBe(true);
   });
 
+  it("covers a shop's promoted products until the person shows them, for all sites or for the one shop; a news site's label is not this setting's", () => {
+    const R = (x, y, w, h) => `data-rect="${x},${y},${w},${h}"`;
+    const grid = `<div ${R(0, 0, 1200, 900)}><div id="p1" class="item" ${R(0, 0, 280, 420)}><a href="/ip/1" ${R(0, 0, 280, 380)}><img ${R(0, 0, 280, 280)}><span ${R(0, 290, 70, 16)}>Sponsored</span><span ${R(0, 310, 280, 40)}>A kettle</span></a></div>` +
+      `<div id="p2" class="item" ${R(300, 0, 280, 420)}><a href="/ip/2" ${R(300, 0, 280, 380)}><img ${R(300, 0, 280, 280)}><span ${R(300, 310, 280, 40)}>A toaster</span></a></div></div>`;
+    const PV = load("www.walmart.com");
+    PV.uiPrefs = {};
+    expect(PV.prefAll("promotedVeil")).toBe(true);
+    expect(detect(PV, grid).map((o) => o.id)).toEqual(["p1"]);
+    PV.uiPrefs = { promotedVeil: false };
+    expect(detect(PV, grid)).toEqual([]);
+    PV.uiPrefs = { promotedVeil: false, siteChoice: { "www.walmart.com": { promotedVeil: true } } };
+    expect(detect(PV, grid).map((o) => o.id)).toEqual(["p1"]);
+    PV.uiPrefs = { siteChoice: { "www.walmart.com": { promotedVeil: false } } };
+    expect(detect(PV, grid)).toEqual([]);
+    setHost("www.cbsnews.com");
+    PV.uiPrefs = { promotedVeil: false };
+    expect(detect(PV, grid).map((o) => o.id)).toEqual(["p1"]);
+  });
+
+  it("leaves a feed's promoted post in view once the person shows promoted items (LinkedIn), and covers it until then", () => {
+    const R = (x, y, w, h) => `data-rect="${x},${y},${w},${h}"`;
+    const post = (id, y, h, inner) => `<div ${R(0, y, 552, h)}><div id="${id}" role="listitem" ${R(0, y, 552, h)}><div ${R(0, y, 552, h)}>${inner}</div></div></div>`;
+    const feed = `<div role="list" ${R(0, 0, 552, 5896)}>` +
+      post("p1", 0, 700, `<div ${R(0, 0, 552, 60)}><span ${R(60, 10, 80, 20)}>Someone</span></div><div ${R(0, 60, 552, 640)}><img></div>`) +
+      post("promo", 720, 600, `<div ${R(0, 720, 552, 60)}><span ${R(60, 730, 40, 20)}>A firm</span><span ${R(190, 754, 60, 16)}>Promoted</span></div><div ${R(0, 780, 550, 540)}><img ${R(0, 780, 550, 540)}></div>`) +
+      `</div>`;
+    const PV = load("www.linkedin.com");
+    PV.uiPrefs = {};
+    expect(detect(PV, feed).map((o) => o.id)).toEqual(["promo"]);
+    PV.uiPrefs = { siteChoice: { "www.linkedin.com": { promotedVeil: false } } };
+    expect(detect(PV, feed)).toEqual([]);
+  });
+
+  it("reads the one word Sponsored on Amazon, and the setting decides (amazon.co.uk search, 2026-11-27: a.puis-sponsored-label in the product's title row)", () => {
+    const R = (x, y, w, h) => `data-rect="${x},${y},${w},${h}"`;
+    const card = (id, y, label) => `<div id="${id}" class="s-result-item" ${R(0, y, 803, 254)}><div class="puisg-col-inner" ${R(0, y, 803, 254)}><div ${R(0, y, 791, 69)}>` +
+      (label ? `<a class="puis-label-popover" ${R(0, y, 67, 12)}><span class="puis-label-popover-default" ${R(0, y, 53, 12)}><span ${R(0, y, 53, 12)}>${label}</span></span></a>` : "") +
+      `<a href="/dp/B0${id}" ${R(0, y + 20, 791, 40)}>A kettle</a></div><img ${R(0, y + 70, 200, 180)}></div></div>`;
+    const list = `<div class="s-main-slot" ${R(0, 0, 1070, 7465)}>` + card("k1", 0, "Sponsored") + card("k2", 270, "") + card("k3", 540, "Promoted") + `</div>`;
+    const PV = load("www.amazon.co.uk");
+    PV.uiPrefs = {};
+    expect(detect(PV, list).map((o) => [o.id, o.why])).toEqual([["k1", "badge-label: Sponsored"]]);
+    PV.uiPrefs = { promotedVeil: false };
+    expect(detect(PV, list)).toEqual([]);
+    PV.uiPrefs = { promotedVeil: false, siteChoice: { "www.amazon.co.uk": { promotedVeil: true } } };
+    expect(detect(PV, list).map((o) => o.id)).toEqual(["k1"]);
+  });
+
   it("holds only for the settings a site may answer", () => {
     const PV = load("www.facebook.com");
     PV.uiPrefs = { veilOff: false, siteChoice: { "www.facebook.com": { veilOff: true } } };

@@ -77,8 +77,23 @@
     if (pn.nodeType === 11 && pn.host) return pn.host;
     return pn;
   }
-  /** contains() that crosses shadow boundaries. */
+  /** contains() that crosses shadow boundaries: true when `a` is above `b`, never for `a` itself.
+   *  The browser's own contains() answers inside one tree in a single call; only a shadow boundary costs a step (from the tree's
+   *  root to its host). Until 2026-11-27 this climbed one parent at a time: the survey's profile of cbssports.com in Firefox had
+   *  1600 calls a look (the innermost-only pass asks for every pair of targets) at half of all the time the looks took. */
   function deepContains(a, b) {
+    if (!a || !b || a === b || a.nodeType === 11 || b.nodeType === 11 || typeof a.contains !== "function") return deepContainsWalk(a, b);
+    var n = b;
+    for (var hop = 0; hop < 64; hop++) {
+      if (a.contains(n)) return true;   // n is b (not a, by the test above) or a shadow host, and a host that is `a` itself counts
+      var root = n.getRootNode ? n.getRootNode() : null;
+      if (!root || root.nodeType !== 11 || !root.host) return false;
+      n = root.host;
+    }
+    return deepContainsWalk(a, b);
+  }
+  function deepContainsWalk(a, b) {
+    if (!b) return false;
     var n = deepParent(b);
     while (n) { if (n === a) return true; n = deepParent(n); }
     return false;

@@ -1934,6 +1934,13 @@
       try { r = video && video.getBoundingClientRect(); } catch (e4) {}
       if (real(r)) return r;
     }
+    // A player PRISM itself has put away is small because PRISM made it so (2026-11-27, the survey, salon.com on a computer:
+    // the site's floating video was tucked to a speck of 6 px behind the PRISM button, an ad played in it, and the cover took
+    // the whole window for as long as the ad ran, over the story being read). Its cover is the speck, never the window.
+    try {
+      var put = (video && video.closest && video.closest("[data-prism-held]")) || (box && box.closest && box.closest("[data-prism-held]"));
+      if (put) { r = (video || box).getBoundingClientRect(); if (r && r.width > 0 && r.height > 0) return r; }
+    } catch (e5) {}
     return { left: 0, top: 0, width: innerWidth, height: innerHeight };
   }
   PV.__coverRect = coverRect;   // for the tests

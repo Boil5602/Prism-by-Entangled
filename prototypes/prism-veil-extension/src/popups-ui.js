@@ -576,7 +576,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   // the eye beside it is greyed and shows that setting; a press on the eye gives the site its own answer and the globe goes out;
   // a press on the globe takes the answer away.
   var view = "bar", tab = "site", sub = "", popsUp = false, artRec = null, artBusy = false, artErr = "", logNote = "", lastLift = 0;
-  var HAS_SUG = /(^|\.)(facebook|linkedin)\.com$/i.test(site), HAS_AI = /(^|\.)(youtube|facebook|instagram|threads|tiktok)\.com$/i.test(site);
+  var HAS_SUG = /(^|\.)(facebook|linkedin)\.com$/i.test(site), HAS_AI = /(^|\.)(youtube|facebook|instagram|threads|tiktok)\.com$/i.test(site), HAS_PROMO = !!(PV.promotedHost && PV.promotedHost(site));
   var QCSS = [
     ".qbarwrap,.qsheet{font:15px/1.3 'Segoe UI',-apple-system,Roboto,sans-serif;color:#F2F4F7}",
     ".panel.qbarwrap{background:none;border:0;box-shadow:none;overflow:visible;max-height:none;width:auto;max-width:calc(100vw - 28px);border-radius:0}",
@@ -644,6 +644,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     ch: "p:M9 6l6 6-6 6", back: "p:M15 5l-7 7 7 7",
     globe: "c:12,12,8.5|p:M3.5 12h17M12 3.5c2.5 2.5 3.5 5.3 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.3-3.5-8.5s1-6 3.5-8.5z",
     sug: "c:9,8,3.5|p:M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M19 7v6M16 10h6",
+    tag: "p:M3 3h8l10 10-8 8L3 11z|c:7.5,7.5,1.5",
     ai: "p:M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z",
     star: "p:M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z",
     btn: "c:12,12,8.5|c:12,12,3", video: "r:3,5,18,14,3|p:M10 9l5 3-5 3z", tv: "r:3,7,18,12,2|p:M9 3l3 4 3-4",
@@ -711,7 +712,8 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   function reveal15() { closePanel(); if (PV.dismissAll) PV.dismissAll(15000); }
   function reportPick() { closePanel(); if (PV.enterReportPick) PV.enterReportPick(); }
   function allOff() { return !!ui("veilOff"); }
-  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : !!ui(k); }
+  function prefAll(k) { return PV.prefAll ? PV.prefAll(k) : (k === "promotedVeil" ? ui(k) !== false : !!ui(k)); }   // the setting for all sites
+  function prefHere(k) { return PV.prefHere ? PV.prefHere(k) : prefAll(k); }
   function covered() {
     var s = 0; try { s = (PV.reclaimWindows && PV.reclaimWindows().all) || 0; } catch (e) {}
     var m = Math.round(s / 60), h = Math.floor(m / 60);
@@ -748,17 +750,17 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (!vtotal) popsUp = false;
     var off = veilIsOff();
     if (popsUp) add(panel, add(el("div", "qover"), qlist(blockedRows())));
-    else if ((HAS_SUG || HAS_AI) && !off) {
+    else if ((HAS_SUG || HAS_AI || HAS_PROMO) && !off) {
       var chip = function (label, k) {
         var hidden = prefHere(k);
         var c = tapBtn("qchip" + (hidden ? " on" : ""), [ico(hidden ? "eyeoff" : "eye"), label], function () {
-          var nv = !hidden; if (PV.setSiteChoice) PV.setSiteChoice(k, nv === !!ui(k) ? null : nv);
+          var nv = !hidden; if (PV.setSiteChoice) PV.setSiteChoice(k, nv === prefAll(k) ? null : nv);
           renderPanel();
         }, label + (hidden ? ": hidden" : ": shown"));
         c.setAttribute("data-k", k);
         return c;
       };
-      add(panel, add(el("div", "qstrip"), HAS_SUG && chip("Suggested", "suggestedVeil"), HAS_AI && chip("AI-made", "aiVeil")));
+      add(panel, add(el("div", "qstrip"), HAS_SUG && chip("Suggested", "suggestedVeil"), HAS_AI && chip("AI-made", "aiVeil"), HAS_PROMO && chip("Paid promotions", "promotedVeil")));
     }
     var bar = el("div", "qbar");
     var cell = function (id, kids, fn, cls) { var c = tapBtn("qc" + (cls ? " " + cls : ""), kids, fn); c.setAttribute("data-q", id); return c; };
@@ -793,7 +795,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     if (tab === "all") allTab(b); else siteTab(b);
   }
   function hereRow(icon, label, k) {
-    var own = PV.siteChoice ? PV.siteChoice(k) : null, val = own === null ? !!ui(k) : own;
+    var own = PV.siteChoice ? PV.siteChoice(k) : null, val = own === null ? prefAll(k) : own;
     var g = tapBtn("qglb" + (own === null ? " on" : ""), [ico("globe")], function () { if (own !== null && PV.setSiteChoice) PV.setSiteChoice(k, null); renderPanel(); },
       own === null ? label + ": follows the setting for all sites" : label + ": use the setting for all sites");
     g.setAttribute("data-k", k);
@@ -822,6 +824,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     add(b, qlist([
       HAS_SUG && hereRow("sug", "Suggested", "suggestedVeil"),
       HAS_AI && hereRow("ai", "AI-made", "aiVeil"),
+      HAS_PROMO && hereRow("tag", "Paid promotions", "promotedVeil"),
       qrow("win", "Popups", [vtotal ? add(el("span", "v n"), String(vtotal)) : null], function () { goTo("pops"); }),
       (PV.credOn && PV.credOn() && PV.CRED_SOURCES) ? qrow("star", "Rating", [ratingDots()], function () { goTo("rating"); }) : null,
       qrow("btn", "PRISM button", [qsw("PRISM button on this site", !policy.prefs(site).hidden, function (on) {
@@ -900,9 +903,10 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     feeds: function (b) {
       add(b, head("Feeds", null, true), qlbl("All sites"), qlist([
         qrow("ai", "AI-made", [qeye("AI-made on all sites", !!ui("aiVeil"), "", function () { setUi("aiVeil", !ui("aiVeil")); })]),
-        qrow("sug", "Suggested", [qeye("Suggested on all sites", !!ui("suggestedVeil"), "", function () { setUi("suggestedVeil", !ui("suggestedVeil")); })])
+        qrow("sug", "Suggested", [qeye("Suggested on all sites", !!ui("suggestedVeil"), "", function () { setUi("suggestedVeil", !ui("suggestedVeil")); })]),
+        qrow("tag", "Paid promotions", [qeye("Paid promotions on all sites", prefAll("promotedVeil"), "", function () { setUi("promotedVeil", !prefAll("promotedVeil")); })])
       ]));
-      var sc = ui("siteChoice") || {}, rows = [], NAME = { aiVeil: "AI-made", suggestedVeil: "Suggested" };
+      var sc = ui("siteChoice") || {}, rows = [], NAME = { aiVeil: "AI-made", suggestedVeil: "Suggested", promotedVeil: "Paid promotions" };
       Object.keys(sc).sort().forEach(function (h) {
         Object.keys(NAME).forEach(function (k) {
           if (!sc[h] || typeof sc[h][k] !== "boolean") return;

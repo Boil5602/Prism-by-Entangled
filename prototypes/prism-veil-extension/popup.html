@@ -3,9 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- The page is dark, and says so (2026-11-27, Safari on an iPhone: the title Safari draws over the sheet was black on the dark sheet, not readable). -->
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0A0C0F">
 <title>PRISM</title>
 <style>
   :root { --bezel:#0A0C0F; --rail:#101317; --wall:#14171C; --panel:#1E232B; --edge:#2C333E; --ink:#F2F4F7; --dim:#D4DAE3; --faint:#C0C8D2; --accent:#F0A83C; --off:#3A4250; --card:#1D222A; }
+  :root { color-scheme: dark; }
+  .ver { font:600 12px/1 "Segoe UI",-apple-system,Roboto,sans-serif; color:var(--faint); margin-left:-14px; }
   * { box-sizing: border-box; }
   /* The settings (redrawn 2026-11-18): the main switch and the time reclaimed on top, the open site on a rail at the left, and
      everything that holds for every site on a sheet of two columns. One sheet, no scroll area, nothing deeper than a list that
@@ -141,7 +146,7 @@
 </head>
 <body>
   <div class="top">
-    <span class="brand">PRISM</span>
+    <span class="brand">PRISM</span><span class="ver" id="ver"></span>
     <label class="row master" data-tip="Off: no covers on any site. Popups are still blocked. A cover over an ad carries this symbol."><input type="checkbox" id="veil-on"><span class="dest"><span class="sym" aria-hidden="true">&#x25D0;</span>Veil on</span></label>
     <div class="row saved" data-tip="Ad time PRISM covered. Video breaks are measured; a display ad counts as 30 s."><span class="dest" id="reclaimed">…</span><button class="btn" id="reclaimed-reset" type="button" data-tip="Start again from zero">Reset</button></div>
     <button class="btn" id="settings-close" type="button" aria-label="Close the settings">Close</button>
@@ -201,6 +206,7 @@
       <h3>Other content</h3>
     <label class="row" data-tip="Cover what the platform itself labels as AI-made: YouTube, Meta, TikTok. Its covers carry this symbol."><input type="checkbox" id="ai-veil"><span class="dest"><span class="sym" aria-hidden="true">&#x2726;</span>AI-labeled content</span></label>
     <label class="row" data-tip="Cover posts in your feed from accounts you do not follow. Reels, stories and a friend's share are left alone. Facebook and LinkedIn for now. Its covers carry this symbol."><input type="checkbox" id="suggested-veil"><span class="dest"><span class="sym" aria-hidden="true">&#x279C;</span>Suggested posts</span></label>
+    <label class="row" data-tip="Cover items a site places in its own list or feed and labels as promoted or sponsored: products in a shop, posts in a feed."><input type="checkbox" id="promoted-veil"><span class="dest">Paid promotions</span></label>
     <div class="row" data-tip="<p>Three disks beside links to rated outlets, one per source.</p><p><span class='d' style='background:#3fb950'></span>good &middot; <span class='d' style='background:#d29922'></span>mixed &middot; <span class='d' style='background:#f85149'></span>poor &middot; grey = not rated</p><p>Click a disk for the reason. Nothing is hidden.</p>"><input type="checkbox" id="src-marks" hidden><span class="dest">Source reliability</span></div>
     <div class="sources" id="sources">
       <label data-tip="<p><b>Wikipedia Perennial Sources</b></p><p>Editors' ratings. Each links to its discussion.</p>"><input type="checkbox" data-src="rsp"><span class="disk" style="background:#3fb950"></span>Wikipedia RSP</label>
