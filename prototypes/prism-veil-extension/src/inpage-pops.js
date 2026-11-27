@@ -257,9 +257,23 @@
   }
   // The scroll the offer stopped is put back while the offer is tucked away (overflow on <html> and <body>, as an inline style
   // that is taken off again when the offer goes or is allowed). A body pinned in place is not undone: such an offer is covered.
+  // The presses the offer stopped are put back too (B-588, 2026-11-26, USA Today on an iPhone: with the offer tucked away no
+  // story could be pressed). The page sets pointer-events: none on <html> while its offer is open, so nothing under the offer
+  // takes a press; with the offer tucked away that left a page that scrolls and answers nothing. While the offer is held,
+  // <html> and <body> take presses again, by an inline style that is taken off with the rest.
   var unlock = null;
+  function freePress() {
+    if (!unlock) return;
+    [document.documentElement, document.body].forEach(function (n) {
+      try {
+        if (!n || getComputedStyle(n).pointerEvents !== "none") return;
+        if (!unlock.saved.some(function (x) { return x[0] === n && x[3] === "pointer-events"; })) unlock.saved.push([n, n.style.getPropertyValue("pointer-events"), n.style.getPropertyPriority("pointer-events"), "pointer-events"]);
+        n.style.setProperty("pointer-events", "auto", "important");
+      } catch (e) {}
+    });
+  }
   function unlockOn(rec) {
-    if (unlock) return true;
+    if (unlock) { freePress(); return true; }
     try {
       var b = document.body, bs = b ? getComputedStyle(b) : null;
       if (bs && bs.position === "fixed") return false;
@@ -268,10 +282,11 @@
         if (!n) return;
         var cs = getComputedStyle(n), y = cs.overflowY || String(cs.overflow || "").split(" ").pop();
         if (!/hidden|clip/.test(y)) return;
-        saved.push([n, n.style.getPropertyValue("overflow-y"), n.style.getPropertyPriority("overflow-y")]);
+        saved.push([n, n.style.getPropertyValue("overflow-y"), n.style.getPropertyPriority("overflow-y"), "overflow-y"]);
         n.style.setProperty("overflow-y", "auto", "important");
       });
       unlock = { saved: saved, rec: rec };
+      freePress();
       return true;
     } catch (e) { return false; }
   }
@@ -287,7 +302,7 @@
   }
   function unlockOff() {
     if (!unlock) return;
-    unlock.saved.forEach(function (x) { try { if (x[1]) x[0].style.setProperty("overflow-y", x[1], x[2]); else x[0].style.removeProperty("overflow-y"); } catch (e) {} });
+    unlock.saved.forEach(function (x) { try { if (x[1]) x[0].style.setProperty(x[3], x[1], x[2]); else x[0].style.removeProperty(x[3]); } catch (e) {} });
     unlock = null;
   }
   function shown(el) { try { var cs = getComputedStyle(el); return el.isConnected && cs.display !== "none" && cs.visibility !== "hidden"; } catch (e) { return false; } }
@@ -391,7 +406,8 @@
   function hold(rec) {
     if (rec.kind === "offer") {
       // tucked away with the page's scroll put back; covered where the scroll cannot be put back
-      if (!scrollLocked() || unlockOn(rec)) { rec.mode = "clear"; clearOn(rec); } else coverOn(rec);
+      var locked = scrollLocked(), free = unlockOn(rec);
+      if (!locked || free) { rec.mode = "clear"; clearOn(rec); } else coverOn(rec);
       return;
     }
     if (rec.kind === "player") { rec.mode = "clear"; rec.parked = false; clearOn(rec); return; }
@@ -410,7 +426,7 @@
       else if (!mine) clearOn(rec);
       return;
     }
-    if (rec.kind === "offer") { if (rec.mode === "clear") clearOn(rec); return; }
+    if (rec.kind === "offer") { if (rec.mode === "clear") { clearOn(rec); if (unlock && unlock.rec === rec) freePress(); } return; }
     // covered only because the page had stopped scrolling, and it scrolls again (an offer that stopped it has gone): tucked away
     if (rec.mode === "cover" && rec.lockCover && !scrollLocked() && !soundingVideo(rec.el)) { coverOff(rec); rec.mode = "clear"; clearOn(rec); return; }
     if (rec.mode === "clear") {
@@ -434,10 +450,26 @@
   // head ad is a fixed box, and the page keeps a box of the same size for it in the flow, black, right under it. Tucked away, the
   // ad left that black box bare. A fixed ad whose parent keeps its place, at its size and on the screen, lies in the page and not
   // over it: it is covered like any ad in the page, and tucked away only while that place is off the screen and the ad is not.
+  // Seen only through a window of its own size (B-586, 2026-11-26, CNN in Safari on an iPhone: Preview brought its buttons and
+  // no preview). CNN's head ad is a fixed box, and the box that keeps its place has clip-path: inset(0), which cuts a fixed box
+  // too. So the ad shows only inside that place: with the place off the screen nothing of the ad is drawn, wherever its fixed
+  // box is, and a preview that moves the ad is cut the same way. Such an ad lies in the page and never over it, and is not a pop.
+  function clipWindow(el, w, h) {
+    try {
+      for (var n = el.parentElement, i = 0; n && i < 10 && n !== document.body && n !== document.documentElement; n = n.parentElement, i++) {
+        var cp = getComputedStyle(n).clipPath;
+        if (!cp || cp === "none") continue;
+        var r = n.getBoundingClientRect();
+        return r.width * r.height <= w * h * 1.5 + 2000;
+      }
+    } catch (e) {}
+    return false;
+  }
   function inOwnPlace(el, tucked) {
     try {
       var p = el.parentElement;
       if (!p || p === document.body || p === document.documentElement) return false;
+      if (clipWindow(el, el.offsetWidth, el.offsetHeight)) return true;
       if (getComputedStyle(p).position === "fixed") return false;
       var w = el.offsetWidth, h = el.offsetHeight, pr = p.getBoundingClientRect();
       if (!(w >= MIN_SIDE && h >= MIN_SIDE)) return false;

@@ -66,6 +66,25 @@ describe("the quick bar and the menu", () => {
     expect(p.all(".qover .qmini").map((b) => b.textContent)).toEqual(["Open", "Allow"]);
   });
 
+  // B-587, 2026-11-26, USA Today on an iPhone: the button said 5 over a list of 4, and a row for a unit the page had taken out had Open.
+  it("counts the rows of its list, drops a unit the page took out, and has the background open a stopped window", async () => {
+    const p = load("news.example"); await p.pass(0);
+    const sent = []; window.chrome.runtime.sendMessage = (m, cb) => { sent.push(m); if (cb) cb({ opened: true }); };
+    const opened = []; window.open = (u) => { opened.push(u); };
+    const inPage = (url) => document.dispatchEvent(new CustomEvent("prism-popup", { detail: { attempt: { site: "news.example", url }, decision: { action: "intercept", reason: "in the page: fixed over the page, an ad (not on a list)" } } }));
+    const heldNow = new Set(["unit.example", "gone.example"]); p.PV.inpageHeld = (d) => heldNow.has(d);
+    p.block("https://ads.example/a"); p.block("https://ads.example/b");   // one address stopped twice
+    inPage("https://unit.example/frame"); inPage("https://gone.example/frame"); await p.pass(0);
+    heldNow.delete("gone.example");                                        // the page took that unit out
+    p.press(".pill"); await p.pass(0); if (!p.$(".qbar")) { p.press(".pill"); await p.pass(0); }
+    expect(p.$('[data-q="popups"] .qbd').textContent).toBe("2");
+    p.press('[data-q="popups"]');
+    expect(p.all(".qover .qrow .l").map((l) => l.textContent)).toEqual(["ads.example", "unit.example"]);
+    expect(p.all(".qover .qmini").map((b) => b.textContent)).toEqual(["Open", "Allow", "Preview", "Allow"]);
+    p.press(p.all(".qover .qmini")[0]);
+    expect(sent.filter((m) => m.type === "prism-popup-deliberate")).toEqual([{ type: "prism-popup-deliberate", url: "https://ads.example/b", open: true }]);
+    expect(opened).toEqual([]);                                            // the background opened it
+  });
   it("turns PRISM off and on for this site from the bar", async () => {
     const p = load("news.example"); await p.pass(0);
     p.press(".pill"); await p.pass(0);

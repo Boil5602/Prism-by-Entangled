@@ -841,6 +841,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   } else if (msg.type === "prism-popup-deliberate") {
     (deliberate[id] = deliberate[id] || []).push(String(msg.url || ""));
     setTimeout(function () { var l = deliberate[id]; if (l) { var i = l.indexOf(String(msg.url || "")); if (i >= 0) l.splice(i, 1); } }, 15000);
+    // Open in the list of what was stopped: the tab is opened here (B-587, Safari on an iPhone: the page's own window.open after
+    // the answer to this message opened nothing, the press being over). A web address only, beside the tab that asked.
+    if (msg.open && /^https?:\/\//i.test(String(msg.url || ""))) {
+      try {
+        chrome.tabs.create({ url: String(msg.url), active: true, index: sender.tab.index + 1 }, function () { var bad = !!chrome.runtime.lastError; try { sendResponse({ opened: !bad }); } catch (e) {} });
+        return true;
+      } catch (e) {}
+    }
     sendResponse && sendResponse(true);
   }
 });

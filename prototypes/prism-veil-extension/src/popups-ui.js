@@ -115,9 +115,17 @@
   function visitRows() {
     return Object.keys(visit).map(function (d) { return visit[d]; }).sort(function (a, b) { return b.count - a.count || b.last - a.last; });
   }
+  // What the list shows, and the number on the button (B-587, 2026-11-26, USA Today on an iPhone: the button said 5 over a list of
+  // 4, and one row had Open, which did nothing). The number was every stop, the list one row for each address, so an address
+  // stopped twice made them differ: the number is now the rows. A unit held in the page that the page has since taken out, or
+  // that the person chose to show, has nothing left to look at or to open: its row goes.
+  function listRows() {
+    return visitRows().filter(function (v) { return !(v.page >= v.count && !(PV.inpageHeld && PV.inpageHeld(v.dest))); });
+  }
   policy.on(function (ev) {
     if (ev.type === "intercepted") {
-      var v = visit[ev.dest] || (visit[ev.dest] = { dest: ev.dest, count: 0, url: ev.url, reason: ev.reason, last: 0 });
+      var v = visit[ev.dest] || (visit[ev.dest] = { dest: ev.dest, count: 0, page: 0, url: ev.url, reason: ev.reason, last: 0 });
+      if (/^in the page: /.test(String(ev.reason || ""))) v.page += 1;
       v.count += 1; v.url = ev.url || v.url; v.reason = ev.reason; v.last = Date.now();
       morph.add(1); scheduleMorph(); badge(); if (panelOpen) renderPanel();
       if (!toldStopped) { toldStopped = true; pushSnapshot(); }
@@ -126,7 +134,7 @@
     if (ev.type === "prefs" && (ev.site === site || ev.site === "*")) applyPrefs(effectivePrefs());
   });
   function badge() {
-    var n = 0; visitRows().forEach(function (r) { n += r.count; });
+    var n = listRows().length;
     try { chrome.runtime.sendMessage({ type: "prism-popup-badge", count: n }); } catch (e) {}
   }
 
@@ -658,13 +666,15 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   // what was stopped on this visit, one row each: a window opens by Open, a unit held in the page is looked at by Preview
   function blockedRows() {
-    return visitRows().map(function (v) {
+    return listRows().map(function (v) {
       var dest = v.dest, inPage = !!(PV.inpageHeld && PV.inpageHeld(dest)), noAddress = /\.invalid$/.test(dest), right = [];
       if (inPage) right.push(qmini("Preview", function () { previewWith(site, dest); }));
       else if (!noAddress) right.push(qmini("Open", function () {
         var o = policy.open(site, dest); if (!o) return;
-        var go = function () { try { window.open(o.url, "_blank", "noopener"); } catch (e) {} };   // now, visibly, by the person's choice
-        try { chrome.runtime.sendMessage({ type: "prism-popup-deliberate", url: o.url }, function () { go(); }); } catch (e) { go(); }
+        // now, visibly, by the person's choice. The background opens the tab (B-587: Safari gives a page no window once the press
+        // is over, and the answer to the message comes after it); the page opens it only where the background did not.
+        var go = function () { try { window.open(o.url, "_blank", "noopener"); } catch (e) {} };
+        try { chrome.runtime.sendMessage({ type: "prism-popup-deliberate", url: o.url, open: true }, function (r) { void chrome.runtime.lastError; if (!(r && r.opened)) go(); }); } catch (e) { go(); }
       }));
       right.push(qmini("Allow", function () { policy.allow(site, dest); }));
       var r = qrow("", plainDest(dest), right); r.title = v.count + " stopped: " + v.reason;
@@ -681,7 +691,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
   }
   // ---- the bar
   function renderBar() {
-    var vtotal = 0; visitRows().forEach(function (r) { vtotal += r.count; });
+    var vtotal = listRows().length;
     if (!vtotal) popsUp = false;
     var off = veilIsOff();
     if (popsUp) add(panel, add(el("div", "qover"), qlist(blockedRows())));
@@ -744,7 +754,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
     return d;
   }
   function siteTab(b) {
-    var off = veilIsOff(), vtotal = 0; visitRows().forEach(function (r) { vtotal += r.count; });
+    var off = veilIsOff(), vtotal = listRows().length;
     add(b, head(site, qsw("PRISM on this site", !off, function (on) { if (PV.setVeilOffHere) PV.setVeilOffHere(!on); }, allOff())));
     var acts = el("div", "qacts");
     add(acts, tapBtn("qact", [ico("peel"), "Reveal 15 s"], reveal15), tapBtn("qact", [ico("flag"), "Report"], reportPick));
@@ -1007,7 +1017,7 @@ h2+.toggle,h3+.toggle,.sub+.toggle{border-top:0}\
         } catch (e) { prefs = effectivePrefs(); prefs.hidden = !showing; if (showing) prefs.collapsed = false; applyPrefs(prefs); }
       }
       if (msg.type === "prism-popup-visit") {
-        sendResponse({ site: site, since: visitSince, rows: visitRows().map(function (r) { return { dest: r.dest, count: r.count, url: r.url, reason: r.reason, last: r.last }; }) });
+        sendResponse({ site: site, since: visitSince, rows: listRows().map(function (r) { return { dest: r.dest, count: r.count, url: r.url, reason: r.reason, last: r.last }; }) });
         return true;
       }
       if (msg.type === "prism-popup-evaluate") {

@@ -274,6 +274,24 @@ describe("in-page pops", () => {
     await p.pass(1100);
     expect(held(f)).toBe("clear");
   });
+  // B-586, 2026-11-26, CNN on an iPhone: the place has clip-path, so the fixed ad shows only inside it and is never over the page.
+  it("leaves a fixed ad that is seen only through the clip of the place the page keeps for it, wherever that place is", async () => {
+    const p = load(); await p.pass(0);
+    const place = document.createElement("div"); place.setAttribute("data-box", "0,0,390,100"); place.style.clipPath = "inset(0px)"; document.body.appendChild(place);
+    const f = document.createElement("div"); f.setAttribute("data-box", "0,0,390,100"); f.style.cssText = "position:fixed;top:0;z-index:5"; place.appendChild(f);
+    const ad = document.createElement("div"); ad.setAttribute("data-box", "0,0,390,100"); f.appendChild(ad);
+    expect(getComputedStyle(place).clipPath).toBe("inset(0px)");
+    p.PV.coveredEls = () => [ad]; p.PV.whyFor = () => "slot-selector: [class*='ad-slot']";
+    await p.pass(1100);
+    expect(held(f)).toBe(null);
+    place.setAttribute("data-box", "0,-20,390,100");                // the page scrolled a little: part of the place is off the screen
+    await p.pass(1100);
+    expect(held(f)).toBe(null);
+    place.setAttribute("data-box", "0,-900,390,100");               // the place is gone, and the ad with it: nothing is over the page
+    await p.pass(1100);
+    expect(held(f)).toBe(null);
+    expect(p.PV.popupPolicy.ledger("watch.example").length).toBe(0);
+  });
   it("puts everything back as it was when the person always allows its destination", async () => {
     const p = load(); await p.pass(0);
     const u = unit(); u.style.setProperty("opacity", "0.9");
@@ -311,6 +329,20 @@ describe("in-page pops", () => {
     expect(p.PV.popupPolicy.ledger("watch.example")[0].dest).toBe("site-offer.invalid");
     u.remove(); await p.pass(1100);                                   // the page closes it: the page's own style is back
     expect(document.documentElement.style.getPropertyPriority("overflow-y")).toBe("");
+  });
+  // B-588, 2026-11-26, USA Today on an iPhone: the page stops every press under its offer by a style on <html>, with its scroll free.
+  it("puts the presses the offer stopped back while it is held, and the page's own style back when the offer goes", async () => {
+    const p = load(); await p.pass(0);
+    const root = document.documentElement;
+    root.style.pointerEvents = "none";
+    const u = offer(); await p.pass(1100);
+    expect(held(u)).toBe("clear");
+    expect(root.style.getPropertyValue("pointer-events")).toBe("auto");
+    expect(root.style.getPropertyPriority("pointer-events")).toBe("important");
+    u.remove(); await p.pass(1100);
+    expect(root.style.getPropertyValue("pointer-events")).toBe("none");
+    expect(root.style.getPropertyPriority("pointer-events")).toBe("");
+    root.style.pointerEvents = "";
   });
   it("leaves a dialog with no close control, and one that names itself a paywall", async () => {
     const p = load(); await p.pass(0);
