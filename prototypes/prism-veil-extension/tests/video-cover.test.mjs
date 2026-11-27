@@ -551,6 +551,22 @@ describe("the video cover scrolls with the page", () => {
     v.getBoundingClientRect = () => rect; box.getBoundingClientRect = () => rect;
     return { v, box };
   };
+  it("is cut at the foot of the page's top bar when the player is under it, and whole when it is not (B-621)", () => {
+    const PV = loadVeil({ host: "www.usatoday.com", width: 440, height: 750 }); PV.pickArt = () => "";
+    const { v, box } = mount("");
+    const bar = document.createElement("header"); document.body.appendChild(bar);
+    let foot = 348;
+    bar.getBoundingClientRect = () => ({ left: 0, top: 0, width: 440, height: foot, right: 440, bottom: foot });
+    PV.topBar = { top: foot, el: bar, from: 0 };
+    const cover = PV.__buildCover(true);
+    cover.getBoundingClientRect = () => ({ left: 0, top: 300, width: 440, height: 248 });
+    PV.__placeCoverFor({ cover, video: v, box, mode: "pause" });
+    expect(cover.style.clipPath).toBe("inset(48px 0 0 0)");
+    foot = 81;
+    PV.__placeCoverFor({ cover, video: v, box, mode: "pause" });
+    expect(cover.style.clipPath).toBe("");
+    cover.remove(); PV.topBar = null;
+  });
   it("is placed in the page, at the player's place in the document", () => {
     const PV = loadVeil({ host: "www.reuters.com", width: 440, height: 750 }); PV.pickArt = () => "";
     const { v, box } = mount("");

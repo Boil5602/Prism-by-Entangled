@@ -1352,8 +1352,14 @@
       // ~1px feathered edge so it sits in the art rather than looking punched
       // out. An SVG alpha mask (evenodd path) does what clip-path polygons
       // cannot: curves and soft edges.
-      var pad = 4, hx = sr.left - vr.left - pad, hy = sr.top - vr.top - pad, hw = sr.width + 2 * pad, hh = sr.height + 2 * pad;
-      if (hx > -1 && hy > -1) {
+      // A button that draws its own edge or ground gets a margin of 1 px, not 4 (B-621, 2026-11-27, a recording from usatoday.com
+      // on an iPhone: the ad showed in the margin round the player's Skip button, which has a white edge of its own). The wider
+      // margin stays for a control that is only its text.
+      var pad = 4;
+      try { var ks = getComputedStyle(sk); if (parseFloat(ks.borderTopWidth) > 0 || !/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(ks.backgroundColor)) pad = 1; } catch (eK) {}
+      var bar = c.__bar || 0;
+      var hx = sr.left - vr.left - pad, hy = sr.top - vr.top - pad, hw = sr.width + 2 * pad, hh = sr.height + 2 * pad;
+      if (hx > -1 && hy > -1 && hy >= bar) {
         // The hole takes the control's OWN corner radius (+ the margin), so a
         // pill (YouTube's Skip) stays a pill and a rectangle (Paramount+'s
         // "Click to return to the video") stays a rectangle; capped at a pill.
@@ -1363,7 +1369,7 @@
           if (isFinite(br)) { if (/%$/.test(cs.borderTopLeftRadius)) br = br / 100 * Math.min(sr.width, sr.height); rr = Math.min(hh / 2, Math.max(2, br + pad)); }
         } catch (eR) {}
         c.__hole = { left: sr.left - pad, top: sr.top - pad, width: sr.width + 2 * pad, height: sr.height + 2 * pad }; c.__holeEl = sk;
-        var key = [W, H, Math.round(hx), Math.round(hy), Math.round(hw), Math.round(hh), Math.round(rr)].join(",");
+        var key = [W, H, Math.round(hx), Math.round(hy), Math.round(hw), Math.round(hh), Math.round(rr), Math.round(bar)].join(",");
         if (c.__holeKey !== key) {
           if (c.__holeKey === undefined) trace("hole open " + sk.tagName + "." + PV.classStr(sk).slice(0, 40) + " " + Math.round(sr.width) + "x" + Math.round(sr.height));
           c.__holeKey = key;
@@ -1380,14 +1386,14 @@
           // 2026-08-29). A clip-path hole DOES hit-test: cut one just inside
           // the rounded mask hole so the human's own click reaches the button.
           var ix = Math.min(rr * 0.3, 6) + 1, cx0 = hx + ix, cy0 = hy + ix, cx1 = hx + hw - ix, cy1 = hy + hh - ix;
-          c.style.clipPath = "polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 " + cy0 + "px, " + cx0 + "px " + cy0 + "px, " + cx0 + "px " + cy1 + "px, " + cx1 + "px " + cy1 + "px, " + cx1 + "px " + cy0 + "px, 0 " + cy0 + "px)";
+          c.style.clipPath = "polygon(0 " + bar + "px, 100% " + bar + "px, 100% 100%, 0 100%, 0 " + cy0 + "px, " + cx0 + "px " + cy0 + "px, " + cx0 + "px " + cy1 + "px, " + cx1 + "px " + cy1 + "px, " + cx1 + "px " + cy0 + "px, 0 " + cy0 + "px)";
           // The cut that takes a press is the opening's own shape, whole (2026-11-23, YouTube's phone site in iOS Safari: Skip went
           // grey on the first press and skipped on the second). The rectangle above is cut inside the rounded opening, about 3 px
           // inside the button on each side, so a finger at the button's edge met the cover; the cover then passed on a click of
           // its own, which YouTube does not take, and the button only took the focus. Where the browser cuts by a path, the cut
           // is the rounded opening itself: the button and its margin.
           try {
-            var pth = "path(evenodd, 'M-9 -9H" + (W + 9) + "V" + (H + 9) + "H-9Z M" + (hx + rr) + " " + hy + "h" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " " + rr + "v" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " " + rr + "h-" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " -" + rr + "v-" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " -" + rr + "z')";
+            var pth = "path(evenodd, 'M-9 " + (bar > 0 ? bar : -9) + "H" + (W + 9) + "V" + (H + 9) + "H-9Z M" + (hx + rr) + " " + hy + "h" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " " + rr + "v" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " " + rr + "h-" + (hw - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 -" + rr + " -" + rr + "v-" + (hh - 2 * rr) + "a" + rr + " " + rr + " 0 0 1 " + rr + " -" + rr + "z')";
             if (typeof CSS !== "undefined" && CSS.supports && CSS.supports("clip-path", pth)) c.style.clipPath = pth;
           } catch (eP) {}
           // and a glowing ring around it, so the opening is seen (2026-10-25)
@@ -2054,8 +2060,23 @@
     // Only ad veils get a cutout (Skip). The pause veil's own Resume is the
     // way back; a cut-out "Click to return to the video" did nothing when
     // clicked through the hole (Paramount+, 2026-08-29), so it is gone.
-    if (vidVeil.mode === "ad") { if (withSkip) applySkipHole(c, vr, findSkip()); }
+    // THE COVER GOES UNDER THE PAGE'S TOP BAR (B-621, 2026-11-27, a recording from usatoday.com on an iPhone: scrolled up, the
+    // cover of the video ad rode over the site's header). A cover placed in the page is cut at the foot of the bar the display
+    // covers already know (covers.js, PV.topBar), unless the player is inside that bar. The Skip opening is cut in the same
+    // shape, and is left out while it lies under the bar.
+    var bar = 0;
+    try {
+      var tb = PV.topBar, be = tb && tb.el;
+      if (inPage && be && be.isConnected && !(vidVeil.box && be.contains(vidVeil.box)) && !(vidVeil.video && be.contains(vidVeil.video))) {
+        var br0 = be.getBoundingClientRect();
+        if (br0.height > 0 && br0.top <= (tb.from || 0) + 4 && br0.bottom > vr.top) bar = Math.min(vr.height, Math.round((br0.bottom - vr.top) * 10) / 10);
+      }
+    } catch (eB) {}
+    var barWas = c.__bar || 0; c.__bar = bar;
+    if (vidVeil.mode === "ad") { if (withSkip) applySkipHole(c, vr, findSkip()); else if (bar !== barWas && c.__holeKey !== undefined && c.__holeEl) applySkipHole(c, vr, c.__holeEl); }
     else clearHole(c);
+    if (c.__holeKey === undefined) { var want = bar > 0 ? "inset(" + bar + "px 0 0 0)" : ""; if ((c.__barClip || "") !== want) { c.__barClip = want; c.style.clipPath = want; } }
+    else c.__barClip = null;
     return vr;
   }
   // The pause panel's own way back ("Click to return to the video" on
