@@ -1245,6 +1245,20 @@ describe("PRISM clear layers", () => {
     touch("touchmove", 320); touch("touchmove", 360);
     expect(closed).toBe(1);
   });
+  it("closes by the pointer's moves when a touchstart with no touch in its list comes between (B-624), and by a move with no start", () => {
+    const PV = loadVeil({ host: "www.linkedin.com" });
+    (0, eval)(require("node:fs").readFileSync(require("node:path").join(require("node:path").dirname(require("node:url").fileURLToPath(import.meta.url)), "..", "src", "covers.js"), "utf8"));
+    const el = document.createElement("div"); let closed = 0;
+    PV.dragCloses(el, () => { closed++; });
+    const ptr = (type, y) => { const e = new Event(type); e.pointerType = "touch"; e.clientX = 100; e.clientY = y; el.dispatchEvent(e); };
+    ptr("pointerdown", 700); const ts = new Event("touchstart"); ts.touches = []; el.dispatchEvent(ts);
+    ptr("pointermove", 660);
+    expect(closed).toBe(1);
+    const el2 = document.createElement("div"); let closed2 = 0;
+    PV.dragCloses(el2, () => { closed2++; });
+    const p2 = (y) => { const e = new Event("pointermove"); e.pointerType = "touch"; e.clientX = 100; e.clientY = y; el2.dispatchEvent(e); };
+    p2(500); expect(closed2).toBe(0); p2(470); expect(closed2).toBe(1);
+  });
 });
 describe("Dianomi wrapper the height of a column", () => {
   it("is not covered; a widget-sized one is", () => {

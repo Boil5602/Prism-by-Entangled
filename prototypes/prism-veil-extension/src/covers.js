@@ -218,13 +218,21 @@
   // that scrolls in an element of its own gets no scroll from it, so a close on the page's scroll never came. The drag itself
   // closes: past 10 px, by touch events or by a finger's pointer events, and when the browser takes the drag for its own.
   PV.dragCloses = function (el, close) {
-    var at = null, byFinger = function (e) { return e.pointerType === "touch" || e.pointerType === "pen"; };
-    function move(x, y) { if (at && (Math.abs(x - at.x) > 10 || Math.abs(y - at.y) > 10)) { at = null; try { close(); } catch (e) {} } }
-    el.addEventListener("touchstart", function (e) { var t = e.touches && e.touches[0]; at = t ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
-    el.addEventListener("touchmove", function (e) { var t = e.touches && e.touches[0]; if (t) move(t.clientX, t.clientY); }, { passive: true });
-    el.addEventListener("pointerdown", function (e) { if (byFinger(e)) at = { x: e.clientX, y: e.clientY }; }, { passive: true });
-    el.addEventListener("pointermove", function (e) { if (byFinger(e)) move(e.clientX, e.clientY); }, { passive: true });
-    el.addEventListener("pointercancel", function (e) { if (byFinger(e) && at) { at = null; try { close(); } catch (e2) {} } }, { passive: true });
+    // The finger's start is kept for touch events and for pointer events apart, and a move with no start known takes its own place
+    // as the start (B-624, 2026-11-27, a report that the drag no longer closed the small view; in headless Firefox a finger's drag
+    // of 240 px closed nothing: a touchstart with no touch in its list wiped the start that pointerdown had just set, and the moves
+    // after it had nothing to measure from).
+    var tAt = null, pAt = null, done = false, byFinger = function (e) { return e.pointerType === "touch" || e.pointerType === "pen"; };
+    function shut() { if (done) return; done = true; tAt = pAt = null; try { close(); } catch (e) {} setTimeout(function () { done = false; }, 0); }
+    function far(a, x, y) { return Math.abs(x - a.x) > 10 || Math.abs(y - a.y) > 10; }
+    function first(e) { var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]); return t ? { x: t.clientX, y: t.clientY } : null; }
+    el.addEventListener("touchstart", function (e) { var t = first(e); if (t) tAt = t; }, { passive: true });
+    el.addEventListener("touchmove", function (e) { var t = first(e); if (!t) return; if (!tAt) { tAt = t; return; } if (far(tAt, t.x, t.y)) shut(); }, { passive: true });
+    el.addEventListener("touchend", function () { tAt = null; }, { passive: true });
+    el.addEventListener("pointerdown", function (e) { if (byFinger(e)) pAt = { x: e.clientX, y: e.clientY }; }, { passive: true });
+    el.addEventListener("pointermove", function (e) { if (!byFinger(e)) return; if (!pAt) { pAt = { x: e.clientX, y: e.clientY }; return; } if (far(pAt, e.clientX, e.clientY)) shut(); }, { passive: true });
+    el.addEventListener("pointerup", function (e) { if (byFinger(e)) pAt = null; }, { passive: true });
+    el.addEventListener("pointercancel", function (e) { if (byFinger(e) && (pAt || tAt)) shut(); }, { passive: true });
   };
   function lookScrim() {
     var s = document.createElement("div");

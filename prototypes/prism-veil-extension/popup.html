@@ -21,7 +21,14 @@
      opens in place. Switches sit at the right of their rows; the picture sets and the sources are chips. */
   html, body { margin:0; }
   /* iOS Safari alone (the touch-callout property is its own), with the phone set to light: a light ground behind Safari's black title */
-  @supports (-webkit-touch-callout: none) { @media (prefers-color-scheme: light) { html { background:#E8ECF2; } body { min-height:100vh; } } }
+  /* 0.9.103 gave the root a light ground and the strip stayed dark (B-623, a picture on 0.9.103). The strip's colour in both pictures is
+     the body's own ground (#14171C), so the body's ground is the light one, and the dark the page shows is drawn by a layer under
+     the content. */
+  @supports (-webkit-touch-callout: none) { @media (prefers-color-scheme: light) {
+    html { background:#E8ECF2; }
+    html body { background:#E8ECF2; isolation:isolate; }   /* a stacking context, so the layer lies over this ground and under the content */
+    html body::before { content:""; position:fixed; left:0; top:0; right:0; bottom:0; background:var(--wall); z-index:-1; pointer-events:none; }
+  } }
   html.framed { overflow:hidden; scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
   html.framed body { min-width:0; }
   html.paged { overflow-y:auto; -webkit-overflow-scrolling:touch; }
