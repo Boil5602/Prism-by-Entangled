@@ -9,6 +9,35 @@
 (function () {
   // The version, beside the name (2026-11-27, asked for the version in the menu).
   try { document.getElementById("ver").textContent = chrome.runtime.getManifest().version; } catch (eV) {}
+  // The wordmark (2026-11-27, asked for the website's PRISM mark and its effect in the menu; popup.html has the styles). Each
+  // letter gets four coloured copies and a white one; a run slides them apart and back. It plays once when the menu opens and on
+  // a hover or a press of the mark, never more than once in two seconds, never with reduced motion on. A browser with no
+  // registered properties keeps the word as it was.
+  (function wordmark() {
+    try {
+      var el = document.querySelector(".top .brand");
+      if (!el || typeof CSS === "undefined" || !("registerProperty" in CSS)) return;
+      var word = el.textContent; el.textContent = "";
+      el.setAttribute("role", "img"); el.setAttribute("aria-label", word);
+      word.split("").forEach(function (ch) {
+        var l = document.createElement("span"); l.className = "pw-l"; l.textContent = ch;
+        ["pw-b1", "pw-b2", "pw-b3", "pw-b4", "pw-w"].forEach(function (c) {
+          var s = document.createElement("span"); s.className = "pw-c " + c; s.setAttribute("aria-hidden", "true"); s.textContent = ch; l.appendChild(s);
+        });
+        el.appendChild(l);
+      });
+      el.classList.add("pw");
+      var last = 0;
+      var play = function () {
+        try { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (eM) {}
+        var now = Date.now(); if (now - last < 2000) return; last = now;
+        el.classList.remove("pw-play"); void el.offsetWidth; el.classList.add("pw-play");
+        setTimeout(function () { el.classList.remove("pw-play"); }, 1600);
+      };
+      el.addEventListener("pointerenter", play); el.addEventListener("click", play);
+      requestAnimationFrame(function () { requestAnimationFrame(play); });
+    } catch (eW) {}
+  })();
   // Tooltip panel: hover or keyboard-focus a [data-tip] row and its text
   // (our own HTML) shows in one styled panel below or above the row.
   (function tips() {

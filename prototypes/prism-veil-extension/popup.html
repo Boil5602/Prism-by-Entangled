@@ -36,6 +36,17 @@
   body { min-width:1000px; background:var(--wall); color:var(--ink); font:13px/1.45 "Segoe UI Variable Text","Segoe UI",-apple-system,Roboto,sans-serif; }
   .top { display:flex; align-items:center; gap:24px; padding:14px 24px; background:var(--bezel); border-bottom:1px solid var(--edge); }
   .brand { font:700 15px/1 "Segoe UI Variable Display","Segoe UI",-apple-system,Roboto,sans-serif; letter-spacing:.34em; color:var(--accent); }
+  /* The PRISM wordmark of the website and the app (2026-11-27, asked for in the menu; docs/features/animated-wordmark.md, the
+     website's four bands and a white copy). popup.js builds the copies and adds .pw: with no script the word stays as it was.
+     White at rest; on a run the coloured copies slide apart and come back. Same size and spacing as before, so nothing moves. */
+  @property --pwd { syntax:'<number>'; inherits:true; initial-value:0; }
+  .brand.pw { display:inline-block; position:relative; --pwd:0; color:transparent; white-space:nowrap; cursor:default; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  .brand.pw .pw-l { position:relative; display:inline-block; }
+  .brand.pw .pw-l > .pw-c { position:absolute; left:0; top:0; mix-blend-mode:screen; pointer-events:none; transform:translate(calc(var(--pwd) * var(--k) * 1em / 88), calc(var(--pwd) * var(--k) * -0.55 * 1em / 88)); }
+  .pw-b1 { color:#F0A83C; --k:-1.5; } .pw-b2 { color:#5CC8C0; --k:-0.5; } .pw-b3 { color:#C86CF0; --k:0.5; } .pw-b4 { color:#F05C7A; --k:1.5; } .pw-w { color:#fff; --k:0; }
+  .brand.pw.pw-play { animation:pw-run 1500ms cubic-bezier(0.3, 0, 0.2, 1) 1; }
+  @keyframes pw-run { 0% { --pwd:0; } 38% { --pwd:9; } 52% { --pwd:9; } 100% { --pwd:0; } }
+  @media (prefers-reduced-motion: reduce) { .brand.pw.pw-play { animation:none; } }
   .desk { display:grid; grid-template-columns:minmax(250px,320px) minmax(0,1fr); align-items:stretch; }
   .rail { background:var(--rail); border-right:1px solid var(--edge); padding:4px 24px 20px; min-width:0; }
   .sitehead { display:flex; align-items:center; gap:10px; margin-top:16px; min-height:36px; }
